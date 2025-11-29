@@ -13,22 +13,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Windows
           - platform: windows-latest
             args: ''
-            target: ''
-          # macOS Intel
           - platform: macos-latest
-            args: '--target x86_64-apple-darwin'
-            target: 'x86_64-apple-darwin'
-          # macOS Apple Silicon
-          - platform: macos-latest
-            args: '--target aarch64-apple-darwin'
-            target: 'aarch64-apple-darwin'
-          # Linux
+            args: '--target universal-apple-darwin'
           - platform: ubuntu-22.04
             args: ''
-            target: ''
 
     runs-on: ${{ matrix.platform }}
 
@@ -37,9 +27,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Rust stable
-        uses: dtolnay/rust-action@stable
+        uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+        if: matrix.platform == 'macos-latest'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        if: matrix.platform != 'macos-latest'
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
@@ -66,13 +61,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Nekotick v__VERSION__'
+          releaseName: 'Nekotick ${{ github.ref_name }}'
           releaseBody: |
-            See the changelog for details.
-            
             ## Downloads
             - **Windows**: `.exe` or `.msi`
-            - **macOS**: `.dmg` (Intel & Apple Silicon)
+            - **macOS**: `.dmg` (Universal Binary)
             - **Linux**: `.AppImage` or `.deb`
           releaseDraft: true
           prerelease: false

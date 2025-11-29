@@ -17,11 +17,8 @@ jobs:
       matrix:
         include:
           - platform: windows-latest
-            target: ''
           - platform: macos-latest
-            target: 'x86_64-apple-darwin'
           - platform: ubuntu-22.04
-            target: ''
 
     runs-on: ${{ matrix.platform }}
 
@@ -30,9 +27,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Rust stable
-        uses: dtolnay/rust-action@stable
-        with:
-          targets: ${{ matrix.target }}
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
@@ -63,8 +58,6 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
 
   lint:
     runs-on: ubuntu-latest
