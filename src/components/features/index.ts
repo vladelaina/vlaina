@@ -1,0 +1,9 @@
+export { TaskItem } from './TaskItem';
+export { TaskList } from './TaskList';
+export { TaskInput } from './TaskInput';
+export { CommandMenu } from './CommandMenu';
+export { ActivityHeatmap } from './ActivityHeatmap';
+export { StatsDialog } from './StatsDialog';
+
+// Re-export for convenience
+export type { Task } from '@/types';
