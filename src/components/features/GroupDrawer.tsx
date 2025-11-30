@@ -248,14 +248,18 @@ export function GroupSidebar() {
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cachedDraggingTaskIdRef = useRef<string | null>(null);
   const originalGroupIdRef = useRef<string | null>(null);
+  const prevDraggingTaskIdRef = useRef<string | null>(null);
 
   // Cache draggingTaskId and original groupId when drag starts
   useEffect(() => {
-    if (draggingTaskId && !cachedDraggingTaskIdRef.current) {
+    // Detect drag start: draggingTaskId changed from null to a value
+    if (draggingTaskId && !prevDraggingTaskIdRef.current) {
       cachedDraggingTaskIdRef.current = draggingTaskId;
       originalGroupIdRef.current = activeGroupId;
     }
-  }, [draggingTaskId, activeGroupId]);
+    prevDraggingTaskIdRef.current = draggingTaskId;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draggingTaskId]); // activeGroupId intentionally excluded - only read on drag start
 
   // Cleanup timeout on unmount
   useEffect(() => {

@@ -1,10 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
-import { useSortable } from '@dnd-kit/sortable';
+import { useSortable, defaultAnimateLayoutChanges, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
 import { GripVertical, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/types';
+
+// Disable drop animation to prevent "snap back" effect
+const animateLayoutChanges: AnimateLayoutChanges = (args) => {
+  const { isSorting, wasDragging } = args;
+  if (isSorting || wasDragging) {
+    return false;
+  }
+  return defaultAnimateLayoutChanges(args);
+};
 
 interface TaskItemProps {
   task: Task;
@@ -28,12 +37,14 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, isBeingDragged, i
     listeners,
     setNodeRef,
     transform,
-    transition,
-  } = useSortable({ id: task.id });
+  } = useSortable({ 
+    id: task.id,
+    animateLayoutChanges,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: undefined, // Disable all dnd-kit transitions to prevent flicker
   };
 
   useEffect(() => {
@@ -77,31 +88,19 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, isBeingDragged, i
     <div className="h-10 rounded-md border-2 border-dashed border-zinc-300 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-800/50" />
   );
 
-  // When being dragged, hide the original item (content shown in native window)
-  if (isBeingDragged) {
-    return (
-      <>
-        {dropIndicator}
-        <div
-          ref={combinedRef}
-          data-task-id={task.id}
-          className="h-0 overflow-hidden"
-        />
-      </>
-    );
-  }
-
   return (
     <>
       {!insertAfter && dropIndicator}
       <div
         ref={combinedRef}
-        style={style}
+        style={{ ...style, transition: 'none' }}
         data-task-id={task.id}
         className={cn(
           'group flex items-center gap-2 px-2 py-2 rounded-md',
-          'hover:bg-muted/50 transition-colors duration-150',
-          'border border-transparent hover:border-border/50'
+          'border border-transparent',
+          isBeingDragged 
+            ? 'h-0 overflow-hidden opacity-0 !p-0 !m-0' 
+            : 'hover:bg-muted/50 hover:border-border/50'
         )}
       >
       {/* Drag Handle */}
@@ -122,7 +121,7 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, isBeingDragged, i
       <Checkbox
         checked={task.isDone}
         onCheckedChange={() => onToggle(task.id)}
-        className="h-4 w-4 rounded-sm border-muted-foreground/40"
+        className="h-4 w-4 rounded-sm border-muted-foreground/40 transition-none"
       />
 
       {/* Content */}

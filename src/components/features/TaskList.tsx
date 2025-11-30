@@ -93,6 +93,14 @@ export function TaskList() {
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
+    
+    // IMPORTANT: Update task order BEFORE clearing activeId
+    // Otherwise the dragged task will briefly appear at its old position (flicker)
+    if (over && active.id !== over.id) {
+      reorderTasks(active.id as string, over.id as string);
+    }
+    
+    // Now safe to show the task (it's already at the new position)
     setActiveId(null);
     setOverId(null);
     
@@ -101,10 +109,6 @@ export function TaskList() {
       await invoke('destroy_drag_window');
     } catch (e) {
       // ignore
-    }
-    
-    if (over && active.id !== over.id) {
-      reorderTasks(active.id as string, over.id as string);
     }
     
     // Delay clearing draggingTaskId to allow cross-group drop handlers to execute
