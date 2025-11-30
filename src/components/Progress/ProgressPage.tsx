@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, Plus, Minus } from 'lucide-react';
 import { useProgressStore, type ProgressItem, type CounterItem } from '@/stores/useProgressStore';
 
 type ViewMode = 'list' | 'create-progress' | 'create-counter';
 
 export function ProgressPage() {
-  const { items, addProgress, addCounter, updateCurrent, deleteItem } = useProgressStore();
+  const { items, addProgress, addCounter, updateCurrent, deleteItem, loadItems } = useProgressStore();
+  
+  useEffect(() => {
+    loadItems();
+  }, [loadItems]);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [showFabMenu, setShowFabMenu] = useState(false);
   

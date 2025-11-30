@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { ActivityCalendar, type ThemeInput } from 'react-activity-calendar';
 import { Tooltip } from 'react-tooltip';
-import { useTaskStore } from '@/stores/useTaskStore';
+import { useGroupStore } from '@/stores/useGroupStore';
 
 // Zinc-based monochromatic theme
 const calendarTheme: ThemeInput = {
@@ -19,7 +19,7 @@ interface ActivityData {
  * Transform tasks into activity calendar data format
  */
 function useActivityData(): ActivityData[] {
-  const tasks = useTaskStore((state) => state.tasks);
+  const tasks = useGroupStore((state) => state.tasks);
 
   return useMemo(() => {
     // Get date range: last 365 days
@@ -31,9 +31,10 @@ function useActivityData(): ActivityData[] {
     const countsByDate = new Map<string, number>();
 
     tasks.forEach((task) => {
-      if (task.isDone && task.completedAt) {
-        const current = countsByDate.get(task.completedAt) || 0;
-        countsByDate.set(task.completedAt, current + 1);
+      if (task.completed && task.completedAt) {
+        const dateStr = new Date(task.completedAt).toISOString().split('T')[0];
+        const current = countsByDate.get(dateStr) || 0;
+        countsByDate.set(dateStr, current + 1);
       }
     });
 
@@ -62,24 +63,16 @@ function useActivityData(): ActivityData[] {
 
 export function ActivityHeatmap() {
   const data = useActivityData();
-  const tasks = useTaskStore((state) => state.tasks);
+  const tasks = useGroupStore((state) => state.tasks);
 
   // Calculate stats
-  const completedTasks = tasks.filter((t) => t.isDone);
+  const completedTasks = tasks.filter((t) => t.completed);
   const totalCompleted = completedTasks.length;
-  const totalEstimated = completedTasks.reduce(
-    (sum, t) => sum + (t.estimatedMinutes || 0),
-    0
-  );
-  const totalActual = completedTasks.reduce(
-    (sum, t) => sum + (t.actualMinutes || 0),
-    0
-  );
 
   // Find streak
   let currentStreak = 0;
   const completedDates = completedTasks
-    .map((t) => t.completedAt)
+    .map((t) => t.completedAt ? new Date(t.completedAt).toISOString().split('T')[0] : null)
     .filter((d): d is string => Boolean(d));
   const uniqueDates = [...new Set(completedDates)].sort().reverse();
 
@@ -98,17 +91,9 @@ export function ActivityHeatmap() {
   return (
     <div className="space-y-6">
       {/* Stats Summary */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4">
         <StatCard label="Total Completed" value={totalCompleted} />
         <StatCard label="Current Streak" value={`${currentStreak} days`} />
-        <StatCard 
-          label="Time Estimated" 
-          value={formatTime(totalEstimated)} 
-        />
-        <StatCard 
-          label="Time Actual" 
-          value={formatTime(totalActual)} 
-        />
       </div>
 
       {/* Heatmap */}
@@ -143,13 +128,4 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );
-}
-
-function formatTime(minutes: number): string {
-  if (minutes === 0) return '0m';
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (hours === 0) return `${mins}m`;
-  if (mins === 0) return `${hours}h`;
-  return `${hours}h ${mins}m`;
 }

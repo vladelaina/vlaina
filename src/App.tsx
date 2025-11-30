@@ -8,22 +8,20 @@ import { TimeTrackerPage } from '@/components/TimeTracker';
 import { ProgressPage } from '@/components/Progress';
 import { Layout } from '@/components/layout';
 import { ThemeProvider } from '@/components/theme-provider';
-import { useTaskStore } from '@/stores/useTaskStore';
 import { useViewStore } from '@/stores/useViewStore';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useVimShortcuts } from '@/hooks/useVimShortcuts';
 
 function AppContent() {
-  const { tasks, loadTasks, isLoading, isInitialized } = useTaskStore();
-  const { currentView, setView } = useViewStore();
-  const { activeGroupId, deleteGroup, groups } = useGroupStore();
+  const { currentView } = useViewStore();
+  const { activeGroupId, deleteGroup, groups, tasks, loadData, loaded } = useGroupStore();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
   // 获取当前分组信息
   const activeGroup = groups.find(g => g.id === activeGroupId);
-  const groupTasks = tasks.filter(t => (t.groupId || 'default') === activeGroupId);
+  const groupTasks = tasks.filter(t => t.groupId === activeGroupId);
   const now = new Date();
   const formatDate = (date: Date | number) => {
     const d = new Date(date);
@@ -46,10 +44,10 @@ function AppContent() {
   // Enable VIM-style keyboard navigation
   useVimShortcuts();
 
-  // Load tasks on app startup
+  // Load data on app startup
   useEffect(() => {
-    loadTasks();
-  }, [loadTasks]);
+    loadData();
+  }, [loadData]);
 
   const handleFocusInput = () => {
     // Focus the task input
@@ -174,14 +172,14 @@ function AppContent() {
 
             <div className="max-w-3xl mx-auto px-6 py-8">
               {/* Loading State */}
-              {isLoading && !isInitialized && (
+              {!loaded && (
                 <div className="py-8 text-center text-muted-foreground text-sm">
                   Loading tasks...
                 </div>
               )}
 
               {/* Main Content */}
-              {isInitialized && (
+              {loaded && (
                 <>
                   {/* Task Input */}
                   <div className="mb-4">

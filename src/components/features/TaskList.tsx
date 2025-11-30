@@ -15,16 +15,14 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { TaskItem } from './TaskItem';
-import { useTaskStore } from '@/stores/useTaskStore';
 import { useGroupStore } from '@/stores/useGroupStore';
 
 export function TaskList() {
-  const { tasks, toggleTask, updateTaskContent, updateTaskTime, deleteTask, reorderTasks } = useTaskStore();
-  const activeGroupId = useGroupStore((s) => s.activeGroupId);
+  const { tasks, toggleTask, updateTask, deleteTask, reorderTasks, activeGroupId } = useGroupStore();
 
   // Filter tasks by current group
   const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => (t.groupId || 'default') === activeGroupId);
+    return tasks.filter((t) => t.groupId === activeGroupId).sort((a, b) => a.order - b.order);
   }, [tasks, activeGroupId]);
 
   const sensors = useSensors(
@@ -70,10 +68,17 @@ export function TaskList() {
             {filteredTasks.map((task) => (
               <TaskItem
                 key={task.id}
-                task={task}
+                task={{
+                  id: task.id,
+                  content: task.content,
+                  isDone: task.completed,
+                  createdAt: task.createdAt,
+                  groupId: task.groupId,
+                  completedAt: task.completedAt ? new Date(task.completedAt).toISOString().split('T')[0] : undefined,
+                }}
                 onToggle={toggleTask}
-                onUpdate={updateTaskContent}
-                onUpdateTime={updateTaskTime}
+                onUpdate={updateTask}
+                onUpdateTime={() => {}}
                 onDelete={deleteTask}
               />
             ))}

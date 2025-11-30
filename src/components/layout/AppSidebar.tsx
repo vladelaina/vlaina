@@ -14,7 +14,7 @@ import {
   X,
   Menu,
 } from 'lucide-react';
-import { useTaskStore } from '@/stores/useTaskStore';
+import { useGroupStore } from '@/stores/useGroupStore';
 import { cn } from '@/lib/utils';
 
 // Navigation items
@@ -25,8 +25,8 @@ const navItems = [
 ];
 
 export function AppSidebar() {
-  const tasks = useTaskStore((state) => state.tasks);
-  const inboxCount = tasks.filter((t) => !t.isDone).length;
+  const tasks = useGroupStore((state) => state.tasks);
+  const inboxCount = tasks.filter((t) => !t.completed).length;
   const { state, toggleSidebar } = useSidebar();
   const isExpanded = state === 'expanded';
 

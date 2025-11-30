@@ -18,7 +18,7 @@ import {
   Settings,
   Keyboard,
 } from 'lucide-react';
-import { useTaskStore } from '@/stores/useTaskStore';
+import { useGroupStore } from '@/stores/useGroupStore';
 
 interface CommandMenuProps {
   onFocusInput?: () => void;
@@ -27,7 +27,7 @@ interface CommandMenuProps {
 export function CommandMenu({ onFocusInput }: CommandMenuProps) {
   const [open, setOpen] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { tasks, deleteTask } = useTaskStore();
+  const { tasks, deleteTask } = useGroupStore();
 
   // Global keyboard shortcut
   useEffect(() => {
@@ -50,11 +50,11 @@ export function CommandMenu({ onFocusInput }: CommandMenuProps) {
   }, []);
 
   const handleClearCompleted = () => {
-    const completedTasks = tasks.filter((t) => t.isDone);
+    const completedTasks = tasks.filter((t) => t.completed);
     completedTasks.forEach((t) => deleteTask(t.id));
   };
 
-  const completedCount = tasks.filter((t) => t.isDone).length;
+  const completedCount = tasks.filter((t) => t.completed).length;
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>

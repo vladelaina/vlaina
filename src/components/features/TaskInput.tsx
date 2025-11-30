@@ -2,17 +2,17 @@ import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useTaskStore } from '@/stores/useTaskStore';
+import { useGroupStore } from '@/stores/useGroupStore';
 
 export function TaskInput() {
   const [content, setContent] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const addTask = useTaskStore((state) => state.addTask);
+  const { addTask, activeGroupId } = useGroupStore();
 
   const handleSubmit = () => {
-    if (content.trim()) {
-      addTask({ content: content.trim() });
+    if (content.trim() && activeGroupId) {
+      addTask(content.trim(), activeGroupId);
       setContent('');
       // Keep focus for rapid entry
       inputRef.current?.focus();

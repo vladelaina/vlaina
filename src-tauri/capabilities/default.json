@@ -15,23 +15,31 @@
     "fs:default",
     {
       "identifier": "fs:allow-read-text-file",
-      "allow": [{ "path": "$DOCUMENT/**" }]
+      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick\\**" }]
     },
     {
       "identifier": "fs:allow-write-text-file",
-      "allow": [{ "path": "$DOCUMENT/**" }]
+      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick\\**" }]
     },
     {
       "identifier": "fs:allow-exists",
-      "allow": [{ "path": "$DOCUMENT/**" }]
+      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick\\**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick" }]
     },
     {
       "identifier": "fs:allow-create",
-      "allow": [{ "path": "$DOCUMENT/**" }]
+      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick\\**" }]
     },
     {
       "identifier": "fs:allow-mkdir",
-      "allow": [{ "path": "$DOCUMENT/**" }]
+      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick\\**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick" }]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick\\**" }]
+    },
+    {
+      "identifier": "fs:allow-remove",
+      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick\\**" }]
     }
   ]
 }

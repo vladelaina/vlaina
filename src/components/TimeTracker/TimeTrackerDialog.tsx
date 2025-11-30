@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { loadTimeTracker, type DayTimeData } from '@/lib/storage';
 
 interface AppUsage {
   name: string;
@@ -38,63 +39,49 @@ const timeRangeLabels: Record<TimeRange, string> = {
 };
 
 export function TimeTrackerPage() {
+  const [allData, setAllData] = useState<DayTimeData[]>([]);
   const [appUsages, setAppUsages] = useState<AppUsage[]>([]);
   const [todayTotal, setTodayTotal] = useState(0);
   const [timeRange, setTimeRange] = useState<TimeRange>('day');
   const [sourceType, setSourceType] = useState<SourceType>('app');
   const [selectedApp, setSelectedApp] = useState<AppUsage | null>(null);
 
+  // 加载数据
   useEffect(() => {
-    // TODO: 从后端获取实际数据
-    // 目前使用模拟数据
-    const appMockData: AppUsage[] = [
-      { name: 'Windsurf', duration: 16200 },
-      { name: 'Google Chrome', duration: 8760 },
-      { name: 'Catime', duration: 7140 },
-      { name: 'Visual Studio Code', duration: 5400 },
-      { name: 'Notion', duration: 3600 },
-      { name: 'Discord', duration: 2880 },
-      { name: 'Spotify', duration: 2400 },
-      { name: 'Terminal', duration: 1800 },
-      { name: 'Notepad.exe', duration: 1397 },
-      { name: 'File Explorer', duration: 1200 },
-      { name: 'Microsoft Edge', duration: 900 },
-      { name: 'Slack', duration: 720 },
-      { name: 'Figma', duration: 600 },
-      { name: 'OBS Studio', duration: 480 },
-      { name: 'Steam', duration: 360 },
-      { name: 'WeChat', duration: 300 },
-      { name: 'QQ Music', duration: 240 },
-      { name: 'Postman', duration: 180 },
-      { name: 'Docker Desktop', duration: 120 },
-      { name: 'Calculator', duration: 60 },
-    ];
+    loadTimeTracker().then(data => {
+      setAllData(data);
+    });
+  }, []);
 
-    const webMockData: AppUsage[] = [
-      { name: 'github.com', duration: 12600 },
-      { name: 'youtube.com', duration: 9000 },
-      { name: 'bilibili.com', duration: 7200 },
-      { name: 'google.com', duration: 5400 },
-      { name: 'stackoverflow.com', duration: 4800 },
-      { name: 'twitter.com', duration: 3600 },
-      { name: 'reddit.com', duration: 2700 },
-      { name: 'zhihu.com', duration: 2400 },
-      { name: 'notion.so', duration: 1800 },
-      { name: 'figma.com', duration: 1500 },
-      { name: 'vercel.com', duration: 1200 },
-      { name: 'tauri.app', duration: 900 },
-      { name: 'tailwindcss.com', duration: 720 },
-      { name: 'react.dev', duration: 600 },
-      { name: 'npmjs.com', duration: 480 },
-      { name: 'v2ex.com', duration: 360 },
-      { name: 'juejin.cn', duration: 300 },
-      { name: 'medium.com', duration: 240 },
-    ];
+  // 根据选项过滤数据
+  useEffect(() => {
+    if (allData.length === 0) return;
 
-    const mockData = sourceType === 'app' ? appMockData : webMockData;
-    setAppUsages(mockData);
-    setTodayTotal(mockData.reduce((sum, app) => sum + app.duration, 0));
-  }, [sourceType]);
+    let filteredData: AppUsage[] = [];
+    
+    if (timeRange === 'day') {
+      // 取第一天的数据
+      const dayData = allData[0];
+      if (dayData) {
+        filteredData = sourceType === 'app' ? dayData.apps : dayData.websites;
+      }
+    } else if (timeRange === 'month' || timeRange === 'year') {
+      // 合并所有数据
+      const merged: Record<string, number> = {};
+      for (const day of allData) {
+        const items = sourceType === 'app' ? day.apps : day.websites;
+        for (const item of items) {
+          merged[item.name] = (merged[item.name] || 0) + item.duration;
+        }
+      }
+      filteredData = Object.entries(merged)
+        .map(([name, duration]) => ({ name, duration }))
+        .sort((a, b) => b.duration - a.duration);
+    }
+
+    setAppUsages(filteredData);
+    setTodayTotal(filteredData.reduce((sum, app) => sum + app.duration, 0));
+  }, [allData, sourceType, timeRange]);
 
   const maxDuration = appUsages.length > 0 ? appUsages[0].duration : 1;
 
