@@ -1,6 +1,9 @@
 import { readTextFile, writeTextFile, mkdir, readDir, exists, remove } from '@tauri-apps/plugin-fs';
+import { desktopDir } from '@tauri-apps/api/path';
 
-// 测试阶段使用桌面路径
+// TODO: Replace with dynamic path in production
+// For now, using desktop path for testing
+// In production, should use: await desktopDir() + '\\NekoTick'
 const BASE_PATH = 'C:\\Users\\vladelaina\\Desktop\\NekoTick';
 
 export const PATHS = {
@@ -9,6 +12,12 @@ export const PATHS = {
   progress: `${BASE_PATH}\\progress`,
   timeTracker: `${BASE_PATH}\\time-tracker`,
 };
+
+// Helper function for future migration to dynamic paths
+export async function initializeBasePath(): Promise<string> {
+  const desktop = await desktopDir();
+  return `${desktop}NekoTick`;
+}
 
 // 确保目录存在
 export async function ensureDirectories() {

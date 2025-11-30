@@ -88,35 +88,3 @@ This project strictly adheres to the following technology choices:
 * **Safety:** Handle errors explicitly.
 * **Role:** High-performance File I/O and Global Shortcut registration.
 
-## 6. 🚀 MVP Roadmap
-
-### Phase 1: The Core (Local)
-1.  **Architecture:** Setup Storage Repository & Markdown Parser.
-2.  **UI Bone:** Standard Task List with "Add" button + Drag & Drop.
-3.  **Command:** Basic implementation of `Cmd+K` (Hidden by default).
-4.  **Build Pipeline:** Configure GitHub Actions for Portable builds (Win/Mac/Linux).
-
-### Phase 2: The Features
-1.  **Activity Heatmap:** Implementation of the stats view.
-2.  **Time Auditing:** Add metadata fields to task details.
-
-### Phase 3: The Cloud (Web)
-1.  **API Strategy:** Implement Web fetch logic.
-2.  **Sync:** Background synchronization.
-
----
-
-## 🤖 AI Context Prompt (Copy-Paste)
-
-*If you are switching AI tools, paste this prompt to sync context:*
-
-"I am building **Nekotick**, a hybrid To-Do app using **Tauri v2 (Rust)** and **React (TypeScript)**.
-**Key Features:**
-1. **Markdown Storage:** Data is stored as local `.md` files.
-2. **Portable:** Distributed as a no-install portable app.
-3. **Capabilities:** **Activity Heatmap**, **Time Auditing**, and **Command Palette**.
-**Design:** Notion-esque, Monochromatic, Custom CSS support.
-**Stack:** Tailwind CSS, shadcn/ui, Framer Motion, cmdk, Zustand.
-**UX Goal:** Intuitive default UI; Keyboard shortcuts are optional.
-I am an experienced C/Open Source developer.
-Please assist me based on the `NEKOTICK_BLUEPRINT.md` specifications."

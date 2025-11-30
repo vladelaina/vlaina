@@ -12,6 +12,7 @@ import {
   type DragOverEvent,
 } from '@dnd-kit/core';
 import { invoke } from '@tauri-apps/api/core';
+import { ChevronRight, ChevronDown } from 'lucide-react';
 
 import {
   SortableContext,
@@ -30,15 +31,24 @@ export function TaskList() {
   const { tasks, toggleTask, updateTask, deleteTask, reorderTasks, activeGroupId, setDraggingTaskId, hideCompleted, moveTaskToGroup } = useGroupStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const [completedExpanded, setCompletedExpanded] = useState(true);
   const originalGroupIdRef = useRef<string | null>(null);
 
-  // Filter tasks by current group and hide completed if enabled
-  const filteredTasks = useMemo(() => {
-    return tasks
+  // Filter tasks by current group and split into incomplete/completed
+  const { incompleteTasks, completedTasks } = useMemo(() => {
+    const allTasks = tasks
       .filter((t) => t.groupId === activeGroupId)
-      .filter((t) => !hideCompleted || !t.completed)
       .sort((a, b) => a.order - b.order);
+    
+    return {
+      incompleteTasks: allTasks.filter((t) => !t.completed),
+      completedTasks: hideCompleted ? [] : allTasks.filter((t) => t.completed),
+    };
   }, [tasks, activeGroupId, hideCompleted]);
+
+  const filteredTasks = useMemo(() => {
+    return [...incompleteTasks, ...completedTasks];
+  }, [incompleteTasks, completedTasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -68,8 +78,10 @@ export function TaskList() {
       const width = rect?.width || 350;
       const height = rect?.height || 36;
       
-      // Get mouse position (screen coordinates)
+      // Get mouse position (screen coordinates) and detect dark mode
       const pointer = (event.activatorEvent as PointerEvent);
+      const isDarkMode = document.documentElement.classList.contains('dark');
+      
       try {
         await invoke('create_drag_window', {
           content: task.content,
@@ -78,6 +90,7 @@ export function TaskList() {
           width: width,
           height: height,
           isDone: task.completed,
+          isDark: isDarkMode,
         });
       } catch (e) {
         console.error('Failed to create drag window:', e);
@@ -107,9 +120,22 @@ export function TaskList() {
       // Move task to the new group at the drop position
       moveTaskToGroup(taskId, activeGroupId, over?.id as string | null);
     } else if (over && active.id !== over.id) {
-      // Same group reorder - update task order BEFORE clearing activeId
-      // Otherwise the dragged task will briefly appear at its old position (flicker)
-      reorderTasks(taskId, over.id as string);
+      // Check if dragging across completion status boundary
+      const draggedTask = tasks.find(t => t.id === taskId);
+      const targetTask = tasks.find(t => t.id === over.id);
+      
+      if (draggedTask && targetTask && draggedTask.completed !== targetTask.completed) {
+        // Cross-status drag: toggle the dragged task's status first
+        toggleTask(taskId);
+        // Small delay to let the state update, then reorder
+        setTimeout(() => {
+          reorderTasks(taskId, over.id as string);
+        }, 50);
+      } else {
+        // Same status reorder - update task order BEFORE clearing activeId
+        // Otherwise the dragged task will briefly appear at its old position (flicker)
+        reorderTasks(taskId, over.id as string);
+      }
     }
     
     // Now safe to show the task (it's already at the new position)
@@ -128,7 +154,7 @@ export function TaskList() {
     setTimeout(() => {
       setDraggingTaskId(null);
     }, 50);
-  }, [reorderTasks, setDraggingTaskId, activeGroupId, moveTaskToGroup]);
+  }, [reorderTasks, setDraggingTaskId, activeGroupId, moveTaskToGroup, tasks, toggleTask]);
 
   // Cleanup: destroy drag window on unmount
   useEffect(() => {
@@ -147,6 +173,34 @@ export function TaskList() {
     );
   }
 
+  const renderTaskItem = (task: typeof filteredTasks[0]) => {
+    const activeIndex = activeId ? filteredTasks.findIndex(t => t.id === activeId) : -1;
+    const overIndex = overId ? filteredTasks.findIndex(t => t.id === overId) : -1;
+    const isDropTarget = task.id === overId && overId !== activeId;
+    const insertAfter = isDropTarget && activeIndex !== -1 && overIndex > activeIndex;
+    
+    return (
+      <TaskItem
+        key={task.id}
+        task={{
+          id: task.id,
+          content: task.content,
+          isDone: task.completed,
+          createdAt: task.createdAt,
+          groupId: task.groupId,
+          completedAt: task.completedAt ? new Date(task.completedAt).toISOString().split('T')[0] : undefined,
+        }}
+        onToggle={toggleTask}
+        onUpdate={updateTask}
+        onUpdateTime={() => {}}
+        onDelete={deleteTask}
+        isBeingDragged={task.id === activeId}
+        isDropTarget={isDropTarget}
+        insertAfter={insertAfter}
+      />
+    );
+  };
+
   return (
     <DndContext
       sensors={sensors}
@@ -157,36 +211,37 @@ export function TaskList() {
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-        <div className="space-y-0.5">
-          {filteredTasks.map((task) => {
-            const activeIndex = activeId ? filteredTasks.findIndex(t => t.id === activeId) : -1;
-            const overIndex = overId ? filteredTasks.findIndex(t => t.id === overId) : -1;
-            const isDropTarget = task.id === overId && overId !== activeId;
-            // Show indicator below if dragging downward
-            const insertAfter = isDropTarget && activeIndex !== -1 && overIndex > activeIndex;
-            
-            return (
-              <TaskItem
-                key={task.id}
-                task={{
-                  id: task.id,
-                  content: task.content,
-                  isDone: task.completed,
-                  createdAt: task.createdAt,
-                  groupId: task.groupId,
-                  completedAt: task.completedAt ? new Date(task.completedAt).toISOString().split('T')[0] : undefined,
-                }}
-                onToggle={toggleTask}
-                onUpdate={updateTask}
-                onUpdateTime={() => {}}
-                onDelete={deleteTask}
-                isBeingDragged={task.id === activeId}
-                isDropTarget={isDropTarget}
-                insertAfter={insertAfter}
-              />
-            );
-          })}
-        </div>
+        {/* Incomplete Tasks Section */}
+        {incompleteTasks.length > 0 && (
+          <div className="space-y-0.5">
+            {incompleteTasks.map(renderTaskItem)}
+          </div>
+        )}
+
+        {/* Completed Tasks Section */}
+        {completedTasks.length > 0 && (
+          <>
+            <button
+              onClick={() => setCompletedExpanded(!completedExpanded)}
+              className="my-6 flex items-center gap-2 w-full group hover:opacity-80 transition-opacity"
+            >
+              {completedExpanded ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              )}
+              <span className="text-xs font-medium text-muted-foreground">
+                Completed ({completedTasks.length})
+              </span>
+              <div className="flex-1 h-px bg-border" />
+            </button>
+            {completedExpanded && (
+              <div className="space-y-0.5 opacity-60">
+                {completedTasks.map(renderTaskItem)}
+              </div>
+            )}
+          </>
+        )}
       </SortableContext>
     </DndContext>
   );

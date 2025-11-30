@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -7,7 +7,7 @@ import { useGroupStore } from '@/stores/useGroupStore';
 export function TaskInput() {
   const [content, setContent] = useState('');
   const [isFocused, setIsFocused] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const { addTask, activeGroupId } = useGroupStore();
 
   const handleSubmit = () => {
@@ -26,6 +26,15 @@ export function TaskInput() {
     }
   };
 
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = inputRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+    }
+  }, [content]);
+
   return (
     <motion.div
       initial={false}
@@ -35,7 +44,7 @@ export function TaskInput() {
           : 'transparent',
       }}
       className={cn(
-        'flex items-center gap-2 px-2 py-2 rounded-md',
+        'flex items-start gap-2 px-2 py-2 rounded-md',
         'border transition-all duration-200',
         isFocused 
           ? 'border-border/60' 
@@ -60,19 +69,19 @@ export function TaskInput() {
         </motion.button>
       </AnimatePresence>
       
-      <input
+      <textarea
         ref={inputRef}
-        type="text"
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         onKeyDown={handleKeyDown}
-        placeholder="Type a new task, press Enter to add..."
+        placeholder="Type a new task... (Shift+Enter for new line)"
+        rows={1}
         className={cn(
-          'flex-1 bg-transparent border-none outline-none',
+          'flex-1 bg-transparent border-none outline-none resize-none',
           'text-sm text-foreground placeholder:text-muted-foreground/50',
-          'focus:ring-0'
+          'focus:ring-0 leading-relaxed min-h-[24px] max-h-[200px]'
         )}
       />
 

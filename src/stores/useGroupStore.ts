@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { nanoid } from 'nanoid';
 import { loadGroups, saveGroup, deleteGroup as deleteGroupFile, type GroupData } from '@/lib/storage';
 
+// Note: This store uses 'StoreTask' with 'completed' field for persistence.
+// Components using types/index.ts 'Task' interface should map 'completed' <-> 'isDone'
+
 export interface Group {
   id: string;
   name: string;
@@ -10,7 +13,8 @@ export interface Group {
   pinned?: boolean;
 }
 
-export interface Task {
+// Internal Task type for persistence (uses 'completed')
+export interface StoreTask {
   id: string;
   content: string;
   completed: boolean;
@@ -23,7 +27,7 @@ export interface Task {
 
 interface GroupStore {
   groups: Group[];
-  tasks: Task[];
+  tasks: StoreTask[];
   activeGroupId: string | null;
   drawerOpen: boolean;
   loaded: boolean;
@@ -54,7 +58,7 @@ interface GroupStore {
 }
 
 // 保存分组到文件
-async function persistGroup(groups: Group[], tasks: Task[], groupId: string) {
+async function persistGroup(groups: Group[], tasks: StoreTask[], groupId: string) {
   const group = groups.find(g => g.id === groupId);
   if (!group) return;
   
@@ -96,7 +100,7 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
     
     const groupsData = await loadGroups();
     const groups: Group[] = [];
-    const tasks: Task[] = [];
+    const tasks: StoreTask[] = [];
     
     for (const gd of groupsData) {
       groups.push({
@@ -204,7 +208,7 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
   // 任务操作
   addTask: (content, groupId) => set((state) => {
     const groupTasks = state.tasks.filter(t => t.groupId === groupId);
-    const newTask: Task = {
+    const newTask: StoreTask = {
       id: nanoid(),
       content,
       completed: false,
@@ -244,14 +248,21 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
       } : t
     );
     
-    // If completing a task, move it to the bottom of the group
-    if (isCompleting) {
-      const groupTasks = newTasks.filter(t => t.groupId === task.groupId);
-      const maxOrder = Math.max(...groupTasks.map(t => t.order));
-      newTasks = newTasks.map(t =>
-        t.id === id ? { ...t, order: maxOrder + 1 } : t
-      );
-    }
+    // Get all tasks in the same group and separate by completion status
+    const groupTasks = newTasks
+      .filter(t => t.groupId === task.groupId)
+      .sort((a, b) => a.order - b.order);
+    
+    const incompleteTasks = groupTasks.filter(t => !t.completed);
+    const completedTasks = groupTasks.filter(t => t.completed);
+    
+    // Reorder: incomplete tasks first, then completed tasks
+    const reorderedGroupTasks = [...incompleteTasks, ...completedTasks];
+    reorderedGroupTasks.forEach((t, i) => t.order = i);
+    
+    // Update newTasks with reordered group
+    const otherTasks = newTasks.filter(t => t.groupId !== task.groupId);
+    newTasks = [...otherTasks, ...reorderedGroupTasks];
     
     persistGroup(state.groups, newTasks, task.groupId);
     return { tasks: newTasks };
@@ -261,7 +272,19 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
     const task = state.tasks.find(t => t.id === id);
     if (!task) return state;
     
-    const newTasks = state.tasks.filter(t => t.id !== id);
+    // Remove the task
+    const tasksWithoutDeleted = state.tasks.filter(t => t.id !== id);
+    
+    // Reorder the group tasks
+    const groupTasks = tasksWithoutDeleted
+      .filter(t => t.groupId === task.groupId)
+      .sort((a, b) => a.order - b.order);
+    groupTasks.forEach((t, i) => t.order = i);
+    
+    // Combine with other groups
+    const otherTasks = tasksWithoutDeleted.filter(t => t.groupId !== task.groupId);
+    const newTasks = [...otherTasks, ...groupTasks];
+    
     persistGroup(state.groups, newTasks, task.groupId);
     return { tasks: newTasks };
   }),
@@ -295,33 +318,38 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
     if (!task || task.groupId === targetGroupId) return state;
     
     const oldGroupId = task.groupId;
+    
+    // Get target group tasks sorted by order
     const targetGroupTasks = state.tasks
-      .filter(t => t.groupId === targetGroupId)
+      .filter(t => t.groupId === targetGroupId && t.id !== taskId)
       .sort((a, b) => a.order - b.order);
     
-    // Determine the target position
-    let targetOrder: number;
+    // Determine the insert index
+    let insertIndex: number;
     if (overTaskId) {
-      const overTask = targetGroupTasks.find(t => t.id === overTaskId);
-      targetOrder = overTask ? overTask.order : targetGroupTasks.length;
+      const overIndex = targetGroupTasks.findIndex(t => t.id === overTaskId);
+      insertIndex = overIndex !== -1 ? overIndex : targetGroupTasks.length;
     } else {
-      targetOrder = targetGroupTasks.length;
+      insertIndex = targetGroupTasks.length;
     }
     
-    // Shift tasks at and after target position
-    let newTasks = state.tasks.map(t => {
-      if (t.groupId === targetGroupId && t.order >= targetOrder) {
-        return { ...t, order: t.order + 1 };
-      }
-      return t;
-    });
+    // Insert the task at the target position
+    targetGroupTasks.splice(insertIndex, 0, { ...task, groupId: targetGroupId });
     
-    // Move task to new group at target position
-    newTasks = newTasks.map(t => 
-      t.id === taskId 
-        ? { ...t, groupId: targetGroupId, order: targetOrder }
-        : t
+    // Reassign order for target group
+    targetGroupTasks.forEach((t, i) => t.order = i);
+    
+    // Get old group tasks and reassign order
+    const oldGroupTasks = state.tasks
+      .filter(t => t.groupId === oldGroupId && t.id !== taskId)
+      .sort((a, b) => a.order - b.order);
+    oldGroupTasks.forEach((t, i) => t.order = i);
+    
+    // Combine with other groups
+    const otherTasks = state.tasks.filter(
+      t => t.groupId !== oldGroupId && t.groupId !== targetGroupId
     );
+    const newTasks = [...otherTasks, ...oldGroupTasks, ...targetGroupTasks];
     
     // Persist both groups
     persistGroup(state.groups, newTasks, oldGroupId);

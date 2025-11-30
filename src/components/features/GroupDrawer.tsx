@@ -116,7 +116,7 @@ function SortableGroupItem({
               e.stopPropagation();
               onStartEdit();
             }}
-            className="flex-1 text-sm truncate"
+            className="flex-1 text-sm whitespace-pre-wrap break-words"
           >
             {group.name}
           </span>
@@ -571,7 +571,7 @@ export function GroupSidebar() {
       {drawerOpen && (
         <div
           onMouseDown={handleMouseDown}
-          className={`w-px h-full cursor-col-resize hover:bg-zinc-300 transition-colors ${
+          className={`w-0.5 h-full cursor-col-resize hover:bg-zinc-300 transition-colors ${
             isResizing ? 'bg-zinc-400' : 'bg-zinc-200'
           }`}
         />

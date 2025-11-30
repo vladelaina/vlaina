@@ -3,22 +3,30 @@ use tauri::window::Color;
 
 // Create drag overlay window
 #[tauri::command]
-async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, width: f64, height: f64, is_done: bool) -> Result<(), String> {
+async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, width: f64, height: f64, is_done: bool, is_dark: bool) -> Result<(), String> {
     // Close existing drag window if any
     if let Some(existing) = app.get_webview_window("drag-overlay") {
         let _ = existing.destroy();
     }
 
+    // Theme-based colors
+    let (bg_color, border_color, text_color, text_muted) = if is_dark {
+        ("#18181b", "#3f3f46", "#fafafa", "#71717a")
+    } else {
+        ("#fff", "#e5e5e5", "#18181b", "#a1a1aa")
+    };
+    
     // Style for completed tasks
     let content_style = if is_done {
-        "text-decoration:line-through;color:#a1a1aa"
+        format!("text-decoration:line-through;color:{}", text_muted)
     } else {
-        ""
+        String::new()
     };
+    
     let checkbox_html = if is_done {
-        "<svg class=\"checkbox\" viewBox=\"0 0 16 16\"><rect x=\"0.5\" y=\"0.5\" width=\"15\" height=\"15\" rx=\"2\" fill=\"#18181b\" stroke=\"#18181b\"/><path d=\"M4 8l3 3 5-6\" stroke=\"white\" stroke-width=\"2\" fill=\"none\"/></svg>"
+        format!("<svg class=\"checkbox\" viewBox=\"0 0 16 16\"><rect x=\"0.5\" y=\"0.5\" width=\"15\" height=\"15\" rx=\"2\" fill=\"{}\" stroke=\"{}\"/><path d=\"M4 8l3 3 5-6\" stroke=\"white\" stroke-width=\"2\" fill=\"none\"/></svg>", text_color, text_color)
     } else {
-        "<div class=\"checkbox\"></div>"
+        format!("<div class=\"checkbox\" style=\"border-color:{}\"></div>", text_muted)
     };
 
     // HTML content - transparent background, card fills window
@@ -30,21 +38,21 @@ async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, wid
 html,body{{background:transparent!important;overflow:hidden;width:100%;height:100%}}
 body{{font-family:system-ui,-apple-system,sans-serif;display:flex}}
 .card{{
-  background:#fff;
-  border:1px solid #e5e5e5;
+  background:{};
+  border:1px solid {};
   border-radius:4px;
   padding:8px 12px;
   display:flex;
-  align-items:center;
+  align-items:start;
   gap:8px;
   font-size:14px;
-  color:#18181b;
+  color:{};
   width:100%;
   height:100%;
 }}
-.grip{{color:#a1a1aa}}
-.checkbox{{width:16px;height:16px;border:1px solid #a1a1aa;border-radius:3px;flex-shrink:0}}
-.content{{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+.grip{{color:{}}}
+.checkbox{{width:16px;height:16px;border:1px solid {};border-radius:3px;flex-shrink:0;margin-top:2px}}
+.content{{flex:1;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}}
 </style>
 </head>
 <body style="background:transparent!important">
@@ -54,7 +62,7 @@ body{{font-family:system-ui,-apple-system,sans-serif;display:flex}}
 <span class="content" style="{}">{}</span>
 </div>
 </body>
-</html>"#, checkbox_html, content_style, content);
+</html>"#, bg_color, border_color, text_color, text_muted, text_muted, checkbox_html, content_style, content);
 
     // Create transparent window - hidden first, show after setup
     let window = WebviewWindowBuilder::new(

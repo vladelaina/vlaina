@@ -50,9 +50,9 @@ function AppContent() {
   }, [loadData]);
 
   const handleFocusInput = () => {
-    // Focus the task input
-    const input = document.querySelector<HTMLInputElement>(
-      'input[placeholder*="task"]'
+    // Focus the task input (now using textarea)
+    const input = document.querySelector<HTMLTextAreaElement>(
+      'textarea[placeholder*="task"]'
     );
     input?.focus();
   };
