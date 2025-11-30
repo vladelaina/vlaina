@@ -1,15 +1,11 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AppUsage {
   name: string;
   icon?: string;
   duration: number; // 秒
-}
-
-interface TimeTrackerPageProps {
-  onBack: () => void;
 }
 
 // 格式化时长
@@ -41,7 +37,7 @@ const timeRangeLabels: Record<TimeRange, string> = {
   year: '按年',
 };
 
-export function TimeTrackerPage({ onBack }: TimeTrackerPageProps) {
+export function TimeTrackerPage() {
   const [appUsages, setAppUsages] = useState<AppUsage[]>([]);
   const [todayTotal, setTodayTotal] = useState(0);
   const [timeRange, setTimeRange] = useState<TimeRange>('day');
@@ -106,12 +102,14 @@ export function TimeTrackerPage({ onBack }: TimeTrackerPageProps) {
     <div className="h-full bg-white flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-100">
-        <button
-          onClick={() => selectedApp ? setSelectedApp(null) : onBack()}
-          className="p-1.5 rounded-lg hover:bg-zinc-100 transition-colors"
-        >
-          <ArrowLeft className="size-5 text-zinc-500" />
-        </button>
+        {selectedApp && (
+          <button
+            onClick={() => setSelectedApp(null)}
+            className="p-1 rounded text-zinc-300 hover:text-zinc-500 transition-colors"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+        )}
         
         <AnimatePresence mode="wait">
           {selectedApp ? (

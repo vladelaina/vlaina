@@ -10,7 +10,7 @@ const appWindow = getCurrentWindow();
 export function TitleBar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const setView = useViewStore((s) => s.setView);
+  const { currentView, setView } = useViewStore();
   const aboutRef = useRef<HTMLDivElement>(null);
 
   const startDrag = async () => {
@@ -56,15 +56,19 @@ export function TitleBar() {
               transition={{ duration: 0.15 }}
               className="h-full flex items-center"
             >
-              {/* 时间管理 */}
+              {/* 待办 */}
               <button
                 onClick={() => {
-                  setView('time-tracker');
+                  setView('tasks');
                   setMenuOpen(false);
                 }}
-                className="h-full px-3 text-sm text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500 transition-colors whitespace-nowrap"
+                className={`h-full px-3 text-sm transition-colors whitespace-nowrap ${
+                  currentView === 'tasks'
+                    ? 'text-zinc-400 dark:text-zinc-500'
+                    : 'text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500'
+                }`}
               >
-                时间管理
+                待办
               </button>
 
               {/* 进度 */}
@@ -73,9 +77,28 @@ export function TitleBar() {
                   setView('progress');
                   setMenuOpen(false);
                 }}
-                className="h-full px-3 text-sm text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500 transition-colors whitespace-nowrap"
+                className={`h-full px-3 text-sm transition-colors whitespace-nowrap ${
+                  currentView === 'progress'
+                    ? 'text-zinc-400 dark:text-zinc-500'
+                    : 'text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500'
+                }`}
               >
                 进度
+              </button>
+
+              {/* 时间管理 */}
+              <button
+                onClick={() => {
+                  setView('time-tracker');
+                  setMenuOpen(false);
+                }}
+                className={`h-full px-3 text-sm transition-colors whitespace-nowrap ${
+                  currentView === 'time-tracker'
+                    ? 'text-zinc-400 dark:text-zinc-500'
+                    : 'text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500'
+                }`}
+              >
+                时间管理
               </button>
 
               {/* 关于 */}

@@ -63,7 +63,7 @@ function AppContent() {
   if (currentView === 'time-tracker') {
     return (
       <Layout>
-        <TimeTrackerPage onBack={() => setView('tasks')} />
+        <TimeTrackerPage />
       </Layout>
     );
   }
@@ -72,7 +72,7 @@ function AppContent() {
   if (currentView === 'progress') {
     return (
       <Layout>
-        <ProgressPage onBack={() => setView('tasks')} />
+        <ProgressPage />
       </Layout>
     );
   }
