@@ -27,10 +27,12 @@ interface GroupStore {
   activeGroupId: string | null;
   drawerOpen: boolean;
   loaded: boolean;
+  hideCompleted: boolean;
   
   // Drag state for cross-group drag
   draggingTaskId: string | null;
   setDraggingTaskId: (id: string | null) => void;
+  setHideCompleted: (hide: boolean) => void;
   
   loadData: () => Promise<void>;
   setDrawerOpen: (open: boolean) => void;
@@ -48,7 +50,7 @@ interface GroupStore {
   toggleTask: (id: string) => void;
   deleteTask: (id: string) => void;
   reorderTasks: (activeId: string, overId: string) => void;
-  moveTaskToGroup: (taskId: string, targetGroupId: string) => void;
+  moveTaskToGroup: (taskId: string, targetGroupId: string, overTaskId?: string | null) => void;
 }
 
 // 保存分组到文件
@@ -83,9 +85,11 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
   activeGroupId: 'default',
   drawerOpen: false,
   loaded: false,
+  hideCompleted: false,
   draggingTaskId: null,
   
   setDraggingTaskId: (id) => set({ draggingTaskId: id }),
+  setHideCompleted: (hide) => set({ hideCompleted: hide }),
 
   loadData: async () => {
     if (get().loaded) return;
@@ -229,13 +233,26 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
     const task = state.tasks.find(t => t.id === id);
     if (!task) return state;
     
-    const newTasks = state.tasks.map(t =>
+    const isCompleting = !task.completed;
+    
+    // Update the task's completed status
+    let newTasks = state.tasks.map(t =>
       t.id === id ? { 
         ...t, 
-        completed: !t.completed,
-        completedAt: !t.completed ? Date.now() : undefined,
+        completed: isCompleting,
+        completedAt: isCompleting ? Date.now() : undefined,
       } : t
     );
+    
+    // If completing a task, move it to the bottom of the group
+    if (isCompleting) {
+      const groupTasks = newTasks.filter(t => t.groupId === task.groupId);
+      const maxOrder = Math.max(...groupTasks.map(t => t.order));
+      newTasks = newTasks.map(t =>
+        t.id === id ? { ...t, order: maxOrder + 1 } : t
+      );
+    }
+    
     persistGroup(state.groups, newTasks, task.groupId);
     return { tasks: newTasks };
   }),
@@ -273,17 +290,36 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
     return { tasks: newTasks };
   }),
   
-  moveTaskToGroup: (taskId, targetGroupId) => set((state) => {
+  moveTaskToGroup: (taskId, targetGroupId, overTaskId) => set((state) => {
     const task = state.tasks.find(t => t.id === taskId);
     if (!task || task.groupId === targetGroupId) return state;
     
     const oldGroupId = task.groupId;
-    const targetGroupTasks = state.tasks.filter(t => t.groupId === targetGroupId);
+    const targetGroupTasks = state.tasks
+      .filter(t => t.groupId === targetGroupId)
+      .sort((a, b) => a.order - b.order);
     
-    // Move task to new group at the end
-    const newTasks = state.tasks.map(t => 
+    // Determine the target position
+    let targetOrder: number;
+    if (overTaskId) {
+      const overTask = targetGroupTasks.find(t => t.id === overTaskId);
+      targetOrder = overTask ? overTask.order : targetGroupTasks.length;
+    } else {
+      targetOrder = targetGroupTasks.length;
+    }
+    
+    // Shift tasks at and after target position
+    let newTasks = state.tasks.map(t => {
+      if (t.groupId === targetGroupId && t.order >= targetOrder) {
+        return { ...t, order: t.order + 1 };
+      }
+      return t;
+    });
+    
+    // Move task to new group at target position
+    newTasks = newTasks.map(t => 
       t.id === taskId 
-        ? { ...t, groupId: targetGroupId, order: targetGroupTasks.length }
+        ? { ...t, groupId: targetGroupId, order: targetOrder }
         : t
     );
     

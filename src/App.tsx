@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Check } from 'lucide-react';
 import { TaskList } from '@/components/features/TaskList';
 import { TaskInput } from '@/components/features/TaskInput';
 import { CommandMenu } from '@/components/features/CommandMenu';
@@ -14,7 +14,7 @@ import { useVimShortcuts } from '@/hooks/useVimShortcuts';
 
 function AppContent() {
   const { currentView } = useViewStore();
-  const { activeGroupId, deleteGroup, groups, tasks, loadData, loaded } = useGroupStore();
+  const { activeGroupId, deleteGroup, groups, tasks, loadData, loaded, hideCompleted, setHideCompleted } = useGroupStore();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -138,23 +138,34 @@ function AppContent() {
                 <MoreHorizontal className="size-4" />
               </button>
               {showMoreMenu && (
-                <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-zinc-200 rounded-lg shadow-xl py-1" style={{ zIndex: 9999 }}>
+                <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1" style={{ zIndex: 9999 }}>
+                  <button
+                    onClick={() => {
+                      setHideCompleted(!hideCompleted);
+                      setShowMoreMenu(false);
+                    }}
+                    className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-between"
+                  >
+                    <span>Hide Completed</span>
+                    {hideCompleted && <Check className="size-4 text-blue-500" />}
+                  </button>
+                  <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
                   <button
                     onClick={() => {
                       setShowInfoModal(true);
                       setShowMoreMenu(false);
                     }}
-                    className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 hover:bg-zinc-50"
+                    className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                   >
                     Info
                   </button>
                   <button
                     onClick={() => setShowMoreMenu(false)}
-                    className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 hover:bg-zinc-50"
+                    className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                   >
                     History...
                   </button>
-                  <div className="h-px bg-zinc-200 my-1" />
+                  <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
                   <button
                     onClick={() => {
                       if (activeGroupId && activeGroupId !== 'default') {
@@ -162,7 +173,7 @@ function AppContent() {
                       }
                       setShowMoreMenu(false);
                     }}
-                    className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-50"
+                    className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                   >
                     Move to Trash
                   </button>

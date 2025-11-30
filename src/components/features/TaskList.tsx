@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -27,14 +27,18 @@ const updatePositionFast = (x: number, y: number) => {
 };
 
 export function TaskList() {
-  const { tasks, toggleTask, updateTask, deleteTask, reorderTasks, activeGroupId, setDraggingTaskId } = useGroupStore();
+  const { tasks, toggleTask, updateTask, deleteTask, reorderTasks, activeGroupId, setDraggingTaskId, hideCompleted, moveTaskToGroup } = useGroupStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const originalGroupIdRef = useRef<string | null>(null);
 
-  // Filter tasks by current group
+  // Filter tasks by current group and hide completed if enabled
   const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => t.groupId === activeGroupId).sort((a, b) => a.order - b.order);
-  }, [tasks, activeGroupId]);
+    return tasks
+      .filter((t) => t.groupId === activeGroupId)
+      .filter((t) => !hideCompleted || !t.completed)
+      .sort((a, b) => a.order - b.order);
+  }, [tasks, activeGroupId, hideCompleted]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -53,6 +57,8 @@ export function TaskList() {
     const id = event.active.id as string;
     setActiveId(id);
     setDraggingTaskId(id);
+    // Save original group for cross-group move detection
+    originalGroupIdRef.current = activeGroupId;
     
     const task = filteredTasks.find(t => t.id === id);
     if (task) {
@@ -93,16 +99,23 @@ export function TaskList() {
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
+    const taskId = active.id as string;
+    const originalGroupId = originalGroupIdRef.current;
     
-    // IMPORTANT: Update task order BEFORE clearing activeId
-    // Otherwise the dragged task will briefly appear at its old position (flicker)
-    if (over && active.id !== over.id) {
-      reorderTasks(active.id as string, over.id as string);
+    // Check if this is a cross-group move (group changed during drag)
+    if (originalGroupId && activeGroupId && originalGroupId !== activeGroupId) {
+      // Move task to the new group at the drop position
+      moveTaskToGroup(taskId, activeGroupId, over?.id as string | null);
+    } else if (over && active.id !== over.id) {
+      // Same group reorder - update task order BEFORE clearing activeId
+      // Otherwise the dragged task will briefly appear at its old position (flicker)
+      reorderTasks(taskId, over.id as string);
     }
     
     // Now safe to show the task (it's already at the new position)
     setActiveId(null);
     setOverId(null);
+    originalGroupIdRef.current = null;
     
     // Destroy drag window
     try {
@@ -115,7 +128,7 @@ export function TaskList() {
     setTimeout(() => {
       setDraggingTaskId(null);
     }, 50);
-  }, [reorderTasks, setDraggingTaskId]);
+  }, [reorderTasks, setDraggingTaskId, activeGroupId, moveTaskToGroup]);
 
   // Cleanup: destroy drag window on unmount
   useEffect(() => {
