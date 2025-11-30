@@ -5,6 +5,7 @@ import { TaskInput } from '@/components/features/TaskInput';
 import { CommandMenu } from '@/components/features/CommandMenu';
 import { GroupSidebar } from '@/components/features/GroupDrawer';
 import { TimeTrackerPage } from '@/components/TimeTracker';
+import { ProgressPage } from '@/components/Progress';
 import { Layout } from '@/components/layout';
 import { ThemeProvider } from '@/components/theme-provider';
 import { useTaskStore } from '@/stores/useTaskStore';
@@ -63,6 +64,15 @@ function AppContent() {
     return (
       <Layout>
         <TimeTrackerPage onBack={() => setView('tasks')} />
+      </Layout>
+    );
+  }
+
+  // 进度页面
+  if (currentView === 'progress') {
+    return (
+      <Layout>
+        <ProgressPage onBack={() => setView('tasks')} />
       </Layout>
     );
   }

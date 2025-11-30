@@ -62,16 +62,27 @@ export function TitleBar() {
                   setView('time-tracker');
                   setMenuOpen(false);
                 }}
-                className="h-full px-3 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors whitespace-nowrap"
+                className="h-full px-3 text-sm text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500 transition-colors whitespace-nowrap"
               >
                 时间管理
+              </button>
+
+              {/* 进度 */}
+              <button
+                onClick={() => {
+                  setView('progress');
+                  setMenuOpen(false);
+                }}
+                className="h-full px-3 text-sm text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500 transition-colors whitespace-nowrap"
+              >
+                进度
               </button>
 
               {/* 关于 */}
               <div ref={aboutRef} className="relative h-full">
                 <button
                   onClick={() => setAboutOpen(!aboutOpen)}
-                  className="h-full px-3 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors whitespace-nowrap"
+                  className="h-full px-3 text-sm text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500 transition-colors whitespace-nowrap"
                 >
                   关于
                 </button>
