@@ -3,7 +3,8 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": [
-    "main"
+    "main",
+    "drag-overlay"
   ],
   "permissions": [
     "core:default",
@@ -12,6 +13,9 @@
     "core:window:allow-toggle-maximize",
     "core:window:allow-close",
     "core:window:allow-set-always-on-top",
+    "core:webview:allow-create-webview-window",
+    "core:webview:allow-set-webview-position",
+    "core:webview:allow-webview-close",
     "opener:default",
     "fs:default",
     {

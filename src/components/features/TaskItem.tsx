@@ -77,14 +77,7 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete }: TaskItemProps) 
       style={style}
       layout
       initial={{ opacity: 0, y: -10 }}
-      animate={{ 
-        opacity: isDragging ? 0.5 : 1, 
-        y: 0,
-        scale: isDragging ? 1.02 : 1,
-        boxShadow: isDragging 
-          ? '0 4px 12px rgba(0,0,0,0.1)' 
-          : '0 0 0 rgba(0,0,0,0)',
-      }}
+      animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
       transition={{ duration: 0.2 }}
       data-task-id={task.id}
@@ -92,8 +85,9 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete }: TaskItemProps) 
         'group flex items-center gap-2 px-2 py-2 rounded-md',
         'hover:bg-muted/50 transition-colors duration-150',
         'border transition-all duration-150',
-        isDragging && 'bg-muted/80 border-border z-50',
-        'border-transparent hover:border-border/50'
+        isDragging 
+          ? 'border-dashed border-zinc-300 bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800/50 [&>*]:invisible' 
+          : 'border-transparent hover:border-border/50'
       )}
     >
       {/* Drag Handle */}
@@ -101,7 +95,7 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete }: TaskItemProps) 
         {...attributes}
         {...listeners}
         className={cn(
-          'opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing',
+          'opacity-0 group-hover:opacity-100 cursor-move',
           'p-0.5 rounded hover:bg-muted transition-opacity duration-150',
           'touch-none'
         )}

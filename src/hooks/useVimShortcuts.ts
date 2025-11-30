@@ -12,5 +12,5 @@
  * - dd: Delete selected task
  */
 export function useVimShortcuts() {
-  // 暂时禁用，等待后续重新实现
+  // Temporarily disabled, pending re-implementation
 }

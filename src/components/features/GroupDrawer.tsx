@@ -74,7 +74,7 @@ function SortableGroupItem({
       <div
         {...attributes}
         {...listeners}
-        className="p-0.5 cursor-grab opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-600"
+        className="p-0.5 cursor-move opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-600"
       >
         <GripVertical className="size-3" />
       </div>
