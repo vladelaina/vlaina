@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { Minus, Square, X, Menu } from 'lucide-react';
+import { Minus, Square, X, Menu, Pin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useViewStore } from '@/stores/useViewStore';
 
@@ -10,8 +10,15 @@ const appWindow = getCurrentWindow();
 export function TitleBar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
   const { currentView, setView } = useViewStore();
   const aboutRef = useRef<HTMLDivElement>(null);
+
+  const togglePin = async () => {
+    const newPinned = !isPinned;
+    await appWindow.setAlwaysOnTop(newPinned);
+    setIsPinned(newPinned);
+  };
 
   const startDrag = async () => {
     await appWindow.startDragging();
@@ -136,24 +143,32 @@ export function TitleBar() {
       {/* Window Controls */}
       <div className="flex h-full shrink-0">
         <button
+          onClick={togglePin}
+          className="h-full w-12 flex items-center justify-center hover:bg-zinc-100 transition-colors"
+          title={isPinned ? '取消置顶' : '置顶窗口'}
+        >
+          <Pin className={`size-4 transition-all duration-200 ${isPinned ? 'text-zinc-500 rotate-0' : 'text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500 rotate-45'}`} />
+        </button>
+
+        <button
           onClick={() => appWindow.minimize()}
           className="h-full w-12 flex items-center justify-center hover:bg-zinc-100 transition-colors"
         >
-          <Minus className="size-4 text-zinc-500" />
+          <Minus className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
         </button>
 
         <button
           onClick={() => appWindow.toggleMaximize()}
           className="h-full w-12 flex items-center justify-center hover:bg-zinc-100 transition-colors"
         >
-          <Square className="size-3.5 text-zinc-500" />
+          <Square className="size-3.5 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
         </button>
 
         <button
           onClick={() => appWindow.close()}
           className="h-full w-12 flex items-center justify-center hover:bg-red-500 transition-colors group"
         >
-          <X className="size-4 text-zinc-500 group-hover:text-white" />
+          <X className="size-4 text-zinc-200 hover:text-zinc-400 group-hover:text-white dark:text-zinc-700 dark:hover:text-zinc-500" />
         </button>
       </div>
     </div>

@@ -120,11 +120,11 @@ function SortableGroupItem({
             }}
             className={`p-0.5 rounded transition-colors ${
               group.pinned 
-                ? 'text-blue-500' 
-                : 'opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-600'
+                ? 'text-zinc-500' 
+                : 'opacity-0 group-hover:opacity-100 text-zinc-200 hover:text-zinc-400'
             }`}
           >
-            <Pin className={`size-3.5 ${group.pinned ? 'fill-blue-500' : ''}`} />
+            <Pin className={`size-3.5 transition-all duration-200 ${group.pinned ? 'rotate-0' : 'rotate-45'}`} />
           </button>
         </>
       )}
