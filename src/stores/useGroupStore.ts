@@ -23,6 +23,10 @@ export interface StoreTask {
   scheduledTime?: string;
   order: number;
   groupId: string;
+  
+  // Hierarchical structure (nested tasks)
+  parentId: string | null;  // Parent task ID, null for top-level
+  collapsed: boolean;       // Whether children are hidden
 }
 
 interface GroupStore {
@@ -50,8 +54,10 @@ interface GroupStore {
   
   // Task operations
   addTask: (content: string, groupId: string) => void;
+  addSubTask: (parentId: string, content: string) => void;
   updateTask: (id: string, content: string) => void;
   toggleTask: (id: string) => void;
+  toggleCollapse: (id: string) => void;
   deleteTask: (id: string) => void;
   reorderTasks: (activeId: string, overId: string) => void;
   moveTaskToGroup: (taskId: string, targetGroupId: string, overTaskId?: string | null) => void;
@@ -75,6 +81,8 @@ async function persistGroup(groups: Group[], tasks: StoreTask[], groupId: string
       completedAt: t.completedAt,
       scheduledTime: t.scheduledTime,
       order: t.order,
+      parentId: t.parentId,
+      collapsed: t.collapsed,
     })),
     createdAt: group.createdAt,
     updatedAt: Date.now(),
@@ -120,6 +128,8 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
           scheduledTime: td.scheduledTime,
           order: td.order,
           groupId: gd.id,
+          parentId: (td as any).parentId || null,
+          collapsed: (td as any).collapsed || false,
         });
       }
     }
@@ -207,7 +217,7 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
   
   // 任务操作
   addTask: (content, groupId) => set((state) => {
-    const groupTasks = state.tasks.filter(t => t.groupId === groupId);
+    const groupTasks = state.tasks.filter(t => t.groupId === groupId && !t.parentId);
     const newTask: StoreTask = {
       id: nanoid(),
       content,
@@ -215,10 +225,33 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
       createdAt: Date.now(),
       order: groupTasks.length,
       groupId,
+      parentId: null,
+      collapsed: false,
     };
     
     const newTasks = [...state.tasks, newTask];
     persistGroup(state.groups, newTasks, groupId);
+    return { tasks: newTasks };
+  }),
+  
+  addSubTask: (parentId, content) => set((state) => {
+    const parentTask = state.tasks.find(t => t.id === parentId);
+    if (!parentTask) return state;
+    
+    const siblings = state.tasks.filter(t => t.parentId === parentId);
+    const newTask: StoreTask = {
+      id: nanoid(),
+      content,
+      completed: false,
+      createdAt: Date.now(),
+      order: siblings.length,
+      groupId: parentTask.groupId,
+      parentId: parentId,
+      collapsed: false,
+    };
+    
+    const newTasks = [...state.tasks, newTask];
+    persistGroup(state.groups, newTasks, parentTask.groupId);
     return { tasks: newTasks };
   }),
   
@@ -248,22 +281,34 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
       } : t
     );
     
-    // Get all tasks in the same group and separate by completion status
-    const groupTasks = newTasks
-      .filter(t => t.groupId === task.groupId)
+    // Only reorder top-level tasks by completion status (preserve hierarchy)
+    const groupTopLevelTasks = newTasks
+      .filter(t => t.groupId === task.groupId && !t.parentId)
       .sort((a, b) => a.order - b.order);
     
-    const incompleteTasks = groupTasks.filter(t => !t.completed);
-    const completedTasks = groupTasks.filter(t => t.completed);
+    const incompleteTopLevel = groupTopLevelTasks.filter(t => !t.completed);
+    const completedTopLevel = groupTopLevelTasks.filter(t => t.completed);
     
-    // Reorder: incomplete tasks first, then completed tasks
-    const reorderedGroupTasks = [...incompleteTasks, ...completedTasks];
-    reorderedGroupTasks.forEach((t, i) => t.order = i);
+    // Reorder top-level: incomplete first, then completed
+    const reorderedTopLevel = [...incompleteTopLevel, ...completedTopLevel];
+    reorderedTopLevel.forEach((t, i) => t.order = i);
     
-    // Update newTasks with reordered group
+    // Update newTasks: replace top-level tasks with reordered version
+    const childTasks = newTasks.filter(t => t.groupId === task.groupId && t.parentId);
     const otherTasks = newTasks.filter(t => t.groupId !== task.groupId);
-    newTasks = [...otherTasks, ...reorderedGroupTasks];
+    newTasks = [...otherTasks, ...reorderedTopLevel, ...childTasks];
     
+    persistGroup(state.groups, newTasks, task.groupId);
+    return { tasks: newTasks };
+  }),
+  
+  toggleCollapse: (id) => set((state) => {
+    const task = state.tasks.find(t => t.id === id);
+    if (!task) return state;
+    
+    const newTasks = state.tasks.map(t =>
+      t.id === id ? { ...t, collapsed: !t.collapsed } : t
+    );
     persistGroup(state.groups, newTasks, task.groupId);
     return { tasks: newTasks };
   }),
@@ -272,14 +317,38 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
     const task = state.tasks.find(t => t.id === id);
     if (!task) return state;
     
-    // Remove the task
-    const tasksWithoutDeleted = state.tasks.filter(t => t.id !== id);
+    // Recursively collect all task IDs to delete (task + all descendants)
+    const idsToDelete = new Set<string>([id]);
+    const collectDescendants = (parentId: string) => {
+      const children = state.tasks.filter(t => t.parentId === parentId);
+      children.forEach(child => {
+        idsToDelete.add(child.id);
+        collectDescendants(child.id);
+      });
+    };
+    collectDescendants(id);
     
-    // Reorder the group tasks
-    const groupTasks = tasksWithoutDeleted
-      .filter(t => t.groupId === task.groupId)
-      .sort((a, b) => a.order - b.order);
-    groupTasks.forEach((t, i) => t.order = i);
+    // Remove the task and all its descendants
+    const tasksWithoutDeleted = state.tasks.filter(t => !idsToDelete.has(t.id));
+    
+    // Reorder tasks within each level separately
+    const groupTasks = tasksWithoutDeleted.filter(t => t.groupId === task.groupId);
+    
+    // Group by parentId and reorder each level
+    const tasksByParent = new Map<string | null, StoreTask[]>();
+    groupTasks.forEach(t => {
+      const key = t.parentId || null;
+      if (!tasksByParent.has(key)) {
+        tasksByParent.set(key, []);
+      }
+      tasksByParent.get(key)!.push(t);
+    });
+    
+    // Reorder each level
+    tasksByParent.forEach((levelTasks) => {
+      levelTasks.sort((a, b) => a.order - b.order);
+      levelTasks.forEach((t, i) => t.order = i);
+    });
     
     // Combine with other groups
     const otherTasks = tasksWithoutDeleted.filter(t => t.groupId !== task.groupId);
@@ -291,22 +360,36 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
   
   reorderTasks: (activeId, overId) => set((state) => {
     const activeTask = state.tasks.find(t => t.id === activeId);
-    if (!activeTask) return state;
+    const overTask = state.tasks.find(t => t.id === overId);
+    if (!activeTask || !overTask) return state;
     
-    const groupTasks = state.tasks.filter(t => t.groupId === activeTask.groupId);
-    const oldIndex = groupTasks.findIndex(t => t.id === activeId);
-    const newIndex = groupTasks.findIndex(t => t.id === overId);
+    // Safety check: ensure both tasks are at the same level
+    if (activeTask.parentId !== overTask.parentId) {
+      console.warn('Cannot reorder tasks from different levels');
+      return state;
+    }
+    
+    // Only reorder within the same parent level
+    const sameLevelTasks = state.tasks
+      .filter(t => t.groupId === activeTask.groupId && t.parentId === activeTask.parentId)
+      .sort((a, b) => a.order - b.order);
+    
+    const oldIndex = sameLevelTasks.findIndex(t => t.id === activeId);
+    const newIndex = sameLevelTasks.findIndex(t => t.id === overId);
     
     if (oldIndex === -1 || newIndex === -1) return state;
     
-    const reordered = [...groupTasks];
+    const reordered = [...sameLevelTasks];
     const [removed] = reordered.splice(oldIndex, 1);
     reordered.splice(newIndex, 0, removed);
     
-    // Update order
+    // Update order for this level only
     reordered.forEach((t, i) => t.order = i);
     
-    const otherTasks = state.tasks.filter(t => t.groupId !== activeTask.groupId);
+    // Combine with other tasks
+    const otherTasks = state.tasks.filter(
+      t => t.groupId !== activeTask.groupId || t.parentId !== activeTask.parentId
+    );
     const newTasks = [...otherTasks, ...reordered];
     
     persistGroup(state.groups, newTasks, activeTask.groupId);
@@ -319,12 +402,24 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
     
     const oldGroupId = task.groupId;
     
-    // Get target group tasks sorted by order
+    // Collect task and all its descendants
+    const tasksToMove: StoreTask[] = [];
+    const collectTaskAndDescendants = (parentTask: StoreTask) => {
+      tasksToMove.push(parentTask);
+      const children = state.tasks.filter(t => t.parentId === parentTask.id);
+      children.forEach(child => collectTaskAndDescendants(child));
+    };
+    collectTaskAndDescendants(task);
+    
+    // Update groupId for all collected tasks
+    const movedTasks = tasksToMove.map(t => ({ ...t, groupId: targetGroupId }));
+    
+    // Get target group TOP-LEVEL tasks only (excluding tasks being moved)
     const targetGroupTasks = state.tasks
-      .filter(t => t.groupId === targetGroupId && t.id !== taskId)
+      .filter(t => t.groupId === targetGroupId && !t.parentId && !tasksToMove.some(mt => mt.id === t.id))
       .sort((a, b) => a.order - b.order);
     
-    // Determine the insert index
+    // Determine the insert index (only insert the parent task)
     let insertIndex: number;
     if (overTaskId) {
       const overIndex = targetGroupTasks.findIndex(t => t.id === overTaskId);
@@ -333,23 +428,26 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
       insertIndex = targetGroupTasks.length;
     }
     
-    // Insert the task at the target position
-    targetGroupTasks.splice(insertIndex, 0, { ...task, groupId: targetGroupId });
+    // Insert only the parent task at the target position
+    targetGroupTasks.splice(insertIndex, 0, movedTasks[0]);
     
-    // Reassign order for target group
+    // Reassign order for target group TOP-LEVEL tasks
     targetGroupTasks.forEach((t, i) => t.order = i);
     
-    // Get old group tasks and reassign order
+    // Get old group TOP-LEVEL tasks (excluding moved tasks) and reassign order
     const oldGroupTasks = state.tasks
-      .filter(t => t.groupId === oldGroupId && t.id !== taskId)
+      .filter(t => t.groupId === oldGroupId && !t.parentId && !tasksToMove.some(mt => mt.id === t.id))
       .sort((a, b) => a.order - b.order);
     oldGroupTasks.forEach((t, i) => t.order = i);
     
-    // Combine with other groups
+    // Get child tasks from the moved tasks and preserve their order relative to parent
+    const movedChildTasks = movedTasks.slice(1);
+    
+    // Combine: other groups + old group + target group + moved children
     const otherTasks = state.tasks.filter(
-      t => t.groupId !== oldGroupId && t.groupId !== targetGroupId
+      t => t.groupId !== oldGroupId && t.groupId !== targetGroupId && !tasksToMove.some(mt => mt.id === t.id)
     );
-    const newTasks = [...otherTasks, ...oldGroupTasks, ...targetGroupTasks];
+    const newTasks = [...otherTasks, ...oldGroupTasks, ...targetGroupTasks, ...movedChildTasks];
     
     // Persist both groups
     persistGroup(state.groups, newTasks, oldGroupId);

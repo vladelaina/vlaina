@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useSortable, defaultAnimateLayoutChanges, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
-import { GripVertical, MoreHorizontal, Trash2 } from 'lucide-react';
+import { GripVertical, MoreHorizontal, Trash2, ChevronRight, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/types';
 
@@ -21,18 +21,28 @@ interface TaskItemProps {
   onUpdate: (id: string, content: string) => void;
   onUpdateTime?: (id: string, est?: number, act?: number) => void;
   onDelete: (id: string) => void;
+  onAddSubTask?: (parentId: string) => void;
   isBeingDragged?: boolean;
   isDropTarget?: boolean;
   insertAfter?: boolean;
+  level?: number;
+  hasChildren?: boolean;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export function TaskItem({ task, onToggle, onUpdate, onDelete, isBeingDragged, isDropTarget, insertAfter }: TaskItemProps) {
+export function TaskItem({ task, onToggle, onUpdate, onDelete, onAddSubTask, isBeingDragged, isDropTarget, insertAfter, level = 0, hasChildren = false, collapsed = false, onToggleCollapse }: TaskItemProps) {
+  const MAX_LEVEL = 3; // 0, 1, 2, 3 = 4 层
+  const canAddSubTask = level < MAX_LEVEL;
   const itemRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(task.content);
   const [showMenu, setShowMenu] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Allow dragging for all tasks (will be restricted to same level in reorderTasks)
+  const isDraggable = true;
 
   const {
     attributes,
@@ -42,6 +52,7 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, isBeingDragged, i
   } = useSortable({ 
     id: task.id,
     animateLayoutChanges,
+    disabled: !isDraggable,  // Disable dragging for child tasks
   });
 
   const style = {
@@ -126,19 +137,40 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, isBeingDragged, i
             : 'hover:bg-muted/50 hover:border-border/50'
         )}
       >
-      {/* Drag Handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className={cn(
-          'opacity-0 group-hover:opacity-100 cursor-move',
-          'p-0.5 rounded hover:bg-muted transition-opacity duration-150',
-          'touch-none'
-        )}
-        aria-label="Drag to reorder"
-      >
-        <GripVertical className="h-4 w-4 text-muted-foreground/60" />
-      </button>
+      {/* Collapse/Expand Icon */}
+      {hasChildren ? (
+        <button
+          onClick={onToggleCollapse}
+          className="p-0.5 rounded hover:bg-muted transition-colors flex-shrink-0"
+          aria-label={collapsed ? "Expand" : "Collapse"}
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+        </button>
+      ) : (
+        <div className="w-5" /> /* Spacer for alignment */
+      )}
+
+      {/* Drag Handle - only show on hover */}
+      {isDraggable ? (
+        <button
+          {...attributes}
+          {...listeners}
+          className={cn(
+            'opacity-0 group-hover:opacity-100 cursor-move',
+            'p-0.5 rounded hover:bg-muted transition-opacity duration-150',
+            'touch-none'
+          )}
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </button>
+      ) : (
+        <div className="w-5" /> /* Spacer for child tasks */
+      )}
 
       {/* Checkbox */}
       <div className="mt-0.5">
@@ -199,9 +231,27 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, isBeingDragged, i
         {/* Dropdown Menu */}
         {showMenu && (
           <div 
-            className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50"
+            className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Only show Add Subtask if not at max level */}
+            {canAddSubTask && (
+              <>
+                <button
+                  onClick={() => {
+                    if (onAddSubTask) {
+                      onAddSubTask(task.id);
+                    }
+                    setShowMenu(false);
+                  }}
+                  className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add Subtask</span>
+                </button>
+                <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+              </>
+            )}
             <button
               onClick={() => {
                 onDelete(task.id);

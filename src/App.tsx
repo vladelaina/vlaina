@@ -84,7 +84,7 @@ function AppContent() {
       {/* Info Modal */}
       {showInfoModal && (
         <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-80 overflow-hidden">
+          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl w-80 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
               <h3 className="text-sm font-medium text-zinc-900">
                 {activeGroup?.name || '默认'}

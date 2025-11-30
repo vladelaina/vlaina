@@ -42,6 +42,8 @@ export interface TaskData {
   completedAt?: number;
   scheduledTime?: string;
   order: number;
+  parentId?: string | null;   // Parent task ID for hierarchical structure
+  collapsed?: boolean;        // Whether children are hidden
 }
 
 export interface GroupData {
@@ -85,13 +87,14 @@ function parseTasksMd(content: string, _groupId: string): { name: string; pinned
       continue;
     }
     
-    // 解析任务
-    const taskMatch = line.match(/^- \[([ x])\] (.+)$/);
+    // 解析任务（支持缩进层级）
+    const taskMatch = line.match(/^(\s*)- \[([ x])\] (.+)$/);
     if (taskMatch) {
-      const completed = taskMatch[1] === 'x';
-      const taskContent = taskMatch[2];
+      // const indent = taskMatch[1]; // TODO: 未来可用于从缩进推断层级关系
+      const completed = taskMatch[2] === 'x';
+      const taskContent = taskMatch[3];
       
-      // 尝试解析任务元数据 (格式: 内容 <!--id:xxx,created:xxx,order:xxx-->)
+      // 尝试解析任务元数据
       const metaMatch = taskContent.match(/^(.+?)\s*<!--(.+)-->$/);
       let id = `task-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       let taskCreatedAt = Date.now();
@@ -99,6 +102,8 @@ function parseTasksMd(content: string, _groupId: string): { name: string; pinned
       let content = taskContent;
       let scheduledTime: string | undefined;
       let completedAt: number | undefined;
+      let parentId: string | null = null;
+      let collapsed = false;
       
       if (metaMatch) {
         content = metaMatch[1].trim();
@@ -108,12 +113,16 @@ function parseTasksMd(content: string, _groupId: string): { name: string; pinned
         const orderMatch = meta.match(/order:([^,]+)/);
         const timeMatch = meta.match(/time:([^,]+)/);
         const completedAtMatch = meta.match(/completedAt:([^,]+)/);
+        const parentMatch = meta.match(/parent:([^,]+)/);
+        const collapsedMatch = meta.match(/collapsed:true/);
         
         if (idMatch) id = idMatch[1];
         if (createdMatch) taskCreatedAt = parseInt(createdMatch[1]) || Date.now();
         if (orderMatch) order = parseInt(orderMatch[1]) || tasks.length;
         if (timeMatch) scheduledTime = timeMatch[1];
         if (completedAtMatch) completedAt = parseInt(completedAtMatch[1]);
+        if (parentMatch) parentId = parentMatch[1];
+        if (collapsedMatch) collapsed = true;
       }
       
       tasks.push({
@@ -124,14 +133,16 @@ function parseTasksMd(content: string, _groupId: string): { name: string; pinned
         completedAt,
         scheduledTime,
         order,
-      });
+        parentId,
+        collapsed,
+      } as any);
     }
   }
   
   return { name, pinned, tasks, createdAt, updatedAt };
 }
 
-// 生成任务 MD 文件
+// 生成任务 MD 文件 (支持层级结构)
 function generateTasksMd(group: GroupData): string {
   const lines: string[] = [];
   
@@ -142,16 +153,34 @@ function generateTasksMd(group: GroupData): string {
   lines.push(`updated: ${group.updatedAt}`);
   lines.push('');
   
-  // 按 order 排序
-  const sortedTasks = [...group.tasks].sort((a, b) => a.order - b.order);
-  
-  for (const task of sortedTasks) {
+  // 递归生成任务（带缩进）
+  const renderTask = (task: any, indent: string = '') => {
     const checkbox = task.completed ? '[x]' : '[ ]';
     let meta = `id:${task.id},created:${task.createdAt},order:${task.order}`;
     if (task.scheduledTime) meta += `,time:${task.scheduledTime}`;
     if (task.completedAt) meta += `,completedAt:${task.completedAt}`;
+    if (task.parentId) meta += `,parent:${task.parentId}`;
+    if (task.collapsed) meta += `,collapsed:true`;
     
-    lines.push(`- ${checkbox} ${task.content} <!--${meta}-->`);
+    lines.push(`${indent}- ${checkbox} ${task.content} <!--${meta}-->`);
+    
+    // 递归渲染子任务
+    const children = group.tasks
+      .filter((t: any) => t.parentId === task.id)
+      .sort((a: any, b: any) => a.order - b.order);
+    
+    for (const child of children) {
+      renderTask(child, indent + '  ');
+    }
+  };
+  
+  // 只渲染顶层任务（没有 parentId 的）
+  const topLevelTasks = group.tasks
+    .filter((t: any) => !t.parentId)
+    .sort((a: any, b: any) => a.order - b.order);
+  
+  for (const task of topLevelTasks) {
+    renderTask(task);
   }
   
   return lines.join('\n');

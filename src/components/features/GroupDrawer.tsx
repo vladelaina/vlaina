@@ -384,7 +384,7 @@ export function GroupSidebar() {
     <div 
       ref={sidebarRef}
       style={{ width: drawerOpen ? sidebarWidth : 40 }}
-      className="h-full bg-white shrink-0 flex transition-[width] duration-200 ease-in-out overflow-hidden"
+      className="h-full bg-white dark:bg-zinc-900 shrink-0 flex transition-[width] duration-200 ease-in-out overflow-hidden"
     >
       <div 
         className={`h-full flex flex-col transition-opacity duration-200 ${
@@ -427,7 +427,7 @@ export function GroupSidebar() {
               <ArrowUpDown className="size-4" />
             </IconButton>
             {showSortMenu && (
-              <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-zinc-200 rounded-lg shadow-xl py-1" style={{ zIndex: 9999 }}>
+              <div className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1" style={{ zIndex: 9999 }}>
                 <SortMenuItem label="名称 (A-Z)" value="name-asc" current={sortBy} onSelect={setSortBy} onClose={() => setShowSortMenu(false)} />
                 <SortMenuItem label="名称 (Z-A)" value="name-desc" current={sortBy} onSelect={setSortBy} onClose={() => setShowSortMenu(false)} />
                 <div className="h-px bg-zinc-200 my-1" />

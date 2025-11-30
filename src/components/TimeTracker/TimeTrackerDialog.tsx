@@ -86,7 +86,7 @@ export function TimeTrackerPage() {
   const maxDuration = appUsages.length > 0 ? appUsages[0].duration : 1;
 
   return (
-    <div className="h-full bg-white flex flex-col">
+    <div className="h-full bg-white dark:bg-zinc-900 flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-100">
         {selectedApp && (

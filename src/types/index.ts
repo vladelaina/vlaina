@@ -14,6 +14,10 @@ export interface Task {
   estimatedMinutes?: number;  // Estimated duration in minutes
   actualMinutes?: number;     // Actual time spent in minutes
   completedAt?: string;       // ISO date string (YYYY-MM-DD) for heatmap
+  
+  // Hierarchical structure (multi-level tasks)
+  parentId?: string | null;   // Parent task ID, null for top-level tasks
+  collapsed?: boolean;        // Whether children are hidden
 }
 
 /**

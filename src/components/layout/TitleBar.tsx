@@ -42,7 +42,7 @@ export function TitleBar() {
   }, []);
 
   return (
-    <div className="h-9 bg-white flex items-center justify-between select-none">
+    <div className="h-9 bg-white dark:bg-zinc-900 flex items-center justify-between select-none">
       {/* Left: Menu Button + Expandable Menu */}
       <div className="h-full flex items-center">
         {/* Menu Toggle Button */}
@@ -119,7 +119,7 @@ export function TitleBar() {
                 
                 {/* Dropdown */}
                 {aboutOpen && (
-                  <div className="absolute top-full left-0 mt-1 bg-white border border-zinc-200 rounded-md shadow-lg py-1 min-w-28 z-50">
+                  <div className="absolute top-full left-0 mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg py-1 min-w-28 z-50">
                     <button
                       onClick={openGitHub}
                       className="w-full px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 text-left"
