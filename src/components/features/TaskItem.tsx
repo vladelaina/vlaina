@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { GripVertical, MoreHorizontal, Trash2, ChevronRight, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/types';
+import { useGroupStore } from '@/stores/useGroupStore';
 
 // Disable drop animation to prevent "snap back" effect
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
@@ -40,6 +41,19 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, onAddSubTask, isB
   const [showMenu, setShowMenu] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { searchQuery } = useGroupStore();
+  
+  // 高亮搜索词 (加粗)
+  const highlightText = (text: string, query: string) => {
+    if (!query.trim()) return text;
+    
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => 
+      regex.test(part) ? <span key={index} className="font-extrabold text-zinc-900 dark:text-zinc-100">{part}</span> : part
+    );
+  };
 
   // Allow dragging for all tasks (will be restricted to same level in reorderTasks)
   const isDraggable = true;
@@ -206,12 +220,12 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, onAddSubTask, isB
             className={cn(
               'w-full text-sm cursor-text select-none whitespace-pre-wrap break-all',
               task.isDone
-                ? 'line-through text-muted-foreground/60'
-                : 'text-foreground'
+                ? 'text-muted-foreground line-through'
+                : 'text-foreground',
+              'leading-relaxed'
             )}
-            style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
           >
-            {task.content}
+            {highlightText(task.content, searchQuery)}
           </div>
         )}
       </div>

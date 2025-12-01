@@ -29,7 +29,7 @@ const updatePositionFast = (x: number, y: number) => {
 };
 
 export function TaskList() {
-  const { tasks, toggleTask, updateTask, deleteTask, reorderTasks, crossStatusReorder, activeGroupId, setDraggingTaskId, hideCompleted, moveTaskToGroup, toggleCollapse, addSubTask } = useGroupStore();
+  const { tasks, toggleTask, updateTask, deleteTask, reorderTasks, crossStatusReorder, activeGroupId, setDraggingTaskId, hideCompleted, moveTaskToGroup, toggleCollapse, addSubTask, searchQuery } = useGroupStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [completedExpanded, setCompletedExpanded] = useState(true);
@@ -37,6 +37,7 @@ export function TaskList() {
   const [subTaskContent, setSubTaskContent] = useState('');
   const originalGroupIdRef = useRef<string | null>(null);
   const subTaskInputRef = useRef<HTMLTextAreaElement>(null);
+  const prevActiveGroupIdRef = useRef<string | null>(null);
 
   // Get children for a task
   const getChildren = useCallback((parentId: string) => {
@@ -110,6 +111,31 @@ export function TaskList() {
 
   const incompleteTaskIds = useMemo(() => incompleteTasks.map((t) => t.id), [incompleteTasks]);
   const completedTaskIds = useMemo(() => completedTasks.map((t) => t.id), [completedTasks]);
+
+  // 自动滚动到第一个匹配搜索词的任务
+  useEffect(() => {
+    // 检测分组切换
+    if (activeGroupId !== prevActiveGroupIdRef.current) {
+      prevActiveGroupIdRef.current = activeGroupId;
+      
+      // 如果有搜索词，滚动到第一个匹配的任务
+      if (searchQuery.trim()) {
+        setTimeout(() => {
+          const query = searchQuery.toLowerCase();
+          const matchingTask = filteredTasks.find(task => 
+            task.content.toLowerCase().includes(query)
+          );
+          
+          if (matchingTask) {
+            const taskElement = document.querySelector(`[data-task-id="${matchingTask.id}"]`);
+            if (taskElement) {
+              taskElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+        }, 100); // 延迟以确保 DOM 已渲染
+      }
+    }
+  }, [activeGroupId, searchQuery, filteredTasks]);
 
   const handleDragStart = useCallback(async (event: DragStartEvent) => {
     const id = event.active.id as string;

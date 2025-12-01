@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { X, Check, Search, SquarePen, ArrowUpDown, Pin, GripVertical, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Check, Search, SquarePen, ArrowUpDown, Pin, GripVertical, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { useGroupStore } from '@/stores/useGroupStore';
 import {
   DndContext,
@@ -232,6 +232,7 @@ function SortMenuItem({
 export function GroupSidebar() {
   const { 
     groups, 
+    tasks,
     activeGroupId, 
     drawerOpen,
     toggleDrawer,
@@ -242,6 +243,7 @@ export function GroupSidebar() {
     reorderGroups,
     draggingTaskId,
     moveTaskToGroup,
+    setSearchQuery: setGlobalSearchQuery,
   } = useGroupStore();
   
   const [hoveringGroupId, setHoveringGroupId] = useState<string | null>(null);
@@ -285,8 +287,6 @@ export function GroupSidebar() {
     }
   }, [draggingTaskId]);
 
-  const groupIds = useMemo(() => groups.map(g => g.id), [groups]);
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
@@ -312,23 +312,30 @@ export function GroupSidebar() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [showSearchOptions, setShowSearchOptions] = useState(false);
+  const [searchGroupName, setSearchGroupName] = useState(true);
+  const [searchTaskContent, setSearchTaskContent] = useState(true);
   const [sortBy, setSortBy] = useState<SortOption>('created-desc');
   const sidebarRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const sortMenuRef = useRef<HTMLDivElement>(null);
+  const searchOptionsRef = useRef<HTMLDivElement>(null);
 
-  // 关闭排序菜单
+  // 关闭菜单
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) {
         setShowSortMenu(false);
       }
+      if (searchOptionsRef.current && !searchOptionsRef.current.contains(e.target as Node)) {
+        setShowSearchOptions(false);
+      }
     };
-    if (showSortMenu) {
+    if (showSortMenu || showSearchOptions) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showSortMenu]);
+  }, [showSortMenu, showSearchOptions]);
 
   const handleMouseDown = useCallback(() => {
     setIsResizing(true);
@@ -380,11 +387,41 @@ export function GroupSidebar() {
     setEditingName('');
   };
 
+  // 搜索过滤
+  const filteredGroups = useMemo(() => {
+    // 如果没有输入搜索内容，显示所有分组
+    if (!searchQuery.trim()) return groups;
+    
+    // 如果两个搜索选项都关闭，显示所有分组
+    if (!searchGroupName && !searchTaskContent) return groups;
+    
+    const query = searchQuery.toLowerCase();
+    return groups.filter(group => {
+      // 搜索分组名
+      if (searchGroupName && group.name.toLowerCase().includes(query)) {
+        return true;
+      }
+      // 搜索任务内容
+      if (searchTaskContent) {
+        const groupTasks = tasks.filter(t => t.groupId === group.id);
+        const hasMatchingTask = groupTasks.some(task => 
+          task.content.toLowerCase().includes(query)
+        );
+        if (hasMatchingTask) {
+          return true;
+        }
+      }
+      return false;
+    });
+  }, [groups, tasks, searchQuery, searchGroupName, searchTaskContent]);
+
+  const groupIds = useMemo(() => filteredGroups.map(g => g.id), [filteredGroups]);
+
   return (
     <div 
       ref={sidebarRef}
       style={{ width: drawerOpen ? sidebarWidth : 40 }}
-      className="h-full bg-white dark:bg-zinc-900 shrink-0 flex transition-[width] duration-200 ease-in-out overflow-hidden"
+      className="h-full bg-white dark:bg-zinc-900 shrink-0 flex transition-[width] duration-200 ease-in-out"
     >
       <div 
         className={`h-full flex flex-col transition-opacity duration-200 ${
@@ -403,7 +440,7 @@ export function GroupSidebar() {
         </div>
       </div>
       <div 
-        className={`flex-1 h-full flex flex-col transition-opacity duration-200 ${
+        className={`flex-1 h-full flex flex-col transition-opacity duration-200 overflow-hidden ${
           drawerOpen ? 'opacity-100' : 'opacity-0'
         }`}
         style={{ display: drawerOpen ? 'flex' : 'none' }}
@@ -443,35 +480,74 @@ export function GroupSidebar() {
 
         {/* Search Input */}
         {isSearching && (
-          <div className="px-2 pb-2">
-            <div className="flex items-center gap-2 px-2 py-1.5 border border-zinc-200 rounded-md">
-              <Search className="size-4 text-zinc-400 shrink-0" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    setIsSearching(false);
-                    setSearchQuery('');
-                  }
-                }}
-                placeholder="输入并开始搜索..."
-                autoFocus
-                className="flex-1 text-sm bg-transparent outline-none placeholder:text-zinc-400"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => {
-                    setSearchQuery('');
-                    searchInputRef.current?.focus();
+          <div className="px-2 pb-2 shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0 flex items-center gap-2 px-2 py-1.5 border border-zinc-200 dark:border-zinc-700 rounded-md">
+                <Search className="size-4 text-zinc-400 shrink-0" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setGlobalSearchQuery(e.target.value);
                   }}
-                  className="p-0.5 rounded-full hover:bg-zinc-100 transition-colors"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setIsSearching(false);
+                      setSearchQuery('');
+                      setGlobalSearchQuery('');
+                    }
+                  }}
+                  placeholder="搜索..."
+                  autoFocus
+                  className="flex-1 min-w-0 text-sm bg-transparent outline-none placeholder:text-zinc-400"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setGlobalSearchQuery('');
+                      searchInputRef.current?.focus();
+                    }}
+                    className="p-0.5 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    <X className="size-4 text-zinc-400" />
+                  </button>
+                )}
+              </div>
+              <div className="relative shrink-0" ref={searchOptionsRef}>
+<button
+                  onClick={() => setShowSearchOptions(!showSearchOptions)}
+                  className="p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                 >
-                  <X className="size-4 text-zinc-400" />
+                  <SlidersHorizontal className="size-4 text-zinc-400" />
                 </button>
-              )}
+                {showSearchOptions && (
+                  <div className="absolute right-0 top-full mt-2 w-40 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-2 px-3 z-50">
+                    <div className="space-y-2">
+                      <label className="flex items-center justify-between cursor-pointer">
+                        <span className="text-sm text-zinc-700 dark:text-zinc-300">搜索分组名</span>
+                        <input
+                          type="checkbox"
+                          checked={searchGroupName}
+                          onChange={(e) => setSearchGroupName(e.target.checked)}
+                          className="w-9 h-5 appearance-none bg-zinc-200 dark:bg-zinc-700 rounded-full relative cursor-pointer transition-colors checked:bg-zinc-400 dark:checked:bg-zinc-500 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-transform checked:after:translate-x-4"
+                        />
+                      </label>
+                      <label className="flex items-center justify-between cursor-pointer">
+                        <span className="text-sm text-zinc-700 dark:text-zinc-300">搜索内容</span>
+                        <input
+                          type="checkbox"
+                          checked={searchTaskContent}
+                          onChange={(e) => setSearchTaskContent(e.target.checked)}
+                          className="w-9 h-5 appearance-none bg-zinc-200 dark:bg-zinc-700 rounded-full relative cursor-pointer transition-colors checked:bg-zinc-400 dark:checked:bg-zinc-500 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-transform checked:after:translate-x-4"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -484,7 +560,7 @@ export function GroupSidebar() {
             onDragEnd={handleDragEnd}
           >
             <SortableContext items={groupIds} strategy={verticalListSortingStrategy}>
-              {groups.map((group) => (
+              {filteredGroups.map((group) => (
                 <div
                   key={group.id}
                   onMouseEnter={() => {
@@ -571,8 +647,8 @@ export function GroupSidebar() {
       {drawerOpen && (
         <div
           onMouseDown={handleMouseDown}
-          className={`w-0.5 h-full cursor-col-resize hover:bg-zinc-300 transition-colors ${
-            isResizing ? 'bg-zinc-400' : 'bg-zinc-200'
+          className={`w-1 h-full shrink-0 cursor-col-resize hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors ${
+            isResizing ? 'bg-zinc-400 dark:bg-zinc-500' : 'bg-zinc-200 dark:bg-zinc-700'
           }`}
         />
       )}

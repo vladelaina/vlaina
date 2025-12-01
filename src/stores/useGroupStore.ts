@@ -37,11 +37,13 @@ interface GroupStore {
   drawerOpen: boolean;
   loaded: boolean;
   hideCompleted: boolean;
+  searchQuery: string;
   
   // Drag state for cross-group drag
   draggingTaskId: string | null;
   setDraggingTaskId: (id: string | null) => void;
   setHideCompleted: (hide: boolean) => void;
+  setSearchQuery: (query: string) => void;
   
   loadData: () => Promise<void>;
   setDrawerOpen: (open: boolean) => void;
@@ -146,17 +148,19 @@ async function persistGroup(groups: Group[], tasks: StoreTask[], groupId: string
   }
 }
 
-export const useGroupStore = create<GroupStore>((set) => ({
+export const useGroupStore = create<GroupStore>()((set, get) => ({
   groups: [],
   tasks: [],
   activeGroupId: 'default',
   drawerOpen: false,
   loaded: false,
   hideCompleted: false,
-  draggingTaskId: null,
+  searchQuery: '',
   
+  draggingTaskId: null,
   setDraggingTaskId: (id) => set({ draggingTaskId: id }),
   setHideCompleted: (hide) => set({ hideCompleted: hide }),
+  setSearchQuery: (query) => set({ searchQuery: query }),
 
   loadData: async () => {
     const allGroups = await loadGroups();

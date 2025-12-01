@@ -67,6 +67,62 @@ This project strictly adheres to the following technology choices:
 * **Layout:** Block-based, generous padding.
 * **Dark Mode:** Native support.
 
+### Color Palette (Zinc-based Monochrome)
+
+**Core Philosophy:** Minimize color distractions. Use subtle grays (Zinc) throughout the interface.
+
+#### Primary Colors (Zinc Scale)
+```
+Base Background:
+  - Light Mode: white / zinc-50
+  - Dark Mode: zinc-900
+
+Text:
+  - Primary: zinc-900 (light) / zinc-100 (dark)
+  - Secondary: zinc-600 (light) / zinc-400 (dark)
+  - Muted: zinc-400 (light) / zinc-600 (dark)
+
+Borders:
+  - Default: zinc-200 (light) / zinc-700 (dark)
+  - Hover: zinc-300 (light) / zinc-600 (dark)
+
+Interactive Elements:
+  - Hover Background: zinc-50 (light) / zinc-800 (dark)
+  - Active Background: zinc-100 (light) / zinc-800 (dark)
+```
+
+#### Accent Colors (AVOID when possible)
+```
+Toggle Switches / Checkboxes:
+  - OFF: zinc-200 (light) / zinc-700 (dark)
+  - ON: zinc-400 (light) / zinc-500 (dark)
+  ❌ DO NOT USE: Blue, Green, or any vibrant colors
+
+Exceptions (Minimal use):
+  - Error States: red-500 (sparingly)
+  - Destructive Actions: red-500 hover on buttons
+```
+
+#### Component-Specific Guidelines
+```
+Search Input:
+  - Placeholder: zinc-400
+  - Border: zinc-200 (light) / zinc-700 (dark)
+  - Background: transparent
+
+Sidebar:
+  - Background: white (light) / zinc-900 (dark)
+  - Divider: zinc-200 (light) / zinc-700 (dark)
+  - Active Item: zinc-100 (light) / zinc-800 (dark)
+
+Task Items:
+  - Default: transparent
+  - Hover: zinc-50 (light) / zinc-800/50 (dark)
+  - Completed Text: zinc-400 with line-through
+```
+
+**Design Rule:** If you're considering adding color, ask: "Can this be communicated with typography or spacing instead?"
+
 ## 5. 📝 Coding Standards
 
 ### TypeScript (Frontend)
