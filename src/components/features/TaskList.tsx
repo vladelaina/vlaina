@@ -29,7 +29,7 @@ const updatePositionFast = (x: number, y: number) => {
 };
 
 export function TaskList() {
-  const { tasks, toggleTask, updateTask, deleteTask, reorderTasks, activeGroupId, setDraggingTaskId, hideCompleted, moveTaskToGroup, toggleCollapse, addSubTask } = useGroupStore();
+  const { tasks, toggleTask, updateTask, deleteTask, reorderTasks, crossStatusReorder, activeGroupId, setDraggingTaskId, hideCompleted, moveTaskToGroup, toggleCollapse, addSubTask } = useGroupStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [completedExpanded, setCompletedExpanded] = useState(true);
@@ -96,6 +96,7 @@ export function TaskList() {
     return [...incompleteTasks, ...completedTasks];
   }, [incompleteTasks, completedTasks]);
 
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -107,7 +108,8 @@ export function TaskList() {
     })
   );
 
-  const taskIds = useMemo(() => filteredTasks.map((t) => t.id), [filteredTasks]);
+  const incompleteTaskIds = useMemo(() => incompleteTasks.map((t) => t.id), [incompleteTasks]);
+  const completedTaskIds = useMemo(() => completedTasks.map((t) => t.id), [completedTasks]);
 
   const handleDragStart = useCallback(async (event: DragStartEvent) => {
     const id = event.active.id as string;
@@ -184,12 +186,8 @@ export function TaskList() {
       const targetTask = tasks.find(t => t.id === over.id);
       
       if (draggedTask && targetTask && draggedTask.completed !== targetTask.completed) {
-        // Cross-status drag: toggle the dragged task's status first
-        toggleTask(taskId);
-        // Small delay to let the state update, then reorder
-        setTimeout(() => {
-          reorderTasks(taskId, over.id as string);
-        }, 50);
+        // Cross-status drag: use special handler that changes status and reorders atomically
+        crossStatusReorder(taskId, over.id as string);
       } else {
         // Same status reorder - update task order BEFORE clearing activeId
         // Otherwise the dragged task will briefly appear at its old position (flicker)
@@ -213,7 +211,7 @@ export function TaskList() {
     setTimeout(() => {
       setDraggingTaskId(null);
     }, 50);
-  }, [reorderTasks, setDraggingTaskId, activeGroupId, moveTaskToGroup, tasks, toggleTask]);
+  }, [reorderTasks, crossStatusReorder, setDraggingTaskId, activeGroupId, moveTaskToGroup, tasks]);
 
   // Cleanup: destroy drag window on unmount
   useEffect(() => {
@@ -296,39 +294,41 @@ export function TaskList() {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-          {/* Incomplete Tasks Section */}
+        {/* 未完成任务区域 - 独立的 SortableContext */}
+        <SortableContext items={incompleteTaskIds} strategy={verticalListSortingStrategy}>
           {incompleteTasks.length > 0 && (
             <div className="space-y-0.5">
               {incompleteTasks.map(task => renderTaskItem(task, 0))}
             </div>
           )}
-
-          {/* Completed Tasks Section */}
-          {completedTasks.length > 0 && (
-            <>
-              <button
-                onClick={() => setCompletedExpanded(!completedExpanded)}
-                className="my-6 flex items-center gap-2 w-full group hover:opacity-80 transition-opacity"
-              >
-                {completedExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                )}
-                <span className="text-xs font-medium text-muted-foreground">
-                  Completed ({completedTasks.length})
-                </span>
-                <div className="flex-1 h-px bg-border" />
-              </button>
-              {completedExpanded && (
-                <div className="space-y-0.5 opacity-60">
-                  {completedTasks.map(task => renderTaskItem(task, 0))}
-                </div>
-              )}
-            </>
-          )}
         </SortableContext>
+
+        {/* 分割线 - 在两个 SortableContext 之间 */}
+        {completedTasks.length > 0 && (
+          <button
+            onClick={() => setCompletedExpanded(!completedExpanded)}
+            className="flex items-center gap-2 w-full group hover:opacity-80 transition-all duration-300 mt-6 mb-6"
+          >
+            {completedExpanded ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+            <span className="text-xs font-medium text-muted-foreground">
+              Completed ({completedTasks.length})
+            </span>
+            <div className="flex-1 h-px bg-border" />
+          </button>
+        )}
+
+        {/* 已完成任务区域 - 独立的 SortableContext */}
+        {completedTasks.length > 0 && completedExpanded && (
+          <SortableContext items={completedTaskIds} strategy={verticalListSortingStrategy}>
+            <div className="space-y-0.5 opacity-60">
+              {completedTasks.map(task => renderTaskItem(task, 0))}
+            </div>
+          </SortableContext>
+        )}
       </DndContext>
 
       {/* Subtask Input Modal */}

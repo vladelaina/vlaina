@@ -42,8 +42,8 @@ export interface TaskData {
   completedAt?: number;
   scheduledTime?: string;
   order: number;
-  parentId?: string | null;   // Parent task ID for hierarchical structure
-  collapsed?: boolean;        // Whether children are hidden
+  parentId: string | null;   // Parent task ID for hierarchical structure
+  collapsed: boolean;        // Whether children are hidden
 }
 
 export interface GroupData {
@@ -229,14 +229,21 @@ export async function loadGroups(): Promise<GroupData[]> {
     return groups;
   } catch (error) {
     console.error('Failed to load groups:', error);
-    return [{
+    // Return default group on error
+    const defaultGroup: GroupData = {
       id: 'default',
       name: '收集箱',
       pinned: false,
       tasks: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
-    }];
+    };
+    try {
+      await saveGroup(defaultGroup);
+    } catch (saveError) {
+      console.error('Failed to create default group:', saveError);
+    }
+    return [defaultGroup];
   }
 }
 
@@ -249,6 +256,7 @@ export async function saveGroup(group: GroupData): Promise<void> {
     await writeTextFile(filePath, content);
   } catch (error) {
     console.error('Failed to save group:', error);
+    throw new Error('保存失败：' + (error instanceof Error ? error.message : '未知错误'));
   }
 }
 

@@ -234,24 +234,28 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, onAddSubTask, isB
             className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Only show Add Subtask if not at max level */}
-            {canAddSubTask && (
-              <>
-                <button
-                  onClick={() => {
-                    if (onAddSubTask) {
-                      onAddSubTask(task.id);
-                    }
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>Add Subtask</span>
-                </button>
-                <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
-              </>
-            )}
+            {/* Add Subtask option */}
+            <button
+              onClick={() => {
+                if (canAddSubTask && onAddSubTask) {
+                  onAddSubTask(task.id);
+                  setShowMenu(false);
+                }
+              }}
+              disabled={!canAddSubTask}
+              title={!canAddSubTask ? '已达到最大嵌套层级（4层）' : ''}
+              className={cn(
+                "w-full px-3 py-1.5 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2",
+                canAddSubTask 
+                  ? "text-zinc-600 dark:text-zinc-300" 
+                  : "text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
+              )}
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Subtask</span>
+              {!canAddSubTask && <span className="ml-auto text-xs">(Max 4层)</span>}
+            </button>
+            <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
             <button
               onClick={() => {
                 onDelete(task.id);

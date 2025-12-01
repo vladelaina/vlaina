@@ -8,6 +8,7 @@ import { TimeTrackerPage } from '@/components/TimeTracker';
 import { ProgressPage } from '@/components/Progress';
 import { Layout } from '@/components/layout';
 import { ThemeProvider } from '@/components/theme-provider';
+import { ToastContainer } from '@/components/ui/Toast';
 import { useViewStore } from '@/stores/useViewStore';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useVimShortcuts } from '@/hooks/useVimShortcuts';
@@ -213,6 +214,7 @@ function App() {
   return (
     <ThemeProvider>
       <AppContent />
+      <ToastContainer />
     </ThemeProvider>
   );
 }
