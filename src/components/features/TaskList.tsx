@@ -81,11 +81,23 @@ export function TaskList() {
     }
   }, [subTaskContent]);
 
+  // Priority order: red (0) > yellow (1) > purple (2) > green (3) > default (4)
+  const priorityOrder = { red: 0, yellow: 1, purple: 2, green: 3, default: 4 };
+
   // Filter tasks by current group - only top-level tasks
   const { incompleteTasks, completedTasks } = useMemo(() => {
     const topLevelTasks = tasks
       .filter((t) => t.groupId === activeGroupId && !t.parentId)
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => {
+        // First sort by priority
+        const aPriority = priorityOrder[a.priority || 'default'];
+        const bPriority = priorityOrder[b.priority || 'default'];
+        if (aPriority !== bPriority) {
+          return aPriority - bPriority;
+        }
+        // Then by order
+        return a.order - b.order;
+      });
     
     return {
       incompleteTasks: topLevelTasks.filter((t) => !t.completed),
@@ -285,6 +297,7 @@ export function TaskList() {
             isDone: task.completed,
             createdAt: task.createdAt,
             groupId: task.groupId,
+            priority: task.priority,
             completedAt: task.completedAt ? new Date(task.completedAt).toISOString().split('T')[0] : undefined,
           }}
           onToggle={toggleTask}

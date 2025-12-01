@@ -5,7 +5,15 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { GripVertical, MoreHorizontal, Trash2, ChevronRight, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/types';
-import { useGroupStore } from '@/stores/useGroupStore';
+import { useGroupStore, type Priority } from '@/stores/useGroupStore';
+
+const priorityColors = {
+  red: 'border-red-500',
+  yellow: 'border-yellow-500',
+  purple: 'border-purple-500',
+  green: 'border-green-500',
+  default: 'border-zinc-400',
+};
 
 // Disable drop animation to prevent "snap back" effect
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
@@ -188,12 +196,17 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, onAddSubTask, isB
         <div className="w-5" /> /* Spacer for child tasks */
       )}
 
-      {/* Checkbox */}
+      {/* Checkbox with Priority Border */}
       <div className="mt-0.5">
         <Checkbox
           checked={task.isDone}
           onCheckedChange={() => onToggle(task.id)}
-          className="h-4 w-4 rounded-sm border-muted-foreground/40 transition-none"
+          className={cn(
+            "h-4 w-4 rounded-sm transition-none",
+            task.priority && task.priority !== 'default'
+              ? cn("border-2", priorityColors[task.priority])
+              : "border border-muted-foreground/40"
+          )}
         />
       </div>
 

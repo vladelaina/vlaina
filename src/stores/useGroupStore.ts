@@ -14,6 +14,9 @@ export interface Group {
   pinned?: boolean;
 }
 
+// Priority levels: red (highest) > yellow > purple > green > default (lowest)
+export type Priority = 'red' | 'yellow' | 'purple' | 'green' | 'default';
+
 // Internal Task type for persistence (uses 'completed')
 export interface StoreTask {
   id: string;
@@ -24,6 +27,7 @@ export interface StoreTask {
   scheduledTime?: string;
   order: number;
   groupId: string;
+  priority?: Priority;  // Task priority
   
   // Hierarchical structure (nested tasks)
   parentId: string | null;  // Parent task ID, null for top-level
@@ -56,7 +60,7 @@ interface GroupStore {
   reorderGroups: (activeId: string, overId: string) => void;
   
   // Task operations
-  addTask: (content: string, groupId: string) => void;
+  addTask: (content: string, groupId: string, priority?: Priority) => void;
   addSubTask: (parentId: string, content: string) => void;
   updateTask: (id: string, content: string) => void;
   toggleTask: (id: string, skipReorder?: boolean) => void;
@@ -283,7 +287,7 @@ export const useGroupStore = create<GroupStore>()((set, get) => ({
   }),
   
   // 任务操作
-  addTask: (content, groupId) => set((state) => {
+  addTask: (content, groupId, priority = 'default') => set((state) => {
     const groupTasks = state.tasks.filter(t => t.groupId === groupId && !t.parentId);
     const newTask: StoreTask = {
       id: nanoid(),
@@ -294,6 +298,7 @@ export const useGroupStore = create<GroupStore>()((set, get) => ({
       groupId,
       parentId: null,
       collapsed: false,
+      priority,
     };
     
     const newTasks = [...state.tasks, newTask];
