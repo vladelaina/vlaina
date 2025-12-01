@@ -193,6 +193,14 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, onAddSubTask, isB
         <Checkbox
           checked={task.isDone}
           onCheckedChange={() => onToggle(task.id)}
+          checkmarkColor={
+            task.isDone && task.priority && task.priority !== 'default'
+              ? task.priority === 'red' ? '#ef4444' :
+                task.priority === 'yellow' ? '#eab308' :
+                task.priority === 'purple' ? '#a855f7' :
+                task.priority === 'green' ? '#22c55e' : undefined
+              : undefined
+          }
           className={cn(
             "h-4 w-4 rounded-sm transition-none",
             task.priority && task.priority !== 'default'
