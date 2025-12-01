@@ -154,7 +154,7 @@ async function persistGroup(groups: Group[], tasks: StoreTask[], groupId: string
   }
 }
 
-export const useGroupStore = create<GroupStore>()((set, get) => ({
+export const useGroupStore = create<GroupStore>()((set, _get) => ({
   groups: [],
   tasks: [],
   activeGroupId: 'default',

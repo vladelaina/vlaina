@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Minus, Square, X, Menu, Pin, Settings, Keyboard } from 'lucide-react';
@@ -10,13 +10,17 @@ const appWindow = getCurrentWindow();
 
 export function TitleBar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPinned, setMenuPinned] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [aboutPinned, setAboutPinned] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsPinned, setSettingsPinned] = useState(false);
   const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const { currentView, setView } = useViewStore();
   const aboutRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const togglePin = async () => {
     const newPinned = !isPinned;
@@ -31,30 +35,46 @@ export function TitleBar() {
   const openGitHub = async () => {
     await openUrl('https://github.com/vladelaina/NekoTick');
     setAboutOpen(false);
-    setMenuOpen(false);
+    setAboutPinned(false);
+    if (menuPinned) {
+      setMenuOpen(false);
+      setMenuPinned(false);
+    }
   };
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (aboutRef.current && !aboutRef.current.contains(e.target as Node)) {
-        setAboutOpen(false);
-      }
-      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
-        setSettingsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  // No longer need click outside handler since we use hover
+
+  // Handle menu hover and click
+  const handleMenuMouseEnter = () => {
+    if (!menuPinned) {
+      setMenuOpen(true);
+    }
+  };
+
+  const handleMenuMouseLeave = () => {
+    if (!menuPinned) {
+      setMenuOpen(false);
+    }
+  };
+
+  const handleMenuClick = () => {
+    const newPinned = !menuPinned;
+    setMenuPinned(newPinned);
+    setMenuOpen(newPinned);
+  };
 
   return (
     <div className="h-9 bg-white dark:bg-zinc-900 flex items-center justify-between select-none">
       {/* Left: Menu Button + Expandable Menu */}
-      <div className="h-full flex items-center">
+      <div 
+        ref={menuRef}
+        className="h-full flex items-center"
+        onMouseEnter={handleMenuMouseEnter}
+        onMouseLeave={handleMenuMouseLeave}
+      >
         {/* Menu Toggle Button */}
         <button
-          onClick={() => setMenuOpen(!menuOpen)}
+          onClick={handleMenuClick}
           className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 transition-colors"
         >
           <Menu className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
@@ -74,7 +94,10 @@ export function TitleBar() {
               <button
                 onClick={() => {
                   setView('tasks');
-                  setMenuOpen(false);
+                  if (menuPinned) {
+                    setMenuOpen(false);
+                    setMenuPinned(false);
+                  }
                 }}
                 className={`h-full px-3 text-sm transition-colors whitespace-nowrap ${
                   currentView === 'tasks'
@@ -89,7 +112,10 @@ export function TitleBar() {
               <button
                 onClick={() => {
                   setView('progress');
-                  setMenuOpen(false);
+                  if (menuPinned) {
+                    setMenuOpen(false);
+                    setMenuPinned(false);
+                  }
                 }}
                 className={`h-full px-3 text-sm transition-colors whitespace-nowrap ${
                   currentView === 'progress'
@@ -104,7 +130,10 @@ export function TitleBar() {
               <button
                 onClick={() => {
                   setView('time-tracker');
-                  setMenuOpen(false);
+                  if (menuPinned) {
+                    setMenuOpen(false);
+                    setMenuPinned(false);
+                  }
                 }}
                 className={`h-full px-3 text-sm transition-colors whitespace-nowrap ${
                   currentView === 'time-tracker'
@@ -116,9 +145,26 @@ export function TitleBar() {
               </button>
 
               {/* 设置 */}
-              <div ref={settingsRef} className="relative h-full">
+              <div 
+                ref={settingsRef} 
+                className="relative h-full"
+                onMouseEnter={() => {
+                  if (!settingsPinned) {
+                    setSettingsOpen(true);
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (!settingsPinned) {
+                    setSettingsOpen(false);
+                  }
+                }}
+              >
                 <button
-                  onClick={() => setSettingsOpen(!settingsOpen)}
+                  onClick={() => {
+                    const newPinned = !settingsPinned;
+                    setSettingsPinned(newPinned);
+                    setSettingsOpen(newPinned);
+                  }}
                   className="h-full px-3 text-sm text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500 transition-colors whitespace-nowrap flex items-center gap-1"
                 >
                   <Settings className="size-3.5" />
@@ -132,7 +178,11 @@ export function TitleBar() {
                       onClick={() => {
                         setShortcutsDialogOpen(true);
                         setSettingsOpen(false);
-                        setMenuOpen(false);
+                        setSettingsPinned(false);
+                        if (menuPinned) {
+                          setMenuOpen(false);
+                          setMenuPinned(false);
+                        }
                       }}
                       className="w-full px-3 py-2 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 text-left flex items-center gap-2"
                     >
@@ -144,9 +194,26 @@ export function TitleBar() {
               </div>
 
               {/* 关于 */}
-              <div ref={aboutRef} className="relative h-full">
+              <div 
+                ref={aboutRef} 
+                className="relative h-full"
+                onMouseEnter={() => {
+                  if (!aboutPinned) {
+                    setAboutOpen(true);
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (!aboutPinned) {
+                    setAboutOpen(false);
+                  }
+                }}
+              >
                 <button
-                  onClick={() => setAboutOpen(!aboutOpen)}
+                  onClick={() => {
+                    const newPinned = !aboutPinned;
+                    setAboutPinned(newPinned);
+                    setAboutOpen(newPinned);
+                  }}
                   className="h-full px-3 text-sm text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500 transition-colors whitespace-nowrap"
                 >
                   关于
@@ -157,7 +224,7 @@ export function TitleBar() {
                   <div className="absolute top-full left-0 mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md shadow-lg py-1 min-w-28 z-50">
                     <button
                       onClick={openGitHub}
-                      className="w-full px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 text-left"
+                      className="w-full px-3 py-2 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 text-left"
                     >
                       GitHub
                     </button>

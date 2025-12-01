@@ -21,7 +21,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { TaskItem } from './TaskItem';
-import { useGroupStore } from '@/stores/useGroupStore';
+import { useGroupStore, type Priority } from '@/stores/useGroupStore';
 
 // Update position without awaiting result for smoother animation
 const updatePositionFast = (x: number, y: number) => {
@@ -285,7 +285,7 @@ export function TaskList() {
         
         // Update priority if it changed
         if (priorityToInherit && priorityToInherit !== draggedPriority) {
-          updateTaskPriority(taskId, priorityToInherit as any);
+          updateTaskPriority(taskId, priorityToInherit as Priority);
         }
       }
     }
