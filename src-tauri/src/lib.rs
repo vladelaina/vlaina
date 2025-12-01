@@ -87,7 +87,6 @@ body{{font-family:system-ui,-apple-system,sans-serif;display:flex}}
     .inner_size(width, height)
     .position(x - 20.0, y - (height / 2.0))
     .decorations(false)
-    .transparent(true)
     .shadow(false)
     .background_color(Color(0, 0, 0, 0))
     .always_on_top(true)
