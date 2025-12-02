@@ -387,33 +387,59 @@ export function GroupSidebar() {
     setEditingName('');
   };
 
-  // 搜索过滤
+  // 搜索过滤和排序
   const filteredGroups = useMemo(() => {
-    // 如果没有输入搜索内容，显示所有分组
-    if (!searchQuery.trim()) return groups;
+    // 先进行搜索过滤
+    let result = groups;
     
-    // 如果两个搜索选项都关闭，显示所有分组
-    if (!searchGroupName && !searchTaskContent) return groups;
-    
-    const query = searchQuery.toLowerCase();
-    return groups.filter(group => {
-      // 搜索分组名
-      if (searchGroupName && group.name.toLowerCase().includes(query)) {
-        return true;
-      }
-      // 搜索任务内容
-      if (searchTaskContent) {
-        const groupTasks = tasks.filter(t => t.groupId === group.id);
-        const hasMatchingTask = groupTasks.some(task => 
-          task.content.toLowerCase().includes(query)
-        );
-        if (hasMatchingTask) {
+    if (searchQuery.trim() && (searchGroupName || searchTaskContent)) {
+      const query = searchQuery.toLowerCase();
+      result = groups.filter(group => {
+        // 搜索分组名
+        if (searchGroupName && group.name.toLowerCase().includes(query)) {
           return true;
         }
+        // 搜索任务内容
+        if (searchTaskContent) {
+          const groupTasks = tasks.filter(t => t.groupId === group.id);
+          const hasMatchingTask = groupTasks.some(task => 
+            task.content.toLowerCase().includes(query)
+          );
+          if (hasMatchingTask) {
+            return true;
+          }
+        }
+        return false;
+      });
+    }
+    
+    // 然后进行排序
+    const sorted = [...result].sort((a, b) => {
+      // 置顶的分组始终在前面
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      
+      // 对于非置顶的分组，按照选择的排序方式
+      switch (sortBy) {
+        case 'name-asc':
+          return a.name.localeCompare(b.name, 'zh-CN');
+        case 'name-desc':
+          return b.name.localeCompare(a.name, 'zh-CN');
+        case 'edited-desc':
+          return (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt);
+        case 'edited-asc':
+          return (a.updatedAt || a.createdAt) - (b.updatedAt || b.createdAt);
+        case 'created-desc':
+          return b.createdAt - a.createdAt;
+        case 'created-asc':
+          return a.createdAt - b.createdAt;
+        default:
+          return 0;
       }
-      return false;
     });
-  }, [groups, tasks, searchQuery, searchGroupName, searchTaskContent]);
+    
+    return sorted;
+  }, [groups, tasks, searchQuery, searchGroupName, searchTaskContent, sortBy]);
 
   const groupIds = useMemo(() => filteredGroups.map(g => g.id), [filteredGroups]);
 
@@ -446,7 +472,7 @@ export function GroupSidebar() {
         style={{ display: drawerOpen ? 'flex' : 'none' }}
       >
         {/* Toolbar */}
-        <div className="flex items-center gap-1 px-3 pt-2 pb-1">
+        <div className="flex items-center gap-1 px-3 pt-2 pb-1 shrink-0 relative z-50 overflow-visible">
           <IconButton onClick={() => setIsSearching(!isSearching)} active={isSearching} tooltip="搜索">
             <Search className="size-4" />
           </IconButton>
@@ -459,12 +485,16 @@ export function GroupSidebar() {
           }} active={isAdding} tooltip="新建分组">
             <SquarePen className="size-4" />
           </IconButton>
-          <div className="relative" ref={sortMenuRef}>
+          <div className="relative z-[100]" ref={sortMenuRef}>
             <IconButton onClick={() => setShowSortMenu(!showSortMenu)} active={showSortMenu} tooltip="排序">
               <ArrowUpDown className="size-4" />
             </IconButton>
             {showSortMenu && (
-              <div className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1" style={{ zIndex: 9999 }}>
+              <div className="fixed w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1" style={{ 
+                zIndex: 9999,
+                left: sortMenuRef.current?.getBoundingClientRect().left + 'px',
+                top: (sortMenuRef.current?.getBoundingClientRect().bottom ?? 0) + 4 + 'px'
+              }}>
                 <SortMenuItem label="名称 (A-Z)" value="name-asc" current={sortBy} onSelect={setSortBy} onClose={() => setShowSortMenu(false)} />
                 <SortMenuItem label="名称 (Z-A)" value="name-desc" current={sortBy} onSelect={setSortBy} onClose={() => setShowSortMenu(false)} />
                 <div className="h-px bg-zinc-200 my-1" />
@@ -612,22 +642,24 @@ export function GroupSidebar() {
 
           {/* Add New Group Input */}
           {isAdding && (
-            <div className="flex items-center gap-2 px-3 py-1.5 mx-2">
-              <input
-                type="text"
-                value={newGroupName}
-                onChange={(e) => setNewGroupName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleAddGroup();
-                  if (e.key === 'Escape') {
-                    setIsAdding(false);
-                    setNewGroupName('');
-                  }
-                }}
-                placeholder="分组名称"
-                autoFocus
-                className="flex-1 text-sm bg-white border border-zinc-300 rounded px-2 py-0.5 outline-none focus:border-zinc-400"
-              />
+            <div className="px-2 pb-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddGroup();
+                    if (e.key === 'Escape') {
+                      setIsAdding(false);
+                      setNewGroupName('');
+                    }
+                  }}
+                  placeholder="分组名称"
+                  autoFocus
+                  className="flex-1 min-w-0 text-sm bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1.5 outline-none focus:border-zinc-400 dark:focus:border-zinc-500"
+                />
+              </div>
             </div>
           )}
         </div>

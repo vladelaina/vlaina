@@ -11,6 +11,7 @@ export interface Group {
   name: string;
   color?: string;
   createdAt: number;
+  updatedAt?: number;
   pinned?: boolean;
 }
 
@@ -180,6 +181,7 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
         name: gd.name,
         pinned: gd.pinned,
         createdAt: gd.createdAt,
+        updatedAt: gd.updatedAt,
       });
       
       // Auto-fix: remove duplicate task IDs (keep only first occurrence)
