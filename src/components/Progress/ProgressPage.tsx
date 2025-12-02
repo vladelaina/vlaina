@@ -388,7 +388,7 @@ export function ProgressPage() {
                 return (
                   <div key={item.id}>
                     {!insertAfter && isDropTarget && (
-                      <div className="h-20 rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-800/50 mb-3" />
+                      <div className="h-20 rounded-md border-2 border-dashed border-zinc-300 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-800/50 mb-3" />
                     )}
                     {item.type === 'progress' 
                       ? <ProgressCard 
@@ -490,61 +490,63 @@ function ProgressCard({
       ref={setNodeRef}
       style={style}
       data-item-id={item.id}
-      className={`group p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl ${
-        isDragging ? 'h-0 overflow-hidden opacity-0 !p-0 !m-0' : ''
+      className={`group flex items-center gap-2 px-2 py-2 rounded-md border border-transparent ${
+        isDragging 
+          ? 'h-0 overflow-hidden opacity-0 !p-0 !m-0' 
+          : 'hover:bg-muted/50 hover:border-border/50'
       }`}
     >
-      <div className="flex items-start gap-3">
-        {/* Drag Handle */}
-        <button
-          {...attributes}
-          {...listeners}
-          className="mt-1 p-1 -ml-1 rounded cursor-grab active:cursor-grabbing hover:bg-zinc-200 dark:hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity touch-none"
-          aria-label="Drag to reorder"
-        >
-          <GripVertical className="h-4 w-4 text-muted-foreground" />
-        </button>
-        
-        <div className="flex-1 min-w-0 flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-          <h3 className="text-base font-medium text-zinc-800 dark:text-zinc-200 mb-2">{item.title}</h3>
-          <div className="flex items-center gap-3 text-sm mb-2">
-            <span className="px-2 py-0.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400 rounded text-xs">进度</span>
-            <span className="text-zinc-500">{item.current}/{item.total}{item.unit}</span>
-            <span className="text-zinc-400">今天{item.todayCount}{item.unit}</span>
+      {/* Drag Handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="opacity-0 group-hover:opacity-100 cursor-move p-0.5 rounded hover:bg-muted transition-opacity duration-150 touch-none"
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground/60" />
+      </button>
+      
+      <div className="flex-1 min-w-0">
+        <div className="text-sm text-foreground mb-1">{item.title}</div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="px-1.5 py-0.5 bg-muted rounded text-xs">进度</span>
+          <span>{item.current}/{item.total}{item.unit}</span>
+          <span className="text-muted-foreground/60">今天{item.todayCount}{item.unit}</span>
+        </div>
+        <div className="flex items-center gap-2 mt-1.5">
+          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-foreground/40 transition-all duration-300"
+              style={{ width: `${percentage}%` }}
+            />
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-zinc-400 transition-all duration-300"
-                style={{ width: `${percentage}%` }}
-              />
-            </div>
-            <span className="text-sm text-zinc-500">{percentage}%</span>
-          </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onUpdate(item.id, -step)}
-              className="w-10 h-10 rounded-full border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors"
-            >
-              <Minus className="size-5" />
-            </button>
-            <button
-              onClick={() => onUpdate(item.id, step)}
-              className="w-10 h-10 rounded-full border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors"
-            >
-              <Plus className="size-5" />
-            </button>
-          </div>
+          <span className="text-xs text-muted-foreground tabular-nums">{percentage}%</span>
         </div>
       </div>
-      <button
-        onClick={() => onDelete(item.id)}
-        className="mt-2 text-xs text-zinc-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-      >
-        删除
-      </button>
+      
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onUpdate(item.id, -step)}
+          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Decrease"
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => onUpdate(item.id, step)}
+          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Increase"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => onDelete(item.id)}
+          className="p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+          aria-label="Delete"
+        >
+          <span className="text-xs">×</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -580,52 +582,54 @@ function CounterCard({
       ref={setNodeRef}
       style={style}
       data-item-id={item.id}
-      className={`group p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl ${
-        isDragging ? 'h-0 overflow-hidden opacity-0 !p-0 !m-0' : ''
+      className={`group flex items-center gap-2 px-2 py-2 rounded-md border border-transparent ${
+        isDragging 
+          ? 'h-0 overflow-hidden opacity-0 !p-0 !m-0' 
+          : 'hover:bg-muted/50 hover:border-border/50'
       }`}
     >
-      <div className="flex items-start gap-3">
-        {/* Drag Handle */}
-        <button
-          {...attributes}
-          {...listeners}
-          className="mt-1 p-1 -ml-1 rounded cursor-grab active:cursor-grabbing hover:bg-zinc-200 dark:hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity touch-none"
-          aria-label="Drag to reorder"
-        >
-          <GripVertical className="h-4 w-4 text-muted-foreground" />
-        </button>
-        
-        <div className="flex-1 min-w-0 flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-base font-medium text-zinc-800 dark:text-zinc-200 mb-2">{item.title}</h3>
-            <div className="flex items-center gap-3 text-sm">
-              <span className="px-2 py-0.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400 rounded text-xs">计数</span>
-              <span className="text-zinc-500">总计{item.current}{item.unit}</span>
-              <span className="text-zinc-400">今天{item.todayCount}{item.unit}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onUpdate(item.id, -item.step)}
-              className="w-10 h-10 rounded-full border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors"
-            >
-              <Minus className="size-5" />
-            </button>
-            <button
-              onClick={() => onUpdate(item.id, item.step)}
-              className="w-10 h-10 rounded-full border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors"
-            >
-              <Plus className="size-5" />
-            </button>
-          </div>
+      {/* Drag Handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="opacity-0 group-hover:opacity-100 cursor-move p-0.5 rounded hover:bg-muted transition-opacity duration-150 touch-none"
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground/60" />
+      </button>
+      
+      <div className="flex-1 min-w-0">
+        <div className="text-sm text-foreground mb-1">{item.title}</div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="px-1.5 py-0.5 bg-muted rounded text-xs">计数</span>
+          <span>总计{item.current}{item.unit}</span>
+          <span className="text-muted-foreground/60">今天{item.todayCount}{item.unit}</span>
         </div>
       </div>
-      <button
-        onClick={() => onDelete(item.id)}
-        className="mt-2 text-xs text-zinc-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-      >
-        删除
-      </button>
+      
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onUpdate(item.id, -item.step)}
+          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Decrease"
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => onUpdate(item.id, item.step)}
+          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Increase"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => onDelete(item.id)}
+          className="p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+          aria-label="Delete"
+        >
+          <span className="text-xs">×</span>
+        </button>
+      </div>
     </div>
   );
 }
