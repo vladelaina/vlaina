@@ -112,8 +112,6 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, onAddSubTask, isB
   useEffect(() => {
     if (showMenu) {
       setEstimatedTime(formatEstimatedTimeForInput(task.estimatedMinutes));
-      // Auto-focus the input when menu opens
-      setTimeout(() => timeInputRef.current?.focus(), 0);
     }
     // Only run when menu opens, not when estimatedMinutes changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
