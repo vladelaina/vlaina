@@ -18,28 +18,47 @@ export interface Group {
 // Priority levels: red (highest) > yellow > purple > green > default (lowest)
 export type Priority = 'red' | 'yellow' | 'purple' | 'green' | 'default';
 
-// Parse time estimation from task content (e.g., "2h", "30m", "1h2m34s", "45s")
-function parseTimeEstimation(content: string): { cleanContent: string; estimatedMinutes?: number } {
-  // Match complex patterns like "1h2m34s", "2h30m", "45s", "1.5h" at the end of content
-  const complexPattern = /\s+(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i;
-  const match = content.match(complexPattern);
+// Parse time string to minutes (e.g., "2d", "2h", "30m", "2d3h5m2s", "45s")
+export function parseTimeString(timeStr: string): number | undefined {
+  // Match patterns like "2d3h5m2s", "1h2m34s", "2h30m", "45s"
+  const pattern = /^(?:(\d+(?:\.\d+)?)d)?(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i;
+  const match = timeStr.trim().match(pattern);
   
-  if (match && match[0].trim()) { // Ensure we actually matched something
-    const hours = match[1] ? parseFloat(match[1]) : 0;
-    const minutes = match[2] ? parseFloat(match[2]) : 0;
-    const seconds = match[3] ? parseFloat(match[3]) : 0;
+  if (match && match[0].trim()) {
+    const days = match[1] ? parseFloat(match[1]) : 0;
+    const hours = match[2] ? parseFloat(match[2]) : 0;
+    const minutes = match[3] ? parseFloat(match[3]) : 0;
+    const seconds = match[4] ? parseFloat(match[4]) : 0;
     
     // Validate numbers are finite and positive
-    if (!isFinite(hours) || !isFinite(minutes) || !isFinite(seconds) || 
-        hours < 0 || minutes < 0 || seconds < 0) {
-      return { cleanContent: content };
+    if (!isFinite(days) || !isFinite(hours) || !isFinite(minutes) || !isFinite(seconds) || 
+        days < 0 || hours < 0 || minutes < 0 || seconds < 0) {
+      return undefined;
     }
     
     // Calculate total minutes (including fractional minutes from seconds)
-    const estimatedMinutes = hours * 60 + minutes + seconds / 60;
+    const totalMinutes = days * 1440 + hours * 60 + minutes + seconds / 60;
     
     // Validate result is reasonable (not too large, not zero)
-    if (estimatedMinutes > 0 && estimatedMinutes < 100000) { // Max ~69 days
+    if (totalMinutes > 0 && totalMinutes < 144000) { // Max 100 days
+      return totalMinutes;
+    }
+  }
+  
+  return undefined;
+}
+
+// Parse time estimation from task content (e.g., "2d", "2h", "30m", "2d3h5m2s", "45s")
+function parseTimeEstimation(content: string): { cleanContent: string; estimatedMinutes?: number } {
+  // Match complex patterns like "2d3h5m2s", "1h2m34s", "2h30m", "45s" at the end of content
+  const complexPattern = /\s+(?:(\d+(?:\.\d+)?)d)?(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i;
+  const match = content.match(complexPattern);
+  
+  if (match && match[0].trim()) {
+    const timeStr = match[0].trim();
+    const estimatedMinutes = parseTimeString(timeStr);
+    
+    if (estimatedMinutes !== undefined) {
       const cleanContent = content.replace(match[0], '').trim();
       // Don't allow empty content after removing time
       if (cleanContent.length === 0) {
@@ -80,12 +99,14 @@ interface GroupStore {
   drawerOpen: boolean;
   loaded: boolean;
   hideCompleted: boolean;
+  hideActualTime: boolean;
   searchQuery: string;
   
   // Drag state for cross-group drag
   draggingTaskId: string | null;
   setDraggingTaskId: (id: string | null) => void;
   setHideCompleted: (hide: boolean) => void;
+  setHideActualTime: (hide: boolean) => void;
   setSearchQuery: (query: string) => void;
   
   loadData: () => Promise<void>;
@@ -102,6 +123,7 @@ interface GroupStore {
   addTask: (content: string, groupId: string, priority?: Priority) => void;
   addSubTask: (parentId: string, content: string) => void;
   updateTask: (id: string, content: string) => void;
+  updateTaskEstimation: (id: string, estimatedMinutes?: number) => void;
   updateTaskPriority: (id: string, priority: Priority) => void;
   toggleTask: (id: string, skipReorder?: boolean) => void;
   toggleCollapse: (id: string) => void;
@@ -205,11 +227,13 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
   drawerOpen: false,
   loaded: false,
   hideCompleted: false,
+  hideActualTime: false,
   searchQuery: '',
   
   draggingTaskId: null,
   setDraggingTaskId: (id) => set({ draggingTaskId: id }),
   setHideCompleted: (hide) => set({ hideCompleted: hide }),
+  setHideActualTime: (hide) => set({ hideActualTime: hide }),
   setSearchQuery: (query) => set({ searchQuery: query }),
 
   loadData: async () => {
@@ -390,8 +414,25 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
     // Parse time estimation from updated content
     const { cleanContent, estimatedMinutes } = parseTimeEstimation(content);
     
-    // Update content and estimation (preserve actualMinutes as it's historical data)
+    // Update content
     task.content = cleanContent;
+    
+    // Only update estimatedMinutes if a new value was parsed
+    // This preserves existing estimation when user just edits task content
+    if (estimatedMinutes !== undefined) {
+      task.estimatedMinutes = estimatedMinutes;
+    }
+    // Note: actualMinutes is preserved as it's historical data
+    
+    persistGroup(state.groups, state.tasks, task.groupId);
+    return { tasks: [...state.tasks] };
+  }),
+  
+  updateTaskEstimation: (id, estimatedMinutes) => set((state) => {
+    const task = state.tasks.find(t => t.id === id);
+    if (!task) return state;
+    
+    // Directly update estimation (can be undefined to clear)
     task.estimatedMinutes = estimatedMinutes;
     
     persistGroup(state.groups, state.tasks, task.groupId);
@@ -414,29 +455,30 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
     const isCompleting = !task.completed;
     const now = Date.now();
     
-    // Calculate actual time spent ONLY on first completion
-    // If task already has actualMinutes (was completed before), preserve it
-    let actualMinutes = task.actualMinutes;
-    if (isCompleting && !task.actualMinutes) {
+    // Calculate actual time spent from creation to completion
+    // Always recalculate when completing, clear when uncompleting
+    let actualMinutes: number | undefined = undefined;
+    if (isCompleting) {
       const elapsedMs = now - task.createdAt;
       // Validate elapsed time is reasonable (positive and not too large)
       if (elapsedMs > 0 && elapsedMs < 8640000000) { // Max ~100 days in ms
-        actualMinutes = Math.round(elapsedMs / 60000); // Convert to minutes
-        // Ensure at least 1 second is recorded
-        if (actualMinutes === 0 && elapsedMs > 0) {
-          actualMinutes = 1 / 60; // 1 second in minutes
+        // Keep seconds precision: convert ms to minutes without rounding
+        actualMinutes = elapsedMs / 60000;
+        // Ensure at least 1 second precision (0.0166... minutes)
+        if (actualMinutes < 1/60 && elapsedMs > 0) {
+          actualMinutes = 1 / 60;
         }
       }
     }
+    // When uncompleting, actualMinutes is cleared (remains undefined)
     
     // Update the task's completed status
-    // When uncompleting, preserve actualMinutes so we keep the original timing
     let newTasks = state.tasks.map(t =>
       t.id === id ? { 
         ...t, 
         completed: isCompleting,
         completedAt: isCompleting ? now : undefined,
-        actualMinutes: actualMinutes, // Keep the value even when uncompleting
+        actualMinutes: actualMinutes, // Set when completing, undefined when uncompleting
       } : t
     );
     
@@ -606,25 +648,28 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
     // Create new tasks array with updated status
     const newTasks = state.tasks.map(t => {
       if (t.id === activeId) {
-        // Calculate actual time spent ONLY on first completion
-        let actualMinutes = t.actualMinutes;
-        if (newCompleted && !t.actualMinutes) {
+        // Calculate actual time spent from creation to completion
+        // Always recalculate when completing, clear when uncompleting
+        let actualMinutes: number | undefined = undefined;
+        if (newCompleted) {
           const elapsedMs = now - t.createdAt;
           // Validate elapsed time is reasonable (positive and not too large)
           if (elapsedMs > 0 && elapsedMs < 8640000000) { // Max ~100 days in ms
-            actualMinutes = Math.round(elapsedMs / 60000);
-            // Ensure at least 1 second is recorded
-            if (actualMinutes === 0 && elapsedMs > 0) {
-              actualMinutes = 1 / 60; // 1 second in minutes
+            // Keep seconds precision: convert ms to minutes without rounding
+            actualMinutes = elapsedMs / 60000;
+            // Ensure at least 1 second precision (0.0166... minutes)
+            if (actualMinutes < 1/60 && elapsedMs > 0) {
+              actualMinutes = 1 / 60;
             }
           }
         }
+        // When uncompleting (dragging to incomplete), actualMinutes is cleared
         
         return {
           ...t,
           completed: newCompleted,
           completedAt: newCompleted ? now : undefined,
-          actualMinutes: actualMinutes, // Keep the value even when uncompleting
+          actualMinutes: actualMinutes, // Set when completing, undefined when uncompleting
         };
       }
       return t;

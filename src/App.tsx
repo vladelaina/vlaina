@@ -19,7 +19,7 @@ function AppContent() {
   // Enable shortcuts
   useShortcuts();
   const { currentView } = useViewStore();
-  const { activeGroupId, deleteGroup, groups, tasks, loadData, loaded, hideCompleted, setHideCompleted } = useGroupStore();
+  const { activeGroupId, deleteGroup, groups, tasks, loadData, loaded, hideCompleted, setHideCompleted, hideActualTime, setHideActualTime } = useGroupStore();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -162,6 +162,16 @@ function AppContent() {
                   >
                     <span>Hide Completed</span>
                     {hideCompleted && <Check className="size-4 text-blue-500" />}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setHideActualTime(!hideActualTime);
+                      setShowMoreMenu(false);
+                    }}
+                    className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-between"
+                  >
+                    <span>Hide Time Info</span>
+                    {hideActualTime && <Check className="size-4 text-blue-500" />}
                   </button>
                   <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
                   <button

@@ -5,26 +5,31 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { GripVertical, MoreHorizontal, Trash2, ChevronRight, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/types';
-import { useGroupStore } from '@/stores/useGroupStore';
+import { useGroupStore, parseTimeString } from '@/stores/useGroupStore';
 
 // Format minutes to human-readable string with smart display
-// Display format: "2h3m5s" (no spaces)
-function formatMinutes(minutes: number, isEstimated: boolean = false): string {
+// Display format: "2d3h5m2s" (no spaces)
+function formatMinutes(minutes: number): string {
   // Validate input
   if (!isFinite(minutes) || minutes < 0) {
-    return isEstimated ? '< 1m' : '0s';
+    return '0s';
   }
   
   // Cap at reasonable maximum (100 days = 144000 minutes)
   const cappedMinutes = Math.min(minutes, 144000);
   const totalSeconds = Math.round(cappedMinutes * 60);
   
-  const hours = Math.floor(totalSeconds / 3600);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
   const mins = Math.floor((totalSeconds % 3600) / 60);
   const secs = totalSeconds % 60;
   
   // Build display string without spaces
   const parts: string[] = [];
+  
+  if (days > 0) {
+    parts.push(`${days}d`);
+  }
   
   if (hours > 0) {
     parts.push(`${hours}h`);
@@ -34,15 +39,14 @@ function formatMinutes(minutes: number, isEstimated: boolean = false): string {
     parts.push(`${mins}m`);
   }
   
-  // For estimated time, never show seconds (estimation is inherently approximate)
-  // For actual time, always show seconds if present
-  if (!isEstimated && secs > 0) {
+  // Always show seconds if present (respect user's input precision)
+  if (secs > 0) {
     parts.push(`${secs}s`);
   }
   
-  // Special case: if nothing to show, display "< 1m" for estimated or "0s" for actual
+  // Special case: if nothing to show (truly 0), display "0s"
   if (parts.length === 0) {
-    return isEstimated ? '< 1m' : '0s';
+    return '0s';
   }
   
   return parts.join('');
@@ -80,9 +84,40 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, onAddSubTask, isB
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(task.content);
   const [showMenu, setShowMenu] = useState(false);
+  const [estimatedTime, setEstimatedTime] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { searchQuery } = useGroupStore();
+  const timeInputRef = useRef<HTMLInputElement>(null);
+  const { searchQuery, hideActualTime } = useGroupStore();
+  
+  // Format current estimated time for display in input
+  const formatEstimatedTimeForInput = (minutes?: number): string => {
+    if (!minutes) return '';
+    const totalSeconds = Math.round(minutes * 60);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    
+    const parts: string[] = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (mins > 0) parts.push(`${mins}m`);
+    if (secs > 0) parts.push(`${secs}s`);
+    
+    return parts.join('');
+  };
+  
+  // Initialize estimated time when menu opens
+  useEffect(() => {
+    if (showMenu) {
+      setEstimatedTime(formatEstimatedTimeForInput(task.estimatedMinutes));
+      // Auto-focus the input when menu opens
+      setTimeout(() => timeInputRef.current?.focus(), 0);
+    }
+    // Only run when menu opens, not when estimatedMinutes changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMenu]);
   
   // 高亮搜索词 (加粗)
   const highlightText = (text: string, query: string) => {
@@ -294,13 +329,13 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, onAddSubTask, isB
         )}
         
         {/* Time Estimation Display */}
-        {(task.estimatedMinutes || task.actualMinutes) && (
+        {!hideActualTime && (task.estimatedMinutes || task.actualMinutes) && (
           <div className="flex items-center gap-2 mt-1 text-xs text-zinc-400 dark:text-zinc-600">
             {task.estimatedMinutes && (
-              <span>预估 {formatMinutes(task.estimatedMinutes, true)}</span>
+              <span>预估 {formatMinutes(task.estimatedMinutes)}</span>
             )}
             {task.actualMinutes && (
-              <span>实际 {formatMinutes(task.actualMinutes, false)}</span>
+              <span>实际 {formatMinutes(task.actualMinutes)}</span>
             )}
           </div>
         )}
@@ -353,6 +388,64 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, onAddSubTask, isB
                   />
                 ))}
               </div>
+            </div>
+            <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+            
+            {/* Edit Estimated Time */}
+            <div className="px-3 py-2">
+              <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">预估时间</div>
+              <input
+                ref={timeInputRef}
+                type="text"
+                value={estimatedTime}
+                onChange={(e) => setEstimatedTime(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    // Parse the input and update estimation directly
+                    if (estimatedTime.trim()) {
+                      const newEstimation = parseTimeString(estimatedTime.trim());
+                      if (newEstimation !== undefined) {
+                        // Valid input, update and close
+                        useGroupStore.getState().updateTaskEstimation(task.id, newEstimation);
+                        setShowMenu(false);
+                      } else {
+                        // Invalid input, revert and stay open for correction
+                        setEstimatedTime(formatEstimatedTimeForInput(task.estimatedMinutes));
+                      }
+                    } else {
+                      // Empty input, clear estimation and close
+                      useGroupStore.getState().updateTaskEstimation(task.id, undefined);
+                      setShowMenu(false);
+                    }
+                  } else if (e.key === 'Escape') {
+                    setEstimatedTime(formatEstimatedTimeForInput(task.estimatedMinutes));
+                    setShowMenu(false);
+                  }
+                }}
+                onBlur={() => {
+                  // Auto-update on blur if value changed
+                  const currentFormatted = formatEstimatedTimeForInput(task.estimatedMinutes);
+                  if (estimatedTime.trim() !== currentFormatted) {
+                    if (estimatedTime.trim()) {
+                      const newEstimation = parseTimeString(estimatedTime.trim());
+                      if (newEstimation !== undefined) {
+                        // Valid input, update
+                        useGroupStore.getState().updateTaskEstimation(task.id, newEstimation);
+                      } else {
+                        // Invalid input, revert to original value
+                        setEstimatedTime(currentFormatted);
+                      }
+                    } else {
+                      // Empty input, clear estimation
+                      useGroupStore.getState().updateTaskEstimation(task.id, undefined);
+                    }
+                  }
+                }}
+                placeholder="如 2d, 3h, 30m, 2d3h5m"
+                className="w-full px-2 py-1 text-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-500 text-zinc-900 dark:text-zinc-100"
+                onClick={(e) => e.stopPropagation()}
+              />
             </div>
             <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
             {/* Add Subtask option */}
