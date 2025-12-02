@@ -18,6 +18,40 @@ export interface Group {
 // Priority levels: red (highest) > yellow > purple > green > default (lowest)
 export type Priority = 'red' | 'yellow' | 'purple' | 'green' | 'default';
 
+// Parse time estimation from task content (e.g., "2h", "30m", "1h2m34s", "45s")
+function parseTimeEstimation(content: string): { cleanContent: string; estimatedMinutes?: number } {
+  // Match complex patterns like "1h2m34s", "2h30m", "45s", "1.5h" at the end of content
+  const complexPattern = /\s+(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i;
+  const match = content.match(complexPattern);
+  
+  if (match && match[0].trim()) { // Ensure we actually matched something
+    const hours = match[1] ? parseFloat(match[1]) : 0;
+    const minutes = match[2] ? parseFloat(match[2]) : 0;
+    const seconds = match[3] ? parseFloat(match[3]) : 0;
+    
+    // Validate numbers are finite and positive
+    if (!isFinite(hours) || !isFinite(minutes) || !isFinite(seconds) || 
+        hours < 0 || minutes < 0 || seconds < 0) {
+      return { cleanContent: content };
+    }
+    
+    // Calculate total minutes (including fractional minutes from seconds)
+    const estimatedMinutes = hours * 60 + minutes + seconds / 60;
+    
+    // Validate result is reasonable (not too large, not zero)
+    if (estimatedMinutes > 0 && estimatedMinutes < 100000) { // Max ~69 days
+      const cleanContent = content.replace(match[0], '').trim();
+      // Don't allow empty content after removing time
+      if (cleanContent.length === 0) {
+        return { cleanContent: content };
+      }
+      return { cleanContent, estimatedMinutes };
+    }
+  }
+  
+  return { cleanContent: content };
+}
+
 // Internal Task type for persistence (uses 'completed')
 export interface StoreTask {
   id: string;
@@ -29,6 +63,10 @@ export interface StoreTask {
   order: number;
   groupId: string;
   priority?: Priority;  // Task priority
+  
+  // Time estimation and tracking
+  estimatedMinutes?: number;  // Estimated time in minutes
+  actualMinutes?: number;     // Actual time spent in minutes
   
   // Hierarchical structure (nested tasks)
   parentId: string | null;  // Parent task ID, null for top-level
@@ -107,6 +145,9 @@ async function persistGroup(groups: Group[], tasks: StoreTask[], groupId: string
         order: t.order,
         parentId: t.parentId,
         collapsed: t.collapsed,
+        priority: t.priority,
+        estimatedMinutes: t.estimatedMinutes,
+        actualMinutes: t.actualMinutes,
       })),
       createdAt: group.createdAt,
       updatedAt: Date.now(),
@@ -139,6 +180,8 @@ async function persistGroup(groups: Group[], tasks: StoreTask[], groupId: string
       parentId: t.parentId,
       collapsed: t.collapsed,
       priority: t.priority,
+      estimatedMinutes: t.estimatedMinutes,
+      actualMinutes: t.actualMinutes,
     })),
     createdAt: group.createdAt,
     updatedAt: Date.now(),
@@ -204,6 +247,8 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
           parentId: td.parentId,
           collapsed: td.collapsed,
           priority: td.priority,
+          estimatedMinutes: td.estimatedMinutes,
+          actualMinutes: td.actualMinutes,
         });
       }
     }
@@ -294,9 +339,11 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
   // 任务操作
   addTask: (content, groupId, priority = 'default') => set((state) => {
     const groupTasks = state.tasks.filter(t => t.groupId === groupId && !t.parentId);
+    const { cleanContent, estimatedMinutes } = parseTimeEstimation(content);
+    
     const newTask: StoreTask = {
       id: nanoid(),
-      content,
+      content: cleanContent,
       completed: false,
       createdAt: Date.now(),
       order: groupTasks.length,
@@ -304,6 +351,7 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
       parentId: null,
       collapsed: false,
       priority,
+      estimatedMinutes,
     };
     
     const newTasks = [...state.tasks, newTask];
@@ -316,15 +364,18 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
     if (!parentTask) return state;
     
     const siblings = state.tasks.filter(t => t.parentId === parentId);
+    const { cleanContent, estimatedMinutes } = parseTimeEstimation(content);
+    
     const newTask: StoreTask = {
       id: nanoid(),
-      content,
+      content: cleanContent,
       completed: false,
       createdAt: Date.now(),
       order: siblings.length,
       groupId: parentTask.groupId,
       parentId: parentId,
       collapsed: false,
+      estimatedMinutes,
     };
     
     const newTasks = [...state.tasks, newTask];
@@ -336,7 +387,13 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
     const task = state.tasks.find(t => t.id === id);
     if (!task) return state;
     
-    task.content = content;
+    // Parse time estimation from updated content
+    const { cleanContent, estimatedMinutes } = parseTimeEstimation(content);
+    
+    // Update content and estimation (preserve actualMinutes as it's historical data)
+    task.content = cleanContent;
+    task.estimatedMinutes = estimatedMinutes;
+    
     persistGroup(state.groups, state.tasks, task.groupId);
     return { tasks: [...state.tasks] };
   }),
@@ -355,13 +412,31 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
     if (!task) return state;
     
     const isCompleting = !task.completed;
+    const now = Date.now();
+    
+    // Calculate actual time spent ONLY on first completion
+    // If task already has actualMinutes (was completed before), preserve it
+    let actualMinutes = task.actualMinutes;
+    if (isCompleting && !task.actualMinutes) {
+      const elapsedMs = now - task.createdAt;
+      // Validate elapsed time is reasonable (positive and not too large)
+      if (elapsedMs > 0 && elapsedMs < 8640000000) { // Max ~100 days in ms
+        actualMinutes = Math.round(elapsedMs / 60000); // Convert to minutes
+        // Ensure at least 1 second is recorded
+        if (actualMinutes === 0 && elapsedMs > 0) {
+          actualMinutes = 1 / 60; // 1 second in minutes
+        }
+      }
+    }
     
     // Update the task's completed status
+    // When uncompleting, preserve actualMinutes so we keep the original timing
     let newTasks = state.tasks.map(t =>
       t.id === id ? { 
         ...t, 
         completed: isCompleting,
-        completedAt: isCompleting ? Date.now() : undefined,
+        completedAt: isCompleting ? now : undefined,
+        actualMinutes: actualMinutes, // Keep the value even when uncompleting
       } : t
     );
     
@@ -526,14 +601,30 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
     }
     
     const newCompleted = overTask.completed;
+    const now = Date.now();
     
     // Create new tasks array with updated status
     const newTasks = state.tasks.map(t => {
       if (t.id === activeId) {
+        // Calculate actual time spent ONLY on first completion
+        let actualMinutes = t.actualMinutes;
+        if (newCompleted && !t.actualMinutes) {
+          const elapsedMs = now - t.createdAt;
+          // Validate elapsed time is reasonable (positive and not too large)
+          if (elapsedMs > 0 && elapsedMs < 8640000000) { // Max ~100 days in ms
+            actualMinutes = Math.round(elapsedMs / 60000);
+            // Ensure at least 1 second is recorded
+            if (actualMinutes === 0 && elapsedMs > 0) {
+              actualMinutes = 1 / 60; // 1 second in minutes
+            }
+          }
+        }
+        
         return {
           ...t,
           completed: newCompleted,
-          completedAt: newCompleted ? Date.now() : undefined,
+          completedAt: newCompleted ? now : undefined,
+          actualMinutes: actualMinutes, // Keep the value even when uncompleting
         };
       }
       return t;

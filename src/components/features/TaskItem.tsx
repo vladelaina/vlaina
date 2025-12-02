@@ -7,6 +7,47 @@ import { cn } from '@/lib/utils';
 import type { Task } from '@/types';
 import { useGroupStore } from '@/stores/useGroupStore';
 
+// Format minutes to human-readable string with smart display
+// Display format: "2h3m5s" (no spaces)
+function formatMinutes(minutes: number, isEstimated: boolean = false): string {
+  // Validate input
+  if (!isFinite(minutes) || minutes < 0) {
+    return isEstimated ? '< 1m' : '0s';
+  }
+  
+  // Cap at reasonable maximum (100 days = 144000 minutes)
+  const cappedMinutes = Math.min(minutes, 144000);
+  const totalSeconds = Math.round(cappedMinutes * 60);
+  
+  const hours = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+  
+  // Build display string without spaces
+  const parts: string[] = [];
+  
+  if (hours > 0) {
+    parts.push(`${hours}h`);
+  }
+  
+  if (mins > 0) {
+    parts.push(`${mins}m`);
+  }
+  
+  // For estimated time, never show seconds (estimation is inherently approximate)
+  // For actual time, always show seconds if present
+  if (!isEstimated && secs > 0) {
+    parts.push(`${secs}s`);
+  }
+  
+  // Special case: if nothing to show, display "< 1m" for estimated or "0s" for actual
+  if (parts.length === 0) {
+    return isEstimated ? '< 1m' : '0s';
+  }
+  
+  return parts.join('');
+}
+
 // Disable drop animation to prevent "snap back" effect
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
   const { isSorting, wasDragging } = args;
@@ -249,6 +290,18 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, onAddSubTask, isB
             )}
           >
             {highlightText(task.content, searchQuery)}
+          </div>
+        )}
+        
+        {/* Time Estimation Display */}
+        {(task.estimatedMinutes || task.actualMinutes) && (
+          <div className="flex items-center gap-2 mt-1 text-xs text-zinc-400 dark:text-zinc-600">
+            {task.estimatedMinutes && (
+              <span>预估 {formatMinutes(task.estimatedMinutes, true)}</span>
+            )}
+            {task.actualMinutes && (
+              <span>实际 {formatMinutes(task.actualMinutes, false)}</span>
+            )}
           </div>
         )}
       </div>

@@ -386,6 +386,8 @@ export function TaskList() {
             groupId: task.groupId,
             priority: task.priority,
             completedAt: task.completedAt ? new Date(task.completedAt).toISOString().split('T')[0] : undefined,
+            estimatedMinutes: task.estimatedMinutes,
+            actualMinutes: task.actualMinutes,
           }}
           onToggle={toggleTask}
           onUpdate={updateTask}

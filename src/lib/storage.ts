@@ -45,6 +45,8 @@ export interface TaskData {
   parentId: string | null;   // Parent task ID for hierarchical structure
   collapsed: boolean;        // Whether children are hidden
   priority?: 'red' | 'yellow' | 'purple' | 'green' | 'default';  // Task priority
+  estimatedMinutes?: number;  // Estimated time in minutes
+  actualMinutes?: number;     // Actual time spent in minutes
 }
 
 export interface GroupData {
@@ -106,6 +108,8 @@ function parseTasksMd(content: string, _groupId: string): { name: string; pinned
       let parentId: string | null = null;
       let collapsed = false;
       let priority: 'red' | 'yellow' | 'purple' | 'green' | 'default' | undefined;
+      let estimatedMinutes: number | undefined;
+      let actualMinutes: number | undefined;
       
       if (metaMatch) {
         content = metaMatch[1].trim();
@@ -118,6 +122,8 @@ function parseTasksMd(content: string, _groupId: string): { name: string; pinned
         const parentMatch = meta.match(/parent:([^,]+)/);
         const collapsedMatch = meta.match(/collapsed:true/);
         const priorityMatch = meta.match(/priority:([^,]+)/);
+        const estimatedMatch = meta.match(/estimated:([^,]+)/);
+        const actualMatch = meta.match(/actual:([^,]+)/);
         
         if (idMatch) id = idMatch[1];
         if (createdMatch) taskCreatedAt = parseInt(createdMatch[1]) || Date.now();
@@ -127,6 +133,19 @@ function parseTasksMd(content: string, _groupId: string): { name: string; pinned
         if (parentMatch) parentId = parentMatch[1];
         if (collapsedMatch) collapsed = true;
         if (priorityMatch) priority = priorityMatch[1] as any;
+        // Validate time values before storing
+        if (estimatedMatch) {
+          const val = parseFloat(estimatedMatch[1]);
+          if (isFinite(val) && val > 0 && val < 100000) {
+            estimatedMinutes = val;
+          }
+        }
+        if (actualMatch) {
+          const val = parseFloat(actualMatch[1]);
+          if (isFinite(val) && val > 0 && val < 100000) {
+            actualMinutes = val;
+          }
+        }
       }
       
       tasks.push({
@@ -140,6 +159,8 @@ function parseTasksMd(content: string, _groupId: string): { name: string; pinned
         parentId,
         collapsed,
         priority,
+        estimatedMinutes,
+        actualMinutes,
       });
     }
   }
@@ -167,6 +188,13 @@ function generateTasksMd(group: GroupData): string {
     if (task.parentId) meta += `,parent:${task.parentId}`;
     if (task.collapsed) meta += `,collapsed:true`;
     if (task.priority && task.priority !== 'default') meta += `,priority:${task.priority}`;
+    // Only serialize valid time values
+    if (task.estimatedMinutes && isFinite(task.estimatedMinutes) && task.estimatedMinutes > 0) {
+      meta += `,estimated:${task.estimatedMinutes}`;
+    }
+    if (task.actualMinutes && isFinite(task.actualMinutes) && task.actualMinutes > 0) {
+      meta += `,actual:${task.actualMinutes}`;
+    }
     
     lines.push(`${indent}- ${checkbox} ${task.content} <!--${meta}-->`);
 
