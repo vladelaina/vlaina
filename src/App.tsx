@@ -25,7 +25,9 @@ function AppContent() {
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
   // 获取当前分组信息
-  const activeGroup = groups.find(g => g.id === activeGroupId);
+  const activeGroup = activeGroupId === '__archive__' 
+    ? { id: '__archive__', name: '归档', createdAt: Date.now() }
+    : groups.find(g => g.id === activeGroupId);
   const groupTasks = tasks.filter(t => t.groupId === activeGroupId);
   const now = new Date();
   const formatDate = (date: Date | number) => {

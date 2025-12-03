@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { X, Check, Search, SquarePen, ArrowUpDown, Pin, GripVertical, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
+import { X, Check, Search, SquarePen, ArrowUpDown, Pin, GripVertical, ChevronLeft, ChevronRight, SlidersHorizontal, Archive } from 'lucide-react';
 import { useGroupStore } from '@/stores/useGroupStore';
 import {
   DndContext,
@@ -268,6 +268,8 @@ export function GroupSidebar() {
   const cachedDraggingTaskIdRef = useRef<string | null>(null);
   const originalGroupIdRef = useRef<string | null>(null);
   const prevDraggingTaskIdRef = useRef<string | null>(null);
+  
+  const ARCHIVE_GROUP_ID = '__archive__';
 
   // Cache draggingTaskId and original groupId when drag starts
   useEffect(() => {
@@ -731,9 +733,13 @@ export function GroupSidebar() {
                       }
                       setHoveringGroupId(group.id);
                       // Auto switch after 500ms hover
-                      hoverTimeoutRef.current = setTimeout(() => {
+                      hoverTimeoutRef.current = setTimeout(async () => {
                         if (draggingTaskId) {
-                          setActiveGroup(group.id);
+                          try {
+                            await setActiveGroup(group.id);
+                          } catch (error) {
+                            console.error('Failed to switch group:', error);
+                          }
                         }
                       }, 500);
                     }
@@ -751,18 +757,28 @@ export function GroupSidebar() {
                     isEditing={editingId === group.id}
                     editingName={editingName}
                     isDragTarget={draggingTaskId !== null && hoveringGroupId === group.id}
-                    onSelect={() => setActiveGroup(group.id)}
+                    onSelect={async () => {
+                      try {
+                        await setActiveGroup(group.id);
+                      } catch (error) {
+                        console.error('Failed to switch group:', error);
+                      }
+                    }}
                     onStartEdit={() => handleStartEdit(group.id, group.name)}
                     onSaveEdit={handleSaveEdit}
                     onCancelEdit={() => setEditingId(null)}
                     onEditNameChange={setEditingName}
                     onTogglePin={() => togglePin(group.id)}
                     editInputRef={editingId === group.id ? editInputRef : undefined}
-                    onTaskDrop={() => {
+                    onTaskDrop={async () => {
                       const taskId = draggingTaskId || cachedDraggingTaskIdRef.current;
                       const originalGroupId = originalGroupIdRef.current;
                       if (taskId && originalGroupId && group.id !== originalGroupId) {
-                        moveTaskToGroup(taskId, group.id);
+                        try {
+                          await moveTaskToGroup(taskId, group.id);
+                        } catch (error) {
+                          console.error('Failed to move task to group:', error);
+                        }
                       }
                     }}
                   />
@@ -795,13 +811,30 @@ export function GroupSidebar() {
           )}
         </div>
         
-        {/* Collapse Button */}
-        <div className="px-2 py-2">
+        {/* Bottom Actions: Collapse and Archive */}
+        <div className="px-2 py-2 flex items-center justify-between">
           <button
             onClick={toggleDrawer}
             className="p-1.5 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500 rounded-md transition-colors"
           >
             <ChevronLeft className="size-4" />
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                await setActiveGroup(ARCHIVE_GROUP_ID);
+              } catch (error) {
+                console.error('Failed to switch to archive:', error);
+              }
+            }}
+            className={`p-1.5 rounded-md transition-colors ${
+              activeGroupId === ARCHIVE_GROUP_ID
+                ? 'text-zinc-900 bg-zinc-100 dark:text-zinc-100 dark:bg-zinc-800'
+                : 'text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500'
+            }`}
+            title="归档"
+          >
+            <Archive className="size-4" />
           </button>
         </div>
       </div>

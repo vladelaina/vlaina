@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useSortable, defaultAnimateLayoutChanges, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
-import { GripVertical, MoreHorizontal, Trash2, ChevronRight, ChevronDown, Plus } from 'lucide-react';
+import { GripVertical, MoreHorizontal, Trash2, ChevronRight, ChevronDown, Plus, Archive } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/types';
 import { useGroupStore, parseTimeString } from '@/stores/useGroupStore';
@@ -468,6 +468,23 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, onAddSubTask, isB
               {!canAddSubTask && <span className="ml-auto text-xs">(Max 4层)</span>}
             </button>
             <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+            {/* Archive option - only for completed tasks and not in archive view */}
+            {task.isDone && task.groupId !== '__archive__' && (
+              <button
+                onClick={async () => {
+                  try {
+                    await useGroupStore.getState().archiveSingleTask(task.id);
+                    setShowMenu(false);
+                  } catch (error) {
+                    console.error('Failed to archive task:', error);
+                  }
+                }}
+                className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
+              >
+                <Archive className="h-4 w-4" />
+                <span>归档</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 onDelete(task.id);

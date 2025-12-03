@@ -11,6 +11,7 @@ export const PATHS = {
   tasks: `${BASE_PATH}\\tasks`,
   progress: `${BASE_PATH}\\progress`,
   timeTracker: `${BASE_PATH}\\time-tracker`,
+  archive: `${BASE_PATH}\\archive`,
 };
 
 // Helper function for future migration to dynamic paths
@@ -219,6 +220,33 @@ function generateTasksMd(group: GroupData): string {
   }
   
   return lines.join('\n');
+}
+
+// 读取单个分组（懒加载用）
+export async function loadGroup(groupId: string): Promise<GroupData | null> {
+  try {
+    await ensureDirectories();
+    const filePath = `${PATHS.tasks}\\${groupId}.md`;
+    
+    if (!(await exists(filePath))) {
+      return null;
+    }
+    
+    const content = await readTextFile(filePath);
+    const parsed = parseTasksMd(content, groupId);
+    
+    return {
+      id: groupId,
+      name: parsed.name,
+      pinned: parsed.pinned,
+      tasks: parsed.tasks,
+      createdAt: parsed.createdAt,
+      updatedAt: parsed.updatedAt,
+    };
+  } catch (error) {
+    console.error(`Failed to load group ${groupId}:`, error);
+    return null;
+  }
 }
 
 // 读取所有分组
@@ -511,5 +539,203 @@ export async function loadTimeTracker(): Promise<DayTimeData[]> {
   } catch (error) {
     console.error('Failed to load time tracker:', error);
     return [];
+  }
+}
+
+// ============ 归档相关 ============
+
+// 归档任务到归档文件（原子性保证）
+export async function archiveTasks(groupId: string, tasks: TaskData[]): Promise<void> {
+  if (tasks.length === 0) return;
+  
+  try {
+    await ensureDirectories();
+    const archiveFilePath = `${PATHS.archive}\\${groupId}.md`;
+    
+    // 读取现有归档内容（如果存在）
+    let existingContent = '';
+    if (await exists(archiveFilePath)) {
+      existingContent = await readTextFile(archiveFilePath);
+    }
+    
+    // 生成新的归档条目
+    const timestamp = new Date().toLocaleString('zh-CN', { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    
+    // 添加归档标记用于验证
+    let archiveEntries = `\n## 归档于 ${timestamp} [Count: ${tasks.length}]\n\n`;
+    tasks.forEach(task => {
+      const estimatedStr = task.estimatedMinutes ? ` [预估: ${task.estimatedMinutes}m]` : '';
+      const actualStr = task.actualMinutes ? ` [实际: ${task.actualMinutes}m]` : '';
+      const completedStr = task.completedAt ? ` (完成于: ${new Date(task.completedAt).toLocaleString('zh-CN')})` : '';
+      const createdStr = task.createdAt ? ` (创建于: ${task.createdAt})` : '';
+      archiveEntries += `- [x] ${task.content}${estimatedStr}${actualStr}${completedStr}${createdStr}\n`;
+    });
+    
+    // 写入归档文件（追加模式）
+    const newContent = existingContent + archiveEntries;
+    await writeTextFile(archiveFilePath, newContent);
+    
+    console.log(`[Archive] Wrote ${tasks.length} tasks to ${archiveFilePath}`);
+  } catch (error) {
+    console.error('[Archive] Write failed:', error);
+    throw error;
+  }
+}
+
+// 读取归档数据用于显示
+export async function loadArchiveData(groupId: string): Promise<Array<{
+  timestamp: string;
+  tasks: Array<{
+    content: string;
+    estimated?: string;
+    actual?: string;
+    completedAt?: string;
+    createdAt?: number;
+  }>;
+}>> {
+  try {
+    await ensureDirectories();
+    const archiveFilePath = `${PATHS.archive}\\${groupId}.md`;
+    
+    console.log(`[Archive] Looking for archive file: ${archiveFilePath}`);
+    
+    if (!(await exists(archiveFilePath))) {
+      console.log(`[Archive] Archive file does not exist for group ${groupId}`);
+      return [];
+    }
+    
+    const content = await readTextFile(archiveFilePath);
+    console.log(`[Archive] Read archive file, content length: ${content.length}`);
+    
+    // 按归档section分割
+    const sections = content.split(/\n## 归档于 /).filter(s => s.trim());
+    if (sections.length === 0) return [];
+    
+    const result = [];
+    
+    for (const section of sections) {
+      // 提取时间戳
+      const timestampMatch = section.match(/^(.+?)\s*\[Count: \d+\]/);
+      if (!timestampMatch) continue;
+      
+      const timestamp = timestampMatch[1].trim();
+      
+      // 提取任务
+      const taskLines = section.split('\n').filter(line => /^- \[x\]/.test(line));
+      const tasks = taskLines.map(line => {
+        // 解析任务内容
+        const contentMatch = line.match(/^- \[x\] (.+)$/);
+        if (!contentMatch) return null;
+        
+        let fullContent = contentMatch[1];
+        
+        // 提取预估时间
+        const estimatedMatch = fullContent.match(/\[预估: ([^\]]+)\]/);
+        const estimated = estimatedMatch ? estimatedMatch[1] : undefined;
+        if (estimatedMatch) {
+          fullContent = fullContent.replace(estimatedMatch[0], '').trim();
+        }
+        
+        // 提取实际时间
+        const actualMatch = fullContent.match(/\[实际: ([^\]]+)\]/);
+        const actual = actualMatch ? actualMatch[1] : undefined;
+        if (actualMatch) {
+          fullContent = fullContent.replace(actualMatch[0], '').trim();
+        }
+        
+        // 提取完成时间
+        const completedMatch = fullContent.match(/\(完成于: ([^\)]+)\)/);
+        const completedAt = completedMatch ? completedMatch[1] : undefined;
+        if (completedMatch) {
+          fullContent = fullContent.replace(completedMatch[0], '').trim();
+        }
+        
+        // 提取创建时间
+        const createdMatch = fullContent.match(/\(创建于: (\d+)\)/);
+        const createdAt = createdMatch ? parseInt(createdMatch[1], 10) : undefined;
+        if (createdMatch) {
+          fullContent = fullContent.replace(createdMatch[0], '').trim();
+        }
+        
+        return {
+          content: fullContent,
+          estimated,
+          actual,
+          completedAt,
+          createdAt,
+        };
+      }).filter(Boolean) as Array<{
+        content: string;
+        estimated?: string;
+        actual?: string;
+        completedAt?: string;
+        createdAt?: number;
+      }>;
+      
+      if (tasks.length > 0) {
+        result.push({ timestamp, tasks });
+      }
+    }
+    
+    // 倒序，最新的在前面
+    return result.reverse();
+  } catch (error) {
+    console.error('Failed to load archive data:', error);
+    return [];
+  }
+}
+
+// 验证归档文件写入成功
+export async function verifyArchive(groupId: string, expectedCount: number): Promise<boolean> {
+  try {
+    const archiveFilePath = `${PATHS.archive}\\${groupId}.md`;
+    
+    // 检查文件是否存在
+    if (!(await exists(archiveFilePath))) {
+      console.error('[Archive] Verification failed: file does not exist');
+      return false;
+    }
+    
+    // 读取文件内容
+    const content = await readTextFile(archiveFilePath);
+    
+    // 找到最后一个归档块（通过 ## 归档于 标记）
+    const sections = content.split(/\n## 归档于 /);
+    if (sections.length < 2) {
+      console.error('[Archive] Verification failed: no archive section found');
+      return false;
+    }
+    
+    const lastSection = sections[sections.length - 1];
+    
+    // 提取声明的数量
+    const countMatch = lastSection.match(/\[Count: (\d+)\]/);
+    if (!countMatch) {
+      console.error('[Archive] Verification failed: no count marker found');
+      return false;
+    }
+    const declaredCount = parseInt(countMatch[1]);
+    
+    // 提取实际任务行数（只统计行首的 - [x]，避免任务内容中的干扰）
+    const taskLines = lastSection.split('\n').filter(line => /^- \[x\]/.test(line));
+    const actualCount = taskLines.length;
+    
+    // 验证声明的数量和实际任务数量是否匹配
+    if (declaredCount !== expectedCount || actualCount !== expectedCount) {
+      console.error(`[Archive] Verification failed: expected ${expectedCount}, declared ${declaredCount}, found ${actualCount}`);
+      return false;
+    }
+    
+    console.log(`[Archive] Verification passed: ${expectedCount} tasks confirmed`);
+    return true;
+  } catch (error) {
+    console.error('[Archive] Verification error:', error);
+    return false;
   }
 }

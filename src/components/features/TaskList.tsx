@@ -34,6 +34,8 @@ export function TaskList() {
     toggleTask,
     updateTask,
     deleteTask,
+    archiveCompletedTasks,
+    deleteCompletedTasks,
     reorderTasks,
     crossStatusReorder,
     activeGroupId,
@@ -70,18 +72,26 @@ export function TaskList() {
     }
   }, [showCompletedMenu]);
 
+  // Archive all completed tasks
+  const handleArchiveCompleted = useCallback(async () => {
+    if (!activeGroupId || activeGroupId === '__archive__') return;
+    
+    try {
+      await archiveCompletedTasks(activeGroupId);
+      setShowCompletedMenu(false);
+    } catch (error) {
+      console.error('Failed to archive completed tasks:', error);
+      // 可以在这里添加用户提示
+    }
+  }, [activeGroupId, archiveCompletedTasks]);
+
   // Delete all completed tasks
-  const handleDeleteAllCompleted = useCallback(() => {
-    const completedTasksInGroup = tasks.filter(
-      t => t.groupId === activeGroupId && t.completed && !t.parentId
-    );
+  const handleDeleteCompleted = useCallback(() => {
+    if (!activeGroupId || activeGroupId === '__archive__') return;
     
-    completedTasksInGroup.forEach(task => {
-      deleteTask(task.id);
-    });
-    
+    deleteCompletedTasks(activeGroupId);
     setShowCompletedMenu(false);
-  }, [tasks, activeGroupId, deleteTask]);
+  }, [activeGroupId, deleteCompletedTasks]);
 
   // Get children for a task
   const getChildren = useCallback((parentId: string) => {
@@ -262,7 +272,11 @@ export function TaskList() {
     // Check if this is a cross-group move (group changed during drag)
     if (originalGroupId && activeGroupId && originalGroupId !== activeGroupId) {
       // Move task to the new group at the drop position
-      moveTaskToGroup(taskId, activeGroupId, over?.id as string | null);
+      try {
+        await moveTaskToGroup(taskId, activeGroupId, over?.id as string | null);
+      } catch (error) {
+        console.error('Failed to move task to group:', error);
+      }
     } else if (over && active.id !== over.id) {
       // Check if dragging across completion status boundary
       const draggedTask = tasks.find(t => t.id === taskId);
@@ -463,13 +477,19 @@ export function TaskList() {
               >
                 <MoreHorizontal className="size-4" />
               </button>
-              {showCompletedMenu && (
+              {showCompletedMenu && activeGroupId !== '__archive__' && (
                 <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50">
                   <button
-                    onClick={handleDeleteAllCompleted}
-                    className="w-full px-3 py-1.5 text-left text-sm text-red-600 dark:text-red-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                    onClick={handleArchiveCompleted}
+                    className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                   >
-                    删除全部
+                    归档全部
+                  </button>
+                  <button
+                    onClick={handleDeleteCompleted}
+                    className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                  >
+                    全部删除
                   </button>
                 </div>
               )}
