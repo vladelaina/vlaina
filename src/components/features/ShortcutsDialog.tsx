@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
 import { getShortcuts, saveShortcuts, type ShortcutConfig } from '@/lib/shortcuts';
 
 interface ShortcutsDialogProps {
@@ -25,6 +26,23 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
       setRecordingKeys([]);
     }
   }, [open]);
+
+  // 点击外部退出编辑状态
+  useEffect(() => {
+    if (!editingId) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // 检查是否点击在输入框或其子元素外部
+      if (!target.closest('.shortcut-input-container')) {
+        setEditingId(null);
+        setRecordingKeys([]);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [editingId]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // ESC to close dialog
@@ -76,6 +94,14 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
     setRecordingKeys([]);
   };
 
+  const clearShortcut = (id: string) => {
+    const updated = shortcuts.map(s => 
+      s.id === id ? { ...s, keys: [] } : s
+    );
+    setShortcuts(updated);
+    saveShortcuts(updated);
+  };
+
   return (
     <AnimatePresence>
       {open && (
@@ -106,16 +132,50 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
                   </span>
                   
                   {editingId === shortcut.id ? (
-                    <div className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400">
-                      {recordingKeys.length > 0 ? recordingKeys.join(' + ') : '...'}
+                    <div className="relative w-28 shortcut-input-container">
+                      <input
+                        type="text"
+                        value={recordingKeys.length > 0 ? recordingKeys.join('+') : ''}
+                        placeholder={shortcut.keys.length > 0 ? shortcut.keys.join('+') : ''}
+                        readOnly
+                        autoFocus
+                        className="w-full pl-3 pr-7 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded text-xs text-center text-zinc-600 dark:text-zinc-300 placeholder:text-zinc-300 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent"
+                      />
+                      {(recordingKeys.length > 0 || shortcut.keys.length > 0) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRecordingKeys([]);
+                            clearShortcut(shortcut.id);
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-500 rounded-full transition-colors"
+                          aria-label="清除"
+                        >
+                          <X className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-300" />
+                        </button>
+                      )}
                     </div>
                   ) : (
-                    <button
-                      onClick={() => startEditing(shortcut.id)}
-                      className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-                    >
-                      {shortcut.keys.length > 0 ? shortcut.keys.join(' + ') : '未设置'}
-                    </button>
+                    <div className="relative group w-28">
+                      <button
+                        onClick={() => startEditing(shortcut.id)}
+                        className="w-full pl-3 pr-7 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded text-xs text-center text-zinc-400 dark:text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-500 transition-colors"
+                      >
+                        {shortcut.keys.length > 0 ? shortcut.keys.join('+') : '设置快捷键'}
+                      </button>
+                      {shortcut.keys.length > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            clearShortcut(shortcut.id);
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 flex items-center justify-center bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-500 rounded-full"
+                          aria-label="清除快捷键"
+                        >
+                          <X className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-300" />
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               ))}
