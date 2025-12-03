@@ -730,8 +730,7 @@ export function TaskList() {
         let parentTask;
         
         if (over.id === active.id) {
-          // 拖到自己的位置：找自己在列表中的上一个任务
-          // 先找到拖拽任务原本的位置
+          // 拖到自己的位置：找自己在列表中的上一个任务作为父任务
           const allTasks = tasks
             .filter(t => t.groupId === activeGroupId && !t.parentId && t.completed === draggedTask.completed)
             .sort((a, b) => {
@@ -743,9 +742,8 @@ export function TaskList() {
           const selfIndex = allTasks.findIndex(t => t.id === taskId);
           parentTask = selfIndex > 0 ? allTasks[selfIndex - 1] : null;
         } else {
-          // 拖到其他任务上方：找那个任务的上一个
-          const overIndex = sortedTasks.findIndex(t => t.id === over.id);
-          parentTask = overIndex > 0 ? sortedTasks[overIndex - 1] : null;
+          // 拖到其他任务上：直接让那个任务成为父任务
+          parentTask = overTask;
         }
         
         console.log('[BecomeChild] result:', {
@@ -774,7 +772,7 @@ export function TaskList() {
           
           if (!descendantCheck) {
             console.log('[BecomeChild] ✅ All checks passed, updating parentId...');
-            // 更新任务的 parentId 并持久化
+            // 更新任务的 parentId
             useGroupStore.setState((state) => {
               const newTasks = state.tasks.map(t =>
                 t.id === taskId ? { ...t, parentId: parentTask.id } : t
@@ -782,31 +780,33 @@ export function TaskList() {
               return { tasks: newTasks };
             });
             
-            // 触发持久化（通过 store 内部的逻辑）
+            // 手动触发持久化（只在这个分支，因为后面会 return，不会进入 reorderTasks）
             const updatedTasks = useGroupStore.getState().tasks;
             const { saveGroup } = await import('@/lib/storage');
             const groupTasks = updatedTasks.filter(t => t.groupId === activeGroupId);
             const currentGroup = groups.find(g => g.id === activeGroupId);
-            await saveGroup({
-              id: activeGroupId!,
-              name: currentGroup?.name || '',
-              createdAt: currentGroup?.createdAt || Date.now(),
-              pinned: currentGroup?.pinned || false,
-              updatedAt: Date.now(),
-              tasks: groupTasks.map(t => ({
-                id: t.id,
-                content: t.content,
-                completed: t.completed,
-                createdAt: t.createdAt,
-                completedAt: t.completedAt,
-                order: t.order,
-                parentId: t.parentId || null,
-                collapsed: t.collapsed,
-                priority: t.priority,
-                estimatedMinutes: t.estimatedMinutes,
-                actualMinutes: t.actualMinutes,
-              }))
-            });
+            if (currentGroup) {
+              await saveGroup({
+                id: activeGroupId!,
+                name: currentGroup.name,
+                createdAt: currentGroup.createdAt,
+                pinned: currentGroup.pinned || false,
+                updatedAt: Date.now(),
+                tasks: groupTasks.map(t => ({
+                  id: t.id,
+                  content: t.content,
+                  completed: t.completed,
+                  createdAt: t.createdAt,
+                  completedAt: t.completedAt,
+                  order: t.order,
+                  parentId: t.parentId || null,
+                  collapsed: t.collapsed,
+                  priority: t.priority,
+                  estimatedMinutes: t.estimatedMinutes,
+                  actualMinutes: t.actualMinutes,
+                }))
+              });
+            }
             
             // 清理状态
             setActiveId(null);
@@ -833,6 +833,12 @@ export function TaskList() {
     // 重置缩进状态
     setDragIndent(0);
     
+    console.log('[DragEnd] Post-indent check:', {
+      hasOver: !!over,
+      isSameTask: over?.id === active.id,
+      willEnterReorder: !!(over && active.id !== over.id)
+    });
+    
     // Check if this is a cross-group move (group changed during drag)
     if (originalGroupId && activeGroupId && originalGroupId !== activeGroupId) {
       // Move task to the new group at the drop position
@@ -845,6 +851,14 @@ export function TaskList() {
       // Check if dragging across completion status boundary
       const draggedTask = tasks.find(t => t.id === taskId);
       const targetTask = tasks.find(t => t.id === over.id);
+      
+      console.log('[Reorder]', {
+        draggedTask: draggedTask?.content,
+        draggedParent: draggedTask?.parentId,
+        targetTask: targetTask?.content,
+        targetParent: targetTask?.parentId,
+        willChangeLevels: draggedTask?.parentId !== targetTask?.parentId
+      });
       
       // First handle reordering
       if (draggedTask && targetTask && draggedTask.completed !== targetTask.completed) {

@@ -346,9 +346,16 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
         
         console.log(`[LazyLoad] Loaded ${archiveTasks.length} archived tasks from all groups`);
         
-        set((state) => ({
-          tasks: [...state.tasks, ...archiveTasks]
-        }));
+        set((state) => {
+          const existingIds = new Set(state.tasks.map(t => t.id));
+          const tasksToAdd = archiveTasks.filter(t => !existingIds.has(t.id));
+          if (tasksToAdd.length < archiveTasks.length) {
+            console.warn(`[LazyLoad] Skipped ${archiveTasks.length - tasksToAdd.length} duplicate archived tasks`);
+          }
+          return {
+            tasks: [...state.tasks, ...tasksToAdd]
+          };
+        });
         
         return;
       }
@@ -396,10 +403,17 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
       
       console.log(`[LazyLoad] Loaded ${newTasks.length} tasks for group ${groupId}`);
       
-      // 合并到现有任务列表
-      set((state) => ({
-        tasks: [...state.tasks, ...newTasks]
-      }));
+      // 合并到现有任务列表（去重：排除已存在的任务）
+      set((state) => {
+        const existingIds = new Set(state.tasks.map(t => t.id));
+        const tasksToAdd = newTasks.filter(t => !existingIds.has(t.id));
+        if (tasksToAdd.length < newTasks.length) {
+          console.warn(`[LazyLoad] Skipped ${newTasks.length - tasksToAdd.length} duplicate tasks`);
+        }
+        return {
+          tasks: [...state.tasks, ...tasksToAdd]
+        };
+      });
     } catch (error) {
       console.error(`[LazyLoad] Failed to load tasks for group ${groupId}:`, error);
       
