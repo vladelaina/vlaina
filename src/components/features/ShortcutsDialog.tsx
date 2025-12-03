@@ -1,31 +1,23 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getShortcuts, saveShortcuts, type ShortcutConfig } from '@/lib/shortcuts';
 
 interface ShortcutsDialogProps {
   open: boolean;
   onClose: () => void;
 }
 
-interface Shortcut {
-  id: string;
-  name: string;
-  keys: string[];
-  editable: boolean;
-}
-
-const defaultShortcuts: Shortcut[] = [
-  {
-    id: 'toggle-drawer',
-    name: '打开/关闭侧边栏',
-    keys: ['Ctrl', 'B'],
-    editable: true,
-  },
-];
-
 export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
-  const [shortcuts, setShortcuts] = useState<Shortcut[]>(defaultShortcuts);
+  const [shortcuts, setShortcuts] = useState<ShortcutConfig[]>(() => getShortcuts());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [recordingKeys, setRecordingKeys] = useState<string[]>([]);
+
+  // 加载快捷键配置
+  useEffect(() => {
+    if (open) {
+      setShortcuts(getShortcuts());
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -68,9 +60,11 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
       setRecordingKeys(keys);
       
       setTimeout(() => {
-        setShortcuts(prev => prev.map(s => 
+        const updated = shortcuts.map(s => 
           s.id === editingId ? { ...s, keys } : s
-        ));
+        );
+        setShortcuts(updated);
+        saveShortcuts(updated); // 保存到 localStorage
         setEditingId(null);
         setRecordingKeys([]);
       }, 300);
@@ -120,7 +114,7 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
                       onClick={() => startEditing(shortcut.id)}
                       className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded text-xs font-mono text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
                     >
-                      {shortcut.keys.join(' + ')}
+                      {shortcut.keys.length > 0 ? shortcut.keys.join(' + ') : '未设置'}
                     </button>
                   )}
                 </div>
