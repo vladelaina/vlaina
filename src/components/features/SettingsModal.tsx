@@ -13,21 +13,36 @@ interface SettingsModalProps {
 type SettingsTab = 'appearance' | 'shortcuts' | 'about';
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('about');
   const { theme, setTheme } = useTheme();
   const [shortcuts, setShortcuts] = useState<ShortcutConfig[]>(() => getShortcuts());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [recordingKeys, setRecordingKeys] = useState<string[]>([]);
+  const [autoUpdate, setAutoUpdate] = useState<boolean>(() => {
+    const saved = localStorage.getItem('autoUpdate');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   // 加载快捷键配置和清理编辑状态
   useEffect(() => {
     if (open) {
       setShortcuts(getShortcuts());
+      setActiveTab('about'); // 打开时总是显示"关于"页面
     } else {
       setEditingId(null);
       setRecordingKeys([]);
     }
   }, [open]);
+
+  // 保存自动更新设置
+  const toggleAutoUpdate = () => {
+    const newValue = !autoUpdate;
+    setAutoUpdate(newValue);
+    localStorage.setItem('autoUpdate', JSON.stringify(newValue));
+  };
 
   // 点击外部退出编辑状态
   useEffect(() => {
@@ -79,13 +94,29 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   }, [open]);
 
   const tabs = [
+    { id: 'about' as const, label: '关于', icon: Info },
     { id: 'appearance' as const, label: '外观', icon: Sun },
     { id: 'shortcuts' as const, label: '快捷键', icon: Keyboard },
-    { id: 'about' as const, label: '关于', icon: Info },
   ];
 
   const openGitHub = async () => {
-    await openUrl('https://github.com/vladelaina/NekoTick');
+    await openUrl('https://github.com/NekoTick/NekoTick');
+  };
+
+  const openSignup = async () => {
+    await openUrl('https://nekotick.com/auth#signup');
+  };
+
+  const openForgotPassword = async () => {
+    await openUrl('https://nekotick.com/auth#forgotpass');
+  };
+
+  const handleLogin = () => {
+    // TODO: 实现登录逻辑
+    console.log('Login with:', email, password);
+    setShowLoginDialog(false);
+    setEmail('');
+    setPassword('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -136,18 +167,27 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     <AnimatePresence>
       {open && (
         <>
-          {/* 背景遮罩 */}
+          {/* 标题栏遮罩层 - 半透明但不阻止拖动 */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/5 dark:bg-black/30 z-[100]"
+            className="fixed top-0 left-0 right-0 h-9 bg-black/5 dark:bg-black/30 z-[100] pointer-events-none"
+          />
+          
+          {/* 背景遮罩 - 从标题栏下方开始 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed top-9 left-0 right-0 bottom-0 bg-black/5 dark:bg-black/30 z-[100]"
             onClick={onClose}
           />
 
           {/* 模态窗口 */}
-          <div className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none">
+          <div className="fixed top-9 left-0 right-0 bottom-0 flex items-center justify-center z-[100] pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -194,27 +234,27 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 </div>
 
                 {/* 内容区域 */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto p-4">
                   {activeTab === 'appearance' && (
                     <div className="max-w-xl">
                       {/* 主题选择 */}
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         <div>
-                          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2 block">
+                          <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5 block">
                             主题模式
                           </label>
-                          <div className="space-y-1.5">
+                          <div className="space-y-1">
                             <button
                               onClick={() => setTheme('light')}
-                              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-md border transition-all ${
+                              className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-md border transition-all ${
                                 theme === 'light'
                                   ? 'border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800'
                                   : 'border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
                               }`}
                             >
-                              <Sun className="size-4 text-zinc-600 dark:text-zinc-400" />
+                              <Sun className="size-3.5 text-zinc-600 dark:text-zinc-400" />
                               <div className="flex-1 text-left">
-                                <div className="text-sm text-zinc-700 dark:text-zinc-300">
+                                <div className="text-xs text-zinc-700 dark:text-zinc-300">
                                   浅色模式
                                 </div>
                               </div>
@@ -225,15 +265,15 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
                             <button
                               onClick={() => setTheme('dark')}
-                              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-md border transition-all ${
+                              className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-md border transition-all ${
                                 theme === 'dark'
                                   ? 'border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800'
                                   : 'border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
                               }`}
                             >
-                              <Moon className="size-4 text-zinc-600 dark:text-zinc-400" />
+                              <Moon className="size-3.5 text-zinc-600 dark:text-zinc-400" />
                               <div className="flex-1 text-left">
-                                <div className="text-sm text-zinc-700 dark:text-zinc-300">
+                                <div className="text-xs text-zinc-700 dark:text-zinc-300">
                                   深色模式
                                 </div>
                               </div>
@@ -244,15 +284,15 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
                             <button
                               onClick={() => setTheme('system')}
-                              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-md border transition-all ${
+                              className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-md border transition-all ${
                                 theme === 'system'
                                   ? 'border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800'
                                   : 'border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
                               }`}
                             >
-                              <Monitor className="size-4 text-zinc-600 dark:text-zinc-400" />
+                              <Monitor className="size-3.5 text-zinc-600 dark:text-zinc-400" />
                               <div className="flex-1 text-left">
-                                <div className="text-sm text-zinc-700 dark:text-zinc-300">
+                                <div className="text-xs text-zinc-700 dark:text-zinc-300">
                                   跟随系统
                                 </div>
                               </div>
@@ -268,13 +308,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
                   {activeTab === 'shortcuts' && (
                     <div className="max-w-xl">
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         {shortcuts.map((shortcut) => (
                           <div
                             key={shortcut.id}
-                            className="flex items-center justify-between py-2"
+                            className="flex items-center justify-between py-1.5"
                           >
-                            <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                            <span className="text-xs text-zinc-700 dark:text-zinc-300">
                               {shortcut.name}
                             </span>
                             
@@ -286,7 +326,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                                   placeholder={shortcut.keys.length > 0 ? shortcut.keys.join('+') : ''}
                                   readOnly
                                   autoFocus
-                                  className="w-full pl-3 pr-7 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded text-xs text-center text-zinc-600 dark:text-zinc-300 placeholder:text-zinc-300 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent"
+                                  className="w-full pl-2 pr-6 py-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded text-xs text-center text-zinc-600 dark:text-zinc-300 placeholder:text-zinc-300 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent"
                                 />
                                 {(recordingKeys.length > 0 || shortcut.keys.length > 0) && (
                                   <button
@@ -306,7 +346,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                               <div className="relative group w-28">
                                 <button
                                   onClick={() => startEditing(shortcut.id)}
-                                  className="w-full pl-3 pr-7 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded text-xs text-center text-zinc-400 dark:text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-500 transition-colors"
+                                  className="w-full pl-2 pr-6 py-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded text-xs text-center text-zinc-400 dark:text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-500 transition-colors"
                                 >
                                   {shortcut.keys.length > 0 ? shortcut.keys.join('+') : '设置快捷键'}
                                 </button>
@@ -331,36 +371,227 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   )}
 
                   {activeTab === 'about' && (
-                    <div className="max-w-xl">
-                      <div className="space-y-4">
-                        <div className="text-sm text-zinc-700 dark:text-zinc-300 space-y-2">
-                          <p>
-                            NekoTick 是一个简洁优雅的任务管理应用，帮助你高效组织和追踪任务进度。
-                          </p>
-                          <p className="text-zinc-500 dark:text-zinc-400">
-                            Version 0.1.0
-                          </p>
+                    <div className="max-w-3xl">
+                      {/* 账户部分 */}
+                      <div className="mb-6">
+                        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-3">账户</h2>
+                        <div className="py-3 border-b border-zinc-200 dark:border-zinc-700">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-1">
+                                你的账户
+                              </div>
+                              <div className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                                你还没有登录。使用 NekoTick 同步服务、发布服务以及获取内部版本都需要你使用账号。
+                              </div>
+                            </div>
+                            <div className="flex gap-2 flex-shrink-0">
+                              <button
+                                onClick={() => setShowLoginDialog(true)}
+                                className="px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-md transition-colors"
+                              >
+                                登录
+                              </button>
+                              <button
+                                onClick={openSignup}
+                                className="px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-md transition-colors"
+                              >
+                                注册
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 应用部分 */}
+                      <div className="mb-4">
+                        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">应用</h2>
+                      </div>
+
+                      <div className="space-y-0">
+                        {/* 版本信息 */}
+                        <div className="py-3 border-b border-zinc-200 dark:border-zinc-700">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-0.5">
+                                Version 0.1.0
+                              </div>
+                              <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                                你使用的是最新版本！
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => {/* TODO: 检查更新逻辑 */}}
+                              className="px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-md transition-colors"
+                            >
+                              检查更新
+                            </button>
+                          </div>
                         </div>
 
-                        <div className="pt-2">
-                          <button
-                            onClick={openGitHub}
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-md transition-colors"
-                          >
-                            <ExternalLink className="size-4" />
-                            在 GitHub 上查看
-                          </button>
+                        {/* 自动更新 */}
+                        <div className="py-3 border-b border-zinc-200 dark:border-zinc-700">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-0.5">
+                                自动更新
+                              </div>
+                              <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                                关闭后 NekoTick 将不会自动更新。
+                              </div>
+                            </div>
+                            <button
+                              onClick={toggleAutoUpdate}
+                              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${
+                                autoUpdate ? 'bg-zinc-400 dark:bg-zinc-500' : 'bg-zinc-300 dark:bg-zinc-600'
+                              }`}
+                            >
+                              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                autoUpdate ? 'translate-x-5' : 'translate-x-0.5'
+                              }`} />
+                            </button>
+                          </div>
                         </div>
 
-                        <div className="pt-4 border-t border-zinc-200 dark:border-zinc-700">
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                            © 2025 NekoTick. All rights reserved.
-                          </p>
+                        {/* 语言选择 */}
+                        <div className="py-3 border-b border-zinc-200 dark:border-zinc-700">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-0.5">
+                                语言
+                              </div>
+                              <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                                更改界面语言。
+                              </div>
+                            </div>
+                            <select
+                              className="px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400 min-w-[120px]"
+                            >
+                              <option value="zh-CN">简体中文</option>
+                              <option value="en-US">English</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* GitHub 链接 */}
+                        <div className="py-3 border-b border-zinc-200 dark:border-zinc-700">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-0.5">
+                                GitHub 仓库
+                              </div>
+                              <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                                在 GitHub 上查看源代码、报告问题或参与贡献。
+                              </div>
+                            </div>
+                            <button
+                              onClick={openGitHub}
+                              className="px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-md transition-colors flex items-center gap-1.5"
+                            >
+                              <ExternalLink className="size-3.5" />
+                              打开
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
                   )}
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        </>
+      )}
+
+      {/* 登录对话框 */}
+      {showLoginDialog && (
+        <>
+          {/* 背景遮罩 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/20 dark:bg-black/40 z-[150]"
+            onClick={() => setShowLoginDialog(false)}
+          />
+
+          {/* 登录对话框 */}
+          <div className="fixed inset-0 flex items-center justify-center z-[150] pointer-events-none">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl w-[400px] max-w-[90vw] pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 标题栏 */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-700">
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">登录</h3>
+                <button
+                  onClick={() => setShowLoginDialog(false)}
+                  className="p-1 rounded-md text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              {/* 表单内容 */}
+              <div className="p-5 space-y-4">
+                {/* 邮箱 */}
+                <div>
+                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                    邮箱
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="你的邮箱......"
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-400 transition-colors"
+                  />
+                </div>
+
+                {/* 密码 */}
+                <div>
+                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                    密码
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="你的密码......"
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-400 transition-colors"
+                  />
+                </div>
+
+                {/* 忘记密码 */}
+                <div>
+                  <button
+                    onClick={openForgotPassword}
+                    className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-500 transition-colors"
+                  >
+                    忘记密码？
+                  </button>
+                </div>
+              </div>
+
+              {/* 底部按钮 */}
+              <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-zinc-200 dark:border-zinc-700">
+                <button
+                  onClick={() => setShowLoginDialog(false)}
+                  className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-md transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleLogin}
+                  className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-md transition-colors"
+                >
+                  登录
+                </button>
               </div>
             </motion.div>
           </div>

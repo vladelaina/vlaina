@@ -50,8 +50,6 @@ export function TaskList() {
     setDraggingTaskId,
     groups,
     selectedPriorities,
-    togglePriority,
-    toggleAllPriorities,
   } = useGroupStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
