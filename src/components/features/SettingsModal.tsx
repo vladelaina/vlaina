@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink, Folder, RotateCcw } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -25,6 +25,11 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fontSize, setFontSize] = useState<number>(() => {
+    const saved = localStorage.getItem('fontSize');
+    return saved !== null ? parseInt(saved) : 14;
+  });
+  const [showFontSizeTooltip, setShowFontSizeTooltip] = useState(false);
 
   // 加载快捷键配置和清理编辑状态
   useEffect(() => {
@@ -240,11 +245,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                         <div className="py-3 border-b border-zinc-200 dark:border-zinc-700">
                           <div className="flex items-center justify-between gap-4">
                             <div className="flex-1">
-                              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-0.5">
+                              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                                 基础颜色
-                              </div>
-                              <div className="text-xs text-zinc-600 dark:text-zinc-400">
-                                设置 NekoTick 的基础颜色。
                               </div>
                             </div>
                             <select
@@ -259,6 +261,123 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                               <option value="light">浅色模式</option>
                               <option value="dark">深色模式</option>
                             </select>
+                          </div>
+                        </div>
+
+                        {/* 主题 */}
+                        <div className="py-3 border-b border-zinc-200 dark:border-zinc-700">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                主题
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {/* TODO: 打开主题文件夹 */}}
+                                className="p-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
+                              >
+                                <Folder className="size-4" />
+                              </button>
+                              <select
+                                className="px-2 py-1 pr-6 text-xs bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400 min-w-[100px] cursor-pointer appearance-none bg-[length:7px_12px] bg-[right_5px_center] bg-no-repeat"
+                                style={{
+                                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='12' viewBox='0 0 7 12'%3E%3Cpolyline points='0.5,3.5 3.5,0.5 6.5,3.5' fill='none' stroke='%23333' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpolyline points='0.5,8.5 3.5,11.5 6.5,8.5' fill='none' stroke='%23333' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`
+                                }}
+                              >
+                                <option value="default">默认</option>
+                              </select>
+                              <button
+                                onClick={() => {/* TODO: 管理主题 */}}
+                                className="px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded transition-colors"
+                              >
+                                管理
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 字体部分标题 */}
+                      <div className="mt-6 mb-4">
+                        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">字体</h2>
+                      </div>
+
+                      <div className="space-y-0">
+                        {/* 字体大小 */}
+                        <div className="py-3 border-b border-zinc-200 dark:border-zinc-700">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                字体大小
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {fontSize !== 14 && (
+                                <button
+                                  onClick={() => {
+                                    setFontSize(14);
+                                    localStorage.setItem('fontSize', '14');
+                                  }}
+                                  className="p-1 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+                                  title="重置为默认值"
+                                >
+                                  <RotateCcw className="size-3.5" />
+                                </button>
+                              )}
+                              <div className="relative">
+                                <input
+                                  type="range"
+                                  min="12"
+                                  max="20"
+                                  value={fontSize}
+                                  onChange={(e) => {
+                                    const newSize = parseInt(e.target.value);
+                                    setFontSize(newSize);
+                                    localStorage.setItem('fontSize', newSize.toString());
+                                  }}
+                                  onMouseEnter={() => setShowFontSizeTooltip(true)}
+                                  onMouseLeave={() => setShowFontSizeTooltip(false)}
+                                  onMouseDown={() => setShowFontSizeTooltip(true)}
+                                  onMouseUp={() => setShowFontSizeTooltip(false)}
+                                  className="w-32 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-zinc-400"
+                                />
+                                {showFontSizeTooltip && (
+                                  <div 
+                                    className="absolute -top-7 flex flex-col items-center pointer-events-none"
+                                    style={{
+                                      left: `calc(8px + ${((fontSize - 12) / (20 - 12)) * 112}px)`,
+                                      transform: 'translateX(-50%)'
+                                    }}
+                                  >
+                                    <div className="bg-zinc-800 dark:bg-zinc-700 text-white text-xs px-2 py-1 rounded">
+                                      {fontSize}
+                                    </div>
+                                    <div 
+                                      className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-zinc-800 dark:border-t-zinc-700"
+                                      style={{ marginTop: '-1px' }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 快速调整字体大小 */}
+                        <div className="py-3 border-b border-zinc-200 dark:border-zinc-700">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                快速调整字体大小
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => {/* TODO: 切换快速调整 */}}
+                              className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 bg-zinc-300 dark:bg-zinc-600"
+                            >
+                              <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform translate-x-0.5" />
+                            </button>
                           </div>
                         </div>
                       </div>
