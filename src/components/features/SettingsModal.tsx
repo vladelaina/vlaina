@@ -142,7 +142,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/20 dark:bg-black/40 z-[100]"
+            className="fixed inset-0 bg-black/5 dark:bg-black/30 z-[100]"
             onClick={onClose}
           />
 
@@ -160,12 +160,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             >
               {/* 左侧导航 */}
               <div className="w-48 border-r border-zinc-300 dark:border-zinc-700 flex flex-col bg-[#F6F6F6] dark:bg-zinc-900 rounded-l-lg">
-                <div className="p-4 border-b border-zinc-300 dark:border-zinc-700">
-                  <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-                    设置
-                  </h2>
-                </div>
-                <nav className="flex-1 p-3 space-y-1">
+                <nav className="flex-1 p-3 pt-4 space-y-1">
                   {tabs.map((tab) => {
                     const Icon = tab.icon;
                     return (
@@ -187,9 +182,9 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </div>
 
               {/* 右侧内容 */}
-              <div className="flex-1 flex flex-col bg-white dark:bg-zinc-900 rounded-r-lg">
+              <div className="flex-1 flex flex-col bg-white dark:bg-zinc-900 rounded-r-lg relative">
                 {/* 关闭按钮 */}
-                <div className="absolute top-4 right-4">
+                <div className="absolute top-2 right-2 z-10">
                   <button
                     onClick={onClose}
                     className="p-1 rounded-md text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
@@ -202,10 +197,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 <div className="flex-1 overflow-y-auto p-6">
                   {activeTab === 'appearance' && (
                     <div className="max-w-xl">
-                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-                        外观设置
-                      </h3>
-
                       {/* 主题选择 */}
                       <div className="space-y-3">
                         <div>
@@ -277,10 +268,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
                   {activeTab === 'shortcuts' && (
                     <div className="max-w-xl">
-                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-                        快捷键
-                      </h3>
-
                       <div className="space-y-2">
                         {shortcuts.map((shortcut) => (
                           <div
@@ -345,10 +332,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
                   {activeTab === 'about' && (
                     <div className="max-w-xl">
-                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-                        关于 NekoTick
-                      </h3>
-
                       <div className="space-y-4">
                         <div className="text-sm text-zinc-700 dark:text-zinc-300 space-y-2">
                           <p>
@@ -371,7 +354,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
                         <div className="pt-4 border-t border-zinc-200 dark:border-zinc-700">
                           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                            © 2024 NekoTick. All rights reserved.
+                            © 2025 NekoTick. All rights reserved.
                           </p>
                         </div>
                       </div>

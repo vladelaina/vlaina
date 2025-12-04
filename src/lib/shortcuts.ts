@@ -3,7 +3,8 @@
 export type ShortcutId = 
   | 'toggle-drawer'
   | 'archive-completed'
-  | 'open-archive';
+  | 'open-archive'
+  | 'open-settings';
 
 export interface ShortcutConfig {
   id: ShortcutId;
@@ -16,6 +17,12 @@ const SHORTCUTS_STORAGE_KEY = 'nekotick-shortcuts';
 
 // 默认快捷键配置（全部为空，让用户自己设置）
 const defaultShortcuts: ShortcutConfig[] = [
+  {
+    id: 'open-settings',
+    name: '打开/关闭设置',
+    keys: [],
+    editable: true,
+  },
   {
     id: 'toggle-drawer',
     name: '打开/关闭侧边栏',

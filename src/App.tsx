@@ -14,6 +14,7 @@ import { useViewStore } from '@/stores/useViewStore';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useVimShortcuts } from '@/hooks/useVimShortcuts';
 import { useShortcuts } from '@/hooks/useShortcuts';
+import { getShortcutKeys } from '@/lib/shortcuts';
 
 function AppContent() {
   // Enable shortcuts
@@ -57,12 +58,23 @@ function AppContent() {
     loadData();
   }, [loadData]);
 
-  // Ctrl+K 打开设置
+  // 打开/关闭设置快捷键
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      const keys = getShortcutKeys('open-settings');
+      if (!keys || keys.length === 0) return;
+
+      const matchesShortcut = keys.every((key: string) => {
+        if (key === 'Ctrl') return e.ctrlKey;
+        if (key === 'Shift') return e.shiftKey;
+        if (key === 'Alt') return e.altKey;
+        if (key === 'Meta') return e.metaKey;
+        return e.key.toUpperCase() === key.toUpperCase();
+      });
+
+      if (matchesShortcut) {
         e.preventDefault();
-        setSettingsOpen(true);
+        setSettingsOpen(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -71,7 +83,7 @@ function AppContent() {
 
   return (
     <>
-      {/* Settings Modal (⌘K) - Global */}
+      {/* Settings Modal - Global */}
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {/* 时间管理页面 */}
