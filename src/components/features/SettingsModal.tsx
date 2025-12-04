@@ -47,6 +47,24 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     document.documentElement.style.fontSize = `${fontSize}px`;
   }, [fontSize]);
 
+  // Ctrl+滚轮缩放字体
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -1 : 1;
+        setFontSize(prev => {
+          const newSize = Math.min(20, Math.max(12, prev + delta));
+          localStorage.setItem('fontSize', newSize.toString());
+          return newSize;
+        });
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => window.removeEventListener('wheel', handleWheel);
+  }, []);
+
   // 保存自动更新设置
   const toggleAutoUpdate = () => {
     const newValue = !autoUpdate;
@@ -369,22 +387,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                           </div>
                         </div>
 
-                        {/* 快速调整字体大小 */}
-                        <div className="py-3 border-b border-zinc-200 dark:border-zinc-700">
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                                快速调整字体大小
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => {/* TODO: 切换快速调整 */}}
-                              className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 bg-zinc-300 dark:bg-zinc-600"
-                            >
-                              <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform translate-x-0.5" />
-                            </button>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   )}
