@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { MoreHorizontal, Check } from 'lucide-react';
 import { TaskList } from '@/components/features/TaskList';
 import { TaskInput } from '@/components/features/TaskInput';
@@ -33,7 +33,11 @@ function AppContent() {
   const activeGroup = activeGroupId === '__archive__' 
     ? { id: '__archive__', name: '归档', createdAt: Date.now() }
     : groups.find(g => g.id === activeGroupId);
-  const groupTasks = tasks.filter(t => t.groupId === activeGroupId);
+  
+  // 使用 useMemo 缓存任务数量计算，避免每次渲染都重新过滤
+  const groupTaskCount = useMemo(() => {
+    return tasks.filter(t => t.groupId === activeGroupId).length;
+  }, [tasks, activeGroupId]);
   const now = new Date();
   const formatDate = (date: Date | number) => {
     const d = new Date(date);
@@ -148,7 +152,7 @@ function AppContent() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-zinc-500">Tasks</span>
-                    <span className="text-zinc-700">{groupTasks.length}</span>
+                    <span className="text-zinc-700">{groupTaskCount}</span>
                   </div>
                 </div>
               </div>
@@ -162,9 +166,8 @@ function AppContent() {
           
           {/* Main Content */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
-            {/* More Menu - Top Right (隐藏在归档视图中) */}
-            {activeGroupId !== '__archive__' && (
-              <div className="absolute top-4 right-6" ref={moreMenuRef}>
+            {/* More Menu - Top Right */}
+            <div className="absolute top-4 right-6" ref={moreMenuRef}>
                 <button
                   onClick={() => setShowMoreMenu(!showMoreMenu)}
                   className={`p-1.5 rounded-md transition-colors ${
@@ -241,59 +244,62 @@ function AppContent() {
                       </div>
                     </div>
                     
-                    {/* 原有菜单项 */}
-                    <button
-                      onClick={() => {
-                        setHideCompleted(!hideCompleted);
-                        setShowMoreMenu(false);
-                      }}
-                      className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-between"
-                    >
-                      <span>Hide Completed</span>
-                      {hideCompleted && <Check className="size-4 text-blue-500" />}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setHideActualTime(!hideActualTime);
-                        setShowMoreMenu(false);
-                      }}
-                      className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-between"
-                    >
-                      <span>Hide Time Info</span>
-                      {hideActualTime && <Check className="size-4 text-blue-500" />}
-                    </button>
-                    <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
-                    <button
-                      onClick={() => {
-                        setShowInfoModal(true);
-                        setShowMoreMenu(false);
-                      }}
-                      className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                    >
-                      Info
-                    </button>
-                    <button
-                      onClick={() => setShowMoreMenu(false)}
-                      className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                    >
-                      History...
-                    </button>
-                    <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
-                    <button
-                      onClick={() => {
-                        if (activeGroupId && activeGroupId !== 'default') {
-                          deleteGroup(activeGroupId);
-                        }
-                        setShowMoreMenu(false);
-                      }}
-                      className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                    >
-                      Move to Trash
-                    </button>
+                    {/* 非归档视图显示其他菜单项 */}
+                    {activeGroupId !== '__archive__' && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setHideCompleted(!hideCompleted);
+                            setShowMoreMenu(false);
+                          }}
+                          className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-between"
+                        >
+                          <span>Hide Completed</span>
+                          {hideCompleted && <Check className="size-4 text-blue-500" />}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setHideActualTime(!hideActualTime);
+                            setShowMoreMenu(false);
+                          }}
+                          className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-between"
+                        >
+                          <span>Hide Time Info</span>
+                          {hideActualTime && <Check className="size-4 text-blue-500" />}
+                        </button>
+                        <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+                        <button
+                          onClick={() => {
+                            setShowInfoModal(true);
+                            setShowMoreMenu(false);
+                          }}
+                          className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                        >
+                          Info
+                        </button>
+                        <button
+                          onClick={() => setShowMoreMenu(false)}
+                          className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                        >
+                          History...
+                        </button>
+                        <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+                        <button
+                          onClick={() => {
+                            if (activeGroupId && activeGroupId !== 'default') {
+                              deleteGroup(activeGroupId);
+                            }
+                            setShowMoreMenu(false);
+                          }}
+                          className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                        >
+                          Move to Trash
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
-            )}
 
             <div className="max-w-3xl mx-auto px-6 py-8">
               {/* Loading State */}

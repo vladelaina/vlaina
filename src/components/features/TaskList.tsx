@@ -50,6 +50,14 @@ export function TaskList() {
     setDraggingTaskId,
     groups,
     selectedPriorities,
+    // 归档时间范围设置
+    archiveTimeView,
+    archiveDayRange,
+    archiveWeekRange,
+    archiveMonthRange,
+    setArchiveTimeView,
+    setArchiveRange,
+    loadGroupTasks,
   } = useGroupStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
@@ -69,16 +77,24 @@ export function TaskList() {
   const dateMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const groupMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
   
-  // 时间维度选择：天/周/月
+  // 时间维度选择：天/周/月（使用 store 中的状态）
   type TimeView = 'day' | 'week' | 'month';
-  const [timeView, setTimeView] = useState<TimeView>('day');
+  const timeView = archiveTimeView;
+  const setTimeView = (view: TimeView) => {
+    setArchiveTimeView(view);
+    // 切换时间视图时，清除归档数据缓存以便重新加载
+    useGroupStore.setState((state) => ({
+      loadedGroups: new Set([...state.loadedGroups].filter(g => g !== '__archive__')),
+      tasks: state.tasks.filter(t => t.groupId !== '__archive__')
+    }));
+  };
   const [showTimeViewMenu, setShowTimeViewMenu] = useState(false);
   const timeViewMenuRef = useRef<HTMLDivElement>(null);
   
-  // 时间范围选择（每个时间维度独立存储）
-  const [dayRange, setDayRange] = useState<number | 'all'>(1);
-  const [weekRange, setWeekRange] = useState<number | 'all'>(1);
-  const [monthRange, setMonthRange] = useState<number | 'all'>(1);
+  // 时间范围选择（使用 store 中的状态）
+  const dayRange = archiveDayRange;
+  const weekRange = archiveWeekRange;
+  const monthRange = archiveMonthRange;
   const [showRangeMenu, setShowRangeMenu] = useState(false);
   const rangeMenuRef = useRef<HTMLDivElement>(null);
   const [customRangeInput, setCustomRangeInput] = useState('');
@@ -94,10 +110,18 @@ export function TaskList() {
   
   // 设置当前时间维度下的范围值
   const setCurrentRange = (range: number | 'all') => {
-    if (timeView === 'day') setDayRange(range);
-    else if (timeView === 'week') setWeekRange(range);
-    else setMonthRange(range);
+    setArchiveRange(timeView, range);
+    // 更改范围时，清除归档数据缓存以便重新加载
+    useGroupStore.setState((state) => ({
+      loadedGroups: new Set([...state.loadedGroups].filter(g => g !== '__archive__')),
+      tasks: state.tasks.filter(t => t.groupId !== '__archive__')
+    }));
   };
+  
+  // 本地setter用于兼容现有代码（如果需要单独设置某个维度的范围）
+  const setDayRange = (range: number | 'all') => setArchiveRange('day', range);
+  const setWeekRange = (range: number | 'all') => setArchiveRange('week', range);
+  const setMonthRange = (range: number | 'all') => setArchiveRange('month', range);
   
   // 获取不同时间维度的范围选项
   const getRangeOptions = () => {
@@ -199,10 +223,10 @@ export function TaskList() {
       if (completedMenuRef.current && !completedMenuRef.current.contains(e.target as Node)) {
         setShowCompletedMenu(false);
       }
-      if (timeViewMenuRef.current && !timeViewMenuRef.current.contains(event.target as Node)) {
+      if (timeViewMenuRef.current && !timeViewMenuRef.current.contains(e.target as Node)) {
         setShowTimeViewMenu(false);
       }
-      if (rangeMenuRef.current && !rangeMenuRef.current.contains(event.target as Node)) {
+      if (rangeMenuRef.current && !rangeMenuRef.current.contains(e.target as Node)) {
         // 点击外部关闭时，如果有未确认的输入，恢复到原始值
         if (customRangeInput.trim()) {
           if (timeView === 'day') setDayRange(originalRangeRef.current);
@@ -415,7 +439,14 @@ export function TaskList() {
     if (activeGroupId !== '__archive__') return {};
     
     const topLevelArchiveTasks = tasks
-      .filter((t) => t.groupId === activeGroupId && !t.parentId)
+      .filter((t) => {
+        if (t.groupId !== activeGroupId || t.parentId) return false;
+        // 应用颜色筛选：必须在选中的颜色列表中
+        if (!selectedPriorities.includes(t.priority || 'default')) {
+          return false;
+        }
+        return true;
+      })
       .sort((a, b) => {
         // 按完成时间倒序排序（最新的在前）
         if (!a.completedAt && !b.completedAt) return 0;
@@ -484,7 +515,7 @@ export function TaskList() {
     }
     
     return dateGroups;
-  }, [tasks, activeGroupId, timeView, getCurrentRange]);
+  }, [tasks, activeGroupId, timeView, dayRange, weekRange, monthRange, selectedPriorities]);
 
   // 在天视图下，自动展开所有日期和分组
   useEffect(() => {
@@ -508,8 +539,8 @@ export function TaskList() {
     const topLevelTasks = tasks
       .filter((t) => {
         if (t.groupId !== activeGroupId || t.parentId) return false;
-        // 应用颜色筛选
-        if (selectedPriorities.length > 0 && !selectedPriorities.includes(t.priority || 'default')) {
+        // 应用颜色筛选：必须在选中的颜色列表中
+        if (!selectedPriorities.includes(t.priority || 'default')) {
           return false;
         }
         return true;
@@ -637,7 +668,15 @@ export function TaskList() {
   };
   
   const incompleteTaskIds = useMemo(() => getAllTaskIds(incompleteTasks), [incompleteTasks, tasks]);
-  const completedTaskIds = useMemo(() => getAllTaskIds(completedTasks), [completedTasks, tasks]);
+  const completedTaskIds = useMemo(() => {
+    // 归档视图使用groupedArchiveTasks，主视图使用completedTasks
+    if (activeGroupId === '__archive__') {
+      const allArchiveTasks = Object.values(groupedArchiveTasks)
+        .flatMap(dateGroup => Object.values(dateGroup).flat());
+      return getAllTaskIds(allArchiveTasks);
+    }
+    return getAllTaskIds(completedTasks);
+  }, [completedTasks, tasks, activeGroupId, groupedArchiveTasks]);
 
   // 自定义碰撞检测：优先使用 pointerWithin，如果没有结果则使用 closestCenter
   const customCollisionDetection = useCallback((args: any) => {
@@ -1019,7 +1058,18 @@ export function TaskList() {
     };
   }, []);
 
-  if (filteredTasks.length === 0) {
+  // 归档视图单独判断
+  if (activeGroupId === '__archive__') {
+    if (Object.keys(groupedArchiveTasks).length === 0) {
+      return (
+        <div className="py-12 text-center">
+          <p className="text-muted-foreground text-sm">
+            No tasks
+          </p>
+        </div>
+      );
+    }
+  } else if (filteredTasks.length === 0) {
     return (
       <div className="py-12 text-center">
         <p className="text-muted-foreground text-sm">
@@ -1311,7 +1361,7 @@ export function TaskList() {
         )}
 
         {/* 已完成任务区域 - 独立的 SortableContext */}
-        {completedTasks.length > 0 && completedExpanded && (
+        {((activeGroupId === '__archive__' && Object.keys(groupedArchiveTasks).length > 0) || (completedTasks.length > 0)) && completedExpanded && (
           <SortableContext items={completedTaskIds} strategy={verticalListSortingStrategy}>
             {/* 归档视图：按日期>分组双层结构显示 */}
             {activeGroupId === '__archive__' ? (

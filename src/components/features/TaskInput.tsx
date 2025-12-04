@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGroupStore, type Priority } from '@/stores/useGroupStore';
-import { Checkbox } from '@/components/ui/checkbox';
 
 const priorityColors = {
   red: { bg: 'bg-red-500', border: 'border-red-500', text: 'text-red-500', label: '红色 (最高)' },
@@ -96,22 +95,29 @@ export function TaskInput() {
 
       {/* Priority Selector */}
       <div className="relative shrink-0" ref={priorityMenuRef}>
-        <button
+        <div
           onClick={() => setShowPriorityMenu(!showPriorityMenu)}
-          className="flex items-center gap-1 p-1 rounded hover:bg-muted transition-colors"
+          className="flex items-center gap-1 p-1 rounded hover:bg-muted transition-colors cursor-pointer"
+          role="button"
+          tabIndex={0}
           aria-label="Set priority"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setShowPriorityMenu(!showPriorityMenu);
+            }
+          }}
         >
-          <Checkbox
-            checked={false}
+          <div
             className={cn(
-              "h-4 w-4 rounded-sm transition-none pointer-events-none",
+              "h-4 w-4 rounded-sm border flex items-center justify-center",
               priority && priority !== 'default'
                 ? cn("border-2", priorityColors[priority].border)
                 : "border border-muted-foreground/40"
             )}
           />
           <ChevronDown className="h-3 w-3 text-muted-foreground" />
-        </button>
+        </div>
         
         {showPriorityMenu && (
           <div className="absolute left-0 top-full mt-1 w-fit bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-2 px-2 z-50">
@@ -126,10 +132,9 @@ export function TaskInput() {
                   }}
                   className="p-1 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                 >
-                  <Checkbox
-                    checked={false}
+                  <div
                     className={cn(
-                      "h-4 w-4 rounded-sm transition-none pointer-events-none",
+                      "h-4 w-4 rounded-sm",
                       p && p !== 'default'
                         ? cn("border-2", priorityColors[p].border)
                         : "border border-muted-foreground/40"

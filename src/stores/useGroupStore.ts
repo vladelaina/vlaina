@@ -110,6 +110,15 @@ interface GroupStore {
   togglePriority: (priority: Priority) => void;
   toggleAllPriorities: () => void;
   
+  // 归档时间范围设置
+  archiveTimeView: 'day' | 'week' | 'month';
+  archiveDayRange: number | 'all';
+  archiveWeekRange: number | 'all';
+  archiveMonthRange: number | 'all';
+  setArchiveTimeView: (view: 'day' | 'week' | 'month') => void;
+  setArchiveRange: (view: 'day' | 'week' | 'month', range: number | 'all') => void;
+  getArchiveMaxDays: () => number | null; // 返回需要加载的最大天数，null表示全部
+  
   // Drag state for cross-group drag
   draggingTaskId: string | null;
   setDraggingTaskId: (id: string | null) => void;
@@ -238,7 +247,7 @@ async function persistGroup(groups: Group[], tasks: StoreTask[], groupId: string
   }
 }
 
-export const useGroupStore = create<GroupStore>()((set, _get) => ({
+export const useGroupStore = create<GroupStore>()((set, get) => ({
   groups: [],
   tasks: [],
   activeGroupId: 'default',
@@ -254,7 +263,9 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
   selectedPriorities: (() => {
     try {
       const saved = localStorage.getItem('nekotick-priority-filter');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        return JSON.parse(saved);
+      }
     } catch {}
     return ['red', 'yellow', 'purple', 'green', 'default'];
   })(),
@@ -269,6 +280,7 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
       const newPriorities = state.selectedPriorities.includes(priority)
         ? state.selectedPriorities.filter(p => p !== priority)
         : [...state.selectedPriorities, priority];
+      
       localStorage.setItem('nekotick-priority-filter', JSON.stringify(newPriorities));
       return { selectedPriorities: newPriorities };
     });
@@ -277,12 +289,40 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
   toggleAllPriorities: () => {
     const allPriorities: Priority[] = ['red', 'yellow', 'purple', 'green', 'default'];
     set((state) => {
+      // 在全选和空数组之间切换（空数组表示不筛选，显示所有）
       const newPriorities = state.selectedPriorities.length === allPriorities.length
         ? []
         : allPriorities;
       localStorage.setItem('nekotick-priority-filter', JSON.stringify(newPriorities));
       return { selectedPriorities: newPriorities };
     });
+  },
+  
+  // 归档时间范围设置
+  archiveTimeView: 'day',
+  archiveDayRange: 7,
+  archiveWeekRange: 4,
+  archiveMonthRange: 3,
+  
+  setArchiveTimeView: (view) => set({ archiveTimeView: view }),
+  
+  setArchiveRange: (view, range) => {
+    if (view === 'day') set({ archiveDayRange: range });
+    else if (view === 'week') set({ archiveWeekRange: range });
+    else set({ archiveMonthRange: range });
+  },
+  
+  getArchiveMaxDays: (): number | null => {
+    const state = get();
+    const { archiveTimeView, archiveDayRange, archiveWeekRange, archiveMonthRange } = state;
+    
+    if (archiveTimeView === 'day') {
+      return archiveDayRange === 'all' ? null : archiveDayRange as number;
+    } else if (archiveTimeView === 'week') {
+      return archiveWeekRange === 'all' ? null : (archiveWeekRange as number) * 7;
+    } else {
+      return archiveMonthRange === 'all' ? null : (archiveMonthRange as number) * 30;
+    }
   },
   
   draggingTaskId: null,
@@ -349,7 +389,11 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
       // 特殊处理归档分组 - 加载所有分组的归档数据
       if (groupId === '__archive__') {
         const { loadArchiveData } = await import('@/lib/storage');
-        const currentState = useGroupStore.getState();
+        const currentState = get();
+        
+        // 获取时间范围限制
+        const maxDays = currentState.getArchiveMaxDays();
+        console.log(`[Archive] Loading with maxDays limit: ${maxDays}`);
         
         // 加载所有非归档分组的归档数据
         const archiveTasks: StoreTask[] = [];
@@ -359,7 +403,7 @@ export const useGroupStore = create<GroupStore>()((set, _get) => ({
           if (group.id === '__archive__') continue;
           
           console.log(`[Archive] Loading archive for group: ${group.id} (${group.name})`);
-          const archiveData = await loadArchiveData(group.id);
+          const archiveData = await loadArchiveData(group.id, maxDays);
           console.log(`[Archive] Found ${archiveData.length} archive sections for ${group.name}`);
           
           // 将该分组的归档数据转换为任务格式

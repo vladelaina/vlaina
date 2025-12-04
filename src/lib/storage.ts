@@ -590,7 +590,8 @@ export async function archiveTasks(groupId: string, tasks: TaskData[]): Promise<
 }
 
 // 读取归档数据用于显示
-export async function loadArchiveData(groupId: string): Promise<Array<{
+// maxDays: 限制加载最近多少天的数据，null表示加载全部
+export async function loadArchiveData(groupId: string, maxDays: number | null = null): Promise<Array<{
   timestamp: string;
   tasks: Array<{
     content: string;
@@ -620,6 +621,8 @@ export async function loadArchiveData(groupId: string): Promise<Array<{
     if (sections.length === 0) return [];
     
     const result = [];
+    const now = Date.now();
+    const cutoffTime = maxDays !== null ? now - maxDays * 24 * 60 * 60 * 1000 : 0;
     
     for (const section of sections) {
       // 提取时间戳
@@ -627,6 +630,15 @@ export async function loadArchiveData(groupId: string): Promise<Array<{
       if (!timestampMatch) continue;
       
       const timestamp = timestampMatch[1].trim();
+      
+      // 如果设置了时间限制，检查section时间是否在范围内
+      if (maxDays !== null) {
+        const sectionDate = new Date(timestamp);
+        if (!isNaN(sectionDate.getTime()) && sectionDate.getTime() < cutoffTime) {
+          console.log(`[Archive] Skipping section ${timestamp} - older than ${maxDays} days`);
+          continue;
+        }
+      }
       
       // 提取任务
       const taskLines = section.split('\n').filter(line => /^- \[x\]/.test(line));

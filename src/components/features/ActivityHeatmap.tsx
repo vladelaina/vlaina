@@ -63,30 +63,24 @@ function useActivityData(): ActivityData[] {
 
 export function ActivityHeatmap() {
   const data = useActivityData();
-  const tasks = useGroupStore((state) => state.tasks);
-
-  // Calculate stats
-  const completedTasks = tasks.filter((t) => t.completed);
-  const totalCompleted = completedTasks.length;
-
-  // Find streak
-  let currentStreak = 0;
-  const completedDates = completedTasks
-    .map((t) => t.completedAt ? new Date(t.completedAt).toISOString().split('T')[0] : null)
-    .filter((d): d is string => Boolean(d));
-  const uniqueDates = [...new Set(completedDates)].sort().reverse();
-
-  for (let i = 0; i < 365; i++) {
-    const checkDate = new Date();
-    checkDate.setDate(checkDate.getDate() - i);
-    const dateStr = checkDate.toISOString().split('T')[0];
+  
+  // 使用 useMemo 缓存统计计算，避免每次渲染都重新计算
+  const { totalCompleted, currentStreak } = useMemo(() => {
+    const total = data.reduce((sum, d) => sum + d.count, 0);
     
-    if (uniqueDates.includes(dateStr)) {
-      currentStreak++;
-    } else if (i > 0) {
-      break;
+    // Find streak
+    let streak = 0;
+    for (let i = 0; i < data.length; i++) {
+      const dayData = data[data.length - 1 - i]; // 从最近的日期开始
+      if (dayData.count > 0) {
+        streak++;
+      } else if (i > 0) {
+        break;
+      }
     }
-  }
+    
+    return { totalCompleted: total, currentStreak: streak };
+  }, [data]);
 
   return (
     <div className="space-y-6">
