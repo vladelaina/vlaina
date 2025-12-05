@@ -92,7 +92,7 @@ export function ItemCard({ item, onUpdate, onClick, isDragging, previewIcon, pre
       <div className="flex items-center gap-1">
         <button
           onClick={() => onUpdate(item.id, -step)}
-          className="p-1 text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors"
+          className="p-1 text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400 transition-all opacity-20 hover:opacity-100"
           aria-label="Decrease"
         >
           <Minus className="h-4 w-4" />
