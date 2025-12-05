@@ -26,8 +26,8 @@ function parseProgressMd(content: string): ProgressData[] {
         item.id = trimmed.slice(5).trim();
       } else if (trimmed.startsWith('- type:')) {
         item.type = trimmed.slice(7).trim() as 'progress' | 'counter';
-      } else if (trimmed.startsWith('- note:')) {
-        item.note = trimmed.slice(7).trim() || undefined;
+      } else if (trimmed.startsWith('- icon:')) {
+        item.icon = trimmed.slice(7).trim() || undefined;
       } else if (trimmed.startsWith('- direction:')) {
         item.direction = trimmed.slice(12).trim() as 'increment' | 'decrement';
       } else if (trimmed.startsWith('- total:')) {
@@ -44,6 +44,12 @@ function parseProgressMd(content: string): ProgressData[] {
         item.lastUpdateDate = trimmed.slice(17).trim() || undefined;
       } else if (trimmed.startsWith('- frequency:')) {
         item.frequency = trimmed.slice(12).trim() as 'daily' | 'weekly' | 'monthly';
+      } else if (trimmed.startsWith('- history:')) {
+        try {
+          item.history = JSON.parse(trimmed.slice(10).trim());
+        } catch {
+          item.history = undefined;
+        }
       } else if (trimmed.startsWith('- createdAt:')) {
         item.createdAt = parseInt(trimmed.slice(12).trim()) || Date.now();
       }
@@ -67,7 +73,7 @@ function generateProgressMd(items: ProgressData[]): string {
     lines.push(`## ${item.title}`);
     lines.push(`- id: ${item.id}`);
     lines.push(`- type: ${item.type}`);
-    if (item.note) lines.push(`- note: ${item.note}`);
+    if (item.icon) lines.push(`- icon: ${item.icon}`);
     if (item.direction) lines.push(`- direction: ${item.direction}`);
     if (item.total !== undefined) lines.push(`- total: ${item.total}`);
     lines.push(`- step: ${item.step}`);
@@ -75,6 +81,9 @@ function generateProgressMd(items: ProgressData[]): string {
     lines.push(`- current: ${item.current}`);
     lines.push(`- todayCount: ${item.todayCount}`);
     if (item.lastUpdateDate) lines.push(`- lastUpdateDate: ${item.lastUpdateDate}`);
+    if (item.history && Object.keys(item.history).length > 0) {
+      lines.push(`- history: ${JSON.stringify(item.history)}`);
+    }
     if (item.frequency) lines.push(`- frequency: ${item.frequency}`);
     lines.push(`- createdAt: ${item.createdAt}`);
     lines.push('');

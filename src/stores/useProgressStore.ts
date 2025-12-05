@@ -6,7 +6,7 @@ export interface ProgressItem {
   id: string;
   type: 'progress';
   title: string;
-  note?: string;
+  icon?: string;
   direction: 'increment' | 'decrement';
   total: number;
   step: number;
@@ -14,6 +14,7 @@ export interface ProgressItem {
   current: number;
   todayCount: number;
   lastUpdateDate?: string;
+  history?: Record<string, number>; // { "2025-12-05": 3, ... } 每天操作次数
   startDate?: number;
   endDate?: number;
   createdAt: number;
@@ -23,11 +24,13 @@ export interface CounterItem {
   id: string;
   type: 'counter';
   title: string;
+  icon?: string;
   step: number;
   unit: string;
   current: number;
   todayCount: number;
   lastUpdateDate?: string;
+  history?: Record<string, number>; // { "2025-12-05": 3, ... } 每天操作次数
   frequency: 'daily' | 'weekly' | 'monthly';
   createdAt: number;
 }
@@ -40,7 +43,7 @@ interface ProgressStore {
   
   loadItems: () => Promise<void>;
   addProgress: (data: Omit<ProgressItem, 'id' | 'type' | 'current' | 'todayCount' | 'createdAt'>) => void;
-  addCounter: (data: { title: string; step: number; unit: string; frequency: 'daily' | 'weekly' | 'monthly' }) => void;
+  addCounter: (data: { title: string; icon?: string; step: number; unit: string; frequency: 'daily' | 'weekly' | 'monthly' }) => void;
   updateCurrent: (id: string, delta: number) => void;
   deleteItem: (id: string) => void;
   updateItem: (id: string, data: Partial<ProgressOrCounter>) => void;
@@ -54,7 +57,7 @@ function fromStorageFormat(data: ProgressData): ProgressOrCounter {
       id: data.id,
       type: 'progress',
       title: data.title,
-      note: data.note,
+      icon: data.icon,
       direction: data.direction || 'increment',
       total: data.total || 100,
       step: data.step,
@@ -62,6 +65,7 @@ function fromStorageFormat(data: ProgressData): ProgressOrCounter {
       current: data.current,
       todayCount: data.todayCount,
       lastUpdateDate: data.lastUpdateDate,
+      history: data.history,
       startDate: data.startDate,
       endDate: data.endDate,
       createdAt: data.createdAt,
@@ -71,11 +75,13 @@ function fromStorageFormat(data: ProgressData): ProgressOrCounter {
       id: data.id,
       type: 'counter',
       title: data.title,
+      icon: data.icon,
       step: data.step,
       unit: data.unit,
       current: data.current,
       todayCount: data.todayCount,
       lastUpdateDate: data.lastUpdateDate,
+      history: data.history,
       frequency: data.frequency || 'daily',
       createdAt: data.createdAt,
     };
@@ -89,7 +95,7 @@ function toStorageFormat(item: ProgressOrCounter): ProgressData {
       id: item.id,
       type: 'progress',
       title: item.title,
-      note: item.note,
+      icon: item.icon,
       direction: item.direction,
       total: item.total,
       step: item.step,
@@ -97,6 +103,7 @@ function toStorageFormat(item: ProgressOrCounter): ProgressData {
       current: item.current,
       todayCount: item.todayCount,
       lastUpdateDate: item.lastUpdateDate,
+      history: item.history,
       startDate: item.startDate,
       endDate: item.endDate,
       createdAt: item.createdAt,
@@ -106,11 +113,13 @@ function toStorageFormat(item: ProgressOrCounter): ProgressData {
       id: item.id,
       type: 'counter',
       title: item.title,
+      icon: item.icon,
       step: item.step,
       unit: item.unit,
       current: item.current,
       todayCount: item.todayCount,
       lastUpdateDate: item.lastUpdateDate,
+      history: item.history,
       frequency: item.frequency,
       createdAt: item.createdAt,
     };
@@ -137,7 +146,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       id: nanoid(),
       type: 'progress',
       title: data.title,
-      note: data.note,
+      icon: data.icon,
       direction: data.direction,
       total: data.total,
       step: data.step,
@@ -159,6 +168,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       id: nanoid(),
       type: 'counter',
       title: data.title,
+      icon: data.icon,
       step: data.step,
       unit: data.unit,
       current: 0,
@@ -174,17 +184,22 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   
   updateCurrent: (id, delta) => set((state) => {
     const today = new Date().toDateString();
+    const todayKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 格式
     const newItems = state.items.map((item): ProgressOrCounter => {
       if (item.id !== id) return item;
       
       const isNewDay = item.lastUpdateDate !== today;
-      const newTodayCount = isNewDay ? Math.abs(delta) : item.todayCount + Math.abs(delta);
+      const newTodayCount = isNewDay ? 1 : item.todayCount + 1; // 记录操作次数，不是变化量
+      
+      // 更新历史记录（操作次数）
+      const history = { ...item.history };
+      history[todayKey] = (history[todayKey] || 0) + 1;
       
       if (item.type === 'progress') {
         const newCurrent = Math.max(0, Math.min(item.total, item.current + delta));
-        return { ...item, current: newCurrent, todayCount: newTodayCount, lastUpdateDate: today };
+        return { ...item, current: newCurrent, todayCount: newTodayCount, lastUpdateDate: today, history };
       } else {
-        return { ...item, current: item.current + delta, todayCount: newTodayCount, lastUpdateDate: today };
+        return { ...item, current: item.current + delta, todayCount: newTodayCount, lastUpdateDate: today, history };
       }
     });
     persistItems(newItems);

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { IconPicker } from './IconPicker';
 
 type CreateType = 'progress' | 'counter';
 
 interface ProgressFormData {
   title: string;
-  note: string;
+  icon?: string;
   direction: 'increment' | 'decrement';
   total: number;
   step: number;
@@ -15,6 +16,7 @@ interface ProgressFormData {
 
 interface CounterFormData {
   title: string;
+  icon?: string;
   step: number;
   unit: string;
   frequency: 'daily' | 'weekly' | 'monthly';
@@ -22,7 +24,6 @@ interface CounterFormData {
 
 interface CreateModalProps {
   open: boolean;
-  initialType?: CreateType;
   onClose: () => void;
   onCreateProgress: (data: ProgressFormData) => void;
   onCreateCounter: (data: CounterFormData) => void;
@@ -39,17 +40,15 @@ const FREQUENCY_OPTIONS = [
  */
 export function CreateModal({
   open,
-  initialType = 'progress',
   onClose,
   onCreateProgress,
   onCreateCounter,
 }: CreateModalProps) {
-  const [type, setType] = useState<CreateType>(initialType);
+  const [type, setType] = useState<CreateType>('progress');
   
   // Progress 表单状态
   const [progressForm, setProgressForm] = useState<ProgressFormData>({
     title: '',
-    note: '',
     direction: 'increment',
     total: 100,
     step: 1,
@@ -67,10 +66,9 @@ export function CreateModal({
   // 重置表单
   useEffect(() => {
     if (open) {
-      setType(initialType);
+      setType('progress');
       setProgressForm({
         title: '',
-        note: '',
         direction: 'increment',
         total: 100,
         step: 1,
@@ -83,7 +81,7 @@ export function CreateModal({
         frequency: 'daily',
       });
     }
-  }, [open, initialType]);
+  }, [open]);
 
   // ESC 关闭
   useEffect(() => {
@@ -103,7 +101,6 @@ export function CreateModal({
       onCreateProgress({
         ...progressForm,
         title: progressForm.title.trim(),
-        note: progressForm.note.trim(),
         unit: progressForm.unit.trim() || '次',
       });
     } else {
@@ -167,7 +164,7 @@ export function CreateModal({
                         : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300'
                     }`}
                   >
-                    计数器
+                    计数
                   </button>
                 </div>
                 <button
@@ -223,25 +220,20 @@ function ProgressFormContent({
     <>
       <div>
         <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">标题</label>
-        <input
-          type="text"
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-          placeholder="输入标题..."
-          className="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md outline-none focus:border-zinc-400 dark:focus:border-zinc-500 placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
-          autoFocus
-        />
-      </div>
-
-      <div>
-        <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">备注</label>
-        <input
-          type="text"
-          value={form.note}
-          onChange={(e) => setForm({ ...form, note: e.target.value })}
-          placeholder="可选..."
-          className="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md outline-none focus:border-zinc-400 dark:focus:border-zinc-500 placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
-        />
+        <div className="flex gap-2">
+          <IconPicker
+            value={form.icon}
+            onChange={(icon) => setForm({ ...form, icon })}
+          />
+          <input
+            type="text"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            placeholder="输入标题..."
+            className="flex-1 px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md outline-none focus:border-zinc-400 dark:focus:border-zinc-500 placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+            autoFocus
+          />
+        </div>
       </div>
 
       <div>
@@ -315,14 +307,20 @@ function CounterFormContent({
     <>
       <div>
         <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">标题</label>
-        <input
-          type="text"
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-          placeholder="输入标题..."
-          className="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md outline-none focus:border-zinc-400 dark:focus:border-zinc-500 placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
-          autoFocus
-        />
+        <div className="flex gap-2">
+          <IconPicker
+            value={form.icon}
+            onChange={(icon) => setForm({ ...form, icon })}
+          />
+          <input
+            type="text"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            placeholder="输入标题..."
+            className="flex-1 px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md outline-none focus:border-zinc-400 dark:focus:border-zinc-500 placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+            autoFocus
+          />
+        </div>
       </div>
 
       <div>

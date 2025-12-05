@@ -2,6 +2,7 @@ import { useSortable, defaultAnimateLayoutChanges, type AnimateLayoutChanges } f
 import { CSS } from '@dnd-kit/utilities';
 import { Plus, Minus, GripVertical } from 'lucide-react';
 import type { ProgressItem, CounterItem, ProgressOrCounter } from '@/stores/useProgressStore';
+import { getIconByName } from './IconPicker';
 
 // Disable drop animation to prevent "snap back" effect
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
@@ -15,14 +16,19 @@ const animateLayoutChanges: AnimateLayoutChanges = (args) => {
 interface ItemCardProps {
   item: ProgressOrCounter;
   onUpdate: (id: string, delta: number) => void;
-  onDelete: (id: string) => void;
+  onClick?: () => void;
   isDragging?: boolean;
+  previewIcon?: string;
+  previewTitle?: string;
 }
 
 /**
  * Unified card component for both Progress and Counter items
  */
-export function ItemCard({ item, onUpdate, onDelete, isDragging }: ItemCardProps) {
+export function ItemCard({ item, onUpdate, onClick, isDragging, previewIcon, previewTitle }: ItemCardProps) {
+  // 使用预览值（如果有的话）
+  const displayIcon = previewIcon !== undefined ? previewIcon : item.icon;
+  const displayTitle = previewTitle !== undefined ? previewTitle : item.title;
   const {
     attributes,
     listeners,
@@ -63,9 +69,18 @@ export function ItemCard({ item, onUpdate, onDelete, isDragging }: ItemCardProps
         <GripVertical className="h-4 w-4 text-muted-foreground/60" />
       </button>
 
+      {/* Icon */}
+      {displayIcon && (() => {
+        const Icon = getIconByName(displayIcon);
+        return Icon ? <Icon className="size-4 text-zinc-400 dark:text-zinc-500 shrink-0" /> : null;
+      })()}
+
       {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="text-sm text-foreground mb-1">{item.title}</div>
+      <div 
+        className="flex-1 min-w-0 cursor-pointer"
+        onClick={onClick}
+      >
+        <div className="text-sm text-foreground mb-1 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">{displayTitle}</div>
         {item.type === 'progress' ? (
           <ProgressContent item={item} />
         ) : (
@@ -77,24 +92,17 @@ export function ItemCard({ item, onUpdate, onDelete, isDragging }: ItemCardProps
       <div className="flex items-center gap-1">
         <button
           onClick={() => onUpdate(item.id, -step)}
-          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          className="p-1 text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors"
           aria-label="Decrease"
         >
           <Minus className="h-4 w-4" />
         </button>
         <button
           onClick={() => onUpdate(item.id, step)}
-          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          className="p-1 text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors"
           aria-label="Increase"
         >
           <Plus className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => onDelete(item.id)}
-          className="p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-          aria-label="Delete"
-        >
-          <span className="text-xs">×</span>
         </button>
       </div>
     </div>

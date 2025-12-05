@@ -28,7 +28,7 @@ export interface ProgressData {
   id: string;
   type: 'progress' | 'counter';
   title: string;
-  note?: string;
+  icon?: string;
   direction?: 'increment' | 'decrement';
   total?: number;
   step: number;
@@ -36,6 +36,7 @@ export interface ProgressData {
   current: number;
   todayCount: number;
   lastUpdateDate?: string;
+  history?: Record<string, number>;
   frequency?: 'daily' | 'weekly' | 'monthly';
   startDate?: number;
   endDate?: number;

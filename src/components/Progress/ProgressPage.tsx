@@ -9,26 +9,26 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus } from 'lucide-react';
-import { useProgressStore } from '@/stores/useProgressStore';
+import { useProgressStore, type ProgressOrCounter } from '@/stores/useProgressStore';
 import { useProgressDrag } from './hooks/useProgressDrag';
 import { ItemCard } from './ItemCard';
 import { CreateModal } from './CreateModal';
+import { DetailModal } from './DetailModal';
 
-type CreateType = 'progress' | 'counter';
 
 /**
  * Progress tracking page with list view and creation modal
  */
 export function ProgressPage() {
-  const { items, addProgress, addCounter, updateCurrent, deleteItem, loadItems, reorderItems } = useProgressStore();
+  const { items, addProgress, addCounter, updateCurrent, deleteItem, updateItem, loadItems, reorderItems } = useProgressStore();
 
   useEffect(() => {
     loadItems();
   }, [loadItems]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createType, setCreateType] = useState<CreateType>('progress');
-  const [showFabMenu, setShowFabMenu] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<ProgressOrCounter | null>(null);
+  const [previewOverride, setPreviewOverride] = useState<{ icon?: string; title?: string } | null>(null);
 
   // Drag and drop
   const sensors = useSensors(
@@ -47,16 +47,14 @@ export function ProgressPage() {
   } = useProgressDrag({ items, onReorder: reorderItems });
 
   // Handle opening create modal
-  const openCreateModal = (type: CreateType) => {
-    setCreateType(type);
+  const openCreateModal = () => {
     setShowCreateModal(true);
-    setShowFabMenu(false);
   };
 
   // Handle form submissions
   const handleCreateProgress = (data: {
     title: string;
-    note: string;
+    icon?: string;
     direction: 'increment' | 'decrement';
     total: number;
     step: number;
@@ -64,7 +62,7 @@ export function ProgressPage() {
   }) => {
     addProgress({
       title: data.title,
-      note: data.note || undefined,
+      icon: data.icon,
       direction: data.direction,
       total: data.total,
       step: data.step,
@@ -74,6 +72,7 @@ export function ProgressPage() {
 
   const handleCreateCounter = (data: {
     title: string;
+    icon?: string;
     step: number;
     unit: string;
     frequency: 'daily' | 'weekly' | 'monthly';
@@ -83,11 +82,19 @@ export function ProgressPage() {
 
   // Main list view
   return (
-    <div className="h-full bg-white dark:bg-zinc-900 flex flex-col pt-2 relative">
+    <div className="h-full bg-white dark:bg-zinc-900 flex flex-col relative">
+      {/* Add button */}
+      <button
+        onClick={openCreateModal}
+        className="absolute top-3 right-5 p-1 text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors z-10"
+      >
+        <Plus className="size-4" />
+      </button>
+
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-6 py-4 pt-10">
         {items.length === 0 && (
-          <p className="text-sm text-zinc-300 text-center py-12">No progress items</p>
+          <p className="text-sm text-zinc-300 dark:text-zinc-600 text-center py-12">暂无进度项目</p>
         )}
 
         <DndContext
@@ -117,8 +124,10 @@ export function ProgressPage() {
                     <ItemCard
                       item={item}
                       onUpdate={updateCurrent}
-                      onDelete={deleteItem}
+                      onClick={() => setSelectedItem(item)}
                       isDragging={activeId === item.id}
+                      previewIcon={selectedItem?.id === item.id ? previewOverride?.icon : undefined}
+                      previewTitle={selectedItem?.id === item.id ? previewOverride?.title : undefined}
                     />
                     {insertAfter && isDropTarget && (
                       <div className="h-20 rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-800/50 mt-3" />
@@ -135,41 +144,27 @@ export function ProgressPage() {
         </DndContext>
       </div>
 
-      {/* FAB Menu */}
-      <div className="absolute bottom-6 right-6 flex flex-col items-end gap-2">
-        {showFabMenu && (
-          <>
-            <button
-              onClick={() => openCreateModal('counter')}
-              className="px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 text-sm rounded-full shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-            >
-              + 计数器
-            </button>
-            <button
-              onClick={() => openCreateModal('progress')}
-              className="px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 text-sm rounded-full shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-            >
-              + 进度
-            </button>
-          </>
-        )}
-        <button
-          onClick={() => setShowFabMenu(!showFabMenu)}
-          className={`w-14 h-14 rounded-full bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-800 shadow-lg hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-all flex items-center justify-center ${
-            showFabMenu ? 'rotate-45' : ''
-          }`}
-        >
-          <Plus className="size-6" />
-        </button>
-      </div>
-
       {/* Create Modal */}
       <CreateModal
         open={showCreateModal}
-        initialType={createType}
         onClose={() => setShowCreateModal(false)}
         onCreateProgress={handleCreateProgress}
         onCreateCounter={handleCreateCounter}
+      />
+
+      {/* Detail Modal */}
+      <DetailModal
+        item={selectedItem}
+        onClose={() => setSelectedItem(null)}
+        onUpdate={updateItem}
+        onDelete={deleteItem}
+        onPreviewChange={(icon, title) => {
+          if (icon === undefined && title === undefined) {
+            setPreviewOverride(null);
+          } else {
+            setPreviewOverride({ icon, title });
+          }
+        }}
       />
     </div>
   );
