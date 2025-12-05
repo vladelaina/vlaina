@@ -12,13 +12,12 @@ import { Plus } from 'lucide-react';
 import { useProgressStore } from '@/stores/useProgressStore';
 import { useProgressDrag } from './hooks/useProgressDrag';
 import { ItemCard } from './ItemCard';
-import { ProgressForm } from './forms/ProgressForm';
-import { CounterForm } from './forms/CounterForm';
+import { CreateModal } from './CreateModal';
 
-type ViewMode = 'list' | 'create-progress' | 'create-counter';
+type CreateType = 'progress' | 'counter';
 
 /**
- * Progress tracking page with list view and creation forms
+ * Progress tracking page with list view and creation modal
  */
 export function ProgressPage() {
   const { items, addProgress, addCounter, updateCurrent, deleteItem, loadItems, reorderItems } = useProgressStore();
@@ -27,7 +26,8 @@ export function ProgressPage() {
     loadItems();
   }, [loadItems]);
 
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createType, setCreateType] = useState<CreateType>('progress');
   const [showFabMenu, setShowFabMenu] = useState(false);
 
   // Drag and drop
@@ -46,6 +46,13 @@ export function ProgressPage() {
     handleDragEnd,
   } = useProgressDrag({ items, onReorder: reorderItems });
 
+  // Handle opening create modal
+  const openCreateModal = (type: CreateType) => {
+    setCreateType(type);
+    setShowCreateModal(true);
+    setShowFabMenu(false);
+  };
+
   // Handle form submissions
   const handleCreateProgress = (data: {
     title: string;
@@ -63,7 +70,6 @@ export function ProgressPage() {
       step: data.step,
       unit: data.unit,
     });
-    setViewMode('list');
   };
 
   const handleCreateCounter = (data: {
@@ -73,27 +79,7 @@ export function ProgressPage() {
     frequency: 'daily' | 'weekly' | 'monthly';
   }) => {
     addCounter(data);
-    setViewMode('list');
   };
-
-  // Render form views
-  if (viewMode === 'create-progress') {
-    return (
-      <ProgressForm
-        onBack={() => setViewMode('list')}
-        onSubmit={handleCreateProgress}
-      />
-    );
-  }
-
-  if (viewMode === 'create-counter') {
-    return (
-      <CounterForm
-        onBack={() => setViewMode('list')}
-        onSubmit={handleCreateCounter}
-      />
-    );
-  }
 
   // Main list view
   return (
@@ -154,22 +140,16 @@ export function ProgressPage() {
         {showFabMenu && (
           <>
             <button
-              onClick={() => {
-                setViewMode('create-counter');
-                setShowFabMenu(false);
-              }}
+              onClick={() => openCreateModal('counter')}
               className="px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 text-sm rounded-full shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
             >
-              + Counter
+              + 计数器
             </button>
             <button
-              onClick={() => {
-                setViewMode('create-progress');
-                setShowFabMenu(false);
-              }}
+              onClick={() => openCreateModal('progress')}
               className="px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 text-sm rounded-full shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
             >
-              + Progress
+              + 进度
             </button>
           </>
         )}
@@ -182,6 +162,15 @@ export function ProgressPage() {
           <Plus className="size-6" />
         </button>
       </div>
+
+      {/* Create Modal */}
+      <CreateModal
+        open={showCreateModal}
+        initialType={createType}
+        onClose={() => setShowCreateModal(false)}
+        onCreateProgress={handleCreateProgress}
+        onCreateCounter={handleCreateCounter}
+      />
     </div>
   );
 }

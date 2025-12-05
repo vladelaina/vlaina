@@ -1,6 +1,5 @@
 // Progress module exports
 export { ProgressPage } from './ProgressPage';
 export { ItemCard } from './ItemCard';
-export { ProgressForm } from './forms/ProgressForm';
-export { CounterForm } from './forms/CounterForm';
+export { CreateModal } from './CreateModal';
 export { useProgressDrag } from './hooks/useProgressDrag';
