@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Trash2, Activity, Calendar, Zap, Target, Footprints, Tag, Plus, Minus, Check, ChevronLeft } from 'lucide-react';
+import { X, Trash2, Target, Footprints, Tag, Plus, Minus, Check, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ProgressOrCounter } from '@/stores/useProgressStore';
 import { IconSelectionView, getIconByName } from './IconPicker';
@@ -119,45 +119,43 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: "spring", duration: 0.5, bounce: 0.2 }}
-              className="bg-white dark:bg-zinc-900 rounded-[2rem] shadow-2xl w-[420px] max-w-full max-h-[85vh] pointer-events-auto overflow-hidden relative flex flex-col"
+              className="bg-white dark:bg-zinc-900 rounded-[2rem] shadow-2xl w-[380px] max-w-full pointer-events-auto relative flex flex-col overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Top Bar */}
-              <div className="absolute top-5 right-5 z-20 flex gap-2">
+              {/* Top Bar - Compact */}
+              <div className="absolute top-4 right-4 z-20 flex gap-1.5">
                  <button
                   onClick={handleDelete}
-                  className="p-2 rounded-full text-zinc-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  className="p-1.5 rounded-full text-zinc-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   title="Delete"
                 >
-                  <Trash2 className="size-4" />
+                  <Trash2 className="size-3.5" />
                 </button>
                 <button
                   onClick={handleSave}
-                  className="p-2 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:scale-105 transition-all"
+                  className="p-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:scale-105 transition-all"
                 >
-                  <X className="size-4" />
+                  <X className="size-3.5" />
                 </button>
               </div>
 
-              {/* --- Section 1: Identity --- */}
-              <div className="pt-10 px-8 flex flex-col items-center relative shrink-0">
-                 {/* Icon Trigger */}
-                 <div className="relative mb-4 group">
+              {/* --- Main Content (No Scroll) --- */}
+              <div className="flex flex-col items-center pt-8 pb-6 px-6">
+                 
+                 {/* 1. Identity (Icon & Title) */}
+                 <div className="flex flex-col items-center mb-6">
                    <button 
                      onClick={() => setIsPickingIcon(true)}
-                     className="size-16 rounded-2xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center shadow-sm hover:scale-105 transition-transform duration-300 cursor-pointer ring-1 ring-zinc-100 dark:ring-zinc-700 group-hover:ring-zinc-200 dark:group-hover:ring-zinc-600"
+                     className="size-14 rounded-2xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center shadow-sm hover:scale-105 transition-transform duration-300 cursor-pointer ring-1 ring-zinc-100 dark:ring-zinc-700 group mb-3"
                    >
                       {DisplayIcon ? (
-                        <DisplayIcon className="size-7 text-zinc-700 dark:text-zinc-300 transition-colors group-hover:text-zinc-900 dark:group-hover:text-zinc-100" strokeWidth={1.5} />
+                        <DisplayIcon className="size-6 text-zinc-700 dark:text-zinc-300 transition-colors group-hover:text-zinc-900 dark:group-hover:text-zinc-100" strokeWidth={1.5} />
                       ) : (
-                        <div className="size-6 rounded-full border-2 border-dashed border-zinc-300 dark:border-zinc-600" />
+                        <div className="size-5 rounded-full border-2 border-dashed border-zinc-300 dark:border-zinc-600" />
                       )}
                    </button>
-                 </div>
 
-                 {/* Title */}
-                 <div className="relative w-full flex justify-center">
-                    {isEditingTitle ? (
+                   {isEditingTitle ? (
                       <input
                         ref={titleInputRef}
                         type="text"
@@ -165,123 +163,95 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                         onChange={(e) => setTitle(e.target.value)}
                         onBlur={handleTitleBlur}
                         onKeyDown={(e) => e.key === 'Enter' && handleTitleBlur()}
-                        className="w-full text-center text-xl font-semibold bg-transparent border-b-2 border-zinc-900 dark:border-zinc-100 outline-none text-zinc-900 dark:text-zinc-100 pb-1"
+                        className="w-full text-center text-lg font-semibold bg-transparent border-b border-zinc-900 dark:border-zinc-100 outline-none text-zinc-900 dark:text-zinc-100 pb-0.5"
                       />
                     ) : (
                       <h2 
                         onClick={() => setIsEditingTitle(true)}
-                        className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 cursor-text hover:opacity-70 transition-opacity pb-1 border-b-2 border-transparent"
+                        className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 cursor-text hover:opacity-70 transition-opacity"
                       >
                         {title}
                       </h2>
                     )}
                  </div>
-              </div>
 
-              {/* --- Section 2: Control Deck --- */}
-              <div className="py-8 px-4 flex flex-col items-center justify-center shrink-0 relative">
-                 {/* Background Ambience */}
-                 <div className="absolute inset-0 bg-gradient-to-b from-zinc-50/50 to-transparent dark:from-zinc-800/20 pointer-events-none" />
-
-                 {/* The Big Number */}
-                 <div className="flex items-center justify-center gap-6 relative z-10 h-20">
-                    {/* Minus Button */}
-                    <AnimatePresence>
-                      {!isEditingNumber && (
-                        <motion.button 
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.8 }}
-                          transition={{ duration: 0.2 }}
+                 {/* 2. The Core (Number & Control) */}
+                 <div className="flex flex-col items-center mb-8 w-full">
+                    <div className="flex items-center justify-center gap-4 relative h-16 mb-4">
+                        {/* Minus */}
+                        <button 
                           onClick={() => handleQuickUpdate(-1)}
-                          className="p-3 rounded-full text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100 dark:text-zinc-600 dark:hover:text-zinc-300 dark:hover:bg-zinc-800 transition-colors active:scale-90"
+                          className="p-2 rounded-full text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100 dark:text-zinc-600 dark:hover:text-zinc-300 dark:hover:bg-zinc-800 transition-colors active:scale-90"
                         >
-                          <Minus className="size-6" strokeWidth={2.5} />
-                        </motion.button>
-                      )}
-                    </AnimatePresence>
+                          <Minus className="size-5" strokeWidth={2.5} />
+                        </button>
 
-                    <EditableBigNumber 
-                      value={item.current} 
-                      onSave={(val) => updateValue('current', val)} 
-                      isEditing={isEditingNumber}
-                      setIsEditing={setIsEditingNumber}
-                    />
+                        <EditableBigNumber 
+                          value={item.current} 
+                          onSave={(val) => updateValue('current', val)} 
+                          isEditing={isEditingNumber}
+                          setIsEditing={setIsEditingNumber}
+                        />
 
-                    {/* Plus Button */}
-                    <AnimatePresence>
-                      {!isEditingNumber && (
-                        <motion.button 
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.8 }}
-                          transition={{ duration: 0.2 }}
+                        {/* Plus */}
+                        <button 
                           onClick={() => handleQuickUpdate(1)}
-                          className="p-3 rounded-full text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100 dark:text-zinc-600 dark:hover:text-zinc-300 dark:hover:bg-zinc-800 transition-colors active:scale-90"
+                          className="p-2 rounded-full text-zinc-300 hover:text-zinc-600 hover:bg-zinc-100 dark:text-zinc-600 dark:hover:text-zinc-300 dark:hover:bg-zinc-800 transition-colors active:scale-90"
                         >
-                          <Plus className="size-6" strokeWidth={2.5} />
-                        </motion.button>
-                      )}
-                    </AnimatePresence>
+                          <Plus className="size-5" strokeWidth={2.5} />
+                        </button>
+                    </div>
+
+                    {/* Pills - Compact Row */}
+                    <motion.div layout className="flex items-center justify-center gap-2">
+                        {item.type === 'progress' && (
+                          <EditablePill 
+                            icon={<Target className="size-3" />}
+                            label="Target"
+                            value={item.total}
+                            onSave={(val) => updateValue('total' as keyof ProgressOrCounter, val)}
+                          />
+                        )}
+                        <EditablePill 
+                          icon={<Footprints className="size-3" />}
+                          label="Step"
+                          value={item.step}
+                          onSave={(val) => updateValue('step', val)}
+                        />
+                        <EditablePill 
+                          icon={<Tag className="size-3" />}
+                          label="Unit"
+                          value={item.unit}
+                          isText
+                          onSave={(val) => updateValue('unit', val)}
+                        />
+                    </motion.div>
                  </div>
 
-                 {/* Parameter Pills */}
-                 <motion.div 
-                   layout 
-                   layoutRoot 
-                   className="flex items-center gap-3 mt-6 relative z-10"
-                 >
-                    {item.type === 'progress' && (
-                      <EditablePill 
-                        icon={<Target className="size-3" />}
-                        label="Target"
-                        value={item.total}
-                        onSave={(val) => updateValue('total' as keyof ProgressOrCounter, val)}
-                      />
-                    )}
-                    <EditablePill 
-                      icon={<Footprints className="size-3" />}
-                      label="Step"
-                      value={item.step}
-                      onSave={(val) => updateValue('step', val)}
-                    />
-                    <EditablePill 
-                      icon={<Tag className="size-3" />}
-                      label="Unit"
-                      value={item.unit}
-                      isText
-                      onSave={(val) => updateValue('unit', val)}
-                    />
-                 </motion.div>
+                 {/* 3. Insights (Stats & Flow) - Integrated Footer */}
+                 {stats && (
+                   <div className="w-full flex flex-col gap-6">
+                      {/* Stats Row */}
+                      <div className="flex justify-between items-end px-2">
+                        <StatItem label="Total" value={stats.totalOps} />
+                        <StatItem label="Streak" value={stats.streak} highlight />
+                        <StatItem label="Active" value={stats.activeDays} />
+                      </div>
+
+                      {/* Heatmap - The visual footer */}
+                      <div className="w-full opacity-80 hover:opacity-100 transition-opacity">
+                        <HeatMap history={item.history || {}} />
+                      </div>
+                      
+                      {/* EST Date - Subtle footer text */}
+                      <div className="text-center">
+                        <span className="text-[9px] text-zinc-300 dark:text-zinc-700 font-medium tracking-widest uppercase">
+                          Est. {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </span>
+                      </div>
+                   </div>
+                 )}
               </div>
-
-              {/* --- Section 3: Insights --- */}
-              {stats && (
-                <div className="flex-1 overflow-y-auto px-8 pb-8 scrollbar-hide">
-                  <div className="grid grid-cols-3 gap-3 mb-6">
-                    <StatItem label="Total" value={stats.totalOps} icon={<Activity className="size-3" />} />
-                    <StatItem label="Streak" value={stats.streak} icon={<Zap className="size-3" />} highlight={stats.streak > 2} />
-                    <StatItem label="Active" value={stats.activeDays} icon={<Calendar className="size-3" />} />
-                  </div>
-
-                  {/* Activity Flow */}
-                  <div className="space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-widest">
-                        Activity Flow
-                      </span>
-                    </div>
-                    <HeatMap history={item.history || {}} />
-                  </div>
-                  
-                  {/* Creation Date */}
-                  <div className="mt-6 text-center">
-                    <span className="text-[10px] text-zinc-300 dark:text-zinc-600 font-medium">
-                      Started on {new Date(item.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                    </span>
-                  </div>
-                </div>
-              )}
 
               {/* --- Full Screen Icon Picker Overlay --- */}
               <AnimatePresence>
@@ -545,21 +515,24 @@ function EditablePill({ icon, label, value, onSave, isText = false }: { icon: Re
   );
 }
 
-function StatItem({ label, value, icon, highlight = false }: { label: string, value: number, icon: React.ReactNode, highlight?: boolean }) {
+function StatItem({ label, value, highlight = false }: { label: string, value: number, highlight?: boolean }) {
   return (
-    <div className={`
-      flex flex-col items-center justify-center p-3 rounded-2xl 
-      transition-colors duration-300
-      ${highlight 
-        ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-lg shadow-zinc-200 dark:shadow-none' 
-        : 'bg-zinc-50 text-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-400'
-      }
-    `}>
-      <div className="text-xl font-bold mb-1 tracking-tight">{value}</div>
-      <div className="flex items-center gap-1.5 opacity-80">
-        {icon}
-        <span className="text-[9px] font-bold uppercase tracking-wide">{label}</span>
+    <div className="flex flex-col items-center group cursor-default">
+      <div className={`
+        text-3xl mb-2 tracking-tighter transition-all duration-500
+        ${highlight 
+          ? 'font-normal text-transparent bg-clip-text bg-gradient-to-br from-zinc-800 to-zinc-500 dark:from-zinc-100 dark:to-zinc-500 scale-110' 
+          : 'font-light text-zinc-400 dark:text-zinc-500'
+        }
+      `}>
+        {value}
       </div>
+      <span className={`
+        text-[9px] font-bold uppercase tracking-[0.2em] transition-colors duration-300
+        ${highlight ? 'text-zinc-800 dark:text-zinc-200' : 'text-zinc-300 dark:text-zinc-700'}
+      `}>
+        {label}
+      </span>
     </div>
   )
 }
@@ -570,7 +543,7 @@ function StatItem({ label, value, icon, highlight = false }: { label: string, va
  */
 function HeatMap({ history }: { history: Record<string, number> }) {
   // Generate last 12 weeks
-  const weeks = 12;
+  const weeks = 14; // Increased weeks for wider view
   const today = new Date();
   const days: { date: string; count: number; dayOfWeek: number }[] = [];
   
@@ -600,25 +573,28 @@ function HeatMap({ history }: { history: Record<string, number> }) {
   }
 
   const getOpacity = (count: number) => {
-    if (count === 0) return 'bg-zinc-100 dark:bg-zinc-800/50';
+    if (count === 0) return 'bg-zinc-100 dark:bg-zinc-800/30';
     if (count <= 2) return 'bg-zinc-300 dark:bg-zinc-600';
     if (count <= 5) return 'bg-zinc-500 dark:bg-zinc-500';
-    return 'bg-zinc-800 dark:bg-zinc-300 shadow-sm'; // Highlight
+    return 'bg-zinc-800 dark:bg-zinc-200'; // Highlight
   };
 
   return (
-    <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide justify-center">
+    <div 
+      className="flex gap-1 justify-center w-full overflow-hidden"
+      style={{ maskImage: 'linear-gradient(to right, transparent, black 10%, black 90%, transparent)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 10%, black 90%, transparent)' }}
+    >
       {weekGroups.map((week, weekIndex) => (
-        <div key={weekIndex} className="flex flex-col gap-1.5">
+        <div key={weekIndex} className="flex flex-col gap-1">
           {weekIndex === 0 && week[0]?.dayOfWeek > 0 && (
             Array.from({ length: week[0].dayOfWeek }).map((_, i) => (
-              <div key={`empty-${i}`} className="size-2" />
+              <div key={`empty-${i}`} className="size-1.5" />
             ))
           )}
           {week.map((day) => (
             <div
               key={day.date}
-              className={`size-2 rounded-full transition-colors duration-300 ${getOpacity(day.count)}`}
+              className={`size-1.5 rounded-full transition-all duration-500 ${getOpacity(day.count)}`}
               title={`${day.date}: ${day.count}`}
             />
           ))}
