@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IconPicker } from './IconPicker';
+import { ItemCard } from './ItemCard';
 
 type CreateType = 'progress' | 'counter';
 
@@ -29,14 +30,8 @@ interface CreateModalProps {
   onCreateCounter: (data: CounterFormData) => void;
 }
 
-const FREQUENCY_OPTIONS = [
-  { value: 'daily', label: '每日' },
-  { value: 'weekly', label: '每周' },
-  { value: 'monthly', label: '每月' },
-] as const;
-
 /**
- * 创建进度/计数器的模态框
+ * "Immersive Creator" - WYSIWYG Design
  */
 export function CreateModal({
   open,
@@ -46,7 +41,7 @@ export function CreateModal({
 }: CreateModalProps) {
   const [type, setType] = useState<CreateType>('progress');
   
-  // Progress 表单状态
+  // Forms
   const [progressForm, setProgressForm] = useState<ProgressFormData>({
     title: '',
     direction: 'increment',
@@ -55,7 +50,6 @@ export function CreateModal({
     unit: '次',
   });
   
-  // Counter 表单状态
   const [counterForm, setCounterForm] = useState<CounterFormData>({
     title: '',
     step: 1,
@@ -63,33 +57,20 @@ export function CreateModal({
     frequency: 'daily',
   });
 
-  // 重置表单
+  // Reset on open
   useEffect(() => {
     if (open) {
       setType('progress');
-      setProgressForm({
-        title: '',
-        direction: 'increment',
-        total: 100,
-        step: 1,
-        unit: '次',
-      });
-      setCounterForm({
-        title: '',
-        step: 1,
-        unit: '次',
-        frequency: 'daily',
-      });
+      setProgressForm({ title: '', direction: 'increment', total: 100, step: 1, unit: '次' });
+      setCounterForm({ title: '', step: 1, unit: '次', frequency: 'daily' });
     }
   }, [open]);
 
-  // ESC 关闭
+  // ESC to close
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
+      if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -98,107 +79,193 @@ export function CreateModal({
   const handleSubmit = () => {
     if (type === 'progress') {
       if (!progressForm.title.trim()) return;
-      onCreateProgress({
-        ...progressForm,
-        title: progressForm.title.trim(),
-        unit: progressForm.unit.trim() || '次',
-      });
+      onCreateProgress({ ...progressForm, title: progressForm.title.trim(), unit: progressForm.unit.trim() || '次' });
     } else {
       if (!counterForm.title.trim()) return;
-      onCreateCounter({
-        ...counterForm,
-        title: counterForm.title.trim(),
-        unit: counterForm.unit.trim() || '次',
-      });
+      onCreateCounter({ ...counterForm, title: counterForm.title.trim(), unit: counterForm.unit.trim() || '次' });
     }
     onClose();
   };
 
-  const isValid = type === 'progress' 
-    ? progressForm.title.trim().length > 0 
-    : counterForm.title.trim().length > 0;
+  // Construct Preview Item
+  const previewItem: any = type === 'progress' ? {
+    id: 'preview',
+    type: 'progress',
+    title: progressForm.title || 'Untitled',
+    icon: progressForm.icon || 'Circle', // Default icon
+    current: Math.floor(progressForm.total * 0.35), // Show some progress for demo
+    total: progressForm.total,
+    unit: progressForm.unit,
+    todayCount: 1,
+    step: progressForm.step,
+    direction: progressForm.direction
+  } : {
+    id: 'preview',
+    type: 'counter',
+    title: counterForm.title || 'Untitled',
+    icon: counterForm.icon || 'Circle',
+    current: 12, // Demo value
+    unit: counterForm.unit,
+    todayCount: 3,
+    step: counterForm.step,
+    frequency: counterForm.frequency
+  };
+
+  const isValid = type === 'progress' ? progressForm.title.trim().length > 0 : counterForm.title.trim().length > 0;
 
   return (
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - Blur & Dark */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/20 dark:bg-black/40 z-50"
+            className="fixed inset-0 bg-zinc-100/30 dark:bg-black/40 backdrop-blur-xl z-50"
             onClick={onClose}
           />
 
-          {/* Modal */}
-          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none p-4">
+          {/* Creator Container */}
+          <div className="fixed inset-0 flex flex-col items-center justify-center z-50 pointer-events-none p-6">
+            
+            {/* 1. Real-time Preview Section */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl w-[400px] max-w-full pointer-events-auto"
+              initial={{ opacity: 0, y: 20, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.9 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-md mb-8 pointer-events-auto"
+            >
+              <div className="text-center mb-4 text-xs font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+                Preview
+              </div>
+              <div className="transform transition-all duration-500 hover:scale-[1.02]">
+                 {/* Pass a dummy update function */}
+                 <ItemCard 
+                   item={previewItem} 
+                   onUpdate={() => {}} 
+                   isDragging={false}
+                 />
+              </div>
+            </motion.div>
+
+            {/* 2. Controls Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.4, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-md bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20 dark:border-white/5 pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-700">
-                <div className="flex items-center gap-3">
+              {/* Type Switcher - Segmented */}
+              <div className="flex p-2 bg-zinc-100/50 dark:bg-zinc-900/50 border-b border-zinc-200/50 dark:border-zinc-800/50 rounded-t-3xl">
+                {(['progress', 'counter'] as const).map((t) => (
                   <button
-                    onClick={() => setType('progress')}
-                    className={`text-sm transition-colors ${
-                      type === 'progress'
-                        ? 'text-zinc-900 dark:text-zinc-100 font-medium'
-                        : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300'
+                    key={t}
+                    onClick={() => setType(t)}
+                    className={`flex-1 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
+                      type === t
+                        ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm scale-100'
+                        : 'text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400 scale-95'
                     }`}
                   >
-                    进度
+                    {t === 'progress' ? 'Progress' : 'Counter'}
                   </button>
-                  <span className="text-zinc-300 dark:text-zinc-600">|</span>
-                  <button
-                    onClick={() => setType('counter')}
-                    className={`text-sm transition-colors ${
-                      type === 'counter'
-                        ? 'text-zinc-900 dark:text-zinc-100 font-medium'
-                        : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300'
-                    }`}
-                  >
-                    计数
-                  </button>
+                ))}
+              </div>
+
+              <div className="p-8 space-y-8">
+                {/* Main Input: Title & Icon */}
+                <div className="flex items-center gap-4">
+                  <div className="shrink-0">
+                     <IconPicker
+                        value={type === 'progress' ? progressForm.icon : counterForm.icon}
+                        onChange={(icon) => type === 'progress' 
+                          ? setProgressForm({ ...progressForm, icon }) 
+                          : setCounterForm({ ...counterForm, icon })
+                        }
+                     />
+                  </div>
+                  <input
+                    type="text"
+                    value={type === 'progress' ? progressForm.title : counterForm.title}
+                    onChange={(e) => type === 'progress'
+                      ? setProgressForm({ ...progressForm, title: e.target.value })
+                      : setCounterForm({ ...counterForm, title: e.target.value })
+                    }
+                    placeholder="What do you want to track?"
+                    className="w-full bg-transparent text-2xl font-semibold text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-300 dark:placeholder:text-zinc-700 outline-none"
+                    autoFocus
+                  />
                 </div>
-                <button
-                  onClick={onClose}
-                  className="p-1 rounded-md text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
 
-              {/* Form Content */}
-              <div className="p-5 space-y-4">
-                {type === 'progress' ? (
-                  <ProgressFormContent form={progressForm} setForm={setProgressForm} />
-                ) : (
-                  <CounterFormContent form={counterForm} setForm={setCounterForm} />
-                )}
-              </div>
+                {/* Natural Language Parameters */}
+                <div className="text-lg text-zinc-500 dark:text-zinc-400 font-light leading-relaxed">
+                  {type === 'progress' ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>Goal is</span>
+                      <InlineInput 
+                        type="number"
+                        value={progressForm.total}
+                        onChange={(v: string) => setProgressForm({ ...progressForm, total: Number(v) })}
+                        className="w-20 text-zinc-900 dark:text-zinc-100 font-medium border-b border-zinc-300 dark:border-zinc-700 focus:border-zinc-900 dark:focus:border-zinc-100"
+                      />
+                      <InlineInput 
+                        type="text"
+                        value={progressForm.unit}
+                        onChange={(v: string) => setProgressForm({ ...progressForm, unit: v })}
+                        className="w-16 text-zinc-900 dark:text-zinc-100 font-medium border-b border-zinc-300 dark:border-zinc-700"
+                      />
+                      <span>, step by</span>
+                      <InlineInput 
+                        type="number"
+                        value={progressForm.step}
+                        onChange={(v: string) => setProgressForm({ ...progressForm, step: Number(v) })}
+                        className="w-12 text-zinc-900 dark:text-zinc-100 font-medium border-b border-zinc-300 dark:border-zinc-700"
+                      />
+                      <span>.</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>Track</span>
+                      <InlineInput 
+                        type="text"
+                        value={counterForm.unit}
+                        onChange={(v: string) => setCounterForm({ ...counterForm, unit: v })}
+                        className="w-20 text-zinc-900 dark:text-zinc-100 font-medium border-b border-zinc-300 dark:border-zinc-700"
+                      />
+                      <span>, step by</span>
+                      <InlineInput 
+                        type="number"
+                        value={counterForm.step}
+                        onChange={(v: string) => setCounterForm({ ...counterForm, step: Number(v) })}
+                        className="w-12 text-zinc-900 dark:text-zinc-100 font-medium border-b border-zinc-300 dark:border-zinc-700"
+                      />
+                      <span>every day.</span>
+                    </div>
+                  )}
+                </div>
 
-              {/* Footer */}
-              <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-zinc-200 dark:border-zinc-700">
-                <button
-                  onClick={onClose}
-                  className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={!isValid}
-                  className="px-4 py-2 text-sm bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-800 rounded-md hover:bg-zinc-700 dark:hover:bg-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  创建
-                </button>
+                {/* Actions */}
+                <div className="flex items-center justify-between pt-4">
+                   <button
+                     onClick={onClose}
+                     className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors font-medium"
+                   >
+                     Cancel
+                   </button>
+                   <button
+                     onClick={handleSubmit}
+                     disabled={!isValid}
+                     className="h-12 px-8 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-full font-semibold shadow-lg shadow-zinc-900/10 dark:shadow-zinc-100/10 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 transition-all duration-200 flex items-center gap-2"
+                   >
+                     <span>Create</span>
+                     <Check className="size-4" />
+                   </button>
+                </div>
+
               </div>
             </motion.div>
           </div>
@@ -208,160 +275,14 @@ export function CreateModal({
   );
 }
 
-// Progress 表单内容
-function ProgressFormContent({
-  form,
-  setForm,
-}: {
-  form: ProgressFormData;
-  setForm: React.Dispatch<React.SetStateAction<ProgressFormData>>;
-}) {
+function InlineInput({ value, onChange, type, className }: any) {
   return (
-    <>
-      <div>
-        <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">标题</label>
-        <div className="flex gap-2">
-          <IconPicker
-            value={form.icon}
-            onChange={(icon) => setForm({ ...form, icon })}
-          />
-          <input
-            type="text"
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            placeholder="输入标题..."
-            className="flex-1 px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md outline-none focus:border-zinc-400 dark:focus:border-zinc-500 placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
-            autoFocus
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">类型</label>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setForm({ ...form, direction: 'increment' })}
-            className={`flex-1 py-2 text-xs rounded-md border transition-colors ${
-              form.direction === 'increment'
-                ? 'bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-800 border-transparent'
-                : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-600'
-            }`}
-          >
-            递增
-          </button>
-          <button
-            onClick={() => setForm({ ...form, direction: 'decrement' })}
-            className={`flex-1 py-2 text-xs rounded-md border transition-colors ${
-              form.direction === 'decrement'
-                ? 'bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-800 border-transparent'
-                : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-600'
-            }`}
-          >
-            递减
-          </button>
-        </div>
-      </div>
-
-      <div className="flex gap-3">
-        <div className="flex-1">
-          <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">目标</label>
-          <input
-            type="number"
-            value={form.total}
-            onChange={(e) => setForm({ ...form, total: Number(e.target.value) || 0 })}
-            className="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md outline-none focus:border-zinc-400 dark:focus:border-zinc-500"
-          />
-        </div>
-        <div className="w-20">
-          <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">步长</label>
-          <input
-            type="number"
-            value={form.step}
-            onChange={(e) => setForm({ ...form, step: Number(e.target.value) || 1 })}
-            className="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md outline-none focus:border-zinc-400 dark:focus:border-zinc-500"
-          />
-        </div>
-        <div className="w-20">
-          <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">单位</label>
-          <input
-            type="text"
-            value={form.unit}
-            onChange={(e) => setForm({ ...form, unit: e.target.value })}
-            className="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md outline-none focus:border-zinc-400 dark:focus:border-zinc-500"
-          />
-        </div>
-      </div>
-    </>
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`bg-transparent outline-none text-center p-0 m-0 ${className}`}
+    />
   );
 }
 
-// Counter 表单内容
-function CounterFormContent({
-  form,
-  setForm,
-}: {
-  form: CounterFormData;
-  setForm: React.Dispatch<React.SetStateAction<CounterFormData>>;
-}) {
-  return (
-    <>
-      <div>
-        <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">标题</label>
-        <div className="flex gap-2">
-          <IconPicker
-            value={form.icon}
-            onChange={(icon) => setForm({ ...form, icon })}
-          />
-          <input
-            type="text"
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            placeholder="输入标题..."
-            className="flex-1 px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md outline-none focus:border-zinc-400 dark:focus:border-zinc-500 placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
-            autoFocus
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">频率</label>
-        <div className="flex gap-2">
-          {FREQUENCY_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setForm({ ...form, frequency: opt.value })}
-              className={`flex-1 py-2 text-xs rounded-md border transition-colors ${
-                form.frequency === opt.value
-                  ? 'bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-800 border-transparent'
-                  : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-600'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex gap-3">
-        <div className="w-24">
-          <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">步长</label>
-          <input
-            type="number"
-            value={form.step}
-            onChange={(e) => setForm({ ...form, step: Number(e.target.value) || 1 })}
-            className="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md outline-none focus:border-zinc-400 dark:focus:border-zinc-500"
-          />
-        </div>
-        <div className="w-24">
-          <label className="block text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">单位</label>
-          <input
-            type="text"
-            value={form.unit}
-            onChange={(e) => setForm({ ...form, unit: e.target.value })}
-            className="w-full px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md outline-none focus:border-zinc-400 dark:focus:border-zinc-500"
-          />
-        </div>
-      </div>
-    </>
-  );
-}

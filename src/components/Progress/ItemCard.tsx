@@ -25,8 +25,7 @@ interface ItemCardProps {
 }
 
 /**
- * Premium Apple-style Card
- * Concept: The entire card is the progress bar.
+ * "Liquid Light" Design - High End, Minimalist, Fluid
  */
 export function ItemCard({ item, onUpdate, onClick, isDragging, previewIcon, previewTitle }: ItemCardProps) {
   const displayIcon = previewIcon !== undefined ? previewIcon : item.icon;
@@ -51,20 +50,16 @@ export function ItemCard({ item, onUpdate, onClick, isDragging, previewIcon, pre
     ? (item.direction === 'increment' ? item.step : -item.step)
     : item.step;
 
-  // Calculate percentage for progress items
   const percentage = item.type === 'progress' 
     ? Math.min(100, Math.max(0, (item.current / item.total) * 100))
     : 0;
   
-  // For counter, we simulate a subtle "fill" based on daily activity goal (e.g., assume 10 is a "full" day)
-  // This gives visual weight to counters too
+  // Counter fill based on activity (subtle feedback)
   const counterFill = item.type === 'counter'
-    ? Math.min(100, (item.todayCount / 10) * 100)
+    ? Math.min(100, (item.todayCount / 8) * 100) // Assuming 8 is a loose "daily goal" for visualization
     : 0;
 
   const fillWidth = item.type === 'progress' ? `${percentage}%` : `${counterFill}%`;
-  
-  // Hover state for interaction zones
   const [hoverZone, setHoverZone] = useState<'left' | 'right' | null>(null);
 
   return (
@@ -76,80 +71,100 @@ export function ItemCard({ item, onUpdate, onClick, isDragging, previewIcon, pre
       <motion.div
         layout
         initial={false}
-        animate={isDragging ? { scale: 1.02, boxShadow: "0 12px 24px rgba(0,0,0,0.15)" } : { scale: 1, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}
-        whileHover={{ scale: 1.005, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+        animate={isDragging ? { scale: 1.02, boxShadow: "0 20px 40px rgba(0,0,0,0.12)" } : { scale: 1, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}
+        whileHover={{ scale: 1.002, boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}
         className={`
-          group relative overflow-hidden rounded-2xl
+          group relative overflow-hidden rounded-3xl
           bg-white dark:bg-zinc-900 
-          border border-zinc-100 dark:border-zinc-800
-          h-20 select-none
-          ${isDragging ? 'z-50 opacity-90' : ''}
+          h-22 select-none
+          ${isDragging ? 'z-50 opacity-95' : ''}
         `}
       >
-        {/* Full Height Progress Background */}
-        <div className="absolute inset-0 bg-zinc-50 dark:bg-zinc-900/50" />
-        
+        {/* Base Layer: Pure White/Black */}
+        <div className="absolute inset-0 bg-white dark:bg-zinc-900" />
+
+        {/* Progress Layer: "Light Beam" */}
+        {/* Using a very subtle dark overlay for progress on light mode, and light on dark mode */}
         <motion.div 
-          className="absolute inset-y-0 left-0 bg-zinc-100 dark:bg-zinc-800"
+          className="absolute inset-y-0 left-0 bg-zinc-100/80 dark:bg-zinc-800/60 mix-blend-multiply dark:mix-blend-screen"
           initial={false}
           animate={{ width: fillWidth }}
-          transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }} // Apple-like exponential ease
         />
+        
+        {/* Delicate Border (Ring) to define shape without harsh lines */}
+        <div className="absolute inset-0 rounded-3xl ring-1 ring-inset ring-black/5 dark:ring-white/5 pointer-events-none" />
 
-        {/* Content Layer */}
-        <div className="absolute inset-0 flex items-center justify-between px-6 pointer-events-none">
-          {/* Left: Icon & Info */}
-          <div className="flex items-center gap-4 min-w-0 flex-1">
-             {/* Icon with glass morphism effect */}
-            {displayIcon && (() => {
-              const Icon = getIconByName(displayIcon);
-              return Icon ? (
-                <div className="relative">
-                  <div className="absolute inset-0 bg-zinc-200/50 dark:bg-zinc-700/50 blur-md rounded-full transform scale-110" />
-                  <div className="relative bg-white/80 dark:bg-zinc-800/80 backdrop-blur-sm p-2.5 rounded-xl shadow-sm text-zinc-700 dark:text-zinc-300">
-                    <Icon className="size-5" strokeWidth={2} />
+        {/* Content Layer - Fades out when interacting */}
+        <div className="absolute inset-0 flex items-center justify-between px-7 pointer-events-none">
+          {/* Left: Typography & Icon */}
+          <div className="flex items-center gap-5 min-w-0 flex-1">
+            <motion.div 
+              className="flex items-center gap-5 min-w-0 flex-1"
+              animate={{ 
+                x: hoverZone === 'left' ? 48 : 0, // Move further right
+                opacity: hoverZone === 'left' ? 0.6 : 1 // Fade a bit more
+              }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            >
+              {/* Icon - Pure, no background, just the symbol */}
+              {displayIcon && (() => {
+                const Icon = getIconByName(displayIcon);
+                return Icon ? (
+                  <div className="text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-600 dark:group-hover:text-zinc-400 transition-colors duration-500">
+                    <Icon className="size-6" strokeWidth={2} fill="currentColor" fillOpacity={0.1} />
                   </div>
-                </div>
-              ) : null;
-            })()}
+                ) : null;
+              })()}
 
-            <div className="flex flex-col justify-center min-w-0">
-              <span className="text-base font-semibold text-zinc-800 dark:text-zinc-100 tracking-tight truncate">
-                {displayTitle}
-              </span>
-              <div className="flex items-center gap-2 text-xs font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">
-                <span>Today: {item.todayCount}</span>
-                {item.type === 'progress' && (
-                  <>
-                    <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-600" />
-                    <span>{item.total} {item.unit}</span>
-                  </>
-                )}
+              <div className="flex flex-col justify-center min-w-0 gap-0.5">
+                <span className="text-lg font-medium text-zinc-900 dark:text-zinc-50 tracking-tight truncate leading-none">
+                  {displayTitle}
+                </span>
+                {/* Super Minimal Stats */}
+                <div className="flex items-center gap-3 text-[11px] font-medium text-zinc-400 dark:text-zinc-600 uppercase tracking-widest">
+                  <span className={item.todayCount > 0 ? "text-zinc-500 dark:text-zinc-400" : ""}>
+                    Today {item.todayCount}
+                  </span>
+                  {item.type === 'progress' && (
+                    <>
+                      <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                      <span>{item.total} {item.unit}</span>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
-          {/* Right: Big Number */}
-          <div className="flex flex-col items-end justify-center pl-4">
-             <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-light tracking-tighter text-zinc-900 dark:text-zinc-50 font-mono">
+          {/* Right: Super Number */}
+          <div className="flex flex-col items-end justify-center pl-6">
+             <motion.div 
+               className="flex items-baseline gap-1.5"
+               animate={{ 
+                  x: hoverZone === 'right' ? -48 : 0, // Move further left to clear the button space
+                  opacity: hoverZone === 'right' ? 0.6 : 1 
+               }}
+               transition={{ type: "spring", stiffness: 400, damping: 30 }}
+             >
+                <span className="text-4xl font-light tracking-tighter text-zinc-900 dark:text-zinc-50 font-sans tabular-nums">
                   {item.type === 'progress' 
                     ? Math.round((item.current / item.total) * 100)
                     : item.current
                   }
                 </span>
-                <span className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 mb-1">
+                <span className="text-sm font-medium text-zinc-400 dark:text-zinc-600 mb-1.5">
                   {item.type === 'progress' ? '%' : item.unit}
                 </span>
-             </div>
+             </motion.div>
           </div>
         </div>
 
-        {/* Interaction Layer (Overlay) */}
+        {/* Interaction Layer - Invisible but responsive */}
         <div className="absolute inset-0 flex cursor-pointer">
-          {/* Minus Zone */}
+          {/* Minus Zone - Left 40% */}
           <div 
-            className="flex-1 flex items-center justify-start pl-6 opacity-0 hover:opacity-100 hover:bg-zinc-500/5 transition-all duration-200"
+            className="w-[40%] flex items-center justify-start pl-6 opacity-0 hover:opacity-100 transition-opacity duration-200"
             onClick={(e) => {
               e.stopPropagation();
               onUpdate(item.id, -step);
@@ -158,22 +173,24 @@ export function ItemCard({ item, onUpdate, onClick, isDragging, previewIcon, pre
             onMouseLeave={() => setHoverZone(null)}
           >
             <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={hoverZone === 'left' ? { scale: 1, opacity: 1 } : { scale: 0.5, opacity: 0 }}
-              className="p-2 rounded-full bg-white dark:bg-zinc-800 shadow-sm text-zinc-500"
+              initial={{ x: -20, opacity: 0, scale: 0.8 }}
+              animate={hoverZone === 'left' ? { x: 0, opacity: 1, scale: 1 } : { x: -20, opacity: 0, scale: 0.8 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              className="text-zinc-400 dark:text-zinc-500"
             >
-              <Minus className="size-5" />
+              <Minus className="size-10" strokeWidth={1.5} />
             </motion.div>
           </div>
 
-          {/* Middle Zone (Drag & Detail) - Narrow strip in middle if needed, or just allow drag anywhere? 
-              DndKit drag handle needs to be specific if we want text selection, but here we disable text selection.
-              Let's make the center drag, and right plus.
-          */}
-          
-          {/* Plus Zone */}
+          {/* Center Detail Zone - Middle 20% */}
           <div 
-            className="flex-1 flex items-center justify-end pr-6 opacity-0 hover:opacity-100 hover:bg-zinc-500/5 transition-all duration-200"
+             className="flex-1"
+             onClick={onClick}
+          />
+          
+          {/* Plus Zone - Right 40% */}
+          <div 
+            className="w-[40%] flex items-center justify-end pr-6 opacity-0 hover:opacity-100 transition-opacity duration-200"
             onClick={(e) => {
               e.stopPropagation();
               onUpdate(item.id, step);
@@ -182,34 +199,27 @@ export function ItemCard({ item, onUpdate, onClick, isDragging, previewIcon, pre
             onMouseLeave={() => setHoverZone(null)}
           >
             <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={hoverZone === 'right' ? { scale: 1, opacity: 1 } : { scale: 0.5, opacity: 0 }}
-              className="p-2 rounded-full bg-white dark:bg-zinc-800 shadow-sm text-zinc-500"
+              initial={{ x: 20, opacity: 0, scale: 0.8 }}
+              animate={hoverZone === 'right' ? { x: 0, opacity: 1, scale: 1 } : { x: 20, opacity: 0, scale: 0.8 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              className="text-zinc-900 dark:text-zinc-100"
             >
-              <Plus className="size-5" />
+              <Plus className="size-10" strokeWidth={1.5} />
             </motion.div>
           </div>
         </div>
-        
-        {/* Hidden Drag Handle (Active everywhere except buttons technically, but let's make a specific handle on far left edge?) 
-            Actually, the user can click details via title? 
-            Let's put the drag handle strictly on the far left edge or handle it via a small grip overlay.
-        */}
+
+        {/* Drag Handle - Hidden on far left edge */}
         <div 
             {...attributes} 
             {...listeners}
-            className="absolute left-0 top-0 bottom-0 w-4 cursor-grab active:cursor-grabbing hover:bg-black/5 dark:hover:bg-white/5 transition-colors z-20"
-        />
-        
-        {/* Detail Click Area - Center */}
-        <div 
-           className="absolute inset-x-16 inset-y-0 cursor-pointer z-10"
-           onClick={onClick}
+            className="absolute left-0 top-0 bottom-0 w-6 cursor-grab active:cursor-grabbing z-20"
         />
 
       </motion.div>
     </div>
   );
 }
+
 
 
