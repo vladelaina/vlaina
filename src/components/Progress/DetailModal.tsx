@@ -144,28 +144,37 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
               className="bg-white dark:bg-zinc-900 rounded-[2rem] shadow-2xl w-[380px] max-w-full pointer-events-auto relative flex flex-col overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Top Bar - Compact */}
-              <div className="absolute top-4 right-4 z-20 flex gap-1.5">
-                <button
-                  onClick={handleArchive}
-                  className="p-1.5 rounded-full text-zinc-300 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:text-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                  title={item.archived ? "Unarchive" : "Archive"}
+              {/* Top Bar - Floating Control Pod (Invisible Mode) */}
+              <div className="absolute top-6 right-6 z-20">
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex items-center gap-2 p-1"
                 >
-                  <Archive className="size-3.5" />
-                </button>
-                 <button
-                  onClick={handleDelete}
-                  className="p-1.5 rounded-full text-zinc-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="p-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:scale-105 transition-all"
-                >
-                  <X className="size-3.5" />
-                </button>
+                  <button
+                    onClick={handleArchive}
+                    className="p-2 rounded-full text-zinc-300 hover:text-zinc-900 dark:text-zinc-700 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
+                    title={item.archived ? "Unarchive" : "Archive"}
+                  >
+                    <Archive className="size-4" strokeWidth={2} />
+                  </button>
+                  
+                  <button
+                    onClick={handleDelete}
+                    className="p-2 rounded-full text-zinc-300 hover:text-red-500 hover:bg-red-50 dark:text-zinc-700 dark:hover:bg-red-900/20 transition-all"
+                    title="Delete"
+                  >
+                    <Trash2 className="size-4" strokeWidth={2} />
+                  </button>
+
+                  <button
+                    onClick={handleSave}
+                    className="p-2 rounded-full text-zinc-300 hover:text-zinc-900 dark:text-zinc-700 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
+                    title="Close"
+                  >
+                    <X className="size-4" strokeWidth={2} />
+                  </button>
+                </motion.div>
               </div>
 
               {/* --- Main Content (No Scroll) --- */}
@@ -231,7 +240,7 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            onBlur={(e) => {
+                            onBlur={() => {
                                 // Delay blur handling slightly to allow click on confirm button
                                 // Or rely on the fact that clicking the button (mousedown) prevents blur if handled right.
                                 // Here we use a simple specialized handler or just let the button do its work.

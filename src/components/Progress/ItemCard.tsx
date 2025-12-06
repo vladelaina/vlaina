@@ -4,7 +4,7 @@ import { Plus, Minus, Check } from 'lucide-react';
 import type { ProgressOrCounter } from '@/stores/useProgressStore';
 import { getIconByName } from './IconPicker';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // Disable drop animation to prevent "snap back" effect
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
@@ -63,6 +63,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
   const fillWidth = item.type === 'progress' ? `${percentage}%` : `${counterFill}%`;
   const [hoverZone, setHoverZone] = useState<'left' | 'right' | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
+  const prevCurrent = useRef(item.current); // Track previous value to prevent "mount animation"
 
   // If archived, render the "Timeline Ticket" view
   if (item.archived) {
@@ -155,13 +156,16 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
   }
 
   // Auto-archive logic
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     if (item.type !== 'progress' || item.archived) return;
     
     // Check completion
     const isDone = item.current >= item.total;
+    const wasDone = prevCurrent.current >= item.total;
     
-    if (isDone) {
+    if (isDone && !wasDone) {
+      // Just completed -> Play Animation & Schedule Archive
       setIsCompleting(true);
       const timer = setTimeout(() => {
         if (onAutoArchive) {
@@ -172,6 +176,9 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
     } else {
       setIsCompleting(false);
     }
+    
+    // Update ref for next render
+    prevCurrent.current = item.current;
   }, [item.current, (item as any).total, item.type, item.archived, onAutoArchive, item.id]);
 
   return (
