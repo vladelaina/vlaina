@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Trash2, Target, Footprints, Tag, Plus, Minus, Check, ChevronLeft } from 'lucide-react';
+import { X, Trash2, Target, Footprints, Tag, Plus, Minus, Check, ChevronLeft, Archive } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ProgressOrCounter } from '@/stores/useProgressStore';
 import { IconSelectionView, getIconByName } from './IconPicker';
@@ -66,6 +66,28 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
     setIsPickingIcon(false);
   };
 
+  const handleArchive = () => {
+    if (!item) return;
+    
+    if (item.archived) {
+      // Unarchiving: Reset progress to 0 to restart the journey
+      onUpdate(item.id, { archived: false, current: 0 });
+    } else {
+      // Archiving: Just hide it
+      onUpdate(item.id, { archived: true });
+    }
+    handleClose();
+  };
+
+  const handleTitleBlur = () => {
+    setIsEditingTitle(false);
+    if (item && title.trim() && title !== item.title) {
+      onUpdate(item.id, { title: title.trim() });
+    } else if (item) {
+      setTitle(item.title);
+    }
+  };
+
   const handleDelete = () => {
     if (!item) return;
     onDelete(item.id);
@@ -124,6 +146,13 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
             >
               {/* Top Bar - Compact */}
               <div className="absolute top-4 right-4 z-20 flex gap-1.5">
+                <button
+                  onClick={handleArchive}
+                  className="p-1.5 rounded-full text-zinc-300 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:text-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                  title={item.archived ? "Unarchive" : "Archive"}
+                >
+                  <Archive className="size-3.5" />
+                </button>
                  <button
                   onClick={handleDelete}
                   className="p-1.5 rounded-full text-zinc-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"

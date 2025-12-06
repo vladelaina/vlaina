@@ -41,6 +41,7 @@ export interface ProgressData {
   startDate?: number;
   endDate?: number;
   createdAt: number;
+  archived?: boolean;
 }
 
 export interface AppUsageData {

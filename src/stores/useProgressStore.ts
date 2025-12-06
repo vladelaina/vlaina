@@ -18,6 +18,7 @@ export interface ProgressItem {
   startDate?: number;
   endDate?: number;
   createdAt: number;
+  archived?: boolean;
 }
 
 export interface CounterItem {
@@ -33,6 +34,7 @@ export interface CounterItem {
   history?: Record<string, number>; // { "2025-12-05": 3, ... } 每天操作次数
   frequency: 'daily' | 'weekly' | 'monthly';
   createdAt: number;
+  archived?: boolean;
 }
 
 export type ProgressOrCounter = ProgressItem | CounterItem;
@@ -46,6 +48,7 @@ interface ProgressStore {
   addCounter: (data: { title: string; icon?: string; step: number; unit: string; frequency: 'daily' | 'weekly' | 'monthly' }) => void;
   updateCurrent: (id: string, delta: number) => void;
   deleteItem: (id: string) => void;
+  toggleArchive: (id: string) => void;
   updateItem: (id: string, data: Partial<ProgressOrCounter>) => void;
   reorderItems: (activeId: string, overId: string) => void;
 }
@@ -69,6 +72,7 @@ function fromStorageFormat(data: ProgressData): ProgressOrCounter {
       startDate: data.startDate,
       endDate: data.endDate,
       createdAt: data.createdAt,
+      archived: data.archived || false,
     };
   } else {
     return {
@@ -84,6 +88,7 @@ function fromStorageFormat(data: ProgressData): ProgressOrCounter {
       history: data.history,
       frequency: data.frequency || 'daily',
       createdAt: data.createdAt,
+      archived: data.archived || false,
     };
   }
 }
@@ -107,6 +112,7 @@ function toStorageFormat(item: ProgressOrCounter): ProgressData {
       startDate: item.startDate,
       endDate: item.endDate,
       createdAt: item.createdAt,
+      archived: item.archived,
     };
   } else {
     return {
@@ -122,6 +128,7 @@ function toStorageFormat(item: ProgressOrCounter): ProgressData {
       history: item.history,
       frequency: item.frequency,
       createdAt: item.createdAt,
+      archived: item.archived,
     };
   }
 }
@@ -158,7 +165,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       endDate: data.endDate,
       createdAt: Date.now(),
     };
-    const newItems = [...state.items, newItem];
+    const newItems = [newItem, ...state.items];
     persistItems(newItems);
     return { items: newItems };
   }),
@@ -177,7 +184,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       frequency: data.frequency,
       createdAt: Date.now(),
     };
-    const newItems = [...state.items, newItem];
+    const newItems = [newItem, ...state.items];
     persistItems(newItems);
     return { items: newItems };
   }),
@@ -211,6 +218,14 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   
   deleteItem: (id) => set((state) => {
     const newItems = state.items.filter((item) => item.id !== id);
+    persistItems(newItems);
+    return { items: newItems };
+  }),
+
+  toggleArchive: (id) => set((state) => {
+    const newItems = state.items.map((item) => 
+      item.id === id ? { ...item, archived: !item.archived } : item
+    );
     persistItems(newItems);
     return { items: newItems };
   }),

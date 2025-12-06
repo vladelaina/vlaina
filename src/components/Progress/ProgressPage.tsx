@@ -8,7 +8,7 @@ import {
   DragOverlay,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus } from 'lucide-react';
+import { Plus, Archive } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useProgressStore, type ProgressOrCounter } from '@/stores/useProgressStore';
 import { useProgressDrag } from './hooks/useProgressDrag';
@@ -25,6 +25,8 @@ export function ProgressPage() {
   
   // Scroll state for smart collapsing button
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isArchiveView, setIsArchiveView] = useState(false);
+  const [isNotifying, setIsNotifying] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = () => {
@@ -37,12 +39,23 @@ export function ProgressPage() {
     loadItems();
   }, [loadItems]);
 
+  const handleAutoArchive = (id: string) => {
+    updateItem(id, { archived: true });
+    setIsNotifying(true);
+    setTimeout(() => setIsNotifying(false), 2000);
+  };
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null); // Store ID instead of object
   const [previewOverride, setPreviewOverride] = useState<{ icon?: string; title?: string } | null>(null);
 
   // Derive the selected item from the fresh store data
   const selectedItem = items.find(i => i.id === selectedId) || null;
+
+  // Filter items based on archive view
+  const visibleItems = items.filter(item => 
+    isArchiveView ? item.archived : !item.archived
+  );
 
   // Drag and drop
   const sensors = useSensors(
@@ -58,7 +71,7 @@ export function ProgressPage() {
     handleDragMove,
     handleDragOver,
     handleDragEnd,
-  } = useProgressDrag({ items, onReorder: reorderItems });
+  } = useProgressDrag({ items: visibleItems, onReorder: reorderItems });
 
   // Handle opening create modal
   const openCreateModal = () => {
@@ -99,10 +112,10 @@ export function ProgressPage() {
     <div className="h-full bg-white dark:bg-zinc-900 flex flex-col relative">
       {/* Right: Levitating Lens Button (Organic Liquid Soul) */}
       <motion.div 
-        className="absolute top-5 z-30 pointer-events-none"
+        className="absolute top-5 z-30 pointer-events-none flex items-center gap-3"
         initial={false}
         animate={{
-          right: isScrolled ? 8 : 24 // Move to right-2 (8px) when scrolled, right-6 (24px) when expanded
+          right: isScrolled ? 8 : 24
         }}
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
       >
@@ -187,20 +200,46 @@ export function ProgressPage() {
         "
       >
         {/* Header Section inside ScrollView - Starts at same height as button */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-8 group">
            {/* Left: Time Anchor (Scrolls with content) */}
-           <div className="text-[10px] font-bold text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.2em] select-none py-1">
-             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+           <div className="flex items-center gap-3">
+             <div className="text-[10px] font-bold text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.2em] select-none py-1 transition-colors group-hover:text-zinc-400 dark:group-hover:text-zinc-500">
+               {isArchiveView 
+                 ? 'Storage Box' 
+                 : new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+               }
+             </div>
+             
+             <button
+               onClick={() => setIsArchiveView(!isArchiveView)}
+               className={`
+                 p-1.5 rounded-full transition-all duration-500
+                 ${isArchiveView || isNotifying
+                   ? 'opacity-100 text-zinc-900 bg-zinc-100 dark:text-zinc-100 dark:bg-zinc-800 translate-x-0' 
+                   : 'opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 text-zinc-300 hover:text-zinc-900 dark:text-zinc-600 dark:hover:text-zinc-300'
+                 }
+                 ${isNotifying ? 'scale-125 ring-2 ring-zinc-200 dark:ring-zinc-700' : 'scale-100'}
+               `}
+               title={isArchiveView ? "Back to List" : "Open Storage Box"}
+             >
+               <Archive className="size-3.5" />
+             </button>
            </div>
         </div>
 
         <div className="px-6 pb-4">
-          {items.length === 0 && (
+          {visibleItems.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 opacity-50">
               <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-4">
-                <Plus className="size-8 text-zinc-300 dark:text-zinc-600" />
+                {isArchiveView ? (
+                  <Archive className="size-8 text-zinc-300 dark:text-zinc-600" />
+                ) : (
+                  <Plus className="size-8 text-zinc-300 dark:text-zinc-600" />
+                )}
               </div>
-              <p className="text-sm text-zinc-400 dark:text-zinc-500 font-medium">Start tracking your first habit</p>
+              <p className="text-sm text-zinc-400 dark:text-zinc-500 font-medium">
+                {isArchiveView ? 'Storage box is empty' : 'Start tracking your first habit'}
+              </p>
             </div>
           )}
 
@@ -213,14 +252,14 @@ export function ProgressPage() {
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={items.map(i => i.id)}
+              items={visibleItems.map(i => i.id)}
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-3">
-                {items.map((item) => {
+                {visibleItems.map((item) => {
                   const isDropTarget = item.id === overId && overId !== activeId;
-                  const activeIndex = activeId ? items.findIndex(i => i.id === activeId) : -1;
-                  const overIndex = overId ? items.findIndex(i => i.id === overId) : -1;
+                  const activeIndex = activeId ? visibleItems.findIndex(i => i.id === activeId) : -1;
+                  const overIndex = overId ? visibleItems.findIndex(i => i.id === overId) : -1;
                   const insertAfter = isDropTarget && activeIndex !== -1 && overIndex > activeIndex;
 
                   return (
@@ -232,6 +271,7 @@ export function ProgressPage() {
                         item={item}
                         onUpdate={updateCurrent}
                         onClick={() => setSelectedId(item.id)}
+                        onAutoArchive={handleAutoArchive}
                         isDragging={activeId === item.id}
                         previewIcon={selectedItem?.id === item.id ? previewOverride?.icon : undefined}
                         previewTitle={selectedItem?.id === item.id ? previewOverride?.title : undefined}
