@@ -98,26 +98,36 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
             group-hover:-translate-y-1
           "
         >
-           {/* Zone 1: Identity & Result */}
-           <div className="flex items-center gap-6 min-w-0 pr-6 border-r border-zinc-100/50 dark:border-zinc-800/50">
-              {displayIcon ? (() => {
+           {/* Zone 1: Identity & Result - The Artistic Watermark Layout */}
+           <div className="relative flex-1 h-full min-w-0 pr-6 border-r border-zinc-100/50 dark:border-zinc-800/50 overflow-hidden group/zone1">
+              {/* Layer 0: The Watermark (Soul) */}
+              {displayIcon && (() => {
                 const Icon = getIconByName(displayIcon);
                 return Icon ? (
-                  <div className="text-zinc-500 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors duration-500">
-                    <Icon className="size-10" weight="duotone" />
+                  <div className="absolute -left-3 top-1/2 -translate-y-1/2 transition-transform duration-700 ease-out group-hover/zone1:scale-110 group-hover/zone1:-rotate-12 group-hover/zone1:translate-x-1">
+                    <Icon 
+                        className={`
+                            size-24 
+                            transition-colors duration-500
+                            ${isCompleting 
+                                ? 'text-zinc-200 dark:text-zinc-700 opacity-20' 
+                                : 'text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] mix-blend-multiply dark:mix-blend-overlay'
+                            }
+                        `} 
+                        weight="duotone" 
+                    />
                   </div>
                 ) : null;
-              })() : (
-                 <div className="size-10 rounded-full border border-zinc-200 dark:border-zinc-800 group-hover:border-zinc-400 transition-colors" />
-              )}
+              })()}
               
-              <div className="flex flex-col justify-center min-w-0 gap-1">
-                <span className="text-xl font-medium text-zinc-900 dark:text-zinc-100 truncate tracking-wide group-hover:text-black transition-colors">
+              {/* Layer 1: Content (Floating above) */}
+              <div className="relative z-10 pl-20 flex flex-col justify-center min-w-0 gap-1 h-full">
+                <span className="text-xl font-medium text-zinc-900 dark:text-zinc-100 truncate tracking-wide group-hover:text-black dark:group-hover:text-white transition-colors">
                   {displayTitle}
                 </span>
-                <div className="flex items-center gap-3 text-[10px] font-bold tracking-[0.2em] uppercase text-zinc-300 dark:text-zinc-600">
-                  <span>Final</span>
-                  <span className="text-zinc-500 dark:text-zinc-400">
+                <div className="flex items-center gap-3 text-[10px] font-bold tracking-[0.2em] uppercase text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-500 dark:group-hover:text-zinc-500 transition-colors">
+                  <span>Target</span>
+                  <span className="text-zinc-600 dark:text-zinc-400">
                     {item.type === 'progress' ? `${item.current}/${(item as any).total}` : item.current}
                   </span>
                 </div>
@@ -246,11 +256,11 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
         <div className={`absolute inset-0 rounded-[2.5rem] ring-1 ring-inset pointer-events-none transition-colors duration-500 ${isCompleting ? 'ring-transparent' : 'ring-black/5 dark:ring-white/5'}`} />
 
         {/* Content Layer - The Grand Transformation */}
-        <div className="absolute inset-0 flex items-center justify-between px-10 pointer-events-none z-20">
+        <div className="absolute inset-0 flex items-center justify-between px-10 pointer-events-none z-20 overflow-hidden">
           
-          {/* Left Group: Title & Icon */}
+          {/* Left Group: Title & Icon (Watermark Style) */}
           <motion.div 
-            className="flex items-center gap-8 min-w-0 flex-1"
+            className="relative flex items-center h-full min-w-0 flex-1"
             animate={{ 
               x: isCompleting ? '50%' : (hoverZone === 'left' ? 48 : 0), // Center on complete
               opacity: hoverZone === 'left' ? 0.6 : 1 
@@ -259,21 +269,45 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
           >
             {/* Wrapper to center content relative to itself when moving */}
             <motion.div 
-              className="flex items-center gap-8"
+              className="relative flex items-center w-full h-full"
               animate={{ x: isCompleting ? '-50%' : '0%' }} // Counter-offset for true centering
             >
-                {/* Icon - Larger, Thinner, More Elegant */}
+                {/* Layer 0: The Watermark Icon */}
                 {displayIcon && (() => {
                   const Icon = getIconByName(displayIcon);
                   return Icon ? (
-                    <div className={`transition-colors duration-500 ${isCompleting ? 'text-zinc-500 dark:text-zinc-400' : 'text-zinc-600 dark:text-zinc-300'}`}>
-                      <Icon className="size-8" weight="duotone" />
-                    </div>
+                    <motion.div 
+                        className="absolute left-0 flex items-center justify-center"
+                        animate={{
+                            // Morphing: When completing, become a centered badge. When normal, be a watermark.
+                            left: isCompleting ? '50%' : '-1.5rem',
+                            x: isCompleting ? '-50%' : 0,
+                            scale: isCompleting ? 1 : 1, // Actually we control size via className font-size
+                        }}
+                    >
+                        <div className={`
+                            transition-all duration-700 ease-out
+                            ${isCompleting 
+                                ? 'text-zinc-500 dark:text-zinc-400 opacity-100 scale-100' // Badge State
+                                : 'text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] scale-[2.5] -rotate-12 mix-blend-multiply dark:mix-blend-overlay origin-left' // Watermark State
+                            }
+                        `}>
+                            <Icon className="size-10" weight="duotone" />
+                        </div>
+                    </motion.div>
                   ) : null;
                 })()}
 
-                <div className="flex flex-col justify-center min-w-0 gap-1.5">
-                  <span className={`text-2xl font-light tracking-wide truncate leading-none transition-colors duration-500 ${isCompleting ? 'text-white dark:text-zinc-900' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                {/* Layer 1: Text Content */}
+                <motion.div 
+                    className="flex flex-col justify-center min-w-0 gap-1.5 relative z-10"
+                    animate={{
+                        paddingLeft: isCompleting ? 0 : '5rem', // 20 (5rem) spacing for watermark
+                        alignItems: isCompleting ? 'center' : 'flex-start',
+                        width: '100%'
+                    }}
+                >
+                  <span className={`text-2xl font-light tracking-wide truncate leading-none transition-colors duration-500 ${isCompleting ? 'text-white dark:text-zinc-900 mt-16' : 'text-zinc-900 dark:text-zinc-100'}`}>
                     {displayTitle}
                   </span>
                   
@@ -286,7 +320,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
                       Today {item.todayCount}
                     </span>
                   </motion.div>
-                </div>
+                </motion.div>
             </motion.div>
           </motion.div>
 
