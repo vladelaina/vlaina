@@ -7,6 +7,7 @@ import { useShortcutEditor } from './hooks/useShortcutEditor';
 import { AboutTab } from './tabs/AboutTab';
 import { AppearanceTab } from './tabs/AppearanceTab';
 import { ShortcutsTab } from './tabs/ShortcutsTab';
+import { StorageTab } from './tabs/StorageTab';
 import { LoginDialog } from './LoginDialog';
 
 interface SettingsModalProps {
@@ -14,12 +15,13 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type SettingsTab = 'appearance' | 'shortcuts' | 'about';
+type SettingsTab = 'appearance' | 'shortcuts' | 'storage' | 'about';
 
 const tabs: { id: SettingsTab; label: string }[] = [
   { id: 'about', label: '关于' },
   { id: 'appearance', label: '外观' },
   { id: 'shortcuts', label: '快捷键' },
+  { id: 'storage', label: '存储' },
 ];
 
 /**
@@ -138,6 +140,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       onClearRecording={() => resetShortcutState()}
                     />
                   )}
+                  {activeTab === 'storage' && <StorageTab />}
                 </div>
               </div>
             </motion.div>

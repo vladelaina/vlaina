@@ -1,21 +1,32 @@
-// Path management for storage directories
+/**
+ * Path Management for Storage Directories
+ * 
+ * Uses system-standard app data location:
+ * - Windows: C:\Users\{user}\AppData\Roaming\NekoTick
+ * - macOS:   ~/Library/Application Support/NekoTick
+ * - Linux:   ~/.local/share/NekoTick
+ * 
+ * This follows platform conventions and keeps user's visible folders clean.
+ */
 
 import { mkdir, exists } from '@tauri-apps/plugin-fs';
-import { desktopDir } from '@tauri-apps/api/path';
+import { appDataDir } from '@tauri-apps/api/path';
 
 // Dynamic path management - initialized on first use
 let basePath: string | null = null;
 
 /**
  * Get the base path, initializing if necessary
+ * Uses system-standard app data directory for cross-platform compatibility
  */
 export async function getBasePath(): Promise<string> {
   if (basePath === null) {
-    const desktop = await desktopDir();
-    // Ensure path separator between desktop and NekoTick
-    basePath = desktop.endsWith('\\') || desktop.endsWith('/') 
-      ? `${desktop}NekoTick` 
-      : `${desktop}\\NekoTick`;
+    const appData = await appDataDir();
+    // appDataDir already returns the correct path for each platform
+    // It typically ends with the app name from tauri.conf.json
+    basePath = appData.endsWith('\\') || appData.endsWith('/') 
+      ? appData.slice(0, -1)  // Remove trailing slash
+      : appData;
   }
   return basePath;
 }

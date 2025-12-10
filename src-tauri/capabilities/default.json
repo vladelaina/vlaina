@@ -17,34 +17,38 @@
     "core:webview:allow-set-webview-position",
     "core:webview:allow-webview-close",
     "opener:default",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }]
+    },
     "fs:default",
     {
       "identifier": "fs:allow-read-text-file",
-      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick\\**" }]
+      "allow": [{ "path": "$APPDATA/**" }]
     },
     {
       "identifier": "fs:allow-write-text-file",
-      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick\\**" }]
+      "allow": [{ "path": "$APPDATA/**" }]
     },
     {
       "identifier": "fs:allow-exists",
-      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick\\**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick" }]
+      "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }]
     },
     {
       "identifier": "fs:allow-create",
-      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick\\**" }]
+      "allow": [{ "path": "$APPDATA/**" }]
     },
     {
       "identifier": "fs:allow-mkdir",
-      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick\\**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick" }]
+      "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }]
     },
     {
       "identifier": "fs:allow-read-dir",
-      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick\\**" }]
+      "allow": [{ "path": "$APPDATA/**" }]
     },
     {
       "identifier": "fs:allow-remove",
-      "allow": [{ "path": "$DESKTOP/**" }, { "path": "$DOCUMENT/**" }, { "path": "C:\\Users\\vladelaina\\Desktop\\NekoTick\\**" }]
+      "allow": [{ "path": "$APPDATA/**" }]
     }
   ]
 }
