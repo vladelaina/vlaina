@@ -285,32 +285,9 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
                <div className="absolute right-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-zinc-300 dark:via-zinc-600 to-transparent opacity-50" />
            </motion.div>
         ) : (
-           /* --- COUNTER VISUALS (Quantum Pulse / Aurora) --- */
+           /* --- COUNTER VISUALS (Clean Ripple Only) --- */
            <>
-              {/* 1. Deep Space / Aurora Background - Slowly rotating gradient mesh */}
-              <div className="absolute inset-0 overflow-hidden opacity-50 dark:opacity-40 pointer-events-none mix-blend-multiply dark:mix-blend-screen">
-                 <motion.div 
-                    className="absolute -inset-[50%] bg-[conic-gradient(from_0deg,transparent_0deg,rgba(0,0,0,0.03)_90deg,transparent_180deg,rgba(0,0,0,0.03)_270deg,transparent_360deg)] dark:bg-[conic-gradient(from_0deg,transparent_0deg,rgba(255,255,255,0.05)_90deg,transparent_180deg,rgba(255,255,255,0.05)_270deg,transparent_360deg)]"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                 />
-                 <motion.div 
-                    className="absolute -inset-[50%] bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.05),transparent_60%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.15),transparent_60%)]"
-                    animate={{ 
-                       scale: [1, 1.2, 1],
-                       opacity: [0.3, 0.6, 0.3] 
-                    }}
-                    transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-                 />
-              </div>
-              
-              {/* 2. Activity Heatmap - Warms up as you click more */}
-              <motion.div 
-                 className="absolute inset-0 bg-gradient-to-br from-indigo-500/0 via-purple-500/0 to-pink-500/0 dark:from-indigo-400/0 dark:via-purple-400/0 dark:to-pink-400/0 opacity-0 pointer-events-none mix-blend-multiply dark:mix-blend-overlay"
-                 animate={{ opacity: Math.min(0.2, item.todayCount / 40) }} // Subtle color shift (softer in light mode)
-              />
-
-              {/* 3. Luminous Shockwaves (Expansion) & Black Holes (Implosion) */}
+              {/* Shockwaves (Expansion) & Implosions (Contraction) */}
               <AnimatePresence>
                 {/* Outward Ripples (Plus) */}
                 {ripples.map(ripple => (
