@@ -55,11 +55,6 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
     ? Math.min(100, Math.max(0, (item.current / item.total) * 100))
     : 0;
   
-  // Counter fill based on activity (subtle feedback)
-  // const counterFill = item.type === 'counter'
-  //   ? Math.min(100, (item.todayCount / 8) * 100) // Assuming 8 is a loose "daily goal" for visualization
-  //   : 0;
-
   const fillWidth = item.type === 'progress' ? `${percentage}%` : '0%'; // Counter handles its own visuals
   const [hoverZone, setHoverZone] = useState<'left' | 'right' | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -73,17 +68,31 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
   const triggerRipple = (x: number, y: number) => {
     const id = rippleCount.current++;
     setRipples(prev => [...prev, { id, x, y }]);
+    // Auto-cleanup after animation completes (handled by AnimatePresence exit)
     setTimeout(() => {
       setRipples(prev => prev.filter(r => r.id !== id));
-    }, 1000);
+    }, 1500); // Slightly longer than animation duration for safety
   };
 
   const triggerImplosion = (x: number, y: number) => {
     const id = rippleCount.current++;
     setImplosions(prev => [...prev, { id, x, y }]);
+    // Auto-cleanup after animation completes
     setTimeout(() => {
       setImplosions(prev => prev.filter(r => r.id !== id));
-    }, 1000); // Allow time for the "pop" at the end
+    }, 1000);
+  };
+
+  // Helper to calculate "Energy Core" position (Card Center)
+  // Returns coordinates RELATIVE to the card container
+  const getEnergyCorePosition = (element: HTMLElement) => {
+    const card = element.closest('.group') as HTMLElement | null;
+    if (card) {
+      // Center of the card
+      return { x: card.offsetWidth * 0.5, y: card.offsetHeight * 0.5 };
+    }
+    // Fallback to a reasonable default for h-32 (128px) cards
+    return { x: 250, y: 64 };
   };
 
   // If archived, render the "Timeline Ticket" view
@@ -150,7 +159,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
                 <div className="flex items-center gap-3 text-[10px] font-bold tracking-[0.2em] uppercase text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-500 dark:group-hover:text-zinc-500 transition-colors">
                   <span>Target</span>
                   <span className="text-zinc-600 dark:text-zinc-400">
-                    {item.type === 'progress' ? `${item.current}/${(item as any).total}` : item.current}
+                    {item.type === 'progress' ? `${item.current}/${item.total}` : item.current}
                   </span>
                 </div>
               </div>
@@ -214,7 +223,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
     
     // Update ref for next render
     prevCurrent.current = item.current;
-  }, [item.current, (item as any).total, item.type, item.archived, onAutoArchive, item.id]);
+  }, [item.current, item.type === 'progress' ? item.total : 0, item.type, item.archived, onAutoArchive, item.id]);
 
   // --- RENDER START ---
   return (
@@ -471,30 +480,6 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
                         : item.current
                       }
                     </span>
-                    
-                    {/* Chromatic Aberration Ghost (Counter Only) */}
-                    {item.type === 'counter' && item.current !== prevCurrent.current && (
-                        <>
-                           <motion.span 
-                                key={`ghost-r-${item.current}`}
-                                className={`absolute left-0 top-0 text-5xl font-extralight tracking-tighter font-sans tabular-nums mix-blend-screen opacity-70 pointer-events-none ${item.current > prevCurrent.current ? 'text-red-500' : 'text-cyan-500'}`}
-                                initial={{ x: 0, opacity: 0 }}
-                                animate={{ x: [-2, 2, 0], opacity: [0, 0.8, 0] }}
-                                transition={{ duration: 0.2 }}
-                           >
-                               {item.current}
-                           </motion.span>
-                           <motion.span 
-                                key={`ghost-b-${item.current}`}
-                                className={`absolute left-0 top-0 text-5xl font-extralight tracking-tighter font-sans tabular-nums mix-blend-screen opacity-70 pointer-events-none ${item.current > prevCurrent.current ? 'text-blue-500' : 'text-fuchsia-500'}`}
-                                initial={{ x: 0, opacity: 0 }}
-                                animate={{ x: [2, -2, 0], opacity: [0, 0.8, 0] }}
-                                transition={{ duration: 0.2 }}
-                           >
-                               {item.current}
-                           </motion.span>
-                        </>
-                    )}
 
                     <span className="text-sm font-bold tracking-widest text-zinc-300 dark:text-zinc-600 mb-2 uppercase">
                       {item.type === 'progress' ? '%' : item.unit}
@@ -514,8 +499,9 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
               e.stopPropagation();
               onUpdate(item.id, -step);
               if (item.type === 'counter') {
-                 // Trigger Implosion at the SAME location as Ripple (The Energy Core)
-                 triggerImplosion(400, 64); // Right side, vertical center
+                 // Trigger Implosion at the Energy Core
+                 const { x, y } = getEnergyCorePosition(e.currentTarget);
+                 triggerImplosion(x, y); 
               }
             }}
             onMouseEnter={() => setHoverZone('left')}
@@ -531,7 +517,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
             </motion.div>
           </div>
 
-          {/* Center Detail Zone */}
+          {/* Center Detail Zone - Middle 40% */}
           <div 
              className="flex-1"
              onClick={() => {
@@ -541,19 +527,16 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
              }}
           />
           
-          {/* Plus Zone */}
+          {/* Plus Zone - Right 30% */}
           <div 
             className="w-[30%] flex items-center justify-end pr-8 opacity-0 hover:opacity-100 transition-opacity duration-300"
             onClick={(e) => {
               e.stopPropagation();
               onUpdate(item.id, step);
               if (item.type === 'counter') {
-                 // Trigger Ripple from click position
-                 // const rect = e.currentTarget.getBoundingClientRect();
-                 // const x = e.clientX - rect.left + (rect.width * 0.7); // Approximate relative to card
-                 
-                 // Let's just make it explode from the Right Center
-                 triggerRipple(400, 64); // Right side, vertical center
+                 // Trigger Ripple from Energy Core
+                 const { x, y } = getEnergyCorePosition(e.currentTarget);
+                 triggerRipple(x, y); 
               }
             }}
             onMouseEnter={() => setHoverZone('right')}
