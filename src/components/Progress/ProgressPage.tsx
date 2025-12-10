@@ -107,12 +107,27 @@ export function ProgressPage() {
     addCounter(data);
   };
 
+  // Time & Greeting Logic
+  const now = new Date();
+  const day = now.getDate();
+  const month = now.toLocaleDateString('en-US', { month: 'long' });
+  const weekday = now.toLocaleDateString('en-US', { weekday: 'long' });
+  
+  // Calculate Pending Count (Active items that are not 100% complete)
+  const pendingCount = items.filter(i => {
+    if (i.archived) return false;
+    if (i.type === 'progress') return i.current < i.total;
+    return true; // Counters are always "pending" daily tasks
+  }).length;
+
+  const greeting = pendingCount === 0 ? 'All Done' : `${pendingCount} Pending`;
+
   // Main list view
   return (
-    <div className="h-full bg-white dark:bg-zinc-900 flex flex-col relative">
+    <div className="h-full bg-white dark:bg-zinc-900 flex flex-col relative overflow-hidden">
       {/* Right: Levitating Lens Button (Organic Liquid Soul) */}
       <motion.div 
-        className="absolute top-5 z-30 pointer-events-none flex items-center gap-3"
+        className="absolute top-5 z-40 pointer-events-none flex items-center gap-3"
         initial={false}
         animate={{
           right: isScrolled ? 8 : 24
@@ -199,32 +214,82 @@ export function ProgressPage() {
           dark:[&::-webkit-scrollbar-thumb]:hover:bg-zinc-700
         "
       >
-        {/* Header Section inside ScrollView - Starts at same height as button */}
-        <div className="flex items-center justify-between mb-8 group">
-           {/* Left: Time Anchor (Scrolls with content) */}
-           <div className="flex items-center gap-3">
-             <div className="text-[10px] font-bold text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.2em] select-none py-1 transition-colors group-hover:text-zinc-400 dark:group-hover:text-zinc-500">
-               {isArchiveView 
-                 ? 'Storage Box' 
-                 : new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
-               }
+        {/* Header Section: "Time Sculpture" */}
+        <div className="relative mb-2 mt-2 min-h-[50px] select-none">
+             {/* The Toggle Button - Floating Absolute Right */}
+             <div className="absolute top-0 right-0 z-30">
+               <button
+                 onClick={() => setIsArchiveView(!isArchiveView)}
+                 className={`
+                   p-2 rounded-full transition-all duration-500
+                   flex items-center gap-2
+                   ${isArchiveView || isNotifying
+                     ? 'text-zinc-900 bg-zinc-100 dark:text-zinc-100 dark:bg-zinc-800' 
+                     : 'text-zinc-300 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-600 dark:hover:text-zinc-300 dark:hover:bg-zinc-800/50'
+                   }
+                   ${isNotifying ? 'scale-110 ring-2 ring-zinc-200 dark:ring-zinc-700' : 'scale-100'}
+                 `}
+                 title={isArchiveView ? "Back to List" : "Open Storage Box"}
+               >
+                 <Archive className="size-4" />
+                 {isArchiveView && <span className="text-xs font-bold uppercase tracking-wider pr-1">Back</span>}
+               </button>
              </div>
-             
-             <button
-               onClick={() => setIsArchiveView(!isArchiveView)}
-               className={`
-                 p-1.5 rounded-full transition-all duration-500
-                 ${isArchiveView || isNotifying
-                   ? 'opacity-100 text-zinc-900 bg-zinc-100 dark:text-zinc-100 dark:bg-zinc-800 translate-x-0' 
-                   : 'opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 text-zinc-300 hover:text-zinc-900 dark:text-zinc-600 dark:hover:text-zinc-300'
-                 }
-                 ${isNotifying ? 'scale-125 ring-2 ring-zinc-200 dark:ring-zinc-700' : 'scale-100'}
-               `}
-               title={isArchiveView ? "Back to List" : "Open Storage Box"}
-             >
-               <Archive className="size-3.5" />
-             </button>
-           </div>
+
+             <motion.div 
+                key={isArchiveView ? 'archive' : 'normal'}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
+                className="relative pl-2"
+              >
+                {!isArchiveView ? (
+                  <>
+                    {/* Giant Number - The Foundation */}
+                    <div className="absolute -top-6 -left-4 text-[5rem] leading-none font-thin text-zinc-50 dark:text-zinc-800/30 select-none pointer-events-none tracking-tighter mix-blend-multiply dark:mix-blend-screen">
+                      {day}
+                    </div>
+                    
+                    {/* Content Layer - Floating above */}
+                    <div className="relative z-10 pt-0 flex flex-col gap-0">
+                      {/* Greeting / Month - The Whisper */}
+                      <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-bold tracking-[0.25em] text-zinc-400/80 dark:text-zinc-500 uppercase">
+                            {month.toUpperCase()}
+                          </span>
+                          <div className="h-px w-3 bg-zinc-200 dark:bg-zinc-700" />
+                          <span className="text-[9px] font-medium text-zinc-400 dark:text-zinc-500 italic font-serif">
+                            {greeting}
+                          </span>
+                      </div>
+
+                      {/* Weekday - The Statement */}
+                      <h1 className="text-2xl font-serif italic font-light text-zinc-800 dark:text-zinc-100 tracking-tight">
+                        {weekday}
+                      </h1>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Background "BOX" */}
+                    <div className="absolute -top-4 -left-4 text-[3.5rem] leading-none font-thin text-zinc-50 dark:text-zinc-800/30 select-none pointer-events-none tracking-tighter mix-blend-multiply dark:mix-blend-screen">
+                      BOX
+                    </div>
+                    <div className="relative z-10 pt-0 flex flex-col gap-0">
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[9px] font-bold tracking-[0.25em] text-zinc-400/80 dark:text-zinc-500 uppercase">
+                                HISTORY
+                            </span>
+                            <div className="h-px w-3 bg-zinc-200 dark:bg-zinc-700" />
+                        </div>
+                        <h1 className="text-2xl font-serif italic font-light text-zinc-800 dark:text-zinc-100 tracking-tight">
+                        Archived
+                      </h1>
+                    </div>
+                  </>
+                )}
+             </motion.div>
         </div>
 
         <div className="px-6 pb-4">
