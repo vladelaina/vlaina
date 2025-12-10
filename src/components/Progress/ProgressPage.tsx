@@ -8,7 +8,7 @@ import {
   DragOverlay,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, Archive } from 'lucide-react';
+import { Plus, Archive, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useProgressStore } from '@/stores/useProgressStore';
 import { useProgressDrag } from './hooks/useProgressDrag';
@@ -216,25 +216,6 @@ export function ProgressPage() {
       >
         {/* Header Section: "Time Sculpture" */}
         <div className="relative mb-2 mt-2 min-h-[50px] select-none">
-             {/* The Toggle Button - Floating Absolute Right */}
-             <div className="absolute top-0 right-0 z-30">
-               <button
-                 onClick={() => setIsArchiveView(!isArchiveView)}
-                 className={`
-                   p-2 rounded-full transition-all duration-500
-                   flex items-center gap-2
-                   ${isArchiveView || isNotifying
-                     ? 'text-zinc-900 bg-zinc-100 dark:text-zinc-100 dark:bg-zinc-800' 
-                     : 'text-zinc-300 hover:text-zinc-900 hover:bg-zinc-50 dark:text-zinc-600 dark:hover:text-zinc-300 dark:hover:bg-zinc-800/50'
-                   }
-                   ${isNotifying ? 'scale-110 ring-2 ring-zinc-200 dark:ring-zinc-700' : 'scale-100'}
-                 `}
-                 title={isArchiveView ? "Back to List" : "Open Storage Box"}
-               >
-                 <Archive className="size-4" />
-                 {isArchiveView && <span className="text-xs font-bold uppercase tracking-wider pr-1">Back</span>}
-               </button>
-             </div>
 
              <motion.div 
                 key={isArchiveView ? 'archive' : 'normal'}
@@ -277,12 +258,15 @@ export function ProgressPage() {
                       BOX
                     </div>
                     <div className="relative z-10 pt-0 flex flex-col gap-0">
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] font-bold tracking-[0.25em] text-zinc-400/80 dark:text-zinc-500 uppercase">
-                                HISTORY
-                            </span>
-                            <div className="h-px w-3 bg-zinc-200 dark:bg-zinc-700" />
-                        </div>
+                        <button 
+                          onClick={() => setIsArchiveView(false)}
+                          className="flex items-center gap-2 group cursor-pointer w-fit mb-1"
+                        >
+                          <ArrowLeft className="size-3 text-zinc-400 group-hover:text-zinc-600 dark:text-zinc-500 dark:group-hover:text-zinc-300 transition-colors" />
+                          <span className="text-[9px] font-bold tracking-[0.25em] text-zinc-400/80 dark:text-zinc-500 uppercase group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">
+                            BACK TO LIST
+                          </span>
+                        </button>
                         <h1 className="text-2xl font-serif italic font-light text-zinc-800 dark:text-zinc-100 tracking-tight">
                         Archived
                       </h1>
@@ -349,6 +333,21 @@ export function ProgressPage() {
                 })}
               </div>
             </SortableContext>
+
+            {/* Archive Entry Footer - Only visible in main list */}
+            {!isArchiveView && (
+              <div 
+                onClick={() => setIsArchiveView(true)}
+                className="mt-12 mb-8 flex items-center justify-center gap-3 py-2 cursor-pointer group select-none"
+              >
+                <div className="h-px w-6 bg-zinc-100 dark:bg-zinc-800 transition-all duration-500 group-hover:w-12 group-hover:bg-zinc-300 dark:group-hover:bg-zinc-700" />
+                <span className="text-[9px] font-bold tracking-[0.25em] uppercase text-zinc-300 dark:text-zinc-700 group-hover:text-zinc-500 dark:group-hover:text-zinc-500 transition-colors duration-300">
+                  History
+                </span>
+                <div className="h-px w-6 bg-zinc-100 dark:bg-zinc-800 transition-all duration-500 group-hover:w-12 group-hover:bg-zinc-300 dark:group-hover:bg-zinc-700" />
+              </div>
+            )}
+
             <DragOverlay>
               {/* Empty overlay - only show Rust window */}
               {null}
