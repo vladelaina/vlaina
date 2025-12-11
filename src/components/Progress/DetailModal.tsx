@@ -309,19 +309,19 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
 
                                 {/* Right: Actions Group (Pointer Events Auto) */}
                                 <div className="flex items-center gap-4 pointer-events-auto">
-                                    {/* More Menu Trigger */}
+                                    {/* More Menu Trigger (Morph Origin) */}
                                     {!isEditing && (
                                         <motion.button 
-                                            layoutId="more-trigger"
+                                            layoutId="more-menu-pill"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setShowMenu(true);
                                             }}
                                             className="
                                                 size-10 flex items-center justify-center rounded-full 
-                                                text-zinc-300 hover:text-zinc-900 dark:text-zinc-600 dark:hover:text-zinc-100 
-                                                hover:bg-black/5 dark:hover:bg-white/10
-                                                transition-all duration-300
+                                                text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-100 
+                                                hover:bg-zinc-100 dark:hover:bg-zinc-800
+                                                transition-colors duration-300
                                             "
                                         >
                                             <DotsThree weight="bold" className="size-6" />
@@ -353,34 +353,51 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                                 exit="hidden"
                                 className="absolute inset-x-8 inset-y-0 flex items-center justify-end pointer-events-auto z-50"
                             >
-                                {/* Unified Command Toolbar */}
+                                {/* Unified Command Toolbar - Fluid Morph Edition */}
                                 <motion.div 
-                                    className="flex items-center pl-1 pr-1 h-10 rounded-full bg-white/90 dark:bg-zinc-800/90 backdrop-blur-xl shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 ring-1 ring-black/5 dark:ring-white/10"
-                                    variants={{
-                                        visible: { 
-                                            opacity: 1, scale: 1, x: 0,
-                                            transition: { 
-                                                duration: 0.15, ease: "circOut"
-                                            }
-                                        },
-                                        hidden: { 
-                                            opacity: 0, scale: 1, x: 10,
-                                            transition: { duration: 0.1 }
-                                        }
+                                    layoutId="more-menu-pill"
+                                    className="
+                                        flex items-center pl-1.5 pr-1.5 h-11 rounded-full 
+                                        bg-zinc-100 dark:bg-zinc-800
+                                        overflow-hidden
+                                    "
+                                    transition={{
+                                        type: "spring",
+                                        stiffness: 500,
+                                        damping: 30,
+                                        mass: 0.8
                                     }}
                                 >
-                                    {/* Action Group */}
-                                    <div className="flex items-center gap-0.5">
-                                        {/* Delete (Moved to Left for Safety) */}
+                                    {/* Action Group - Staggered Entrance */}
+                                    <motion.div 
+                                        className="flex items-center gap-1"
+                                        variants={{
+                                            visible: { 
+                                                transition: { staggerChildren: 0.05, delayChildren: 0.15 }
+                                            },
+                                            hidden: { }
+                                        }}
+                                        initial="hidden"
+                                        animate="visible"
+                                    >
+                                        {/* Delete - Wiggle Interaction */}
                                         <motion.button
-                                            whileHover={{ scale: 1.1 }}
+                                            variants={{
+                                                hidden: { opacity: 0, scale: 0.5, y: 10 },
+                                                visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 500, damping: 25 } }
+                                            }}
+                                            whileHover={{ 
+                                                scale: 1.1, 
+                                                rotate: [0, -10, 10, -10, 10, 0],
+                                                transition: { duration: 0.4 } 
+                                            }}
                                             whileTap={{ scale: 0.9 }}
                                             onClick={() => { setShowMenu(false); handleDelete(); }}
                                             className="
-                                                size-8 flex items-center justify-center rounded-full 
+                                                size-9 flex items-center justify-center rounded-full 
                                                 bg-transparent
                                                 text-zinc-400 dark:text-zinc-500
-                                                hover:text-red-600 dark:hover:text-red-400
+                                                hover:text-red-500 dark:hover:text-red-400
                                                 hover:bg-red-50 dark:hover:bg-red-900/20
                                                 transition-colors duration-200
                                             "
@@ -389,13 +406,21 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                                             <Trash weight="duotone" className="size-5" />
                                         </motion.button>
 
-                                        {/* Reset */}
+                                        {/* Reset - Spin Interaction */}
                                         <motion.button
-                                            whileHover={{ scale: 1.1 }}
+                                            variants={{
+                                                hidden: { opacity: 0, scale: 0.5, y: 10 },
+                                                visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 500, damping: 25 } }
+                                            }}
+                                            whileHover={{ 
+                                                scale: 1.1, 
+                                                rotate: -180,
+                                                transition: { duration: 0.4, type: "spring" }
+                                            }}
                                             whileTap={{ scale: 0.9 }}
                                             onClick={() => { setShowMenu(false); onUpdate(item.id, { current: 0 }); }}
                                             className="
-                                                size-8 flex items-center justify-center rounded-full 
+                                                size-9 flex items-center justify-center rounded-full 
                                                 bg-transparent
                                                 text-zinc-400 dark:text-zinc-500
                                                 hover:text-zinc-900 dark:hover:text-zinc-100
@@ -404,16 +429,24 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                                             "
                                             title="Reset Progress"
                                         >
-                                            <ArrowCounterClockwise weight="bold" className="size-5 transition-transform hover:-rotate-90 duration-500" />
+                                            <ArrowCounterClockwise weight="bold" className="size-5" />
                                         </motion.button>
                                         
-                                        {/* Archive (Moved to Right - Safer Overlap) */}
+                                        {/* Archive - Lift Interaction */}
                                         <motion.button
-                                            whileHover={{ scale: 1.1 }}
-                                            whileTap={{ scale: 0.9 }}
+                                            variants={{
+                                                hidden: { opacity: 0, scale: 0.5, y: 10 },
+                                                visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 500, damping: 25 } }
+                                            }}
+                                            whileHover={{ 
+                                                scale: 1.1, 
+                                                y: -2,
+                                                transition: { type: "spring", stiffness: 300 }
+                                            }}
+                                            whileTap={{ scale: 0.9, y: 0 }}
                                             onClick={() => { setShowMenu(false); handleArchive(); }}
                                             className="
-                                                size-8 flex items-center justify-center rounded-full 
+                                                size-9 flex items-center justify-center rounded-full 
                                                 bg-transparent
                                                 text-zinc-400 dark:text-zinc-500
                                                 hover:text-zinc-900 dark:hover:text-zinc-100
@@ -424,17 +457,24 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                                         >
                                             <Archive weight="duotone" className="size-5" />
                                         </motion.button>
-                                    </div>
+                                    </motion.div>
 
-                                    {/* Divider */}
-                                    <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-1.5" />
+                                    {/* Divider - Subtle */}
+                                    <motion.div 
+                                        className="w-px h-5 bg-zinc-200 dark:bg-zinc-700 mx-2"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: 0.15, duration: 0.2 }}
+                                    />
 
-                                    {/* Integrated Close Button */}
+                                    {/* Integrated Close Button - Rotate Interaction */}
                                     <motion.button 
                                         layoutId="modal-close-button"
+                                        whileHover={{ rotate: 90 }}
+                                        whileTap={{ scale: 0.9 }}
                                         onClick={() => setShowMenu(false)}
                                         className="
-                                            size-8 flex items-center justify-center rounded-full 
+                                            size-9 flex items-center justify-center rounded-full 
                                             bg-transparent
                                             text-zinc-400 dark:text-zinc-500
                                             hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100
