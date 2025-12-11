@@ -2,20 +2,37 @@ import { useState, useRef, useEffect } from 'react';
 import {
   // Activity
   Barbell, Target, TrendUp, Lightning, Trophy, Medal, Flag, Pulse, Fire,
-  // Health & Mind
-  Heart, Brain, Moon, Sun, Coffee, Smiley, Sparkle,
-  // Work & Study
-  Briefcase, GraduationCap, Book, Pen, Code, Laptop,
-  // Life
-  House, MusicNote, Camera, GameController, ShoppingBag, ForkKnife, Gift, Ticket,
+  Footprints, Sneaker, SwimmingPool, Basketball, Mountains, Bicycle,
+  SoccerBall, Football, TennisBall, Volleyball, Baseball, BowlingBall, BoxingGlove,
+  // Health
+  Heart, Brain, Moon, Sun, Smiley, Sparkle,
+  Bed, Pill, FirstAidKit, Syringe, Thermometer, Stethoscope, Bandaids,
+  // Food
+  Coffee, ForkKnife, Pizza, Hamburger, Cookie, IceCream, Martini, Wine, BeerBottle, Cake, Popcorn, CookingPot, AppleLogo, Carrot,
+  // Work & Tech
+  Briefcase, GraduationCap, Book, Pen, Code, Laptop, Desktop, Mouse, Keyboard,
+  Calculator, ChartBar, Rocket, Lightbulb, Bank, Robot, Cpu, WifiHigh, BatteryCharging,
+  DeviceTablet, Watch, DeviceMobile, HardDrives, Usb, Printer,
+  // Life & Arts
+  House, Camera, ShoppingBag, Gift, Ticket,
+  Armchair, Baby, FilmStrip, Palette, Ghost, ChatCircle,
+  PaintBrush, Pencil, Guitar, Microphone, Headphones, MusicNote, GameController,
+  Television, Radio, SpeakerHifi, CassetteTape, Disc, VinylRecord, DiceFive, MagicWand,
+  // Nature & Animals
+  Plant, Flower, Drop, Tree, Cactus, Waves, Wind, CloudRain, Snowflake, Umbrella, Rainbow, FireSimple,
+  Cat, Dog, Bird, Fish, PawPrint, Butterfly,
+  TreePalm, TreeEvergreen, SunHorizon, CloudSun, CloudLightning,
   // Travel
-  Airplane, Car, Bicycle, MapTrifold, Compass, Globe,
+  Airplane, Car, MapTrifold, Compass, Globe,
+  Bus, Train, Boat, Suitcase, Binoculars, Truck, Motorcycle, Scooter, Jeep, FlyingSaucer,
+  Taxi, Tram, Subway, Parachute, Sailboat,
+  // Tools & Objects
+  Clock, CalendarBlank, Wrench, Hammer, Key, Lock, Bell, Gear,
+  Tag, Paperclip, PushPin, Scissors, Trash, Broom, Shower, Lamp,
+  // Clothing
+  TShirt, Hoodie, CoatHanger, Dress, HighHeel, Eyeglasses, Sunglasses, BaseballCap,
   // Finance
-  CurrencyDollar, PiggyBank,
-  // Nature
-  Plant, Flower, Drop,
-  // Tools
-  Clock, CalendarBlank,
+  CurrencyDollar, PiggyBank, CreditCard, Wallet,
   type Icon as PhosphorIcon,
   CaretLeft, Prohibit
 } from '@phosphor-icons/react';
@@ -31,52 +48,148 @@ const ICON_CATEGORIES = [
       { name: 'activity', icon: Pulse },
       { name: 'flame', icon: Fire },
       { name: 'target', icon: Target },
-      { name: 'trending-up', icon: TrendUp },
+      { name: 'trending', icon: TrendUp },
       { name: 'trophy', icon: Trophy },
       { name: 'award', icon: Medal },
       { name: 'flag', icon: Flag },
       { name: 'zap', icon: Lightning },
-    ]
-  },
-  {
-    name: 'Life',
-    icons: [
-      { name: 'home', icon: House },
-      { name: 'coffee', icon: Coffee },
-      { name: 'music', icon: MusicNote },
-      { name: 'gamepad', icon: GameController },
-      { name: 'camera', icon: Camera },
-      { name: 'shopping', icon: ShoppingBag },
-      { name: 'utensils', icon: ForkKnife },
-      { name: 'gift', icon: Gift },
-      { name: 'ticket', icon: Ticket },
-    ]
-  },
-  {
-    name: 'Growth',
-    icons: [
-      { name: 'book', icon: Book },
-      { name: 'brain', icon: Brain },
-      { name: 'graduation', icon: GraduationCap },
-      { name: 'briefcase', icon: Briefcase },
-      { name: 'code', icon: Code },
-      { name: 'laptop', icon: Laptop },
-      { name: 'pen', icon: Pen },
-      { name: 'sparkles', icon: Sparkle },
-      { name: 'dollar', icon: CurrencyDollar },
-      { name: 'piggy-bank', icon: PiggyBank },
+      { name: 'steps', icon: Footprints },
+      { name: 'run', icon: Sneaker },
+      { name: 'swim', icon: SwimmingPool },
+      { name: 'hike', icon: Mountains },
+      { name: 'cycling', icon: Bicycle },
+      { name: 'soccer', icon: SoccerBall },
+      { name: 'football', icon: Football },
+      { name: 'basketball', icon: Basketball },
+      { name: 'tennis', icon: TennisBall },
+      { name: 'volley', icon: Volleyball },
+      { name: 'baseball', icon: Baseball },
+      { name: 'bowling', icon: BowlingBall },
+      { name: 'boxing', icon: BoxingGlove },
     ]
   },
   {
     name: 'Health',
     icons: [
       { name: 'heart', icon: Heart },
+      { name: 'brain', icon: Brain },
       { name: 'smile', icon: Smiley },
       { name: 'moon', icon: Moon },
       { name: 'sun', icon: Sun },
-      { name: 'droplets', icon: Drop },
-      { name: 'leaf', icon: Plant },
+      { name: 'sleep', icon: Bed },
+      { name: 'pill', icon: Pill },
+      { name: 'firstaid', icon: FirstAidKit },
+      { name: 'syringe', icon: Syringe },
+      { name: 'thermo', icon: Thermometer },
+      { name: 'stethoscope', icon: Stethoscope },
+      { name: 'bandaid', icon: Bandaids },
+    ]
+  },
+  {
+    name: 'Food',
+    icons: [
+      { name: 'coffee', icon: Coffee },
+      { name: 'utensils', icon: ForkKnife },
+      { name: 'pizza', icon: Pizza },
+      { name: 'burger', icon: Hamburger },
+      { name: 'cookie', icon: Cookie },
+      { name: 'icecream', icon: IceCream },
+      { name: 'martini', icon: Martini },
+      { name: 'wine', icon: Wine },
+      { name: 'beer', icon: BeerBottle },
+      { name: 'cake', icon: Cake },
+      { name: 'popcorn', icon: Popcorn },
+      { name: 'cooking', icon: CookingPot },
+      { name: 'apple', icon: AppleLogo },
+      { name: 'carrot', icon: Carrot },
+    ]
+  },
+  {
+    name: 'Work & Tech',
+    icons: [
+      { name: 'briefcase', icon: Briefcase },
+      { name: 'grad', icon: GraduationCap },
+      { name: 'book', icon: Book },
+      { name: 'pen', icon: Pen },
+      { name: 'code', icon: Code },
+      { name: 'laptop', icon: Laptop },
+      { name: 'desktop', icon: Desktop },
+      { name: 'mouse', icon: Mouse },
+      { name: 'keyboard', icon: Keyboard },
+      { name: 'tablet', icon: DeviceTablet },
+      { name: 'phone', icon: DeviceMobile },
+      { name: 'watch', icon: Watch },
+      { name: 'calc', icon: Calculator },
+      { name: 'chart', icon: ChartBar },
+      { name: 'rocket', icon: Rocket },
+      { name: 'idea', icon: Lightbulb },
+      { name: 'bank', icon: Bank },
+      { name: 'robot', icon: Robot },
+      { name: 'cpu', icon: Cpu },
+      { name: 'wifi', icon: WifiHigh },
+      { name: 'battery', icon: BatteryCharging },
+      { name: 'drive', icon: HardDrives },
+      { name: 'usb', icon: Usb },
+      { name: 'printer', icon: Printer },
+    ]
+  },
+  {
+    name: 'Life & Arts',
+    icons: [
+      { name: 'home', icon: House },
+      { name: 'camera', icon: Camera },
+      { name: 'shopping', icon: ShoppingBag },
+      { name: 'gift', icon: Gift },
+      { name: 'ticket', icon: Ticket },
+      { name: 'relax', icon: Armchair },
+      { name: 'baby', icon: Baby },
+      { name: 'movie', icon: FilmStrip },
+      { name: 'tv', icon: Television },
+      { name: 'radio', icon: Radio },
+      { name: 'art', icon: Palette },
+      { name: 'ghost', icon: Ghost },
+      { name: 'game', icon: GameController },
+      { name: 'dice', icon: DiceFive },
+      { name: 'magic', icon: MagicWand },
+      { name: 'chat', icon: ChatCircle },
+      { name: 'paint', icon: PaintBrush },
+      { name: 'draw', icon: Pencil },
+      { name: 'guitar', icon: Guitar },
+      { name: 'mic', icon: Microphone },
+      { name: 'headphones', icon: Headphones },
+      { name: 'music', icon: MusicNote },
+      { name: 'speaker', icon: SpeakerHifi },
+      { name: 'cassette', icon: CassetteTape },
+      { name: 'vinyl', icon: VinylRecord },
+      { name: 'disc', icon: Disc },
+    ]
+  },
+  {
+    name: 'Nature & Animals',
+    icons: [
+      { name: 'plant', icon: Plant },
       { name: 'flower', icon: Flower },
+      { name: 'tree', icon: Tree },
+      { name: 'palm', icon: TreePalm },
+      { name: 'pine', icon: TreeEvergreen },
+      { name: 'cactus', icon: Cactus },
+      { name: 'sun-h', icon: SunHorizon },
+      { name: 'drop', icon: Drop },
+      { name: 'waves', icon: Waves },
+      { name: 'wind', icon: Wind },
+      { name: 'rain', icon: CloudRain },
+      { name: 'cloud-sun', icon: CloudSun },
+      { name: 'snow', icon: Snowflake },
+      { name: 'storm', icon: CloudLightning },
+      { name: 'umbrella', icon: Umbrella },
+      { name: 'rainbow', icon: Rainbow },
+      { name: 'fire', icon: FireSimple },
+      { name: 'cat', icon: Cat },
+      { name: 'dog', icon: Dog },
+      { name: 'bird', icon: Bird },
+      { name: 'fish', icon: Fish },
+      { name: 'paw', icon: PawPrint },
+      { name: 'butterfly', icon: Butterfly },
     ]
   },
   {
@@ -84,12 +197,63 @@ const ICON_CATEGORIES = [
     icons: [
       { name: 'plane', icon: Airplane },
       { name: 'car', icon: Car },
+      { name: 'taxi', icon: Taxi },
+      { name: 'bus', icon: Bus },
+      { name: 'train', icon: Train },
+      { name: 'subway', icon: Subway },
+      { name: 'tram', icon: Tram },
+      { name: 'truck', icon: Truck },
+      { name: 'moto', icon: Motorcycle },
+      { name: 'scooter', icon: Scooter },
+      { name: 'jeep', icon: Jeep },
       { name: 'bike', icon: Bicycle },
+      { name: 'boat', icon: Boat },
+      { name: 'ship', icon: Sailboat },
+      { name: 'ufo', icon: FlyingSaucer },
       { name: 'map', icon: MapTrifold },
       { name: 'compass', icon: Compass },
       { name: 'globe', icon: Globe },
+      { name: 'luggage', icon: Suitcase },
+      { name: 'view', icon: Binoculars },
+      { name: 'chute', icon: Parachute },
+    ]
+  },
+  {
+    name: 'Clothing',
+    icons: [
+      { name: 'tshirt', icon: TShirt },
+      { name: 'hoodie', icon: Hoodie },
+      { name: 'dress', icon: Dress },
+      { name: 'hanger', icon: CoatHanger },
+      { name: 'heels', icon: HighHeel },
+      { name: 'glasses', icon: Eyeglasses },
+      { name: 'shades', icon: Sunglasses },
+      { name: 'cap', icon: BaseballCap },
+    ]
+  },
+  {
+    name: 'Tools & Objects',
+    icons: [
       { name: 'clock', icon: Clock },
       { name: 'calendar', icon: CalendarBlank },
+      { name: 'wrench', icon: Wrench },
+      { name: 'hammer', icon: Hammer },
+      { name: 'key', icon: Key },
+      { name: 'lock', icon: Lock },
+      { name: 'bell', icon: Bell },
+      { name: 'gear', icon: Gear },
+      { name: 'tag', icon: Tag },
+      { name: 'clip', icon: Paperclip },
+      { name: 'pin', icon: PushPin },
+      { name: 'cut', icon: Scissors },
+      { name: 'trash', icon: Trash },
+      { name: 'clean', icon: Broom },
+      { name: 'shower', icon: Shower },
+      { name: 'lamp', icon: Lamp },
+      { name: 'dollar', icon: CurrencyDollar },
+      { name: 'piggy', icon: PiggyBank },
+      { name: 'card', icon: CreditCard },
+      { name: 'wallet', icon: Wallet },
     ]
   }
 ];
@@ -208,7 +372,7 @@ export function IconPicker({ value, onChange }: IconPickerProps) {
         whileTap={{ scale: 0.95 }}
         onClick={() => setOpen(!open)}
         className={`
-          relative w-14 h-14 flex items-center justify-center rounded-full transition-all duration-500
+          relative w-14 h-14 flex items-center justify-center rounded-full transition-all duration-300
           ${SelectedIcon 
             ? 'bg-white dark:bg-zinc-800 shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1)] ring-1 ring-black/5 dark:ring-white/10' 
             : 'bg-white/50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-700 shadow-sm hover:shadow-md'
@@ -249,7 +413,7 @@ export function IconPicker({ value, onChange }: IconPickerProps) {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ type: "spring", stiffness: 500, damping: 25, mass: 0.5 }}
+              transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
               className="
                 fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[70]
                 w-[380px] max-h-[500px] 

@@ -205,7 +205,7 @@ export function CreateModal({
               initial={{ opacity: 0, y: -20, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.9 }}
-              transition={{ duration: 0.5, type: "spring", bounce: 0.3 }}
+              transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
               className="w-full max-w-lg mb-12 pointer-events-auto relative z-20"
             >
               <div className="text-center mb-6 text-[10px] font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-[0.3em] opacity-50">
@@ -219,8 +219,12 @@ export function CreateModal({
                         initial={{ opacity: 0, scale: 0.9, height: 128 }}
                         animate={{ opacity: 1, scale: 1, height: "min(400px, 55vh)" }}
                         exit={{ opacity: 0, scale: 0.9, height: 128 }}
-                        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                        transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
                         className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl border border-white/20 dark:border-white/5 overflow-hidden flex flex-col"
+                        onClick={(e) => {
+                            // Prevent click from propagating to the backdrop (which closes the modal)
+                            e.stopPropagation(); 
+                        }}
                     >
                         <div className="flex-1 overflow-hidden p-6">
                             <IconSelectionView 
@@ -241,7 +245,7 @@ export function CreateModal({
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
-                        className="transform transition-all duration-500 hover:scale-[1.02] hover:-translate-y-2 cursor-pointer"
+                        className="transform transition-all duration-300 hover:scale-[1.02] hover:-translate-y-2 cursor-pointer"
                         onClick={() => setIsPickingIcon(true)}
                     >
                         <ItemCard 
@@ -415,7 +419,7 @@ export function CreateModal({
                         shadow-[0_10px_20px_-5px_rgba(0,0,0,0.15)]
                         hover:scale-105 active:scale-95 
                         disabled:opacity-0 disabled:scale-90
-                        transition-all duration-500 ease-out
+                        transition-all duration-300 ease-out
                      "
                    >
                      <span className="relative z-10 flex items-center gap-2">
@@ -424,7 +428,7 @@ export function CreateModal({
                      </span>
                      
                      {/* Button Glow */}
-                     <div className="absolute inset-0 rounded-full bg-zinc-900 dark:bg-zinc-100 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
+                     <div className="absolute inset-0 rounded-full bg-zinc-900 dark:bg-zinc-100 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300" />
                    </button>
                    
                    {/* Cancel (Subtle) */}

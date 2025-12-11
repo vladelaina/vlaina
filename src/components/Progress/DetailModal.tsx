@@ -196,7 +196,7 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: 0.2 }}
             className="fixed -inset-[50%] bg-zinc-100/60 dark:bg-black/80 backdrop-blur-xl z-50"
             onClick={(e) => {
                 e.stopPropagation();
@@ -231,7 +231,7 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                 initial={{ opacity: 0, scale: 0.95, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                transition={{ type: "spring", stiffness: 600, damping: 28, mass: 0.5 }}
+                transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
                 className="
                     relative w-[360px] h-[520px] 
                     bg-white dark:bg-zinc-900 
@@ -261,7 +261,7 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                     <motion.div 
                     className="absolute bottom-0 left-0 right-0 bg-zinc-50/50 dark:bg-zinc-800/50 backdrop-blur-[2px]"
                     animate={{ height: fillHeight }}
-                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    transition={{ type: "spring", stiffness: 100, damping: 20 }}
                     />
                     
                     {/* The Watermark Icon - Deeper & Larger */}
@@ -273,220 +273,144 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                 </div>
 
                 {/* --- 2. Top Bar --- */}
-                <div className="relative z-20 flex justify-between items-center p-6 px-8 h-20 overflow-hidden">
-                    <AnimatePresence initial={false}>
-                        {!showMenu ? (
-                            /* STATE A: Default Header */
-                            <motion.div 
-                                key="header-default"
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -10 }}
-                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                className="absolute inset-x-8 inset-y-0 flex items-center justify-between gap-2 pointer-events-none"
-                            >
-                                {/* Left: Icon Trigger (Pointer Events Auto) */}
-                                <div className="pointer-events-auto">
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsPickingIcon(true);
-                                        }}
-                                        className={`group relative size-10 flex items-center justify-center rounded-full 
-                                            bg-white/40 dark:bg-zinc-800/40 hover:bg-white/80 dark:hover:bg-zinc-700/80
-                                            transition-all duration-500 backdrop-blur-md
-                                            shadow-sm ring-1 ring-white/50 dark:ring-zinc-700/50
-                                            opacity-100
-                                        `}
-                                    >
-                                        {DisplayIcon ? (
-                                            <DisplayIcon weight="duotone" className="size-5 text-zinc-600 dark:text-zinc-300 group-hover:scale-110 transition-transform duration-500" />
-                                        ) : (
-                                            <Prohibit weight="bold" className="size-5 text-zinc-300 dark:text-zinc-600 group-hover:scale-110 transition-transform duration-500" />
-                                        )}
-                                    </button>
-                                </div>
+                <div className="relative z-20 flex justify-between items-center p-6 px-8 h-20">
+                    {/* Left: Icon Trigger */}
+                    <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsPickingIcon(true);
+                        setShowMenu(false);
+                    }}
+                    className={`group relative size-10 flex items-center justify-center rounded-full 
+                        bg-white/40 dark:bg-zinc-800/40 hover:bg-white/80 dark:hover:bg-zinc-700/80
+                        transition-all duration-300 backdrop-blur-md
+                        shadow-sm ring-1 ring-white/50 dark:ring-zinc-700/50
+                        opacity-100
+                    `}
+                    >
+                    {DisplayIcon ? (
+                        <DisplayIcon weight="duotone" className="size-5 text-zinc-600 dark:text-zinc-300 group-hover:scale-110 transition-transform duration-300" />
+                    ) : (
+                        <Prohibit weight="bold" className="size-5 text-zinc-300 dark:text-zinc-600 group-hover:scale-110 transition-transform duration-300" />
+                    )}
+                    </button>
 
-                                {/* Right: Actions Group (Pointer Events Auto) */}
-                                <div className="flex items-center gap-4 pointer-events-auto">
-                                    {/* More Menu Trigger (Morph Origin) */}
-                                    {!isEditing && (
-                                        <motion.button 
-                                            layoutId="more-menu-pill"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setShowMenu(true);
-                                            }}
-                                            className="
-                                                size-10 flex items-center justify-center rounded-full 
-                                                text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-100 
-                                                hover:bg-zinc-100 dark:hover:bg-zinc-800
-                                                transition-colors duration-300
-                                            "
-                                        >
-                                            <DotsThree weight="bold" className="size-6" />
-                                        </motion.button>
-                                    )}
-
-                                    {/* Close Button - Independent & Primary - Ghost Style */}
-                                    <motion.button 
-                                        layoutId="modal-close-button"
-                                        onClick={handleClose}
-                                        className="
-                                            size-10 flex items-center justify-center rounded-full 
-                                            bg-transparent
-                                            text-zinc-300 hover:text-zinc-900 dark:text-zinc-600 dark:hover:text-zinc-100
-                                            hover:bg-zinc-100 dark:hover:bg-zinc-800
-                                            transition-colors duration-300
-                                        "
-                                    >
-                                        <X weight="bold" className="size-4" />
-                                    </motion.button>
-                                </div>
-                            </motion.div>
-                        ) : (
-                            /* STATE B: Action Mode (Replaces Header) */
+                    {/* Right: Menu Trigger / Expanded Capsule */}
+                    <div className="relative h-10 flex items-center justify-end min-w-[40px]">
+                    <AnimatePresence mode="popLayout">
+                        {!isEditing && !showMenu && (
+                        <motion.button 
+                            key="menu-trigger"
+                            layoutId="menu-pill"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
+                            onClick={() => setShowMenu(true)}
+                            className="absolute right-0 p-2 rounded-full text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-100 transition-colors bg-zinc-100 dark:bg-zinc-800"
+                        >
+                            <DotsThree weight="bold" className="size-6" />
+                        </motion.button>
+                        )}
+                    
+                        {showMenu && !isEditing && (
+                        <motion.div
+                            key="menu-capsule"
+                            layoutId="menu-pill"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
+                            className="
+                            absolute right-0 flex items-center gap-1 p-1 pr-2 rounded-full 
+                            bg-zinc-100 dark:bg-zinc-800 
+                            ring-1 ring-black/5 dark:ring-white/10
+                            overflow-hidden
+                            "
+                        >
+                            {/* Actions Container - Staggered */}
                             <motion.div 
-                                key="header-actions"
+                                className="flex items-center gap-1"
                                 initial="hidden"
                                 animate="visible"
-                                exit="hidden"
-                                className="absolute inset-x-8 inset-y-0 flex items-center justify-end pointer-events-auto z-50"
+                                variants={{
+                                    visible: { transition: { staggerChildren: 0.03, delayChildren: 0.02 } },
+                                    hidden: {}
+                                }}
                             >
-                                {/* Unified Command Toolbar - Fluid Morph Edition */}
-                                <motion.div 
-                                    layoutId="more-menu-pill"
-                                    className="
-                                        flex items-center pl-1.5 pr-1.5 h-11 rounded-full 
-                                        bg-zinc-100 dark:bg-zinc-800
-                                        overflow-hidden
-                                    "
-                                    transition={{
-                                        type: "spring",
-                                        stiffness: 500,
-                                        damping: 30,
-                                        mass: 0.8
+                                {/* Archive */}
+                                <motion.button
+                                    variants={{
+                                        hidden: { opacity: 0, x: 10 },
+                                        visible: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 850, damping: 35, mass: 0.5 } }
                                     }}
+                                    onClick={handleArchive}
+                                    className="p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                    title={item.archived ? "Unarchive" : "Archive"}
                                 >
-                                    {/* Action Group - Staggered Entrance */}
-                                    <motion.div 
-                                        className="flex items-center gap-1"
-                                        variants={{
-                                            visible: { 
-                                                transition: { staggerChildren: 0.05, delayChildren: 0.15 }
-                                            },
-                                            hidden: { }
-                                        }}
-                                        initial="hidden"
-                                        animate="visible"
-                                    >
-                                        {/* Delete - Wiggle Interaction */}
-                                        <motion.button
-                                            variants={{
-                                                hidden: { opacity: 0, scale: 0.5, y: 10 },
-                                                visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 500, damping: 25 } }
-                                            }}
-                                            whileHover={{ 
-                                                scale: 1.1, 
-                                                rotate: [0, -10, 10, -10, 10, 0],
-                                                transition: { duration: 0.4 } 
-                                            }}
-                                            whileTap={{ scale: 0.9 }}
-                                            onClick={() => { setShowMenu(false); handleDelete(); }}
-                                            className="
-                                                size-9 flex items-center justify-center rounded-full 
-                                                bg-transparent
-                                                text-zinc-400 dark:text-zinc-500
-                                                hover:text-red-500 dark:hover:text-red-400
-                                                hover:bg-red-50 dark:hover:bg-red-900/20
-                                                transition-colors duration-200
-                                            "
-                                            title="Delete Item"
-                                        >
-                                            <Trash weight="duotone" className="size-5" />
-                                        </motion.button>
+                                    <Archive weight="duotone" className="size-5" />
+                                </motion.button>
 
-                                        {/* Reset - Spin Interaction */}
-                                        <motion.button
-                                            variants={{
-                                                hidden: { opacity: 0, scale: 0.5, y: 10 },
-                                                visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 500, damping: 25 } }
-                                            }}
-                                            whileHover={{ 
-                                                scale: 1.1, 
-                                                rotate: -180,
-                                                transition: { duration: 0.4, type: "spring" }
-                                            }}
-                                            whileTap={{ scale: 0.9 }}
-                                            onClick={() => { setShowMenu(false); onUpdate(item.id, { current: 0 }); }}
-                                            className="
-                                                size-9 flex items-center justify-center rounded-full 
-                                                bg-transparent
-                                                text-zinc-400 dark:text-zinc-500
-                                                hover:text-zinc-900 dark:hover:text-zinc-100
-                                                hover:bg-zinc-100 dark:hover:bg-zinc-700
-                                                transition-colors duration-200
-                                            "
-                                            title="Reset Progress"
-                                        >
-                                            <ArrowCounterClockwise weight="bold" className="size-5" />
-                                        </motion.button>
-                                        
-                                        {/* Archive - Lift Interaction */}
-                                        <motion.button
-                                            variants={{
-                                                hidden: { opacity: 0, scale: 0.5, y: 10 },
-                                                visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 500, damping: 25 } }
-                                            }}
-                                            whileHover={{ 
-                                                scale: 1.1, 
-                                                y: -2,
-                                                transition: { type: "spring", stiffness: 300 }
-                                            }}
-                                            whileTap={{ scale: 0.9, y: 0 }}
-                                            onClick={() => { setShowMenu(false); handleArchive(); }}
-                                            className="
-                                                size-9 flex items-center justify-center rounded-full 
-                                                bg-transparent
-                                                text-zinc-400 dark:text-zinc-500
-                                                hover:text-zinc-900 dark:hover:text-zinc-100
-                                                hover:bg-zinc-100 dark:hover:bg-zinc-700
-                                                transition-colors duration-200
-                                            "
-                                            title={item.archived ? "Unarchive" : "Archive"}
-                                        >
-                                            <Archive weight="duotone" className="size-5" />
-                                        </motion.button>
-                                    </motion.div>
+                                {/* Reset */}
+                                <motion.button
+                                    variants={{
+                                        hidden: { opacity: 0, x: 10 },
+                                        visible: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 850, damping: 35, mass: 0.5 } }
+                                    }}
+                                    onClick={() => onUpdate(item.id, { current: 0 })}
+                                    className="p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                    title="Reset Progress"
+                                >
+                                    <ArrowCounterClockwise weight="bold" className="size-5" />
+                                </motion.button>
+                                
+                                {/* Divider */}
+                                <motion.div 
+                                    variants={{
+                                        hidden: { scaleY: 0, opacity: 0 },
+                                        visible: { scaleY: 1, opacity: 1, transition: { type: "spring", stiffness: 850, damping: 35, mass: 0.5 } }
+                                    }}
+                                    className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-1 origin-center" 
+                                />
 
-                                    {/* Divider - Subtle */}
-                                    <motion.div 
-                                        className="w-px h-5 bg-zinc-200 dark:bg-zinc-700 mx-2"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ delay: 0.15, duration: 0.2 }}
-                                    />
+                                {/* Delete */}
+                                <motion.button
+                                    variants={{
+                                        hidden: { opacity: 0, x: 10 },
+                                        visible: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 850, damping: 35, mass: 0.5 } }
+                                    }}
+                                    onClick={handleDelete}
+                                    className="p-2 rounded-full text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:text-zinc-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
+                                    title="Delete"
+                                >
+                                    <Trash weight="duotone" className="size-5" />
+                                </motion.button>
 
-                                    {/* Integrated Close Button - Rotate Interaction */}
-                                    <motion.button 
-                                        layoutId="modal-close-button"
-                                        whileHover={{ rotate: 90 }}
-                                        whileTap={{ scale: 0.9 }}
-                                        onClick={() => setShowMenu(false)}
-                                        className="
-                                            size-9 flex items-center justify-center rounded-full 
-                                            bg-transparent
-                                            text-zinc-400 dark:text-zinc-500
-                                            hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100
-                                            transition-colors duration-300
-                                        "
-                                    >
-                                        <X weight="bold" className="size-4" />
-                                    </motion.button>
-                                </motion.div>
+                                {/* Divider */}
+                                <motion.div 
+                                    variants={{
+                                        hidden: { scaleY: 0, opacity: 0 },
+                                        visible: { scaleY: 1, opacity: 1, transition: { type: "spring", stiffness: 850, damping: 35, mass: 0.5 } }
+                                    }}
+                                    className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-1 origin-center" 
+                                />
+
+                                {/* Close */}
+                                <motion.button
+                                    variants={{
+                                        hidden: { opacity: 0, rotate: -90 },
+                                        visible: { opacity: 1, rotate: 0, transition: { type: "spring", stiffness: 850, damping: 35, mass: 0.5 } }
+                                    }}
+                                    onClick={() => setShowMenu(false)}
+                                    className="p-2 rounded-full text-zinc-300 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                                >
+                                    <X weight="bold" className="size-4" />
+                                </motion.button>
                             </motion.div>
+                        </motion.div>
                         )}
                     </AnimatePresence>
+                    </div>
                 </div>
 
                 {/* --- 3. Center Zone (The Tuning Engine) --- */}
@@ -518,7 +442,7 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                         />
                     ) : (
                         <h2 
-                            onClick={() => { setFocusTarget('title'); setIsEditing(true); }}
+                            onClick={() => { setFocusTarget('title'); setIsEditing(true); setShowMenu(false); }}
                             className="
                             text-3xl font-medium tracking-tight
                             text-zinc-900 dark:text-zinc-100 
@@ -545,7 +469,7 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                             h-32 w-24 flex items-center justify-center
                             text-zinc-200/50 dark:text-zinc-800/50 
                             hover:text-zinc-400 dark:hover:text-zinc-500
-                            transition-colors duration-500
+                            transition-colors duration-300
                             cursor-pointer
                             outline-none
                             "
@@ -583,11 +507,11 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                         ) : (
                         <motion.span 
                             layout
-                            onClick={() => { setFocusTarget('current'); setIsEditing(true); }}
+                            onClick={() => { setFocusTarget('current'); setIsEditing(true); setShowMenu(false); }}
                             className="
                             text-9xl font-thin tracking-tighter 
                             text-zinc-900 dark:text-zinc-50 
-                            cursor-pointer hover:scale-105 transition-transform duration-500
+                            cursor-pointer hover:scale-105 transition-transform duration-300
                             tabular-nums select-none
                             drop-shadow-sm
                             "
@@ -597,7 +521,7 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                         )}
 
                         {/* Metadata Row (Borderless & Minimal) */}
-                        <div className={`flex items-center gap-6 transition-all duration-500 ${isEditing ? 'opacity-100 translate-y-0' : 'opacity-40 hover:opacity-100 translate-y-2'}`}>
+                        <div className={`flex items-center gap-6 transition-all duration-300 ${isEditing ? 'opacity-100 translate-y-0' : 'opacity-40 hover:opacity-100 translate-y-2'}`}>
                             {/* Target */}
                             {displayItem.type === 'progress' && (
                             <div className="flex flex-col items-center gap-1 group">
@@ -618,7 +542,7 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                                     onClick={(e) => e.stopPropagation()}
                                 />
                                 ) : (
-                                <span onClick={() => { setFocusTarget('total'); setIsEditing(true); }} className="text-xl font-medium text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors cursor-pointer">
+                                <span onClick={() => { setFocusTarget('total'); setIsEditing(true); setShowMenu(false); }} className="text-xl font-medium text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors cursor-pointer">
                                     {displayItem.total}
                                 </span>
                                 )}
@@ -647,7 +571,7 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                                     onClick={(e) => e.stopPropagation()}
                                 />
                                 ) : (
-                                <span onClick={() => { setFocusTarget('step'); setIsEditing(true); }} className="text-xl font-medium text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors cursor-pointer">
+                                <span onClick={() => { setFocusTarget('step'); setIsEditing(true); setShowMenu(false); }} className="text-xl font-medium text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors cursor-pointer">
                                     {displayItem.step}
                                 </span>
                                 )}
@@ -676,7 +600,7 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                                 />
                                 ) : (
                                 <span 
-                                    onClick={() => { setFocusTarget('unit'); setIsEditing(true); }}
+                                    onClick={() => { setFocusTarget('unit'); setIsEditing(true); setShowMenu(false); }}
                                     className={`
                                     text-xl font-medium cursor-pointer transition-colors
                                     ${displayItem.unit 
@@ -705,7 +629,7 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                             h-32 w-24 flex items-center justify-center
                             text-zinc-200/50 dark:text-zinc-800/50 
                             hover:text-zinc-400 dark:hover:text-zinc-500
-                            transition-colors duration-500
+                            transition-colors duration-300
                             cursor-pointer
                             outline-none
                             "
@@ -729,7 +653,7 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                         initial={{ opacity: 0, y: 40, scale: 0.5 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 40, scale: 0.5 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                        transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
                         onClick={handleCommit}
                         className="
                             size-20 rounded-full 
@@ -752,7 +676,7 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                         className="flex flex-col items-center gap-6 w-full"
                         >
                             {/* Micro Stats - Simplified */}
-                            <div className="flex items-center gap-12 opacity-50 hover:opacity-100 transition-opacity duration-500">
+                            <div className="flex items-center gap-12 opacity-50 hover:opacity-100 transition-opacity duration-300">
                             {(() => {
                                 const stats = getStats(displayItem);
                                 return (
@@ -782,9 +706,11 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                         initial={{ opacity: 0, y: '100%' }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: '100%' }}
-                        transition={{ type: "spring", stiffness: 500, damping: 25, mass: 0.5 }}
+                        transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
                         className="absolute inset-0 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl flex flex-col p-6"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                        }}
                     >
                         <div className="flex-1 overflow-hidden">
                         <IconSelectionView 

@@ -123,7 +123,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
             backdrop-blur-xl
             h-28 select-none cursor-pointer
             grid grid-cols-[1.5fr_2.5fr] gap-8 items-center px-10
-            transition-all duration-500
+            transition-all duration-300
             hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] 
             hover:bg-white/80 dark:hover:bg-zinc-900
             group-hover:-translate-y-1
@@ -139,7 +139,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
                     <Icon 
                         className={`
                             size-24 
-                            transition-colors duration-500
+                            transition-colors duration-300
                             ${isCompleting 
                                 ? 'text-zinc-200 dark:text-zinc-700 opacity-20' 
                                 : 'text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] mix-blend-multiply dark:mix-blend-overlay'
@@ -237,7 +237,8 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
         initial={false}
         animate={isDragging ? { scale: 1.05, y: -5, zIndex: 50 } : { scale: 1, y: 0, zIndex: 0 }}
         whileHover={{ scale: 1.01, y: -2 }}
-        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+        whileTap={{ scale: 0.98 }}
+        transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
         className={`
           group relative overflow-hidden rounded-[2.5rem]
           bg-white dark:bg-zinc-900 
@@ -253,7 +254,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
             <motion.div
               initial={{ x: '-100%', opacity: 0 }}
               animate={{ x: '200%', opacity: 1 }}
-              transition={{ duration: 0.8, ease: "easeInOut" }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
               className="absolute inset-0 z-10 pointer-events-none bg-gradient-to-r from-transparent via-white/60 dark:via-white/20 to-transparent -skew-x-12"
             />
           )}
@@ -279,7 +280,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
              className="absolute inset-y-0 left-0 bg-gradient-to-r from-zinc-50 to-zinc-100 dark:from-zinc-800 dark:to-zinc-800/50"
              initial={false}
              animate={{ width: fillWidth, opacity: isCompleting ? 0 : 1 }}
-             transition={{ duration: 0.8, ease: "circOut" }}
+             transition={{ duration: 0.4, ease: "circOut" }}
            >
                {/* The Leading Edge Glow */}
                <div className="absolute right-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-zinc-300 dark:via-zinc-600 to-transparent opacity-50" />
@@ -337,7 +338,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
         )}
         
         {/* Delicate Border (Ring) */}
-        <div className={`absolute inset-0 rounded-[2.5rem] ring-1 ring-inset pointer-events-none transition-colors duration-500 ${isCompleting ? 'ring-transparent' : 'ring-black/5 dark:ring-white/5'}`} />
+        <div className={`absolute inset-0 rounded-[2.5rem] ring-1 ring-inset pointer-events-none transition-colors duration-300 ${isCompleting ? 'ring-transparent' : 'ring-black/5 dark:ring-white/5'}`} />
 
         {/* Content Layer */}
         <div className="absolute inset-0 flex items-center justify-between px-10 pointer-events-none z-20 overflow-hidden">
@@ -349,7 +350,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
               x: isCompleting ? '50%' : (hoverZone === 'left' ? 48 : 0), 
               opacity: hoverZone === 'left' ? 0.6 : 1 
             }}
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
           >
             <motion.div 
               className="relative flex items-center w-full h-full"
@@ -389,7 +390,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
                         width: '100%'
                     }}
                 >
-                  <span className={`text-2xl font-light tracking-wide truncate leading-none transition-colors duration-500 ${isCompleting ? 'text-white dark:text-zinc-900 mt-16' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                  <span className={`text-2xl font-light tracking-wide truncate leading-none transition-colors duration-300 ${isCompleting ? 'text-white dark:text-zinc-900 mt-16' : 'text-zinc-900 dark:text-zinc-100'}`}>
                     {displayTitle}
                   </span>
                   
@@ -417,7 +418,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
                 right: isCompleting ? '50%' : '40px',
                 x: isCompleting ? '50%' : 0 
             }}
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
           >
              <AnimatePresence mode="wait">
                {isCompleting ? (
@@ -426,7 +427,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
                    initial={{ scale: 0, rotate: -180 }}
                    animate={{ scale: 1, rotate: 0 }}
                    exit={{ scale: 0 }}
-                   transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                   transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
                    className="flex items-center justify-center"
                  >
                     <div className="p-4 rounded-full bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-[0_0_40px_rgba(255,255,255,0.6)] dark:shadow-[0_0_40px_rgba(255,255,255,0.1)]">
@@ -445,7 +446,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
                         : 1 
                    }}
                    transition={{ 
-                      type: "spring", stiffness: 500, damping: 15,
+                      type: "spring", stiffness: 850, damping: 35, mass: 0.5,
                       scale: { duration: 0.15 } 
                    }}
                    exit={{ opacity: 0, scale: 0.8 }}
@@ -487,7 +488,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
             <motion.div
               initial={{ x: -20, opacity: 0, scale: 0.8 }}
               animate={hoverZone === 'left' ? { x: 0, opacity: 1, scale: 1 } : { x: -20, opacity: 0, scale: 0.8 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
               className="text-zinc-300 dark:text-zinc-600"
             >
               <Minus className="size-8" strokeWidth={1} />
@@ -522,7 +523,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
             <motion.div
               initial={{ x: 20, opacity: 0, scale: 0.8 }}
               animate={hoverZone === 'right' ? { x: 0, opacity: 1, scale: 1 } : { x: 20, opacity: 0, scale: 0.8 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
               className="text-zinc-300 dark:text-zinc-600"
             >
               <Plus className="size-8" strokeWidth={1} />

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -119,7 +119,18 @@ export function ProgressPage() {
 
   const greeting = pendingCount === 0 ? 'All Done' : `${pendingCount} Pending`;
 
-  // Main list view
+  const handlePreviewChange = useCallback((icon?: string, title?: string) => {
+    if (icon === undefined && title === undefined) {
+      setPreviewOverride(null);
+    } else {
+      // Only update if values actually changed to avoid unnecessary renders
+      setPreviewOverride(prev => {
+        if (prev?.icon === icon && prev?.title === title) return prev;
+        return { icon, title };
+      });
+    }
+  }, []);
+
   return (
     <div className="h-full bg-white dark:bg-zinc-900 flex flex-col relative overflow-hidden">
       {/* Right: Levitating Lens Button (Organic Liquid Soul) */}
@@ -129,7 +140,7 @@ export function ProgressPage() {
         animate={{
           right: isScrolled ? 8 : 24
         }}
-        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+        transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
       >
         <motion.button
           layout
@@ -147,9 +158,9 @@ export function ProgressPage() {
           style={{ borderRadius: 9999 }} // Force hardware rounded corners
           transition={{ 
             type: "spring", 
-            stiffness: 500, 
-            damping: 30,
-            mass: 0.8 
+            stiffness: 850, 
+            damping: 35,
+            mass: 0.5 
           }}
           className="
             pointer-events-auto
@@ -187,7 +198,7 @@ export function ProgressPage() {
                 filter: isScrolled ? "blur(10px)" : "blur(0px)", // Stronger blur for "materialization"
                 opacity: isScrolled ? 0 : 1
               }}
-              transition={{ type: "spring", stiffness: 400, damping: 30, mass: 1 }} // Slightly heavier mass for momentum
+              transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }} // High-Velocity Momentum
               className="text-[13px] font-bold tracking-wider uppercase whitespace-nowrap leading-none pt-[1px]"
             >
               New
@@ -337,11 +348,11 @@ export function ProgressPage() {
                 onClick={() => setIsArchiveView(true)}
                 className="mt-12 mb-8 flex items-center justify-center gap-3 py-2 cursor-pointer group select-none"
               >
-                <div className="h-px w-6 bg-zinc-100 dark:bg-zinc-800 transition-all duration-500 group-hover:w-12 group-hover:bg-zinc-300 dark:group-hover:bg-zinc-700" />
+                <div className="h-px w-6 bg-zinc-100 dark:bg-zinc-800 transition-all duration-300 group-hover:w-12 group-hover:bg-zinc-300 dark:group-hover:bg-zinc-700" />
                 <span className="text-[9px] font-bold tracking-[0.25em] uppercase text-zinc-300 dark:text-zinc-700 group-hover:text-zinc-500 dark:group-hover:text-zinc-500 transition-colors duration-300">
                   History
                 </span>
-                <div className="h-px w-6 bg-zinc-100 dark:bg-zinc-800 transition-all duration-500 group-hover:w-12 group-hover:bg-zinc-300 dark:group-hover:bg-zinc-700" />
+                <div className="h-px w-6 bg-zinc-100 dark:bg-zinc-800 transition-all duration-300 group-hover:w-12 group-hover:bg-zinc-300 dark:group-hover:bg-zinc-700" />
               </div>
             )}
 
@@ -367,13 +378,7 @@ export function ProgressPage() {
         onClose={() => setSelectedId(null)}
         onUpdate={updateItem}
         onDelete={deleteItem}
-        onPreviewChange={(icon, title) => {
-          if (icon === undefined && title === undefined) {
-            setPreviewOverride(null);
-          } else {
-            setPreviewOverride({ icon, title });
-          }
-        }}
+        onPreviewChange={handlePreviewChange}
       />
     </div>
   );
