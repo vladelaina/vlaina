@@ -350,7 +350,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
           
           {/* Left Group: Title & Icon */}
           <motion.div 
-            className="relative flex items-center h-full min-w-0 flex-1"
+            className="relative flex items-center h-full min-w-0 flex-1 pl-0"
             animate={{ 
               x: isCompleting ? '50%' : (hoverZone === 'left' ? 48 : 0), 
               opacity: hoverZone === 'left' ? 0.6 : 1 
@@ -358,39 +358,42 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
             transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
           >
             <motion.div 
-              className="relative flex items-center w-full h-full"
+              className="relative flex items-center w-full h-full gap-4"
               animate={{ x: isCompleting ? '-50%' : '0%' }}
             >
-                {/* Layer 0: Icon */}
-                {displayIcon && (() => {
-                  const Icon = getIconByName(displayIcon);
-                  return Icon ? (
+                {/* Layer 0: Icon (Flex Item) */}
+                {(() => {
+                  const Icon = displayIcon ? getIconByName(displayIcon) : null;
+                  return (
                     <motion.div 
-                        className="absolute left-0 flex items-center justify-center"
+                        className="flex-shrink-0 flex items-center justify-center w-16" // Increased width to w-16 to accommodate watermark
                         animate={{
-                            left: isCompleting ? '50%' : '0rem',
-                            x: isCompleting ? '-50%' : 0,
+                            x: isCompleting ? 0 : 0,
                         }}
                     >
-                        <div className={`
-                            transition-all duration-700 ease-out
-                            ${isCompleting 
-                                ? 'text-zinc-500 dark:text-zinc-400 opacity-100 scale-100' // Badge State
-                                : 'text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] scale-[2.5] -rotate-12 mix-blend-multiply dark:mix-blend-overlay origin-center ml-4' // Watermark State - Changed origin to center and added margin
-                            }
-                            ${item.type === 'counter' ? 'opacity-[0.04] dark:opacity-[0.06]' : ''} // Subtler for counter
-                        `}>
-                            <Icon className="size-10" weight="duotone" />
-                        </div>
+                        {Icon ? (
+                            <div className={`
+                                transition-all duration-700 ease-out
+                                ${isCompleting 
+                                    ? 'text-zinc-500 dark:text-zinc-400 opacity-100 scale-100' 
+                                    : 'text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] scale-[2.5] -rotate-12 mix-blend-multiply dark:mix-blend-overlay origin-center'
+                                }
+                                ${item.type === 'counter' ? 'opacity-[0.04] dark:opacity-[0.06]' : ''}
+                            `}>
+                                <Icon className="size-10" weight="duotone" />
+                            </div>
+                        ) : (
+                            // Placeholder for alignment if no icon
+                            <div className="w-16" /> 
+                        )}
                     </motion.div>
-                  ) : null;
+                  );
                 })()}
 
-                {/* Layer 1: Text */}
+                {/* Layer 1: Text (Flex Item) */}
                 <motion.div 
                     className="flex flex-col justify-center min-w-0 gap-1.5 relative z-10"
                     animate={{
-                        paddingLeft: isCompleting ? 0 : '5rem',
                         alignItems: isCompleting ? 'center' : 'flex-start',
                         width: '100%'
                     }}
