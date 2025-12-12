@@ -151,7 +151,14 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   loadItems: async () => {
     if (get().loaded) return;
     let items = await loadProgress();
-    const todayKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    
+    // Use local time for "today", not UTC
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const todayKey = `${year}-${month}-${day}`; // YYYY-MM-DD in local time
+    
     let needsPersist = false;
     
     // Apply auto-reset logic
@@ -181,6 +188,13 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   },
   
   addProgress: (data: Omit<ProgressItem, 'id' | 'type' | 'current' | 'todayCount' | 'createdAt'>) => set((state) => {
+    // Get local date for initialization
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const todayKey = `${year}-${month}-${day}`;
+
     const newItem: ProgressItem = {
       id: nanoid(),
       type: 'progress',
@@ -192,7 +206,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       unit: data.unit,
       current: data.direction === 'increment' ? 0 : data.total,
       todayCount: 0,
-      lastUpdateDate: undefined,
+      lastUpdateDate: todayKey, // Initialize to today to prevent auto-reset bug
       startDate: data.startDate,
       endDate: data.endDate,
       resetFrequency: data.resetFrequency || 'none', // Set resetFrequency
@@ -204,6 +218,13 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   }),
   
   addCounter: (data: { title: string; icon?: string; step: number; unit: string; frequency: 'daily' | 'weekly' | 'monthly'; resetFrequency?: 'daily' | 'weekly' | 'monthly' | 'none'; }) => set((state) => {
+    // Get local date for initialization
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const todayKey = `${year}-${month}-${day}`;
+
     const newItem: CounterItem = {
       id: nanoid(),
       type: 'counter',
@@ -213,7 +234,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       unit: data.unit,
       current: 0,
       todayCount: 0,
-      lastUpdateDate: undefined,
+      lastUpdateDate: todayKey, // Initialize to today
       frequency: data.frequency,
       resetFrequency: data.resetFrequency || 'none', // Set resetFrequency here
       createdAt: Date.now(),
@@ -225,7 +246,14 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   
   updateCurrent: (id, delta) => set((state) => {
     const today = new Date().toDateString();
-    const todayKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 格式
+    
+    // Use local time for history key
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const todayKey = `${year}-${month}-${day}`; // YYYY-MM-DD
+    
     const newItems = state.items.map((item): ProgressOrCounter => {
       if (item.id !== id) return item;
       

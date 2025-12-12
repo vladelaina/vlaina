@@ -28,6 +28,7 @@ interface ProgressMetadata {
   createdAt: number;
   archived?: boolean;
   order?: number;
+  resetFrequency?: 'daily' | 'weekly' | 'monthly' | 'none'; // Added resetFrequency
 }
 
 // ============================================================================
@@ -52,15 +53,16 @@ export function generateUserMarkdown(items: ProgressData[]): string {
   if (active.length > 0) {
     for (const item of active) {
       const icon = item.icon || '○';
+      const resetInfo = item.resetFrequency === 'daily' ? ' (↻ Daily)' : '';
       
       if (item.type === 'progress') {
         const percent = item.total ? Math.round((item.current / item.total) * 100) : 0;
-        lines.push(`## ${icon} ${item.title}`);
+        lines.push(`## ${icon} ${item.title}${resetInfo}`);
         lines.push(`${item.current} / ${item.total} ${item.unit} (${percent}%)`);
         lines.push('');
       } else {
         // Counter type
-        lines.push(`## ${icon} ${item.title}`);
+        lines.push(`## ${icon} ${item.title}${resetInfo}`);
         lines.push(`${item.current} ${item.unit}`);
         if (item.frequency) {
           lines.push(`*${item.frequency}*`);
@@ -104,6 +106,7 @@ export interface ExtendedMetadataFile {
     unit?: string;
     current?: number;
     frequency?: string;
+    resetFrequency?: 'daily' | 'weekly' | 'monthly' | 'none'; // Added resetFrequency
   }>;
 }
 
@@ -138,6 +141,7 @@ export function generateExtendedMetadataJson(items: ProgressData[]): string {
       unit: item.unit,
       current: item.current,
       frequency: item.frequency,
+      resetFrequency: item.resetFrequency, // Serialize resetFrequency
     };
   }
 
@@ -173,6 +177,7 @@ export function parseExtendedMetadataJson(content: string): ProgressData[] {
         createdAt: meta.createdAt,
         archived: meta.archived,
         frequency: meta.frequency as 'daily' | 'weekly' | 'monthly' | undefined,
+        resetFrequency: meta.resetFrequency as 'daily' | 'weekly' | 'monthly' | 'none' | undefined, // Deserialize resetFrequency
       });
     }
 
