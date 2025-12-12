@@ -122,7 +122,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
             shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none
             backdrop-blur-xl
             h-28 select-none cursor-pointer
-            grid grid-cols-[1.5fr_2.5fr] gap-8 items-center px-10
+            grid grid-cols-[1.5fr_2.5fr] gap-8 items-center px-6
             transition-all duration-300
             hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] 
             hover:bg-white/80 dark:hover:bg-zinc-900
@@ -130,38 +130,43 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
           "
         >
            {/* Zone 1: Identity & Result - The Artistic Watermark Layout */}
-           <div className="relative flex-1 h-full min-w-0 pr-6 border-r border-zinc-100/50 dark:border-zinc-800/50 overflow-hidden group/zone1">
-              {/* Layer 0: The Watermark (Soul) */}
-              {displayIcon && (() => {
-                const Icon = getIconByName(displayIcon);
-                return Icon ? (
-                  <div className="absolute -left-3 top-1/2 -translate-y-1/2 transition-transform duration-700 ease-out group-hover/zone1:scale-110 group-hover/zone1:-rotate-12 group-hover/zone1:translate-x-1">
-                    <Icon 
-                        className={`
-                            size-24 
-                            transition-colors duration-300
-                            ${isCompleting 
-                                ? 'text-zinc-200 dark:text-zinc-700 opacity-20' 
-                                : 'text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] mix-blend-multiply dark:mix-blend-overlay'
-                            }
-                        `} 
-                        weight="duotone" 
-                    />
+           <div className="relative flex-1 h-full min-w-0 pr-6 border-r border-zinc-100/50 dark:border-zinc-800/50 overflow-hidden group/zone1 flex items-center">
+              {/* Flex Container for Icon & Text - Natural Flow */}
+              <div className="flex items-center gap-4 w-full">
+                  {/* Icon - Natural Flex Item */}
+                  {(() => {
+                    const Icon = displayIcon ? getIconByName(displayIcon) : null;
+                    return Icon ? (
+                      <div className="flex-shrink-0 transition-transform duration-700 ease-out group-hover/zone1:scale-110 group-hover/zone1:-rotate-12 group-hover/zone1:translate-x-1">
+                        <Icon 
+                            className={`
+                                size-16 
+                                transition-colors duration-300
+                                ${isCompleting 
+                                    ? 'text-zinc-200 dark:text-zinc-700 opacity-20' 
+                                    : 'text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] mix-blend-multiply dark:mix-blend-overlay'
+                                }
+                            `} 
+                            weight="duotone" 
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex-shrink-0 w-16 h-16" /> // Placeholder for alignment
+                    );
+                  })()}
+                  
+                  {/* Text Content - Pushed by Icon */}
+                  <div className="flex flex-col justify-center min-w-0 gap-1 z-10">
+                    <span className="text-xl font-medium text-zinc-900 dark:text-zinc-100 truncate tracking-wide group-hover:text-black dark:group-hover:text-white transition-colors">
+                      {displayTitle}
+                    </span>
+                    <div className="flex items-center gap-3 text-[10px] font-bold tracking-[0.2em] uppercase text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-500 dark:group-hover:text-zinc-500 transition-colors">
+                      <span>Target</span>
+                      <span className="text-zinc-600 dark:text-zinc-400">
+                        {item.type === 'progress' ? `${item.current}/${item.total}` : item.current}
+                      </span>
+                    </div>
                   </div>
-                ) : null;
-              })()}
-              
-              {/* Layer 1: Content (Floating above) */}
-              <div className="relative z-10 pl-20 flex flex-col justify-center min-w-0 gap-1 h-full">
-                <span className="text-xl font-medium text-zinc-900 dark:text-zinc-100 truncate tracking-wide group-hover:text-black dark:group-hover:text-white transition-colors">
-                  {displayTitle}
-                </span>
-                <div className="flex items-center gap-3 text-[10px] font-bold tracking-[0.2em] uppercase text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-500 dark:group-hover:text-zinc-500 transition-colors">
-                  <span>Target</span>
-                  <span className="text-zinc-600 dark:text-zinc-400">
-                    {item.type === 'progress' ? `${item.current}/${item.total}` : item.current}
-                  </span>
-                </div>
               </div>
            </div>
 
@@ -363,7 +368,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
                     <motion.div 
                         className="absolute left-0 flex items-center justify-center"
                         animate={{
-                            left: isCompleting ? '50%' : '-1.5rem',
+                            left: isCompleting ? '50%' : '0rem',
                             x: isCompleting ? '-50%' : 0,
                         }}
                     >
@@ -371,7 +376,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
                             transition-all duration-700 ease-out
                             ${isCompleting 
                                 ? 'text-zinc-500 dark:text-zinc-400 opacity-100 scale-100' // Badge State
-                                : 'text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] scale-[2.5] -rotate-12 mix-blend-multiply dark:mix-blend-overlay origin-left' // Watermark State
+                                : 'text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] scale-[2.5] -rotate-12 mix-blend-multiply dark:mix-blend-overlay origin-center ml-4' // Watermark State - Changed origin to center and added margin
                             }
                             ${item.type === 'counter' ? 'opacity-[0.04] dark:opacity-[0.06]' : ''} // Subtler for counter
                         `}>
