@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
-  X, Trash, Archive, Check, Plus, Minus,
-  DotsThree, ArrowCounterClockwise, Prohibit,
-  Clock, ArrowsClockwise // Added ArrowsClockwise icon
+  Plus, Minus, Check, DotsThree, ArrowCounterClockwise, Prohibit,
+  X, Trash, Archive, Clock, ArrowsClockwise
 } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { ProgressOrCounter, ProgressItem, CounterItem } from '../../stores/useProgressStore';
 import { IconSelectionView, getIconByName } from './IconPicker';
+import { HistoryWaveform } from './HistoryWaveform';
 
 const appWindow = getCurrentWindow();
 
@@ -777,8 +777,17 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                     </div>
                 </div>
 
-                {/* --- 4. Footer: Stats or Check --- */}
-                <div className="relative z-20 pb-12 px-8 flex flex-col items-center justify-end h-32">
+import { HistoryWaveform } from './HistoryWaveform';
+
+// ... (existing imports)
+
+// Stats helper (Removed or kept minimal if needed, but we are replacing usage)
+// ...
+
+// inside DetailModal component...
+
+                {/* --- 4. Footer: History Waveform --- */}
+                <div className="relative z-20 pb-6 px-4 flex flex-col items-center justify-end h-40 w-full">
                     
                     <AnimatePresence mode="wait">
                     {isEditing ? (
@@ -795,39 +804,21 @@ export function DetailModal({ item, onClose, onUpdate, onDelete, onPreviewChange
                             text-white dark:text-black 
                             shadow-2xl hover:scale-105 active:scale-95 hover:shadow-black/20
                             flex items-center justify-center
-                            cursor-pointer z-50
+                            cursor-pointer z-50 mb-4
                         "
                         >
                         <Check weight="bold" className="size-8" />
                         </motion.button>
                     ) : (
                         <motion.div
-                        key="stats-footer"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="flex flex-col items-center gap-6 w-full"
+                            key="history-waveform"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 20 }}
+                            transition={{ duration: 0.4, ease: "easeOut" }}
+                            className="w-full h-full"
                         >
-                            {/* Micro Stats - Simplified */}
-                            <div className="flex items-center gap-12 opacity-50 hover:opacity-100 transition-opacity duration-300">
-                            {(() => {
-                                const stats = getStats(displayItem);
-                                return (
-                                <>
-                                    <div className="flex flex-col items-center gap-1">
-                                    <span className="text-3xl font-thin text-zinc-900 dark:text-zinc-100">{stats.streak}</span>
-                                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400">Streak</span>
-                                    </div>
-                                    <div className="w-px h-8 bg-zinc-200 dark:bg-zinc-700" />
-                                    <div className="flex flex-col items-center gap-1">
-                                    <span className="text-3xl font-thin text-zinc-900 dark:text-zinc-100">{stats.activeDays}</span>
-                                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400">Days</span>
-                                    </div>
-                                </>
-                                )
-                            })()}
-                            </div>
+                            <HistoryWaveform item={displayItem} days={10} />
                         </motion.div>
                     )}
                     </AnimatePresence>
