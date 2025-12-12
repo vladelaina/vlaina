@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Check } from 'lucide-react';
+import { Check } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { IconSelectionView, getIconByName } from './IconPicker';
@@ -424,7 +424,7 @@ export function CreateModal({
                    >
                      <span className="relative z-10 flex items-center gap-2">
                        Begin Journey
-                       <Check className="size-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+                       <Check weight="bold" className="size-4 opacity-50 group-hover:opacity-100 transition-opacity" />
                      </span>
                      
                      {/* Button Glow */}

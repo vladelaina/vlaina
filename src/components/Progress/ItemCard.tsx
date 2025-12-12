@@ -1,6 +1,6 @@
 import { useSortable, defaultAnimateLayoutChanges, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Minus, Check } from 'lucide-react';
+import { Plus, Minus, Check } from '@phosphor-icons/react';
 import type { ProgressOrCounter } from '../../stores/useProgressStore';
 import { getIconByName } from './IconPicker';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -439,7 +439,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
                    className="flex items-center justify-center"
                  >
                     <div className="p-4 rounded-full bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-[0_0_40px_rgba(255,255,255,0.6)] dark:shadow-[0_0_40px_rgba(255,255,255,0.1)]">
-                      <Check className="size-8" strokeWidth={3} />
+                      <Check className="size-8" weight="bold" />
                     </div>
                  </motion.div>
                ) : (
@@ -499,7 +499,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
               transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
               className="text-zinc-300 dark:text-zinc-600"
             >
-              <Minus className="size-8" strokeWidth={1} />
+              <Minus className="size-8" weight="light" />
             </motion.div>
           </div>
 
@@ -534,7 +534,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, p
               transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
               className="text-zinc-300 dark:text-zinc-600"
             >
-              <Plus className="size-8" strokeWidth={1} />
+              <Plus className="size-8" weight="light" />
             </motion.div>
           </div>
         </div>

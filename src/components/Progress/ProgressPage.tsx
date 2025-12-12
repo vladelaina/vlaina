@@ -8,7 +8,7 @@ import {
   DragOverlay,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, Archive, ArrowLeft } from 'lucide-react';
+import { Plus, Archive, ArrowLeft } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProgressStore } from '../../stores/useProgressStore';
 import { useProgressDrag } from './hooks/useProgressDrag';
@@ -185,7 +185,7 @@ export function ProgressPage() {
                 layout="position"
                 className="flex items-center justify-center shrink-0 relative z-10"
               >
-                <Plus className="size-4" strokeWidth={2.5} />
+                <Plus className="size-4" weight="bold" />
               </motion.div>
               
               {/* Text - Organic Reveal */}
@@ -276,7 +276,7 @@ export function ProgressPage() {
                           >
                             <ArrowLeft 
                               className="size-5 text-zinc-400 group-hover:text-zinc-900 dark:text-zinc-500 dark:group-hover:text-zinc-100 transition-colors duration-300 transform group-hover:-translate-x-1" 
-                              strokeWidth={1.5} 
+                              weight="regular" 
                             />
                           </button>
 
@@ -301,9 +301,9 @@ export function ProgressPage() {
             <div className="flex flex-col items-center justify-center py-20 opacity-50">
               <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-4">
                 {isArchiveView ? (
-                  <Archive className="size-8 text-zinc-300 dark:text-zinc-600" />
+                  <Archive weight="light" className="size-8 text-zinc-300 dark:text-zinc-600" />
                 ) : (
-                  <Plus className="size-8 text-zinc-300 dark:text-zinc-600" />
+                  <Plus weight="light" className="size-8 text-zinc-300 dark:text-zinc-600" />
                 )}
               </div>
               <p className="text-sm text-zinc-400 dark:text-zinc-500 font-medium">
