@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { format, subDays, startOfWeek, endOfWeek, subWeeks, startOfMonth, subMonths, isSameDay } from 'date-fns';
+import { useMemo, useState, useRef } from 'react';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { format, subDays, startOfWeek, endOfWeek, subWeeks, startOfMonth, subMonths } from 'date-fns';
 import type { ProgressOrCounter } from '../../stores/useProgressStore';
 
 interface HistoryWaveformProps {
@@ -18,15 +18,23 @@ const SCOPE_CONFIG: Record<TimeScope, { full: string, tiny: string }> = {
 };
 
 /**
- * "Chrono-Rhythm" Visualization
- * A liquid, interactive waveform with a "Phantom Handle" control mechanism.
+ * "Chrono-Rhythm" Visualization - The Masterpiece Edition
+ * 
+ * Design Philosophy:
+ * - Liquid Physics: Pillars react organically to interaction.
+ * - Optical Materials: Controls feel like crafted glass/crystal.
+ * - Ambient Intelligence: Light and shadow guide the eye.
  */
 export function HistoryWaveform({ item }: HistoryWaveformProps) {
   const [scope, setScope] = useState<TimeScope>('14D');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isControlActive, setIsControlActive] = useState(false);
+  
+  // Mouse position for ambient glow effect
+  const mouseX = useMotionValue(0);
+  const glowX = useSpring(mouseX, { stiffness: 150, damping: 25 });
 
-  // 1. Intelligent Data Aggregation
+  // 1. Data Processing
   const dataPoints = useMemo(() => {
     const points = [];
     const today = new Date();
@@ -37,31 +45,11 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
     let aggregationType: 'day' | 'week' | 'month' = 'day';
 
     switch (scope) {
-      case '7D':
-        iterations = 7;
-        labelFormat = 'EEE';
-        aggregationType = 'day';
-        break;
-      case '14D':
-        iterations = 14;
-        labelFormat = 'EEE';
-        aggregationType = 'day';
-        break;
-      case '30D':
-        iterations = 30;
-        labelFormat = 'd';
-        aggregationType = 'day';
-        break;
-      case '12W':
-        iterations = 12;
-        labelFormat = 'MMM d';
-        aggregationType = 'week';
-        break;
-      case '12M':
-        iterations = 12;
-        labelFormat = 'MMM';
-        aggregationType = 'month';
-        break;
+      case '7D':  iterations = 7;  labelFormat = 'EEE';   aggregationType = 'day'; break;
+      case '14D': iterations = 14; labelFormat = 'EEE';   aggregationType = 'day'; break;
+      case '30D': iterations = 30; labelFormat = 'd';     aggregationType = 'day'; break;
+      case '12W': iterations = 12; labelFormat = 'MMM d'; aggregationType = 'week'; break;
+      case '12M': iterations = 12; labelFormat = 'MMM';   aggregationType = 'month'; break;
     }
 
     let maxValue = item.type === 'progress' ? (item.total || 100) : 1;
@@ -77,8 +65,7 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
         dateForKey = date;
         const dateKey = format(date, 'yyyy-MM-dd');
         value = history[dateKey] || 0;
-        if (i === 0) dateLabel = 'Today';
-        else dateLabel = format(date, labelFormat);
+        dateLabel = i === 0 ? 'Today' : format(date, labelFormat);
         isCurrentPeriod = i === 0;
       } 
       else if (aggregationType === 'week') {
@@ -127,31 +114,48 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
 
   return (
     <div 
-        className="w-full flex flex-col items-center justify-end h-full min-h-[160px] select-none relative pb-2 overflow-hidden" // Reduced min-height slightly
+        className="w-full flex flex-col items-center justify-end h-full min-h-[160px] select-none relative pb-2 overflow-hidden group/chart"
         onMouseLeave={() => setHoveredIndex(null)}
+        onMouseMove={(e) => {
+            // Normalize mouse X relative to container width for the glow effect
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            mouseX.set(x);
+        }}
     >
       
+      {/* Ambient Glow (The Soul) */}
+      <motion.div 
+        className="absolute bottom-0 w-32 h-32 bg-gradient-to-t from-zinc-500/10 to-transparent rounded-full blur-3xl pointer-events-none opacity-0 group-hover/chart:opacity-100 transition-opacity duration-500"
+        style={{ x: glowX, translateX: '-50%' }}
+      />
+
       {/* Top Tooltip (Data Context) */}
       <div className="absolute top-0 inset-x-0 h-8 flex items-center justify-center pointer-events-none z-10">
         <AnimatePresence mode="wait">
           {hoveredIndex !== null && dataPoints[hoveredIndex] ? (
             <motion.div
               key="tooltip"
-              initial={{ opacity: 0, y: 5, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 5, scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900/90 dark:bg-white/90 backdrop-blur-md shadow-lg border border-white/10 dark:border-zinc-800"
+              initial={{ opacity: 0, y: 8, scale: 0.9, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: 8, scale: 0.9, filter: 'blur(4px)' }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              className="
+                flex items-center gap-2.5 px-3 py-1.5 
+                rounded-full 
+                bg-white/80 dark:bg-zinc-900/80 
+                backdrop-blur-xl 
+                shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1),0_0_0_1px_rgba(0,0,0,0.05)] 
+                dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.1)]
+              "
             >
-              <span className="text-xs font-semibold text-zinc-300 dark:text-zinc-600 uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
                 {dataPoints[hoveredIndex].label}
               </span>
-              <div className="w-px h-3 bg-zinc-600 dark:bg-zinc-400" />
-              <span className="text-sm font-bold text-white dark:text-zinc-900 tabular-nums">
-                 {scope === '7D' || scope === '14D' || scope === '30D'
-                    ? (item.type === 'progress' 
-                        ? `${Math.round((dataPoints[hoveredIndex].value / (item.total || 1)) * 100)}%`
-                        : `${dataPoints[hoveredIndex].value} ${item.unit}`)
+              <div className="w-px h-2.5 bg-zinc-200 dark:bg-zinc-700" />
+              <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                 {scope.endsWith('D') && item.type === 'progress'
+                    ? `${Math.round((dataPoints[hoveredIndex].value / (item.total || 1)) * 100)}%`
                     : `${Math.round(dataPoints[hoveredIndex].value * 10) / 10} ${item.unit}`
                  }
               </span>
@@ -163,7 +167,7 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-300/50 dark:text-zinc-500/50"
+                className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-300/60 dark:text-zinc-600/60 mix-blend-plus-lighter"
              >
                 {SCOPE_CONFIG[scope].full}
              </motion.div>
@@ -173,7 +177,7 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
       </div>
 
       {/* Waveform Container */}
-      <div className="flex items-end justify-between w-full px-4 gap-1.5 h-32 relative z-0 mb-4"> {/* Added mb-4 for safety space */}
+      <div className="flex items-end justify-between w-full px-4 gap-1.5 h-32 relative z-0 mb-4 perspective-1000">
         <AnimatePresence mode="popLayout">
             {dataPoints.map((point, index) => (
             <WavePill
@@ -181,48 +185,53 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
                 point={point}
                 index={index}
                 totalPoints={dataPoints.length}
+                hoveredIndex={hoveredIndex}
                 onHover={() => setHoveredIndex(index)}
             />
             ))}
         </AnimatePresence>
         
-        {/* Baseline */}
-        <div className="absolute bottom-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-zinc-200 dark:via-zinc-800 to-transparent opacity-50 pointer-events-none" />
+        {/* Baseline (Subtle Glass Edge) */}
+        <div className="absolute bottom-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-zinc-200/50 dark:via-zinc-700/50 to-transparent pointer-events-none" />
       </div>
 
-      {/* The Phantom Handle / Time Capsule */}
-      {/* Moved position to bottom-2 (8px from bottom) to avoid edge clipping */}
+      {/* The Crystal Control (Bottom Handle) */}
       <div 
-        className="absolute bottom-0 left-0 right-0 flex justify-center z-20 h-12 items-end pointer-events-auto cursor-pointer"
+        className="absolute bottom-0 left-0 right-0 flex justify-center z-30 h-12 items-end pointer-events-auto cursor-pointer"
         onMouseEnter={() => setIsControlActive(true)}
         onMouseLeave={() => setIsControlActive(false)}
       >
         <motion.div 
             layout
             className={`
-                relative flex items-center justify-center pointer-events-auto mb-2
-                bg-white/90 dark:bg-zinc-800/90 backdrop-blur-md 
-                shadow-[0_4px_20px_-4px_rgba(0,0,0,0.15)] 
-                border border-zinc-200/50 dark:border-zinc-700/50
-                overflow-hidden
+                relative flex items-center justify-center mb-2 overflow-hidden
+                backdrop-blur-2xl
+                ${isControlActive 
+                    ? 'bg-white/90 dark:bg-zinc-900/90 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.2),0_0_0_1px_rgba(255,255,255,0.1)]' 
+                    : 'bg-zinc-400/20 dark:bg-white/10'
+                }
             `}
             initial={false}
             animate={{
-                width: isControlActive ? 'auto' : 40,
-                height: isControlActive ? 28 : 4,
+                width: isControlActive ? 'auto' : 32,
+                height: isControlActive ? 32 : 4,
                 borderRadius: isControlActive ? 9999 : 2,
-                opacity: isControlActive ? 1 : 0.4,
-                y: isControlActive ? -4 : 0, // Levitate UP when active
+                y: isControlActive ? -4 : 0,
             }}
-            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            transition={{ 
+                type: "spring", 
+                stiffness: 500, 
+                damping: 30,
+                mass: 0.5 
+            }}
         >
             <AnimatePresence>
                 {isControlActive && (
                     <motion.div 
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.1 } }}
-                        className="flex items-center px-1"
+                        initial={{ opacity: 0, filter: 'blur(4px)' }}
+                        animate={{ opacity: 1, filter: 'blur(0px)' }}
+                        exit={{ opacity: 0, filter: 'blur(4px)', transition: { duration: 0.1 } }}
+                        className="flex items-center px-1.5 gap-0.5"
                     >
                         {(Object.keys(SCOPE_CONFIG) as TimeScope[]).map((s) => {
                             const isActive = scope === s;
@@ -235,24 +244,27 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
                                     }}
                                     className={`
                                         relative flex items-center justify-center
-                                        rounded-full text-[9px] font-medium 
+                                        rounded-full text-[10px] font-bold tracking-tight
                                         transition-all duration-300 outline-none
-                                        ${isActive ? 'px-3 py-1' : 'px-2 py-1'}
+                                        ${isActive ? 'px-3 py-1.5' : 'px-2 py-1.5'}
                                     `}
-                                    style={{
-                                        color: isActive 
-                                            ? 'var(--text-active)' 
-                                            : 'var(--text-inactive)'
-                                    }}
                                 >
                                     {isActive && (
                                         <motion.div
                                             layoutId="scopeHighlight"
-                                            className="absolute inset-0 bg-zinc-900 dark:bg-zinc-100 rounded-full shadow-sm"
-                                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                            className="absolute inset-0 bg-black dark:bg-white rounded-full shadow-sm"
+                                            transition={{ type: "spring", stiffness: 500, damping: 35 }}
                                         />
                                     )}
-                                    <span className="relative z-10 mix-blend-exclusion dark:mix-blend-normal dark:text-zinc-900 whitespace-nowrap">
+                                    <span 
+                                        className={`
+                                            relative z-10 transition-colors duration-300
+                                            ${isActive 
+                                                ? 'text-white dark:text-black' 
+                                                : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
+                                            }
+                                        `}
+                                    >
                                         {isActive ? SCOPE_CONFIG[s].full : SCOPE_CONFIG[s].tiny}
                                     </span>
                                 </button>
@@ -263,17 +275,6 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
             </AnimatePresence>
         </motion.div>
       </div>
-
-      <style>{`
-        :root {
-            --text-active: #fff;
-            --text-inactive: #71717a;
-        }
-        .dark {
-            --text-active: #000;
-            --text-inactive: #a1a1aa;
-        }
-      `}</style>
     </div>
   );
 }
@@ -286,14 +287,24 @@ interface WavePillProps {
   };
   index: number;
   totalPoints: number;
+  hoveredIndex: number | null;
   onHover: () => void;
 }
 
-function WavePill({ point, index, totalPoints, onHover }: WavePillProps) {
-  // Calculate target widths explicitly to avoid animating from "auto"
+function WavePill({ point, index, totalPoints, hoveredIndex, onHover }: WavePillProps) {
+  // Explicit width calculation for Framer Motion
   const targetMaxWidth = totalPoints > 20 ? 6 : (totalPoints <= 7 ? 16 : 10);
   const targetMinWidth = totalPoints > 20 ? 3 : 4;
 
+  // "Magnetic Field" Logic
+  // If we are hovering something, and it's NOT this pill, dim this pill.
+  // If we are hovering this pill, highlight it strongly.
+  const isHovered = hoveredIndex === index;
+  const isAnyHovered = hoveredIndex !== null;
+  
+  // Calculate distance from hover for "wave" effect could be added here, 
+  // but keeping it simple & performant: Focus State vs Ambient State.
+  
   return (
     <motion.div
       layout
@@ -315,14 +326,8 @@ function WavePill({ point, index, totalPoints, onHover }: WavePillProps) {
         {/* The Light Pillar */}
         <motion.div
             className={`
-                w-full rounded-full
+                w-full rounded-full backdrop-blur-sm
                 transition-colors duration-300
-                ${point.isZero 
-                    ? 'bg-zinc-200 dark:bg-zinc-800' 
-                    : point.isCurrentPeriod
-                        ? 'bg-zinc-900 dark:bg-zinc-100' 
-                        : 'bg-zinc-400 dark:bg-zinc-600'
-                }
             `}
             initial={{ 
                 height: "8%",
@@ -333,24 +338,30 @@ function WavePill({ point, index, totalPoints, onHover }: WavePillProps) {
                 height: `${point.heightRatio * 100}%`,
                 maxWidth: targetMaxWidth,
                 minWidth: targetMinWidth,
-                opacity: point.isZero ? 0.3 : (point.isCurrentPeriod ? 1 : 0.7)
+                // Complex Opacity Logic for "Focus"
+                opacity: isHovered 
+                    ? 1 
+                    : (isAnyHovered ? 0.3 : (point.isZero ? 0.3 : (point.isCurrentPeriod ? 1 : 0.6))),
+                // Color Logic
+                backgroundColor: isHovered
+                    ? (point.isZero ? '#a1a1aa' : (document.documentElement.classList.contains('dark') ? '#fff' : '#000'))
+                    : (point.isZero 
+                        ? (document.documentElement.classList.contains('dark') ? '#27272a' : '#e4e4e7') // zinc-800 / zinc-200
+                        : (point.isCurrentPeriod 
+                            ? (document.documentElement.classList.contains('dark') ? '#fff' : '#000') 
+                            : (document.documentElement.classList.contains('dark') ? '#52525b' : '#a1a1aa'))) // zinc-600 / zinc-400
             }}
-            whileHover={{ 
-                scaleY: 1.1,
-                opacity: 1,
-                backgroundColor: point.isZero 
-                    ? 'var(--color-hover-zero)' 
-                    : 'var(--color-hover-active)',
-            }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            style={{
-                // @ts-ignore
-                '--color-hover-zero': '#a1a1aa', 
-                '--color-hover-active': point.isCurrentPeriod ? '#000' : '#52525b', 
-            }}
+            transition={{ type: "spring", stiffness: 350, damping: 25 }}
         >
-            {!point.isZero && point.heightRatio > 0.8 && (
-                <div className="absolute top-0 inset-x-0 h-full bg-white/30 blur-[2px] rounded-full" />
+            {/* Inner Light (Glow) for active pillars */}
+            {!point.isZero && point.heightRatio > 0.5 && (
+                <div 
+                    className={`
+                        absolute top-0 inset-x-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent 
+                        rounded-t-full transition-opacity duration-300
+                        ${isHovered ? 'opacity-80' : 'opacity-30'}
+                    `} 
+                />
             )}
         </motion.div>
     </motion.div>
