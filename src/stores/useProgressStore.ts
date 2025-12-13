@@ -53,6 +53,42 @@ interface ProgressStore {
   toggleArchive: (id: string) => void;
   updateItem: (id: string, data: Partial<ProgressOrCounter>) => void;
   reorderItems: (activeId: string, overId: string) => void;
+  validateDailyState: () => void;
+}
+
+// Helper: Get local YYYY-MM-DD key
+function getLocalTodayKey(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Helper: Check and reset daily items
+function checkAndResetDailyItems(items: ProgressData[]): { items: ProgressData[]; hasChanges: boolean } {
+  let hasChanges = false;
+  const todayKey = getLocalTodayKey(); // "2025-12-13"
+
+  const newItems = items.map(item => {
+    // Only process items with daily reset frequency
+    if (item.resetFrequency === 'daily') {
+      // Strict check: If last update is not EXACTLY today's key, reset it.
+      // This handles both legitimate new days AND legacy format cleanup (legacy != todayKey)
+      if (item.lastUpdateDate !== todayKey) {
+        hasChanges = true;
+        return {
+          ...item,
+          current: 0,
+          todayCount: 0,
+          lastUpdateDate: todayKey, // Update to standard format
+        };
+      }
+    }
+    return item;
+  });
+
+  return { items: newItems, hasChanges };
 }
 
 // 转换存储格式到 store 格式
@@ -152,48 +188,32 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
     if (get().loaded) return;
     let items = await loadProgress();
     
-    // Use local time for "today", not UTC
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const todayKey = `${year}-${month}-${day}`; // YYYY-MM-DD in local time
-    
-    let needsPersist = false;
-    
-    // Apply auto-reset logic
-    items = items.map(item => {
-      // Check for daily reset
-      if (item.resetFrequency === 'daily') {
-        // If last update was not today, reset current and todayCount
-        if (item.lastUpdateDate !== todayKey) {
-          needsPersist = true;
-          return {
-            ...item,
-            current: 0,
-            todayCount: 0,
-            lastUpdateDate: todayKey, // Update lastUpdateDate to current day after reset
-          };
-        }
-      }
-      return item;
-    });
+    // Initial validation on load
+    const { items: validatedItems, hasChanges } = checkAndResetDailyItems(items);
 
-    if (needsPersist) {
-      console.log('[ProgressStore] Auto-resetting daily counters and persisting changes.');
-      await saveProgress(items); // Persist immediately after reset
+    if (hasChanges) {
+      console.log('[ProgressStore] Auto-resetting daily counters during load.');
+      await saveProgress(validatedItems);
     }
 
-    set({ items: items.map(fromStorageFormat), loaded: true });
+    set({ items: validatedItems.map(fromStorageFormat), loaded: true });
   },
+
+  // 暴露给外部调用的每日状态校验方法（午夜守夜人调用）
+  validateDailyState: () => set((state) => {
+    const rawItems = state.items.map(toStorageFormat);
+    const { items: validatedItems, hasChanges } = checkAndResetDailyItems(rawItems);
+
+    if (hasChanges) {
+       console.log('[ProgressStore] Midnight Watchman: Resetting daily counters.');
+       saveProgress(validatedItems); // Side effect: persist to disk
+       return { items: validatedItems.map(fromStorageFormat) };
+    }
+    return state;
+  }),
   
   addProgress: (data: Omit<ProgressItem, 'id' | 'type' | 'current' | 'todayCount' | 'createdAt'>) => set((state) => {
-    // Get local date for initialization
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const todayKey = `${year}-${month}-${day}`;
+    const todayKey = getLocalTodayKey();
 
     const newItem: ProgressItem = {
       id: nanoid(),
@@ -206,10 +226,11 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       unit: data.unit,
       current: data.direction === 'increment' ? 0 : data.total,
       todayCount: 0,
-      lastUpdateDate: todayKey, // Initialize to today to prevent auto-reset bug
+      lastUpdateDate: todayKey,
+      history: {}, // Initialize empty history
       startDate: data.startDate,
       endDate: data.endDate,
-      resetFrequency: data.resetFrequency || 'none', // Set resetFrequency
+      resetFrequency: data.resetFrequency || 'none',
       createdAt: Date.now(),
     };
     const newItems = [newItem, ...state.items];
@@ -218,12 +239,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   }),
   
   addCounter: (data: { title: string; icon?: string; step: number; unit: string; frequency: 'daily' | 'weekly' | 'monthly'; resetFrequency?: 'daily' | 'weekly' | 'monthly' | 'none'; }) => set((state) => {
-    // Get local date for initialization
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const todayKey = `${year}-${month}-${day}`;
+    const todayKey = getLocalTodayKey();
 
     const newItem: CounterItem = {
       id: nanoid(),
@@ -234,9 +250,10 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       unit: data.unit,
       current: 0,
       todayCount: 0,
-      lastUpdateDate: todayKey, // Initialize to today
+      lastUpdateDate: todayKey,
+      history: {}, // Initialize empty history
       frequency: data.frequency,
-      resetFrequency: data.resetFrequency || 'none', // Set resetFrequency here
+      resetFrequency: data.resetFrequency || 'none',
       createdAt: Date.now(),
     };
     const newItems = [newItem, ...state.items];
@@ -245,34 +262,38 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   }),
   
   updateCurrent: (id, delta) => set((state) => {
-    const today = new Date().toDateString();
-    
-    // Use local time for history key
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const todayKey = `${year}-${month}-${day}`; // YYYY-MM-DD
+    const todayKey = getLocalTodayKey(); // YYYY-MM-DD
     
     const newItems = state.items.map((item): ProgressOrCounter => {
       if (item.id !== id) return item;
       
-      const isNewDay = item.lastUpdateDate !== today;
-      // Allow decreasing todayCount if delta is negative, but clamp at 0
-      const newTodayCount = isNewDay 
-        ? Math.max(0, delta) 
-        : Math.max(0, item.todayCount + delta); // Use delta directly, not Math.abs(delta) // 记录操作次数，不是变化量
+      // Strict check: Is it effectively today?
+      const isNewDay = item.lastUpdateDate !== todayKey;
       
-      // 更新历史记录（操作次数）
+      // 1. Calculate New Today Count
+      // If isNewDay, base is 0. Else base is current todayCount.
+      const baseTodayCount = isNewDay ? 0 : item.todayCount;
+      const newTodayCount = Math.max(0, baseTodayCount + delta); // Use delta directly
+      
+      // 2. Update History
       const history = { ...item.history };
-      history[todayKey] = (history[todayKey] || 0) + 1;
+      history[todayKey] = newTodayCount; 
       
+      // 3. Update Current (Total)
+      let newCurrent = item.current;
       if (item.type === 'progress') {
-        const newCurrent = Math.max(0, Math.min(item.total, item.current + delta));
-        return { ...item, current: newCurrent, todayCount: newTodayCount, lastUpdateDate: today, history };
+        newCurrent = Math.max(0, Math.min(item.total, item.current + delta));
       } else {
-        return { ...item, current: item.current + delta, todayCount: newTodayCount, lastUpdateDate: today, history };
+        newCurrent = item.current + delta;
       }
+
+      return { 
+        ...item, 
+        current: newCurrent, 
+        todayCount: newTodayCount, 
+        lastUpdateDate: todayKey, // Always standardize to YYYY-MM-DD
+        history 
+      };
     });
     persistItems(newItems);
     return { items: newItems };

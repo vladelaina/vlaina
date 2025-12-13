@@ -12,6 +12,7 @@ import { Plus, Archive, ArrowLeft } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProgressStore } from '../../stores/useProgressStore';
 import { useProgressDrag } from './hooks/useProgressDrag';
+import { useDayChange } from '../../hooks/useDayChange'; // Import Watchman
 import { ItemCard } from './ItemCard';
 import { CreateModal } from './CreateModal';
 import { DetailModal } from './DetailModal';
@@ -21,6 +22,8 @@ import { DetailModal } from './DetailModal';
  * Progress tracking page with list view and creation modal
  */
 export function ProgressPage() {
+  useDayChange(); // Activate The Midnight Watchman
+
   const { items, addProgress, addCounter, updateCurrent, deleteItem, updateItem, loadItems, reorderItems } = useProgressStore();
   
   // Scroll state for smart collapsing button
