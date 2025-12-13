@@ -1,0 +1,241 @@
+import { useState, useCallback, useRef } from 'react';
+import { flushSync } from 'react-dom';
+import {
+  closestCenter,
+  pointerWithin,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragStartEvent,
+  DragMoveEvent,
+  DragOverEvent,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { useGroupStore } from '@/stores/useGroupStore';
+import { UseDragAndDropOptions } from './types';
+import { useTauriDragWindow } from './useTauriDragWindow';
+import { 
+  findTargetTaskByMouse, 
+  determineParentTask, 
+  isTaskDescendant, 
+  calculatePriorityToInherit 
+} from './dragUtils';
+
+export function useDragLogic({
+  tasks,
+  activeGroupId,
+  groups,
+  toggleCollapse,
+  reorderTasks,
+  crossStatusReorder,
+  moveTaskToGroup,
+  updateTaskPriority,
+  setDraggingTaskId,
+}: UseDragAndDropOptions) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const [dragIndent, setDragIndent] = useState(0);
+  const originalGroupIdRef = useRef<string | null>(null);
+  const currentMouseYRef = useRef<number>(0);
+
+  const { createDragWindow, updateDragWindowPosition, destroyDragWindow } = useTauriDragWindow();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const customCollisionDetection = useCallback((args: any) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) return pointerCollisions;
+    return closestCenter(args);
+  }, []);
+
+  const handleDragStart = useCallback(async (event: DragStartEvent) => {
+    const id = event.active.id as string;
+    setActiveId(id);
+    setDraggingTaskId(id);
+    originalGroupIdRef.current = activeGroupId;
+    
+    const task = tasks.find(t => t.id === id);
+    if (task) {
+      await createDragWindow(task, event.activatorEvent as PointerEvent, tasks);
+    }
+  }, [tasks, activeGroupId, setDraggingTaskId, createDragWindow]);
+
+  const handleDragMove = useCallback((event: DragMoveEvent) => {
+    const rect = (event.activatorEvent as PointerEvent);
+    const x = rect.screenX + (event.delta?.x || 0);
+    const y = rect.screenY + (event.delta?.y || 0);
+    updateDragWindowPosition(x, y);
+    
+    currentMouseYRef.current = rect.clientY + (event.delta?.y || 0);
+    
+    const { delta, over } = event;
+    if (delta && over) {
+      setDragIndent(delta.x);
+      setOverId(over.id as string);
+    }
+  }, [updateDragWindowPosition]);
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    setOverId(event.over?.id as string | null);
+  }, []);
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    const taskId = active.id as string;
+    const originalGroupId = originalGroupIdRef.current;
+    
+    // Check indentation for becoming a child
+    const INDENT_THRESHOLD = 28;
+    const shouldBecomeChild = dragIndent > INDENT_THRESHOLD && over;
+    
+    if (shouldBecomeChild) {
+      const draggedTask = tasks.find(t => t.id === taskId);
+      
+      // Find target task
+      const mouseY = currentMouseYRef.current;
+      const targetTask = findTargetTaskByMouse(mouseY, active.id as string, tasks);
+      const collisionTask = tasks.find(t => t.id === over.id);
+      const overTask = targetTask || collisionTask;
+      
+      if (draggedTask && overTask && 
+          draggedTask.completed === overTask.completed &&
+          draggedTask.groupId === overTask.groupId) {
+        
+        const parentTask = determineParentTask(
+          draggedTask, 
+          overTask, 
+          active.id as string, 
+          over.id as string, 
+          activeGroupId as string, 
+          tasks
+        );
+        
+        if (parentTask) {
+          if (parentTask.collapsed) toggleCollapse(parentTask.id);
+          
+          if (!isTaskDescendant(tasks, taskId, parentTask.id)) {
+            // Apply hierarchy change
+            const siblings = tasks.filter(t => t.parentId === parentTask.id && t.id !== taskId);
+            const newOrder = siblings.length;
+            const oldParentId = draggedTask.parentId;
+            
+            flushSync(() => {
+              useGroupStore.setState((state) => {
+                const newTasks = state.tasks.map(t =>
+                  t.id === taskId ? { ...t, parentId: parentTask.id, order: newOrder } : t
+                );
+                
+                if (oldParentId !== parentTask.id) {
+                  const oldSiblings = newTasks
+                    .filter(t => t.parentId === oldParentId && t.id !== taskId)
+                    .sort((a, b) => a.order - b.order);
+                  
+                  oldSiblings.forEach((t, i) => {
+                    const task = newTasks.find(nt => nt.id === t.id);
+                    if (task) task.order = i;
+                  });
+                }
+                return { tasks: newTasks };
+              });
+            });
+            
+            // Persist
+            try {
+              const updatedTasks = useGroupStore.getState().tasks;
+              const { saveGroup } = await import('@/lib/storage');
+              const groupTasks = updatedTasks.filter(t => t.groupId === activeGroupId);
+              const currentGroup = groups.find(g => g.id === activeGroupId);
+              
+              if (currentGroup && activeGroupId) {
+                await saveGroup({
+                  ...currentGroup,
+                  updatedAt: Date.now(),
+                  tasks: groupTasks.map(t => ({
+                    id: t.id,
+                    content: t.content,
+                    completed: t.completed,
+                    createdAt: t.createdAt,
+                    completedAt: t.completedAt,
+                    order: t.order,
+                    parentId: t.parentId || null,
+                    collapsed: t.collapsed,
+                    priority: t.priority,
+                    estimatedMinutes: t.estimatedMinutes,
+                    actualMinutes: t.actualMinutes,
+                  }))
+                });
+              }
+            } catch (error) {
+              console.error('Failed to save hierarchy:', error);
+            }
+            
+            // Cleanup
+            setActiveId(null);
+            setOverId(null);
+            setDragIndent(0);
+            setDraggingTaskId(null);
+            originalGroupIdRef.current = null;
+            destroyDragWindow();
+            return;
+          }
+        }
+      }
+    }
+    
+    setDragIndent(0);
+    
+    // Cross-group or Reorder
+    if (originalGroupId && activeGroupId && originalGroupId !== activeGroupId) {
+      await moveTaskToGroup(taskId, activeGroupId, over?.id as string | null);
+    } else if (over && active.id !== over.id) {
+      const draggedTask = tasks.find(t => t.id === taskId);
+      const targetTask = tasks.find(t => t.id === over.id);
+      
+      if (draggedTask && targetTask) {
+        if (draggedTask.completed !== targetTask.completed) {
+          crossStatusReorder(taskId, over.id as string);
+        } else {
+          reorderTasks(taskId, over.id as string);
+        }
+        
+        // Priority Inheritance
+        const priority = calculatePriorityToInherit(draggedTask, targetTask, activeGroupId, tasks, over.id as string);
+        if (priority && priority !== draggedTask.priority) {
+          updateTaskPriority(taskId, priority);
+        }
+      }
+    }
+    
+    // Cleanup
+    setActiveId(null);
+    setOverId(null);
+    setDragIndent(0);
+    originalGroupIdRef.current = null;
+    destroyDragWindow();
+    
+    setTimeout(() => {
+      setDraggingTaskId(null);
+    }, 50);
+
+  }, [
+    tasks, groups, activeGroupId, dragIndent,
+    toggleCollapse, moveTaskToGroup, reorderTasks, crossStatusReorder, updateTaskPriority, setDraggingTaskId, destroyDragWindow
+  ]);
+
+  return {
+    sensors,
+    customCollisionDetection,
+    activeId,
+    overId,
+    dragIndent,
+    handleDragStart,
+    handleDragMove,
+    handleDragOver,
+    handleDragEnd,
+  };
+}
