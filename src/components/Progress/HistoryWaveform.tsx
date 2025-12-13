@@ -315,22 +315,25 @@ function WavePill({ point, index, totalPoints, hoveredIndex, onHover }: WavePill
   
   return (
     <motion.div
-      layout // Critical: Allows smooth sliding when position changes
+      layout
       className="group relative flex-1 h-full flex items-end justify-center cursor-pointer"
       onMouseEnter={onHover}
-      initial={{ opacity: 0, scaleY: 0 }}
-      animate={{ opacity: 1, scaleY: 1 }}
+      // Dramatic Entry: Erupt from below
+      initial={{ opacity: 0, scaleY: 0, y: 20 }} 
+      animate={{ opacity: 1, scaleY: 1, y: 0 }}
+      // Dramatic Exit: Sink into the ground
       exit={{ 
           opacity: 0, 
           scaleY: 0,
+          y: 10,
           transition: { duration: 0.2 } 
       }}
       transition={{ 
         type: "spring", 
-        stiffness: 400, 
-        damping: 30,
-        mass: 0.8,
-        delay: index * 0.015 // Stagger effect: Domino entry
+        stiffness: 500,  // High energy
+        damping: 15,     // Low resistance = lots of bounce/wobble
+        mass: 1.2,       // Heavy feeling
+        delay: index * 0.04 // Distinct domino wave
       }}
     >
         {/* Hit Area */}
