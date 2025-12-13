@@ -69,7 +69,7 @@ export function MetadataInput({
   onCommit,
   autoFocus = false,
   placeholder,
-  className = 'w-20',
+  className = 'w-full min-w-[80px]', // Adaptive width
 }: MetadataInputProps) {
   return (
     <input

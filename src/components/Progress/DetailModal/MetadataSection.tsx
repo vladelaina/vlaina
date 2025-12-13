@@ -82,64 +82,72 @@ function ProgressMetadata({
   onDirectUpdate,
 }: ProgressMetadataProps) {
   return (
-    <div className="grid grid-cols-2 gap-x-12 gap-y-6">
+    <div className="grid grid-cols-2 gap-x-8 gap-y-6 w-full max-w-sm">
       {/* Target */}
-      <MetadataField
-        label="Target"
-        isEditing={isEditing}
-        onStartEdit={() => onStartEdit('total')}
-        displayValue={displayItem.total}
-      >
-        <MetadataInput
-          type="number"
-          value={displayItem.total}
-          onChange={(v) => onUpdateDraft('total', v)}
-          onCommit={onCommit}
-          autoFocus={focusTarget === 'total'}
-        />
-      </MetadataField>
+      <div className="min-w-0">
+        <MetadataField
+          label="Target"
+          isEditing={isEditing}
+          onStartEdit={() => onStartEdit('total')}
+          displayValue={displayItem.total}
+        >
+          <MetadataInput
+            type="number"
+            value={displayItem.total}
+            onChange={(v) => onUpdateDraft('total', v)}
+            onCommit={onCommit}
+            autoFocus={focusTarget === 'total'}
+          />
+        </MetadataField>
+      </div>
 
       {/* Step */}
-      <MetadataField
-        label="Step"
-        isEditing={isEditing}
-        onStartEdit={() => onStartEdit('step')}
-        displayValue={displayItem.step}
-      >
-        <MetadataInput
-          type="number"
-          value={displayItem.step}
-          onChange={(v) => onUpdateDraft('step', v)}
-          onCommit={onCommit}
-          autoFocus={focusTarget === 'step'}
-        />
-      </MetadataField>
+      <div className="min-w-0">
+        <MetadataField
+          label="Step"
+          isEditing={isEditing}
+          onStartEdit={() => onStartEdit('step')}
+          displayValue={displayItem.step}
+        >
+          <MetadataInput
+            type="number"
+            value={displayItem.step}
+            onChange={(v) => onUpdateDraft('step', v)}
+            onCommit={onCommit}
+            autoFocus={focusTarget === 'step'}
+          />
+        </MetadataField>
+      </div>
 
       {/* Unit */}
-      <MetadataField
-        label="Unit"
-        isEditing={isEditing}
-        onStartEdit={() => onStartEdit('unit')}
-        displayValue={displayItem.unit || '—'}
-        isEmpty={!displayItem.unit}
-      >
-        <MetadataInput
-          type="text"
-          value={displayItem.unit || ''}
-          onChange={(v) => onUpdateDraft('unit', v)}
-          onCommit={onCommit}
-          autoFocus={focusTarget === 'unit'}
-          placeholder="Unit"
-        />
-      </MetadataField>
+      <div className="min-w-0">
+        <MetadataField
+          label="Unit"
+          isEditing={isEditing}
+          onStartEdit={() => onStartEdit('unit')}
+          displayValue={displayItem.unit || '—'}
+          isEmpty={!displayItem.unit}
+        >
+          <MetadataInput
+            type="text"
+            value={displayItem.unit || ''}
+            onChange={(v) => onUpdateDraft('unit', v)}
+            onCommit={onCommit}
+            autoFocus={focusTarget === 'unit'}
+            placeholder="Unit"
+          />
+        </MetadataField>
+      </div>
 
       {/* Reset */}
-      <ResetField
-        resetFrequency={displayItem.resetFrequency}
-        isEditing={isEditing}
-        onUpdateDraft={onUpdateDraft}
-        onDirectUpdate={onDirectUpdate}
-      />
+      <div className="min-w-0">
+        <ResetField
+          resetFrequency={displayItem.resetFrequency}
+          isEditing={isEditing}
+          onUpdateDraft={onUpdateDraft}
+          onDirectUpdate={onDirectUpdate}
+        />
+      </div>
     </div>
   );
 }
@@ -164,42 +172,44 @@ function CounterMetadata({
   onDirectUpdate,
 }: CounterMetadataProps) {
   return (
-    <div className="flex items-center justify-center gap-6">
+    <div className="flex items-center justify-center gap-8 w-full max-w-sm">
       {/* Step */}
-      <MetadataField
-        label="Step"
-        isEditing={isEditing}
-        onStartEdit={() => onStartEdit('step')}
-        displayValue={displayItem.step}
-      >
-        <MetadataInput
-          type="number"
-          value={displayItem.step}
-          onChange={(v) => onUpdateDraft('step', v)}
-          onCommit={onCommit}
-          autoFocus={focusTarget === 'step'}
-          className="w-16"
-        />
-      </MetadataField>
+      <div className="flex-1 min-w-0">
+        <MetadataField
+          label="Step"
+          isEditing={isEditing}
+          onStartEdit={() => onStartEdit('step')}
+          displayValue={displayItem.step}
+        >
+          <MetadataInput
+            type="number"
+            value={displayItem.step}
+            onChange={(v) => onUpdateDraft('step', v)}
+            onCommit={onCommit}
+            autoFocus={focusTarget === 'step'}
+          />
+        </MetadataField>
+      </div>
 
       {/* Unit */}
-      <MetadataField
-        label="Unit"
-        isEditing={isEditing}
-        onStartEdit={() => onStartEdit('unit')}
-        displayValue={displayItem.unit || '—'}
-        isEmpty={!displayItem.unit}
-      >
-        <MetadataInput
-          type="text"
-          value={displayItem.unit || ''}
-          onChange={(v) => onUpdateDraft('unit', v)}
-          onCommit={onCommit}
-          autoFocus={focusTarget === 'unit'}
-          placeholder="Unit"
-          className="w-16"
-        />
-      </MetadataField>
+      <div className="flex-1 min-w-0">
+        <MetadataField
+          label="Unit"
+          isEditing={isEditing}
+          onStartEdit={() => onStartEdit('unit')}
+          displayValue={displayItem.unit || '—'}
+          isEmpty={!displayItem.unit}
+        >
+          <MetadataInput
+            type="text"
+            value={displayItem.unit || ''}
+            onChange={(v) => onUpdateDraft('unit', v)}
+            onCommit={onCommit}
+            autoFocus={focusTarget === 'unit'}
+            placeholder="Unit"
+          />
+        </MetadataField>
+      </div>
 
       {/* Reset */}
       <ResetField

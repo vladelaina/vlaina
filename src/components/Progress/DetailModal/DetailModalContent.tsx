@@ -105,25 +105,36 @@ function TitleSection({
   onCommit,
   onChange,
 }: TitleSectionProps) {
+  // Simple auto-height for textarea
+  const adjustHeight = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  };
+
   return (
-    <div className="relative z-20 w-full flex justify-center min-h-[40px]">
+    <div className="relative z-20 w-full flex justify-center min-h-[40px] px-8">
       {isEditing ? (
-        <input
+        <textarea
           autoFocus={autoFocus}
           value={title}
-          onChange={(e) => onChange(e.target.value)}
+          rows={1}
+          ref={(el) => el && adjustHeight(el)}
+          onChange={(e) => {
+            onChange(e.target.value);
+            adjustHeight(e.target);
+          }}
           className="
             text-center text-3xl font-medium
             bg-transparent border-none outline-none p-0
             text-zinc-900 dark:text-zinc-100
-            w-full max-w-[280px]
+            w-full resize-none overflow-hidden
             placeholder:text-zinc-200 dark:placeholder:text-zinc-700
             caret-zinc-400
           "
           placeholder="Untitled"
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
-              e.stopPropagation();
+              e.preventDefault(); // Prevent newline in title
               onCommit();
             }
           }}
@@ -133,9 +144,10 @@ function TitleSection({
         <h2
           onClick={onStartEdit}
           className="
-            text-3xl font-medium tracking-tight
+            text-3xl font-medium tracking-tight text-center
             text-zinc-900 dark:text-zinc-100
             cursor-pointer hover:opacity-70 transition-opacity
+            whitespace-pre-wrap break-words w-full
           "
         >
           {title}
@@ -162,6 +174,10 @@ function ValueDisplay({
   onCommit,
   onChange,
 }: ValueDisplayProps) {
+  // Dynamic font scaling
+  const len = value.toString().length;
+  const fontSize = len > 5 ? 'text-5xl' : len > 4 ? 'text-6xl' : len > 3 ? 'text-7xl' : 'text-9xl';
+
   if (isEditing) {
     return (
       <input
@@ -169,13 +185,13 @@ function ValueDisplay({
         type="number"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="
-          w-full text-center text-9xl font-thin tracking-tighter
+        className={`
+          w-full text-center ${fontSize} font-thin tracking-tighter
           bg-transparent outline-none border-none p-0 m-0 tabular-nums
           text-zinc-900 dark:text-zinc-50
           caret-zinc-400
           [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
-        "
+        `}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.stopPropagation();
@@ -191,13 +207,13 @@ function ValueDisplay({
     <motion.span
       layout
       onClick={onStartEdit}
-      className="
-        text-9xl font-thin tracking-tighter
+      className={`
+        ${fontSize} font-thin tracking-tighter
         text-zinc-900 dark:text-zinc-50
         cursor-pointer hover:scale-105 transition-transform duration-300
         tabular-nums select-none
         drop-shadow-sm
-      "
+      `}
     >
       {value}
     </motion.span>
