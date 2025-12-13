@@ -77,33 +77,38 @@ export function DetailModalHeader({
           layout
           className={`
             relative flex items-center justify-end
-            overflow-hidden bg-white/80 dark:bg-zinc-800/80 backdrop-blur-xl
-            shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1),0_0_0_1px_rgba(0,0,0,0.05)]
-            dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.1)]
+            overflow-hidden 
+            bg-zinc-100/50 dark:bg-zinc-800/50 backdrop-blur-md
+            hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80
+            shadow-sm
           `}
           initial={false}
           animate={{
             width: showMenu ? 'auto' : 40,
             height: 40,
-            borderRadius: 9999, // Always pill-shaped
+            borderRadius: 9999,
+            backgroundColor: showMenu 
+                ? (document.documentElement.classList.contains('dark') ? 'rgba(39, 39, 42, 0.9)' : 'rgba(255, 255, 255, 0.9)')
+                : (document.documentElement.classList.contains('dark') ? 'rgba(39, 39, 42, 0.4)' : 'rgba(244, 244, 245, 0.4)')
           }}
           transition={{
             type: 'spring',
-            stiffness: 700, // Ultra-snappy
-            damping: 35,    // No bounce, just slide
-            mass: 0.8,      // Lightweight
+            stiffness: 700,
+            damping: 35,
+            mass: 0.8,
           }}
         >
           {/* State A: The Totem (Dots) */}
           <motion.button
-            className="absolute inset-0 flex items-center justify-center text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+            className="absolute inset-0 flex items-center justify-center text-zinc-500 dark:text-zinc-400 transition-colors"
             onClick={() => onMenuToggle(true)}
             animate={{
               opacity: showMenu ? 0 : 1,
-              scale: showMenu ? 0.5 : 1, // Shrink away faster
+              scale: showMenu ? 0.5 : 1,
               pointerEvents: showMenu ? 'none' : 'auto',
+              filter: showMenu ? 'blur(4px)' : 'blur(0px)', // Blur out effect
             }}
-            transition={{ duration: 0.1 }} // Instant fade out
+            transition={{ duration: 0.15 }}
           >
             <DotsThree weight="bold" className="size-6" />
           </motion.button>
@@ -113,8 +118,9 @@ export function DetailModalHeader({
             className="flex items-center gap-1 pl-1 pr-1 h-full min-w-max"
             animate={{
               opacity: showMenu ? 1 : 0,
+              filter: showMenu ? 'blur(0px)' : 'blur(4px)', // Blur in effect
               pointerEvents: showMenu ? 'auto' : 'none',
-              x: showMenu ? 0 : 40, // Slide in from right
+              x: showMenu ? 0 : 20, 
             }}
             transition={{ 
                 type: "spring",
