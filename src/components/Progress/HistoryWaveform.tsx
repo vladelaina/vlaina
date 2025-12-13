@@ -1,5 +1,5 @@
-import { useMemo, useState, useRef } from 'react';
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { useMemo, useState } from 'react';
+import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
 import { format, subDays, startOfWeek, endOfWeek, subWeeks, startOfMonth, subMonths } from 'date-fns';
 import type { ProgressOrCounter } from '../../stores/useProgressStore';
 
@@ -205,7 +205,7 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
             layout
             className={`
                 relative flex items-center justify-center mb-2 overflow-hidden
-                backdrop-blur-2xl
+                backdrop-blur-2xl rounded-full 
                 ${isControlActive 
                     ? 'bg-white/90 dark:bg-zinc-900/90 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.2),0_0_0_1px_rgba(255,255,255,0.1)]' 
                     : 'bg-zinc-400/20 dark:bg-white/10'
@@ -213,66 +213,76 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
             `}
             initial={false}
             animate={{
+                y: isControlActive ? -4 : 0,
+            }}
+            style={{
                 width: isControlActive ? 'auto' : 32,
                 height: isControlActive ? 32 : 4,
-                borderRadius: isControlActive ? 9999 : 2,
-                y: isControlActive ? -4 : 0,
+                clipPath: 'inset(0 round 9999px)' 
             }}
             transition={{ 
                 type: "spring", 
-                stiffness: 500, 
-                damping: 30,
+                stiffness: 300, 
+                damping: 35, 
                 mass: 0.5 
             }}
         >
-            <AnimatePresence>
-                {isControlActive && (
-                    <motion.div 
-                        initial={{ opacity: 0, filter: 'blur(4px)' }}
-                        animate={{ opacity: 1, filter: 'blur(0px)' }}
-                        exit={{ opacity: 0, filter: 'blur(4px)', transition: { duration: 0.1 } }}
-                        className="flex items-center px-1.5 gap-0.5"
-                    >
-                        {(Object.keys(SCOPE_CONFIG) as TimeScope[]).map((s) => {
-                            const isActive = scope === s;
-                            return (
-                                <button
-                                    key={s}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setScope(s);
-                                    }}
-                                    className={`
-                                        relative flex items-center justify-center
-                                        rounded-full text-[10px] font-bold tracking-tight
-                                        transition-all duration-300 outline-none
-                                        ${isActive ? 'px-3 py-1.5' : 'px-2 py-1.5'}
-                                    `}
-                                >
-                                    {isActive && (
-                                        <motion.div
-                                            layoutId="scopeHighlight"
-                                            className="absolute inset-0 bg-black dark:bg-white rounded-full shadow-sm"
-                                            transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                                        />
-                                    )}
-                                    <span 
-                                        className={`
-                                            relative z-10 transition-colors duration-300
-                                            ${isActive 
-                                                ? 'text-white dark:text-black' 
-                                                : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
-                                            }
-                                        `}
-                                    >
-                                        {isActive ? SCOPE_CONFIG[s].full : SCOPE_CONFIG[s].tiny}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <motion.div 
+                // Always render content to ensure stable layout calculation for 'width: auto'
+                initial={{ opacity: 0, filter: 'blur(4px)' }}
+                animate={{ 
+                    opacity: isControlActive ? 1 : 0, 
+                    filter: isControlActive ? 'blur(0px)' : 'blur(4px)',
+                    pointerEvents: isControlActive ? 'auto' : 'none'
+                }}
+                transition={{ duration: 0.2, delay: isControlActive ? 0.05 : 0 }} 
+                className="flex items-center px-1.5 gap-0.5"
+            >
+                {(Object.keys(SCOPE_CONFIG) as TimeScope[]).map((s) => {
+                    const isActive = scope === s;
+                    return (
+                                                <button
+                                                    key={s}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setScope(s);
+                                                    }}
+                                                    className={`
+                                                        relative flex items-center justify-center
+                                                        rounded-full text-[10px] font-bold tracking-tight
+                                                        transition-all duration-300 outline-none
+                                                        ${isActive ? 'px-3 py-1.5' : 'px-2 py-1.5'}
+                                                    `}
+                                                    // Prevent tab focus when hidden
+                                                    tabIndex={isControlActive ? 0 : -1} 
+                                                >
+                                                    {isActive && (
+                                                        <motion.div
+                                                            layoutId="scopeHighlight"
+                                                            className="absolute inset-0 bg-black dark:bg-white rounded-full shadow-sm"
+                                                            initial={{ opacity: 0 }}
+                                                            animate={{ opacity: 1 }}
+                                                            transition={{ 
+                                                                type: "spring", 
+                                                                bounce: 0,
+                                                                duration: 0.2
+                                                            }}
+                                                        />
+                                                    )}
+                                                    <span 
+                                                        className={`
+                                                            relative z-10 transition-colors duration-300
+                                                            ${isActive 
+                                                                ? 'text-white dark:text-black' 
+                                                                : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
+                                                            }
+                                                        `}
+                                                    >
+                                                        {isActive ? SCOPE_CONFIG[s].full : SCOPE_CONFIG[s].tiny}
+                                                    </span>
+                                                </button>                    );
+                })}
+            </motion.div>
         </motion.div>
       </div>
     </div>
