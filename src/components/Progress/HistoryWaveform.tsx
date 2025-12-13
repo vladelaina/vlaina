@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
+import { useMemo, useState, useEffect } from 'react';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { format, subDays, startOfWeek, endOfWeek, subWeeks, startOfMonth, subMonths } from 'date-fns';
 import type { ProgressOrCounter } from '../../stores/useProgressStore';
 
@@ -33,8 +33,15 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
   // Mouse position for ambient glow effect
   const mouseX = useMotionValue(0);
   const glowX = useSpring(mouseX, { stiffness: 150, damping: 25 });
+  
+  // Tooltip horizontal position spring (The Sliding Cursor)
+  const tooltipX = useSpring(0, { stiffness: 200, damping: 30 });
+  const tooltipLeft = useTransform(tooltipX, (v) => `${v}%`);
+  // Smart clamping: Align Left at 0%, Center in middle, Align Right at 100%
+  // Widened safety zone (30%) to ensure even long tooltips don't clip on 2nd/2nd-to-last items
+  const tooltipTranslateX = useTransform(tooltipX, [0, 30, 70, 100], ["0%", "-50%", "-50%", "-100%"]);
 
-  // 1. Data Processing
+  // 1. Data Processing (Must be defined BEFORE useEffect)
   const dataPoints = useMemo(() => {
     const points = [];
     const today = new Date();
@@ -59,13 +66,13 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
       let dateLabel = '';
       let isCurrentPeriod = false;
       let dateForKey = new Date();
-      let pointId = ''; // Ensure ID is defined for all scopes
+      let pointId = ''; 
 
       if (aggregationType === 'day') {
         const date = subDays(today, i);
         dateForKey = date;
         const dateKey = format(date, 'yyyy-MM-dd');
-        pointId = dateKey; // Use date as ID
+        pointId = dateKey; 
         value = history[dateKey] || 0;
         dateLabel = i === 0 ? 'Today' : format(date, labelFormat);
         isCurrentPeriod = i === 0;
@@ -73,7 +80,7 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
       else if (aggregationType === 'week') {
         const weekStart = startOfWeek(subWeeks(today, i), { weekStartsOn: 1 });
         dateForKey = weekStart;
-        pointId = format(weekStart, 'yyyy-MM-dd'); // Use week start date as ID
+        pointId = format(weekStart, 'yyyy-MM-dd'); 
         dateLabel = format(weekStart, 'MMM d');
         isCurrentPeriod = i === 0;
         for (let d = 0; d < 7; d++) {
@@ -85,7 +92,7 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
       else if (aggregationType === 'month') {
         const monthStart = startOfMonth(subMonths(today, i));
         dateForKey = monthStart;
-        pointId = format(monthStart, 'yyyy-MM'); // Use month as ID
+        pointId = format(monthStart, 'yyyy-MM'); 
         dateLabel = format(monthStart, 'MMM');
         isCurrentPeriod = i === 0;
         const daysInMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
@@ -100,7 +107,7 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
       }
       
       points.push({
-        id: pointId, // Stable ID
+        id: pointId, 
         date: dateForKey,
         label: dateLabel,
         value,
@@ -115,6 +122,24 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
     });
 
   }, [item, scope]);
+
+  // Reset tooltip when scope changes (Simpler, cleaner interaction)
+  useEffect(() => {
+    setHoveredIndex(null);
+  }, [dataPoints]); // Dependency on dataPoints ensures reset on any data change
+
+  // Update tooltip position (Spring)
+  useEffect(() => {
+    if (hoveredIndex !== null) {
+      const total = dataPoints.length;
+      if (total > 1) {
+        const percent = (hoveredIndex / (total - 1)) * 100;
+        tooltipX.set(percent);
+      } else {
+        tooltipX.set(50);
+      }
+    }
+  }, [hoveredIndex, dataPoints.length, tooltipX]);
 
   return (
     <div 
@@ -135,7 +160,7 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
       />
 
       {/* Top Tooltip (Data Context) */}
-      <div className="absolute top-0 inset-x-0 h-8 flex items-center justify-center pointer-events-none z-10">
+      <div className="absolute top-0 inset-x-0 h-8 pointer-events-none z-10 px-4"> {/* Added px-4 to align with waveform */}
         <AnimatePresence mode="wait">
           {hoveredIndex !== null && dataPoints[hoveredIndex] ? (
             <motion.div
@@ -143,6 +168,11 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
               initial={{ opacity: 0, y: 8, scale: 0.9, filter: 'blur(4px)' }}
               animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
               exit={{ opacity: 0, y: 8, scale: 0.9, filter: 'blur(4px)' }}
+              style={{ 
+                  left: tooltipLeft, 
+                  x: tooltipTranslateX, // Smart dynamic alignment
+                  position: 'absolute'
+              }}
               transition={{ type: "spring", stiffness: 400, damping: 25 }}
               className="
                 flex items-center gap-2.5 px-3 py-1.5 
@@ -151,6 +181,7 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
                 backdrop-blur-xl 
                 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1),0_0_0_1px_rgba(0,0,0,0.05)] 
                 dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.1)]
+                whitespace-nowrap
               "
             >
               <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
