@@ -162,7 +162,7 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
       {/* Top Tooltip (Data Context) */}
       <div className="absolute top-0 inset-x-0 h-8 pointer-events-none z-10 px-4"> {/* Added px-4 to align with waveform */}
         <AnimatePresence mode="wait">
-          {hoveredIndex !== null && dataPoints[hoveredIndex] ? (
+          {hoveredIndex !== null && dataPoints[hoveredIndex] && (
             <motion.div
               key="tooltip"
               initial={{ opacity: 0, y: 8, scale: 0.9, filter: 'blur(4px)' }}
@@ -195,18 +195,6 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
                  }
               </span>
             </motion.div>
-          ) : (
-            !isControlActive && (
-             <motion.div
-                key="label"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-300/60 dark:text-zinc-600/60 mix-blend-plus-lighter"
-             >
-                {SCOPE_CONFIG[scope].full}
-             </motion.div>
-            )
           )}
         </AnimatePresence>
       </div>
