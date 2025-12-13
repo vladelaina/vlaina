@@ -71,107 +71,98 @@ export function DetailModalHeader({
         )}
       </button>
 
-      {/* Right: Menu Trigger / Expanded Capsule */}
-      <div className="relative h-10 flex items-center justify-end min-w-[40px]">
-        <AnimatePresence mode="popLayout">
-          {!isEditing && !showMenu && (
-            <motion.button
-              key="menu-trigger"
-              layoutId="menu-pill"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={SPRING_SNAPPY}
-              onClick={() => onMenuToggle(true)}
-              className="absolute right-0 p-2 rounded-full text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-100 transition-colors bg-zinc-100 dark:bg-zinc-800"
+      {/* Right: The Morphing Settings Capsule */}
+      <div className="relative h-10 flex items-center justify-end z-50">
+        <motion.div
+          layout
+          className={`
+            relative flex items-center justify-end
+            overflow-hidden bg-white/80 dark:bg-zinc-800/80 backdrop-blur-xl
+            shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1),0_0_0_1px_rgba(0,0,0,0.05)]
+            dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.1)]
+          `}
+          initial={false}
+          animate={{
+            width: showMenu ? 'auto' : 40,
+            height: 40,
+            borderRadius: 9999, // Always pill-shaped
+          }}
+          transition={{
+            type: 'spring',
+            stiffness: 700, // Ultra-snappy
+            damping: 35,    // No bounce, just slide
+            mass: 0.8,      // Lightweight
+          }}
+        >
+          {/* State A: The Totem (Dots) */}
+          <motion.button
+            className="absolute inset-0 flex items-center justify-center text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+            onClick={() => onMenuToggle(true)}
+            animate={{
+              opacity: showMenu ? 0 : 1,
+              scale: showMenu ? 0.5 : 1, // Shrink away faster
+              pointerEvents: showMenu ? 'none' : 'auto',
+            }}
+            transition={{ duration: 0.1 }} // Instant fade out
+          >
+            <DotsThree weight="bold" className="size-6" />
+          </motion.button>
+
+          {/* State B: The Panel (Actions) */}
+          <motion.div
+            className="flex items-center gap-1 pl-1 pr-1 h-full min-w-max"
+            animate={{
+              opacity: showMenu ? 1 : 0,
+              pointerEvents: showMenu ? 'auto' : 'none',
+              x: showMenu ? 0 : 40, // Slide in from right
+            }}
+            transition={{ 
+                type: "spring",
+                stiffness: 700,
+                damping: 35,
+                mass: 0.8
+            }}
+          >
+            {/* Archive */}
+            <button
+              onClick={onArchive}
+              className="p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
+              title={isArchived ? 'Unarchive' : 'Archive'}
             >
-              <DotsThree weight="bold" className="size-6" />
-            </motion.button>
-          )}
+              <Archive weight="duotone" className="size-5" />
+            </button>
 
-          {showMenu && !isEditing && (
-            <motion.div
-              key="menu-capsule"
-              layoutId="menu-pill"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={SPRING_SNAPPY}
-              className="
-                absolute right-0 flex items-center gap-1 p-1 pr-2 rounded-full
-                bg-zinc-100 dark:bg-zinc-800
-                ring-1 ring-black/5 dark:ring-white/10
-                overflow-hidden
-              "
+            {/* Reset */}
+            <button
+              onClick={onReset}
+              className="p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
+              title="Reset"
             >
-              {/* Actions Container - Staggered */}
-              <motion.div
-                className="flex items-center gap-1"
-                initial="hidden"
-                animate="visible"
-                variants={STAGGER_CONTAINER}
-              >
-                {/* Archive */}
-                <motion.button
-                  variants={STAGGER_ITEM}
-                  onClick={onArchive}
-                  className="p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-                  title={isArchived ? 'Unarchive' : 'Archive'}
-                >
-                  <Archive weight="duotone" className="size-5" />
-                </motion.button>
+              <ArrowCounterClockwise weight="bold" className="size-5" />
+            </button>
 
-                {/* Reset */}
-                <motion.button
-                  variants={STAGGER_ITEM}
-                  onClick={onReset}
-                  className="p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-                  title="Reset Progress"
-                >
-                  <ArrowCounterClockwise weight="bold" className="size-5" />
-                </motion.button>
+            <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700/50 mx-1" />
 
-                {/* Divider */}
-                <motion.div
-                  variants={STAGGER_DIVIDER}
-                  className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-1 origin-center"
-                />
+            {/* Delete */}
+            <button
+              onClick={onDelete}
+              className="p-2 rounded-full text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:text-zinc-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
+              title="Delete"
+            >
+              <Trash weight="duotone" className="size-5" />
+            </button>
 
-                {/* Delete */}
-                <motion.button
-                  variants={STAGGER_ITEM}
-                  onClick={onDelete}
-                  className="p-2 rounded-full text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:text-zinc-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
-                  title="Delete"
-                >
-                  <Trash weight="duotone" className="size-5" />
-                </motion.button>
+            <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700/50 mx-1" />
 
-                {/* Divider */}
-                <motion.div
-                  variants={STAGGER_DIVIDER}
-                  className="w-px h-4 bg-zinc-200 dark:bg-zinc-700 mx-1 origin-center"
-                />
-
-                {/* Close */}
-                <motion.button
-                  variants={{
-                    hidden: { opacity: 0, rotate: -90 },
-                    visible: {
-                      opacity: 1,
-                      rotate: 0,
-                      transition: SPRING_SNAPPY,
-                    },
-                  }}
-                  onClick={() => onMenuToggle(false)}
-                  className="p-2 rounded-full text-zinc-300 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                >
-                  <X weight="bold" className="size-4" />
-                </motion.button>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            {/* Close */}
+            <button
+              onClick={() => onMenuToggle(false)}
+              className="p-2 rounded-full text-zinc-300 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+            >
+              <X weight="bold" className="size-4" />
+            </button>
+          </motion.div>
+        </motion.div>
       </div>
     </div>
   );
