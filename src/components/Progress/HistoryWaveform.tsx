@@ -197,7 +197,7 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
 
       {/* The Crystal Control (Bottom Handle) */}
       <div 
-        className="absolute bottom-0 left-0 right-0 flex justify-center z-30 h-12 items-end pointer-events-auto cursor-pointer"
+        className="absolute bottom-0 left-0 right-0 flex justify-center z-30 h-6 items-end pointer-events-auto cursor-pointer"
         onMouseEnter={() => setIsControlActive(true)}
         onMouseLeave={() => setIsControlActive(false)}
       >
