@@ -4,6 +4,7 @@ import { Plus, Minus, Check, ArrowsClockwise } from '@phosphor-icons/react';
 import { getIconByName } from '../IconPicker';
 import { ItemCardProps } from './types';
 import { ProgressBar, CounterEffects, Ripple } from './VisualEffects';
+import { KineticAction } from './KineticAction';
 
 export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, previewIcon, previewTitle }: ItemCardProps) {
   const displayIcon = previewIcon !== undefined ? previewIcon : item.icon;
@@ -11,7 +12,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
 
   const step = item.type === 'progress'
     ? (item.direction === 'increment' ? item.step : -item.step)
-    : item.step;
+    : item.step; // For counter, step is always positive for "add"
 
   const percentage = item.type === 'progress' 
     ? Math.min(100, Math.max(0, (item.current / item.total) * 100))
@@ -44,12 +45,18 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
     }, 1000);
   };
 
-  const getEnergyCorePosition = (element: HTMLElement) => {
-    const card = element.closest('.group') as HTMLElement | null;
-    if (card) {
-      return { x: card.offsetWidth * 0.5, y: card.offsetHeight * 0.5 };
-    }
-    return { x: 250, y: 64 };
+  // Helper to find center for visual effects if event is generic
+  // (In kinetic drag, we might not have a precise click coordinate on the card surface, 
+  // so we center the effect)
+  const triggerCenterEffect = (type: 'ripple' | 'implosion') => {
+      // Approximate center of the card relative to viewport? 
+      // Actually, VisualEffects uses absolute positioning inside the card.
+      // We'll spawn it at the "Button" locations roughly.
+      if (type === 'ripple') {
+          triggerRipple(300, 64); // Right side roughly
+      } else {
+          triggerImplosion(50, 64); // Left side roughly
+      }
   };
 
   // Auto-archive logic (Only for Progress)
@@ -261,64 +268,62 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
         </motion.div>
       </div>
 
-      {/* Interaction Layer */}
-      <div className="absolute inset-0 flex cursor-pointer">
-        {/* Minus Zone */}
-        <div 
-          className="w-[30%] flex items-center justify-start pl-8 opacity-0 hover:opacity-100 transition-opacity duration-300"
-          onClick={(e) => {
-            e.stopPropagation();
-            onUpdate(item.id, -step);
-            if (item.type === 'counter') {
-               const { x, y } = getEnergyCorePosition(e.currentTarget);
-               triggerImplosion(x, y); 
-            }
-          }}
-          onMouseEnter={() => setHoverZone('left')}
-          onMouseLeave={() => setHoverZone(null)}
-        >
-          <motion.div
-            initial={{ x: -20, opacity: 0, scale: 0.8 }}
-            animate={hoverZone === 'left' ? { x: 0, opacity: 1, scale: 1 } : { x: -20, opacity: 0, scale: 0.8 }}
-            transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
-            className="text-zinc-300 dark:text-zinc-600"
-          >
-            <Minus className="size-8" weight="light" />
-          </motion.div>
-        </div>
-
-        {/* Center Detail Zone */}
-        <div 
-           className="flex-1"
-           onClick={() => {
+      {/* Kinetic Interaction Layer (Replaces old static layer) */}
+      <KineticAction 
+        icon={Minus}
+        step={Math.abs(item.step)} // Always pass positive step magnitude
+        direction="left"
+        isActive={hoverZone === 'left'}
+        onHoverStart={() => setHoverZone('left')}
+        onHoverEnd={() => setHoverZone(null)}
+        onTrigger={() => {
+            onUpdate(item.id, -step); // Standard single click
+            if (item.type === 'counter') triggerCenterEffect('implosion');
+        }}
+        onCommit={(delta) => {
+            // Delta is always positive magnitude from the kinetic engine
+            // For left side, we subtract this magnitude
+            const finalDelta = -delta;
+            // Scale by item step direction (rare case, but keeps consistency)
+            const scaledDelta = item.direction === 'increment' ? finalDelta : -finalDelta;
+            
+            onUpdate(item.id, scaledDelta);
+            if (item.type === 'counter') triggerCenterEffect('implosion');
+        }}
+      />
+      
+      {/* Center Detail Zone (Clickable Area) */}
+      <div 
+           className="absolute inset-y-0 left-[30%] right-[30%] cursor-pointer z-30"
+           onClick={(e) => {
+               e.stopPropagation();
                onClick && onClick();
            }}
-        />
-        
-        {/* Plus Zone */}
-        <div 
-          className="w-[30%] flex items-center justify-end pr-8 opacity-0 hover:opacity-100 transition-opacity duration-300"
-          onClick={(e) => {
-            e.stopPropagation();
+      />
+
+      <KineticAction 
+        icon={Plus}
+        step={Math.abs(item.step)}
+        direction="right"
+        isActive={hoverZone === 'right'}
+        onHoverStart={() => setHoverZone('right')}
+        onHoverEnd={() => setHoverZone(null)}
+        onTrigger={() => {
             onUpdate(item.id, step);
-            if (item.type === 'counter') {
-               const { x, y } = getEnergyCorePosition(e.currentTarget);
-               triggerRipple(x, y); 
-            }
-          }}
-          onMouseEnter={() => setHoverZone('right')}
-          onMouseLeave={() => setHoverZone(null)}
-        >
-          <motion.div
-            initial={{ x: 20, opacity: 0, scale: 0.8 }}
-            animate={hoverZone === 'right' ? { x: 0, opacity: 1, scale: 1 } : { x: 20, opacity: 0, scale: 0.8 }}
-            transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
-            className="text-zinc-300 dark:text-zinc-600"
-          >
-            <Plus className="size-8" weight="light" />
-          </motion.div>
-        </div>
-      </div>
+            if (item.type === 'counter') triggerCenterEffect('ripple');
+        }}
+        onCommit={(delta) => {
+            // Delta is positive magnitude
+            // For right side, we add it
+            const finalDelta = delta;
+            // Scale by item step direction
+            const scaledDelta = item.direction === 'increment' ? finalDelta : -finalDelta;
+            
+            onUpdate(item.id, scaledDelta);
+            if (item.type === 'counter') triggerCenterEffect('ripple');
+        }}
+      />
+
     </motion.div>
   );
 }
