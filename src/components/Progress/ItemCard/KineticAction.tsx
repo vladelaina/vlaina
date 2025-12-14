@@ -404,16 +404,21 @@ export function KineticAction({
                                 {direction === 'left' ? 'Removing' : 'Adding'}
                              </span>
                              <div className="flex items-baseline gap-2">
+                                {/* The Delta */}
                                 <span className="text-3xl font-bold tabular-nums leading-none text-zinc-900 dark:text-zinc-100">
                                     {accumulatedValue * step}
                                 </span>
                                 
-                                {/* Percentage for Progress */}
-                                {itemType === 'progress' && total > 0 && (
-                                    <span className="text-sm font-bold text-zinc-400 dark:text-zinc-600">
-                                        ({Math.round(((accumulatedValue * step) / total) * 100)}%)
-                                    </span>
-                                )}
+                                {/* The Projected Result */}
+                                <span className="text-sm font-bold text-zinc-400 dark:text-zinc-600">
+                                    {itemType === 'progress' && total > 0 ? (
+                                        // Progress: Show Projected Percentage
+                                        `→ ${Math.round((Math.max(0, Math.min(total, current + (direction === 'left' ? -accumulatedValue * step : accumulatedValue * step))) / total) * 100)}%`
+                                    ) : (
+                                        // Counter: Show Projected Total
+                                        `→ ${Math.max(0, current + (direction === 'left' ? -accumulatedValue * step : accumulatedValue * step))}`
+                                    )}
+                                </span>
                              </div>
                         </div>
                     </div>
