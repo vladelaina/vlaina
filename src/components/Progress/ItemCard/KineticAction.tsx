@@ -21,7 +21,8 @@ interface KineticActionProps {
   isActive: boolean;
   // Context for smarter display
   itemType?: 'progress' | 'counter';
-  total?: number; 
+  total?: number;
+  current?: number; 
 }
 
 /**
@@ -38,7 +39,8 @@ export function KineticAction({
   onHoverEnd,
   isActive,
   itemType = 'counter',
-  total = 0
+  total = 0,
+  current = 0
 }: KineticActionProps) {
   const [mode, setMode] = useState<'idle' | 'charging'>('idle');
   const [accumulatedValue, setAccumulatedValue] = useState(0);
@@ -176,7 +178,23 @@ export function KineticAction({
       }
 
       const addition = baseSpeed * mult * (dt / 1000);
-      valueRef.current += addition;
+      
+      // Calculate potential new raw accumulation
+      let newValue = valueRef.current + addition;
+      
+      // CLAMP LOGIC: If Progress and Adding, don't exceed total
+      if (itemType === 'progress' && direction === 'right' && total > 0) {
+          // Max allowed addition = (Total - Current) / Step
+          const maxAddableSteps = Math.max(0, (total - current) / step);
+          
+          if (newValue > maxAddableSteps) {
+             newValue = maxAddableSteps;
+             // Optional: Trigger a "Hit the Wall" haptic
+             if (newValue !== valueRef.current) triggerHaptic(20);
+          }
+      }
+
+      valueRef.current = newValue;
       
       const currentInt = Math.floor(valueRef.current);
       setAccumulatedValue(currentInt);
