@@ -154,6 +154,7 @@ export function useDragLogic({
               if (currentGroup && activeGroupId) {
                 await saveGroup({
                   ...currentGroup,
+                  pinned: currentGroup.pinned ?? false, // Ensure strict boolean
                   updatedAt: Date.now(),
                   tasks: groupTasks.map(t => ({
                     id: t.id,

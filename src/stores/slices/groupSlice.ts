@@ -1,9 +1,9 @@
 import { StateCreator } from 'zustand';
 import { nanoid } from 'nanoid';
 import { deleteGroup as deleteGroupFile } from '@/lib/storage';
-import { Group, StoreTask } from '../types';
+import { Group } from '../types';
 import { persistGroup } from '../taskUtils';
-import { StoreState } from '../useGroupStore';
+import { StoreState } from '../storeTypes';
 
 export interface GroupSlice {
   groups: Group[];
@@ -31,20 +31,20 @@ export const createGroupSlice: StateCreator<StoreState, [], [], GroupSlice> = (s
     
     // If switching from archive to another group, clear archive tasks
     if (previousGroupId === '__archive__' && id !== '__archive__') {
-      set((state) => ({
+      set((state: StoreState) => ({
         activeGroupId: id,
         previousNonArchiveGroupId: id, // Update to new active group
-        tasks: state.tasks.filter(t => t.groupId !== '__archive__'),
-        loadedGroups: new Set([...state.loadedGroups].filter(g => g !== '__archive__'))
+        tasks: state.tasks.filter((t) => t.groupId !== '__archive__'),
+        loadedGroups: new Set([...state.loadedGroups].filter((g) => g !== '__archive__'))
       }));
     } else if (id === '__archive__' && previousGroupId !== '__archive__') {
       // When switching to archive, save current group ID and clear archive flag for reload
       console.log(`[GroupStore] Saving previousNonArchiveGroupId: ${previousGroupId}`);
-      set((state) => ({
+      set((state: StoreState) => ({
         activeGroupId: id,
         previousNonArchiveGroupId: previousGroupId,
-        tasks: state.tasks.filter(t => t.groupId !== '__archive__'),
-        loadedGroups: new Set([...state.loadedGroups].filter(g => g !== '__archive__'))
+        tasks: state.tasks.filter((t) => t.groupId !== '__archive__'),
+        loadedGroups: new Set([...state.loadedGroups].filter((g) => g !== '__archive__'))
       }));
     } else if (id !== '__archive__') {
       // When switching to regular group, update previousNonArchiveGroupId
@@ -64,9 +64,10 @@ export const createGroupSlice: StateCreator<StoreState, [], [], GroupSlice> = (s
       id: nanoid(),
       name,
       createdAt: Date.now(),
+      pinned: false,
     };
     
-    set((state) => {
+    set((state: StoreState) => {
       const newGroups = [...state.groups, newGroup];
       persistGroup(newGroups, state.tasks, newGroup.id);
       // New group has no tasks, mark as loaded
@@ -77,7 +78,7 @@ export const createGroupSlice: StateCreator<StoreState, [], [], GroupSlice> = (s
     });
   },
   
-  updateGroup: (id, name) => set((state) => {
+  updateGroup: (id, name) => set((state: StoreState) => {
     const newGroups = state.groups.map((g) =>
       g.id === id ? { ...g, name } : g
     );
@@ -85,7 +86,7 @@ export const createGroupSlice: StateCreator<StoreState, [], [], GroupSlice> = (s
     return { groups: newGroups };
   }),
   
-  deleteGroup: (id) => set((state) => {
+  deleteGroup: (id) => set((state: StoreState) => {
     if (id === 'default') return state;
     deleteGroupFile(id);
     
@@ -101,20 +102,20 @@ export const createGroupSlice: StateCreator<StoreState, [], [], GroupSlice> = (s
     };
   }),
   
-  togglePin: (id) => set((state) => {
-    const group = state.groups.find(g => g.id === id);
+  togglePin: (id) => set((state: StoreState) => {
+    const group = state.groups.find((g) => g.id === id);
     if (!group) return state;
     
     const newPinned = !group.pinned;
     const updatedGroup = { ...group, pinned: newPinned };
-    const otherGroups = state.groups.filter(g => g.id !== id);
+    const otherGroups = state.groups.filter((g) => g.id !== id);
     
     let newGroups: Group[];
     if (newPinned) {
       newGroups = [updatedGroup, ...otherGroups];
     } else {
-      const pinnedGroups = otherGroups.filter(g => g.pinned);
-      const unpinnedGroups = otherGroups.filter(g => !g.pinned);
+      const pinnedGroups = otherGroups.filter((g) => g.pinned);
+      const unpinnedGroups = otherGroups.filter((g) => !g.pinned);
       newGroups = [...pinnedGroups, updatedGroup, ...unpinnedGroups];
     }
     
@@ -122,7 +123,7 @@ export const createGroupSlice: StateCreator<StoreState, [], [], GroupSlice> = (s
     return { groups: newGroups };
   }),
   
-  reorderGroups: (activeId, overId) => set((state) => {
+  reorderGroups: (activeId, overId) => set((state: StoreState) => {
     const oldIndex = state.groups.findIndex((g) => g.id === activeId);
     const newIndex = state.groups.findIndex((g) => g.id === overId);
     

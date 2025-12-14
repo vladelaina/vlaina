@@ -50,7 +50,7 @@ export function DetailModalFooter({
             transition={{ duration: 0.4, ease: 'easeOut' }}
             className="w-full h-full"
           >
-            <HistoryWaveform item={displayItem} days={10} />
+            <HistoryWaveform item={displayItem} />
           </motion.div>
         )}
       </AnimatePresence>

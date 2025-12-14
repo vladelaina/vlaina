@@ -288,7 +288,8 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
             // For left side, we subtract this magnitude
             const finalDelta = -delta;
             // Scale by item step direction (rare case, but keeps consistency)
-            const scaledDelta = item.direction === 'increment' ? finalDelta : -finalDelta;
+            const dir = item.type === 'progress' ? item.direction : 'increment';
+            const scaledDelta = dir === 'increment' ? finalDelta : -finalDelta;
             
             onUpdate(item.id, scaledDelta);
             if (item.type === 'counter') triggerCenterEffect('implosion');
@@ -323,7 +324,8 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
             // For right side, we add it
             const finalDelta = delta;
             // Scale by item step direction
-            const scaledDelta = item.direction === 'increment' ? finalDelta : -finalDelta;
+            const dir = item.type === 'progress' ? item.direction : 'increment';
+            const scaledDelta = dir === 'increment' ? finalDelta : -finalDelta;
             
             onUpdate(item.id, scaledDelta);
             if (item.type === 'counter') triggerCenterEffect('ripple');

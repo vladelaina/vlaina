@@ -118,7 +118,7 @@ function TitleSection({
           autoFocus={autoFocus}
           value={title}
           rows={1}
-          ref={(el) => el && adjustHeight(el)}
+          ref={(el) => { if (el) adjustHeight(el); }}
           onChange={(e) => {
             onChange(e.target.value);
             adjustHeight(e.target);

@@ -2,13 +2,12 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   motion, 
-  AnimatePresence, 
   useSpring, 
   useMotionValue, 
   useTransform, 
   useVelocity
 } from 'framer-motion';
-import { Plus, Minus, X, CaretUp, CaretDown } from '@phosphor-icons/react';
+import { Plus, Minus, CaretUp, CaretDown } from '@phosphor-icons/react';
 
 interface KineticActionProps {
   icon: typeof Plus | typeof Minus;
@@ -93,8 +92,8 @@ export function KineticAction({
     // Init physics
     mouseX.set(e.clientX);
     mouseY.set(e.clientY);
-    orbX.set(e.clientX, { skipAnimations: true });
-    orbY.set(e.clientY, { skipAnimations: true });
+    orbX.set(e.clientX); // Fix: removed 2nd arg
+    orbY.set(e.clientY); // Fix: removed 2nd arg
     
     // Bind global listeners immediately to catch early moves/ups
     window.addEventListener('pointermove', handleGlobalPointerMove);

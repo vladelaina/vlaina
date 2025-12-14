@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { ChevronRight, ChevronDown, MoreHorizontal } from 'lucide-react';
 import { Group, StoreTask } from '@/stores/types';
 import { formatDuration } from '@/lib/dateUtils';

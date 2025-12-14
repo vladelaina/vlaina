@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   DotsThree,
   Prohibit,
@@ -8,12 +8,6 @@ import {
   ArrowCounterClockwise,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
-import {
-  SPRING_SNAPPY,
-  STAGGER_CONTAINER,
-  STAGGER_ITEM,
-  STAGGER_DIVIDER,
-} from '@/lib/animations';
 
 interface DetailModalHeaderProps {
   displayIcon: Icon | null;
@@ -33,7 +27,7 @@ interface DetailModalHeaderProps {
  */
 export function DetailModalHeader({
   displayIcon: DisplayIcon,
-  isEditing,
+  // isEditing, // Unused
   showMenu,
   isArchived,
   onIconClick,

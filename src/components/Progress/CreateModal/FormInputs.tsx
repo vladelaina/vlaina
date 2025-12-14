@@ -1,6 +1,12 @@
-import { motion } from 'framer-motion';
+interface CapsuleInputProps {
+  label: string;
+  value: string | number;
+  onChange: (val: string) => void;
+  type?: string; // Corrected to string to match usage, or specific 'text' | 'number'
+  width?: string;
+}
 
-export function CapsuleInput({ label, value, onChange, type, width = "w-28" }: { label: string, value: string | number, onChange: (val: string) => void, type: string, width?: string }) {
+export function CapsuleInput({ label, value, onChange, type, width = "w-28" }: CapsuleInputProps) {
   return (
     <div className={`
         relative flex flex-col items-center justify-center
