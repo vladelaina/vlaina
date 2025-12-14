@@ -51,25 +51,25 @@ export function CounterEffects({ ripples, implosions }: CounterEffectsProps) {
         />
       ))}
 
-      {/* Soft Implosions */}
+      {/* Soft Implosions (True Inverse) */}
       {implosions.map(imp => (
         <motion.div
           key={`imp-${imp.id}`}
           initial={{ 
-              width: 300, 
-              height: 300, 
-              opacity: 0, 
-              x: imp.x - 150, 
-              y: imp.y - 150, 
+              width: 400, 
+              height: 400, 
+              opacity: 0,
+              x: imp.x - 200, 
+              y: imp.y - 200,
           }}
           animate={{ 
               width: 0, 
               height: 0, 
-              opacity: 0.6, 
+              opacity: 0.5, // Fade in as it concentrates
               x: imp.x, 
-              y: imp.y,
+              y: imp.y, 
           }}
-          transition={{ duration: 0.4, ease: "circOut" }}
+          transition={{ duration: 0.5, ease: "circIn" }} // Accelerate into the center
           className="absolute rounded-full bg-zinc-900/5 dark:bg-white/10 pointer-events-none"
         />
       ))}
