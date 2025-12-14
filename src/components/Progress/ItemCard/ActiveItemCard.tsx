@@ -23,6 +23,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
   const [hoverZone, setHoverZone] = useState<'left' | 'right' | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const prevCurrent = useRef(item.current);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // Counter Specific State
   const [ripples, setRipples] = useState<Ripple[]>([]);
@@ -45,17 +46,16 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
     }, 1000);
   };
 
-  // Helper to find center for visual effects if event is generic
-  // (In kinetic drag, we might not have a precise click coordinate on the card surface, 
-  // so we center the effect)
+  // Trigger effect exactly at the geometric center of the card
   const triggerCenterEffect = (type: 'ripple' | 'implosion') => {
-      // Approximate center of the card relative to viewport? 
-      // Actually, VisualEffects uses absolute positioning inside the card.
-      // We'll spawn it at the "Button" locations roughly.
+      if (!cardRef.current) return;
+      const centerX = cardRef.current.offsetWidth / 2;
+      const centerY = cardRef.current.offsetHeight / 2;
+      
       if (type === 'ripple') {
-          triggerRipple(300, 64); // Right side roughly
+          triggerRipple(centerX, centerY);
       } else {
-          triggerImplosion(50, 64); // Left side roughly
+          triggerImplosion(centerX, centerY);
       }
   };
 
@@ -84,6 +84,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
 
   return (
     <motion.div
+      ref={cardRef}
       layout
       initial={false}
       animate={isDragging ? { scale: 1.05, y: -5, zIndex: 50 } : { scale: 1, y: 0, zIndex: 0 }}
