@@ -8,10 +8,9 @@ export interface Ripple {
 
 interface ProgressBarProps {
   fillWidth: string;
-  isCompleting: boolean;
 }
 
-export function ProgressBar({ fillWidth, isCompleting }: ProgressBarProps) {
+export function ProgressBar({ fillWidth }: ProgressBarProps) {
   return (
     <motion.div 
       className="absolute inset-y-0 left-0 bg-zinc-100 dark:bg-zinc-800" 

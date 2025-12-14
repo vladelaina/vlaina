@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion'; // 移除 AnimatePresence
 import { Plus, Minus, ArrowsClockwise } from '@phosphor-icons/react';
 import { getIconByName } from '../IconPicker';
 import { ItemCardProps } from './types';
@@ -59,23 +59,20 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
 
   // Immediate Shatter Sequence
   useEffect(() => {
-    if (item.type !== 'progress' || item.archived) return;
+    if (item.type !== 'progress' || item.archived) return; 
     
-    // Detect completion
     const justFinished = item.current >= item.total && prevCurrent.current < item.total;
     
     if (justFinished) {
-      // Trigger Shatter IMMEDIATELY
       setIsShattering(true);
       pendingArchiveRef.current = true;
       
-      // Wait for debris animation to play out (0.8s) then remove data
       const archiveTimer = setTimeout(() => {
         if (onAutoArchive) {
           onAutoArchive(item.id);
           pendingArchiveRef.current = false;
         }
-      }, 900); // 900ms to ensure shards are gone
+      }, 900); 
       
       return () => clearTimeout(archiveTimer);
 
@@ -106,32 +103,25 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
         ${isShattering ? '' : 'bg-white dark:bg-zinc-900 border border-white/50 dark:border-white/5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] dark:shadow-none hover:shadow-[0_20px_60px_-10px_rgba(0,0,0,0.1)] dark:hover:shadow-black/50'}
       `}
     >
-      {/* ================= SHATTER LAYER ================= */}
       {isShattering && <DebrisField />}
 
-      {/* ================= MAIN CARD CONTENT (Hide instantly when shattering) ================= */}
       <motion.div
         className="absolute inset-0 overflow-hidden rounded-[2.5rem]"
         style={{ opacity: isShattering ? 0 : 1 }}
         transition={{ duration: 0 }} 
       >
-          {/* Progress Bar */}
-          {!isDone && item.type === 'progress' && (
-             <ProgressBar fillWidth={fillWidth} isCompleting={false} />
+          {item.type === 'progress' && !isDone && (
+             <ProgressBar fillWidth={fillWidth} />
           )}
           
-          {/* Counter Effects */}
           {item.type === 'counter' && (
              <CounterEffects ripples={ripples} implosions={implosions} />
           )}
           
-          {/* The Edge */}
           <div className="absolute inset-0 rounded-[2.5rem] ring-1 ring-inset pointer-events-none ring-black/5 dark:ring-white/5" />
 
-          {/* Content */}
           <div className="absolute inset-0 flex items-center justify-between px-10 pointer-events-none z-20 overflow-hidden">
             
-            {/* Left: Info */}
             <motion.div 
               className="relative flex items-center h-full min-w-0 flex-1 pl-0"
               animate={{ 
@@ -171,7 +161,6 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
               </motion.div>
             </motion.div>
 
-            {/* Right: Score */}
             <motion.div 
               className="flex flex-col items-end justify-center pl-6 h-full absolute right-10"
               animate={{ 
@@ -201,7 +190,6 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
             </motion.div>
           </div>
 
-          {/* Interaction */}
           <KineticAction 
             icon={Minus}
             step={Math.abs(item.step)}

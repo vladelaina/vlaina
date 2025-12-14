@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useProgressStore } from '../../stores/useProgressStore';
 import { useProgressDrag } from './hooks/useProgressDrag';
 import { useDayChange } from '../../hooks/useDayChange'; // Import Watchman
-import { ItemCard } from './ItemCard';
+import { ItemCard, ActiveItemCard, ArchivedItemCard } from './ItemCard';
 import { CreateModal } from './CreateModal';
 import { DetailModal } from './DetailModal';
 
@@ -387,9 +387,33 @@ export function ProgressPage() {
               </div>
             )}
 
-            <DragOverlay>
-              {/* Empty overlay - only show Rust window */}
-              {null}
+            <DragOverlay dropAnimation={null}>
+              {activeId ? (() => {
+                const item = items.find(i => i.id === activeId);
+                if (!item) return null;
+                
+                return (
+                  <div className="w-full">
+                    {item.archived ? (
+                      <ArchivedItemCard 
+                        item={item}
+                        onUpdate={updateCurrent}
+                        onClick={() => {}}
+                        onAutoArchive={handleAutoArchive}
+                        isDragging={true}
+                      />
+                    ) : (
+                      <ActiveItemCard 
+                        item={item}
+                        onUpdate={updateCurrent}
+                        onClick={() => {}}
+                        onAutoArchive={handleAutoArchive}
+                        isDragging={true}
+                      />
+                    )}
+                  </div>
+                );
+              })() : null}
             </DragOverlay>
           </DndContext>
         </div>

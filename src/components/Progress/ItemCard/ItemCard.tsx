@@ -22,6 +22,7 @@ export function ItemCard(props: ItemCardProps) {
     setNodeRef,
     transform,
     transition,
+    isDragging,
   } = useSortable({
     id: item.id,
     animateLayoutChanges,
@@ -30,6 +31,7 @@ export function ItemCard(props: ItemCardProps) {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0 : 1,
   };
 
   // If archived, render the "Timeline Ticket" view
