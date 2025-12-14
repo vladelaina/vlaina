@@ -155,14 +155,13 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
         <motion.div 
           className="relative flex items-center h-full min-w-0 flex-1 pl-0"
           animate={{ 
-            x: isCompleting ? '50%' : (hoverZone === 'left' ? 48 : 0), 
+            x: hoverZone === 'left' ? 48 : 0, 
             opacity: hoverZone === 'left' ? 0.6 : 1 
           }}
           transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
         >
           <motion.div 
             className="relative flex items-center w-full h-full gap-4"
-            animate={{ x: isCompleting ? '-50%' : '0%' }}
           >
               {/* Layer 0: Icon (Flex Item) */}
               {(() => {
@@ -170,9 +169,6 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
                 return (
                   <motion.div 
                       className="flex-shrink-0 flex items-center justify-center w-16"
-                      animate={{
-                          x: isCompleting ? 0 : 0,
-                      }}
                   >
                       {Icon ? (
                           <div className={`
@@ -195,12 +191,9 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
               {/* Layer 1: Text (Flex Item) */}
               <motion.div 
                   className="flex flex-col justify-center min-w-0 gap-1.5 relative z-10"
-                  animate={{
-                      alignItems: isCompleting ? 'center' : 'flex-start',
-                      width: '100%'
-                  }}
+                  style={{ width: '100%' }}
               >
-                <span className={`text-2xl font-light tracking-wide truncate leading-none transition-colors duration-300 ${isCompleting ? 'text-white dark:text-zinc-900 mt-16' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                <span className={`text-2xl font-light tracking-wide truncate leading-none transition-colors duration-300 ${isCompleting ? 'text-white dark:text-zinc-900' : 'text-zinc-900 dark:text-zinc-100'}`}>
                   {displayTitle}
                 </span>
                 
@@ -230,8 +223,8 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
         <motion.div 
           className="flex flex-col items-end justify-center pl-6 h-full absolute right-10"
           animate={{ 
-              right: isCompleting ? '50%' : '40px',
-              x: isCompleting ? '50%' : 0 
+              x: hoverZone === 'right' ? -48 : 0, 
+              opacity: hoverZone === 'right' ? 0.6 : 1
           }}
           transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
         >
@@ -239,13 +232,16 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
              {isCompleting ? (
                <motion.div 
                  key="completed-check"
-                 initial={{ scale: 0, rotate: -180 }}
-                 animate={{ scale: 1, rotate: 0 }}
-                 exit={{ scale: 0 }}
-                 transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
-                 className="flex items-center justify-center"
+                 initial={{ scale: 0, rotate: -180, opacity: 0 }}
+                 animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                 exit={{ scale: 0, opacity: 0 }}
+                 transition={{ type: "spring", stiffness: 600, damping: 25, mass: 0.8 }}
+                 className="flex items-center justify-center relative"
                >
-                  <div className="p-4 rounded-full bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-[0_0_40px_rgba(255,255,255,0.6)] dark:shadow-[0_0_40px_rgba(255,255,255,0.1)]">
+                  {/* Glow Effect behind check */}
+                  <div className="absolute inset-0 bg-white/50 dark:bg-white/20 blur-xl scale-150 rounded-full" />
+                  
+                  <div className="relative p-4 rounded-full bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-[0_10px_30px_-5px_rgba(0,0,0,0.2)] dark:shadow-[0_0_40px_rgba(255,255,255,0.15)] ring-4 ring-white/20 dark:ring-white/10 backdrop-blur-sm">
                     <Check className="size-8" weight="bold" />
                   </div>
                </motion.div>
@@ -254,8 +250,6 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
                  key="progress-number"
                  className="flex items-baseline gap-2 relative"
                  animate={{ 
-                    x: hoverZone === 'right' ? -48 : 0,
-                    opacity: hoverZone === 'right' ? 0.6 : 1,
                     scale: item.type === 'counter' && item.current !== prevCurrent.current 
                       ? (item.current > prevCurrent.current ? [1, 1.15, 1] : [1, 0.85, 1])
                       : 1 
@@ -264,7 +258,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
                     type: "spring", stiffness: 850, damping: 35, mass: 0.5,
                     scale: { duration: 0.15 } 
                  }}
-                 exit={{ opacity: 0, scale: 0.8 }}
+                 exit={{ opacity: 0, scale: 0.8, filter: "blur(10px)" }}
                >
                   <span className="text-5xl font-extralight tracking-tighter text-zinc-900 dark:text-zinc-50 font-sans tabular-nums relative z-10">
                     {item.type === 'progress' 
