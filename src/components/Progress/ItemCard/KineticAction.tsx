@@ -182,15 +182,23 @@ export function KineticAction({
       // Calculate potential new raw accumulation
       let newValue = valueRef.current + addition;
       
-      // CLAMP LOGIC: If Progress and Adding, don't exceed total
+      // CLAMP LOGIC:
+      // 1. If Progress and Adding, don't exceed total
       if (itemType === 'progress' && direction === 'right' && total > 0) {
-          // Max allowed addition = (Total - Current) / Step
           const maxAddableSteps = Math.max(0, (total - current) / step);
-          
           if (newValue > maxAddableSteps) {
              newValue = maxAddableSteps;
-             // Optional: Trigger a "Hit the Wall" haptic
              if (newValue !== valueRef.current) triggerHaptic(20);
+          }
+      }
+      
+      // 2. If Removing (Left), don't go below zero (for any type)
+      // Since accumulatedValue is always positive magnitude in our logic:
+      if (direction === 'left') {
+          const maxRemovableSteps = Math.max(0, current / step);
+          if (newValue > maxRemovableSteps) {
+              newValue = maxRemovableSteps;
+              if (newValue !== valueRef.current) triggerHaptic(20);
           }
       }
 
