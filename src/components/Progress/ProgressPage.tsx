@@ -91,12 +91,11 @@ export function ProgressPage() {
 
   const {
     activeId,
-    overId,
     handleDragStart,
     handleDragMove,
     handleDragOver,
     handleDragEnd,
-  } = useProgressDrag({ items: visibleItems, onReorder: reorderItems });
+  } = useProgressDrag({ onReorder: reorderItems });
 
   const onDragStart = (event: any) => {
     handleDragStart(event);

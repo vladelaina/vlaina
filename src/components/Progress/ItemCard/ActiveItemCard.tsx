@@ -199,7 +199,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
             direction="left"
             isActive={hoverZone === 'left'}
             itemType={item.type}
-            total={'total' in item ? item.total : 0}
+            total={item.type === 'progress' ? (item as any).total : 0}
             current={item.current}
             onHoverStart={() => setHoverZone('left')}
             onHoverEnd={() => setHoverZone(null)}
@@ -230,7 +230,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
             direction="right"
             isActive={hoverZone === 'right'}
             itemType={item.type}
-            total={'total' in item ? item.total : 0}
+            total={item.type === 'progress' ? (item as any).total : 0}
             current={item.current}
             onHoverStart={() => setHoverZone('right')}
             onHoverEnd={() => setHoverZone(null)}

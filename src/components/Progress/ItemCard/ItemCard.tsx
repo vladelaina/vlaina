@@ -37,6 +37,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, onDelete, isD
       <div ref={setNodeRef} style={style} className="relative">
         <ArchivedItemCard 
           item={item} 
+          onUpdate={onUpdate}
           onClick={onClick}
           onAutoArchive={onAutoArchive}
           onDelete={onDelete}
