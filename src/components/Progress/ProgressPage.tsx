@@ -400,11 +400,10 @@ export function ProgressPage() {
             >
               <div className="space-y-3">
                 {visibleItems.map((item) => {
-                  const isDropTarget = item.id === overId && overId !== activeId;
-                  const activeIndex = activeId ? visibleItems.findIndex(i => i.id === activeId) : -1;
-                  const overIndex = overId ? visibleItems.findIndex(i => i.id === overId) : -1;
-                  const insertAfter = isDropTarget && activeIndex !== -1 && overIndex > activeIndex;
-
+                  // const isDropTarget = item.id === overId && overId !== activeId; // Unused for now
+                  // const activeIndex = activeId ? visibleItems.findIndex(i => i.id === activeId) : -1;
+                  // const overIndex = overId ? visibleItems.findIndex(i => i.id === overId) : -1;
+                  
                   return (
                     <div key={item.id} id={`sortable-item-${item.id}`}>
                       <ItemCard

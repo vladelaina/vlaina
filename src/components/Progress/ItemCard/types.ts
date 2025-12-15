@@ -5,6 +5,7 @@ export interface ItemCardProps {
   onUpdate: (id: string, delta: number) => void;
   onClick?: () => void;
   onAutoArchive?: (id: string) => void;
+  onDelete?: (id: string) => void;
   isDragging?: boolean;
   previewIcon?: string;
   previewTitle?: string;
