@@ -30,7 +30,6 @@ export function ProgressPage() {
   // Scroll state for smart collapsing button
   const [isScrolled, setIsScrolled] = useState(false);
   const [isArchiveView, setIsArchiveView] = useState(false);
-  const [isEntryAnimating, setIsEntryAnimating] = useState(false);
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -60,10 +59,10 @@ export function ProgressPage() {
         setIsArchiveView(false);
       }
 
-      // Trigger "Entry" animation if we are archiving
+      // Trigger "Entry" animation if we are archiving (Flip to History)
       if (!item.archived) {
-        setIsEntryAnimating(true);
-        setTimeout(() => setIsEntryAnimating(false), 400);
+        setIsStatusHovered(true);
+        setTimeout(() => setIsStatusHovered(false), 800); // Stay flipped for a moment
       }
 
       updateItem(id, updates);
@@ -73,6 +72,7 @@ export function ProgressPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null); // Store ID instead of object
   const [previewOverride, setPreviewOverride] = useState<{ icon?: string; title?: string } | null>(null);
+  const [isStatusHovered, setIsStatusHovered] = useState(false);
 
   // Derive the selected item from the fresh store data
   const selectedItem = items.find(i => i.id === selectedId) || null;
@@ -287,16 +287,44 @@ export function ProgressPage() {
                     {/* Content Layer - Floating above */}
                     <div className="relative z-10 pt-0 flex flex-col gap-0">
                       {/* Greeting / Status - The Call to Action */}
-                      <motion.div 
-                        onClick={() => setIsArchiveView(true)}
-                        animate={{ scale: isEntryAnimating ? 1.15 : 1 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                        className="group/status flex items-center gap-1.5 mb-0.5 cursor-pointer transition-opacity duration-300 hover:opacity-70 origin-left"
-                      >
-                          <span className="text-[9px] font-bold tracking-[0.25em] text-zinc-400 dark:text-zinc-500 uppercase group-hover/status:text-zinc-600 dark:group-hover/status:text-zinc-300 transition-colors">
-                            {greeting.toUpperCase()}
-                          </span>
-                      </motion.div>
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <motion.div 
+                          onClick={() => setIsArchiveView(true)}
+                          onMouseEnter={() => setIsStatusHovered(true)}
+                          onMouseLeave={() => setIsStatusHovered(false)}
+                          className="group/status relative flex items-center justify-start cursor-pointer h-4 overflow-hidden"
+                        >
+                          <AnimatePresence mode="wait" initial={false}>
+                          {isStatusHovered ? (
+                            <motion.div
+                              key="archive-hint"
+                              initial={{ y: 10, opacity: 0 }}
+                              animate={{ y: 0, opacity: 1 }}
+                              exit={{ y: -10, opacity: 0 }}
+                              transition={{ duration: 0.2, ease: "easeOut" }}
+                              className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-300"
+                            >
+                              <Archive weight="bold" className="size-3" />
+                              <span className="text-[9px] font-bold tracking-[0.25em] uppercase">
+                                HISTORY
+                              </span>
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key="status-text"
+                              initial={{ y: 10, opacity: 0 }}
+                              animate={{ y: 0, opacity: 1 }}
+                              exit={{ y: -10, opacity: 0 }}
+                              transition={{ duration: 0.2, ease: "easeOut" }}
+                            >
+                              <span className="text-[9px] font-bold tracking-[0.25em] text-zinc-400 dark:text-zinc-500 uppercase transition-colors">
+                                {greeting.toUpperCase()}
+                              </span>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                        </motion.div>
+                      </div>
 
                       {/* Weekday - The Temporal Anchor */}
                       <h1 className="text-2xl font-serif italic font-light text-zinc-800 dark:text-zinc-100 tracking-tight">
