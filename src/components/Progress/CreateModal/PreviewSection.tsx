@@ -77,6 +77,12 @@ export function PreviewSection({
                     item={previewItem} 
                     onUpdate={handlePreviewUpdate} 
                     onClick={() => setIsPickingIcon(true)}
+                    onAutoArchive={() => {
+                        // "Rebirth" Logic: Reset preview after shatter
+                        setTimeout(() => {
+                           handlePreviewUpdate('preview', -previewItem.total); // Reset to 0
+                        }, 800);
+                    }}
                     isDragging={false}
                 />
             </motion.div>
