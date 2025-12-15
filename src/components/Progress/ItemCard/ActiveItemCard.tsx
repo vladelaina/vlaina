@@ -7,6 +7,9 @@ import { ProgressBar, CounterEffects, Ripple, DebrisField } from './VisualEffect
 import { KineticAction } from './KineticAction';
 
 export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, previewIcon, previewTitle }: ItemCardProps) {
+  // Safe total access for TS - Moved to top
+  const safeTotal = (item as any).total || 0;
+
   const displayIcon = previewIcon !== undefined ? previewIcon : item.icon;
   const displayTitle = previewTitle !== undefined ? previewTitle : item.title;
 
@@ -27,9 +30,6 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
   const prevCurrent = useRef(item.current);
   const pendingArchiveRef = useRef(false);
   const cardRef = useRef<HTMLDivElement>(null);
-
-  // Safe total access for TS
-  const safeTotal = (item as any).total || 0;
 
   // Counter Specific State
   const [ripples, setRipples] = useState<Ripple[]>([]);
