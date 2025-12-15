@@ -30,6 +30,7 @@ export function ProgressPage() {
   // Scroll state for smart collapsing button
   const [isScrolled, setIsScrolled] = useState(false);
   const [isArchiveView, setIsArchiveView] = useState(false);
+  const [isEntryAnimating, setIsEntryAnimating] = useState(false);
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -57,6 +58,12 @@ export function ProgressPage() {
       // If we are in archive view, restoring an item, and it's the last one...
       if (isArchiveView && item.archived && archivedCount === 1) {
         setIsArchiveView(false);
+      }
+
+      // Trigger "Entry" animation if we are archiving
+      if (!item.archived) {
+        setIsEntryAnimating(true);
+        setTimeout(() => setIsEntryAnimating(false), 400);
       }
 
       updateItem(id, updates);
@@ -280,11 +287,16 @@ export function ProgressPage() {
                     {/* Content Layer - Floating above */}
                     <div className="relative z-10 pt-0 flex flex-col gap-0">
                       {/* Greeting / Status - The Call to Action */}
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className="text-[9px] font-bold tracking-[0.25em] text-zinc-400 dark:text-zinc-500 uppercase">
+                      <motion.div 
+                        onClick={() => setIsArchiveView(true)}
+                        animate={{ scale: isEntryAnimating ? 1.15 : 1 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                        className="group/status flex items-center gap-1.5 mb-0.5 cursor-pointer transition-opacity duration-300 hover:opacity-70 origin-left"
+                      >
+                          <span className="text-[9px] font-bold tracking-[0.25em] text-zinc-400 dark:text-zinc-500 uppercase group-hover/status:text-zinc-600 dark:group-hover/status:text-zinc-300 transition-colors">
                             {greeting.toUpperCase()}
                           </span>
-                      </div>
+                      </motion.div>
 
                       {/* Weekday - The Temporal Anchor */}
                       <h1 className="text-2xl font-serif italic font-light text-zinc-800 dark:text-zinc-100 tracking-tight">
@@ -311,7 +323,10 @@ export function ProgressPage() {
 
                           {/* Title & Count - The Narrative */}
                           <div className="flex items-baseline gap-3 select-none">
-                            <h1 className="text-2xl font-serif italic font-light text-zinc-800 dark:text-zinc-100 tracking-tight">
+                            <h1 
+                              onClick={() => setIsArchiveView(false)}
+                              className="text-2xl font-serif italic font-light text-zinc-800 dark:text-zinc-100 tracking-tight cursor-pointer"
+                            >
                               Archived
                             </h1>
                             <span className="text-xs font-medium text-zinc-300 dark:text-zinc-600 font-serif italic">
@@ -376,20 +391,6 @@ export function ProgressPage() {
                 })}
               </div>
             </SortableContext>
-
-            {/* Archive Entry Footer - Only visible in main list */}
-            {!isArchiveView && (
-              <div 
-                onClick={() => setIsArchiveView(true)}
-                className="mt-12 mb-8 flex items-center justify-center gap-3 py-2 cursor-pointer group select-none"
-              >
-                <div className="h-px w-6 bg-zinc-100 dark:bg-zinc-800 transition-all duration-300 group-hover:w-12 group-hover:bg-zinc-300 dark:group-hover:bg-zinc-700" />
-                <span className="text-[9px] font-bold tracking-[0.25em] uppercase text-zinc-300 dark:text-zinc-700 group-hover:text-zinc-500 dark:group-hover:text-zinc-500 transition-colors duration-300">
-                  History
-                </span>
-                <div className="h-px w-6 bg-zinc-100 dark:bg-zinc-800 transition-all duration-300 group-hover:w-12 group-hover:bg-zinc-300 dark:group-hover:bg-zinc-700" />
-              </div>
-            )}
 
             {createPortal(
               <DragOverlay 
