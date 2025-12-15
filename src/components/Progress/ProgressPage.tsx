@@ -412,6 +412,7 @@ export function ProgressPage() {
                         onUpdate={updateCurrent}
                         onClick={() => setSelectedId(item.id)}
                         onAutoArchive={handleAutoArchive}
+                        onDelete={deleteItem}
                         isDragging={activeId === item.id}
                         previewIcon={selectedItem?.id === item.id ? previewOverride?.icon : undefined}
                         previewTitle={selectedItem?.id === item.id ? previewOverride?.title : undefined}
@@ -440,6 +441,7 @@ export function ProgressPage() {
                           onUpdate={updateCurrent}
                           onClick={() => {}}
                           onAutoArchive={handleAutoArchive}
+                          onDelete={deleteItem}
                           isDragging={true}
                         />
                       ) : (

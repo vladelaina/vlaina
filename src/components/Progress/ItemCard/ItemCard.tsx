@@ -13,9 +13,7 @@ const animateLayoutChanges: AnimateLayoutChanges = (args) => {
   return defaultAnimateLayoutChanges(args);
 };
 
-export function ItemCard(props: ItemCardProps) {
-  const { item } = props;
-  
+export function ItemCard({ item, onUpdate, onClick, onAutoArchive, onDelete, isDragging: propIsDragging, previewIcon, previewTitle }: ItemCardProps) {
   const {
     attributes,
     listeners,
@@ -34,19 +32,39 @@ export function ItemCard(props: ItemCardProps) {
     opacity: isDragging ? 0 : 1,
   };
 
-  // If archived, render the "Timeline Ticket" view
   if (item.archived) {
     return (
-      <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-        <ArchivedItemCard {...props} />
+      <div ref={setNodeRef} style={style} className="relative">
+        <ArchivedItemCard 
+          item={item} 
+          onClick={onClick}
+          onAutoArchive={onAutoArchive}
+          onDelete={onDelete}
+          previewIcon={previewIcon}
+          previewTitle={previewTitle}
+        />
+        
+        {/* Drag Handle - Covers the Icon/Left Zone */}
+        <div 
+          {...attributes} 
+          {...listeners}
+          className="absolute left-0 top-0 bottom-0 w-24 cursor-grab active:cursor-grabbing z-10"
+        />
       </div>
     );
   }
 
-  // Active view
   return (
     <div ref={setNodeRef} style={style} className="relative mb-5">
-      <ActiveItemCard {...props} />
+      <ActiveItemCard 
+        item={item} 
+        onUpdate={onUpdate} 
+        onClick={onClick}
+        onAutoArchive={onAutoArchive}
+        isDragging={propIsDragging || isDragging}
+        previewIcon={previewIcon}
+        previewTitle={previewTitle}
+      />
       
       {/* Drag Handle Overlay - Positioned over the card but controlled by parent DnD */}
       <div 

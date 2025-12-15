@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion';
-import { ArrowCounterClockwise } from '@phosphor-icons/react';
+import { ArrowCounterClockwise, Trash } from '@phosphor-icons/react';
 import { getIconByName } from '../IconPicker';
 import { ItemCardProps } from './types';
 
-export function ArchivedItemCard({ item, onClick, onAutoArchive, previewIcon, previewTitle }: ItemCardProps) {
+export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previewIcon, previewTitle }: ItemCardProps) {
   const displayIcon = previewIcon !== undefined ? previewIcon : item.icon;
   const displayTitle = previewTitle !== undefined ? previewTitle : item.title;
 
@@ -103,25 +103,44 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, previewIcon, pr
             </div>
          </div>
 
-         {/* Zone 3: The Resurrection (Restart Button) */}
-         <div className="relative z-20 flex items-center justify-center">
+         {/* Zone 3: The Resurrection (Restart) & The Void (Delete) */}
+         <div className="relative z-20 flex items-center gap-2 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 transition-all duration-500 ease-out">
+            {/* Restore - The Breath of Life */}
             <button
               onClick={(e) => {
-                e.stopPropagation(); // Prevent card click
+                e.stopPropagation();
                 onAutoArchive?.(item.id);
               }}
               className="
-                p-3 rounded-full
+                p-2.5 rounded-full
                 text-zinc-300 dark:text-zinc-600
                 hover:bg-zinc-100 dark:hover:bg-zinc-800
                 hover:text-zinc-900 dark:hover:text-zinc-100
                 hover:shadow-sm
-                transition-all duration-500 ease-out
-                opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0
+                transition-all duration-300
               "
               title="Restore to active list"
             >
               <ArrowCounterClockwise className="size-5" weight="bold" />
+            </button>
+
+            {/* Delete - The Final Release */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.(item.id);
+              }}
+              className="
+                p-2.5 rounded-full
+                text-zinc-300 dark:text-zinc-600
+                hover:bg-red-50 dark:hover:bg-red-900/20
+                hover:text-red-500 dark:hover:text-red-400
+                hover:shadow-sm
+                transition-all duration-300
+              "
+              title="Delete permanently"
+            >
+              <Trash className="size-5" weight="bold" />
             </button>
          </div>
       </motion.div>
