@@ -28,6 +28,9 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
   const pendingArchiveRef = useRef(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
+  // Safe total access for TS
+  const safeTotal = (item as any).total || 0;
+
   // Counter Specific State
   const [ripples, setRipples] = useState<Ripple[]>([]);
   const [implosions, setImplosions] = useState<Ripple[]>([]);
@@ -199,7 +202,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
             direction="left"
             isActive={hoverZone === 'left'}
             itemType={item.type}
-            total={item.type === 'progress' ? (item as any).total : 0}
+            total={safeTotal}
             current={item.current}
             onHoverStart={() => setHoverZone('left')}
             onHoverEnd={() => setHoverZone(null)}
@@ -230,7 +233,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
             direction="right"
             isActive={hoverZone === 'right'}
             itemType={item.type}
-            total={item.type === 'progress' ? (item as any).total : 0}
+            total={safeTotal}
             current={item.current}
             onHoverStart={() => setHoverZone('right')}
             onHoverEnd={() => setHoverZone(null)}
