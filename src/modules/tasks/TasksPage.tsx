@@ -9,11 +9,9 @@ import { TaskInput } from '@/components/features/TaskInput';
 import { GroupSidebar } from '@/components/features/GroupDrawer';
 import { useGroupStore, useUIStore, type Priority } from '@/stores/useGroupStore';
 
-interface TasksPageProps {
-  onOpenSettings?: () => void;
-}
+interface TasksPageProps {}
 
-export function TasksPage({ onOpenSettings }: TasksPageProps) {
+export function TasksPage() {
   const { activeGroupId, deleteGroup, groups, tasks, loadData, loaded } = useGroupStore();
   const { hideCompleted, setHideCompleted, hideActualTime, setHideActualTime, selectedPriorities, togglePriority, toggleAllPriorities } = useUIStore();
   const [showMoreMenu, setShowMoreMenu] = useState(false);

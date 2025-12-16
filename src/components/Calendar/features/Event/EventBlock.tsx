@@ -74,7 +74,7 @@ export function EventBlock({ event, onToggle }: EventBlockProps) {
           filter: isCompleted ? 'grayscale(0.5)' : 'grayscale(0)',
           scale: 1,
         }}
-        whileHover={{ scale: 1.02, zIndex: 50, shadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}
+        whileHover={{ scale: 1.02, zIndex: 50, boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}
         whileTap={{ scale: 0.98 }}
         transition={{ duration: 0.2 }}
         className={`

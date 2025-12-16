@@ -14,6 +14,7 @@ export interface TaskSlice {
   addTask: (content: string, groupId: string, priority?: Priority) => void;
   addSubTask: (parentId: string, content: string) => void;
   updateTask: (id: string, content: string) => void;
+  updateTaskSchedule: (id: string, scheduledTime?: string) => void;
   updateTaskEstimation: (id: string, estimatedMinutes?: number) => void;
   updateTaskPriority: (id: string, priority: Priority) => void;
   toggleTask: (id: string, skipReorder?: boolean) => void;
@@ -86,6 +87,16 @@ export const createTaskSlice: StateCreator<StoreState, [], [], TaskSlice> = (set
     if (estimatedMinutes !== undefined) {
       task.estimatedMinutes = estimatedMinutes;
     }
+    
+    persistGroup(state.groups, state.tasks, task.groupId);
+    return { tasks: [...state.tasks] };
+  }),
+
+  updateTaskSchedule: (id, scheduledTime) => set((state) => {
+    const task = state.tasks.find(t => t.id === id);
+    if (!task) return state;
+    
+    task.scheduledTime = scheduledTime;
     
     persistGroup(state.groups, state.tasks, task.groupId);
     return { tasks: [...state.tasks] };

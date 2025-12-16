@@ -18,7 +18,7 @@ const SNAP_MINUTES = 15;
 
 export function CalendarPage() {
   const { load, selectedDate, setSelectedDate, addEvent } = useCalendarStore();
-  const { updateTask } = useGroupStore();
+  const { updateTaskSchedule, updateTaskEstimation } = useGroupStore();
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
 
   useEffect(() => {
@@ -90,10 +90,12 @@ export function CalendarPage() {
       const task = active.data.current?.task;
 
       if (task) {
-        updateTask(task.id, { 
-          scheduledTime: startDate.getTime().toString(),
-          estimatedMinutes: task.estimatedMinutes || 60
-        });
+        updateTaskSchedule(task.id, startDate.getTime().toString());
+        // Only update estimation if it was default/fallback, otherwise keep original or update if needed
+        // For simplicity, we just ensure schedule is set. Estimation update is optional here.
+        if (!task.estimatedMinutes) {
+           updateTaskEstimation(task.id, 60);
+        }
         console.log('[Calendar] Scheduled Task:', task.title, 'at', startDate);
       } else {
         const endDate = addMinutes(startDate, 60);
