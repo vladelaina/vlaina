@@ -208,10 +208,19 @@ export function TimeGrid() {
               {weekDays.map((day, i) => <div key={i} className={`border-r border-zinc-100 dark:border-zinc-800/50 h-full ${isSameDay(day, now) ? 'bg-blue-50/10 dark:bg-blue-900/5' : ''}`} />)}
             </div>
 
-            {/* Now Line */}
-            <div style={{ top: nowTop }} className="absolute left-0 right-0 z-20 flex items-center pointer-events-none">
-              <div className="h-[2px] w-full bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.4)]" />
-              <div className="absolute -left-1.5 w-3 h-3 rounded-full bg-red-500 shadow-sm" />
+            {/* Now Line - The Pulse of Time */}
+            <div 
+              style={{ top: nowTop }}
+              className="absolute left-0 right-0 z-20 flex items-center pointer-events-none transition-all duration-1000 ease-linear"
+            >
+              {/* The Line with Glow */}
+              <div className="h-[2px] w-full bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.6)]" />
+              
+              {/* The Heartbeat Dot */}
+              <div className="absolute -left-1.5 w-3 h-3 flex items-center justify-center">
+                 <div className="absolute w-3 h-3 rounded-full bg-red-500 shadow-sm z-10" />
+                 <div className="absolute w-3 h-3 rounded-full bg-red-500 animate-ping opacity-75" />
+              </div>
             </div>
 
             {/* Events Layer (Merged Tasks & Events) */}

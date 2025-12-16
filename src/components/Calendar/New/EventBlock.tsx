@@ -20,72 +20,100 @@ export function EventBlock({ event, onToggle }: EventBlockProps) {
   const isTask = event.type === 'task';
   const isCompleted = isTask && event.originalTask?.completed;
   
-  // Dynamic color mapping
+  // Premium Color Palette
+  // Using ring for borders to keep box-sizing clean
   const colorMap: Record<string, string> = {
-    blue: 'bg-blue-500 border-blue-600 text-blue-700',
-    red: 'bg-red-500 border-red-600 text-red-700',
-    green: 'bg-emerald-500 border-emerald-600 text-emerald-700',
-    yellow: 'bg-amber-400 border-amber-500 text-amber-800',
-    purple: 'bg-purple-500 border-purple-600 text-purple-700',
-    orange: 'bg-orange-500 border-orange-600 text-orange-800',
+    // Style: [Background, Text, CheckboxBorder, CheckboxActive]
+    blue:    'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-100 ring-blue-200 dark:ring-blue-700/50',
+    red:     'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-100 ring-red-200 dark:ring-red-700/50',
+    green:   'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-100 ring-emerald-200 dark:ring-emerald-700/50',
+    yellow:  'bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-100 ring-amber-200 dark:ring-amber-700/50',
+    purple:  'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-100 ring-purple-200 dark:ring-purple-700/50',
+    orange:  'bg-orange-50 dark:bg-orange-900/20 text-orange-800 dark:text-orange-100 ring-orange-200 dark:ring-orange-700/50',
   };
+
+  const colorKey = event.color || 'blue';
+  // Use map or fallback to blue
+  const styleStr = colorMap[colorKey] || colorMap['blue'];
   
-  // Base classes
+  // Base classes for the card
   const baseClasses = `
-    absolute left-0.5 right-1 rounded-[3px] overflow-hidden cursor-pointer 
+    absolute left-0.5 right-1 rounded-[6px] overflow-hidden cursor-pointer 
     transition-all duration-200 group
-    hover:z-20 hover:shadow-lg hover:brightness-[0.98]
+    hover:z-30 hover:shadow-md hover:-translate-y-[1px]
     ${isCompleted ? 'opacity-60 grayscale-[0.5]' : 'opacity-100'}
   `;
 
-  // Specific styles
   let innerContent;
   
   if (isTask) {
     // --- TASK STYLE ---
-    // A clean card with a checkbox
+    // High-fidelity card with visual depth
     const priorityColor = event.originalTask?.priority || 'default';
-    const isShort = height < 30;
+    const isShort = height < 32;
+
+    // Determine Accent Color based on Priority
+    let accentColorClass = 'text-blue-600 dark:text-blue-400';
+    let ringClass = 'ring-zinc-200 dark:ring-zinc-700';
+    let bgClass = 'bg-white dark:bg-zinc-800';
+    let borderLeftClass = 'border-l-[3px] border-blue-500';
+
+    if (priorityColor === 'red') {
+       borderLeftClass = 'border-l-[3px] border-red-500';
+       bgClass = 'bg-red-50/50 dark:bg-red-900/10'; // Subtle tint
+    } else if (priorityColor === 'green') {
+       borderLeftClass = 'border-l-[3px] border-emerald-500';
+       bgClass = 'bg-emerald-50/50 dark:bg-emerald-900/10';
+    } else if (priorityColor === 'yellow') {
+       borderLeftClass = 'border-l-[3px] border-amber-400';
+       bgClass = 'bg-amber-50/50 dark:bg-amber-900/10';
+    } else {
+       // Default/Blue
+       borderLeftClass = 'border-l-[3px] border-blue-500';
+       bgClass = 'bg-white dark:bg-zinc-800';
+    }
 
     innerContent = (
       <div 
         className={`
           w-full h-full flex flex-col
-          bg-white dark:bg-zinc-800 
-          border-l-[3px]
-          ${priorityColor === 'red' ? 'border-red-500' : 
-            priorityColor === 'yellow' ? 'border-yellow-400' :
-            priorityColor === 'green' ? 'border-emerald-500' : 
-            'border-blue-500'}
-          text-xs shadow-sm
+          ${bgClass}
+          ${borderLeftClass}
+          ring-1 ring-inset ring-black/5 dark:ring-white/10
+          shadow-sm
         `}
       >
-        <div className={`flex items-start gap-1.5 p-1 ${isShort ? 'items-center' : ''}`}>
-          {/* Checkbox Area */}
+        <div className={`flex items-start gap-2 p-1.5 ${isShort ? 'items-center' : ''}`}>
+          {/* Checkbox Area - The "Satisfaction Button" */}
           <div 
             onClick={(e) => {
               e.stopPropagation();
               onToggle && onToggle(event.id);
             }}
             className={`
-              flex-shrink-0 w-3.5 h-3.5 mt-[1px] rounded-[3px] border transition-colors flex items-center justify-center
-              hover:scale-110 active:scale-95 z-20
+              flex-shrink-0 w-4 h-4 rounded-[4px] border transition-all duration-200 flex items-center justify-center
+              hover:scale-110 active:scale-90 z-20 cursor-pointer shadow-sm
               ${isCompleted 
                 ? 'bg-zinc-500 border-zinc-500 text-white' 
-                : 'border-zinc-300 dark:border-zinc-500 hover:border-zinc-400 bg-transparent'}
+                : 'border-zinc-300 dark:border-zinc-500 bg-white dark:bg-zinc-900 group-hover:border-blue-400'}
             `}
           >
-            {isCompleted && <Check className="w-2.5 h-2.5" strokeWidth={3} />}
+            {isCompleted && <Check className="w-3 h-3" strokeWidth={3.5} />}
           </div>
 
           {/* Text Content */}
-          <div className="flex-1 min-w-0 leading-tight">
-             <span className={`font-medium text-zinc-700 dark:text-zinc-200 truncate block ${isCompleted ? 'line-through text-zinc-400' : ''}`}>
+          <div className="flex-1 min-w-0 flex flex-col justify-center">
+             <span 
+               className={`
+                 text-[11px] leading-tight font-semibold tracking-tight truncate 
+                 ${isCompleted ? 'line-through text-zinc-400' : 'text-zinc-700 dark:text-zinc-200'}
+               `}
+             >
                {event.title}
              </span>
              {!isShort && (
-               <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
-                 {format(event.startDate, 'HH:mm')} - {format(event.endDate, 'HH:mm')}
+               <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-medium tracking-wide mt-0.5 tabular-nums">
+                 {format(event.startDate, 'HH:mm')} · {format(event.endDate, 'HH:mm')}
                </span>
              )}
           </div>
@@ -94,21 +122,21 @@ export function EventBlock({ event, onToggle }: EventBlockProps) {
     );
   } else {
     // --- EVENT STYLE ---
-    // A translucent block of color, like Notion Calendar
-    const colorKey = event.color || 'blue';
-    const bgStyle = colorMap[colorKey].split(' ')[0].replace('bg-', ''); // primitive parsing
+    // Pure, flat, colorful block
     
     innerContent = (
       <div className={`
-        w-full h-full px-1.5 py-0.5 text-xs font-medium border-l-[3px]
-        bg-${bgStyle}-100/80 dark:bg-${bgStyle}-900/30
-        border-${bgStyle}-500
-        text-${bgStyle}-900 dark:text-${bgStyle}-100
+        w-full h-full px-2 py-1 flex flex-col justify-center
+        ${styleStr}
+        ring-1 ring-inset border-l-0
+        rounded-[4px]
       `}>
-        <div className="flex items-baseline gap-1">
-           <span className="truncate">{event.title}</span>
-           {height > 20 && (
-             <span className="opacity-70 text-[10px] whitespace-nowrap">
+        <div className="flex flex-col">
+           <span className="text-[11px] font-semibold tracking-tight truncate leading-tight">
+             {event.title}
+           </span>
+           {height > 30 && (
+             <span className="opacity-80 text-[9px] tracking-wide font-medium tabular-nums mt-0.5">
                {format(event.startDate, 'HH:mm')}
              </span>
            )}
@@ -121,7 +149,7 @@ export function EventBlock({ event, onToggle }: EventBlockProps) {
     <div
       style={{
         top: `${top}px`,
-        height: `${Math.max(height, 20)}px`, // Minimum height for visibility
+        height: `${Math.max(height, 24)}px`, // Minimum height enforced
       }}
       className={baseClasses}
     >
