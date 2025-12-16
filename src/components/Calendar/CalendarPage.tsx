@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { format, startOfWeek, addDays, startOfDay, addMinutes } from 'date-fns';
-import { CaretLeft, CaretRight } from '@phosphor-icons/react';
+import { zhCN } from 'date-fns/locale';
 import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, DragEndEvent } from '@dnd-kit/core';
 
 // Updated imports for the new modular structure
 import { CalendarLayout } from './layout/CalendarLayout';
 import { TimeGrid } from './features/Grid/TimeGrid';
+import { DayGrid } from './features/Grid/DayGrid';
+import { MonthGrid } from './features/Grid/MonthGrid';
 import { MiniCalendar } from './features/Sidebar/MiniCalendar';
 import { ContextPanel } from './features/ContextPanel/ContextPanel';
+import { ViewSwitcher } from './features/ViewSwitcher';
 
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useGroupStore } from '@/stores/useGroupStore';
@@ -17,7 +20,7 @@ const GUTTER_WIDTH = 60;
 const SNAP_MINUTES = 15;
 
 export function CalendarPage() {
-  const { load, selectedDate, setSelectedDate, addEvent } = useCalendarStore();
+  const { load, selectedDate, setSelectedDate, addEvent, viewMode, showContextPanel } = useCalendarStore();
   const { updateTaskSchedule, updateTaskEstimation } = useGroupStore();
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
 
@@ -25,14 +28,7 @@ export function CalendarPage() {
     load();
   }, [load]);
 
-  const navigateWeek = (direction: 'prev' | 'next') => {
-    const days = direction === 'prev' ? -7 : 7;
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + days);
-    setSelectedDate(newDate);
-  };
-
-  const jumpToToday = () => setSelectedDate(new Date());
+  // Navigation is now handled by ViewSwitcher component
 
   // Sensors for DnD
   const sensors = useSensors(
@@ -125,31 +121,24 @@ export function CalendarPage() {
         main={
           <div className="flex h-full flex-col">
             {/* Header Toolbar */}
-            <div className="h-12 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-4 justify-between bg-white dark:bg-zinc-950 z-30 relative backdrop-blur-md bg-opacity-80">
-               <div className="flex items-center gap-3">
-                 <h2 className="text-lg font-semibold tracking-tight">
-                   {format(selectedDate, 'MMMM yyyy')}
-                 </h2>
-                 <div className="flex items-center gap-1">
-                   <button onClick={() => navigateWeek('prev')} className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md text-zinc-500"><CaretLeft className="size-4" /></button>
-                   <button onClick={jumpToToday} className="px-2 py-1 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">Today</button>
-                   <button onClick={() => navigateWeek('next')} className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md text-zinc-500"><CaretRight className="size-4" /></button>
-                 </div>
-               </div>
+            <div className="h-12 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-4 justify-between bg-white dark:bg-zinc-950 relative backdrop-blur-md bg-opacity-80" style={{ zIndex: 100 }}>
+               <h2 className="text-lg font-semibold tracking-tight">
+                 {format(selectedDate, 'yyyy年M月', { locale: zhCN })}
+               </h2>
                
-               <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 rounded-lg p-0.5 border border-zinc-200 dark:border-zinc-800">
-                  <button className="px-3 py-1 text-xs font-medium rounded-[4px] bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-zinc-100">Week</button>
-                  <button className="px-3 py-1 text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors">Month</button>
-               </div>
+               <ViewSwitcher />
             </div>
             
-            {/* The Core Grid */}
+            {/* The Core Grid - switches based on viewMode */}
             <div className="flex-1 min-h-0 relative" id="time-grid-container">
-               <TimeGrid /> 
+               {viewMode === 'day' && <DayGrid />}
+               {viewMode === 'week' && <TimeGrid />}
+               {viewMode === 'month' && <MonthGrid />}
             </div>
           </div>
         }
         contextPanel={<ContextPanel />}
+        showContextPanel={showContextPanel}
       />
 
       <DragOverlay>

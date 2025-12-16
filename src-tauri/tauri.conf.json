@@ -38,7 +38,7 @@
       "icons/icon.ico"
     ],
     "category": "Productivity",
-    "shortDescription": "A minimal, Notion-style task manager",
+    "shortDescription": "A minimal, elegant task manager",
     "longDescription": "Nekotick is a cross-platform To-Do app with Markdown storage, Activity Heatmap, and Time Auditing features.",
     "windows": {
       "nsis": {

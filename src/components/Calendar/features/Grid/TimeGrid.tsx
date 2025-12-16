@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { format, isSameDay, startOfWeek, addDays, getHours, getMinutes, startOfDay, addMinutes } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useGroupStore } from '@/stores/useGroupStore'; 
 import { useCalendarEvents } from '../../hooks/useCalendarEvents'; // Import Hook
@@ -144,17 +145,38 @@ export function TimeGrid() {
       
       {/* HEADER */}
       <div className="flex-shrink-0 flex border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 z-20">
-        <div style={{ width: GUTTER_WIDTH }} className="flex-shrink-0 border-r border-zinc-100 dark:border-zinc-800/50" />
+        <div style={{ width: GUTTER_WIDTH }} className="flex-shrink-0 border-r border-zinc-100 dark:border-zinc-800/50 flex items-center justify-center text-xs text-zinc-400">
+          GMT+8
+        </div>
         <div className="flex-1 grid grid-cols-7">
           {weekDays.map((day) => {
             const isToday = isSameDay(day, now);
             return (
-              <div key={day.toString()} className={`flex flex-col items-center justify-center py-3 border-r border-zinc-100 dark:border-zinc-800/50 last:border-r-0 ${isToday ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}>
-                <span className={`text-xs font-medium uppercase mb-0.5 ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400'}`}>{format(day, 'EEE')}</span>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-lg font-light transition-colors ${isToday ? 'bg-blue-600 text-white shadow-sm' : 'text-zinc-800 dark:text-zinc-200'}`}>{format(day, 'd')}</div>
+              <div key={day.toString()} className={`flex items-center justify-center gap-1 py-3 border-r border-zinc-100 dark:border-zinc-800/50 last:border-r-0 ${isToday ? 'bg-red-50/30 dark:bg-red-900/10' : ''}`}>
+                <span className={`text-sm ${isToday ? 'text-red-500' : 'text-zinc-600 dark:text-zinc-400'}`}>
+                  {format(day, 'EEEE', { locale: zhCN })}
+                </span>
+                <span className={`w-6 h-6 rounded flex items-center justify-center text-sm transition-colors ${isToday ? 'bg-red-500 text-white' : 'text-zinc-800 dark:text-zinc-200'}`}>
+                  {format(day, 'd')}
+                </span>
               </div>
             );
           })}
+        </div>
+        <div className="w-2.5 flex-shrink-0" />
+      </div>
+
+      {/* All Day Section */}
+      <div className="flex-shrink-0 flex border-b border-zinc-200 dark:border-zinc-800 min-h-[40px]">
+        <div style={{ width: GUTTER_WIDTH }} className="flex-shrink-0 border-r border-zinc-100 dark:border-zinc-800/50 flex items-center justify-center text-xs text-zinc-400">
+          全天
+        </div>
+        <div className="flex-1 grid grid-cols-7">
+          {weekDays.map((day) => (
+            <div key={day.toString()} className="border-r border-zinc-100 dark:border-zinc-800/50 last:border-r-0 p-1">
+              {/* All day events would go here */}
+            </div>
+          ))}
         </div>
         <div className="w-2.5 flex-shrink-0" />
       </div>
@@ -183,19 +205,21 @@ export function TimeGrid() {
             </div>
 
             {/* Now Line - The Pulse of Time */}
-            <div 
-              style={{ top: nowTop }}
-              className="absolute left-0 right-0 z-20 flex items-center pointer-events-none transition-all duration-1000 ease-linear"
-            >
-              {/* The Line with Glow */}
-              <div className="h-[2px] w-full bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.6)]" />
-              
-              {/* The Heartbeat Dot */}
-              <div className="absolute -left-1.5 w-3 h-3 flex items-center justify-center">
-                 <div className="absolute w-3 h-3 rounded-full bg-red-500 shadow-sm z-10" />
-                 <div className="absolute w-3 h-3 rounded-full bg-red-500 animate-ping opacity-75" />
+            {weekDays.some(day => isSameDay(day, now)) && (
+              <div 
+                style={{ top: nowTop }}
+                className="absolute left-0 right-0 z-20 flex items-center pointer-events-none transition-all duration-1000 ease-linear"
+              >
+                {/* The Line with Glow */}
+                <div className="h-[2px] w-full bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.6)]" />
+                
+                {/* The Heartbeat Dot */}
+                <div className="absolute -left-1.5 w-3 h-3 flex items-center justify-center">
+                   <div className="absolute w-3 h-3 rounded-full bg-red-500 shadow-sm z-10" />
+                   <div className="absolute w-3 h-3 rounded-full bg-red-500 animate-ping opacity-75" />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Events Layer (Merged Tasks & Events) */}
             <div className="absolute inset-0 z-10 grid grid-cols-7 pointer-events-none">
