@@ -9,8 +9,6 @@ import { TaskInput } from '@/components/features/TaskInput';
 import { GroupSidebar } from '@/components/features/GroupDrawer';
 import { useGroupStore, useUIStore, type Priority } from '@/stores/useGroupStore';
 
-interface TasksPageProps {}
-
 export function TasksPage() {
   const { activeGroupId, deleteGroup, groups, tasks, loadData, loaded } = useGroupStore();
   const { hideCompleted, setHideCompleted, hideActualTime, setHideActualTime, selectedPriorities, togglePriority, toggleAllPriorities } = useUIStore();
