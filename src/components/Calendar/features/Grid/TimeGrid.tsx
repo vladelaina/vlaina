@@ -1,17 +1,18 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { format, isSameDay, startOfWeek, addDays, getHours, getMinutes, startOfDay, addMinutes } from 'date-fns';
 import { useCalendarStore } from '@/stores/useCalendarStore';
-import { useGroupStore } from '@/stores/useGroupStore'; // Import GroupStore
-import { EventBlock } from './EventBlock';
-import { type CalendarEvent } from '@/lib/storage/calendarStorage';
+import { useGroupStore } from '@/stores/useGroupStore'; 
+import { useCalendarEvents } from '../../hooks/useCalendarEvents'; // Import Hook
+import { EventBlock } from '../Event/EventBlock'; 
 
 const HOUR_HEIGHT = 64; 
 const GUTTER_WIDTH = 60;
 const SNAP_MINUTES = 15;
 
 export function TimeGrid() {
-  const { selectedDate, events, addEvent } = useCalendarStore();
-  const { tasks, toggleTask } = useGroupStore(); // Get tasks and toggleTask
+  const { selectedDate, addEvent } = useCalendarStore();
+  const { toggleTask } = useGroupStore(); // Only need toggleTask now
+  const displayItems = useCalendarEvents(); // Use the hook
   
   const [now, setNow] = useState(new Date());
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -40,31 +41,6 @@ export function TimeGrid() {
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
 
-  // --- Data Merging Logic ---
-  // Merge Calendar Events and Tasks into a single display list
-  const displayItems = [
-    ...events.map(e => ({ ...e, type: 'event' as const })),
-    ...tasks
-      .filter(t => t.scheduledTime && !t.completed) // Only scheduled, active tasks
-      .map(t => {
-        // Parse scheduledTime. Assuming it's a timestamp number or string
-        const start = Number(t.scheduledTime);
-        // Default duration: estimatedMinutes or 60 mins
-        const duration = t.estimatedMinutes || 60; 
-        
-        return {
-          id: t.id,
-          title: t.content,
-          startDate: start,
-          endDate: start + (duration * 60 * 1000),
-          isAllDay: false,
-          color: t.priority === 'default' ? 'blue' : t.priority, // Map priority to color
-          type: 'task' as const,
-          originalTask: t // Keep ref to original
-        } as CalendarEvent & { type: 'task', originalTask: any };
-      })
-  ];
-
   // --- Interaction Logic ---
 
   const getDayAndTimestampFromY = (y: number, x: number) => {
@@ -80,14 +56,12 @@ export function TimeGrid() {
     const relativeY = y - rect.top + (scrollRef.current?.scrollTop || 0);
     const totalMinutes = (relativeY / HOUR_HEIGHT) * 60;
     
-    // Snap logic
     const snappedMinutes = Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
     
     return { dayIndex, minutes: snappedMinutes };
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only left click and NOT on an existing event (EventBlock handles its own clicks)
     if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest('.event-block')) return;
     
@@ -234,7 +208,6 @@ export function TimeGrid() {
                           <EventBlock 
                             event={item} 
                             onToggle={(id) => {
-                              // If it's a task (has originalTask), toggle it
                               if (item.type === 'task') {
                                 toggleTask(id);
                               }

@@ -3,12 +3,14 @@ import { format, startOfWeek, addDays, startOfDay, addMinutes } from 'date-fns';
 import { CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, DragEndEvent } from '@dnd-kit/core';
 
-import { CalendarLayout } from './New/Layout';
-import { TimeGrid } from './New/TimeGrid';
-import { MiniCalendar } from './New/MiniCalendar';
-import { ContextPanel } from './New/ContextPanel';
+// Updated imports for the new modular structure
+import { CalendarLayout } from './layout/CalendarLayout';
+import { TimeGrid } from './features/Grid/TimeGrid';
+import { MiniCalendar } from './features/Sidebar/MiniCalendar';
+import { ContextPanel } from './features/ContextPanel/ContextPanel';
+
 import { useCalendarStore } from '@/stores/useCalendarStore';
-import { useGroupStore } from '@/stores/useGroupStore'; // Import GroupStore
+import { useGroupStore } from '@/stores/useGroupStore';
 
 const HOUR_HEIGHT = 64;
 const GUTTER_WIDTH = 60;
@@ -16,7 +18,7 @@ const SNAP_MINUTES = 15;
 
 export function CalendarPage() {
   const { load, selectedDate, setSelectedDate, addEvent } = useCalendarStore();
-  const { updateTask } = useGroupStore(); // Get updateTask
+  const { updateTask } = useGroupStore();
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
 
   useEffect(() => {
@@ -47,7 +49,6 @@ export function CalendarPage() {
     const { active } = event;
     setActiveDragItem(null);
 
-    // If dropped over the TimeGrid (we'll check coordinates manually for precision)
     const gridContainer = document.getElementById('time-grid-container');
     if (!gridContainer) return;
 
@@ -66,7 +67,7 @@ export function CalendarPage() {
     ) {
       // 1. Calculate Day
       const relativeX = x - rect.left - GUTTER_WIDTH;
-      if (relativeX < 0) return; // Dropped on gutter
+      if (relativeX < 0) return; 
 
       const dayWidth = (rect.width - GUTTER_WIDTH) / 7;
       const dayIndex = Math.floor(relativeX / dayWidth);
@@ -85,22 +86,16 @@ export function CalendarPage() {
       const dayDate = addDays(weekStart, dayIndex);
       const startDate = addMinutes(startOfDay(dayDate), snappedMinutes);
       
-      // 4. Handle Action based on Item Type
+      // 4. Handle Action
       const task = active.data.current?.task;
 
       if (task) {
-        // --- SCENARIO A: Scheduling a Task ---
-        // Update the task with the specific scheduled time
-        // Note: TaskStore likely expects a string or specific format for scheduledTime.
-        // Assuming it stores it as a timestamp string or simple string for now.
         updateTask(task.id, { 
-          scheduledTime: startDate.getTime().toString(), // Storing as timestamp string
-          estimatedMinutes: task.estimatedMinutes || 60 // Default duration if not set
+          scheduledTime: startDate.getTime().toString(),
+          estimatedMinutes: task.estimatedMinutes || 60
         });
         console.log('[Calendar] Scheduled Task:', task.title, 'at', startDate);
       } else {
-        // --- SCENARIO B: Creating a Generic Event (Fallback) ---
-        // (This path might be used if we implement other drag types later)
         const endDate = addMinutes(startDate, 60);
         addEvent({
           title: 'New Event',
@@ -128,7 +123,7 @@ export function CalendarPage() {
         main={
           <div className="flex h-full flex-col">
             {/* Header Toolbar */}
-            <div className="h-12 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-4 justify-between bg-white dark:bg-zinc-950 z-30 relative">
+            <div className="h-12 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-4 justify-between bg-white dark:bg-zinc-950 z-30 relative backdrop-blur-md bg-opacity-80">
                <div className="flex items-center gap-3">
                  <h2 className="text-lg font-semibold tracking-tight">
                    {format(selectedDate, 'MMMM yyyy')}
@@ -148,7 +143,6 @@ export function CalendarPage() {
             
             {/* The Core Grid */}
             <div className="flex-1 min-h-0 relative" id="time-grid-container">
-               {/* Pass IDs for coordinate calculation */}
                <TimeGrid /> 
             </div>
           </div>
@@ -156,7 +150,6 @@ export function CalendarPage() {
         contextPanel={<ContextPanel />}
       />
 
-      {/* Drag Overlay for visual feedback */}
       <DragOverlay>
         {activeDragItem ? (
            <div className="p-2 bg-white dark:bg-zinc-800 rounded border border-blue-500 shadow-lg w-48 opacity-90 rotate-2">
