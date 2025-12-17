@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { type CalendarEvent } from '@/lib/storage/calendarStorage';
 import { Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { EventContextMenu } from './EventContextMenu';
 
 const HOUR_HEIGHT = 64; 
 
@@ -11,6 +13,13 @@ interface EventBlockProps {
 }
 
 export function EventBlock({ event, onToggle }: EventBlockProps) {
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
   const durationInMinutes = (event.endDate - event.startDate) / (1000 * 60);
   const startHour = new Date(event.startDate).getHours();
   const startMinute = new Date(event.startDate).getMinutes();
@@ -164,14 +173,26 @@ export function EventBlock({ event, onToggle }: EventBlockProps) {
   }
 
   return (
-    <div
-      style={{
-        top: `${top}px`,
-        height: `${Math.max(height, 24)}px`, // Minimum height enforced
-      }}
-      className={baseClasses}
-    >
-      {innerContent}
-    </div>
+    <>
+      <div
+        style={{
+          top: `${top}px`,
+          height: `${Math.max(height, 24)}px`, // Minimum height enforced
+        }}
+        className={baseClasses}
+        onContextMenu={handleContextMenu}
+      >
+        {innerContent}
+      </div>
+      
+      {contextMenu && (
+        <EventContextMenu
+          eventId={event.id}
+          position={contextMenu}
+          currentColor={event.color}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+    </>
   );
 }

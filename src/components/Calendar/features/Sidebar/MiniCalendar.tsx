@@ -1,17 +1,17 @@
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
-import { CaretLeft, CaretRight } from '@phosphor-icons/react';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useState } from 'react';
 
 export function MiniCalendar() {
   const { selectedDate, setSelectedDate } = useCalendarStore();
-  // Internal state for mini calendar navigation (independent of main view until clicked)
   const [currentMonth, setCurrentMonth] = useState(selectedDate);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  // Start from Sunday
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
@@ -20,7 +20,6 @@ export function MiniCalendar() {
 
   const handleDayClick = (day: Date) => {
     setSelectedDate(day);
-    // If clicked day is in another month, switch to that month
     if (!isSameMonth(day, currentMonth)) {
       setCurrentMonth(day);
     }
@@ -30,38 +29,33 @@ export function MiniCalendar() {
     <div className="flex flex-col gap-6">
       {/* Calendar Widget */}
       <div className="select-none">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4 pl-1">
-          <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-            {format(currentMonth, 'MMMM yyyy')}
-          </span>
-          <div className="flex gap-1">
-            <button 
-              onClick={prevMonth}
-              className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
-            >
-              <CaretLeft className="size-3" />
-            </button>
-            <button 
-              onClick={nextMonth}
-              className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
-            >
-              <CaretRight className="size-3" />
-            </button>
-          </div>
+        {/* Navigation Arrows - Top Right */}
+        <div className="flex justify-end gap-0 mb-2">
+          <button 
+            onClick={prevMonth}
+            className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+          >
+            <ChevronUp className="size-4" strokeWidth={2.5} />
+          </button>
+          <button 
+            onClick={nextMonth}
+            className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+          >
+            <ChevronDown className="size-4" strokeWidth={2.5} />
+          </button>
         </div>
 
-        {/* Days Header */}
-        <div className="grid grid-cols-7 gap-1 text-center mb-2">
-          {['M','T','W','T','F','S','S'].map(d => (
-            <div key={d} className="text-[10px] font-medium text-zinc-400">
+        {/* Days Header - Chinese weekday names */}
+        <div className="grid grid-cols-7 text-center mb-3">
+          {['周日', '周一', '周二', '周三', '周四', '周五', '周六'].map(d => (
+            <div key={d} className="text-xs font-medium text-zinc-400">
               {d}
             </div>
           ))}
         </div>
 
         {/* Days Grid */}
-        <div className="grid grid-cols-7 gap-y-1 gap-x-0">
+        <div className="grid grid-cols-7 gap-y-2">
           {days.map((day) => {
             const isToday = isSameDay(day, new Date());
             const isSelected = isSameDay(day, selectedDate);
@@ -72,18 +66,19 @@ export function MiniCalendar() {
                 key={day.toString()} 
                 onClick={() => handleDayClick(day)}
                 className={`
-                  aspect-square flex items-center justify-center text-xs cursor-pointer rounded-full relative group
-                  ${!isCurrentMonth ? 'text-zinc-300 dark:text-zinc-700' : 'text-zinc-700 dark:text-zinc-300'}
-                  ${isSelected && !isToday ? 'bg-zinc-200 dark:bg-zinc-800 font-semibold' : ''}
-                  ${!isSelected && !isToday ? 'hover:bg-zinc-100 dark:hover:bg-zinc-800/50' : ''}
+                  h-9 flex items-center justify-center text-sm cursor-pointer relative
+                  ${!isCurrentMonth ? 'text-zinc-300 dark:text-zinc-600' : 'text-zinc-600 dark:text-zinc-300'}
+                  ${isSelected && !isToday ? 'font-semibold' : ''}
+                  ${!isSelected && !isToday ? 'hover:bg-zinc-100 dark:hover:bg-zinc-800/50 rounded' : ''}
                 `}
               >
-                {isToday && (
-                  <div className="absolute inset-0 bg-red-500 rounded-full z-0 shadow-sm" />
+                {isToday ? (
+                  <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center shadow-sm">
+                    <span className="text-white font-semibold">{format(day, 'd')}</span>
+                  </div>
+                ) : (
+                  <span>{format(day, 'd')}</span>
                 )}
-                <span className={`relative z-10 ${isToday ? 'text-white font-bold' : ''}`}>
-                  {format(day, 'd')}
-                </span>
               </div>
             );
           })}

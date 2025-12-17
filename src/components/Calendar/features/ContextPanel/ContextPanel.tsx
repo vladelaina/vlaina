@@ -1,14 +1,24 @@
 import { useGroupStore } from '@/stores/useGroupStore';
+import { useCalendarStore } from '@/stores/useCalendarStore';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
+import { EventEditForm } from './EventEditForm';
 
 export function ContextPanel() {
   const { tasks } = useGroupStore();
+  const { editingEventId, events } = useCalendarStore();
   const [isHoveringAdd, setIsHoveringAdd] = useState(false);
 
+  // Find the event being edited
+  const editingEvent = editingEventId ? events.find(e => e.id === editingEventId) : null;
+
+  // If editing an event, show the edit form
+  if (editingEvent) {
+    return <EventEditForm event={editingEvent} />;
+  }
+
   // Filter for tasks that are "Unscheduled"
-  // Logic: Not completed, and (no scheduledTime OR explicitly marked as inbox/backlog)
   const unscheduledTasks = tasks.filter(t => 
     !t.completed && 
     (!t.scheduledTime || t.scheduledTime.length === 0)

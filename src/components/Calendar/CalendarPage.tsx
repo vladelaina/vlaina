@@ -20,7 +20,7 @@ const GUTTER_WIDTH = 60;
 const SNAP_MINUTES = 15;
 
 export function CalendarPage() {
-  const { load, selectedDate, setSelectedDate, addEvent, viewMode, showContextPanel } = useCalendarStore();
+  const { load, selectedDate, setSelectedDate, addEvent, viewMode, showSidebar, showContextPanel } = useCalendarStore();
   const { updateTaskSchedule, updateTaskEstimation } = useGroupStore();
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
 
@@ -121,7 +121,7 @@ export function CalendarPage() {
         main={
           <div className="flex h-full flex-col">
             {/* Header Toolbar */}
-            <div className="h-12 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-4 justify-between bg-white dark:bg-zinc-950 relative backdrop-blur-md bg-opacity-80" style={{ zIndex: 100 }}>
+            <div className="h-12 flex items-center px-4 justify-between bg-white dark:bg-zinc-950 relative backdrop-blur-md bg-opacity-80" style={{ zIndex: 100 }}>
                <h2 className="text-lg font-semibold tracking-tight">
                  {format(selectedDate, 'yyyy年M月', { locale: zhCN })}
                </h2>
@@ -138,6 +138,7 @@ export function CalendarPage() {
           </div>
         }
         contextPanel={<ContextPanel />}
+        showSidebar={showSidebar}
         showContextPanel={showContextPanel}
       />
 

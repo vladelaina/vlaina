@@ -39,3 +39,5 @@ Thumbs.db
 
 # Debug
 *.pdb
+
+.kiro

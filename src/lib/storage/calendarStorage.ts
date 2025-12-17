@@ -22,6 +22,17 @@ export interface CalendarEvent {
   isAllDay: boolean;
   color?: string;    // 'blue', 'red', 'green', etc.
   
+  // Location & Meeting
+  location?: string;
+  meetingUrl?: string;
+  
+  // Reminder (minutes before)
+  reminder?: number;
+  
+  // Visibility & Status
+  busyStatus?: 'busy' | 'free';
+  visibility?: 'default' | 'public' | 'private';
+  
   // Linkage to Task system (optional)
   taskId?: string;   
   

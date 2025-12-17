@@ -25,7 +25,7 @@ const VIEW_MODE_ORDER: ViewMode[] = ['day', 'week', 'month'];
 const DAY_COUNT_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9];
 
 export function ViewSwitcher() {
-  const { viewMode, setViewMode, selectedDate, setSelectedDate, dayCount, setDayCount, showContextPanel, toggleContextPanel } = useCalendarStore();
+  const { viewMode, setViewMode, selectedDate, setSelectedDate, dayCount, setDayCount, showSidebar, toggleSidebar, showContextPanel, toggleContextPanel } = useCalendarStore();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const [showDayCountSubmenu, setShowDayCountSubmenu] = useState(false);
@@ -188,6 +188,27 @@ export function ViewSwitcher() {
 
   return (
     <div className="flex items-center gap-1">
+      {/* Left Sidebar Toggle */}
+      <button
+        onClick={toggleSidebar}
+        className={`p-1.5 rounded-md transition-colors ${
+          showSidebar 
+            ? 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800' 
+            : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+        }`}
+        title={showSidebar ? '隐藏左侧边栏' : '显示左侧边栏'}
+      >
+        <SidebarSimple weight={showSidebar ? 'duotone' : 'light'} className="size-5" />
+      </button>
+
+      {/* Search Button */}
+      <button
+        className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+        title="搜索"
+      >
+        <MagnifyingGlass weight="regular" className="size-5" />
+      </button>
+
       {/* View Mode Dropdown */}
       <div className="relative">
         <button
