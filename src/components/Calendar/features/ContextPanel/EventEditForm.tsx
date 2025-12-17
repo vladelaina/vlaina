@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { Clock, Users, Video, FileText, MapPin, Bell, Eye, X } from 'lucide-react';
@@ -11,10 +11,19 @@ interface EventEditFormProps {
 export function EventEditForm({ event }: EventEditFormProps) {
   const { updateEvent, deleteEvent, setEditingEventId, closeEditingEvent } = useCalendarStore();
   const [title, setTitle] = useState(event.title);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isNewEvent = useRef(!event.title.trim());
 
   useEffect(() => {
     setTitle(event.title);
   }, [event.title]);
+  
+  // 只有新创建的事件（标题为空）才自动聚焦
+  useEffect(() => {
+    if (isNewEvent.current && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
 
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
@@ -44,6 +53,7 @@ export function EventEditForm({ event }: EventEditFormProps) {
           </button>
         </div>
         <input
+          ref={inputRef}
           type="text"
           value={title}
           onChange={(e) => handleTitleChange(e.target.value)}
@@ -55,7 +65,6 @@ export function EventEditForm({ event }: EventEditFormProps) {
           }}
           placeholder="添加标题"
           className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-          autoFocus
         />
       </div>
 

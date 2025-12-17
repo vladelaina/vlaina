@@ -28,20 +28,25 @@ export function useCalendarStore() {
     showSidebar: store.showSidebar,
     showContextPanel: store.showContextPanel,
     editingEventId: store.editingEventId,
+    selectedEventId: store.selectedEventId,
     timezone: store.data.settings.timezone,
+    hourHeight: store.data.settings.hourHeight ?? 64,
     
     // Actions
     load: store.load,
     addEvent: store.addEvent,
     updateEvent: store.updateEvent,
     deleteEvent: store.deleteEvent,
+    undo: store.undo,
     
     setViewMode: store.setViewMode,
     setSelectedDate: store.setSelectedDate,
     setDayCount: store.setDayCount,
+    setHourHeight: store.setHourHeight,
     toggleSidebar: store.toggleSidebar,
     toggleContextPanel: store.toggleContextPanel,
     setEditingEventId: store.setEditingEventId,
+    setSelectedEventId: store.setSelectedEventId,
     closeEditingEvent: store.closeEditingEvent,
     setTimezone: store.setTimezone,
   };

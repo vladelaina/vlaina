@@ -50,12 +50,19 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', onC
   return createPortal(
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-[99998]" onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }} />
+      <div 
+        data-event-context-menu 
+        className="fixed inset-0 z-[99998]" 
+        onClick={onClose} 
+        onContextMenu={(e) => { e.preventDefault(); onClose(); }} 
+      />
       
       {/* Menu */}
       <div
+        data-event-context-menu
         className="fixed z-[99999] w-56 bg-zinc-900 rounded-xl shadow-2xl py-2 overflow-hidden"
         style={{ top: position.y, left: position.x }}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Color Picker */}
         <div className="px-4 py-2 flex gap-2">

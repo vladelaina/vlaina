@@ -333,6 +333,18 @@ function AppContent() {
 }
 
 function App() {
+  // 阻止 Ctrl+滚轮的默认浏览器缩放行为
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+      }
+    };
+    
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => window.removeEventListener('wheel', handleWheel);
+  }, []);
+
   return (
     <ThemeProvider>
       <AppContent />

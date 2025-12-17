@@ -102,6 +102,7 @@ export interface UnifiedData {
     timezone: number;
     viewMode: 'day' | 'week' | 'month';
     dayCount: number;
+    hourHeight?: number; // 每小时的像素高度，默认 64
   };
 }
 

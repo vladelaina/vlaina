@@ -3,18 +3,28 @@ import { format, isSameDay, startOfWeek, addDays, getHours, getMinutes, startOfD
 import { zhCN } from 'date-fns/locale';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useGroupStore } from '@/stores/useGroupStore'; 
-import { useCalendarEvents } from '../../hooks/useCalendarEvents'; // Import Hook
+import { useCalendarEvents } from '../../hooks/useCalendarEvents';
 import { EventBlock } from '../Event/EventBlock';
 import { calculateEventLayout } from '../../utils/eventLayout'; 
 
-const HOUR_HEIGHT = 64; 
 const GUTTER_WIDTH = 60;
-const SNAP_MINUTES = 15;
+
+// 根据缩放级别动态计算时间精度
+function getSnapMinutes(hourHeight: number): number {
+  if (hourHeight >= 400) return 1;      // 最大放大：1分钟精度
+  if (hourHeight >= 256) return 5;      // 大放大：5分钟精度
+  if (hourHeight >= 128) return 10;     // 中等放大：10分钟精度
+  if (hourHeight >= 64) return 15;      // 默认：15分钟精度
+  return 30;                            // 缩小：30分钟精度
+}
 
 export function TimeGrid() {
-  const { selectedDate, addEvent, setEditingEventId, closeEditingEvent, timezone, setTimezone } = useCalendarStore();
-  const { toggleTask } = useGroupStore(); // Only need toggleTask now
-  const displayItems = useCalendarEvents(); // Use the hook
+  const { selectedDate, addEvent, setEditingEventId, closeEditingEvent, timezone, setTimezone, hourHeight } = useCalendarStore();
+  const { toggleTask } = useGroupStore();
+  const displayItems = useCalendarEvents();
+  
+  // 使用 store 中的 hourHeight
+  const HOUR_HEIGHT = hourHeight;
   
   const [now, setNow] = useState(new Date());
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -30,7 +40,7 @@ export function TimeGrid() {
   // Timezone editing state
   const [isEditingTimezone, setIsEditingTimezone] = useState(false);
   const [timezoneInput, setTimezoneInput] = useState('');
-
+  
   // 1. Maintain "The Now"
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
@@ -65,7 +75,8 @@ export function TimeGrid() {
     const relativeY = y - scrollRect.top + scrollRef.current.scrollTop;
     const totalMinutes = (relativeY / HOUR_HEIGHT) * 60;
     
-    const snappedMinutes = Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+    const snapMinutes = getSnapMinutes(HOUR_HEIGHT);
+    const snappedMinutes = Math.round(totalMinutes / snapMinutes) * snapMinutes;
     
     return { dayIndex, minutes: snappedMinutes };
   };
@@ -97,11 +108,12 @@ export function TimeGrid() {
     const scrollRect = scrollRef.current.getBoundingClientRect();
     const relativeY = e.clientY - scrollRect.top + scrollRef.current.scrollTop;
     const totalMinutes = (relativeY / HOUR_HEIGHT) * 60;
-    const snappedMinutes = Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+    const snapMinutes = getSnapMinutes(HOUR_HEIGHT);
+    const snappedMinutes = Math.round(totalMinutes / snapMinutes) * snapMinutes;
 
     // 支持向上或向下拖拽
     setDragEnd({ time: snappedMinutes });
-  }, [isDragging, dragStart]);
+  }, [isDragging, dragStart, HOUR_HEIGHT]);
 
   const handleMouseUp = useCallback(() => {
     if (!isDragging || !dragStart || !dragEnd) return;
@@ -176,8 +188,7 @@ export function TimeGrid() {
   const nowTop = (getHours(now) * HOUR_HEIGHT) + (getMinutes(now) / 60 * HOUR_HEIGHT);
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-zinc-950 select-none">
-      
+    <div className="flex flex-col h-full bg-white dark:bg-zinc-950 select-none relative">
       {/* TOP HEADER - GMT+8 和 星期日期 */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 border-b border-zinc-100 dark:border-zinc-800/50">
         {/* 时区显示/编辑 */}
@@ -253,14 +264,23 @@ export function TimeGrid() {
       <div ref={scrollRef} id="time-grid-scroll" className="flex-1 overflow-y-auto relative scrollbar-hidden">
         <div className="flex relative" ref={containerRef} style={{ minHeight: HOUR_HEIGHT * 24 }}>
           
-          {/* Gutter - 时间标签列 */}
-          <div style={{ width: GUTTER_WIDTH }} className="flex-shrink-0 sticky left-0 z-10">
-            {Array.from({ length: 24 }).map((_, i) => (
-              <div key={i} style={{ height: HOUR_HEIGHT }} className="relative">
-                {/* 时间标签放在格子顶部，对齐横线，第一个格子不显示 */}
-                {i !== 0 && (
-                  <span className="absolute -top-2 right-3 text-[11px] text-zinc-400 font-medium">
-                    {i < 12 ? `${i}AM` : i === 12 ? '12PM' : `${i - 12}PM`}
+          {/* Gutter - 时间标签列（层级化刻度） */}
+          <div style={{ width: GUTTER_WIDTH }} className="flex-shrink-0 sticky left-0 z-10 bg-white dark:bg-zinc-950">
+            {Array.from({ length: 24 }).map((_, hour) => (
+              <div key={hour} style={{ height: HOUR_HEIGHT }} className="relative">
+                {/* 整点标签 - 放在格子顶部，对齐横线，第一个格子不显示 */}
+                {hour !== 0 && (
+                  <span className="absolute -top-2 right-3 text-[11px] text-zinc-400 dark:text-zinc-500 font-medium tabular-nums">
+                    {hour < 12 ? `${hour}AM` : hour === 12 ? '12PM' : `${hour - 12}PM`}
+                  </span>
+                )}
+                {/* 半点标签 - 仅在放大时显示 */}
+                {HOUR_HEIGHT >= 80 && (
+                  <span 
+                    className="absolute right-3 text-[9px] text-zinc-300 dark:text-zinc-600 font-medium tabular-nums"
+                    style={{ top: HOUR_HEIGHT / 2 - 5 }}
+                  >
+                    {hour < 12 ? `${hour}:30` : hour === 12 ? '12:30' : `${hour - 12}:30`}
                   </span>
                 )}
               </div>
@@ -269,9 +289,52 @@ export function TimeGrid() {
 
           {/* Canvas */}
           <div ref={canvasRef} className="flex-1 relative" onMouseDown={handleMouseDown}>
-            {/* Grid Lines */}
+            {/* Grid Lines - 层级化刻度 */}
             <div className="absolute inset-0 z-0 pointer-events-none">
-               {Array.from({ length: 24 }).map((_, i) => <div key={i} style={{ height: HOUR_HEIGHT }} className="border-b border-zinc-100 dark:border-zinc-800/50 w-full" />)}
+               {Array.from({ length: 24 }).map((_, hour) => (
+                 <div key={hour} style={{ height: HOUR_HEIGHT }} className="relative w-full">
+                   {/* 整点线 - 始终显示，最深 */}
+                   <div className="absolute bottom-0 left-0 right-0 h-px bg-zinc-200/80 dark:bg-zinc-700/50" />
+                   
+                   {/* 半点线 - 中等放大时显示 */}
+                   {HOUR_HEIGHT >= 80 && (
+                     <div 
+                       className="absolute left-0 right-0 h-px bg-zinc-100 dark:bg-zinc-800/40"
+                       style={{ top: '50%' }}
+                     />
+                   )}
+                   
+                   {/* 15分钟刻度线 - 大放大时显示 */}
+                   {HOUR_HEIGHT >= 160 && (
+                     <>
+                       <div 
+                         className="absolute left-0 right-0 h-px bg-zinc-50 dark:bg-zinc-800/20"
+                         style={{ top: '25%' }}
+                       />
+                       <div 
+                         className="absolute left-0 right-0 h-px bg-zinc-50 dark:bg-zinc-800/20"
+                         style={{ top: '75%' }}
+                       />
+                     </>
+                   )}
+                   
+                   {/* 5分钟刻度线 - 最大放大时显示（虚线效果） */}
+                   {HOUR_HEIGHT >= 300 && (
+                     <>
+                       {[1, 2, 4, 5, 7, 8, 10, 11].map((slot) => (
+                         <div 
+                           key={slot}
+                           className="absolute left-0 right-0 h-px"
+                           style={{ 
+                             top: `${(slot / 12) * 100}%`,
+                             background: 'repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(161,161,170,0.35) 3px, rgba(161,161,170,0.35) 6px)'
+                           }}
+                         />
+                       ))}
+                     </>
+                   )}
+                 </div>
+               ))}
             </div>
             <div className="absolute inset-0 grid grid-cols-7 z-0 pointer-events-none">
               {weekDays.map((day, i) => <div key={i} className={`border-r border-zinc-100 dark:border-zinc-800/50 last:border-r-0 h-full ${isSameDay(day, now) ? 'bg-red-50/10 dark:bg-red-900/5' : ''}`} />)}

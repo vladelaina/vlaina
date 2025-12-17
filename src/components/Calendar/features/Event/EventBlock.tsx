@@ -5,13 +5,20 @@ import { Check } from 'lucide-react';
 import { EventContextMenu } from './EventContextMenu';
 import { type EventLayoutInfo } from '../../utils/eventLayout';
 
-const HOUR_HEIGHT = 64;
 const GAP = 3;
 const RESIZE_HANDLE_HEIGHT = 6;
-const SNAP_MINUTES = 15;
 const AUTO_SCROLL_THRESHOLD = 5; // 距离边缘多少像素开始自动滚动（几乎触碰边缘）
 const AUTO_SCROLL_SPEED = 10; // 滚动速度
 const STORE_UPDATE_INTERVAL = 100; // store 更新间隔（毫秒）
+
+// 根据缩放级别动态计算时间精度
+function getSnapMinutes(hourHeight: number): number {
+  if (hourHeight >= 400) return 1;      // 最大放大：1分钟精度
+  if (hourHeight >= 256) return 5;      // 大放大：5分钟精度
+  if (hourHeight >= 128) return 10;     // 中等放大：10分钟精度
+  if (hourHeight >= 64) return 15;      // 默认：15分钟精度
+  return 30;                            // 缩小：30分钟精度
+}
 
 // 获取滚动容器
 const getScrollContainer = () => document.getElementById('time-grid-scroll');
@@ -23,7 +30,10 @@ interface EventBlockProps {
 }
 
 export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
-  const { setEditingEventId, editingEventId, updateEvent } = useCalendarStore();
+  const { setEditingEventId, editingEventId, updateEvent, hourHeight, selectedEventId, setSelectedEventId, closeEditingEvent } = useCalendarStore();
+  
+  // 使用动态的 hourHeight
+  const HOUR_HEIGHT = hourHeight;
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -48,6 +58,7 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
   const blockRef = useRef<HTMLDivElement>(null);
 
   const isActive = editingEventId === event.id;
+  const isSelected = selectedEventId === event.id;
   const isTask = event.type === 'task';
 
   // 使用临时时间（拖拽中）或实际时间来计算位置
@@ -89,19 +100,24 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
     let currentTempTimes = { start: originalTimes.start, end: originalTimes.end };
     let lastStoreUpdate = 0;
 
+    const snapMinutes = getSnapMinutes(HOUR_HEIGHT);
+    
     const calculateNewTimes = (mouseY: number) => {
       const scrollDelta = scrollContainer ? scrollContainer.scrollTop - startScrollTop.current : 0;
       const deltaY = mouseY - resizeStartY + scrollDelta;
-      const deltaMinutes = Math.round(((deltaY / HOUR_HEIGHT) * 60) / SNAP_MINUTES) * SNAP_MINUTES;
+      const deltaMinutes = Math.round(((deltaY / HOUR_HEIGHT) * 60) / snapMinutes) * snapMinutes;
 
       if (resizeEdge === 'top') {
         const newStartDate = originalTimes.start + deltaMinutes * 60 * 1000;
-        if (newStartDate < originalTimes.end - 15 * 60 * 1000) {
+        // 最小时长根据精度动态调整，但至少 5 分钟
+        const minDuration = Math.max(snapMinutes, 5) * 60 * 1000;
+        if (newStartDate < originalTimes.end - minDuration) {
           return { start: newStartDate, end: originalTimes.end };
         }
       } else if (resizeEdge === 'bottom') {
         const newEndDate = originalTimes.end + deltaMinutes * 60 * 1000;
-        if (newEndDate > originalTimes.start + 15 * 60 * 1000) {
+        const minDuration = Math.max(snapMinutes, 5) * 60 * 1000;
+        if (newEndDate > originalTimes.start + minDuration) {
           return { start: originalTimes.start, end: newEndDate };
         }
       }
@@ -227,11 +243,12 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
     let lastMouseY = dragStartY;
     let currentTempTimes = { start: originalTimes.start, end: originalTimes.end };
     let lastStoreUpdate = 0;
+    const snapMinutes = getSnapMinutes(HOUR_HEIGHT);
 
     const calculateNewTimes = (mouseY: number) => {
       const scrollDelta = scrollContainer ? scrollContainer.scrollTop - startScrollTop.current : 0;
       const deltaY = mouseY - dragStartY + scrollDelta;
-      const deltaMinutes = Math.round(((deltaY / HOUR_HEIGHT) * 60) / SNAP_MINUTES) * SNAP_MINUTES;
+      const deltaMinutes = Math.round(((deltaY / HOUR_HEIGHT) * 60) / snapMinutes) * snapMinutes;
 
       const newStartDate = originalTimes.start + deltaMinutes * 60 * 1000;
       const newEndDate = originalTimes.end + deltaMinutes * 60 * 1000;
@@ -358,6 +375,13 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
     if (isResizing || isDragging) return;
     if (resizeEdge) return;
 
+    // 先关闭之前正在编辑的事件（如果是空标题会自动删除）
+    if (editingEventId && editingEventId !== event.id) {
+      closeEditingEvent();
+    }
+    
+    // 单击同时选中并打开编辑面板（仅非 task 类型）
+    setSelectedEventId(event.id);
     if (!isTask) {
       setEditingEventId(event.id);
     }
@@ -539,7 +563,8 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
           transition-shadow duration-200 ease-out
           ${shadowClass}
           ${isActive ? `ring-2 ${colorSystem.ring}` : ''}
-          ${isHovered && !isActive ? `ring-1 ${colorSystem.ring}` : ''}
+          ${isSelected && !isActive ? 'ring-2 ring-blue-500/60 dark:ring-blue-400/50' : ''}
+          ${isHovered && !isActive && !isSelected ? `ring-1 ${colorSystem.ring}` : ''}
         `}
       >
         <div className="px-2 py-1 min-w-0">
@@ -576,7 +601,8 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
           ${shadowClass}
           ring-1 ring-inset ring-black/[0.04] dark:ring-white/[0.06]
           ${isActive ? 'ring-2 ring-blue-400/40 dark:ring-blue-500/30' : ''}
-          ${isHovered && !isActive ? 'ring-blue-300/30 dark:ring-blue-500/20' : ''}
+          ${isSelected && !isActive ? 'ring-2 ring-blue-500/60 dark:ring-blue-400/50' : ''}
+          ${isHovered && !isActive && !isSelected ? 'ring-blue-300/30 dark:ring-blue-500/20' : ''}
         `}
         style={{ opacity: isCompleted ? 0.55 : 1 }}
       >

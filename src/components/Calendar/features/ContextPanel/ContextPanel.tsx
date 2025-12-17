@@ -25,7 +25,11 @@ export function ContextPanel() {
 
   // If editing an event, show the edit form
   if (editingEvent) {
-    return <EventEditForm event={editingEvent} />;
+    return (
+      <div data-context-panel>
+        <EventEditForm event={editingEvent} />
+      </div>
+    );
   }
 
   // 收件箱模式：显示所有未安排的任务（没有 scheduledTime 的任务）
@@ -61,7 +65,7 @@ export function ContextPanel() {
   });
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-zinc-900 overflow-hidden">
+    <div data-context-panel className="h-full flex flex-col bg-white dark:bg-zinc-900 overflow-hidden">
       {/* Task List */}
       <div 
         ref={scrollRef}

@@ -33,6 +33,12 @@ export type Priority = 'red' | 'yellow' | 'purple' | 'green' | 'default';
 // View mode type
 export type ViewMode = 'day' | 'week' | 'month';
 
+// 撤销操作类型
+type UndoAction = {
+  type: 'deleteEvent';
+  event: UnifiedEvent;
+};
+
 interface UnifiedStore {
   // Data
   data: UnifiedData;
@@ -41,9 +47,13 @@ interface UnifiedStore {
   // UI State (not persisted)
   activeGroupId: string;
   editingEventId: string | null;
+  selectedEventId: string | null;
   showSidebar: boolean;
   showContextPanel: boolean;
   selectedDate: Date;
+  
+  // Undo stack
+  undoStack: UndoAction[];
   
   // Core Actions
   load: () => Promise<void>;
@@ -77,7 +87,11 @@ interface UnifiedStore {
   updateEvent: (id: string, updates: Partial<UnifiedEvent>) => void;
   deleteEvent: (id: string) => void;
   setEditingEventId: (id: string | null) => void;
+  setSelectedEventId: (id: string | null) => void;
   closeEditingEvent: () => void;
+  
+  // Undo Actions
+  undo: () => void;
   
   // Progress Actions
   addProgress: (item: Omit<UnifiedProgress, 'id' | 'createdAt' | 'current' | 'todayCount'>) => void;
@@ -91,6 +105,7 @@ interface UnifiedStore {
   setTimezone: (tz: number) => void;
   setViewMode: (mode: ViewMode) => void;
   setDayCount: (count: number) => void;
+  setHourHeight: (height: number) => void;
   toggleSidebar: () => void;
   toggleContextPanel: () => void;
   setSelectedDate: (date: Date) => void;
@@ -114,14 +129,16 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => ({
     events: [],
     progress: [],
     archive: [],
-    settings: { timezone: 8, viewMode: 'week', dayCount: 1 },
+    settings: { timezone: 8, viewMode: 'week', dayCount: 1, hourHeight: 64 },
   },
   loaded: false,
   activeGroupId: 'default',
   editingEventId: null,
+  selectedEventId: null,
   showSidebar: true,
   showContextPanel: true,
   selectedDate: new Date(),
+  undoStack: [],
 
   load: async () => {
     if (get().loaded) return;
@@ -540,19 +557,30 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => ({
 
   deleteEvent: (id) => {
     set((state) => {
+      const eventToDelete = state.data.events.find(e => e.id === id);
       const newData = {
         ...state.data,
         events: state.data.events.filter(e => e.id !== id),
       };
       persist(newData);
+      
+      // 添加到撤销栈（只保留最近 20 个操作）
+      const newUndoStack = eventToDelete 
+        ? [...state.undoStack, { type: 'deleteEvent' as const, event: eventToDelete }].slice(-20)
+        : state.undoStack;
+      
       return { 
         data: newData,
         editingEventId: state.editingEventId === id ? null : state.editingEventId,
+        selectedEventId: state.selectedEventId === id ? null : state.selectedEventId,
+        undoStack: newUndoStack,
       };
     });
   },
 
   setEditingEventId: (id) => set({ editingEventId: id }),
+  
+  setSelectedEventId: (id) => set({ selectedEventId: id }),
 
   closeEditingEvent: () => {
     const { editingEventId, data } = get();
@@ -718,9 +746,44 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => ({
     });
   },
 
+  setHourHeight: (height) => {
+    // 限制范围：32px - 800px（最大可以让一个小时占满屏幕）
+    const clampedHeight = Math.max(32, Math.min(800, height));
+    set((state) => {
+      const newData = {
+        ...state.data,
+        settings: { ...state.data.settings, hourHeight: clampedHeight },
+      };
+      persist(newData);
+      return { data: newData };
+    });
+  },
+
   toggleSidebar: () => set((state) => ({ showSidebar: !state.showSidebar })),
   toggleContextPanel: () => set((state) => ({ showContextPanel: !state.showContextPanel })),
   setSelectedDate: (date) => set({ selectedDate: date }),
+  
+  // Undo last action
+  undo: () => {
+    set((state) => {
+      if (state.undoStack.length === 0) return state;
+      
+      const lastAction = state.undoStack[state.undoStack.length - 1];
+      const newUndoStack = state.undoStack.slice(0, -1);
+      
+      if (lastAction.type === 'deleteEvent') {
+        // 恢复删除的事件
+        const newData = {
+          ...state.data,
+          events: [...state.data.events, lastAction.event],
+        };
+        persist(newData);
+        return { data: newData, undoStack: newUndoStack };
+      }
+      
+      return { undoStack: newUndoStack };
+    });
+  },
 }));
 
 // Re-export for convenience

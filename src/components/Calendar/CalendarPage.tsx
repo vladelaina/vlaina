@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { format, startOfWeek, addDays, startOfDay, addMinutes } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, DragEndEvent } from '@dnd-kit/core';
@@ -15,18 +15,145 @@ import { ViewSwitcher } from './features/ViewSwitcher';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useGroupStore } from '@/stores/useGroupStore';
 
-const HOUR_HEIGHT = 64;
 const GUTTER_WIDTH = 60;
 const SNAP_MINUTES = 15;
+const MIN_HOUR_HEIGHT = 32;
+const MAX_HOUR_HEIGHT = 800; // 最大可以让一个小时占满屏幕
+const ZOOM_FACTOR = 1.15;
 
 export function CalendarPage() {
-  const { load, selectedDate, addEvent, viewMode, showSidebar, showContextPanel } = useCalendarStore();
+  const { 
+    load, selectedDate, addEvent, viewMode, showSidebar, showContextPanel, 
+    hourHeight, setHourHeight, selectedEventId, setSelectedEventId, 
+    deleteEvent, undo, editingEventId, closeEditingEvent 
+  } = useCalendarStore();
   const { updateTaskSchedule, updateTaskEstimation } = useGroupStore();
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
+  
+  const hourHeightRef = useRef(hourHeight);
+  hourHeightRef.current = hourHeight;
 
   useEffect(() => {
     load();
   }, [load]);
+  
+  // 全局点击监听：点击非右侧编辑面板区域时，关闭空标题事件
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      if (!editingEventId) return;
+      
+      const target = e.target as HTMLElement;
+      
+      // 检查是否点击在右侧编辑面板内
+      const contextPanel = target.closest('[data-context-panel]');
+      if (contextPanel) return;
+      
+      // 检查是否点击在事件块上（事件块有自己的处理逻辑）
+      const eventBlock = target.closest('.event-block');
+      if (eventBlock) return;
+      
+      // 检查是否点击在右键菜单上（颜色选择、删除等操作）
+      const eventContextMenu = target.closest('[data-event-context-menu]');
+      if (eventContextMenu) return;
+      
+      // 点击其他地方，关闭编辑（空标题事件会自动删除）
+      closeEditingEvent();
+    };
+    
+    // 使用 mousedown 而不是 click，这样可以更早捕获
+    document.addEventListener('mousedown', handleGlobalClick);
+    return () => document.removeEventListener('mousedown', handleGlobalClick);
+  }, [editingEventId, closeEditingEvent]);
+  
+  // 键盘快捷键：Backspace 删除选中事件，Ctrl+Z 撤销
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 如果正在编辑（输入框聚焦），不处理快捷键
+      const activeElement = document.activeElement;
+      if (activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      // Ctrl+Z / Cmd+Z 撤销
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+      
+      // Backspace 或 Delete 删除选中的事件
+      if ((e.key === 'Backspace' || e.key === 'Delete') && selectedEventId) {
+        e.preventDefault();
+        deleteEvent(selectedEventId);
+        setSelectedEventId(null);
+        return;
+      }
+      
+      // Escape 取消选中
+      if (e.key === 'Escape' && selectedEventId) {
+        setSelectedEventId(null);
+        return;
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedEventId, editingEventId, deleteEvent, setSelectedEventId, undo]);
+  
+  // Ctrl+滚轮缩放时间刻度
+  useEffect(() => {
+    const handleZoomWheel = (e: WheelEvent) => {
+      // 只使用 Ctrl/Meta 键触发缩放
+      if (!e.ctrlKey && !e.metaKey) return;
+      
+      // 检查是否在日历网格区域内
+      const gridContainer = document.getElementById('time-grid-container');
+      if (!gridContainer || !gridContainer.contains(e.target as Node)) return;
+      
+      // 只在 day 或 week 视图下支持缩放（month 视图不需要）
+      if (viewMode === 'month') return;
+      
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const scrollContainer = document.getElementById('time-grid-scroll');
+      const currentHourHeight = hourHeightRef.current;
+      
+      // 计算新的 hourHeight
+      const delta = e.deltaY > 0 ? -1 : 1;
+      const newHourHeight = Math.max(
+        MIN_HOUR_HEIGHT,
+        Math.min(MAX_HOUR_HEIGHT, currentHourHeight * (delta > 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR))
+      );
+      
+      if (Math.abs(newHourHeight - currentHourHeight) < 0.1) return;
+      
+      // 锚点缩放：保持鼠标指向的时间点不变
+      if (scrollContainer) {
+        const rect = scrollContainer.getBoundingClientRect();
+        const mouseY = e.clientY - rect.top;
+        const scrollTop = scrollContainer.scrollTop;
+        const mouseTimePosition = scrollTop + mouseY;
+        const mouseTimeHours = mouseTimePosition / currentHourHeight;
+        const newMouseTimePosition = mouseTimeHours * newHourHeight;
+        const newScrollTop = newMouseTimePosition - mouseY;
+        
+        requestAnimationFrame(() => {
+          scrollContainer.scrollTop = Math.max(0, newScrollTop);
+        });
+      }
+      
+      setHourHeight(newHourHeight);
+    };
+
+    document.addEventListener('wheel', handleZoomWheel, { passive: false, capture: true });
+    return () => {
+      document.removeEventListener('wheel', handleZoomWheel, { capture: true });
+    };
+  }, [setHourHeight, viewMode]);
+  
+  // 使用动态的 hourHeight
+  const HOUR_HEIGHT = hourHeight;
 
   // Navigation is now handled by ViewSwitcher component
 
