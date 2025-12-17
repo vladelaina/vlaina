@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { useCalendarStore, type CalendarEvent } from '@/stores/useCalendarStore';
 import { Check } from 'lucide-react';
@@ -6,9 +6,15 @@ import { EventContextMenu } from './EventContextMenu';
 import { type EventLayoutInfo } from '../../utils/eventLayout';
 
 const HOUR_HEIGHT = 64;
+const GAP = 3;
+const RESIZE_HANDLE_HEIGHT = 6;
+const SNAP_MINUTES = 15;
+const AUTO_SCROLL_THRESHOLD = 5; // 距离边缘多少像素开始自动滚动（几乎触碰边缘）
+const AUTO_SCROLL_SPEED = 10; // 滚动速度
+const STORE_UPDATE_INTERVAL = 100; // store 更新间隔（毫秒）
 
-// 间距常量 - 精确控制
-const GAP = 3; // 事件之间的间距
+// 获取滚动容器
+const getScrollContainer = () => document.getElementById('time-grid-scroll');
 
 interface EventBlockProps {
   event: CalendarEvent & { type?: 'event' | 'task'; originalTask?: any };
@@ -17,12 +23,330 @@ interface EventBlockProps {
 }
 
 export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
-  const { setEditingEventId, editingEventId } = useCalendarStore();
+  const { setEditingEventId, editingEventId, updateEvent } = useCalendarStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [isHovered, setIsHovered] = useState(false);
 
-  // 当前事件是否正在被编辑
+  // 边缘拖拽调整时长
+  const [resizeEdge, setResizeEdge] = useState<'top' | 'bottom' | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeStartY, setResizeStartY] = useState(0);
+  const [originalTimes, setOriginalTimes] = useState({ start: 0, end: 0 });
+
+  // 整体拖拽移动
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartY, setDragStartY] = useState(0);
+  
+  // 拖拽过程中的临时时间（用于平滑显示，避免闪烁）
+  const [tempTimes, setTempTimes] = useState<{ start: number; end: number } | null>(null);
+  
+  // 记录拖拽开始时的滚动位置
+  const startScrollTop = useRef(0);
+  // 自动滚动定时器
+  const autoScrollRef = useRef<number | null>(null);
+  // 事件块 DOM 引用
+  const blockRef = useRef<HTMLDivElement>(null);
+
   const isActive = editingEventId === event.id;
+  const isTask = event.type === 'task';
+
+  // 使用临时时间（拖拽中）或实际时间来计算位置
+  const displayStartDate = tempTimes?.start ?? event.startDate;
+  const displayEndDate = tempTimes?.end ?? event.endDate;
+  
+  // 计算尺寸
+  const durationInMinutes = (displayEndDate - displayStartDate) / (1000 * 60);
+  const startHour = new Date(displayStartDate).getHours();
+  const startMinute = new Date(displayStartDate).getMinutes();
+  const top = startHour * HOUR_HEIGHT + (startMinute / 60) * HOUR_HEIGHT;
+  const height = (durationInMinutes / 60) * HOUR_HEIGHT;
+
+  // 检测鼠标位置
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (isResizing || isDragging || isTask) return;
+
+      const rect = e.currentTarget.getBoundingClientRect();
+      const relativeY = e.clientY - rect.top;
+
+      if (relativeY <= RESIZE_HANDLE_HEIGHT) {
+        setResizeEdge('top');
+      } else if (relativeY >= rect.height - RESIZE_HANDLE_HEIGHT) {
+        setResizeEdge('bottom');
+      } else {
+        setResizeEdge(null);
+      }
+    },
+    [isResizing, isDragging, isTask]
+  );
+
+  // 边缘拖拽调整时长
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const scrollContainer = getScrollContainer();
+    let lastMouseY = resizeStartY;
+    let currentTempTimes = { start: originalTimes.start, end: originalTimes.end };
+    let lastStoreUpdate = 0;
+
+    const calculateNewTimes = (mouseY: number) => {
+      const scrollDelta = scrollContainer ? scrollContainer.scrollTop - startScrollTop.current : 0;
+      const deltaY = mouseY - resizeStartY + scrollDelta;
+      const deltaMinutes = Math.round(((deltaY / HOUR_HEIGHT) * 60) / SNAP_MINUTES) * SNAP_MINUTES;
+
+      if (resizeEdge === 'top') {
+        const newStartDate = originalTimes.start + deltaMinutes * 60 * 1000;
+        if (newStartDate < originalTimes.end - 15 * 60 * 1000) {
+          return { start: newStartDate, end: originalTimes.end };
+        }
+      } else if (resizeEdge === 'bottom') {
+        const newEndDate = originalTimes.end + deltaMinutes * 60 * 1000;
+        if (newEndDate > originalTimes.start + 15 * 60 * 1000) {
+          return { start: originalTimes.start, end: newEndDate };
+        }
+      }
+      return null;
+    };
+
+    // 节流更新 store，让其他事件布局实时调整
+    const throttledStoreUpdate = (times: { start: number; end: number }) => {
+      const now = Date.now();
+      if (now - lastStoreUpdate >= STORE_UPDATE_INTERVAL) {
+        lastStoreUpdate = now;
+        if (resizeEdge === 'top') {
+          updateEvent(event.id, { startDate: times.start });
+        } else {
+          updateEvent(event.id, { endDate: times.end });
+        }
+      }
+    };
+
+    const updateDisplay = (mouseY: number) => {
+      const newTimes = calculateNewTimes(mouseY);
+      if (newTimes && (newTimes.start !== currentTempTimes.start || newTimes.end !== currentTempTimes.end)) {
+        currentTempTimes = newTimes;
+        setTempTimes(newTimes);
+        throttledStoreUpdate(newTimes);
+      }
+    };
+
+    // 自动滚动逻辑 - 使用 requestAnimationFrame 更平滑
+    let scrollDirection: 'up' | 'down' | null = null;
+    
+    const scrollStep = () => {
+      if (!scrollDirection || !scrollContainer) return;
+      
+      const scrollAmount = scrollDirection === 'down' ? AUTO_SCROLL_SPEED : -AUTO_SCROLL_SPEED;
+      scrollContainer.scrollTop += scrollAmount;
+      updateDisplay(lastMouseY);
+      
+      if (scrollDirection) {
+        autoScrollRef.current = requestAnimationFrame(scrollStep);
+      }
+    };
+
+    const startAutoScroll = (direction: 'up' | 'down') => {
+      if (scrollDirection === direction) return;
+      scrollDirection = direction;
+      if (!autoScrollRef.current) {
+        autoScrollRef.current = requestAnimationFrame(scrollStep);
+      }
+    };
+
+    const stopAutoScroll = () => {
+      scrollDirection = null;
+      if (autoScrollRef.current) {
+        cancelAnimationFrame(autoScrollRef.current);
+        autoScrollRef.current = null;
+      }
+    };
+
+    // 检查事件块是否触碰到滚动容器边缘
+    const checkAutoScroll = () => {
+      if (!scrollContainer || !blockRef.current) return;
+      
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const blockRect = blockRef.current.getBoundingClientRect();
+      
+      // 事件块顶部触碰到容器顶部
+      const blockTouchesTop = blockRect.top <= containerRect.top + AUTO_SCROLL_THRESHOLD;
+      // 事件块底部触碰到容器底部
+      const blockTouchesBottom = blockRect.bottom >= containerRect.bottom - AUTO_SCROLL_THRESHOLD;
+      
+      if (blockTouchesTop && scrollContainer.scrollTop > 0) {
+        startAutoScroll('up');
+      } else if (blockTouchesBottom && 
+                 scrollContainer.scrollTop < scrollContainer.scrollHeight - scrollContainer.clientHeight) {
+        startAutoScroll('down');
+      } else {
+        stopAutoScroll();
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      lastMouseY = e.clientY;
+      updateDisplay(e.clientY);
+      checkAutoScroll();
+    };
+
+    const handleScroll = () => {
+      updateDisplay(lastMouseY);
+      checkAutoScroll();
+    };
+
+    const handleMouseUp = () => {
+      stopAutoScroll();
+      // 确保最终状态同步到 store
+      if (resizeEdge === 'top') {
+        updateEvent(event.id, { startDate: currentTempTimes.start });
+      } else {
+        updateEvent(event.id, { endDate: currentTempTimes.end });
+      }
+      setTempTimes(null);
+      setIsResizing(false);
+      setResizeEdge(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    scrollContainer?.addEventListener('scroll', handleScroll);
+
+    return () => {
+      stopAutoScroll();
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      scrollContainer?.removeEventListener('scroll', handleScroll);
+    };
+  }, [isResizing, resizeEdge, resizeStartY, originalTimes, event.id, updateEvent]);
+
+  // 整体拖拽移动
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const scrollContainer = getScrollContainer();
+    let lastMouseY = dragStartY;
+    let currentTempTimes = { start: originalTimes.start, end: originalTimes.end };
+    let lastStoreUpdate = 0;
+
+    const calculateNewTimes = (mouseY: number) => {
+      const scrollDelta = scrollContainer ? scrollContainer.scrollTop - startScrollTop.current : 0;
+      const deltaY = mouseY - dragStartY + scrollDelta;
+      const deltaMinutes = Math.round(((deltaY / HOUR_HEIGHT) * 60) / SNAP_MINUTES) * SNAP_MINUTES;
+
+      const newStartDate = originalTimes.start + deltaMinutes * 60 * 1000;
+      const newEndDate = originalTimes.end + deltaMinutes * 60 * 1000;
+
+      const startOfDay = new Date(originalTimes.start);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = startOfDay.getTime() + 24 * 60 * 60 * 1000;
+
+      if (newStartDate >= startOfDay.getTime() && newEndDate <= endOfDay) {
+        return { start: newStartDate, end: newEndDate };
+      }
+      return null;
+    };
+
+    // 节流更新 store，让其他事件布局实时调整
+    const throttledStoreUpdate = (times: { start: number; end: number }) => {
+      const now = Date.now();
+      if (now - lastStoreUpdate >= STORE_UPDATE_INTERVAL) {
+        lastStoreUpdate = now;
+        updateEvent(event.id, { startDate: times.start, endDate: times.end });
+      }
+    };
+
+    const updateDisplay = (mouseY: number) => {
+      const newTimes = calculateNewTimes(mouseY);
+      if (newTimes && (newTimes.start !== currentTempTimes.start || newTimes.end !== currentTempTimes.end)) {
+        currentTempTimes = newTimes;
+        setTempTimes(newTimes);
+        throttledStoreUpdate(newTimes);
+      }
+    };
+
+    // 自动滚动逻辑 - 使用 requestAnimationFrame 更平滑
+    let scrollDirection: 'up' | 'down' | null = null;
+    
+    const scrollStep = () => {
+      if (!scrollDirection || !scrollContainer) return;
+      
+      const scrollAmount = scrollDirection === 'down' ? AUTO_SCROLL_SPEED : -AUTO_SCROLL_SPEED;
+      scrollContainer.scrollTop += scrollAmount;
+      updateDisplay(lastMouseY);
+      
+      if (scrollDirection) {
+        autoScrollRef.current = requestAnimationFrame(scrollStep);
+      }
+    };
+
+    const startAutoScroll = (direction: 'up' | 'down') => {
+      if (scrollDirection === direction) return;
+      scrollDirection = direction;
+      if (!autoScrollRef.current) {
+        autoScrollRef.current = requestAnimationFrame(scrollStep);
+      }
+    };
+
+    const stopAutoScroll = () => {
+      scrollDirection = null;
+      if (autoScrollRef.current) {
+        cancelAnimationFrame(autoScrollRef.current);
+        autoScrollRef.current = null;
+      }
+    };
+
+    // 检查事件块是否触碰到滚动容器边缘
+    const checkAutoScroll = () => {
+      if (!scrollContainer || !blockRef.current) return;
+      
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const blockRect = blockRef.current.getBoundingClientRect();
+      
+      // 事件块顶部触碰到容器顶部
+      const blockTouchesTop = blockRect.top <= containerRect.top + AUTO_SCROLL_THRESHOLD;
+      // 事件块底部触碰到容器底部
+      const blockTouchesBottom = blockRect.bottom >= containerRect.bottom - AUTO_SCROLL_THRESHOLD;
+      
+      if (blockTouchesTop && scrollContainer.scrollTop > 0) {
+        startAutoScroll('up');
+      } else if (blockTouchesBottom && 
+                 scrollContainer.scrollTop < scrollContainer.scrollHeight - scrollContainer.clientHeight) {
+        startAutoScroll('down');
+      } else {
+        stopAutoScroll();
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      lastMouseY = e.clientY;
+      updateDisplay(e.clientY);
+      checkAutoScroll();
+    };
+
+    const handleScroll = () => {
+      updateDisplay(lastMouseY);
+      checkAutoScroll();
+    };
+
+    const handleMouseUp = () => {
+      stopAutoScroll();
+      // 确保最终状态同步到 store
+      updateEvent(event.id, { startDate: currentTempTimes.start, endDate: currentTempTimes.end });
+      setTempTimes(null);
+      setIsDragging(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    scrollContainer?.addEventListener('scroll', handleScroll);
+
+    return () => {
+      stopAutoScroll();
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      scrollContainer?.removeEventListener('scroll', handleScroll);
+    };
+  }, [isDragging, dragStartY, originalTimes, event.id, updateEvent]);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -31,26 +355,47 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
   };
 
   const handleClick = () => {
-    // 只有 Event 类型才打开编辑面板，Task 类型不打开
-    if (event.type !== 'task') {
+    if (isResizing || isDragging) return;
+    if (resizeEdge) return;
+
+    if (!isTask) {
       setEditingEventId(event.id);
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isTask) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    // 记录拖拽开始时的滚动位置
+    const scrollContainer = getScrollContainer();
+    startScrollTop.current = scrollContainer?.scrollTop || 0;
+
+    setOriginalTimes({ start: event.startDate, end: event.endDate });
+
+    if (resizeEdge) {
+      // 边缘拖拽 - 调整时长
+      setIsResizing(true);
+      setResizeStartY(e.clientY);
+    } else {
+      // 中间拖拽 - 移动整个事件
+      setIsDragging(true);
+      setDragStartY(e.clientY);
     }
   };
 
   const handleMouseLeave = () => {
     setIsHovered(false);
+    if (!isResizing && !isDragging) {
+      setResizeEdge(null);
+    }
   };
 
   const handleMouseEnter = () => {
     setIsHovered(true);
   };
-
-  // 计算尺寸
-  const durationInMinutes = (event.endDate - event.startDate) / (1000 * 60);
-  const startHour = new Date(event.startDate).getHours();
-  const startMinute = new Date(event.startDate).getMinutes();
-  const top = startHour * HOUR_HEIGHT + (startMinute / 60) * HOUR_HEIGHT;
-  const height = (durationInMinutes / 60) * HOUR_HEIGHT;
 
   // 智能间距计算
   const positioning = useMemo(() => {
@@ -62,14 +407,12 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
     }
 
     const { leftPercent, widthPercent, totalColumns, column } = layout;
-    
-    // 第一列左边有间距，最后一列右边有间距，中间列两边都有半间距
     const isFirstColumn = column === 0;
     const isLastColumn = column === totalColumns - 1;
-    
+
     let leftOffset = GAP;
     let rightOffset = GAP;
-    
+
     if (totalColumns > 1) {
       leftOffset = isFirstColumn ? GAP : GAP / 2;
       rightOffset = isLastColumn ? GAP : GAP / 2;
@@ -81,27 +424,19 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
     };
   }, [layout]);
 
-  // 层级深度带来的视觉效果
+  // 层级深度
   const depthStyles = useMemo(() => {
     const column = layout?.column || 0;
-    
-    // 基础 z-index
     const baseZ = column + 10;
-    const z = isActive ? 100 : isHovered ? 50 : baseZ;
-    
-    // 根据层级增加阴影深度
+    const z = isResizing || isDragging ? 200 : isActive ? 100 : isHovered ? 50 : baseZ;
     const shadowIntensity = Math.min(column * 0.5, 2);
-    
-    return {
-      zIndex: z,
-      shadowIntensity,
-    };
-  }, [layout?.column, isActive, isHovered]);
 
-  const isTask = event.type === 'task';
+    return { zIndex: z, shadowIntensity };
+  }, [layout?.column, isActive, isHovered, isResizing, isDragging]);
+
   const isCompleted = isTask && event.originalTask?.completed;
 
-  // 高度分级 - 决定显示什么内容
+  // 高度分级
   const heightLevel = useMemo(() => {
     if (height < 20) return 'micro';
     if (height < 32) return 'tiny';
@@ -110,9 +445,9 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
     return 'large';
   }, [height]);
 
-  // 颜色系统 - 统一的设计语言
+  // 颜色系统
   const colorKey = event.color || 'blue';
-  
+
   const colorSystem = useMemo(() => {
     const colors: Record<string, { bg: string; text: string; border: string; ring: string }> = {
       blue: {
@@ -155,49 +490,45 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
     return colors[colorKey] || colors.blue;
   }, [colorKey]);
 
-  // Task 的优先级颜色
+  // Task 优先级颜色
   const taskColors = useMemo(() => {
     if (!isTask) return null;
     const priority = event.originalTask?.priority || 'default';
-    
+
     const priorityColors: Record<string, { border: string; bg: string }> = {
       red: { border: 'border-l-rose-500', bg: 'bg-rose-50/50 dark:bg-rose-950/20' },
       yellow: { border: 'border-l-amber-400', bg: 'bg-amber-50/50 dark:bg-amber-950/20' },
       green: { border: 'border-l-emerald-500', bg: 'bg-emerald-50/50 dark:bg-emerald-950/20' },
       default: { border: 'border-l-blue-500', bg: 'bg-white/90 dark:bg-zinc-900/90' },
     };
-    
+
     return priorityColors[priority] || priorityColors.default;
   }, [isTask, event.originalTask?.priority]);
 
   // 动态阴影
   const shadowClass = useMemo(() => {
-    if (isActive) {
-      return 'shadow-lg shadow-black/10 dark:shadow-black/30';
-    }
-    if (isHovered) {
-      return 'shadow-md shadow-black/8 dark:shadow-black/25';
-    }
-    // 根据层级深度调整基础阴影
+    if (isResizing || isDragging) return 'shadow-xl shadow-black/15 dark:shadow-black/40';
+    if (isActive) return 'shadow-lg shadow-black/10 dark:shadow-black/30';
+    if (isHovered) return 'shadow-md shadow-black/8 dark:shadow-black/25';
     const depth = depthStyles.shadowIntensity;
-    if (depth > 1) {
-      return 'shadow-md shadow-black/6 dark:shadow-black/20';
-    }
+    if (depth > 1) return 'shadow-md shadow-black/6 dark:shadow-black/20';
     return 'shadow-sm shadow-black/5 dark:shadow-black/15';
-  }, [isActive, isHovered, depthStyles.shadowIntensity]);
+  }, [isActive, isHovered, isResizing, isDragging, depthStyles.shadowIntensity]);
 
-  // 渲染内容
-  const renderContent = () => {
-    if (isTask) {
-      return renderTaskContent();
-    }
-    return renderEventContent();
-  };
+  // 光标样式
+  // 光标样式：默认保持普通样式，只在边缘或拖拽时改变
+  const cursorClass = useMemo(() => {
+    if (isResizing) return 'cursor-row-resize';
+    if (isDragging) return 'cursor-grabbing';
+    if (resizeEdge && !isTask) return 'cursor-row-resize';
+    // 默认使用普通光标，不使用 grab 手型
+    return 'cursor-default';
+  }, [resizeEdge, isResizing, isDragging, isTask]);
 
   const renderEventContent = () => {
     const showTime = heightLevel !== 'micro' && heightLevel !== 'tiny';
     const showEndTime = heightLevel === 'large' || heightLevel === 'medium';
-    
+
     return (
       <div
         className={`
@@ -205,7 +536,7 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
           border-l-[3px] ${colorSystem.border}
           ${colorSystem.bg}
           rounded-[5px]
-          transition-all duration-200 ease-out
+          transition-shadow duration-200 ease-out
           ${shadowClass}
           ${isActive ? `ring-2 ${colorSystem.ring}` : ''}
           ${isHovered && !isActive ? `ring-1 ${colorSystem.ring}` : ''}
@@ -213,21 +544,13 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
       >
         <div className="px-2 py-1 min-w-0">
           <p
-            className={`
-              font-medium leading-tight truncate
-              ${colorSystem.text}
-              ${heightLevel === 'micro' ? 'text-[9px]' : 'text-[11px]'}
-            `}
+            className={`font-medium leading-tight truncate ${colorSystem.text} ${heightLevel === 'micro' ? 'text-[9px]' : 'text-[11px]'}`}
           >
             {event.title || '无标题'}
           </p>
           {showTime && (
             <p
-              className={`
-                mt-0.5 tabular-nums font-medium
-                ${colorSystem.text} opacity-70
-                ${heightLevel === 'small' ? 'text-[8px]' : 'text-[9px]'}
-              `}
+              className={`mt-0.5 tabular-nums font-medium ${colorSystem.text} opacity-70 ${heightLevel === 'small' ? 'text-[8px]' : 'text-[9px]'}`}
             >
               {format(event.startDate, 'HH:mm')}
               {showEndTime && ` - ${format(event.endDate, 'HH:mm')}`}
@@ -241,7 +564,7 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
   const renderTaskContent = () => {
     const showTime = heightLevel !== 'micro' && heightLevel !== 'tiny';
     const showCheckbox = heightLevel !== 'micro';
-    
+
     return (
       <div
         className={`
@@ -249,15 +572,13 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
           border-l-[3px] ${taskColors?.border}
           ${taskColors?.bg}
           rounded-[5px]
-          transition-all duration-200 ease-out
+          transition-shadow duration-200 ease-out
           ${shadowClass}
           ring-1 ring-inset ring-black/[0.04] dark:ring-white/[0.06]
           ${isActive ? 'ring-2 ring-blue-400/40 dark:ring-blue-500/30' : ''}
           ${isHovered && !isActive ? 'ring-blue-300/30 dark:ring-blue-500/20' : ''}
         `}
-        style={{
-          opacity: isCompleted ? 0.55 : 1,
-        }}
+        style={{ opacity: isCompleted ? 0.55 : 1 }}
       >
         <div className={`flex items-start gap-1.5 px-1.5 py-1 ${heightLevel === 'tiny' ? 'items-center' : ''}`}>
           {showCheckbox && (
@@ -267,12 +588,11 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
                 onToggle?.(event.id);
               }}
               className={`
-                flex-shrink-0 w-3.5 h-3.5 rounded-[3px] border
-                flex items-center justify-center
-                transition-all duration-150
-                ${isCompleted
-                  ? 'bg-zinc-400 border-zinc-400 dark:bg-zinc-500 dark:border-zinc-500'
-                  : 'border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-blue-400 dark:hover:border-blue-500'
+                flex-shrink-0 w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center transition-all duration-150
+                ${
+                  isCompleted
+                    ? 'bg-zinc-400 border-zinc-400 dark:bg-zinc-500 dark:border-zinc-500'
+                    : 'border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-blue-400 dark:hover:border-blue-500'
                 }
               `}
             >
@@ -281,11 +601,7 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
           )}
           <div className="flex-1 min-w-0 flex flex-col justify-center">
             <p
-              className={`
-                font-medium leading-tight truncate
-                ${isCompleted ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-700 dark:text-zinc-200'}
-                ${heightLevel === 'micro' ? 'text-[9px]' : 'text-[11px]'}
-              `}
+              className={`font-medium leading-tight truncate ${isCompleted ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-zinc-700 dark:text-zinc-200'} ${heightLevel === 'micro' ? 'text-[9px]' : 'text-[11px]'}`}
             >
               {event.title || '无标题'}
             </p>
@@ -303,6 +619,7 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
   return (
     <>
       <div
+        ref={blockRef}
         style={{
           top: `${top}px`,
           height: `${Math.max(height, 18)}px`,
@@ -310,18 +627,15 @@ export function EventBlock({ event, onToggle, layout }: EventBlockProps) {
           width: positioning.width,
           zIndex: depthStyles.zIndex,
         }}
-        className={`
-          absolute cursor-pointer
-          transition-transform duration-200 ease-out
-          ${isHovered && !isActive ? 'scale-[1.01]' : ''}
-          ${isActive ? 'scale-[1.02]' : ''}
-        `}
+        className={`absolute ${cursorClass} select-none`}
         onClick={handleClick}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onContextMenu={handleContextMenu}
       >
-        {renderContent()}
+        {isTask ? renderTaskContent() : renderEventContent()}
       </div>
 
       {contextMenu && (
