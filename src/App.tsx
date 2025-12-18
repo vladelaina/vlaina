@@ -71,9 +71,30 @@ function AppContent() {
     loadData();
   }, [loadData]);
 
-  // 打开/关闭设置快捷键
+  // 视图切换顺序
+  const viewOrder: Array<typeof currentView> = ['tasks', 'progress', 'calendar', 'time-tracker'];
+  const { setView } = useViewStore();
+
+  // 打开/关闭设置快捷键 + 视图切换快捷键
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Tab / Ctrl+Shift+Tab 切换视图
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Tab') {
+        e.preventDefault();
+        const currentIndex = viewOrder.indexOf(currentView);
+        if (e.shiftKey) {
+          // 向前切换
+          const prevIndex = (currentIndex - 1 + viewOrder.length) % viewOrder.length;
+          setView(viewOrder[prevIndex]);
+        } else {
+          // 向后切换
+          const nextIndex = (currentIndex + 1) % viewOrder.length;
+          setView(viewOrder[nextIndex]);
+        }
+        return;
+      }
+
+      // 设置快捷键
       const keys = getShortcutKeys('open-settings');
       if (!keys || keys.length === 0) return;
 
@@ -92,7 +113,7 @@ function AppContent() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [currentView, setView]);
 
   return (
     <>

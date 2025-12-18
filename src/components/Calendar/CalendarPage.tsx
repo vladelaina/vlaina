@@ -100,6 +100,31 @@ export function CalendarPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedEventId, editingEventId, deleteEvent, setSelectedEventId, undo]);
   
+  // 窗口大小变化时，自动调整 hourHeight 以填满容器
+  useEffect(() => {
+    if (viewMode === 'month') return;
+    
+    const handleResize = () => {
+      const scrollContainer = document.getElementById('time-grid-scroll');
+      if (!scrollContainer) return;
+      
+      const containerHeight = scrollContainer.clientHeight;
+      const minHourHeightForContainer = containerHeight / 24;
+      const currentHourHeight = hourHeightRef.current;
+      
+      // 如果当前 hourHeight 小于容器需要的最小值，自动增加
+      if (currentHourHeight < minHourHeightForContainer) {
+        setHourHeight(minHourHeightForContainer);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    // 初始化时也检查一次
+    setTimeout(handleResize, 100);
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, [viewMode, setHourHeight]);
+  
   // Ctrl+滚轮缩放时间刻度
   useEffect(() => {
     const handleZoomWheel = (e: WheelEvent) => {
@@ -119,10 +144,14 @@ export function CalendarPage() {
       const scrollContainer = document.getElementById('time-grid-scroll');
       const currentHourHeight = hourHeightRef.current;
       
+      // 动态计算最小 hourHeight，确保 24 小时刚好填满容器
+      const containerHeight = scrollContainer?.clientHeight || 600;
+      const dynamicMinHourHeight = Math.max(MIN_HOUR_HEIGHT, containerHeight / 24);
+      
       // 计算新的 hourHeight
       const delta = e.deltaY > 0 ? -1 : 1;
       const newHourHeight = Math.max(
-        MIN_HOUR_HEIGHT,
+        dynamicMinHourHeight,
         Math.min(MAX_HOUR_HEIGHT, currentHourHeight * (delta > 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR))
       );
       
