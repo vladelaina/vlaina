@@ -163,12 +163,9 @@ export function CalendarPage() {
           <div className="flex h-full flex-col">
             {/* Toolbar */}
             <div
-              className="h-12 flex items-center px-4 justify-between bg-white dark:bg-zinc-950 relative backdrop-blur-md bg-opacity-80"
+              className="h-12 flex items-center px-4 justify-end bg-white dark:bg-zinc-950 relative backdrop-blur-md bg-opacity-80"
               style={{ zIndex: 100 }}
             >
-              <h2 className="text-lg font-semibold tracking-tight">
-                {format(selectedDate, 'MMMM yyyy')}
-              </h2>
               <ViewSwitcher />
             </div>
 

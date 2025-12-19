@@ -248,7 +248,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
         {/* Timezone */}
         {isEditingTimezone ? (
           <div className="flex items-center">
-            <span className="text-zinc-500 text-sm">GMT</span>
+            <span className="text-zinc-400 text-[10px]">GMT</span>
             <input
               ref={timezoneInputRef}
               type="text"
@@ -259,7 +259,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                 else if (e.key === 'Escape') setIsEditingTimezone(false);
               }}
               onBlur={handleTimezoneSubmit}
-              className="w-8 text-sm text-zinc-500 bg-transparent border-b border-zinc-300 dark:border-zinc-600 outline-none text-center"
+              className="w-6 text-[10px] text-zinc-400 bg-transparent border-b border-zinc-300 dark:border-zinc-600 outline-none text-center"
               autoFocus
             />
           </div>
@@ -270,7 +270,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
               setIsEditingTimezone(true);
               setTimeout(() => timezoneInputRef.current?.select(), 0);
             }}
-            className="text-zinc-500 text-sm hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+            className="text-zinc-400 text-[10px] hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
           >
             GMT{timezone >= 0 ? `+${timezone}` : timezone}
           </button>

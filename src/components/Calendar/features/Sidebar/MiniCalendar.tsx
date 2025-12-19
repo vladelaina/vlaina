@@ -31,20 +31,25 @@ export function MiniCalendar() {
     <div className="flex flex-col gap-6">
       {/* Calendar Widget */}
       <div className="select-none">
-        {/* Navigation Arrows - Top Right */}
-        <div className="flex justify-end gap-0 mb-2">
-          <button 
-            onClick={prevMonth}
-            className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-          >
-            <ChevronUp className="size-4" strokeWidth={2.5} />
-          </button>
-          <button 
-            onClick={nextMonth}
-            className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-          >
-            <ChevronDown className="size-4" strokeWidth={2.5} />
-          </button>
+        {/* Month/Year and Navigation */}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+            {format(currentMonth, 'MMM yyyy')}
+          </span>
+          <div className="flex gap-0">
+            <button 
+              onClick={prevMonth}
+              className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+            >
+              <ChevronUp className="size-4" strokeWidth={2.5} />
+            </button>
+            <button 
+              onClick={nextMonth}
+              className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+            >
+              <ChevronDown className="size-4" strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
 
         {/* Days Header - Weekday names */}

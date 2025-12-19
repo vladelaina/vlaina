@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { CaretDown, CaretLeft, CaretRight, Check, MagnifyingGlass, SidebarSimple } from '@phosphor-icons/react';
 import { useCalendarStore, type ViewMode } from '@/stores/useCalendarStore';
-import { addDays, addMonths } from 'date-fns';
+import { addDays, addMonths, isSameDay } from 'date-fns';
 
 // View mode labels
 const VIEW_MODE_LABELS: Record<ViewMode, string> = {
@@ -392,13 +392,15 @@ export function ViewSwitcher() {
         document.body
       )}
 
-      {/* Today Button */}
-      <button
-        onClick={handleTodayClick}
-        className="px-3 py-1.5 text-sm font-medium rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
-      >
-        Today
-      </button>
+      {/* Today Button - Only show when not viewing today */}
+      {!isSameDay(selectedDate, new Date()) && (
+        <button
+          onClick={handleTodayClick}
+          className="px-3 py-1.5 text-sm font-medium rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+        >
+          Today
+        </button>
+      )}
 
       {/* Navigation Arrows */}
       <div className="flex items-center">
