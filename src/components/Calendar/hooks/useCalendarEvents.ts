@@ -5,12 +5,11 @@ import type { ItemColor } from '@/stores/useUnifiedStore';
 /**
  * Calendar event display item
  * 
- * This is the representation of UnifiedTask in calendar view
- * Unified title field name (mapped from content) and ensures time properties exist
+ * Uses same field names as UnifiedTask for consistency
  */
 export interface CalendarDisplayItem {
   id: string;
-  title: string;
+  content: string;
   startDate: number;
   endDate: number;
   isAllDay: boolean;
@@ -22,21 +21,17 @@ export interface CalendarDisplayItem {
 /**
  * Calendar events hook under unified item model
  * 
- * Core concept: There is only one type of "item"
- * - Items with startDate are displayed in calendar
- * - Items without startDate only appear in todo list
- * - Unified color system, consistent across views
+ * Filters tasks with startDate for calendar display
  */
 export function useCalendarEvents(): CalendarDisplayItem[] {
   const tasks = useUnifiedStore(state => state.data.tasks);
 
   const displayItems = useMemo(() => {
-    // Filter items with time properties, convert to calendar display format
     return tasks
       .filter(t => t.startDate !== undefined)
       .map(t => ({
         id: t.id,
-        title: t.content,
+        content: t.content,
         startDate: t.startDate!,
         endDate: t.endDate || t.startDate! + (t.estimatedMinutes || 60) * 60 * 1000,
         isAllDay: t.isAllDay || false,

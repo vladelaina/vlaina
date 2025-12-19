@@ -1,5 +1,5 @@
 // Tasks module hooks
-// 重新导出现有 hooks
+// Re-export existing hooks
 
 export { useDragAndDrop } from '@/components/features/TaskList/useDragAndDrop';
 export { useCrossGroupDrag } from '@/components/features/GroupDrawer/useCrossGroupDrag';

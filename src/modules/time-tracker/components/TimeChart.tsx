@@ -43,8 +43,8 @@ export function TimeChart({ selectedApp, timeRange, sourceType, todayTotal }: Ti
           const labels = timeRange === 'day' 
             ? { count: 24, format: (i: number) => `${i}:00 - ${i + 1}:00` }
             : timeRange === 'month'
-              ? { count: 30, format: (i: number) => `${i + 1}日` }
-              : { count: 12, format: (i: number) => `${i + 1}月` };
+              ? { count: 30, format: (i: number) => `Day ${i + 1}` }
+              : { count: 12, format: (i: number) => `Month ${i + 1}` };
           
           const totalDuration = selectedApp?.duration || todayTotal;
           
@@ -90,27 +90,27 @@ export function TimeChart({ selectedApp, timeRange, sourceType, todayTotal }: Ti
       <div className="flex justify-between mt-1 text-xs text-zinc-400">
         {timeRange === 'day' ? (
           <>
-            <span>0时</span>
-            <span>6时</span>
-            <span>12时</span>
-            <span>18时</span>
-            <span>24时</span>
+            <span>0:00</span>
+            <span>6:00</span>
+            <span>12:00</span>
+            <span>18:00</span>
+            <span>24:00</span>
           </>
         ) : timeRange === 'month' ? (
           <>
-            <span>1日</span>
-            <span>8日</span>
-            <span>15日</span>
-            <span>22日</span>
-            <span>30日</span>
+            <span>1st</span>
+            <span>8th</span>
+            <span>15th</span>
+            <span>22nd</span>
+            <span>30th</span>
           </>
         ) : (
           <>
-            <span>1月</span>
-            <span>4月</span>
-            <span>7月</span>
-            <span>10月</span>
-            <span>12月</span>
+            <span>Jan</span>
+            <span>Apr</span>
+            <span>Jul</span>
+            <span>Oct</span>
+            <span>Dec</span>
           </>
         )}
       </div>

@@ -3,7 +3,7 @@ import { Trash2, Plus, Archive, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { parseTimeString } from '@/stores/timeParser';
-import { Task } from '@/types';
+import type { Task } from '@/stores/useGroupStore';
 import { formatEstimatedTimeForInput } from './utils';
 
 interface TaskMenuProps {
@@ -171,7 +171,7 @@ export function TaskMenu({ task, showMenu, setShowMenu, onDelete, onAddSubTask, 
             </button>
             <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
             {/* Archive option - only for completed tasks and not in archive view */}
-            {task.isDone && task.groupId !== '__archive__' && (
+            {task.completed && task.groupId !== '__archive__' && (
               <button
                 onClick={() => {
                   // Archive is now handled by unified storage

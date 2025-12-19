@@ -8,10 +8,10 @@ export interface Group {
   pinned?: boolean;
 }
 
-// 统一颜色系统
+// Unified color system
 export type ItemColor = 'red' | 'yellow' | 'purple' | 'green' | 'blue' | 'default';
 
-// 统一颜色配置
+// Unified color configuration
 export const ITEM_COLORS: Record<ItemColor, string> = {
   red: '#ef4444',
   yellow: '#eab308',
@@ -20,9 +20,6 @@ export const ITEM_COLORS: Record<ItemColor, string> = {
   blue: '#3b82f6',
   default: '#d4d4d8',
 } as const;
-
-// Alias for backward compatibility
-export const PRIORITY_COLORS = ITEM_COLORS;
 
 // StoreTask type for archive components
 export interface StoreTask {

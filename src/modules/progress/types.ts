@@ -1,10 +1,7 @@
 /**
  * Progress Module Types
- * 
- * Re-exports types from useProgressStore for module-level access.
  */
 
-// Re-export from store
 export type { ProgressItem, CounterItem, ProgressOrCounter } from '@/stores/useProgressStore';
 
 // Module-specific input types

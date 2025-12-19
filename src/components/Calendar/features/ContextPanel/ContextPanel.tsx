@@ -12,18 +12,8 @@ import { motion } from 'framer-motion';
 import { Tray, Clock } from '@phosphor-icons/react';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useCalendarStore } from '@/stores/useCalendarStore';
+import { ITEM_COLORS } from '@/stores/types';
 import { EventEditForm } from './EventEditForm';
-
-// ============ Color Mapping ============
-
-const PRIORITY_COLORS = {
-  red: '#ef4444',
-  yellow: '#eab308',
-  purple: '#a855f7',
-  green: '#22c55e',
-  blue: '#3b82f6',
-  default: 'transparent',
-} as const;
 
 // ============ Main Component ============
 
@@ -47,12 +37,12 @@ export function ContextPanel() {
   // Inbox mode: show unscheduled tasks
   const unscheduledTasks = tasks.filter(t => !t.completed && !t.startDate);
 
-  // Sort by color priority
-  const priorityOrder: Record<string, number> = { red: 0, yellow: 1, purple: 2, green: 3, blue: 4, default: 5 };
+  // Sort by color
+  const colorOrder: Record<string, number> = { red: 0, yellow: 1, purple: 2, green: 3, blue: 4, default: 5 };
   const sortedTasks = [...unscheduledTasks].sort((a, b) => {
-    const aPriority = priorityOrder[a.color || 'default'];
-    const bPriority = priorityOrder[b.color || 'default'];
-    if (aPriority !== bPriority) return aPriority - bPriority;
+    const aOrder = colorOrder[a.color || 'default'];
+    const bOrder = colorOrder[b.color || 'default'];
+    if (aOrder !== bOrder) return aOrder - bOrder;
     return a.createdAt - b.createdAt;
   });
 
@@ -136,8 +126,8 @@ function DraggableTaskCard({ task }: { task: any }) {
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 9999 }
     : undefined;
 
-  const priorityColor = PRIORITY_COLORS[task.color as keyof typeof PRIORITY_COLORS] || PRIORITY_COLORS.default;
-  const hasPriority = task.color && task.color !== 'default';
+  const taskColor = ITEM_COLORS[task.color as keyof typeof ITEM_COLORS] || ITEM_COLORS.default;
+  const hasColor = task.color && task.color !== 'default';
 
   return (
     <motion.div
@@ -159,14 +149,14 @@ function DraggableTaskCard({ task }: { task: any }) {
         transition-colors duration-150
       `}
     >
-      {hasPriority && (
+      {hasColor && (
         <div
           className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full"
-          style={{ backgroundColor: priorityColor }}
+          style={{ backgroundColor: taskColor }}
         />
       )}
 
-      <div className={`px-3 py-2 ${hasPriority ? 'pl-4' : ''}`}>
+      <div className={`px-3 py-2 ${hasColor ? 'pl-4' : ''}`}>
         <p className="text-[13px] text-zinc-600 dark:text-zinc-300 leading-snug break-words">
           {task.content}
         </p>

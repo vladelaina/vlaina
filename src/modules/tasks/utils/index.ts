@@ -1,7 +1,5 @@
 /**
  * Tasks Module Utilities
- * 
- * Re-exports utility functions for task operations.
  */
 
 export { parseTimeString } from '@/stores/timeParser';

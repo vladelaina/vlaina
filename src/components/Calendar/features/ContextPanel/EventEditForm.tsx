@@ -37,19 +37,19 @@ interface EventEditFormProps {
 
 export function EventEditForm({ event, mode = 'embedded', position }: EventEditFormProps) {
   const { updateEvent, closeEditingEvent, groups } = useCalendarStore();
-  const [title, setTitle] = useState(event.title);
+  const [content, setContent] = useState(event.content || '');
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const groupPickerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const isNewEvent = useRef(!event.title.trim());
+  const isNewEvent = useRef(!(event.content || '').trim());
 
   const currentGroup = groups.find(g => g.id === event.groupId) || groups[0];
 
-  // Sync title
+  // Sync content
   useEffect(() => {
-    setTitle(event.title);
-  }, [event.title]);
+    setContent(event.content || '');
+  }, [event.content]);
 
   // Auto-focus for new events
   useEffect(() => {
@@ -73,9 +73,9 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
 
   // ============ Event Handlers ============
 
-  const handleTitleChange = (newTitle: string) => {
-    setTitle(newTitle);
-    updateEvent(event.id, { content: newTitle });
+  const handleContentChange = (newContent: string) => {
+    setContent(newContent);
+    updateEvent(event.id, { content: newContent });
   };
 
   const handleColorChange = (color: ItemColor) => {
@@ -155,19 +155,19 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
           </button>
         </div>
 
-        {/* Title input */}
+        {/* Content input */}
         <input
           ref={inputRef}
           type="text"
-          value={title}
-          onChange={(e) => handleTitleChange(e.target.value)}
+          value={content}
+          onChange={(e) => handleContentChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
               closeEditingEvent();
             }
           }}
-          placeholder="Add title"
+          placeholder="Add content"
           className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
         />
 

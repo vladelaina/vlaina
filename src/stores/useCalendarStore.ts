@@ -16,12 +16,12 @@ export type ViewMode = 'day' | 'week' | 'month';
 /**
  * Calendar event type
  * 
- * This is the view layer representation of UnifiedTask with some convenience properties
- * Essentially a UnifiedTask with time properties
+ * This is the view layer representation of UnifiedTask with time properties
+ * Uses same field names as UnifiedTask for consistency
  */
 export interface CalendarEvent {
   id: string;
-  title: string;           // Mapped from content
+  content: string;
   startDate: number;
   endDate: number;
   isAllDay: boolean;
@@ -34,12 +34,11 @@ export interface CalendarEvent {
 
 /**
  * Convert UnifiedTask to CalendarEvent view format
- * This is just a view layer mapping, does not create new data entities
  */
 function toCalendarEvent(task: UnifiedTask): CalendarEvent {
   return {
     id: task.id,
-    title: task.content,
+    content: task.content,
     startDate: task.startDate!,
     endDate: task.endDate || task.startDate! + 60 * 60 * 1000,
     isAllDay: task.isAllDay || false,

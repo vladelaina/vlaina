@@ -176,7 +176,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
         const endDate = addMinutes(startOfDay(dayDate), actualEnd);
 
         const newEventId = addEvent({
-          title: '',
+          content: '',
           startDate: startDate.getTime(),
           endDate: endDate.getTime(),
           isAllDay: false,

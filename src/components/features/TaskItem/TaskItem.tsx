@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
 import { GripVertical, ChevronRight, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Task } from '@/types';
+import type { Task } from '@/stores/useGroupStore';
 import { useUIStore } from '@/stores/useGroupStore';
 import { formatMinutes } from './utils';
 import { TaskMenu } from './TaskMenu';
@@ -190,10 +190,10 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, onAddSubTask, isB
       {/* Checkbox with Color Border */}
       <div className="mt-0.5">
         <Checkbox
-          checked={task.isDone}
+          checked={task.completed}
           onCheckedChange={() => onToggle(task.id)}
           checkmarkColor={
-            task.isDone && task.color && task.color !== 'default'
+            task.completed && task.color && task.color !== 'default'
               ? task.color === 'red' ? '#ef4444' :
                 task.color === 'yellow' ? '#eab308' :
                 task.color === 'purple' ? '#a855f7' :
@@ -243,7 +243,7 @@ export function TaskItem({ task, onToggle, onUpdate, onDelete, onAddSubTask, isB
             onClick={() => setIsEditing(true)}
             className={cn(
               'w-full text-sm cursor-text select-none whitespace-pre-wrap break-all',
-              task.isDone
+              task.completed
                 ? 'text-muted-foreground line-through'
                 : 'text-foreground',
               'leading-relaxed'

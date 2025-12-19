@@ -48,7 +48,7 @@ export function TimeHeader({
             <div className="flex-1">
               <h2 className="text-sm font-medium text-zinc-900">{selectedApp.name}</h2>
               <p className="text-xs text-zinc-500">
-                {timeRange === 'day' ? '今日' : timeRange === 'month' ? '本月' : '今年'}: {formatDuration(selectedApp.duration)}
+                {timeRange === 'day' ? 'Today' : timeRange === 'month' ? 'This Month' : 'This Year'}: {formatDuration(selectedApp.duration)}
               </p>
             </div>
           </motion.div>
@@ -76,7 +76,7 @@ export function TimeHeader({
                   sourceType === 'app' ? 'text-zinc-900' : 'text-zinc-400'
                 }`}
               >
-                应用
+                Apps
               </button>
               <button
                 onClick={() => setSourceType('web')}
@@ -84,13 +84,13 @@ export function TimeHeader({
                   sourceType === 'web' ? 'text-zinc-900' : 'text-zinc-400'
                 }`}
               >
-                网站
+                Websites
               </button>
             </div>
 
             <div className="flex-1">
               <p className="text-sm text-zinc-500">
-                {timeRange === 'day' ? '今日' : timeRange === 'month' ? '本月' : '今年'}总计: {formatDuration(todayTotal)}
+                {timeRange === 'day' ? 'Today' : timeRange === 'month' ? 'This Month' : 'This Year'} Total: {formatDuration(todayTotal)}
               </p>
             </div>
           </motion.div>

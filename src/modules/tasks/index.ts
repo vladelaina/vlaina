@@ -18,7 +18,7 @@ export type {
   ArchiveTimeView,
   SortOption,
 } from './types';
-export { PRIORITY_COLORS, ITEM_COLORS } from './types';
+export { ITEM_COLORS } from './types';
 
 // Components
 export {

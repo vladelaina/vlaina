@@ -27,30 +27,30 @@ function AppContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
-  // 所有颜色选项
+  // All color options
   const allColors: ItemColor[] = ['red', 'yellow', 'purple', 'green', 'blue', 'default'];
 
-  // 获取当前分组信息
+  // Get current group info
   const activeGroup = activeGroupId === '__archive__' 
-    ? { id: '__archive__', name: '归档', createdAt: Date.now() }
+    ? { id: '__archive__', name: 'Archive', createdAt: Date.now() }
     : groups.find(g => g.id === activeGroupId);
   
-  // 使用 useMemo 缓存任务数量计算，避免每次渲染都重新过滤
+  // Use useMemo to cache task count calculation, avoid re-filtering on every render
   const groupTaskCount = useMemo(() => {
     return tasks.filter(t => t.groupId === activeGroupId).length;
   }, [tasks, activeGroupId]);
   const now = new Date();
   const formatDate = (date: Date | number) => {
     const d = new Date(date);
-    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
 
-  // 关闭菜单（不在点击颜色选项时关闭）
+  // Close menu (don't close when clicking color options)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // 如果点击的是颜色筛选选项，不关闭菜单
-      if (target.closest('[data-priority-option]')) {
+      // Don't close menu if clicking on color filter options
+      if (target.closest('[data-color-option]')) {
         return;
       }
       if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
@@ -71,30 +71,30 @@ function AppContent() {
     loadData();
   }, [loadData]);
 
-  // 视图切换顺序
+  // View switching order
   const viewOrder: Array<typeof currentView> = ['tasks', 'progress', 'calendar', 'time-tracker'];
   const { setView } = useViewStore();
 
-  // 打开/关闭设置快捷键 + 视图切换快捷键
+  // Open/close settings shortcut + view switching shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+Tab / Ctrl+Shift+Tab 切换视图
+      // Ctrl+Tab / Ctrl+Shift+Tab to switch views
       if ((e.ctrlKey || e.metaKey) && e.key === 'Tab') {
         e.preventDefault();
         const currentIndex = viewOrder.indexOf(currentView);
         if (e.shiftKey) {
-          // 向前切换
+          // Switch to previous view
           const prevIndex = (currentIndex - 1 + viewOrder.length) % viewOrder.length;
           setView(viewOrder[prevIndex]);
         } else {
-          // 向后切换
+          // Switch to next view
           const nextIndex = (currentIndex + 1) % viewOrder.length;
           setView(viewOrder[nextIndex]);
         }
         return;
       }
 
-      // 设置快捷键
+      // Settings shortcut
       const keys = getShortcutKeys('open-settings');
       if (!keys || keys.length === 0) return;
 
@@ -120,28 +120,28 @@ function AppContent() {
       {/* Settings Modal - Global */}
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
-      {/* 时间管理页面 */}
+      {/* Time Tracker Page */}
       {currentView === 'time-tracker' && (
         <Layout onOpenSettings={() => setSettingsOpen(true)}>
           <TimeTrackerPage />
         </Layout>
       )}
 
-      {/* 进度页面 */}
+      {/* Progress Page */}
       {currentView === 'progress' && (
         <Layout onOpenSettings={() => setSettingsOpen(true)}>
           <ProgressPage />
         </Layout>
       )}
 
-      {/* 日历页面 */}
+      {/* Calendar Page */}
       {currentView === 'calendar' && (
         <Layout onOpenSettings={() => setSettingsOpen(true)}>
           <CalendarPage />
         </Layout>
       )}
 
-      {/* 任务列表页面（默认） */}
+      {/* Tasks Page (default) */}
       {currentView === 'tasks' && (
         <>
           {/* Info Modal */}
@@ -150,7 +150,7 @@ function AppContent() {
               <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl w-80 overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
                   <h3 className="text-sm font-medium text-zinc-900">
-                    {activeGroup?.name || '默认'}
+                    {activeGroup?.name || 'Default'}
                   </h3>
                   <button
                     onClick={() => setShowInfoModal(false)}
@@ -202,11 +202,11 @@ function AppContent() {
                 </button>
                 {showMoreMenu && (
                   <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1" style={{ zIndex: 9999 }}>
-                    {/* 颜色筛选 */}
+                    {/* Color Filter */}
                     <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-700">
-                      <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">颜色筛选</div>
+                      <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">Color Filter</div>
                       <div className="flex items-center justify-between gap-1.5">
-                        {/* 默认颜色按钮 */}
+                        {/* Default color button */}
                         <button
                           data-color-option
                           onClick={(e) => {
@@ -223,7 +223,7 @@ function AppContent() {
                             backgroundColor: 'transparent'
                           }}
                         />
-                        {/* 各颜色选项 */}
+                        {/* Color options */}
                         {(['blue', 'green', 'purple', 'yellow', 'red'] as const).map(color => (
                           <button
                             key={color}
@@ -246,7 +246,7 @@ function AppContent() {
                             }}
                           />
                         ))}
-                        {/* 全选按钮 */}
+                        {/* Select all button */}
                         <button
                           data-color-option
                           onClick={(e) => {
@@ -267,7 +267,7 @@ function AppContent() {
                       </div>
                     </div>
                     
-                    {/* 非归档视图显示其他菜单项 */}
+                    {/* Show other menu items for non-archive view */}
                     {activeGroupId !== '__archive__' && (
                       <>
                         <button
@@ -355,7 +355,7 @@ function AppContent() {
 }
 
 function App() {
-  // 阻止 Ctrl+滚轮的默认浏览器缩放行为
+  // Prevent default browser zoom behavior on Ctrl+scroll
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {

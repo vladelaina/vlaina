@@ -27,7 +27,7 @@ export function TaskInput() {
     if (content.trim() && activeGroupId) {
       addTask(content.trim(), activeGroupId, color);
       setContent('');
-      // Keep the selected priority for next task (don't reset to default)
+      // Keep the selected color for next task (don't reset to default)
       inputRef.current?.focus();
     }
   };

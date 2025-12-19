@@ -1,5 +1,5 @@
 /**
- * Tasks Page - 任务列表页面
+ * Tasks Page - Task list page
  */
 
 import { useEffect, useState, useRef, useMemo } from 'react';
@@ -16,11 +16,11 @@ export function TasksPage() {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
-  // 所有颜色选项
+  // All color options
   const allColors: ItemColor[] = ['red', 'yellow', 'purple', 'green', 'blue', 'default'];
 
   const activeGroup = activeGroupId === '__archive__' 
-    ? { id: '__archive__', name: '归档', createdAt: Date.now() }
+    ? { id: '__archive__', name: 'Archive', createdAt: Date.now() }
     : groups.find(g => g.id === activeGroupId);
   
   const groupTaskCount = useMemo(() => {
@@ -30,7 +30,7 @@ export function TasksPage() {
   const now = new Date();
   const formatDate = (date: Date | number) => {
     const d = new Date(date);
-    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
 
   useEffect(() => {
@@ -61,7 +61,7 @@ export function TasksPage() {
           <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl w-80 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
               <h3 className="text-sm font-medium text-zinc-900">
-                {activeGroup?.name || '默认'}
+                {activeGroup?.name || 'Default'}
               </h3>
               <button
                 onClick={() => setShowInfoModal(false)}
@@ -112,9 +112,9 @@ export function TasksPage() {
             </button>
             {showMoreMenu && (
               <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1" style={{ zIndex: 9999 }}>
-                {/* 颜色筛选 */}
+                {/* Color Filter */}
                 <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-700">
-                  <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">颜色筛选</div>
+                  <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">Color Filter</div>
                   <div className="flex items-center justify-between gap-1.5">
                     <button
                       data-color-option

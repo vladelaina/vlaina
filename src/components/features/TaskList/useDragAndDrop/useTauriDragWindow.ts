@@ -31,7 +31,7 @@ export function useTauriDragWindow() {
         height: height,
         isDone: task.completed,
         isDark: isDarkMode,
-        priority: task.color || 'default',
+        color: task.color || 'default',
       });
     } catch (e) {
       console.error('Failed to create drag window:', e);

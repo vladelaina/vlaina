@@ -1,6 +1,5 @@
 /**
  * Settings Module Types
- * 设置模块类型定义
  */
 
 export type SettingsTab = 'appearance' | 'shortcuts' | 'storage' | 'about';

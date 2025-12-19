@@ -13,7 +13,7 @@ export function AppUsageList({ appUsages, maxDuration, onSelect }: AppUsageListP
     <div className="max-w-xl mx-auto space-y-4">
       {appUsages.length === 0 ? (
         <div className="text-center py-12 text-zinc-400">
-          暂无使用记录
+          No usage records yet
         </div>
       ) : (
         appUsages.map((app, index) => (

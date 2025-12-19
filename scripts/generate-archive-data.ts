@@ -91,7 +91,7 @@ function generateArchiveContent(): string {
       '听音乐放松'
     ];
     
-    const priorities = ['default', 'default', 'default', 'green', 'purple', 'yellow', 'red'];
+    const colors = ['default', 'default', 'default', 'green', 'purple', 'yellow', 'red'];
     
     for (let j = 0; j < taskCount; j++) {
       const taskIndex = Math.floor(Math.random() * tasks.length);
@@ -104,11 +104,11 @@ function generateArchiveContent(): string {
       const variance = 0.7 + Math.random() * 0.8;
       const actual = Math.floor(estimated * variance);
       
-      // 随机优先级
-      const priority = priorities[Math.floor(Math.random() * priorities.length)];
-      const priorityStr = priority !== 'default' ? ` [优先级: ${priority}]` : '';
+      // 随机颜色
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const colorStr = color !== 'default' ? ` [颜色: ${color}]` : '';
       
-      content += `- [x] ${taskName} [预估: ${estimated}m] [实际: ${actual}m] (完成于: ${completedTime}) (创建于: ${Math.floor(createdAt)})${priorityStr}\n`;
+      content += `- [x] ${taskName} [预估: ${estimated}m] [实际: ${actual}m] (完成于: ${completedTime}) (创建于: ${Math.floor(createdAt)})${colorStr}\n`;
     }
   }
   

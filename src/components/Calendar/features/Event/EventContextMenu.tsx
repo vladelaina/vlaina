@@ -37,7 +37,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', onC
     const event = events.find(e => e.id === eventId);
     if (event) {
       addEvent({
-        title: event.title,
+        content: event.content,
         startDate: event.startDate,
         endDate: event.endDate,
         isAllDay: event.isAllDay,

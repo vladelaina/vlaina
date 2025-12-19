@@ -1,4 +1,4 @@
-// Time Tracker module - 时间管理模块
+// Time Tracker module
 export { TimeTrackerPage } from './TimeTrackerPage';
 export * from './types';
 export * from './utils';

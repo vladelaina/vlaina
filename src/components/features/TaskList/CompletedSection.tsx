@@ -44,8 +44,8 @@ export function CompletedSection({
   const menuRef = useRef<HTMLDivElement>(null);
   
   useClickOutside(menuRef, (e) => {
-    // Don't close menu if clicking on priority filter option
-    if ((e.target as HTMLElement).closest('[data-priority-option]')) {
+    // Don't close menu if clicking on color filter option
+    if ((e.target as HTMLElement).closest('[data-color-option]')) {
       return;
     }
     onCloseMenu();

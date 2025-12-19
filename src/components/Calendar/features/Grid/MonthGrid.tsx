@@ -10,15 +10,15 @@ import {
   isSameDay,
   isToday,
 } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
+
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useCalendarEvents, type CalendarDisplayItem } from '../../hooks/useCalendarEvents';
 import type { ItemColor } from '@/stores/types';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-// Color priority mapping: consistent with eventLayout.ts
-const COLOR_PRIORITY: Record<ItemColor, number> = {
+// Color sort order: consistent with eventLayout.ts
+const COLOR_SORT_ORDER: Record<ItemColor, number> = {
   red: 0,
   yellow: 1,
   purple: 2,
@@ -28,20 +28,20 @@ const COLOR_PRIORITY: Record<ItemColor, number> = {
 };
 
 /**
- * Sort events by completion status and color priority
+ * Sort events by completion status and color
  * Incomplete events come first, completed events come last
  */
-function sortEventsByPriority(events: CalendarDisplayItem[]): CalendarDisplayItem[] {
+function sortEventsByColor(events: CalendarDisplayItem[]): CalendarDisplayItem[] {
   return [...events].sort((a, b) => {
     // First sort by completion status: incomplete first
     const completedA = a.completed ? 1 : 0;
     const completedB = b.completed ? 1 : 0;
     if (completedA !== completedB) return completedA - completedB;
 
-    // Then sort by color priority
-    const colorPriorityA = COLOR_PRIORITY[a.color || 'default'] ?? COLOR_PRIORITY.default;
-    const colorPriorityB = COLOR_PRIORITY[b.color || 'default'] ?? COLOR_PRIORITY.default;
-    if (colorPriorityA !== colorPriorityB) return colorPriorityA - colorPriorityB;
+    // Then sort by color
+    const colorOrderA = COLOR_SORT_ORDER[a.color || 'default'] ?? COLOR_SORT_ORDER.default;
+    const colorOrderB = COLOR_SORT_ORDER[b.color || 'default'] ?? COLOR_SORT_ORDER.default;
+    if (colorOrderA !== colorOrderB) return colorOrderA - colorOrderB;
 
     return a.startDate - b.startDate;
   });
@@ -72,11 +72,11 @@ export function MonthGrid() {
     weeks.push(days.slice(i, i + 7));
   }
 
-  // Get events for a specific day, sorted by completion status and color priority
+  // Get events for a specific day, sorted by completion status and color
   const getEventsForDay = useMemo(() => {
     return (date: Date) => {
       const dayEvents = displayItems.filter((item) => isSameDay(new Date(item.startDate), date));
-      return sortEventsByPriority(dayEvents);
+      return sortEventsByColor(dayEvents);
     };
   }, [displayItems]);
 
@@ -163,7 +163,7 @@ export function MonthGrid() {
                           }`,
                         }}
                       >
-                        {event.title}
+                        {event.content}
                       </div>
                     ))}
                     {dayEvents.length > 3 && (

@@ -8,7 +8,7 @@ export type TimeRange = 'day' | 'month' | 'year';
 export type SourceType = 'app' | 'web';
 
 export const timeRangeLabels: Record<TimeRange, string> = {
-  day: '按天',
-  month: '按月',
-  year: '按年',
+  day: 'By Day',
+  month: 'By Month',
+  year: 'By Year',
 };

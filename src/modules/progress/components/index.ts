@@ -1,5 +1,4 @@
 // Progress module components
-// 重新导出现有组件，保持向后兼容
 
 export { ItemCard, ActiveItemCard, ArchivedItemCard } from '@/components/Progress/ItemCard';
 export { CreateModal } from '@/components/Progress/CreateModal';

@@ -10,7 +10,8 @@
  * Data flow:
  * - useUnifiedStore: Single source of truth
  * - useCalendarStore: Calendar view data access layer (filters items with time)
- * - useGroupStore: Todo view data access layer (compatible with legacy API)
+ * - useGroupStore: Todo view data access layer
+ * - useProgressStore: Progress view data access layer
  */
 
 import { create } from 'zustand';
@@ -95,8 +96,8 @@ interface UnifiedStore {
   setSelectedEventId: (id: string | null) => void;
   closeEditingEvent: () => void;
   
-  // Calendar event operations (uses title as parameter name, internally mapped to content)
-  addEvent: (event: { title: string; startDate: number; endDate: number; isAllDay: boolean; color?: string }) => string;
+  // Calendar event operations
+  addEvent: (event: { content: string; startDate: number; endDate: number; isAllDay: boolean; color?: string }) => string;
   updateEvent: (id: string, updates: Partial<UnifiedTask>) => void;
   deleteEvent: (id: string) => void;
   
@@ -592,7 +593,7 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => ({
 
   addEvent: (eventData) => {
     return get().addCalendarTask({
-      content: eventData.title,
+      content: eventData.content,
       startDate: eventData.startDate,
       endDate: eventData.endDate,
       isAllDay: eventData.isAllDay,
@@ -607,7 +608,6 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => ({
         tasks: state.data.tasks.map(t => {
           if (t.id !== id) return t;
           const newTask = { ...t };
-          if ('title' in updates) newTask.content = updates.title as string;
           if ('content' in updates) newTask.content = updates.content as string;
           if ('startDate' in updates) newTask.startDate = updates.startDate;
           if ('endDate' in updates) newTask.endDate = updates.endDate;

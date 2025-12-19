@@ -1,5 +1,7 @@
 /**
- * Progress Store - Compatibility wrapper for UnifiedStore
+ * Progress Store - Progress view data access layer
+ * 
+ * Provides progress-specific API on top of UnifiedStore
  */
 
 import { useUnifiedStore } from './useUnifiedStore';
@@ -145,7 +147,7 @@ export function useProgressStore() {
   };
 }
 
-// For selector pattern compatibility
+// For direct state access
 useProgressStore.getState = () => {
   const store = useUnifiedStore.getState();
   return {

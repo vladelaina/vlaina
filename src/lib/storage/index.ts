@@ -1,11 +1,11 @@
 /**
- * Storage Module - 统一存储架构
+ * Storage Module - Unified storage architecture
  * 
- * 核心理念：世界上只有一种"事项"（UnifiedTask）
+ * Core concept: There is only one type of "item" (UnifiedTask)
  * 
- * 存储位置：
- * - .nekotick/data.json (数据源)
- * - nekotick.md (人类可读的备份)
+ * Storage locations:
+ * - .nekotick/data.json (data source)
+ * - nekotick.md (human-readable backup)
  */
 
 // Main exports

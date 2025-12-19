@@ -3,7 +3,7 @@ use tauri::window::Color;
 
 // Create drag overlay window
 #[tauri::command]
-async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, width: f64, height: f64, is_done: bool, is_dark: bool, priority: Option<String>) -> Result<(), String> {
+async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, width: f64, height: f64, is_done: bool, is_dark: bool, color: Option<String>) -> Result<(), String> {
     // Close existing drag window if any
     if let Some(existing) = app.get_webview_window("drag-overlay") {
         let _ = existing.destroy();
@@ -16,8 +16,8 @@ async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, wid
         ("#fff", "#e5e5e5", "#18181b", "#a1a1aa")
     };
     
-    // Priority colors
-    let priority_color = match priority.as_deref() {
+    // Task color
+    let task_color = match color.as_deref() {
         Some("red") => "#ef4444",
         Some("yellow") => "#eab308",
         Some("purple") => "#a855f7",
@@ -25,7 +25,7 @@ async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, wid
         _ => text_muted,
     };
     
-    let has_priority = priority.is_some() && priority.as_deref() != Some("default");
+    let has_color = color.is_some() && color.as_deref() != Some("default");
     
     // Style for completed tasks
     let content_style = if is_done {
@@ -36,8 +36,8 @@ async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, wid
     
     let checkbox_html = if is_done {
         format!("<svg class=\"checkbox\" viewBox=\"0 0 16 16\"><rect x=\"0.5\" y=\"0.5\" width=\"15\" height=\"15\" rx=\"2\" fill=\"{}\" stroke=\"{}\"/><path d=\"M4 8l3 3 5-6\" stroke=\"white\" stroke-width=\"2\" fill=\"none\"/></svg>", text_color, text_color)
-    } else if has_priority {
-        format!("<div class=\"checkbox\" style=\"border:2px solid {}\"></div>", priority_color)
+    } else if has_color {
+        format!("<div class=\"checkbox\" style=\"border:2px solid {}\"></div>", task_color)
     } else {
         format!("<div class=\"checkbox\" style=\"border-color:{}\"></div>", text_muted)
     };

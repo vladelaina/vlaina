@@ -1,2 +1,2 @@
-// Shared types - 共享类型定义
-// 这里只放真正跨模块共享的类型
+// Shared types
+// Only place types that are truly shared across modules here

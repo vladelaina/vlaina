@@ -3,7 +3,7 @@
  *
  * Professional calendar event layout algorithm:
  * - Completion status sorting: incomplete events on the left, completed on the right
- * - Color priority sorting: high priority colors on the left
+ * - Color sorting: red > yellow > purple > green > blue > default
  * - Each event's width is based on its actual concurrency
  * - Non-overlapping events display at 100% width
  */
@@ -26,8 +26,8 @@ export interface EventLayoutInfo {
   widthPercent: number;
 }
 
-// Color priority mapping: lower number = higher priority, positioned more to the left
-const COLOR_PRIORITY: Record<ItemColor, number> = {
+// Color sort order: lower number = positioned more to the left
+const COLOR_SORT_ORDER: Record<ItemColor, number> = {
   red: 0,
   yellow: 1,
   purple: 2,
@@ -37,10 +37,10 @@ const COLOR_PRIORITY: Record<ItemColor, number> = {
 };
 
 /**
- * Get the color priority of an event
+ * Get the sort order of a color
  */
-function getColorPriority(color?: ItemColor): number {
-  return COLOR_PRIORITY[color || 'default'] ?? COLOR_PRIORITY.default;
+function getColorSortOrder(color?: ItemColor): number {
+  return COLOR_SORT_ORDER[color || 'default'] ?? COLOR_SORT_ORDER.default;
 }
 
 /**
@@ -63,7 +63,7 @@ export function calculateEventLayout(
   // Sorting rules:
   // 1. Start time (earlier first) - most important, ensures correct column assignment
   // 2. Completion status (incomplete first, on the left)
-  // 3. Color priority (red > yellow > purple > green > blue > default)
+  // 3. Color (red > yellow > purple > green > blue > default)
   // 4. Duration (longer first, more stable visual anchor)
   const sorted = [...events].sort((a, b) => {
     // First sort by start time - ensures correct column assignment
@@ -74,10 +74,10 @@ export function calculateEventLayout(
     const completedB = b.completed ? 1 : 0;
     if (completedA !== completedB) return completedA - completedB;
 
-    // Then sort by color priority
-    const colorPriorityA = getColorPriority(a.color);
-    const colorPriorityB = getColorPriority(b.color);
-    if (colorPriorityA !== colorPriorityB) return colorPriorityA - colorPriorityB;
+    // Then sort by color
+    const colorOrderA = getColorSortOrder(a.color);
+    const colorOrderB = getColorSortOrder(b.color);
+    if (colorOrderA !== colorOrderB) return colorOrderA - colorOrderB;
 
     // Finally sort by duration descending (longer events first)
     const durationA = a.endDate - a.startDate;

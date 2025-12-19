@@ -232,17 +232,7 @@ export function TaskList() {
     return (
       <div key={task.id}>
         <TaskItem
-          task={{
-            id: task.id,
-            content: task.content,
-            isDone: task.completed,
-            createdAt: task.createdAt,
-            groupId: task.groupId,
-            color: task.color,
-            completedAt: task.completedAt ? new Date(task.completedAt).toISOString().split('T')[0] : undefined,
-            estimatedMinutes: task.estimatedMinutes,
-            actualMinutes: task.actualMinutes,
-          }}
+          task={task}
           onToggle={toggleTask}
           onUpdate={updateTask}
           onDelete={deleteTask}

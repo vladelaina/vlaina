@@ -1,16 +1,16 @@
 /**
- * Progress Module - 进度追踪模块
+ * Progress Module
  * 
- * 提供进度条和计数器的追踪功能
+ * Provides progress bar and counter tracking functionality
  */
 
-// 页面组件（重新导出）
+// Page Components (re-export)
 export { ProgressPage } from '@/components/Progress/ProgressPage';
 
 // Store
 export { useProgressStore } from './stores';
 
-// 类型
+// Types
 export type {
   ProgressItem,
   CounterItem,
@@ -19,7 +19,7 @@ export type {
   CreateCounterInput,
 } from './types';
 
-// 组件（重新导出）
+// Components (re-export)
 export {
   ItemCard,
   ActiveItemCard,

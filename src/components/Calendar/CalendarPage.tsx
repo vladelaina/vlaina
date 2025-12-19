@@ -128,7 +128,7 @@ export function CalendarPage() {
       } else {
         const endDate = addMinutes(startDate, 60);
         addEvent({
-          title: 'New Event',
+          content: 'New Event',
           startDate: startDate.getTime(),
           endDate: endDate.getTime(),
           isAllDay: false,

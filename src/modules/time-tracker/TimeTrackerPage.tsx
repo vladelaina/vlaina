@@ -3,8 +3,8 @@ import { useTimeTracker } from './hooks';
 import { TimeHeader, TimeChart, AppDetailStats, AppUsageList } from './components';
 
 /**
- * Time Tracker Page - 时间管理模块主页面
- * 独立模块，不依赖其他功能模块
+ * Time Tracker Page - Main page for time management module
+ * Independent module, does not depend on other feature modules
  */
 export function TimeTrackerPage() {
   const {

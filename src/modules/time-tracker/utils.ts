@@ -7,11 +7,11 @@ export function formatDuration(seconds: number): string {
   const secs = seconds % 60;
   
   if (hours > 0) {
-    return `${hours}小时${minutes}分`;
+    return `${hours}h ${minutes}m`;
   } else if (minutes > 0) {
-    return `${minutes}分钟${secs}秒`;
+    return `${minutes}m ${secs}s`;
   } else {
-    return `${secs}秒`;
+    return `${secs}s`;
   }
 }
 
