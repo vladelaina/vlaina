@@ -6,12 +6,13 @@ import { SettingsModal } from '@/components/features/Settings';
 import { GroupSidebar } from '@/components/features/GroupDrawer';
 import { TimeTrackerPage } from '@/components/TimeTracker';
 import { ProgressPage } from '@/components/Progress';
-import { CalendarPage } from '@/components/Calendar';
+import { CalendarPage, CalendarToolbar } from '@/components/Calendar';
 import { Layout } from '@/components/layout';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
 import { useViewStore } from '@/stores/useViewStore';
 import { useGroupStore, useUIStore, type ItemColor } from '@/stores/useGroupStore';
+import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useVimShortcuts } from '@/hooks/useVimShortcuts';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { getShortcutKeys } from '@/lib/shortcuts';
@@ -22,6 +23,7 @@ function AppContent() {
   const { currentView } = useViewStore();
   const { activeGroupId, deleteGroup, groups, tasks, loadData, loaded } = useGroupStore();
   const { hideCompleted, setHideCompleted, hideActualTime, setHideActualTime, selectedColors, toggleColor, toggleAllColors } = useUIStore();
+  const { showContextPanel } = useCalendarStore();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -136,7 +138,7 @@ function AppContent() {
 
       {/* Calendar Page */}
       {currentView === 'calendar' && (
-        <Layout onOpenSettings={() => setSettingsOpen(true)}>
+        <Layout onOpenSettings={() => setSettingsOpen(true)} toolbar={<CalendarToolbar />} showRightPanelDivider={showContextPanel}>
           <CalendarPage />
         </Layout>
       )}

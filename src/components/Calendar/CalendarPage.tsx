@@ -19,7 +19,6 @@ import { MonthGrid } from './features/Grid/MonthGrid';
 import { MiniCalendar } from './features/Sidebar/MiniCalendar';
 import { ContextPanel } from './features/ContextPanel/ContextPanel';
 import { EventEditForm } from './features/ContextPanel/EventEditForm';
-import { ViewSwitcher } from './features/ViewSwitcher';
 
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useGroupStore } from '@/stores/useGroupStore';
@@ -161,14 +160,6 @@ export function CalendarPage() {
         }
         main={
           <div className="flex h-full flex-col">
-            {/* Toolbar */}
-            <div
-              className="h-12 flex items-center px-4 justify-end bg-white dark:bg-zinc-950 relative backdrop-blur-md bg-opacity-80"
-              style={{ zIndex: 100 }}
-            >
-              <ViewSwitcher />
-            </div>
-
             {/* Grid */}
             <div className="flex-1 min-h-0 relative" id="time-grid-container">
               {renderGrid()}

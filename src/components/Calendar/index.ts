@@ -1,5 +1,6 @@
 // Calendar module exports
 export { CalendarPage } from './CalendarPage';
+export { ViewSwitcher as CalendarToolbar } from './features/ViewSwitcher';
 
 // Hooks
 export { useCalendarEvents } from './hooks/useCalendarEvents';

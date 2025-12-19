@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Minus, Square, X, Menu, Pin, Settings, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,9 +8,10 @@ const appWindow = getCurrentWindow();
 
 interface TitleBarProps {
   onOpenSettings?: () => void;
+  toolbar?: ReactNode;
 }
 
-export function TitleBar({ onOpenSettings }: TitleBarProps) {
+export function TitleBar({ onOpenSettings, toolbar }: TitleBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPinned, setMenuPinned] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
@@ -49,7 +50,7 @@ export function TitleBar({ onOpenSettings }: TitleBarProps) {
   };
 
   return (
-    <div className="h-9 bg-white dark:bg-zinc-900 flex items-center justify-between select-none">
+    <div className="h-9 bg-white dark:bg-zinc-900 flex items-center justify-between select-none relative">
       {/* Left: Menu Button + Expandable Menu */}
       <div 
         ref={menuRef}
@@ -172,6 +173,13 @@ export function TitleBar({ onOpenSettings }: TitleBarProps) {
         onMouseDown={startDrag}
         className="flex-1 h-full cursor-default"
       />
+
+      {/* Custom Toolbar (e.g., Calendar controls) */}
+      {toolbar && (
+        <div className="flex items-center h-full pr-3">
+          {toolbar}
+        </div>
+      )}
 
       {/* Window Controls */}
       <div className="flex h-full shrink-0">
