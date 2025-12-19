@@ -314,6 +314,16 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     ? 'fixed z-[100] w-[280px] bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden'
     : 'h-full flex flex-col bg-white dark:bg-zinc-900';
 
+  const currentColor = event.color || 'default';
+  const colorValue = COLOR_VALUES[currentColor];
+
+  // Toggle to next color when clicking the checkbox
+  const handleColorToggle = () => {
+    const currentIndex = COLOR_OPTIONS.indexOf(currentColor);
+    const nextIndex = (currentIndex + 1) % COLOR_OPTIONS.length;
+    handleColorChange(COLOR_OPTIONS[nextIndex]);
+  };
+
   return (
     <div
       ref={containerRef}
@@ -321,42 +331,57 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
       style={mode === 'floating' ? getFloatingStyle() : undefined}
       className={containerClass}
     >
-      {/* Header */}
-      <div className={`p-4 border-b border-zinc-200 dark:border-zinc-800 ${mode === 'floating' ? 'p-3' : ''}`}>
-        <div className="flex items-center justify-end mb-2">
+      {/* Header with close button */}
+      <div className={`flex items-center justify-end p-2 ${mode === 'floating' ? 'p-2' : ''}`}>
+        <button
+          onClick={closeEditingEvent}
+          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
+        >
+          <X className="size-4 text-zinc-400" />
+        </button>
+      </div>
+
+      {/* Task-like content area */}
+      <div className={`px-4 pb-4 ${mode === 'floating' ? 'px-3 pb-3' : ''}`}>
+        {/* Main row: Color checkbox + Content input */}
+        <div className="flex items-start gap-3">
+          {/* Color checkbox - like todo item */}
           <button
-            onClick={closeEditingEvent}
-            className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
-          >
-            <X className="size-4 text-zinc-400" />
-          </button>
+            onClick={handleColorToggle}
+            className="mt-2 flex-shrink-0 w-4 h-4 rounded-sm border-2 transition-all hover:scale-110"
+            style={{ borderColor: colorValue }}
+            title="Click to change color"
+          />
+          
+          {/* Content input */}
+          <input
+            ref={inputRef}
+            type="text"
+            value={content}
+            onChange={(e) => handleContentChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                closeEditingEvent();
+              }
+            }}
+            placeholder="Add content"
+            className={cn(
+              "flex-1 bg-transparent text-sm outline-none py-1.5",
+              "text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400"
+            )}
+          />
         </div>
 
-        {/* Content input */}
-        <input
-          ref={inputRef}
-          type="text"
-          value={content}
-          onChange={(e) => handleContentChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              closeEditingEvent();
-            }
-          }}
-          placeholder="Add content"
-          className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-        />
-
-        {/* Color picker */}
-        <div className="flex items-center justify-between gap-1.5 mt-3">
+        {/* Color picker row */}
+        <div className="flex items-center gap-1.5 mt-3 ml-7">
           {COLOR_OPTIONS.map((color) => (
             <button
               key={color}
               onClick={() => handleColorChange(color)}
               className={cn(
-                'w-6 h-6 rounded-md border-2 transition-all hover:scale-110',
-                event.color === color || (!event.color && color === 'default')
+                'w-5 h-5 rounded-sm border-2 transition-all hover:scale-110',
+                currentColor === color
                   ? 'ring-2 ring-zinc-400 dark:ring-zinc-500 ring-offset-1 dark:ring-offset-zinc-900'
                   : ''
               )}
@@ -368,19 +393,18 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
             />
           ))}
         </div>
-      </div>
 
-      {/* Content */}
-      <div className={`flex-1 overflow-visible p-4 space-y-4 ${mode === 'floating' ? 'p-3 space-y-3' : ''}`}>
+        {/* Divider */}
+        <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-4" />
+
         {/* Time */}
         <div className="flex items-start gap-3">
-          <Clock className="size-4 text-zinc-400 mt-1" />
+          <Clock className="size-4 text-zinc-400 mt-0.5" />
           <div className="flex items-center text-sm">
             <EditableTime
               date={startDate}
               use24Hour={use24Hour}
               onChange={(newStart) => {
-                // Keep duration when changing start time
                 const newEnd = new Date(newStart.getTime() + durationMs);
                 updateEvent(event.id, { 
                   startDate: newStart.getTime(),
@@ -393,7 +417,6 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
               date={endDate}
               use24Hour={use24Hour}
               onChange={(newEnd) => {
-                // Only change end time, duration will change
                 if (newEnd.getTime() > event.startDate) {
                   updateEvent(event.id, { endDate: newEnd.getTime() });
                 }
@@ -404,7 +427,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         </div>
 
         {/* Group picker */}
-        <div className="flex items-center gap-3 relative" ref={groupPickerRef}>
+        <div className="flex items-center gap-3 mt-3 relative" ref={groupPickerRef}>
           <Folder className="size-4 text-zinc-400" />
           <button
             onClick={() => setShowGroupPicker(!showGroupPicker)}
