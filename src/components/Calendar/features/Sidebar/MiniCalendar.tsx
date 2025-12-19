@@ -1,7 +1,9 @@
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
+import { useUIStore } from '@/stores/uiSlice';
 import { useState } from 'react';
+import type { ItemColor } from '@/stores/types';
 
 export function MiniCalendar() {
   const { selectedDate, setSelectedDate } = useCalendarStore();
@@ -85,43 +87,68 @@ export function MiniCalendar() {
         </div>
       </div>
 
-      {/* Calendars List */}
-      <div className="space-y-3 pt-4 border-t border-zinc-200 dark:border-zinc-800">
-         <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider pl-1">
-           Calendars
-         </div>
-         <div className="space-y-1">
-           <CalendarToggle color="blue" label="Work" checked />
-           <CalendarToggle color="emerald" label="Personal" checked />
-           <CalendarToggle color="purple" label="Habits" checked />
-         </div>
-      </div>
+      {/* Color Filter */}
+      <ColorFilter />
     </div>
   );
 }
 
-function CalendarToggle({ color, label, checked }: { color: string, label: string, checked: boolean }) {
-  const colorMap: Record<string, string> = {
-    blue: 'bg-blue-500 ring-blue-500',
-    emerald: 'bg-emerald-500 ring-emerald-500',
-    purple: 'bg-purple-500 ring-purple-500',
-    red: 'bg-red-500 ring-red-500',
-  };
+const ALL_COLORS: ItemColor[] = ['red', 'yellow', 'purple', 'green', 'blue', 'default'];
 
+function ColorFilter() {
+  const { selectedColors, toggleColor, toggleAllColors } = useUIStore();
+  
   return (
-    <div className="flex items-center gap-2 px-1 py-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800/50 cursor-pointer group transition-colors">
-      <div className={`w-3.5 h-3.5 rounded-[4px] border transition-all flex items-center justify-center
-        ${checked ? `${colorMap[color]} border-transparent` : 'border-zinc-300 dark:border-zinc-600 bg-transparent'}
-      `}>
-        {checked && (
-          <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 12 12" fill="none">
-            <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        )}
+    <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
+      <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">Color Filter</div>
+      <div className="flex items-center justify-between gap-1.5">
+        {/* Default color button */}
+        <button
+          onClick={() => toggleColor('default')}
+          className={`w-6 h-6 rounded-sm border-2 transition-all hover:scale-110 ${
+            selectedColors.includes('default')
+              ? 'ring-2 ring-zinc-400 dark:ring-zinc-500 ring-offset-1'
+              : ''
+          }`}
+          style={{
+            borderColor: '#d4d4d8',
+            backgroundColor: 'transparent'
+          }}
+        />
+        {/* Color options */}
+        {(['blue', 'green', 'purple', 'yellow', 'red'] as const).map(color => (
+          <button
+            key={color}
+            onClick={() => toggleColor(color)}
+            className={`w-5 h-5 rounded-sm border-2 transition-all hover:scale-110 ${
+              selectedColors.includes(color)
+                ? 'ring-2 ring-zinc-400 dark:ring-zinc-500 ring-offset-1'
+                : ''
+            }`}
+            style={{
+              borderColor: color === 'red' ? '#ef4444' :
+                           color === 'yellow' ? '#eab308' :
+                           color === 'purple' ? '#a855f7' :
+                           color === 'green' ? '#22c55e' :
+                           '#3b82f6'
+            }}
+          />
+        ))}
+        {/* Select all button */}
+        <button
+          onClick={() => toggleAllColors()}
+          className={`w-6 h-6 rounded-sm transition-all hover:scale-110 relative overflow-hidden p-[2px] ${
+            selectedColors.length === ALL_COLORS.length
+              ? 'ring-2 ring-zinc-400 dark:ring-zinc-500 ring-offset-1'
+              : ''
+          }`}
+          style={{
+            background: 'linear-gradient(135deg, #22c55e, #a855f7, #eab308, #ef4444)'
+          }}
+        >
+          <span className="block w-full h-full bg-white dark:bg-zinc-900 rounded-sm" />
+        </button>
       </div>
-      <span className="text-sm text-zinc-600 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
-        {label}
-      </span>
     </div>
   );
 }

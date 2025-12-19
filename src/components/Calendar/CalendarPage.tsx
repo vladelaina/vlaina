@@ -128,11 +128,10 @@ export function CalendarPage() {
       } else {
         const endDate = addMinutes(startDate, 60);
         addEvent({
-          content: 'New Event',
+          content: '',
           startDate: startDate.getTime(),
           endDate: endDate.getTime(),
           isAllDay: false,
-          color: 'blue',
         });
       }
     }

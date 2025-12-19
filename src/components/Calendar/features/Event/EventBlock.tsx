@@ -71,7 +71,7 @@ interface EventBlockProps {
 
 export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart }: EventBlockProps) {
   const { 
-    setEditingEventId, editingEventId, selectedEventId, 
+    setEditingEventId, editingEventId, 
     setSelectedEventId, closeEditingEvent 
   } = useCalendarStore();
 
@@ -82,7 +82,6 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart }:
   const blockRef = useRef<HTMLDivElement>(null);
 
   const isActive = editingEventId === event.id;
-  const isSelected = selectedEventId === event.id;
   const isCompleted = event.completed;
 
   // Calculate position and size
@@ -102,26 +101,30 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart }:
   const colorStyles = COLOR_STYLES[event.color || 'blue'] || COLOR_STYLES.blue;
 
   // Position calculation
+  // Ensure events don't overlap by applying consistent gaps
   const positioning = useMemo(() => {
     if (!layout) {
       return { left: `${GAP}px`, width: `calc(100% - ${GAP * 2}px)` };
     }
 
     const { leftPercent, widthPercent, totalColumns, column } = layout;
+    
+    // Each event gets GAP on the outside edges, and GAP/2 between adjacent events
+    // This ensures a total gap of GAP between any two adjacent events
     const isFirstColumn = column === 0;
     const isLastColumn = column === totalColumns - 1;
 
-    let leftOffset = GAP;
-    let rightOffset = GAP;
-
-    if (totalColumns > 1) {
-      leftOffset = isFirstColumn ? GAP : GAP / 2;
-      rightOffset = isLastColumn ? GAP : GAP / 2;
-    }
+    // Left padding: GAP for first column, GAP/2 for others
+    const leftPadding = isFirstColumn ? GAP : GAP / 2;
+    // Right padding: GAP for last column, GAP/2 for others  
+    const rightPadding = isLastColumn ? GAP : GAP / 2;
+    
+    // Total horizontal padding for this event
+    const totalPadding = leftPadding + rightPadding;
 
     return {
-      left: `calc(${leftPercent}% + ${leftOffset}px)`,
-      width: `calc(${widthPercent}% - ${leftOffset + rightOffset}px)`,
+      left: `calc(${leftPercent}% + ${leftPadding}px)`,
+      width: `calc(${widthPercent}% - ${totalPadding}px)`,
     };
   }, [layout]);
 
@@ -249,8 +252,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart }:
             transition-shadow duration-200 ease-out
             ${shadowClass}
             ${isActive ? `ring-2 ${colorStyles.ring}` : ''}
-            ${isSelected && !isActive ? 'ring-2 ring-blue-500/60 dark:ring-blue-400/50' : ''}
-            ${isHovered && !isActive && !isSelected ? `ring-1 ${colorStyles.ring}` : ''}
+            ${isHovered && !isActive ? `ring-1 ${colorStyles.ring}` : ''}
           `}
           style={{ opacity: isCompleted ? 0.6 : 1 }}
         >

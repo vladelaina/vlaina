@@ -2,10 +2,9 @@
  * Event Layout Algorithm
  *
  * Professional calendar event layout algorithm:
- * - Completion status sorting: incomplete events on the left, completed on the right
- * - Color sorting: red > yellow > purple > green > blue > default
- * - Each event's width is based on its actual concurrency
- * - Non-overlapping events display at 100% width
+ * - Events that overlap in time are placed in separate columns
+ * - All events in the same overlap group share the same total column count
+ * - This ensures no visual overlap between events
  */
 
 import type { ItemColor } from '@/stores/types';
@@ -51,102 +50,157 @@ function eventsOverlap(a: LayoutEvent, b: LayoutEvent): boolean {
 }
 
 /**
+ * Find all events that are connected through overlaps (transitive closure)
+ * Events in the same group must share the same column layout
+ */
+function findOverlapGroups(events: LayoutEvent[]): LayoutEvent[][] {
+  if (events.length === 0) return [];
+  
+  const visited = new Set<string>();
+  const groups: LayoutEvent[][] = [];
+  
+  for (const event of events) {
+    if (visited.has(event.id)) continue;
+    
+    // BFS to find all connected events
+    const group: LayoutEvent[] = [];
+    const queue: LayoutEvent[] = [event];
+    
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      if (visited.has(current.id)) continue;
+      
+      visited.add(current.id);
+      group.push(current);
+      
+      // Find all events that overlap with current
+      for (const other of events) {
+        if (!visited.has(other.id) && eventsOverlap(current, other)) {
+          queue.push(other);
+        }
+      }
+    }
+    
+    groups.push(group);
+  }
+  
+  return groups;
+}
+
+/**
+ * Calculate layout for a single overlap group
+ * All events in the group will have the same totalColumns
+ */
+function layoutGroup(events: LayoutEvent[]): Map<string, EventLayoutInfo> {
+  const result = new Map<string, EventLayoutInfo>();
+  
+  if (events.length === 0) return result;
+  
+  if (events.length === 1) {
+    const event = events[0];
+    result.set(event.id, {
+      id: event.id,
+      column: 0,
+      totalColumns: 1,
+      leftPercent: 0,
+      widthPercent: 100,
+    });
+    return result;
+  }
+  
+  // Sort events for column assignment
+  const sorted = [...events].sort((a, b) => {
+    // First sort by start time
+    if (a.startDate !== b.startDate) return a.startDate - b.startDate;
+    
+    // Then by completion status: incomplete first (left)
+    const completedA = a.completed ? 1 : 0;
+    const completedB = b.completed ? 1 : 0;
+    if (completedA !== completedB) return completedA - completedB;
+    
+    // Then by color
+    const colorOrderA = getColorSortOrder(a.color);
+    const colorOrderB = getColorSortOrder(b.color);
+    if (colorOrderA !== colorOrderB) return colorOrderA - colorOrderB;
+    
+    // Finally by duration descending
+    const durationA = a.endDate - a.startDate;
+    const durationB = b.endDate - b.startDate;
+    return durationB - durationA;
+  });
+  
+  // Assign columns using a greedy algorithm
+  const eventColumns = new Map<string, number>();
+  
+  for (const event of sorted) {
+    // Find columns occupied by overlapping events that started before this one
+    const occupiedColumns = new Set<number>();
+    
+    for (const other of sorted) {
+      if (other.id === event.id) continue;
+      if (!eventColumns.has(other.id)) continue;
+      
+      // Check if other event overlaps with current event
+      if (eventsOverlap(event, other)) {
+        occupiedColumns.add(eventColumns.get(other.id)!);
+      }
+    }
+    
+    // Find the smallest available column
+    let column = 0;
+    while (occupiedColumns.has(column)) {
+      column++;
+    }
+    
+    eventColumns.set(event.id, column);
+  }
+  
+  // Find the maximum column used in this group
+  let maxColumn = 0;
+  for (const column of eventColumns.values()) {
+    maxColumn = Math.max(maxColumn, column);
+  }
+  const totalColumns = maxColumn + 1;
+  
+  // Calculate layout for each event
+  const columnWidth = 100 / totalColumns;
+  
+  for (const event of events) {
+    const column = eventColumns.get(event.id) || 0;
+    const leftPercent = column * columnWidth;
+    
+    result.set(event.id, {
+      id: event.id,
+      column,
+      totalColumns,
+      leftPercent,
+      widthPercent: columnWidth,
+    });
+  }
+  
+  return result;
+}
+
+/**
  * Calculate layout for all events within a single day
  */
 export function calculateEventLayout(
   events: LayoutEvent[]
 ): Map<string, EventLayoutInfo> {
   const result = new Map<string, EventLayoutInfo>();
-
+  
   if (events.length === 0) return result;
-
-  // Sorting rules:
-  // 1. Start time (earlier first) - most important, ensures correct column assignment
-  // 2. Completion status (incomplete first, on the left)
-  // 3. Color (red > yellow > purple > green > blue > default)
-  // 4. Duration (longer first, more stable visual anchor)
-  const sorted = [...events].sort((a, b) => {
-    // First sort by start time - ensures correct column assignment
-    if (a.startDate !== b.startDate) return a.startDate - b.startDate;
-
-    // Then sort by completion status: incomplete first (left)
-    const completedA = a.completed ? 1 : 0;
-    const completedB = b.completed ? 1 : 0;
-    if (completedA !== completedB) return completedA - completedB;
-
-    // Then sort by color
-    const colorOrderA = getColorSortOrder(a.color);
-    const colorOrderB = getColorSortOrder(b.color);
-    if (colorOrderA !== colorOrderB) return colorOrderA - colorOrderB;
-
-    // Finally sort by duration descending (longer events first)
-    const durationA = a.endDate - a.startDate;
-    const durationB = b.endDate - b.startDate;
-    return durationB - durationA;
-  });
-
-  // Assign columns to each event
-  const eventColumns = new Map<string, number>();
-
-  for (const event of sorted) {
-    // Find all events still active at current event's start time (already assigned columns)
-    const activeEvents = sorted.filter(e => 
-      eventColumns.has(e.id) && // Already assigned a column
-      e.endDate > event.startDate && // Not yet ended
-      e.startDate < event.startDate // Started before current event
-    );
-
-    // Find occupied columns
-    const occupied = new Set(activeEvents.map(e => eventColumns.get(e.id)!));
-
-    // Assign the smallest available column
-    let column = 0;
-    while (occupied.has(column)) {
-      column++;
-    }
-
-    eventColumns.set(event.id, column);
-  }
-
-  // Calculate layout for each event
-  for (const event of sorted) {
-    const column = eventColumns.get(event.id) || 0;
-    
-    // Find all events overlapping with current event
-    const overlappingEvents = sorted.filter(e => 
-      e.id !== event.id && eventsOverlap(event, e)
-    );
-    
-    if (overlappingEvents.length === 0) {
-      // No overlap, display at 100% width
-      result.set(event.id, {
-        id: event.id,
-        column: 0,
-        totalColumns: 1,
-        leftPercent: 0,
-        widthPercent: 100,
-      });
-    } else {
-      // Has overlap, calculate max column count
-      let maxColumn = column;
-      for (const other of overlappingEvents) {
-        const otherColumn = eventColumns.get(other.id) || 0;
-        maxColumn = Math.max(maxColumn, otherColumn);
-      }
-      
-      const totalColumns = maxColumn + 1;
-      const columnWidth = 100 / totalColumns;
-      const leftPercent = column * columnWidth;
-
-      result.set(event.id, {
-        id: event.id,
-        column,
-        totalColumns,
-        leftPercent,
-        widthPercent: columnWidth,
-      });
+  
+  // Find overlap groups
+  const groups = findOverlapGroups(events);
+  
+  // Layout each group independently
+  for (const group of groups) {
+    const groupLayout = layoutGroup(group);
+    for (const [id, layout] of groupLayout) {
+      result.set(id, layout);
     }
   }
-
+  
   return result;
 }

@@ -42,7 +42,7 @@ function toCalendarEvent(task: UnifiedTask): CalendarEvent {
     startDate: task.startDate!,
     endDate: task.endDate || task.startDate! + 60 * 60 * 1000,
     isAllDay: task.isAllDay || false,
-    color: task.color || 'blue',
+    color: task.color || 'default',
     completed: task.completed,
     description: task.description,
     location: task.location,

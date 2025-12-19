@@ -180,7 +180,6 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
           startDate: startDate.getTime(),
           endDate: endDate.getTime(),
           isAllDay: false,
-          color: 'blue',
         });
 
         setEditingEventId(newEventId, { x: e.clientX, y: e.clientY });
@@ -420,7 +419,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                           left: `${ghostLayout.leftPercent}%`,
                           width: `${ghostLayout.widthPercent}%`,
                         }}
-                        className="z-30 bg-blue-500/20 border-2 border-blue-500 rounded-md pointer-events-none"
+                        className="z-30 bg-zinc-400/20 border-2 border-zinc-400 rounded-md pointer-events-none"
                       />
                     )}
                   </div>

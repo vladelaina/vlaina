@@ -147,7 +147,6 @@ export function CalendarInteractionProvider({ children, hourHeight }: CalendarIn
       startDate: startDate.getTime(),
       endDate: endDate.getTime(),
       isAllDay: false,
-      color: 'blue',
     });
     
     setState({ type: 'idle', create: null, move: null, resize: null });

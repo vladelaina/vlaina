@@ -533,7 +533,7 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => ({
       groupId: taskData.groupId || 'default',
       parentId: null,
       collapsed: false,
-      color: taskData.color || 'blue',
+      color: taskData.color || 'default',
       startDate: taskData.startDate,
       endDate: taskData.endDate,
       isAllDay: taskData.isAllDay,
@@ -575,8 +575,8 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => ({
     const { editingEventId, data } = get();
     if (editingEventId) {
       const task = data.tasks.find(t => t.id === editingEventId);
-      if (task && !task.content.trim()) {
-        // Delete empty task
+      // 如果任务存在且内容为空，则删除该任务
+      if (task && !(task.content || '').trim()) {
         const newData = {
           ...data,
           tasks: data.tasks.filter(t => t.id !== editingEventId),
@@ -597,7 +597,7 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => ({
       startDate: eventData.startDate,
       endDate: eventData.endDate,
       isAllDay: eventData.isAllDay,
-      color: (eventData.color as ItemColor) || 'blue',
+      color: (eventData.color as ItemColor) || 'default',
     });
   },
 
