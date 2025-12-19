@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type ViewType = 'tasks' | 'time-tracker' | 'progress' | 'calendar';
+type ViewType = 'time-tracker' | 'progress' | 'calendar';
 
 interface ViewStore {
   currentView: ViewType;
@@ -8,6 +8,6 @@ interface ViewStore {
 }
 
 export const useViewStore = create<ViewStore>((set) => ({
-  currentView: 'tasks',
+  currentView: 'calendar',
   setView: (view) => set({ currentView: view }),
 }));

@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { format, startOfWeek, addDays, startOfDay, addMinutes } from 'date-fns';
+import { startOfWeek, addDays, startOfDay, addMinutes } from 'date-fns';
 
 import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, DragEndEvent } from '@dnd-kit/core';
 
