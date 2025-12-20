@@ -101,8 +101,7 @@ export function StorageTab() {
             <div className="text-zinc-400 dark:text-zinc-500">├── .nekotick/ <span className="text-zinc-400">(app metadata)</span></div>
             <div>├── progress/ <span className="text-zinc-400">(progress records)</span></div>
             <div>├── tasks/ <span className="text-zinc-400">(task lists)</span></div>
-            <div>├── archive/ <span className="text-zinc-400">(archive records)</span></div>
-            <div>└── time-tracker/ <span className="text-zinc-400">(time tracking)</span></div>
+            <div>└── archive/ <span className="text-zinc-400">(archive records)</span></div>
           </div>
         </div>
 

@@ -15,7 +15,6 @@ export { useCalendarStore } from './useCalendarStore';
 export { useProgressStore } from './useProgressStore';
 
 // UI stores
-export { useViewStore } from './useViewStore';
 export { useToastStore } from './useToastStore';
 export { useUndoStore } from './useUndoStore';
 

@@ -2,7 +2,6 @@ import { useState, useRef, ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Minus, Square, X, Menu, Pin, Settings, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useViewStore } from '@/stores/useViewStore';
 
 const appWindow = getCurrentWindow();
 
@@ -17,7 +16,6 @@ export function TitleBar({ onOpenSettings, toolbar, toolbarAlignRight }: TitleBa
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPinned, setMenuPinned] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
-  const { currentView, setView } = useViewStore();
   const menuRef = useRef<HTMLDivElement>(null);
 
   const togglePin = async () => {
@@ -81,38 +79,15 @@ export function TitleBar({ onOpenSettings, toolbar, toolbarAlignRight }: TitleBa
               {/* Calendar */}
               <button
                 onClick={() => {
-                  setView('calendar');
                   if (menuPinned) {
                     setMenuOpen(false);
                     setMenuPinned(false);
                   }
                 }}
-                className={`h-full px-3 text-sm transition-colors whitespace-nowrap flex items-center gap-1.5 ${
-                  currentView === 'calendar'
-                    ? 'text-zinc-400 dark:text-zinc-500'
-                    : 'text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500'
-                }`}
+                className="h-full px-3 text-sm transition-colors whitespace-nowrap flex items-center gap-1.5 text-zinc-400 dark:text-zinc-500"
               >
                 <Calendar className="size-3.5" />
                 Calendar
-              </button>
-
-              {/* Time Tracker */}
-              <button
-                onClick={() => {
-                  setView('time-tracker');
-                  if (menuPinned) {
-                    setMenuOpen(false);
-                    setMenuPinned(false);
-                  }
-                }}
-                className={`h-full px-3 text-sm transition-colors whitespace-nowrap ${
-                  currentView === 'time-tracker'
-                    ? 'text-zinc-400 dark:text-zinc-500'
-                    : 'text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500'
-                }`}
-              >
-                Time Tracker
               </button>
 
               {/* Settings */}
