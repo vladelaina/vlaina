@@ -3,7 +3,7 @@ import { ArrowCounterClockwise, Trash } from '@phosphor-icons/react';
 import { getIconByName } from '../IconPicker';
 import { ItemCardProps } from './types';
 
-export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previewIcon, previewTitle }: ItemCardProps) {
+export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previewIcon, previewTitle, compact }: ItemCardProps) {
   const displayIcon = previewIcon !== undefined ? previewIcon : item.icon;
   const displayTitle = previewTitle !== undefined ? previewTitle : item.title;
 
@@ -19,49 +19,49 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
   });
 
   return (
-    <div className="relative group mb-4">
+    <div className={`relative group ${compact ? 'mb-2' : 'mb-4'}`}>
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         onClick={onClick}
-        className="
-          relative overflow-hidden rounded-[2rem]
+        className={`
+          relative overflow-hidden ${compact ? 'rounded-[1.5rem]' : 'rounded-[2rem]'}
           bg-white dark:bg-zinc-900/80
           shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none
           backdrop-blur-xl
-          h-28 select-none cursor-pointer
-          grid grid-cols-[1.5fr_2.5fr_auto] gap-8 items-center pl-6 pr-8
+          ${compact ? 'h-20' : 'h-28'} select-none cursor-pointer
+          grid ${compact ? 'grid-cols-[1fr_auto]' : 'grid-cols-[1.5fr_2.5fr_auto]'} ${compact ? 'gap-4' : 'gap-8'} items-center ${compact ? 'pl-4 pr-4' : 'pl-6 pr-8'}
           transition-all duration-300
           hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] 
           hover:bg-white/80 dark:hover:bg-zinc-900
           group-hover:-translate-y-1
-        "
+        `}
       >
          {/* Zone 1: Identity & Result - The Artistic Watermark Layout */}
-         <div className="relative flex-1 h-full min-w-0 pr-6 border-r border-zinc-100/50 dark:border-zinc-800/50 overflow-hidden group/zone1 flex items-center">
+         <div className={`relative flex-1 h-full min-w-0 ${compact ? 'pr-3' : 'pr-6'} ${compact ? '' : 'border-r border-zinc-100/50 dark:border-zinc-800/50'} overflow-hidden group/zone1 flex items-center`}>
             {/* Flex Container for Icon & Text - Natural Flow */}
-            <div className="flex items-center gap-4 w-full">
+            <div className={`flex items-center ${compact ? 'gap-3' : 'gap-4'} w-full`}>
                 {/* Icon - Natural Flex Item */}
                 {(() => {
                   const Icon = displayIcon ? getIconByName(displayIcon) : null;
                   return Icon ? (
                     <div className="flex-shrink-0 transition-transform duration-700 ease-out group-hover:scale-110 group-hover:-rotate-12 group-hover:translate-x-1">
                       <Icon 
-                          className="size-16 text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] mix-blend-multiply dark:mix-blend-overlay transition-colors duration-300" 
+                          className={`${compact ? 'size-10' : 'size-16'} text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] mix-blend-multiply dark:mix-blend-overlay transition-colors duration-300`} 
                           weight="duotone" 
                       />
                     </div>
                   ) : (
-                    <div className="flex-shrink-0 w-16 h-16" /> // Placeholder for alignment
+                    <div className={`flex-shrink-0 ${compact ? 'w-10 h-10' : 'w-16 h-16'}`} /> // Placeholder for alignment
                   );
                 })()}
                 
                 {/* Text Content - Pushed by Icon */}
                 <div className="flex flex-col justify-center min-w-0 gap-1 z-10">
-                  <span className="text-xl font-medium text-zinc-900 dark:text-zinc-100 truncate tracking-wide group-hover:text-black dark:group-hover:text-white transition-colors">
+                  <span className={`${compact ? 'text-base' : 'text-xl'} font-medium text-zinc-900 dark:text-zinc-100 truncate tracking-wide group-hover:text-black dark:group-hover:text-white transition-colors`}>
                     {displayTitle}
                   </span>
-                  <div className="flex items-center gap-3 text-[10px] font-bold tracking-[0.2em] uppercase text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-500 dark:group-hover:text-zinc-500 transition-colors">
+                  <div className={`flex items-center gap-3 ${compact ? 'text-[9px]' : 'text-[10px]'} font-bold tracking-[0.2em] uppercase text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-500 dark:group-hover:text-zinc-500 transition-colors`}>
                     <span>Target</span>
                     <span className="text-zinc-600 dark:text-zinc-400">
                       {item.type === 'progress' ? `${item.current}/${item.total}` : item.current}
@@ -71,7 +71,8 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
             </div>
          </div>
 
-         {/* Zone 2: The Timeline Journey */}
+         {/* Zone 2: The Timeline Journey - Hidden in compact mode */}
+         {!compact && (
          <div className="flex flex-col justify-center gap-3 w-full max-w-md justify-self-end">
             {/* Labels */}
             <div className="flex justify-between text-[9px] font-bold tracking-[0.2em] text-zinc-300 dark:text-zinc-700 uppercase px-1 opacity-60">
@@ -101,26 +102,27 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
                </span>
             </div>
          </div>
+         )}
 
          {/* Zone 3: The Resurrection (Restart) & The Void (Delete) */}
-         <div className="relative z-20 flex items-center gap-2 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 transition-all duration-500 ease-out">
+         <div className={`relative z-20 flex items-center ${compact ? 'gap-1' : 'gap-2'} opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 transition-all duration-500 ease-out`}>
             {/* Restore - The Breath of Life */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onAutoArchive?.(item.id);
               }}
-              className="
-                p-2.5 rounded-full
+              className={`
+                ${compact ? 'p-1.5' : 'p-2.5'} rounded-full
                 text-zinc-300 dark:text-zinc-600
                 hover:bg-zinc-100 dark:hover:bg-zinc-800
                 hover:text-zinc-900 dark:hover:text-zinc-100
                 hover:shadow-sm
                 transition-all duration-300
-              "
+              `}
               title="Restore to active list"
             >
-              <ArrowCounterClockwise className="size-5" weight="bold" />
+              <ArrowCounterClockwise className={compact ? 'size-4' : 'size-5'} weight="bold" />
             </button>
 
             {/* Delete - The Final Release */}
@@ -129,17 +131,17 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
                 e.stopPropagation();
                 onDelete?.(item.id);
               }}
-              className="
-                p-2.5 rounded-full
+              className={`
+                ${compact ? 'p-1.5' : 'p-2.5'} rounded-full
                 text-zinc-300 dark:text-zinc-600
                 hover:bg-red-50 dark:hover:bg-red-900/20
                 hover:text-red-500 dark:hover:text-red-400
                 hover:shadow-sm
                 transition-all duration-300
-              "
+              `}
               title="Delete permanently"
             >
-              <Trash className="size-5" weight="bold" />
+              <Trash className={compact ? 'size-4' : 'size-5'} weight="bold" />
             </button>
          </div>
       </motion.div>

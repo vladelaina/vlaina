@@ -6,7 +6,7 @@ import { ItemCardProps } from './types';
 import { ProgressBar, CounterEffects, Ripple, DebrisField } from './VisualEffects';
 import { KineticAction } from './KineticAction';
 
-export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, previewIcon, previewTitle }: ItemCardProps) {
+export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, previewIcon, previewTitle, compact }: ItemCardProps) {
   // Safe total access for TS - Moved to top
   const safeTotal = (item as any).total || 0;
 
@@ -103,8 +103,8 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
         willChange: 'transform' 
       }}
       className={`
-        group relative overflow-visible rounded-[2.5rem]
-        h-32 select-none cursor-grab active:cursor-grabbing
+        group relative overflow-visible ${compact ? 'rounded-[1.5rem]' : 'rounded-[2.5rem]'}
+        ${compact ? 'h-20' : 'h-32'} select-none cursor-grab active:cursor-grabbing
         ${isShattering ? '' : isDragging 
             ? 'bg-white dark:bg-zinc-900 border border-white/50 dark:border-white/5 shadow-2xl' 
             : 'bg-white dark:bg-zinc-900 border border-white/50 dark:border-white/5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.05)] dark:shadow-none hover:shadow-[0_20px_60px_-10px_rgba(0,0,0,0.1)] dark:hover:shadow-black/50 transition-shadow duration-500'
@@ -114,7 +114,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
       {isShattering && <DebrisField />}
 
       <motion.div
-        className="absolute inset-0 overflow-hidden rounded-[2.5rem]"
+        className={`absolute inset-0 overflow-hidden ${compact ? 'rounded-[1.5rem]' : 'rounded-[2.5rem]'}`}
         style={{ opacity: isShattering ? 0 : 1 }}
         transition={{ duration: 0 }} 
       >
@@ -126,9 +126,9 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
              <CounterEffects ripples={ripples} implosions={implosions} />
           )}
           
-          <div className="absolute inset-0 rounded-[2.5rem] ring-1 ring-inset pointer-events-none ring-black/5 dark:ring-white/5" />
+          <div className={`absolute inset-0 ${compact ? 'rounded-[1.5rem]' : 'rounded-[2.5rem]'} ring-1 ring-inset pointer-events-none ring-black/5 dark:ring-white/5`} />
 
-          <div className="absolute inset-0 flex items-center justify-between px-10 pointer-events-none z-20 overflow-hidden">
+          <div className={`absolute inset-0 flex items-center justify-between ${compact ? 'px-6' : 'px-10'} pointer-events-none z-20 overflow-hidden`}>
             
             <motion.div 
               className="relative flex items-center h-full min-w-0 flex-1 pl-0"
@@ -137,29 +137,29 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
                 opacity: hoverZone === 'left' ? 0.6 : 1 
               }}
             >
-              <motion.div className="relative flex items-center w-full h-full gap-5">
+              <motion.div className={`relative flex items-center w-full h-full ${compact ? 'gap-3' : 'gap-5'}`}>
                   {(() => {
                     const Icon = displayIcon ? getIconByName(displayIcon) : null;
                     return (
-                      <motion.div className="flex-shrink-0 flex items-center justify-center w-16">
+                      <motion.div className={`flex-shrink-0 flex items-center justify-center ${compact ? 'w-10' : 'w-16'}`}>
                           {Icon ? (
-                              <div className="text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] scale-[2.5] -rotate-12 mix-blend-multiply dark:mix-blend-overlay origin-center">
-                                  <Icon className="size-10" weight="duotone" />
+                              <div className={`text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] ${compact ? 'scale-[1.5]' : 'scale-[2.5]'} -rotate-12 mix-blend-multiply dark:mix-blend-overlay origin-center`}>
+                                  <Icon className={compact ? 'size-6' : 'size-10'} weight="duotone" />
                               </div>
                           ) : (
-                              <div className="w-16" /> 
+                              <div className={compact ? 'w-10' : 'w-16'} /> 
                           )}
                       </motion.div>
                     );
                   })()}
 
                   <div className="flex flex-col justify-center min-w-0 gap-1 relative z-10 w-full">
-                    <span className="text-2xl font-light tracking-wide truncate leading-none text-zinc-900 dark:text-zinc-100">
+                    <span className={`${compact ? 'text-base' : 'text-2xl'} font-light tracking-wide truncate leading-none text-zinc-900 dark:text-zinc-100`}>
                       {displayTitle}
                     </span>
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] overflow-hidden text-zinc-400 dark:text-zinc-500">
+                    <div className={`flex items-center gap-1.5 ${compact ? 'text-[9px]' : 'text-[10px]'} font-bold uppercase tracking-[0.2em] overflow-hidden text-zinc-400 dark:text-zinc-500`}>
                       {item.resetFrequency === 'daily' && (
-                          <ArrowsClockwise weight="bold" className="size-3 opacity-70" />
+                          <ArrowsClockwise weight="bold" className={compact ? 'size-2.5 opacity-70' : 'size-3 opacity-70'} />
                       )}
                       <span>
                         {item.todayCount > 0 ? `Today ${item.todayCount}` : "Tap to Start"}
@@ -170,7 +170,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
             </motion.div>
 
             <motion.div 
-              className="flex flex-col items-end justify-center pl-6 h-full absolute right-10"
+              className={`flex flex-col items-end justify-center ${compact ? 'pl-4' : 'pl-6'} h-full absolute ${compact ? 'right-6' : 'right-10'}`}
               animate={{ 
                   x: hoverZone === 'right' ? -48 : 0, 
                   opacity: hoverZone === 'right' ? 0.6 : 1
@@ -185,13 +185,13 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
                       : 1 
                  }}
                >
-                  <span className="text-5xl font-extralight tracking-tighter text-zinc-900 dark:text-zinc-50 font-sans tabular-nums">
+                  <span className={`${compact ? 'text-3xl' : 'text-5xl'} font-extralight tracking-tighter text-zinc-900 dark:text-zinc-50 font-sans tabular-nums`}>
                     {item.type === 'progress' 
                       ? Math.round((item.current / item.total) * 100)
                       : item.current
                     }
                   </span>
-                  <span className="text-sm font-bold tracking-widest text-zinc-300 dark:text-zinc-600 mb-2 uppercase">
+                  <span className={`${compact ? 'text-xs' : 'text-sm'} font-bold tracking-widest text-zinc-300 dark:text-zinc-600 ${compact ? 'mb-1' : 'mb-2'} uppercase`}>
                     {item.type === 'progress' ? '%' : item.unit}
                   </span>
                </motion.div>

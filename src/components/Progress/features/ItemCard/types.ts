@@ -9,4 +9,5 @@ export interface ItemCardProps {
   isDragging?: boolean;
   previewIcon?: string;
   previewTitle?: string;
+  compact?: boolean;
 }

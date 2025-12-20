@@ -13,7 +13,7 @@ const animateLayoutChanges: AnimateLayoutChanges = (args) => {
   return defaultAnimateLayoutChanges(args);
 };
 
-export function ItemCard({ item, onUpdate, onClick, onAutoArchive, onDelete, isDragging: propIsDragging, previewIcon, previewTitle }: ItemCardProps) {
+export function ItemCard({ item, onUpdate, onClick, onAutoArchive, onDelete, isDragging: propIsDragging, previewIcon, previewTitle, compact }: ItemCardProps) {
   const {
     attributes,
     listeners,
@@ -43,6 +43,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, onDelete, isD
           onDelete={onDelete}
           previewIcon={previewIcon}
           previewTitle={previewTitle}
+          compact={compact}
         />
         
         {/* Drag Handle - Covers the Icon/Left Zone */}
@@ -56,7 +57,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, onDelete, isD
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="relative mb-5">
+    <div ref={setNodeRef} style={style} className={`relative ${compact ? 'mb-0' : 'mb-5'}`}>
       <ActiveItemCard 
         item={item} 
         onUpdate={onUpdate} 
@@ -65,6 +66,7 @@ export function ItemCard({ item, onUpdate, onClick, onAutoArchive, onDelete, isD
         isDragging={propIsDragging || isDragging}
         previewIcon={previewIcon}
         previewTitle={previewTitle}
+        compact={compact}
       />
       
       {/* Drag Handle Overlay - Positioned over the card but controlled by parent DnD */}

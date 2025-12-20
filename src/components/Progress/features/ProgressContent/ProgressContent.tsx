@@ -109,12 +109,12 @@ export function ProgressContent({ compact = false }: ProgressContentProps) {
               <div className={compact ? 'space-y-2' : 'space-y-3'}>
                 {visibleItems.map((item) => (
                   <div key={item.id} id={'sortable-item-' + item.id}>
-                    <ItemCard item={item} onUpdate={updateCurrent} onClick={() => setSelectedId(item.id)} onAutoArchive={handleAutoArchive} onDelete={deleteItem} isDragging={activeId === item.id} previewIcon={selectedItem?.id === item.id ? previewOverride?.icon : undefined} previewTitle={selectedItem?.id === item.id ? previewOverride?.title : undefined} />
+                    <ItemCard item={item} onUpdate={updateCurrent} onClick={() => setSelectedId(item.id)} onAutoArchive={handleAutoArchive} onDelete={deleteItem} isDragging={activeId === item.id} previewIcon={selectedItem?.id === item.id ? previewOverride?.icon : undefined} previewTitle={selectedItem?.id === item.id ? previewOverride?.title : undefined} compact={compact} />
                   </div>
                 ))}
               </div>
             </SortableContext>
-            {createPortal(<DragOverlay dropAnimation={null} className="cursor-grabbing" style={{ zIndex: 999999 }}>{activeId ? (() => { const item = items.find(i => i.id === activeId); if (!item) return null; return (<div className="w-full" style={{ width: dragWidth ? dragWidth + 'px' : '100%' }}>{item.archived ? <ArchivedItemCard item={item} onUpdate={updateCurrent} onClick={() => {}} onAutoArchive={handleAutoArchive} onDelete={deleteItem} isDragging={true} /> : <ActiveItemCard item={item} onUpdate={updateCurrent} onClick={() => {}} onAutoArchive={handleAutoArchive} isDragging={true} />}</div>); })() : null}</DragOverlay>, document.body)}
+            {createPortal(<DragOverlay dropAnimation={null} className="cursor-grabbing" style={{ zIndex: 999999 }}>{activeId ? (() => { const item = items.find(i => i.id === activeId); if (!item) return null; return (<div className="w-full" style={{ width: dragWidth ? dragWidth + 'px' : '100%' }}>{item.archived ? <ArchivedItemCard item={item} onUpdate={updateCurrent} onClick={() => {}} onAutoArchive={handleAutoArchive} onDelete={deleteItem} isDragging={true} compact={compact} /> : <ActiveItemCard item={item} onUpdate={updateCurrent} onClick={() => {}} onAutoArchive={handleAutoArchive} isDragging={true} compact={compact} />}</div>); })() : null}</DragOverlay>, document.body)}
           </DndContext>
         </div>
       </div>
