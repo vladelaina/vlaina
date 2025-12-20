@@ -1,9 +1,9 @@
 /**
- * CalendarTaskPanel - 日历右侧的代办面板
+ * CalendarTaskPanel - 日历右侧的统一面板
  * 
- * 将完整的代办功能整合到日历右侧，支持：
- * 1. 嵌入模式（默认，在右侧面板中）
- * 2. 全屏模式（点击放大按钮展开）
+ * 支持在待办和进度之间切换：
+ * - Tasks: 待办任务列表
+ * - Progress: 进度追踪
  */
 
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
@@ -22,11 +22,15 @@ import { EventEditForm } from '../ContextPanel/EventEditForm';
 import { PanelTaskInput } from './PanelTaskInput';
 import { PanelTaskItem } from './PanelTaskItem';
 import { usePanelDragAndDrop } from './usePanelDragAndDrop';
+import { ProgressContent } from '@/components/Progress/features/ProgressContent';
 
 // 颜色排序
 const colorOrder: Record<string, number> = { 
   red: 0, yellow: 1, purple: 2, green: 3, blue: 4, default: 5 
 };
+
+// 面板视图类型
+type PanelView = 'tasks' | 'progress';
 
 interface CalendarTaskPanelProps {
   isExpanded?: boolean;
@@ -61,6 +65,9 @@ export function CalendarTaskPanel({
   } = useUIStore();
 
   const { editingEventId, events } = useCalendarStore();
+
+  // 面板视图状态
+  const [panelView, setPanelView] = useState<PanelView>('tasks');
 
   // 本地状态
   const [showGroupPicker, setShowGroupPicker] = useState(false);
@@ -255,91 +262,51 @@ export function CalendarTaskPanel({
         isExpanded && "fixed inset-0 z-50"
       )}
     >
-      {/* 头部工具栏 */}
+      {/* 头部：Tab 切换 + 工具栏 */}
       <div className="flex-shrink-0 px-3 pt-3 pb-2">
         <div className="flex items-center justify-between gap-2">
-          {/* 分组选择器 */}
-          <div className="relative flex-1 min-w-0" ref={groupPickerRef}>
+          {/* Tab 切换器 */}
+          <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5">
             <button
-              onClick={() => setShowGroupPicker(!showGroupPicker)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors max-w-full"
-            >
-              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 truncate">
-                {currentGroup?.name || 'Inbox'}
-              </span>
-              <ChevronDown className={cn(
-                "size-3.5 text-zinc-400 transition-transform flex-shrink-0",
-                showGroupPicker && "rotate-180"
-              )} />
-            </button>
-
-            {/* 分组下拉菜单 */}
-            <AnimatePresence>
-              {showGroupPicker && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50 max-h-64 overflow-y-auto"
-                >
-                  {groups.map((group) => (
-                    <button
-                      key={group.id}
-                      onClick={() => {
-                        setActiveGroup(group.id);
-                        setShowGroupPicker(false);
-                      }}
-                      className={cn(
-                        "w-full px-3 py-1.5 text-left text-sm transition-colors flex items-center gap-2",
-                        group.id === activeGroupId
-                          ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                          : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                      )}
-                    >
-                      {group.pinned && <span className="text-[10px]">📌</span>}
-                      <span className="truncate">{group.name}</span>
-                      {group.id === activeGroupId && (
-                        <Check className="size-3.5 ml-auto flex-shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                  {/* 归档入口 */}
-                  <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
-                  <button
-                    onClick={() => {
-                      setActiveGroup('__archive__');
-                      setShowGroupPicker(false);
-                    }}
-                    className={cn(
-                      "w-full px-3 py-1.5 text-left text-sm transition-colors flex items-center gap-2",
-                      activeGroupId === '__archive__'
-                        ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                        : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                    )}
-                  >
-                    <Archive className="size-3.5" />
-                    <span>Archive</span>
-                  </button>
-                </motion.div>
+              onClick={() => setPanelView('tasks')}
+              className={cn(
+                "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                panelView === 'tasks'
+                  ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
               )}
-            </AnimatePresence>
+            >
+              Tasks
+            </button>
+            <button
+              onClick={() => setPanelView('progress')}
+              className={cn(
+                "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                panelView === 'progress'
+                  ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+              )}
+            >
+              Progress
+            </button>
           </div>
 
           {/* 工具按钮 */}
           <div className="flex items-center gap-1">
-            {/* 搜索按钮 */}
-            <button
-              onClick={() => setShowSearch(!showSearch)}
-              className={cn(
-                "p-1.5 rounded-md transition-colors",
-                showSearch
-                  ? "text-zinc-600 bg-zinc-100 dark:text-zinc-300 dark:bg-zinc-800"
-                  : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-              )}
-            >
-              <Search className="size-4" />
-            </button>
+            {/* 搜索按钮 - 仅在 tasks 视图显示 */}
+            {panelView === 'tasks' && (
+              <button
+                onClick={() => setShowSearch(!showSearch)}
+                className={cn(
+                  "p-1.5 rounded-md transition-colors",
+                  showSearch
+                    ? "text-zinc-600 bg-zinc-100 dark:text-zinc-300 dark:bg-zinc-800"
+                    : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                )}
+              >
+                <Search className="size-4" />
+              </button>
+            )}
 
             {/* 放大/缩小按钮 */}
             {onToggleExpand && (
@@ -353,44 +320,129 @@ export function CalendarTaskPanel({
           </div>
         </div>
 
-        {/* 搜索框 */}
-        <AnimatePresence>
-          {showSearch && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="relative mt-2">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search tasks..."
-                  autoFocus
-                  className="w-full px-3 py-1.5 text-sm bg-zinc-100 dark:bg-zinc-800 rounded-md outline-none focus:ring-1 focus:ring-zinc-300 dark:focus:ring-zinc-600"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                )}
+        {/* Tasks 视图的分组选择器和搜索框 */}
+        {panelView === 'tasks' && (
+          <>
+            <div className="flex items-center gap-2 mt-2">
+              {/* 分组选择器 */}
+              <div className="relative flex-1 min-w-0" ref={groupPickerRef}>
+                <button
+                  onClick={() => setShowGroupPicker(!showGroupPicker)}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors max-w-full"
+                >
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 truncate">
+                    {currentGroup?.name || 'Inbox'}
+                  </span>
+                  <ChevronDown className={cn(
+                    "size-3.5 text-zinc-400 transition-transform flex-shrink-0",
+                    showGroupPicker && "rotate-180"
+                  )} />
+                </button>
+
+                {/* 分组下拉菜单 */}
+                <AnimatePresence>
+                  {showGroupPicker && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50 max-h-64 overflow-y-auto"
+                    >
+                      {groups.map((group) => (
+                        <button
+                          key={group.id}
+                          onClick={() => {
+                            setActiveGroup(group.id);
+                            setShowGroupPicker(false);
+                          }}
+                          className={cn(
+                            "w-full px-3 py-1.5 text-left text-sm transition-colors flex items-center gap-2",
+                            group.id === activeGroupId
+                              ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                              : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                          )}
+                        >
+                          {group.pinned && <span className="text-[10px]">📌</span>}
+                          <span className="truncate">{group.name}</span>
+                          {group.id === activeGroupId && (
+                            <Check className="size-3.5 ml-auto flex-shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                      {/* 归档入口 */}
+                      <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+                      <button
+                        onClick={() => {
+                          setActiveGroup('__archive__');
+                          setShowGroupPicker(false);
+                        }}
+                        className={cn(
+                          "w-full px-3 py-1.5 text-left text-sm transition-colors flex items-center gap-2",
+                          activeGroupId === '__archive__'
+                            ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                            : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                        )}
+                      >
+                        <Archive className="size-3.5" />
+                        <span>Archive</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+
+            {/* 搜索框 */}
+            <AnimatePresence>
+              {showSearch && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="relative mt-2">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search tasks..."
+                      autoFocus
+                      className="w-full px-3 py-1.5 text-sm bg-zinc-100 dark:bg-zinc-800 rounded-md outline-none focus:ring-1 focus:ring-zinc-300 dark:focus:ring-zinc-600"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </>
+        )}
       </div>
 
-      {/* 任务输入框 */}
-      {activeGroupId !== '__archive__' && (
-        <div className="flex-shrink-0 px-3 pb-2">
-          <PanelTaskInput compact={!isExpanded} />
+      {/* Progress 视图 */}
+      {panelView === 'progress' && (
+        <div className="flex-1 overflow-hidden">
+          <ProgressContent compact />
         </div>
       )}
+
+      {/* Tasks 视图 */}
+      {panelView === 'tasks' && (
+        <>
+          {/* 任务输入框 */}
+          {activeGroupId !== '__archive__' && (
+            <div className="flex-shrink-0 px-3 pb-2">
+              <PanelTaskInput compact={!isExpanded} />
+            </div>
+          )}
 
       {/* 任务列表 */}
       <div
@@ -512,6 +564,8 @@ export function CalendarTaskPanel({
           )}
         </DndContext>
       </div>
+        </>
+      )}
 
       {/* 子任务弹窗 */}
       <AnimatePresence>
