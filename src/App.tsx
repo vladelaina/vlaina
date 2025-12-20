@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SettingsModal } from '@/components/common/Settings';
 import { TimeTrackerPage } from '@/components/TimeTracker';
-import { ProgressPage } from '@/components/Progress';
 import { CalendarPage, CalendarToolbar, CalendarSidebar, CalendarTaskPanel } from '@/components/Calendar';
 import { Layout } from '@/components/layout';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -30,7 +29,7 @@ function AppContent() {
   }, [loadData]);
 
   // View switching order
-  const viewOrder: Array<typeof currentView> = ['progress', 'calendar', 'time-tracker'];
+  const viewOrder: Array<typeof currentView> = ['calendar', 'time-tracker'];
   const { setView } = useViewStore();
 
   // Open/close settings shortcut + view switching shortcuts
@@ -82,13 +81,6 @@ function AppContent() {
       {currentView === 'time-tracker' && (
         <Layout onOpenSettings={() => setSettingsOpen(true)}>
           <TimeTrackerPage />
-        </Layout>
-      )}
-
-      {/* Progress Page */}
-      {currentView === 'progress' && (
-        <Layout onOpenSettings={() => setSettingsOpen(true)}>
-          <ProgressPage />
         </Layout>
       )}
 

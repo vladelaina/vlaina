@@ -78,24 +78,6 @@ export function TitleBar({ onOpenSettings, toolbar, toolbarAlignRight }: TitleBa
               transition={{ duration: 0.15 }}
               className="h-full flex items-center"
             >
-              {/* Progress */}
-              <button
-                onClick={() => {
-                  setView('progress');
-                  if (menuPinned) {
-                    setMenuOpen(false);
-                    setMenuPinned(false);
-                  }
-                }}
-                className={`h-full px-3 text-sm transition-colors whitespace-nowrap ${
-                  currentView === 'progress'
-                    ? 'text-zinc-400 dark:text-zinc-500'
-                    : 'text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500'
-                }`}
-              >
-                Progress
-              </button>
-
               {/* Calendar */}
               <button
                 onClick={() => {
