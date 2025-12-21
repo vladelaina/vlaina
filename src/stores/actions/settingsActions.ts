@@ -88,5 +88,18 @@ export function createSettingsActions(set: SetState, persist: Persist) {
         return { data: newData };
       });
     },
+
+    setDayStartTime: (minutes: number) => {
+      // 限制在 0-1439 分钟范围内
+      const clampedMinutes = Math.max(0, Math.min(1439, minutes));
+      set((state) => {
+        const newData = {
+          ...state.data,
+          settings: { ...state.data.settings, dayStartTime: clampedMinutes },
+        };
+        persist(newData);
+        return { data: newData };
+      });
+    },
   };
 }

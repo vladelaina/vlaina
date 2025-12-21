@@ -2,34 +2,51 @@
  * Calendar Time Utilities
  * 
  * Centralized management of all time-related calculations
+ * Supports configurable day start time
  */
 
 /**
- * Day start hour - the hour at which a "day" begins in the calendar view
- * Hours before this are shown at the bottom (after midnight)
- * 
- * Example: DAY_START_HOUR = 5 means:
- * - Calendar shows: 5:00, 6:00, ..., 23:00, 0:00, 1:00, 2:00, 3:00, 4:00
- * - A day runs from 5:00 AM to 4:59 AM the next day
+ * Default day start time in minutes (5:00 AM = 300 minutes)
  */
-export const DAY_START_HOUR = 5;
+export const DEFAULT_DAY_START_MINUTES = 300;
+
+/**
+ * Convert actual minutes (0-1439) to display position minutes (0-1439)
+ * Maps minutes so that dayStartMinutes appears at position 0
+ */
+export function minutesToDisplayPosition(actualMinutes: number, dayStartMinutes: number = DEFAULT_DAY_START_MINUTES): number {
+  if (actualMinutes >= dayStartMinutes) {
+    return actualMinutes - dayStartMinutes;
+  }
+  return actualMinutes + (1440 - dayStartMinutes);
+}
+
+/**
+ * Convert display position minutes (0-1439) to actual minutes (0-1439)
+ */
+export function displayPositionToMinutes(displayMinutes: number, dayStartMinutes: number = DEFAULT_DAY_START_MINUTES): number {
+  const actualMinutes = displayMinutes + dayStartMinutes;
+  return actualMinutes >= 1440 ? actualMinutes - 1440 : actualMinutes;
+}
 
 /**
  * Convert actual hour (0-23) to display position (0-23)
- * Maps hours so that DAY_START_HOUR appears at position 0
+ * Maps hours so that day start hour appears at position 0
  */
-export function hourToDisplayPosition(hour: number): number {
-  if (hour >= DAY_START_HOUR) {
-    return hour - DAY_START_HOUR;
+export function hourToDisplayPosition(hour: number, dayStartMinutes: number = DEFAULT_DAY_START_MINUTES): number {
+  const dayStartHour = Math.floor(dayStartMinutes / 60);
+  if (hour >= dayStartHour) {
+    return hour - dayStartHour;
   }
-  return hour + (24 - DAY_START_HOUR);
+  return hour + (24 - dayStartHour);
 }
 
 /**
  * Convert display position (0-23) to actual hour (0-23)
  */
-export function displayPositionToHour(position: number): number {
-  const hour = position + DAY_START_HOUR;
+export function displayPositionToHour(position: number, dayStartMinutes: number = DEFAULT_DAY_START_MINUTES): number {
+  const dayStartHour = Math.floor(dayStartMinutes / 60);
+  const hour = position + dayStartHour;
   return hour >= 24 ? hour - 24 : hour;
 }
 
@@ -45,34 +62,28 @@ export function getSnapMinutes(hourHeight: number): number {
 }
 
 /**
- * Convert pixel position to minutes (adjusted for day start hour)
+ * Convert pixel position to minutes (adjusted for day start time)
  * Returns actual time minutes (0-1439) where 0 = midnight
  */
-export function pixelsToMinutes(pixels: number, hourHeight: number): number {
+export function pixelsToMinutes(pixels: number, hourHeight: number, dayStartMinutes: number = DEFAULT_DAY_START_MINUTES): number {
   const displayMinutes = (pixels / hourHeight) * 60;
-  // Convert display minutes to actual minutes
-  const displayHour = Math.floor(displayMinutes / 60);
-  const minutesPart = displayMinutes % 60;
-  const actualHour = displayPositionToHour(displayHour);
-  return actualHour * 60 + minutesPart;
+  return displayPositionToMinutes(displayMinutes, dayStartMinutes);
 }
 
 /**
  * Convert pixel delta to minutes delta (for relative movement calculations)
- * This does NOT apply day start hour offset - used for drag deltas
+ * This does NOT apply day start offset - used for drag deltas
  */
 export function pixelsDeltaToMinutes(pixelsDelta: number, hourHeight: number): number {
   return (pixelsDelta / hourHeight) * 60;
 }
 
 /**
- * Convert minutes to pixel position (adjusted for day start hour)
+ * Convert minutes to pixel position (adjusted for day start time)
  */
-export function minutesToPixels(minutes: number, hourHeight: number): number {
-  const hour = Math.floor(minutes / 60);
-  const minutesPart = minutes % 60;
-  const displayPosition = hourToDisplayPosition(hour);
-  return (displayPosition * 60 + minutesPart) / 60 * hourHeight;
+export function minutesToPixels(minutes: number, hourHeight: number, dayStartMinutes: number = DEFAULT_DAY_START_MINUTES): number {
+  const displayMinutes = minutesToDisplayPosition(minutes, dayStartMinutes);
+  return (displayMinutes / 60) * hourHeight;
 }
 
 /**
@@ -91,14 +102,12 @@ export function getMinutesFromMidnight(timestamp: number): number {
 }
 
 /**
- * Calculate event's vertical position in the grid (adjusted for day start hour)
+ * Calculate event's vertical position in the grid (adjusted for day start time)
  */
-export function calculateEventTop(startDate: number, hourHeight: number): number {
+export function calculateEventTop(startDate: number, hourHeight: number, dayStartMinutes: number = DEFAULT_DAY_START_MINUTES): number {
   const date = new Date(startDate);
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const displayPosition = hourToDisplayPosition(hours);
-  return displayPosition * hourHeight + (minutes / 60) * hourHeight;
+  const actualMinutes = date.getHours() * 60 + date.getMinutes();
+  return minutesToPixels(actualMinutes, hourHeight, dayStartMinutes);
 }
 
 /**
@@ -108,6 +117,101 @@ export function calculateEventHeight(startDate: number, endDate: number, hourHei
   const durationMs = endDate - startDate;
   const durationMinutes = durationMs / (1000 * 60);
   return (durationMinutes / 60) * hourHeight;
+}
+
+/**
+ * Parse time string to minutes (0-1439)
+ * Supports multiple formats:
+ * - 24h: "14:30", "14：30" (Chinese colon), "1430"
+ * - 12h: "2:30pm", "2:30 PM", "2:30下午", "2pm"
+ * Returns null if parsing fails
+ */
+export function parseTimeString(input: string, _use24Hour: boolean = true): { hours: number; minutes: number } | null {
+  if (!input) return null;
+  
+  // Normalize input: trim, lowercase, replace Chinese colon
+  let str = input.trim().toLowerCase().replace(/：/g, ':');
+  
+  // Try to detect AM/PM indicators
+  const pmIndicators = ['pm', 'p.m.', 'p.m', '下午', '晚上'];
+  const amIndicators = ['am', 'a.m.', 'a.m', '上午', '早上', '凌晨'];
+  
+  let isPM = false;
+  let isAM = false;
+  
+  for (const indicator of pmIndicators) {
+    if (str.includes(indicator)) {
+      isPM = true;
+      str = str.replace(indicator, '').trim();
+      break;
+    }
+  }
+  
+  if (!isPM) {
+    for (const indicator of amIndicators) {
+      if (str.includes(indicator)) {
+        isAM = true;
+        str = str.replace(indicator, '').trim();
+        break;
+      }
+    }
+  }
+  
+  let hours = 0;
+  let minutes = 0;
+  
+  // Try HH:MM format
+  const colonMatch = str.match(/^(\d{1,2}):(\d{1,2})$/);
+  if (colonMatch) {
+    hours = parseInt(colonMatch[1], 10);
+    minutes = parseInt(colonMatch[2], 10);
+  } else {
+    // Try HHMM format (4 digits)
+    const fourDigitMatch = str.match(/^(\d{2})(\d{2})$/);
+    if (fourDigitMatch) {
+      hours = parseInt(fourDigitMatch[1], 10);
+      minutes = parseInt(fourDigitMatch[2], 10);
+    } else {
+      // Try H or HH format (hours only)
+      const hoursOnlyMatch = str.match(/^(\d{1,2})$/);
+      if (hoursOnlyMatch) {
+        hours = parseInt(hoursOnlyMatch[1], 10);
+        minutes = 0;
+      } else {
+        return null;
+      }
+    }
+  }
+  
+  // Apply AM/PM conversion
+  if (isPM && hours < 12) {
+    hours += 12;
+  } else if (isAM && hours === 12) {
+    hours = 0;
+  }
+  
+  // Validate
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+  
+  return { hours, minutes };
+}
+
+/**
+ * Format minutes (0-1439) to time string
+ */
+export function formatMinutesToTimeString(totalMinutes: number, use24Hour: boolean = true): string {
+  const hours = Math.floor(totalMinutes / 60) % 24;
+  const minutes = totalMinutes % 60;
+  
+  if (use24Hour) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}`;
+  } else {
+    const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+    const ampm = hours < 12 ? 'AM' : 'PM';
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+  }
 }
 
 /**

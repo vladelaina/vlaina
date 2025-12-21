@@ -118,6 +118,7 @@ export interface UnifiedData {
     dayCount: number;
     hourHeight?: number;
     use24Hour?: boolean;
+    dayStartTime?: number; // 日开始时间，以分钟为单位 (0-1439)，默认 300 (5:00)
   };
 }
 

@@ -3,24 +3,33 @@ import { Folder, RotateCcw } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
+import { parseTimeString, formatMinutesToTimeString } from '@/components/Calendar/utils/timeUtils';
 
 /**
  * Appearance tab content - theme, colors, font size
  */
 export function AppearanceTab() {
   const { theme, setTheme } = useTheme();
-  const { timezone, setTimezone, use24Hour, toggle24Hour } = useCalendarStore();
+  const { timezone, setTimezone, use24Hour, toggle24Hour, dayStartTime, setDayStartTime } = useCalendarStore();
   const [fontSize, setFontSize] = useState<number>(() => {
     const saved = localStorage.getItem('fontSize');
     return saved !== null ? parseInt(saved) : 14;
   });
   const [showFontSizeTooltip, setShowFontSizeTooltip] = useState(false);
   const [timezoneInput, setTimezoneInput] = useState(timezone.toString());
+  const [dayStartInput, setDayStartInput] = useState(() => 
+    formatMinutesToTimeString(dayStartTime, use24Hour)
+  );
 
   // Update input when timezone changes externally
   useEffect(() => {
     setTimezoneInput(timezone.toString());
   }, [timezone]);
+
+  // Update day start input when settings change
+  useEffect(() => {
+    setDayStartInput(formatMinutesToTimeString(dayStartTime, use24Hour));
+  }, [dayStartTime, use24Hour]);
 
   // Apply global font size
   useEffect(() => {
@@ -68,6 +77,17 @@ export function AppearanceTab() {
     }
     // Reset if invalid
     setTimezoneInput(timezone.toString());
+  };
+
+  const handleDayStartSubmit = () => {
+    const parsed = parseTimeString(dayStartInput, use24Hour);
+    if (parsed) {
+      const minutes = parsed.hours * 60 + parsed.minutes;
+      setDayStartTime(minutes);
+    } else {
+      // Reset if invalid
+      setDayStartInput(formatMinutesToTimeString(dayStartTime, use24Hour));
+    }
   };
 
   return (
@@ -207,6 +227,31 @@ export function AppearanceTab() {
               >
                 {use24Hour ? '24h' : '12h'}
               </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Day Start Time */}
+        <div className="py-3 border-b border-zinc-200 dark:border-zinc-700">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                Day Start Time
+              </div>
+              <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Calendar view starts from this time
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={dayStartInput}
+                onChange={(e) => setDayStartInput(e.target.value)}
+                onBlur={handleDayStartSubmit}
+                onKeyDown={(e) => e.key === 'Enter' && handleDayStartSubmit()}
+                className="w-20 h-8 px-2 text-sm text-center bg-zinc-100 dark:bg-zinc-800 rounded border border-transparent focus:border-zinc-300 dark:focus:border-zinc-600 outline-none transition-all"
+                placeholder={use24Hour ? "5:00" : "5:00 AM"}
+              />
             </div>
           </div>
         </div>

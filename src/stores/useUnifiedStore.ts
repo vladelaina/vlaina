@@ -128,6 +128,7 @@ interface UnifiedStoreActions {
   toggleContextPanel: () => void;
   setSelectedDate: (date: Date) => void;
   toggle24Hour: () => void;
+  setDayStartTime: (minutes: number) => void;
 }
 
 type UnifiedStore = UnifiedStoreState & UnifiedStoreActions;

@@ -82,6 +82,7 @@ export function useCalendarStore() {
     timezone: store.data.settings.timezone,
     hourHeight: store.data.settings.hourHeight ?? 64,
     use24Hour: store.data.settings.use24Hour ?? false,
+    dayStartTime: store.data.settings.dayStartTime ?? 300, // 默认 5:00 (300分钟)
     
     // Actions
     load: store.load,
@@ -101,6 +102,7 @@ export function useCalendarStore() {
     closeEditingEvent: store.closeEditingEvent,
     setTimezone: store.setTimezone,
     toggle24Hour: store.toggle24Hour,
+    setDayStartTime: store.setDayStartTime,
     
     // Task operations (calendar events are essentially tasks)
     toggleTask: store.toggleTask,

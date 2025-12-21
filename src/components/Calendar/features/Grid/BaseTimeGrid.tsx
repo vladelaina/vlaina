@@ -13,7 +13,16 @@ import { useGroupStore } from '@/stores/useGroupStore';
 import { useCalendarEvents } from '../../hooks/useCalendarEvents';
 import { EventBlock } from '../Event/EventBlock';
 import { calculateEventLayout } from '../../utils/eventLayout';
-import { getSnapMinutes, pixelsToMinutes, pixelsDeltaToMinutes, CALENDAR_CONSTANTS, DAY_START_HOUR, displayPositionToHour, hourToDisplayPosition, minutesToPixels } from '../../utils/timeUtils';
+import { 
+  getSnapMinutes, 
+  pixelsToMinutes, 
+  pixelsDeltaToMinutes, 
+  CALENDAR_CONSTANTS, 
+  displayPositionToHour, 
+  hourToDisplayPosition, 
+  minutesToPixels,
+  DEFAULT_DAY_START_MINUTES
+} from '../../utils/timeUtils';
 
 const GUTTER_WIDTH = CALENDAR_CONSTANTS.GUTTER_WIDTH as number;
 
@@ -28,7 +37,7 @@ interface BaseTimeGridProps {
 export function BaseTimeGrid({ days }: BaseTimeGridProps) {
   const { 
     addEvent, setEditingEventId, closeEditingEvent, 
-    hourHeight, updateEvent, use24Hour
+    hourHeight, updateEvent, use24Hour, dayStartTime
   } = useCalendarStore();
   const { toggleTask } = useGroupStore();
   const displayItems = useCalendarEvents();
@@ -54,6 +63,9 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
 
   const columnCount = days.length;
   const snapMinutes = getSnapMinutes(hourHeight);
+  
+  // Use configured day start time or default
+  const dayStartMinutes = dayStartTime ?? DEFAULT_DAY_START_MINUTES;
 
   // Update current time
   useEffect(() => {
@@ -65,7 +77,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
   useEffect(() => {
     if (scrollRef.current) {
       const currentHour = now.getHours();
-      const displayPosition = hourToDisplayPosition(currentHour);
+      const displayPosition = hourToDisplayPosition(currentHour, dayStartMinutes);
       // Scroll to show current time near the top, with some padding
       scrollRef.current.scrollTop = Math.max(0, (displayPosition - 1) * hourHeight);
     }
@@ -86,11 +98,11 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
     if (dayIndex < 0 || dayIndex >= columnCount) return null;
 
     const relativeY = clientY - scrollRect.top + scrollRef.current.scrollTop;
-    const totalMinutes = pixelsToMinutes(relativeY, hourHeight);
+    const totalMinutes = pixelsToMinutes(relativeY, hourHeight, dayStartMinutes);
     const snappedMinutes = Math.round(totalMinutes / snapMinutes) * snapMinutes;
 
     return { dayIndex, minutes: snappedMinutes };
-  }, [columnCount, hourHeight, snapMinutes]);
+  }, [columnCount, hourHeight, snapMinutes, dayStartMinutes]);
 
   // ============ Drag to Create Event ============
 
@@ -112,7 +124,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
     if (isDragging && dragStart && scrollRef.current) {
       const scrollRect = scrollRef.current.getBoundingClientRect();
       const relativeY = e.clientY - scrollRect.top + scrollRef.current.scrollTop;
-      const totalMinutes = pixelsToMinutes(relativeY, hourHeight);
+      const totalMinutes = pixelsToMinutes(relativeY, hourHeight, dayStartMinutes);
       const snappedMinutes = Math.round(totalMinutes / snapMinutes) * snapMinutes;
       setDragEnd({ minutes: snappedMinutes });
     }
@@ -158,7 +170,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
         }
       }
     }
-  }, [isDragging, dragStart, eventDrag, hourHeight, snapMinutes, displayItems, updateEvent]);
+  }, [isDragging, dragStart, eventDrag, hourHeight, snapMinutes, displayItems, updateEvent, dayStartMinutes]);
 
   const handleMouseUp = useCallback((e: MouseEvent) => {
     // Complete create drag
@@ -224,7 +236,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
 
   const nowHour = getHours(now);
   const nowMinutes = getMinutes(now);
-  const nowDisplayPosition = hourToDisplayPosition(nowHour);
+  const nowDisplayPosition = hourToDisplayPosition(nowHour, dayStartMinutes);
   const nowTop = nowDisplayPosition * hourHeight + (nowMinutes / 60) * hourHeight;
 
   return (
@@ -235,7 +247,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
           {/* Time labels column */}
           <div style={{ width: GUTTER_WIDTH }} className="flex-shrink-0 sticky left-0 z-10 bg-white dark:bg-zinc-950">
             {Array.from({ length: 24 }).map((_, displayPos) => {
-              const actualHour = displayPositionToHour(displayPos);
+              const actualHour = displayPositionToHour(displayPos, dayStartMinutes);
               return (
                 <div key={displayPos} style={{ height: hourHeight }} className="relative">
                   {displayPos !== 0 && (
@@ -350,6 +362,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                           hourHeight={hourHeight}
                           onToggle={toggleTask}
                           onDragStart={handleEventDragStart}
+                          dayStartMinutes={dayStartMinutes}
                         />
                       </div>
                     ))}
@@ -359,7 +372,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                       <div
                         style={{
                           position: 'absolute',
-                          top: `${minutesToPixels(Math.min(dragStart!.minutes, dragEnd!.minutes), hourHeight)}px`,
+                          top: `${minutesToPixels(Math.min(dragStart!.minutes, dragEnd!.minutes), hourHeight, dayStartMinutes)}px`,
                           height: `${(Math.abs(dragEnd!.minutes - dragStart!.minutes) / 60) * hourHeight}px`,
                           left: `${ghostLayout.leftPercent}%`,
                           width: `${ghostLayout.widthPercent}%`,

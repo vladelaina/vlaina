@@ -11,7 +11,7 @@ import { useCalendarStore } from '@/stores/useCalendarStore';
 import { EventContextMenu } from './EventContextMenu';
 import { type EventLayoutInfo } from '../../utils/eventLayout';
 import { type CalendarDisplayItem } from '../../hooks/useCalendarEvents';
-import { calculateEventTop, calculateEventHeight, CALENDAR_CONSTANTS } from '../../utils/timeUtils';
+import { calculateEventTop, calculateEventHeight, CALENDAR_CONSTANTS, DEFAULT_DAY_START_MINUTES } from '../../utils/timeUtils';
 
 const GAP = CALENDAR_CONSTANTS.GAP as number;
 const RESIZE_HANDLE_HEIGHT = CALENDAR_CONSTANTS.RESIZE_HANDLE_HEIGHT as number;
@@ -77,11 +77,12 @@ interface EventBlockProps {
   hourHeight: number;
   onToggle?: (id: string) => void;
   onDragStart?: (eventId: string, edge: 'top' | 'bottom' | null, clientY: number) => void;
+  dayStartMinutes?: number;
 }
 
 // ============ Component ============
 
-export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart }: EventBlockProps) {
+export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, dayStartMinutes = DEFAULT_DAY_START_MINUTES }: EventBlockProps) {
   const { 
     setEditingEventId, editingEventId, 
     setSelectedEventId, closeEditingEvent,
@@ -132,7 +133,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart }:
   }, [isTimerRunning, isTimerPaused, event.timerStartedAt, event.timerAccumulated]);
 
   // Calculate position and size
-  const top = calculateEventTop(event.startDate, hourHeight);
+  const top = calculateEventTop(event.startDate, hourHeight, dayStartMinutes);
   const plannedDuration = event.endDate - event.startDate;
   const plannedHeight = calculateEventHeight(event.startDate, event.endDate, hourHeight);
   
@@ -279,7 +280,6 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart }:
   const showCheckbox = heightLevel !== 'micro';
 
   // 计时相关计算
-  const plannedMinutes = Math.round(plannedDuration / 60000);
   const isOvertime = elapsedMs > plannedDuration;
   const fillPercent = isTimerActive 
     ? Math.min((elapsedMs / plannedDuration) * 100, 100) 
