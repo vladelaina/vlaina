@@ -470,7 +470,7 @@ export function CalendarTaskPanel({
           {/* 未完成任务 */}
           <SortableContext items={incompleteTaskIds} strategy={verticalListSortingStrategy}>
             {incompleteTasks.length > 0 ? (
-              <div className="space-y-0.5">
+              <div className="space-y-2">
                 {incompleteTasks.map(task => renderTaskItem(task, 0))}
               </div>
             ) : (
@@ -554,7 +554,7 @@ export function CalendarTaskPanel({
                     className="overflow-hidden"
                   >
                     <SortableContext items={completedTaskIds} strategy={verticalListSortingStrategy}>
-                      <div className="space-y-0.5 opacity-60">
+                      <div className="space-y-2 opacity-60">
                         {completedTasks.map(task => renderTaskItem(task, 0))}
                       </div>
                     </SortableContext>
