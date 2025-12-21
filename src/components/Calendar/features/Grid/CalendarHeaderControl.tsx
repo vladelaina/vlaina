@@ -42,9 +42,9 @@ export function CalendarHeaderControl() {
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center h-full relative">
+    <div className="flex-1 flex items-center justify-center h-full relative" data-tauri-drag-region>
       {/* Centered Date Container */}
-      <div className="flex justify-center items-center h-full relative group/container">
+      <div className="flex justify-center items-center h-full relative group/container" data-tauri-drag-region>
         <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
           <PopoverTrigger asChild>
             <button className="h-full flex items-center gap-4 px-4 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group outline-none">
