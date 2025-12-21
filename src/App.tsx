@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { SettingsModal } from '@/components/common/Settings';
-import { CalendarPage, CalendarToolbar, CalendarSidebar, CalendarTaskPanel } from '@/components/Calendar';
+import { CalendarPage, CalendarToolbar, CalendarTaskPanel } from '@/components/Calendar';
+import { DateSelector } from '@/components/Calendar/features/DateSelector';
 import { Layout } from '@/components/layout';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
@@ -14,7 +15,7 @@ function AppContent() {
   // Enable shortcuts
   useShortcuts();
   const { loadData } = useGroupStore();
-  const { showContextPanel, showSidebar: showCalendarSidebar } = useCalendarStore();
+  const { showContextPanel } = useCalendarStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Enable VIM-style keyboard navigation
@@ -58,8 +59,7 @@ function AppContent() {
       <Layout 
         onOpenSettings={() => setSettingsOpen(true)} 
         toolbar={<CalendarToolbar />}
-        leftPanel={<CalendarSidebar />}
-        showLeftPanel={showCalendarSidebar}
+        center={<DateSelector />}
         rightPanel={<CalendarTaskPanel />}
         showRightPanel={showContextPanel}
       >

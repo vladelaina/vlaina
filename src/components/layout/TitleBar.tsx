@@ -7,11 +7,12 @@ const appWindow = getCurrentWindow();
 interface TitleBarProps {
   onOpenSettings?: () => void;
   toolbar?: ReactNode;
+  center?: ReactNode;
   /** When true, toolbar is aligned to right edge (for calendar with right panel) */
   toolbarAlignRight?: boolean;
 }
 
-export function TitleBar({ onOpenSettings, toolbar, toolbarAlignRight }: TitleBarProps) {
+export function TitleBar({ onOpenSettings, toolbar, center, toolbarAlignRight }: TitleBarProps) {
   const [isPinned, setIsPinned] = useState(false);
 
   const togglePin = async () => {
@@ -25,11 +26,11 @@ export function TitleBar({ onOpenSettings, toolbar, toolbarAlignRight }: TitleBa
   };
 
   return (
-    <div className="h-9 bg-white dark:bg-zinc-900 flex items-center justify-between select-none">
+    <div className="h-9 bg-white dark:bg-zinc-900 flex items-center justify-between select-none relative">
       {/* Left: Settings Button */}
       <button
         onClick={onOpenSettings}
-        className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 transition-colors"
+        className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 transition-colors z-20"
         title="Settings"
       >
         <Settings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
@@ -38,18 +39,25 @@ export function TitleBar({ onOpenSettings, toolbar, toolbarAlignRight }: TitleBa
       {/* Draggable Area */}
       <div 
         onMouseDown={startDrag}
-        className="flex-1 h-full cursor-default"
+        className="absolute inset-0 z-0"
       />
+
+      {/* Center Content */}
+      {center && (
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+          {center}
+        </div>
+      )}
 
       {/* Custom Toolbar (e.g., Calendar controls) - aligned to right edge when toolbarAlignRight */}
       {toolbar && (
-        <div className={`flex items-center h-full ${toolbarAlignRight ? 'pr-3 ml-auto' : 'pr-3'}`}>
+        <div className={`flex items-center h-full z-20 ${toolbarAlignRight ? 'pr-3 ml-auto' : 'pr-3 ml-auto'}`}>
           {toolbar}
         </div>
       )}
 
       {/* Window Controls - fixed position at window right edge */}
-      <div className={`flex shrink-0 ${toolbarAlignRight ? 'fixed right-0 top-0 h-9 z-50 bg-white dark:bg-zinc-900' : 'h-full'}`}>
+      <div className={`flex shrink-0 z-50 ${toolbarAlignRight ? 'fixed right-0 top-0 h-9 bg-white dark:bg-zinc-900' : 'h-full'}`}>
         <button
           onClick={togglePin}
           className="h-full w-12 flex items-center justify-center hover:bg-zinc-100 transition-colors"

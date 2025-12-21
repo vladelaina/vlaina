@@ -11,6 +11,7 @@ interface LayoutProps {
   children: ReactNode;
   onOpenSettings?: () => void;
   toolbar?: ReactNode;
+  center?: ReactNode;
   /** Left panel content */
   leftPanel?: ReactNode;
   showLeftPanel?: boolean;
@@ -31,7 +32,7 @@ function loadPanelWidth(key: string, defaultValue: number): number {
   return defaultValue;
 }
 
-export function Layout({ children, onOpenSettings, toolbar, leftPanel, showLeftPanel = false, rightPanel, showRightPanel = false }: LayoutProps) {
+export function Layout({ children, onOpenSettings, toolbar, center, leftPanel, showLeftPanel = false, rightPanel, showRightPanel = false }: LayoutProps) {
   const [rightPanelWidth, setRightPanelWidth] = useState(() => 
     loadPanelWidth(PANEL_CONFIG.right.storageKey, PANEL_CONFIG.right.default)
   );
@@ -127,7 +128,7 @@ export function Layout({ children, onOpenSettings, toolbar, leftPanel, showLeftP
         )}
 
         <div className="flex-1 flex flex-col min-w-0">
-          <TitleBar onOpenSettings={onOpenSettings} toolbar={toolbar} toolbarAlignRight={showRightPanel} />
+          <TitleBar onOpenSettings={onOpenSettings} toolbar={toolbar} center={center} toolbarAlignRight={showRightPanel} />
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
         
@@ -156,7 +157,7 @@ export function Layout({ children, onOpenSettings, toolbar, leftPanel, showLeftP
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      <TitleBar onOpenSettings={onOpenSettings} toolbar={toolbar} />
+      <TitleBar onOpenSettings={onOpenSettings} toolbar={toolbar} center={center} />
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
   );
