@@ -25,6 +25,13 @@ interface UsePanelDragAndDropProps {
   updateTaskTime: (taskId: string, startDate?: number | null, endDate?: number | null) => void;
   toggleTask: (taskId: string) => void;
   setDraggingTaskId: (id: string | null) => void;
+  // 日历相关参数
+  calendarInfo?: {
+    selectedDate: Date;
+    hourHeight: number;
+    viewMode: string;
+    dayCount: number;
+  };
 }
 
 export function usePanelDragAndDrop({
@@ -33,6 +40,7 @@ export function usePanelDragAndDrop({
   updateTaskTime,
   toggleTask,
   setDraggingTaskId,
+  calendarInfo,
 }: UsePanelDragAndDropProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
@@ -94,10 +102,67 @@ export function usePanelDragAndDrop({
     setDragIndent(0);
     setDraggingTaskId(null);
 
-    if (!over || active.id === over.id) return;
-
     const activeTask = tasks.find(t => t.id === active.id);
     if (!activeTask) return;
+
+    // 检查是否拖到了日历区域
+    const gridContainer = document.getElementById('time-grid-container');
+    if (gridContainer && calendarInfo) {
+      const rect = gridContainer.getBoundingClientRect();
+      const dropRect = event.active.rect.current.translated;
+      if (dropRect) {
+        const x = dropRect.left + 20;
+        const y = dropRect.top + 20;
+        
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+          const { selectedDate, hourHeight, viewMode, dayCount } = calendarInfo;
+          const GUTTER_WIDTH = 48;
+          const SNAP_MINUTES = 15;
+          
+          const scrollContainer = document.getElementById('time-grid-scroll');
+          const scrollTop = scrollContainer?.scrollTop || 0;
+          
+          const relativeX = x - rect.left - GUTTER_WIDTH;
+          if (relativeX < 0) return;
+          
+          const numDays = viewMode === 'week' ? 7 : (dayCount || 1);
+          const dayWidth = (rect.width - GUTTER_WIDTH) / numDays;
+          const dayIndex = Math.floor(relativeX / dayWidth);
+          if (dayIndex < 0 || dayIndex >= numDays) return;
+          
+          const relativeY = y - rect.top + scrollTop;
+          const totalMinutes = (relativeY / hourHeight) * 60;
+          const snappedMinutes = Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+          
+          // 计算周起始日期
+          const selected = new Date(selectedDate);
+          let weekStart: Date;
+          if (viewMode === 'week') {
+            const dayOfWeek = selected.getDay();
+            const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            weekStart = new Date(selected);
+            weekStart.setDate(selected.getDate() + mondayOffset);
+          } else {
+            weekStart = selected;
+          }
+          weekStart.setHours(0, 0, 0, 0);
+          
+          const dayDate = new Date(weekStart);
+          dayDate.setDate(weekStart.getDate() + dayIndex);
+          
+          const startDate = new Date(dayDate);
+          startDate.setHours(0, 0, 0, 0);
+          startDate.setMinutes(snappedMinutes);
+          
+          const endDate = new Date(startDate.getTime() + 25 * 60 * 1000);
+          
+          updateTaskTime(activeTask.id, startDate.getTime(), endDate.getTime());
+          return;
+        }
+      }
+    }
+
+    if (!over || active.id === over.id) return;
 
     const overId = over.id as string;
     
@@ -177,7 +242,7 @@ export function usePanelDragAndDrop({
     const INDENT_THRESHOLD = 28;
     const makeChild = dragIndent > INDENT_THRESHOLD;
     reorderTasks(active.id as string, over.id as string, makeChild);
-  }, [tasks, dragIndent, reorderTasks, updateTaskTime, toggleTask, setDraggingTaskId]);
+  }, [tasks, dragIndent, reorderTasks, updateTaskTime, toggleTask, setDraggingTaskId, calendarInfo]);
 
   return {
     sensors,

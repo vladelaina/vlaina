@@ -51,6 +51,10 @@ interface UIStore {
   // Drag state
   draggingTaskId: string | null;
   setDraggingTaskId: (id: string | null) => void;
+  
+  // 正在拖动到日历区域的任务ID（用于临时隐藏日历上的事件）
+  draggingToCalendarTaskId: string | null;
+  setDraggingToCalendarTaskId: (id: string | null) => void;
 }
 
 function loadColorFilter(): ItemColor[] {
@@ -185,4 +189,8 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   // Drag state
   draggingTaskId: null,
   setDraggingTaskId: (id) => set({ draggingTaskId: id }),
+  
+  // 正在拖动到日历区域的任务ID
+  draggingToCalendarTaskId: null,
+  setDraggingToCalendarTaskId: (id) => set({ draggingToCalendarTaskId: id }),
 }));

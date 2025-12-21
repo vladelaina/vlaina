@@ -26,15 +26,19 @@ export interface CalendarDisplayItem {
  * Also applies color filter from UI state
  * 
  * Exception: Currently editing event is always visible regardless of color filter
+ * Exception: Task being dragged to calendar is hidden to avoid duplicate display
  */
 export function useCalendarEvents(): CalendarDisplayItem[] {
   const tasks = useUnifiedStore(state => state.data.tasks);
   const editingEventId = useUnifiedStore(state => state.editingEventId);
   const selectedColors = useUIStore(state => state.selectedColors);
+  const draggingToCalendarTaskId = useUIStore(state => state.draggingToCalendarTaskId);
 
   const displayItems = useMemo(() => {
     return tasks
       .filter(t => t.startDate !== undefined)
+      // 隐藏正在拖动到日历的任务（避免重复显示）
+      .filter(t => t.id !== draggingToCalendarTaskId)
       .filter(t => 
         // Always show the event being edited, regardless of color filter
         t.id === editingEventId || 
@@ -50,7 +54,7 @@ export function useCalendarEvents(): CalendarDisplayItem[] {
         completed: t.completed,
         groupId: t.groupId,
       }));
-  }, [tasks, selectedColors, editingEventId]);
+  }, [tasks, selectedColors, editingEventId, draggingToCalendarTaskId]);
 
   return displayItems;
 }

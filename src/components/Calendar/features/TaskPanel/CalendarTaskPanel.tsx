@@ -13,7 +13,7 @@ import {
   Maximize2, Minimize2, ChevronDown, Check,
   Archive, Search, X
 } from 'lucide-react';
-import { DndContext, DragOverlay } from '@dnd-kit/core';
+import { DndContext, DragOverlay, DragMoveEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
@@ -30,6 +30,40 @@ import { ProgressContent } from '@/components/Progress/features/ProgressContent'
 // 颜色排序
 const colorOrder: Record<string, number> = { 
   red: 0, yellow: 1, purple: 2, green: 3, blue: 4, default: 5 
+};
+
+// 颜色样式（用于日历事件块样式的 DragOverlay）
+const COLOR_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+  blue: {
+    bg: 'bg-blue-50/90 dark:bg-blue-950/40',
+    text: 'text-blue-700 dark:text-blue-200',
+    border: 'border-blue-400 dark:border-blue-500',
+  },
+  red: {
+    bg: 'bg-rose-50/90 dark:bg-rose-950/40',
+    text: 'text-rose-700 dark:text-rose-200',
+    border: 'border-rose-400 dark:border-rose-500',
+  },
+  green: {
+    bg: 'bg-emerald-50/90 dark:bg-emerald-950/40',
+    text: 'text-emerald-700 dark:text-emerald-200',
+    border: 'border-emerald-400 dark:border-emerald-500',
+  },
+  yellow: {
+    bg: 'bg-amber-50/90 dark:bg-amber-950/40',
+    text: 'text-amber-700 dark:text-amber-200',
+    border: 'border-amber-400 dark:border-amber-500',
+  },
+  purple: {
+    bg: 'bg-violet-50/90 dark:bg-violet-950/40',
+    text: 'text-violet-700 dark:text-violet-200',
+    border: 'border-violet-400 dark:border-violet-500',
+  },
+  default: {
+    bg: 'bg-zinc-50/90 dark:bg-zinc-800/40',
+    text: 'text-zinc-700 dark:text-zinc-200',
+    border: 'border-zinc-400 dark:border-zinc-500',
+  },
 };
 
 // 面板视图类型
@@ -65,12 +99,16 @@ export function CalendarTaskPanel({
     selectedColors,
     selectedStatuses,
     setDraggingTaskId,
+    setDraggingToCalendarTaskId,
   } = useUIStore();
 
-  const { editingEventId, events } = useCalendarStore();
+  const { editingEventId, events, selectedDate, hourHeight, viewMode, dayCount } = useCalendarStore();
 
   // 面板视图状态
   const [panelView, setPanelView] = useState<PanelView>('tasks');
+
+  // 追踪拖拽是否在日历区域
+  const [isOverCalendar, setIsOverCalendar] = useState(false);
 
   // 本地状态
   const [showGroupPicker, setShowGroupPicker] = useState(false);
@@ -107,7 +145,62 @@ export function CalendarTaskPanel({
     updateTaskTime,
     toggleTask,
     setDraggingTaskId,
+    calendarInfo: {
+      selectedDate,
+      hourHeight,
+      viewMode,
+      dayCount,
+    },
   });
+
+  // 检测拖拽是否在日历区域
+  const checkIsOverCalendar = useCallback((event: DragMoveEvent) => {
+    const gridContainer = document.getElementById('time-grid-container');
+    if (!gridContainer) {
+      setIsOverCalendar(false);
+      setDraggingToCalendarTaskId(null);
+      return;
+    }
+    
+    const rect = gridContainer.getBoundingClientRect();
+    const { activatorEvent, active } = event;
+    
+    // 获取当前鼠标位置
+    if (activatorEvent instanceof MouseEvent || activatorEvent instanceof PointerEvent) {
+      const delta = event.delta;
+      const initialX = (activatorEvent as MouseEvent).clientX;
+      const initialY = (activatorEvent as MouseEvent).clientY;
+      const currentX = initialX + delta.x;
+      const currentY = initialY + delta.y;
+      
+      const isOver = currentX >= rect.left && currentX <= rect.right && 
+                     currentY >= rect.top && currentY <= rect.bottom;
+      setIsOverCalendar(isOver);
+      
+      // 如果拖动的是已分配任务且进入日历区域，隐藏日历上的事件
+      if (isOver) {
+        const task = tasks.find(t => t.id === active.id);
+        if (task?.startDate) {
+          setDraggingToCalendarTaskId(task.id);
+        }
+      } else {
+        setDraggingToCalendarTaskId(null);
+      }
+    }
+  }, [tasks, setDraggingToCalendarTaskId]);
+
+  // 包装 handleDragMove 以同时检测日历区域
+  const wrappedHandleDragMove = useCallback((event: DragMoveEvent) => {
+    handleDragMove(event);
+    checkIsOverCalendar(event);
+  }, [handleDragMove, checkIsOverCalendar]);
+
+  // 包装 handleDragEnd 以重置状态
+  const wrappedHandleDragEnd = useCallback((event: Parameters<typeof handleDragEnd>[0]) => {
+    handleDragEnd(event);
+    setIsOverCalendar(false);
+    setDraggingToCalendarTaskId(null);
+  }, [handleDragEnd, setDraggingToCalendarTaskId]);
 
   // 获取子任务
   const getChildren = useCallback((parentId: string) => {
@@ -507,9 +600,9 @@ export function CalendarTaskPanel({
           sensors={sensors}
           collisionDetection={customCollisionDetection}
           onDragStart={handleDragStart}
-          onDragMove={handleDragMove}
+          onDragMove={wrappedHandleDragMove}
           onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
+          onDragEnd={wrappedHandleDragEnd}
         >
           {/* 使用统一的 SortableContext 让跨区域拖动时能正确让位 */}
           <SortableContext 
@@ -601,6 +694,47 @@ export function CalendarTaskPanel({
               {activeId ? (() => {
                 const task = tasks.find(t => t.id === activeId);
                 if (!task) return null;
+                
+                // 在日历区域时显示日历事件块样式
+                if (isOverCalendar) {
+                  const colorStyles = COLOR_STYLES[task.color || 'default'] || COLOR_STYLES.default;
+                  // 计算 25 分钟的实际高度：hourHeight * (25 / 60)
+                  const eventHeight = Math.max(hourHeight * (25 / 60), 20);
+                  return (
+                    <div 
+                      className={cn(
+                        "w-[120px] flex flex-col",
+                        "border-l-[3px]",
+                        colorStyles.border,
+                        colorStyles.bg,
+                        "rounded-[5px]",
+                        "shadow-xl shadow-black/15 dark:shadow-black/40"
+                      )}
+                      style={{ height: `${eventHeight}px` }}
+                    >
+                      <div className="flex items-start gap-1.5 px-2 py-1">
+                        <div className="flex-1 min-w-0">
+                          <p className={cn(
+                            "font-medium leading-tight truncate text-[11px]",
+                            colorStyles.text
+                          )}>
+                            {task.content || 'Untitled'}
+                          </p>
+                          {eventHeight >= 32 && (
+                            <p className={cn(
+                              "mt-0.5 tabular-nums font-medium text-[9px] opacity-70",
+                              colorStyles.text
+                            )}>
+                              25m
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                
+                // 默认任务卡片样式
                 return (
                   <div className="px-3 py-2 bg-white dark:bg-zinc-800 rounded-lg shadow-xl ring-1 ring-black/5 dark:ring-white/10 max-w-[240px]">
                     <span className="text-[13px] text-zinc-700 dark:text-zinc-200 line-clamp-2">

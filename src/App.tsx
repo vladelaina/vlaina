@@ -107,10 +107,10 @@ function AppContent() {
       const dayDate = addDays(weekStart, dayIndex);
       const startDate = addMinutes(startOfDay(dayDate), snappedMinutes);
 
-      const endDate = addMinutes(startDate, task.estimatedMinutes || 60);
+      const endDate = addMinutes(startDate, task.estimatedMinutes || 25);
       updateTaskTime(task.id, startDate.getTime(), endDate.getTime());
       if (!task.estimatedMinutes) {
-        updateTaskEstimation(task.id, 60);
+        updateTaskEstimation(task.id, 25);
       }
     }
   };
