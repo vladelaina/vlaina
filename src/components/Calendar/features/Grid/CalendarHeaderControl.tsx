@@ -54,7 +54,7 @@ export function CalendarHeaderControl() {
                     <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
                       {format(day, 'EEE')}
                     </span>
-                    <span className={`text-sm font-semibold ${isSameDay(day, new Date()) ? 'text-red-500 dark:text-red-400' : 'text-zinc-700 dark:text-zinc-200'}`}>
+                    <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
                       {format(day, 'd')}
                     </span>
                   </div>
