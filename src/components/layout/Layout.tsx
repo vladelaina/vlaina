@@ -1,5 +1,6 @@
 import { ReactNode, useState, useRef, useCallback, useEffect } from 'react';
 import { TitleBar } from './TitleBar';
+import { WindowControls } from './WindowControls';
 import { cn } from '@/lib/utils';
 
 const PANEL_CONFIG = {
@@ -128,7 +129,7 @@ export function Layout({ children, onOpenSettings, toolbar, content, leftPanel, 
         )}
 
         <div className="flex-1 flex flex-col min-w-0">
-          <TitleBar onOpenSettings={onOpenSettings} toolbar={toolbar} content={content} toolbarAlignRight={showRightPanel} />
+          <TitleBar onOpenSettings={onOpenSettings} toolbar={toolbar} content={content} hideWindowControls={showRightPanel} />
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
         
@@ -147,6 +148,10 @@ export function Layout({ children, onOpenSettings, toolbar, content, leftPanel, 
               className="flex-shrink-0 flex flex-col bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl overflow-hidden"
               style={{ width: rightPanelWidth }}
             >
+              {/* Window Controls at top of right panel */}
+              <div className="flex-shrink-0 flex justify-end border-b border-zinc-200 dark:border-zinc-800">
+                <WindowControls />
+              </div>
               <div className="flex-1 overflow-auto min-w-0">{rightPanel}</div>
             </aside>
           </>

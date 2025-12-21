@@ -1,6 +1,7 @@
-import { useState, ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Minus, Square, X, Pin, Settings } from 'lucide-react';
+import { Settings } from 'lucide-react';
+import { WindowControls } from './WindowControls';
 
 const appWindow = getCurrentWindow();
 
@@ -8,19 +9,11 @@ interface TitleBarProps {
   onOpenSettings?: () => void;
   toolbar?: ReactNode;
   content?: ReactNode;
-  /** When true, toolbar is aligned to right edge (for calendar with right panel) */
-  toolbarAlignRight?: boolean;
+  /** When true, window controls are hidden (shown in right panel instead) */
+  hideWindowControls?: boolean;
 }
 
-export function TitleBar({ onOpenSettings, toolbar, content, toolbarAlignRight }: TitleBarProps) {
-  const [isPinned, setIsPinned] = useState(false);
-
-  const togglePin = async () => {
-    const newPinned = !isPinned;
-    await appWindow.setAlwaysOnTop(newPinned);
-    setIsPinned(newPinned);
-  };
-
+export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls }: TitleBarProps) {
   const startDrag = async () => {
     await appWindow.startDragging();
   };
@@ -61,42 +54,13 @@ export function TitleBar({ onOpenSettings, toolbar, content, toolbarAlignRight }
 
       {/* Custom Toolbar (e.g., Calendar controls) */}
       {toolbar && (
-        <div className={`flex items-center h-full z-20 ${toolbarAlignRight ? 'pr-3' : 'pr-3'}`}>
+        <div className="flex items-center h-full z-20 pr-3">
           {toolbar}
         </div>
       )}
 
-      {/* Window Controls */}
-      <div className={`flex shrink-0 z-50 ${toolbarAlignRight ? 'relative' : 'h-full'}`}>
-        <button
-          onClick={togglePin}
-          className="h-full w-12 flex items-center justify-center hover:bg-zinc-100 transition-colors"
-          title={isPinned ? 'Unpin window' : 'Pin window'}
-        >
-          <Pin className={`size-4 transition-all duration-200 ${isPinned ? 'text-zinc-500 rotate-0' : 'text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500 rotate-45'}`} />
-        </button>
-
-        <button
-          onClick={() => appWindow.minimize()}
-          className="h-full w-12 flex items-center justify-center hover:bg-zinc-100 transition-colors"
-        >
-          <Minus className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
-        </button>
-
-        <button
-          onClick={() => appWindow.toggleMaximize()}
-          className="h-full w-12 flex items-center justify-center hover:bg-zinc-100 transition-colors"
-        >
-          <Square className="size-3.5 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
-        </button>
-
-        <button
-          onClick={() => appWindow.close()}
-          className="h-full w-12 flex items-center justify-center hover:bg-red-500 transition-colors group"
-        >
-          <X className="size-4 text-zinc-200 hover:text-zinc-400 group-hover:text-white dark:text-zinc-700 dark:hover:text-zinc-500" />
-        </button>
-      </div>
+      {/* Window Controls - only show when right panel is hidden */}
+      {!hideWindowControls && <WindowControls className="z-50" />}
     </div>
   );
 }
