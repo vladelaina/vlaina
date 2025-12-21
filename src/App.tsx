@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SettingsModal } from '@/components/common/Settings';
 import { CalendarPage, CalendarToolbar, CalendarTaskPanel } from '@/components/Calendar';
-import { DateSelector } from '@/components/Calendar/features/DateSelector';
 import { Layout } from '@/components/layout';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
@@ -59,7 +58,6 @@ function AppContent() {
       <Layout 
         onOpenSettings={() => setSettingsOpen(true)} 
         toolbar={<CalendarToolbar />}
-        center={<DateSelector />}
         rightPanel={<CalendarTaskPanel />}
         showRightPanel={showContextPanel}
       >

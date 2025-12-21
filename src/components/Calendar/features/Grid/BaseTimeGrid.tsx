@@ -7,6 +7,9 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { format, isSameDay, getHours, getMinutes, startOfDay, addMinutes } from 'date-fns';
+import { CaretDown } from '@phosphor-icons/react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { MiniCalendar } from '../DateSelector/MiniCalendar';
 
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useGroupStore } from '@/stores/useGroupStore';
@@ -29,10 +32,11 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
   const { 
     addEvent, setEditingEventId, closeEditingEvent, 
     timezone, setTimezone, hourHeight, updateEvent,
-    use24Hour, toggle24Hour
+    use24Hour, toggle24Hour, selectedDate, setSelectedDate
   } = useCalendarStore();
   const { toggleTask } = useGroupStore();
   const displayItems = useCalendarEvents();
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const [now, setNow] = useState(new Date());
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -288,18 +292,39 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
 
         {/* Date header */}
         <div className="flex-1 flex justify-center">
-          <div className="flex items-center gap-8">
-            {days.map((day) => (
-              <div key={day.toString()} className="flex items-center gap-1">
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {format(day, 'EEE')}
-                </span>
-                <span className="text-sm text-zinc-800 dark:text-zinc-200">
-                  {format(day, 'd')}
-                </span>
-              </div>
-            ))}
-          </div>
+          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <button 
+                className="flex items-center gap-2 px-3 py-1 -my-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group outline-none"
+              >
+                <div className="flex items-center gap-8">
+                  {days.map((day) => (
+                    <div key={day.toString()} className="flex items-center gap-1">
+                      <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                        {format(day, 'EEE')}
+                      </span>
+                      <span className="text-sm text-zinc-800 dark:text-zinc-200">
+                        {format(day, 'd')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <CaretDown 
+                  weight="bold" 
+                  className={`size-3 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-transform duration-200 ${datePickerOpen ? 'rotate-180' : ''}`} 
+                />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2" align="center" sideOffset={8}>
+              <MiniCalendar 
+                selectedDate={selectedDate} 
+                onSelect={(date) => {
+                  setSelectedDate(date);
+                  setDatePickerOpen(false);
+                }} 
+              />
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
