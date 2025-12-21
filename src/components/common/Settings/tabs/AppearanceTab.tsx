@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Folder, RotateCcw } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { useCalendarStore } from '@/stores/useCalendarStore';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
 
 /**
@@ -8,11 +9,18 @@ import { selectClassName, selectStyle, settingsButtonClassName } from '../styles
  */
 export function AppearanceTab() {
   const { theme, setTheme } = useTheme();
+  const { timezone, setTimezone, use24Hour, toggle24Hour } = useCalendarStore();
   const [fontSize, setFontSize] = useState<number>(() => {
     const saved = localStorage.getItem('fontSize');
     return saved !== null ? parseInt(saved) : 14;
   });
   const [showFontSizeTooltip, setShowFontSizeTooltip] = useState(false);
+  const [timezoneInput, setTimezoneInput] = useState(timezone.toString());
+
+  // Update input when timezone changes externally
+  useEffect(() => {
+    setTimezoneInput(timezone.toString());
+  }, [timezone]);
 
   // Apply global font size
   useEffect(() => {
@@ -46,6 +54,20 @@ export function AppearanceTab() {
   const resetFontSize = () => {
     setFontSize(14);
     localStorage.setItem('fontSize', '14');
+  };
+
+  const handleTimezoneSubmit = () => {
+    const input = timezoneInput.trim();
+    const match = input.match(/^([+-]?\d{1,2})$/);
+    if (match) {
+      const value = parseInt(match[0], 10);
+      if (value >= -12 && value <= 14) {
+        setTimezone(value);
+        return;
+      }
+    }
+    // Reset if invalid
+    setTimezoneInput(timezone.toString());
   };
 
   return (
@@ -149,6 +171,42 @@ export function AppearanceTab() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Time Format */}
+        <div className="py-3 border-b border-zinc-200 dark:border-zinc-700">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                Time Format
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-zinc-500">GMT</span>
+                <input
+                  type="text"
+                  value={timezoneInput}
+                  onChange={(e) => setTimezoneInput(e.target.value)}
+                  onBlur={handleTimezoneSubmit}
+                  onKeyDown={(e) => e.key === 'Enter' && handleTimezoneSubmit()}
+                  className="w-12 h-8 px-2 text-sm text-center bg-zinc-100 dark:bg-zinc-800 rounded border border-transparent focus:border-zinc-300 dark:focus:border-zinc-600 outline-none transition-all"
+                  placeholder="+8"
+                />
+              </div>
+              <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700" />
+              <button
+                onClick={toggle24Hour}
+                className={`px-3 py-1.5 text-sm rounded transition-colors ${
+                  use24Hour 
+                    ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900' 
+                    : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                }`}
+              >
+                {use24Hour ? '24h' : '12h'}
+              </button>
             </div>
           </div>
         </div>

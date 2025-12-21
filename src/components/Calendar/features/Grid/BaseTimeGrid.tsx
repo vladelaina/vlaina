@@ -7,9 +7,6 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { format, isSameDay, getHours, getMinutes, startOfDay, addMinutes } from 'date-fns';
-import { CaretDown } from '@phosphor-icons/react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { MiniCalendar } from '../DateSelector/MiniCalendar';
 
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useGroupStore } from '@/stores/useGroupStore';
@@ -31,17 +28,14 @@ interface BaseTimeGridProps {
 export function BaseTimeGrid({ days }: BaseTimeGridProps) {
   const { 
     addEvent, setEditingEventId, closeEditingEvent, 
-    timezone, setTimezone, hourHeight, updateEvent,
-    use24Hour, toggle24Hour, selectedDate, setSelectedDate
+    hourHeight, updateEvent, use24Hour
   } = useCalendarStore();
   const { toggleTask } = useGroupStore();
   const displayItems = useCalendarEvents();
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const [now, setNow] = useState(new Date());
   const scrollRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const timezoneInputRef = useRef<HTMLInputElement>(null);
 
   // Drag-to-create state
   const [isDragging, setIsDragging] = useState(false);
@@ -57,10 +51,6 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
     originalStart: number;
     originalEnd: number;
   } | null>(null);
-
-  // Timezone editing state
-  const [isEditingTimezone, setIsEditingTimezone] = useState(false);
-  const [timezoneInput, setTimezoneInput] = useState('');
 
   const columnCount = days.length;
   const snapMinutes = getSnapMinutes(hourHeight);
@@ -227,117 +217,12 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
     };
   }, [isDragging, eventDrag, handleMouseMove, handleMouseUp]);
 
-  // ============ Timezone Editing ============
-
-  const handleTimezoneSubmit = useCallback(() => {
-    const input = timezoneInput.trim();
-    const match = input.match(/^([+-])?(\d{1,2})$/);
-    if (match) {
-      const sign = match[1] === '-' ? -1 : 1;
-      const value = parseInt(match[2], 10);
-      if (value >= 0 && value <= 14) {
-        setTimezone(sign * value);
-      }
-    }
-    setIsEditingTimezone(false);
-  }, [timezoneInput, setTimezone]);
-
   // ============ Render ============
 
   const nowTop = getHours(now) * hourHeight + (getMinutes(now) / 60) * hourHeight;
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-zinc-950 select-none relative">
-      {/* Header */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 border-b border-zinc-100 dark:border-zinc-800/50">
-        {/* Timezone & Time Format */}
-        <div className="flex items-center gap-2">
-          {isEditingTimezone ? (
-            <div className="flex items-center">
-              <span className="text-zinc-400 text-[10px]">GMT</span>
-              <input
-                ref={timezoneInputRef}
-                type="text"
-                value={timezoneInput}
-                onChange={(e) => setTimezoneInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleTimezoneSubmit();
-                  else if (e.key === 'Escape') setIsEditingTimezone(false);
-                }}
-                onBlur={handleTimezoneSubmit}
-                className="w-6 text-[10px] text-zinc-400 bg-transparent border-b border-zinc-300 dark:border-zinc-600 outline-none text-center"
-                autoFocus
-              />
-            </div>
-          ) : (
-            <button
-              onClick={() => {
-                setTimezoneInput(timezone >= 0 ? `+${timezone}` : `${timezone}`);
-                setIsEditingTimezone(true);
-                setTimeout(() => timezoneInputRef.current?.select(), 0);
-              }}
-              className="text-zinc-400 text-[10px] hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-            >
-              GMT{timezone >= 0 ? `+${timezone}` : timezone}
-            </button>
-          )}
-          <button
-            onClick={toggle24Hour}
-            className="text-zinc-400 text-[10px] hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-            title={use24Hour ? 'Switch to 12-hour format' : 'Switch to 24-hour format'}
-          >
-            {use24Hour ? '24h' : '12h'}
-          </button>
-        </div>
-
-        {/* Date header */}
-        <div className="flex-1 flex justify-center items-center gap-3">
-          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-            <PopoverTrigger asChild>
-              <button 
-                className="flex items-center gap-2 px-3 py-1 -my-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group outline-none"
-              >
-                <div className="flex items-center gap-8">
-                  {days.map((day) => (
-                    <div key={day.toString()} className="flex items-center gap-1">
-                      <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                        {format(day, 'EEE')}
-                      </span>
-                      <span className="text-sm text-zinc-800 dark:text-zinc-200">
-                        {format(day, 'd')}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <CaretDown 
-                  weight="bold" 
-                  className={`size-3 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-transform duration-200 ${datePickerOpen ? 'rotate-180' : ''}`} 
-                />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-2" align="center" sideOffset={8}>
-              <MiniCalendar 
-                selectedDate={selectedDate} 
-                onSelect={(date) => {
-                  setSelectedDate(date);
-                  setDatePickerOpen(false);
-                }} 
-              />
-            </PopoverContent>
-          </Popover>
-
-          {/* Today Button - Only show when not viewing today */}
-          {!days.some(day => isSameDay(day, now)) && (
-            <button
-              onClick={() => setSelectedDate(new Date())}
-              className="px-2 py-0.5 text-xs font-medium text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-800/50 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-md transition-all animate-in fade-in zoom-in-95 duration-200"
-            >
-              Today
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Main body */}
       <div ref={scrollRef} id="time-grid-scroll" className="flex-1 overflow-y-auto relative scrollbar-hidden">
         <div className="flex relative" style={{ minHeight: hourHeight * 24 }}>

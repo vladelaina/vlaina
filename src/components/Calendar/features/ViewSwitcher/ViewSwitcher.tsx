@@ -25,12 +25,17 @@ const VIEW_MODE_ORDER: ViewMode[] = ['day', 'week', 'month'];
 const DAY_COUNT_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9];
 
 export function ViewSwitcher() {
-  const { viewMode, setViewMode, selectedDate, setSelectedDate, dayCount, setDayCount, showContextPanel, toggleContextPanel } = useCalendarStore();
+  const { 
+    viewMode, setViewMode, selectedDate, setSelectedDate, dayCount, setDayCount, 
+    showContextPanel, toggleContextPanel
+  } = useCalendarStore();
+  
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const [showDayCountSubmenu, setShowDayCountSubmenu] = useState(false);
   const [showCustomDayModal, setShowCustomDayModal] = useState(false);
   const [customDayInput, setCustomDayInput] = useState('');
+  
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const submenuRef = useRef<HTMLDivElement>(null);

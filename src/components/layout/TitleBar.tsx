@@ -7,12 +7,12 @@ const appWindow = getCurrentWindow();
 interface TitleBarProps {
   onOpenSettings?: () => void;
   toolbar?: ReactNode;
-  center?: ReactNode;
+  content?: ReactNode;
   /** When true, toolbar is aligned to right edge (for calendar with right panel) */
   toolbarAlignRight?: boolean;
 }
 
-export function TitleBar({ onOpenSettings, toolbar, center, toolbarAlignRight }: TitleBarProps) {
+export function TitleBar({ onOpenSettings, toolbar, content, toolbarAlignRight }: TitleBarProps) {
   const [isPinned, setIsPinned] = useState(false);
 
   const togglePin = async () => {
@@ -26,7 +26,12 @@ export function TitleBar({ onOpenSettings, toolbar, center, toolbarAlignRight }:
   };
 
   return (
-    <div className="h-9 bg-white dark:bg-zinc-900 flex items-center justify-between select-none relative">
+    <div 
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) startDrag();
+      }}
+      className="h-10 bg-white dark:bg-zinc-900 flex items-center justify-between select-none relative z-50 border-b border-zinc-200 dark:border-zinc-800"
+    >
       {/* Left: Settings Button */}
       <button
         onClick={onOpenSettings}
@@ -36,28 +41,29 @@ export function TitleBar({ onOpenSettings, toolbar, center, toolbarAlignRight }:
         <Settings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
       </button>
 
-      {/* Draggable Area */}
+      {/* Main Content Area */}
       <div 
-        onMouseDown={startDrag}
-        className="absolute inset-0 z-0"
-      />
+        onMouseDown={(e) => {
+          // Only start drag if clicking directly on the container or an element marked for dragging
+          if (e.target === e.currentTarget || (e.target as HTMLElement).hasAttribute('data-tauri-drag-region')) {
+            startDrag();
+          }
+        }}
+        className="flex-1 h-full flex items-center min-w-0"
+        data-tauri-drag-region
+      >
+        {content}
+      </div>
 
-      {/* Center Content */}
-      {center && (
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-          {center}
-        </div>
-      )}
-
-      {/* Custom Toolbar (e.g., Calendar controls) - aligned to right edge when toolbarAlignRight */}
+      {/* Custom Toolbar (e.g., Calendar controls) */}
       {toolbar && (
-        <div className={`flex items-center h-full z-20 ${toolbarAlignRight ? 'pr-3 ml-auto' : 'pr-3 ml-auto'}`}>
+        <div className={`flex items-center h-full z-20 ${toolbarAlignRight ? 'pr-3 ml-auto' : 'pr-3'}`}>
           {toolbar}
         </div>
       )}
 
-      {/* Window Controls - fixed position at window right edge */}
-      <div className={`flex shrink-0 z-50 ${toolbarAlignRight ? 'fixed right-0 top-0 h-9 bg-white dark:bg-zinc-900' : 'h-full'}`}>
+      {/* Window Controls */}
+      <div className={`flex shrink-0 z-50 ${toolbarAlignRight ? 'relative' : 'h-full'}`}>
         <button
           onClick={togglePin}
           className="h-full w-12 flex items-center justify-center hover:bg-zinc-100 transition-colors"
