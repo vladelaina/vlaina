@@ -74,6 +74,7 @@ export function CalendarTaskPanel({
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [scheduledExpanded, setScheduledExpanded] = useState(true);
   const [completedExpanded, setCompletedExpanded] = useState(false);
   const [showCompletedMenu, setShowCompletedMenu] = useState(false);
   const [addingSubTaskFor, setAddingSubTaskFor] = useState<string | null>(null);
@@ -120,7 +121,7 @@ export function CalendarTaskPanel({
 
 
   // 过滤和排序任务
-  const { incompleteTasks, completedTasks } = useMemo(() => {
+  const { incompleteTasks, scheduledTasks, completedTasks } = useMemo(() => {
     const topLevelTasks = tasks
       .filter((t) => {
         if (t.groupId !== activeGroupId || t.parentId) return false;
@@ -139,8 +140,17 @@ export function CalendarTaskPanel({
         return a.order - b.order;
       });
 
+    // 未完成的任务
+    const notCompleted = topLevelTasks.filter((t) => !t.completed);
+    
+    // 已分配（有 startDate）vs 待办（没有 startDate）
+    // 都按颜色优先级排序，保持统一逻辑
+    const scheduled = notCompleted.filter((t) => t.startDate);
+    const unscheduled = notCompleted.filter((t) => !t.startDate);
+
     return {
-      incompleteTasks: topLevelTasks.filter((t) => !t.completed),
+      incompleteTasks: unscheduled,
+      scheduledTasks: scheduled,
       completedTasks: hideCompleted ? [] : topLevelTasks.filter((t) => t.completed),
     };
   }, [tasks, activeGroupId, hideCompleted, selectedColors, searchQuery]);
@@ -156,6 +166,17 @@ export function CalendarTaskPanel({
     incompleteTasks.forEach(addTaskAndChildren);
     return ids;
   }, [incompleteTasks, tasks]);
+
+  const scheduledTaskIds = useMemo(() => {
+    const ids: string[] = [];
+    const addTaskAndChildren = (task: typeof scheduledTasks[0]) => {
+      ids.push(task.id);
+      const children = tasks.filter(t => t.parentId === task.id);
+      children.forEach(addTaskAndChildren);
+    };
+    scheduledTasks.forEach(addTaskAndChildren);
+    return ids;
+  }, [scheduledTasks, tasks]);
 
   const completedTaskIds = useMemo(() => {
     const ids: string[] = [];
@@ -473,12 +494,50 @@ export function CalendarTaskPanel({
               <div className="space-y-2">
                 {incompleteTasks.map(task => renderTaskItem(task, 0))}
               </div>
-            ) : (
+            ) : scheduledTasks.length === 0 ? (
               <div className="py-8 text-center">
                 <p className="text-xs text-zinc-400 dark:text-zinc-600">No tasks</p>
               </div>
-            )}
+            ) : null}
           </SortableContext>
+
+          {/* 已分配任务 */}
+          {scheduledTasks.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 w-full mt-4 mb-2">
+                <button
+                  onClick={() => setScheduledExpanded(!scheduledExpanded)}
+                  className="flex items-center gap-2 group hover:opacity-80 transition-opacity"
+                >
+                  <ChevronDown className={cn(
+                    "size-3.5 text-zinc-400 transition-transform",
+                    !scheduledExpanded && "-rotate-90"
+                  )} />
+                  <span className="text-xs text-zinc-400">
+                    Scheduled ({scheduledTasks.length})
+                  </span>
+                </button>
+                <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
+              </div>
+
+              <AnimatePresence>
+                {scheduledExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <SortableContext items={scheduledTaskIds} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-2">
+                        {scheduledTasks.map(task => renderTaskItem(task, 0))}
+                      </div>
+                    </SortableContext>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </>
+          )}
 
           {/* 已完成任务 */}
           {completedTasks.length > 0 && (
