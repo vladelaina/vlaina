@@ -11,6 +11,7 @@ import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useVimShortcuts } from '@/hooks/useVimShortcuts';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
+import { useLicenseInit } from '@/hooks/useLicenseInit';
 import { getShortcutKeys } from '@/lib/shortcuts';
 import { startOfWeek, addDays, startOfDay, addMinutes } from 'date-fns';
 import { CALENDAR_CONSTANTS } from '@/components/Calendar/utils/timeUtils';
@@ -30,6 +31,9 @@ function AppContent() {
 
   // Initialize sync status (check connection, refresh tokens if needed)
   useSyncInit();
+
+  // Initialize license status (check PRO status, validate if needed)
+  useLicenseInit();
 
   // Load data on app startup
   useEffect(() => {

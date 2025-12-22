@@ -7,6 +7,7 @@
 
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
+import { useLicenseStore } from './useLicenseStore';
 
 // Types matching Rust backend
 interface SyncStatus {
@@ -54,6 +55,9 @@ interface SyncState {
   
   // Loading state
   isLoading: boolean;
+  
+  // Auto sync (PRO feature)
+  autoSyncEnabled: boolean;
 }
 
 // Store actions
@@ -78,6 +82,12 @@ interface SyncActions {
   
   // Clear error
   clearError: () => void;
+  
+  // Toggle auto sync (PRO feature)
+  toggleAutoSync: () => boolean;
+  
+  // Check if user can use auto sync
+  canUseAutoSync: () => boolean;
 }
 
 type SyncStore = SyncState & SyncActions;
@@ -92,6 +102,7 @@ const initialState: SyncState = {
   hasRemoteData: false,
   remoteModifiedTime: null,
   isLoading: true,
+  autoSyncEnabled: false,
 };
 
 export const useSyncStore = create<SyncStore>((set, get) => ({
@@ -257,5 +268,23 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
 
   clearError: () => {
     set({ syncError: null });
+  },
+
+  toggleAutoSync: () => {
+    const isProUser = useLicenseStore.getState().isProUser;
+    
+    if (!isProUser) {
+      set({ syncError: '自动同步是 PRO 功能，请先激活 PRO 会员' });
+      return false;
+    }
+    
+    const newValue = !get().autoSyncEnabled;
+    set({ autoSyncEnabled: newValue });
+    localStorage.setItem('autoSyncEnabled', JSON.stringify(newValue));
+    return true;
+  },
+
+  canUseAutoSync: () => {
+    return useLicenseStore.getState().isProUser;
   },
 }));

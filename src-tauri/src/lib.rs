@@ -4,6 +4,9 @@ use tauri::window::Color;
 // Google Drive sync module
 pub mod google_drive;
 
+// License activation module
+pub mod license;
+
 // Create drag overlay window
 #[tauri::command]
 async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, width: f64, height: f64, is_done: bool, is_dark: bool, color: Option<String>) -> Result<(), String> {
@@ -167,7 +170,12 @@ pub fn run() {
             google_drive::commands::get_sync_status,
             google_drive::commands::sync_to_drive,
             google_drive::commands::restore_from_drive,
-            google_drive::commands::check_remote_data
+            google_drive::commands::check_remote_data,
+            license::commands::get_device_id,
+            license::commands::activate_license,
+            license::commands::deactivate_license,
+            license::commands::get_license_status,
+            license::commands::validate_license_background
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
