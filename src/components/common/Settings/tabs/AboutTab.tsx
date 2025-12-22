@@ -1,20 +1,67 @@
-import { useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ExternalLink, Cloud, CloudOff, RefreshCw, Download, Loader2, AlertCircle } from 'lucide-react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
-
-interface AboutTabProps {
-  onShowLogin: () => void;
-}
+import { useSyncStore } from '@/stores/useSyncStore';
 
 /**
- * About tab content - account, version, updates, language
+ * About tab content - cloud sync, version, updates, language
  */
-export function AboutTab({ onShowLogin }: AboutTabProps) {
+export function AboutTab() {
   const [autoUpdate, setAutoUpdate] = useState<boolean>(() => {
     const saved = localStorage.getItem('autoUpdate');
     return saved !== null ? JSON.parse(saved) : true;
   });
+
+  const {
+    isConnected,
+    userEmail,
+    isSyncing,
+    isConnecting,
+    lastSyncTime,
+    syncError,
+    hasRemoteData,
+    isLoading,
+    connect,
+    disconnect,
+    syncToCloud,
+    restoreFromCloud,
+    clearError,
+    checkStatus,
+  } = useSyncStore();
+
+  useEffect(() => {
+    checkStatus();
+  }, [checkStatus]);
+
+  const formatLastSync = (timestamp: number | null) => {
+    if (!timestamp) return 'Never';
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleString();
+  };
+
+  const handleConnect = async () => {
+    clearError();
+    await connect();
+  };
+
+  const handleDisconnect = async () => {
+    if (confirm('Are you sure you want to disconnect from Google Drive?')) {
+      await disconnect();
+    }
+  };
+
+  const handleSync = async () => {
+    clearError();
+    await syncToCloud();
+  };
+
+  const handleRestore = async () => {
+    if (confirm('This will replace your local data with the cloud backup. Continue?')) {
+      clearError();
+      await restoreFromCloud();
+    }
+  };
 
   const toggleAutoUpdate = () => {
     const newValue = !autoUpdate;
@@ -26,35 +73,122 @@ export function AboutTab({ onShowLogin }: AboutTabProps) {
     await openUrl('https://github.com/NekoTick/NekoTick');
   };
 
-  const openSignup = async () => {
-    await openUrl('https://nekotick.com/auth#signup');
-  };
-
   return (
     <div className="max-w-3xl">
-      {/* Account Section */}
+      {/* Cloud Sync Section */}
       <div className="mb-6">
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Account</h2>
-        <div className="py-3 border-b border-zinc-200 dark:border-zinc-700">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1">
-              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-1">
-                Your Account
-              </div>
-              <div className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                Sign in to sync tasks across devices.
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Cloud Sync</h2>
+        
+        <div className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 space-y-4">
+          {/* Connection Status */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {isConnected ? (
+                <Cloud className="size-5 text-green-500" />
+              ) : (
+                <CloudOff className="size-5 text-zinc-400" />
+              )}
+              <div>
+                <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  {isConnected ? 'Connected to Google Drive' : 'Not Connected'}
+                </div>
+                {isConnected && userEmail && (
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                    {userEmail}
+                  </div>
+                )}
               </div>
             </div>
-            <div className="flex gap-2 flex-shrink-0">
-              <button onClick={onShowLogin} className={settingsButtonClassName}>
-                Sign In
+            
+            {isLoading ? (
+              <Loader2 className="size-4 animate-spin text-zinc-400" />
+            ) : isConnected ? (
+              <button
+                onClick={handleDisconnect}
+                className="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-colors"
+              >
+                Disconnect
               </button>
-              <button onClick={openSignup} className={settingsButtonClassName}>
-                Sign Up
+            ) : (
+              <button
+                onClick={handleConnect}
+                disabled={isConnecting}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-600 border border-zinc-300 dark:border-zinc-600 rounded-md transition-colors disabled:opacity-50"
+              >
+                {isConnecting ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  <>
+                    <Cloud className="size-3.5" />
+                    Connect Google Drive
+                  </>
+                )}
               </button>
-            </div>
+            )}
           </div>
+
+          {/* Sync Actions (only when connected) */}
+          {isConnected && (
+            <>
+              <div className="h-px bg-zinc-200 dark:bg-zinc-700" />
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-zinc-700 dark:text-zinc-300">
+                    Last synced: {formatLastSync(lastSyncTime)}
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {hasRemoteData && (
+                    <button
+                      onClick={handleRestore}
+                      disabled={isSyncing}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 rounded-md transition-colors disabled:opacity-50"
+                      title="Restore from cloud backup"
+                    >
+                      <Download className="size-3.5" />
+                      Restore
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={handleSync}
+                    disabled={isSyncing}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-zinc-800 dark:bg-zinc-600 hover:bg-zinc-700 dark:hover:bg-zinc-500 rounded-md transition-colors disabled:opacity-50"
+                  >
+                    {isSyncing ? (
+                      <>
+                        <Loader2 className="size-3.5 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="size-3.5" />
+                        Sync Now
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Error Message */}
+          {syncError && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
+              <AlertCircle className="size-4 flex-shrink-0 mt-0.5" />
+              <div className="text-xs">{syncError}</div>
+            </div>
+          )}
         </div>
+        
+        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
+          Sync your data to Google Drive for backup and cross-device access
+        </p>
       </div>
 
       {/* App Section */}

@@ -8,7 +8,6 @@ import { AboutTab } from './tabs/AboutTab';
 import { AppearanceTab } from './tabs/AppearanceTab';
 import { ShortcutsTab } from './tabs/ShortcutsTab';
 import { StorageTab } from './tabs/StorageTab';
-import { LoginDialog } from './LoginDialog';
 
 interface SettingsModalProps {
   open: boolean;
@@ -29,7 +28,6 @@ const tabs: { id: SettingsTab; label: string }[] = [
  */
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('about');
-  const [showLoginDialog, setShowLoginDialog] = useState(false);
 
   // Shortcut editor state
   const {
@@ -126,9 +124,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
                 {/* Content Area */}
                 <div className="flex-1 overflow-y-auto p-4">
-                  {activeTab === 'about' && (
-                    <AboutTab onShowLogin={() => setShowLoginDialog(true)} />
-                  )}
+                  {activeTab === 'about' && <AboutTab />}
                   {activeTab === 'appearance' && <AppearanceTab />}
                   {activeTab === 'shortcuts' && (
                     <ShortcutsTab
@@ -145,12 +141,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </div>
             </motion.div>
           </div>
-
-          {/* Login Dialog */}
-          <LoginDialog
-            open={showLoginDialog}
-            onClose={() => setShowLoginDialog(false)}
-          />
         </>
       )}
     </AnimatePresence>

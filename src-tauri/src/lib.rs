@@ -1,6 +1,9 @@
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, LogicalPosition};
 use tauri::window::Color;
 
+// Google Drive sync module
+pub mod google_drive;
+
 // Create drag overlay window
 #[tauri::command]
 async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, width: f64, height: f64, is_done: bool, is_dark: bool, color: Option<String>) -> Result<(), String> {
@@ -158,7 +161,13 @@ pub fn run() {
             create_drag_window,
             update_drag_window_position,
             destroy_drag_window,
-            toggle_fullscreen
+            toggle_fullscreen,
+            google_drive::commands::google_drive_auth,
+            google_drive::commands::google_drive_disconnect,
+            google_drive::commands::get_sync_status,
+            google_drive::commands::sync_to_drive,
+            google_drive::commands::restore_from_drive,
+            google_drive::commands::check_remote_data
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

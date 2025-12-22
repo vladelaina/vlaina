@@ -10,6 +10,7 @@ import { useGroupStore } from '@/stores/useGroupStore';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useVimShortcuts } from '@/hooks/useVimShortcuts';
 import { useShortcuts } from '@/hooks/useShortcuts';
+import { useSyncInit } from '@/hooks/useSyncInit';
 import { getShortcutKeys } from '@/lib/shortcuts';
 import { startOfWeek, addDays, startOfDay, addMinutes } from 'date-fns';
 import { CALENDAR_CONSTANTS } from '@/components/Calendar/utils/timeUtils';
@@ -26,6 +27,9 @@ function AppContent() {
 
   // Enable VIM-style keyboard navigation
   useVimShortcuts();
+
+  // Initialize sync status (check connection, refresh tokens if needed)
+  useSyncInit();
 
   // Load data on app startup
   useEffect(() => {

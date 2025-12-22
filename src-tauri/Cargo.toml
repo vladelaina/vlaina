@@ -24,3 +24,19 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-fs = "2"
 
+# Google Drive sync dependencies
+keyring = "3"
+reqwest = { version = "0.12", features = ["json"] }
+sha2 = "0.10"
+base64 = "0.22"
+rand = "0.8"
+tokio = { version = "1", features = ["full", "net"] }
+url = "2"
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1"
+open = "5"
+urlencoding = "2"
+
+[dev-dependencies]
+proptest = "1"
+

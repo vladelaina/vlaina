@@ -5,9 +5,6 @@ import { openPath } from '@tauri-apps/plugin-opener';
 
 /**
  * Storage tab content - data location settings
- * 
- * Currently shows the storage path. 
- * Future: Allow users to customize storage location.
  */
 export function StorageTab() {
   const [storagePath, setStoragePath] = useState<string>('Loading...');
@@ -28,14 +25,14 @@ export function StorageTab() {
           Data Storage
         </h2>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-          Manage your data storage location
+          Manage your local data storage
         </p>
       </div>
 
       {/* Current Storage Location */}
       <div className="space-y-3">
         <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Current Storage Location
+          Local Storage Location
         </label>
         
         <div className="flex items-center gap-3 p-3 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
@@ -60,7 +57,7 @@ export function StorageTab() {
         </div>
 
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          All data (progress, tasks, archives, etc.) is stored at this location
+          All data is stored locally at this location
         </p>
       </div>
 
@@ -82,7 +79,7 @@ export function StorageTab() {
         </button>
 
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          In the future, you can migrate data to any location, such as Documents folder or cloud sync directory
+          In the future, you can migrate data to any location
         </p>
       </div>
 

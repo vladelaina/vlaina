@@ -132,6 +132,26 @@ By using, forking, or distributing the NekoTick software, you acknowledge that y
 
 ---
 
+## 9. Third-Party API Credentials Policy
+
+NekoTick includes API credentials for third-party cloud services (such as Google Drive, iCloud, etc.) to enable sync functionality. These credentials are subject to the following usage policy:
+
+### 9.1 Personal Use
+If you are building NekoTick from source for **personal use only**, you **MAY** use the included API credentials.
+
+### 9.2 Derivative Works and Redistribution
+If you create a **derivative work**, **fork**, or **redistribute** a modified version of NekoTick, you **MUST**:
+- ❌ **NOT** use the included NekoTick API credentials.
+- ✅ Apply for and use your **own** API credentials from the respective service providers.
+- ✅ Replace all credential values in the source code with your own.
+
+### 9.3 Rationale
+- The included credentials are registered under the NekoTick project and are subject to API quotas and usage monitoring.
+- Derivative works using NekoTick's credentials may cause quota exhaustion or policy violations that affect the official NekoTick project.
+- Using your own credentials ensures your project operates independently and responsibly.
+
+---
+
 **Last Updated:** December 2, 2025  
 **Project Author:** vladelaina  
 **License:** This policy is effective for all versions of NekoTick.
