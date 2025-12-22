@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ExternalLink, Cloud, CloudOff, RefreshCw, Download, Loader2, AlertCircle, Crown, KeyRound, Unlink } from 'lucide-react';
+import { ExternalLink, Cloud, CloudOff, RefreshCw, Download, Loader2, AlertCircle, Crown, Unlink, Clock } from 'lucide-react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
 import { useSyncStore } from '@/stores/useSyncStore';
@@ -34,6 +34,7 @@ export function AboutTab() {
 
   const {
     isProUser,
+    isTrial,
     isLoading: isLicenseLoading,
     licenseKey,
     activatedAt,
@@ -43,13 +44,25 @@ export function AboutTab() {
     error: licenseError,
     isActivating,
     isDeactivating,
-    isValidating,
     checkStatus: checkLicenseStatus,
     activate,
     deactivate,
     clearError: clearLicenseError,
-    validateBackground,
+    getTrialDaysRemaining,
+    getTrialHoursRemaining,
+    getTrialSecondsRemaining,
   } = useLicenseStore();
+
+  // Determine trial phase: 'normal' (>24h), 'urgent' (<=24h), 'expired' (0)
+  const getTrialPhase = () => {
+    if (!isTrial) return null;
+    const seconds = getTrialSecondsRemaining();
+    if (seconds === null || seconds <= 0) return 'expired';
+    if (seconds <= 24 * 60 * 60) return 'urgent'; // Last 24 hours
+    return 'normal';
+  };
+
+  const trialPhase = getTrialPhase();
 
   useEffect(() => {
     checkStatus();
@@ -257,7 +270,7 @@ export function AboutTab() {
             <div className="flex items-center justify-center py-4">
               <Loader2 className="size-5 animate-spin text-zinc-400" />
             </div>
-          ) : timeTamperDetected && licenseKey ? (
+          ) : timeTamperDetected ? (
             // Time tamper detected - show warning
             <>
               <div className="flex items-center gap-3">
@@ -266,10 +279,10 @@ export function AboutTab() {
                 </div>
                 <div>
                   <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                    需要验证
+                    系统时间异常
                   </div>
                   <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {licenseKey}
+                    PRO 功能已暂停
                   </div>
                 </div>
               </div>
@@ -277,27 +290,81 @@ export function AboutTab() {
               <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
                 <AlertCircle className="size-4 flex-shrink-0 mt-0.5" />
                 <div className="text-xs">
-                  检测到系统时间异常，请连接网络后点击验证按钮恢复 PRO 状态。
+                  检测到系统时间异常，请校准系统时间以恢复 PRO 功能。时间恢复正常后将自动恢复。
                 </div>
               </div>
-
-              <button
-                onClick={() => validateBackground()}
-                disabled={isValidating}
-                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-md transition-colors disabled:opacity-50"
-              >
-                {isValidating ? (
+            </>
+          ) : isTrial ? (
+            // Trial state - 3 phases based on remaining time
+            <>
+              <div className="flex items-center gap-3">
+                {trialPhase === 'urgent' ? (
+                  // Phase 2: Last 24 hours - orange warning
                   <>
-                    <Loader2 className="size-4 animate-spin" />
-                    验证中...
+                    <div className="p-2 rounded-full bg-orange-100 dark:bg-orange-900/30">
+                      <Clock className="size-5 text-orange-500" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                        👑 Pro 试用即将结束：剩余 {getTrialHoursRemaining()} 小时
+                      </div>
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                        输入激活码以继续使用自动同步
+                      </div>
+                    </div>
                   </>
                 ) : (
+                  // Phase 1: Normal trial (>24h) - subtle gray/blue
                   <>
-                    <RefreshCw className="size-4" />
-                    验证许可证
+                    <div className="p-2 rounded-full bg-zinc-100 dark:bg-zinc-700">
+                      <Clock className="size-5 text-zinc-500 dark:text-zinc-400" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
+                        👑 Pro 试用中：剩余 {getTrialDaysRemaining()} 天
+                      </div>
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                        输入激活码以继续使用
+                      </div>
+                    </div>
                   </>
                 )}
-              </button>
+              </div>
+
+              <div className="h-px bg-zinc-200 dark:bg-zinc-700" />
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={licenseInput}
+                  onChange={(e) => setLicenseInput(e.target.value.toUpperCase())}
+                  onKeyDown={handleLicenseKeyDown}
+                  placeholder="NEKO-XXXX-XXXX-XXXX"
+                  className="flex-1 px-3 py-2 text-sm bg-white dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500"
+                  disabled={isActivating}
+                />
+                <button
+                  onClick={handleActivate}
+                  disabled={isActivating || !licenseInput.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-zinc-800 dark:bg-zinc-600 hover:bg-zinc-700 dark:hover:bg-zinc-500 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isActivating ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      激活中...
+                    </>
+                  ) : (
+                    '激活'
+                  )}
+                </button>
+              </div>
+
+              {licenseError && (
+                <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
+                  <AlertCircle className="size-4 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs">{licenseError}</div>
+                </div>
+              )}
             </>
           ) : isProUser ? (
             // Activated state
@@ -364,18 +431,18 @@ export function AboutTab() {
               </div>
             </>
           ) : (
-            // Not activated state
+            // Phase 3: Not activated / Trial expired - show expired warning
             <>
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-zinc-100 dark:bg-zinc-700">
-                  <KeyRound className="size-5 text-zinc-400" />
+                <div className="p-2 rounded-full bg-red-100 dark:bg-red-900/30">
+                  <AlertCircle className="size-5 text-red-500" />
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                    Activate PRO
+                  <div className="text-sm font-medium text-red-600 dark:text-red-400">
+                    ⚠️ Pro 已过期 (自动同步暂停)
                   </div>
                   <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Enter your license key to unlock auto-sync
+                    输入激活码以恢复自动同步
                   </div>
                 </div>
               </div>
@@ -400,10 +467,10 @@ export function AboutTab() {
                   {isActivating ? (
                     <>
                       <Loader2 className="size-4 animate-spin" />
-                      Activating...
+                      激活中...
                     </>
                   ) : (
-                    'Activate'
+                    '激活'
                   )}
                 </button>
               </div>

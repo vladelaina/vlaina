@@ -1,11 +1,13 @@
 /**
  * Hook to initialize sync status on app startup
  * 
- * Checks connection status and refreshes tokens if needed.
+ * Migrates credentials from keyring to encrypted storage if needed,
+ * checks connection status and refreshes tokens if needed.
  * Also sets up periodic token refresh checks.
  */
 
 import { useEffect, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useSyncStore } from '@/stores/useSyncStore';
 
 // Check token status every 4 minutes (tokens expire warning at 5 min)
@@ -15,10 +17,28 @@ export function useSyncInit() {
   const checkStatus = useSyncStore((state) => state.checkStatus);
   const isConnected = useSyncStore((state) => state.isConnected);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasMigratedRef = useRef(false);
 
-  // Initial status check on app startup
+  // Initial migration and status check on app startup
   useEffect(() => {
-    checkStatus();
+    const init = async () => {
+      // Migrate credentials from keyring to encrypted storage (one-time)
+      if (!hasMigratedRef.current) {
+        hasMigratedRef.current = true;
+        try {
+          const result = await invoke<string>('migrate_credentials');
+          if (result === 'migrated') {
+            console.log('[Sync] Credentials migrated from keyring to encrypted storage');
+          }
+        } catch (err) {
+          console.error('[Sync] Credential migration failed:', err);
+        }
+      }
+      
+      // Check status
+      await checkStatus();
+    };
+    init();
   }, [checkStatus]);
 
   // Set up periodic token refresh when connected

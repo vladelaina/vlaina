@@ -57,3 +57,12 @@ pub async fn validate_license_background(
     let manager = LicenseManager::new(app_data_dir)?;
     manager.validate_background().await
 }
+
+/// Ensure trial is initialized (called on app startup)
+/// This silently creates a 7-day trial for new devices
+#[tauri::command]
+pub async fn ensure_trial(app: AppHandle) -> Result<(), LicenseError> {
+    let app_data_dir = get_app_data_dir(&app)?;
+    let manager = LicenseManager::new(app_data_dir)?;
+    manager.ensure_trial_initialized()
+}

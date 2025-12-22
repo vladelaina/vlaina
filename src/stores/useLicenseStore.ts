@@ -20,6 +20,8 @@ function getErrorMessage(errorCode: string | null, fallback?: string): string {
 // Types matching Rust structs
 interface LicenseStatus {
   is_pro: boolean;
+  is_trial: boolean;
+  trial_ends_at: number | null;
   license_key: string | null;
   activated_at: number | null;
   last_validated_at: number | null;
@@ -44,6 +46,8 @@ interface ValidationResult {
 interface LicenseState {
   // Status
   isProUser: boolean;
+  isTrial: boolean;
+  trialEndsAt: number | null;
   isLoading: boolean;
   licenseKey: string | null;
   activatedAt: number | null;
@@ -63,10 +67,14 @@ interface LicenseState {
 interface LicenseActions {
   // Actions
   checkStatus: () => Promise<void>;
+  ensureTrial: () => Promise<void>;
   activate: (licenseKey: string) => Promise<boolean>;
   deactivate: () => Promise<boolean>;
   validateBackground: () => Promise<void>;
   clearError: () => void;
+  getTrialDaysRemaining: () => number | null;
+  getTrialHoursRemaining: () => number | null;
+  getTrialSecondsRemaining: () => number | null;
 }
 
 type LicenseStore = LicenseState & LicenseActions;
@@ -74,6 +82,8 @@ type LicenseStore = LicenseState & LicenseActions;
 export const useLicenseStore = create<LicenseStore>((set, get) => ({
   // Initial state
   isProUser: false,
+  isTrial: false,
+  trialEndsAt: null,
   isLoading: true,
   licenseKey: null,
   activatedAt: null,
@@ -87,6 +97,15 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
   isDeactivating: false,
   isValidating: false,
 
+  // Ensure trial is initialized (called on app startup)
+  ensureTrial: async () => {
+    try {
+      await invoke('ensure_trial');
+    } catch (err) {
+      console.error('Failed to ensure trial:', err);
+    }
+  },
+
   // Check current license status
   checkStatus: async () => {
     set({ isLoading: true, error: null });
@@ -94,6 +113,8 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
       const status = await invoke<LicenseStatus>('get_license_status');
       set({
         isProUser: status.is_pro,
+        isTrial: status.is_trial,
+        trialEndsAt: status.trial_ends_at,
         licenseKey: status.license_key,
         activatedAt: status.activated_at,
         lastValidatedAt: status.last_validated_at,
@@ -104,14 +125,16 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
         isLoading: false,
       });
 
-      // Trigger background validation if needed
-      if (status.needs_validation && status.is_pro) {
+      // Trigger background validation if needed (only for licensed users, not trial)
+      if (status.needs_validation && status.is_pro && !status.is_trial) {
         get().validateBackground();
       }
     } catch (err) {
       console.error('Failed to check license status:', err);
       set({
         isProUser: false,
+        isTrial: false,
+        trialEndsAt: null,
         isLoading: false,
       });
     }
@@ -157,6 +180,8 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
       await invoke('deactivate_license');
       set({
         isProUser: false,
+        isTrial: false,
+        trialEndsAt: null,
         licenseKey: null,
         activatedAt: null,
         lastValidatedAt: null,
@@ -187,6 +212,8 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
         // License was invalidated
         set({
           isProUser: false,
+          isTrial: false,
+          trialEndsAt: null,
           licenseKey: null,
           activatedAt: null,
           lastValidatedAt: null,
@@ -222,4 +249,38 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
 
   // Clear error message
   clearError: () => set({ error: null }),
+
+  // Get trial days remaining
+  getTrialDaysRemaining: () => {
+    const { trialEndsAt, isTrial } = get();
+    if (!isTrial || !trialEndsAt) return null;
+    
+    const now = Math.floor(Date.now() / 1000);
+    const remaining = trialEndsAt - now;
+    if (remaining <= 0) return 0;
+    
+    return Math.ceil(remaining / (24 * 60 * 60));
+  },
+
+  // Get trial hours remaining
+  getTrialHoursRemaining: () => {
+    const { trialEndsAt, isTrial } = get();
+    if (!isTrial || !trialEndsAt) return null;
+    
+    const now = Math.floor(Date.now() / 1000);
+    const remaining = trialEndsAt - now;
+    if (remaining <= 0) return 0;
+    
+    return Math.ceil(remaining / (60 * 60));
+  },
+
+  // Get trial seconds remaining (for determining phase)
+  getTrialSecondsRemaining: () => {
+    const { trialEndsAt, isTrial } = get();
+    if (!isTrial || !trialEndsAt) return null;
+    
+    const now = Math.floor(Date.now() / 1000);
+    const remaining = trialEndsAt - now;
+    return remaining > 0 ? remaining : 0;
+  },
 }));

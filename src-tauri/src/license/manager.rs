@@ -9,14 +9,18 @@ use crate::license::{
     LicenseError,
 };
 
-// 72 hours in seconds (3 days)
+// 72 hours in seconds (3 days) - validation interval for licensed users
 const VALIDATION_INTERVAL_SECS: i64 = 72 * 60 * 60;
-// 7 days in seconds (grace period)
+// 7 days in seconds (grace period for licensed users)
 const GRACE_PERIOD_SECS: i64 = 7 * 24 * 60 * 60;
+// 7 days in seconds (trial duration)
+const TRIAL_DURATION_SECS: i64 = 7 * 24 * 60 * 60;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LicenseStatus {
     pub is_pro: bool,
+    pub is_trial: bool,
+    pub trial_ends_at: Option<i64>,
     pub license_key: Option<String>,
     pub activated_at: Option<i64>,
     pub last_validated_at: Option<i64>,
@@ -30,6 +34,8 @@ impl Default for LicenseStatus {
     fn default() -> Self {
         Self {
             is_pro: false,
+            is_trial: false,
+            trial_ends_at: None,
             license_key: None,
             activated_at: None,
             last_validated_at: None,
@@ -55,6 +61,7 @@ pub struct ValidationResult {
     pub in_grace_period: bool,
 }
 
+
 pub struct LicenseManager {
     store: LicenseStore,
     api_client: ApiClient,
@@ -78,6 +85,35 @@ impl LicenseManager {
         &self.device_id
     }
 
+    /// Ensure trial is initialized (called on app startup)
+    /// This silently creates a trial state for new devices
+    pub fn ensure_trial_initialized(&self) -> Result<(), LicenseError> {
+        match self.store.load() {
+            Ok(mut data) => {
+                // Already have data, check if we need to initialize trial
+                if data.trial_started_at.is_none() && !data.trial_used {
+                    let now = Utc::now().timestamp();
+                    data.trial_started_at = Some(now);
+                    data.last_seen_utc_time = now;
+                    data.update_signature();
+                    self.store.save(&data)?;
+                }
+                Ok(())
+            }
+            Err(LicenseError::NotFound) => {
+                // First launch - create trial
+                self.create_trial()
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Create new trial state
+    fn create_trial(&self) -> Result<(), LicenseError> {
+        let data = LicenseData::new_trial(self.device_id.clone());
+        self.store.save(&data)
+    }
+
     /// Activate license with server
     pub async fn activate(&self, license_key: &str) -> Result<ActivationResult, LicenseError> {
         // Call API
@@ -87,14 +123,24 @@ impl LicenseManager {
             let activated_at = response.activated_at.unwrap_or_else(|| Utc::now().timestamp());
             let now = Utc::now().timestamp();
 
-            // Create and save license data
-            let data = LicenseData::new(
-                license_key.to_string(),
-                self.device_id.clone(),
-                activated_at,
-                now,
-            );
-            self.store.save(&data)?;
+            // Check if we have existing data (trial) to upgrade
+            match self.store.load() {
+                Ok(mut data) => {
+                    // Upgrade existing trial to license
+                    data.set_license(license_key.to_string(), activated_at, now);
+                    self.store.save(&data)?;
+                }
+                Err(_) => {
+                    // Create new license data
+                    let data = LicenseData::new_with_license(
+                        license_key.to_string(),
+                        self.device_id.clone(),
+                        activated_at,
+                        now,
+                    );
+                    self.store.save(&data)?;
+                }
+            }
 
             Ok(ActivationResult {
                 success: true,
@@ -115,10 +161,14 @@ impl LicenseManager {
         // Load current license
         let data = self.store.load()?;
 
+        // Need license key to deactivate
+        let license_key = data.license_key.as_ref()
+            .ok_or_else(|| LicenseError::NotFound)?;
+
         // Call API
         let response = self
             .api_client
-            .deactivate(&data.license_key, &self.device_id)
+            .deactivate(license_key, &self.device_id)
             .await?;
 
         if response.success {
@@ -133,52 +183,96 @@ impl LicenseManager {
         }
     }
 
-    /// Get current license status (considers grace period and time tampering)
+
+    /// Get current license status (considers trial, grace period, and time tampering with self-healing)
     pub fn get_status(&self) -> LicenseStatus {
-        let data = match self.store.load() {
+        let mut data = match self.store.load() {
             Ok(d) => d,
             Err(_) => return LicenseStatus::default(),
         };
 
-        let now = Utc::now().timestamp();
-        let time_since_validation = now - data.last_validated_at;
+        let current_utc = Utc::now().timestamp();
 
-        // Check for time tampering
-        let time_tamper_detected = self.detect_time_tampering(&data);
+        // Check for time tampering (real-time detection, not persisted)
+        // Self-healing: if time is normal now, tamper flag is false
+        let time_tamper_detected = current_utc < data.last_seen_utc_time;
 
-        // Calculate if validation is needed
-        let needs_validation = time_tamper_detected || time_since_validation > VALIDATION_INTERVAL_SECS;
+        // If time is normal, update last_seen_utc_time
+        // If time is abnormal, don't update - this allows self-healing when time is corrected
+        if !time_tamper_detected {
+            data.last_seen_utc_time = current_utc;
+            data.update_signature();
+            let _ = self.store.save(&data);
+        }
 
-        // Calculate grace period status (not allowed if time tampered)
-        let in_grace_period = !time_tamper_detected
-            && time_since_validation > VALIDATION_INTERVAL_SECS
-            && time_since_validation <= GRACE_PERIOD_SECS;
+        // Calculate trial status
+        let (is_trial_valid, trial_ends_at) = self.calculate_trial_status(&data, current_utc);
 
-        let grace_period_ends_at = if in_grace_period {
-            Some(data.last_validated_at + GRACE_PERIOD_SECS)
-        } else {
-            None
-        };
+        // Calculate license status
+        let (is_license_valid, needs_validation, in_grace_period, grace_period_ends_at) = 
+            self.calculate_license_status(&data, current_utc);
 
-        // Determine PRO status
-        // PRO if: (within validation interval OR within grace period) AND no time tampering
-        // If time tampered, must validate online first
-        let is_pro = !time_tamper_detected && time_since_validation <= GRACE_PERIOD_SECS;
+        // PRO status = (trial valid OR license valid) AND no time tampering
+        // Time tampering temporarily disables PRO until time is corrected (self-healing)
+        let is_pro = !time_tamper_detected && (is_trial_valid || is_license_valid);
 
-        // Mask license key for display (show only last 4 chars)
-        let masked_key = mask_license_key(&data.license_key);
+        // Mask license key for display
+        let masked_key = data.license_key.as_ref().map(|k| mask_license_key(k));
 
         LicenseStatus {
             is_pro,
-            license_key: Some(masked_key),
-            activated_at: Some(data.activated_at),
-            last_validated_at: Some(data.last_validated_at),
+            is_trial: is_trial_valid && !time_tamper_detected,
+            trial_ends_at,
+            license_key: masked_key,
+            activated_at: data.activated_at,
+            last_validated_at: data.last_validated_at,
             needs_validation,
             in_grace_period,
             grace_period_ends_at,
             time_tamper_detected,
         }
     }
+
+    /// Calculate trial status
+    fn calculate_trial_status(&self, data: &LicenseData, current_utc: i64) -> (bool, Option<i64>) {
+        if let Some(trial_start) = data.trial_started_at {
+            let trial_end = trial_start + TRIAL_DURATION_SECS;
+            let is_valid = current_utc < trial_end && !data.has_license();
+            (is_valid, Some(trial_end))
+        } else {
+            (false, None)
+        }
+    }
+
+    /// Calculate license status (returns: is_valid, needs_validation, in_grace_period, grace_period_ends_at)
+    fn calculate_license_status(&self, data: &LicenseData, current_utc: i64) -> (bool, bool, bool, Option<i64>) {
+        // No license key means no license status
+        if data.license_key.is_none() {
+            return (false, false, false, None);
+        }
+
+        let last_validated = data.last_validated_at.unwrap_or(0);
+        let time_since_validation = current_utc - last_validated;
+
+        // Calculate if validation is needed
+        let needs_validation = time_since_validation > VALIDATION_INTERVAL_SECS;
+
+        // Calculate grace period status
+        let in_grace_period = time_since_validation > VALIDATION_INTERVAL_SECS
+            && time_since_validation <= GRACE_PERIOD_SECS;
+
+        let grace_period_ends_at = if in_grace_period {
+            Some(last_validated + GRACE_PERIOD_SECS)
+        } else {
+            None
+        };
+
+        // License is valid if within grace period
+        let is_valid = time_since_validation <= GRACE_PERIOD_SECS;
+
+        (is_valid, needs_validation, in_grace_period, grace_period_ends_at)
+    }
+
 
     /// Background silent validation
     pub async fn validate_background(&self) -> Result<ValidationResult, LicenseError> {
@@ -194,11 +288,24 @@ impl LicenseManager {
             Err(e) => return Err(e),
         };
 
+        // No license key means nothing to validate
+        let license_key = match &data.license_key {
+            Some(k) => k.clone(),
+            None => {
+                return Ok(ValidationResult {
+                    success: false,
+                    downgraded: false,
+                    in_grace_period: false,
+                });
+            }
+        };
+
         // Check time tampering - if detected, must validate online
-        let time_tampered = self.detect_time_tampering(&data);
+        let current_utc = Utc::now().timestamp();
+        let time_tampered = current_utc < data.last_seen_utc_time;
 
         // Try to validate with server
-        match self.api_client.validate(&data.license_key, &self.device_id).await {
+        match self.api_client.validate(&license_key, &self.device_id).await {
             Ok(response) => {
                 if response.success {
                     // Update validation timestamp
@@ -212,8 +319,12 @@ impl LicenseManager {
                         in_grace_period: false,
                     })
                 } else {
-                    // License invalid/expired - downgrade
-                    self.store.delete()?;
+                    // License invalid/expired - downgrade but keep trial if available
+                    data.license_key = None;
+                    data.activated_at = None;
+                    data.last_validated_at = None;
+                    data.update_signature();
+                    self.store.save(&data)?;
 
                     Ok(ValidationResult {
                         success: false,
@@ -233,8 +344,8 @@ impl LicenseManager {
                     });
                 }
 
-                let now = Utc::now().timestamp();
-                let time_since_validation = now - data.last_validated_at;
+                let last_validated = data.last_validated_at.unwrap_or(0);
+                let time_since_validation = current_utc - last_validated;
 
                 if time_since_validation <= GRACE_PERIOD_SECS {
                     // Still in grace period - update seen time
@@ -247,8 +358,12 @@ impl LicenseManager {
                         in_grace_period: true,
                     })
                 } else {
-                    // Grace period expired - downgrade
-                    self.store.delete()?;
+                    // Grace period expired - downgrade but keep trial if available
+                    data.license_key = None;
+                    data.activated_at = None;
+                    data.last_validated_at = None;
+                    data.update_signature();
+                    self.store.save(&data)?;
 
                     Ok(ValidationResult {
                         success: false,
@@ -259,13 +374,6 @@ impl LicenseManager {
             }
         }
     }
-
-    /// Detect if system time has been tampered (rolled back)
-    fn detect_time_tampering(&self, data: &LicenseData) -> bool {
-        let current_time = Utc::now().timestamp();
-        // If current time is before last seen time, time was rolled back
-        current_time < data.last_seen_system_time
-    }
 }
 
 /// Mask license key for display (e.g., "NEKO-****-****-5678")
@@ -275,5 +383,27 @@ fn mask_license_key(key: &str) -> String {
         format!("{}-****-****-{}", parts[0], parts[parts.len() - 1])
     } else {
         "****".to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mask_license_key() {
+        assert_eq!(mask_license_key("NEKO-ABCD-EFGH-1234"), "NEKO-****-****-1234");
+        assert_eq!(mask_license_key("SHORT"), "****");
+        assert_eq!(mask_license_key("A-B-C-D"), "A-****-****-D");
+    }
+
+    #[test]
+    fn test_default_license_status() {
+        let status = LicenseStatus::default();
+        assert!(!status.is_pro);
+        assert!(!status.is_trial);
+        assert!(status.trial_ends_at.is_none());
+        assert!(status.license_key.is_none());
+        assert!(!status.time_tamper_detected);
     }
 }

@@ -1,7 +1,8 @@
 /**
  * Hook to initialize license status on app startup
  * 
- * Checks license status and triggers background validation if needed.
+ * Ensures trial is initialized for new devices, checks license status,
+ * and triggers background validation if needed.
  * Also sets up periodic validation checks for PRO users.
  */
 
@@ -12,25 +13,37 @@ import { useLicenseStore } from '@/stores/useLicenseStore';
 const LICENSE_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
 
 export function useLicenseInit() {
+  const ensureTrial = useLicenseStore((state) => state.ensureTrial);
   const checkStatus = useLicenseStore((state) => state.checkStatus);
   const validateBackground = useLicenseStore((state) => state.validateBackground);
   const isProUser = useLicenseStore((state) => state.isProUser);
+  const isTrial = useLicenseStore((state) => state.isTrial);
   const needsValidation = useLicenseStore((state) => state.needsValidation);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasValidatedRef = useRef(false);
+  const hasInitializedRef = useRef(false);
 
-  // Initial status check on app startup
+  // Initial trial initialization and status check on app startup
   useEffect(() => {
-    checkStatus();
-  }, [checkStatus]);
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
 
-  // Trigger background validation if needed (only once per session)
+    const init = async () => {
+      // First ensure trial is initialized (for new devices)
+      await ensureTrial();
+      // Then check status
+      await checkStatus();
+    };
+    init();
+  }, [ensureTrial, checkStatus]);
+
+  // Trigger background validation if needed (only once per session, only for licensed users)
   useEffect(() => {
-    if (isProUser && needsValidation && !hasValidatedRef.current) {
+    if (isProUser && !isTrial && needsValidation && !hasValidatedRef.current) {
       hasValidatedRef.current = true;
       validateBackground();
     }
-  }, [isProUser, needsValidation, validateBackground]);
+  }, [isProUser, isTrial, needsValidation, validateBackground]);
 
   // Set up periodic validation check for PRO users
   useEffect(() => {

@@ -271,7 +271,12 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   },
 
   toggleAutoSync: () => {
-    const isProUser = useLicenseStore.getState().isProUser;
+    const { isProUser, timeTamperDetected } = useLicenseStore.getState();
+    
+    if (timeTamperDetected) {
+      set({ syncError: '系统时间异常，请校准时间后重试' });
+      return false;
+    }
     
     if (!isProUser) {
       set({ syncError: '自动同步是 PRO 功能，请先激活 PRO 会员' });
@@ -285,6 +290,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   },
 
   canUseAutoSync: () => {
-    return useLicenseStore.getState().isProUser;
+    const { isProUser, timeTamperDetected } = useLicenseStore.getState();
+    return isProUser && !timeTamperDetected;
   },
 }));

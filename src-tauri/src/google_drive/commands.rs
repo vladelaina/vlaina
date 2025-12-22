@@ -2,11 +2,12 @@
 //!
 //! These commands are exposed to the frontend via Tauri's IPC.
 
+use crate::credentials::{CredentialStore, StoredCredentials};
 use crate::google_drive::{
     drive_api::DriveClient,
-    keyring_store::{StoredTokens, TokenManager},
     oauth::OAuthClient,
 };
+use crate::license::device_id::DeviceIdGenerator;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -101,9 +102,34 @@ fn save_sync_meta(app: &tauri::AppHandle, meta: &SyncMeta) -> Result<(), String>
     fs::write(&path, content).map_err(|e| e.to_string())
 }
 
+/// Get credential store for the app
+fn get_credential_store(app: &tauri::AppHandle) -> Result<CredentialStore, String> {
+    let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let device_id = DeviceIdGenerator::generate(&app_data_dir).map_err(|e| e.to_string())?;
+    Ok(CredentialStore::new(&app_data_dir, device_id))
+}
+
+/// Get stored credentials, refreshing token if needed
+async fn get_valid_credentials(app: &tauri::AppHandle) -> Result<StoredCredentials, String> {
+    let store = get_credential_store(app)?;
+    let mut creds = store.load().map_err(|e| e.to_string())?;
+
+    // Refresh token if expiring
+    if creds.is_token_expiring() {
+        let oauth = OAuthClient::new(GOOGLE_CLIENT_ID.to_string(), GOOGLE_CLIENT_SECRET.to_string());
+        if let Ok(new_tokens) = oauth.refresh_token(&creds.refresh_token).await {
+            let new_expires_at = chrono::Utc::now().timestamp() + new_tokens.expires_in as i64;
+            creds.update_access_token(new_tokens.access_token, new_expires_at);
+            let _ = store.save(&creds);
+        }
+    }
+
+    Ok(creds)
+}
+
 /// Start Google OAuth2 PKCE authorization flow
 #[tauri::command]
-pub async fn google_drive_auth(_app: tauri::AppHandle) -> Result<AuthResult, String> {
+pub async fn google_drive_auth(app: tauri::AppHandle) -> Result<AuthResult, String> {
     use std::net::TcpListener;
     use std::sync::mpsc;
     use std::thread;
@@ -192,16 +218,18 @@ pub async fn google_drive_auth(_app: tauri::AppHandle) -> Result<AuthResult, Str
     let drive = DriveClient::new(tokens.access_token.clone());
     let user_info = drive.get_user_info().await.ok();
 
-    // Store tokens
-    let stored = StoredTokens {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token.unwrap_or_default(),
-        expires_at: chrono::Utc::now().timestamp() + tokens.expires_in as i64,
-        user_email: user_info.as_ref().map(|u| u.email.clone()),
-        folder_id: None,
-    };
+    // Store tokens using encrypted credential store
+    let store = get_credential_store(&app)?;
+    let stored = StoredCredentials::new(
+        store.get_device_id().to_string(),
+        tokens.access_token,
+        tokens.refresh_token.unwrap_or_default(),
+        chrono::Utc::now().timestamp() + tokens.expires_in as i64,
+        user_info.as_ref().map(|u| u.email.clone()),
+        None,
+    );
 
-    if let Err(e) = TokenManager::store_tokens(&stored) {
+    if let Err(e) = store.save(&stored) {
         return Ok(AuthResult {
             success: false,
             user_email: None,
@@ -218,8 +246,9 @@ pub async fn google_drive_auth(_app: tauri::AppHandle) -> Result<AuthResult, Str
 
 /// Disconnect from Google Drive
 #[tauri::command]
-pub async fn google_drive_disconnect() -> Result<(), String> {
-    TokenManager::clear_tokens().map_err(|e| e.to_string())
+pub async fn google_drive_disconnect(app: tauri::AppHandle) -> Result<(), String> {
+    let store = get_credential_store(&app)?;
+    store.delete().map_err(|e| e.to_string())
 }
 
 /// Get current sync status
@@ -227,36 +256,36 @@ pub async fn google_drive_disconnect() -> Result<(), String> {
 pub async fn get_sync_status(app: tauri::AppHandle) -> Result<SyncStatus, String> {
     let sync_meta = load_sync_meta(&app);
     
-    // Try to get tokens, handle errors gracefully
-    let tokens = match TokenManager::get_tokens() {
-        Ok(t) => t,
+    // Try to get credentials from encrypted store
+    let store = get_credential_store(&app)?;
+    let creds = match store.load() {
+        Ok(c) => Some(c),
         Err(e) => {
-            eprintln!("Failed to get tokens from keyring: {}", e);
+            eprintln!("Failed to get credentials: {}", e);
             None
         }
     };
 
-    match tokens {
-        Some(t) => {
+    match creds {
+        Some(mut c) => {
             // Check if we need to refresh token
-            if TokenManager::is_token_expiring(&t) {
+            if c.is_token_expiring() {
                 // Try to refresh
                 let oauth = OAuthClient::new(GOOGLE_CLIENT_ID.to_string(), GOOGLE_CLIENT_SECRET.to_string());
-                if let Ok(new_tokens) = oauth.refresh_token(&t.refresh_token).await {
-                    let _ = TokenManager::update_access_token(
-                        &new_tokens.access_token,
-                        new_tokens.expires_in,
-                    );
+                if let Ok(new_tokens) = oauth.refresh_token(&c.refresh_token).await {
+                    let new_expires_at = chrono::Utc::now().timestamp() + new_tokens.expires_in as i64;
+                    c.update_access_token(new_tokens.access_token, new_expires_at);
+                    let _ = store.save(&c);
                 }
             }
 
             Ok(SyncStatus {
                 connected: true,
-                user_email: t.user_email,
+                user_email: c.user_email,
                 last_sync_time: sync_meta.last_sync_time,
                 has_remote_data: false, // Will be checked separately
                 remote_modified_time: None,
-                folder_id: t.folder_id,
+                folder_id: c.folder_id,
             })
         }
         None => Ok(SyncStatus {
@@ -272,28 +301,19 @@ pub async fn get_sync_status(app: tauri::AppHandle) -> Result<SyncStatus, String
 
 /// Check if remote data exists
 #[tauri::command]
-pub async fn check_remote_data() -> Result<RemoteDataInfo, String> {
-    let mut tokens = TokenManager::get_tokens()
-        .map_err(|e| e.to_string())?
-        .ok_or("Not connected")?;
+pub async fn check_remote_data(app: tauri::AppHandle) -> Result<RemoteDataInfo, String> {
+    let store = get_credential_store(&app)?;
+    let mut creds = get_valid_credentials(&app).await?;
 
-    // Refresh token if expiring
-    if TokenManager::is_token_expiring(&tokens) {
-        let oauth = OAuthClient::new(GOOGLE_CLIENT_ID.to_string(), GOOGLE_CLIENT_SECRET.to_string());
-        if let Ok(new_tokens) = oauth.refresh_token(&tokens.refresh_token).await {
-            let _ = TokenManager::update_access_token(&new_tokens.access_token, new_tokens.expires_in);
-            tokens.access_token = new_tokens.access_token;
-        }
-    }
-
-    let drive = DriveClient::new(tokens.access_token);
+    let drive = DriveClient::new(creds.access_token.clone());
 
     // Get or create folder
-    let folder_id = match tokens.folder_id {
+    let folder_id = match creds.folder_id.clone() {
         Some(id) => id,
         None => {
             let id = drive.ensure_app_folder().await.map_err(|e| e.to_string())?;
-            let _ = TokenManager::update_folder_id(&id);
+            creds.update_folder_id(id.clone());
+            let _ = store.save(&creds);
             id
         }
     };
@@ -325,7 +345,7 @@ pub async fn check_remote_data() -> Result<RemoteDataInfo, String> {
     }
 }
 
-/// Sync local data to Google Drive
+/// Sync local data to Google Drive (manual sync - always available)
 /// 
 /// Syncs the entire directory structure:
 /// - NekoTick_Data/
@@ -334,28 +354,19 @@ pub async fn check_remote_data() -> Result<RemoteDataInfo, String> {
 ///   - nekotick.md
 #[tauri::command]
 pub async fn sync_to_drive(app: tauri::AppHandle) -> Result<SyncResult, String> {
-    let mut tokens = TokenManager::get_tokens()
-        .map_err(|e| e.to_string())?
-        .ok_or("Not connected")?;
-
-    // Refresh token if expiring
-    if TokenManager::is_token_expiring(&tokens) {
-        let oauth = OAuthClient::new(GOOGLE_CLIENT_ID.to_string(), GOOGLE_CLIENT_SECRET.to_string());
-        if let Ok(new_tokens) = oauth.refresh_token(&tokens.refresh_token).await {
-            let _ = TokenManager::update_access_token(&new_tokens.access_token, new_tokens.expires_in);
-            tokens.access_token = new_tokens.access_token;
-        }
-    }
+    let store = get_credential_store(&app)?;
+    let mut creds = get_valid_credentials(&app).await?;
 
     let base_path = get_data_dir(&app)?;
-    let drive = DriveClient::new(tokens.access_token);
+    let drive = DriveClient::new(creds.access_token.clone());
 
     // Get or create app folder (NekoTick_Data)
-    let app_folder_id = match tokens.folder_id {
+    let app_folder_id = match creds.folder_id.clone() {
         Some(id) => id,
         None => {
             let id = drive.ensure_app_folder().await.map_err(|e| e.to_string())?;
-            let _ = TokenManager::update_folder_id(&id);
+            creds.update_folder_id(id.clone());
+            let _ = store.save(&creds);
             id
         }
     };
@@ -409,28 +420,19 @@ pub async fn sync_to_drive(app: tauri::AppHandle) -> Result<SyncResult, String> 
 /// - nekotick.md
 #[tauri::command]
 pub async fn restore_from_drive(app: tauri::AppHandle) -> Result<SyncResult, String> {
-    let mut tokens = TokenManager::get_tokens()
-        .map_err(|e| e.to_string())?
-        .ok_or("Not connected")?;
-
-    // Refresh token if expiring
-    if TokenManager::is_token_expiring(&tokens) {
-        let oauth = OAuthClient::new(GOOGLE_CLIENT_ID.to_string(), GOOGLE_CLIENT_SECRET.to_string());
-        if let Ok(new_tokens) = oauth.refresh_token(&tokens.refresh_token).await {
-            let _ = TokenManager::update_access_token(&new_tokens.access_token, new_tokens.expires_in);
-            tokens.access_token = new_tokens.access_token;
-        }
-    }
+    let store = get_credential_store(&app)?;
+    let mut creds = get_valid_credentials(&app).await?;
 
     let base_path = get_data_dir(&app)?;
-    let drive = DriveClient::new(tokens.access_token);
+    let drive = DriveClient::new(creds.access_token.clone());
 
     // Get app folder ID
-    let app_folder_id = match tokens.folder_id {
+    let app_folder_id = match creds.folder_id.clone() {
         Some(id) => id,
         None => {
             let id = drive.ensure_app_folder().await.map_err(|e| e.to_string())?;
-            let _ = TokenManager::update_folder_id(&id);
+            creds.update_folder_id(id.clone());
+            let _ = store.save(&creds);
             id
         }
     };
@@ -495,4 +497,29 @@ pub async fn restore_from_drive(app: tauri::AppHandle) -> Result<SyncResult, Str
         timestamp: Some(now),
         error: None,
     })
+}
+
+
+/// Auto sync to Google Drive (PRO feature - requires active PRO status)
+/// 
+/// This is the entry point for automatic sync. It checks PRO status before syncing.
+/// Manual sync (sync_to_drive) is always available regardless of PRO status.
+#[tauri::command]
+pub async fn auto_sync_to_drive(app: tauri::AppHandle) -> Result<SyncResult, String> {
+    use crate::license::manager::LicenseManager;
+
+    // Check PRO status
+    let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let license_manager = LicenseManager::new(app_data_dir).map_err(|e| e.to_string())?;
+    let status = license_manager.get_status();
+
+    if !status.is_pro {
+        if status.time_tamper_detected {
+            return Err("系统时间异常，请校准时间后重试".to_string());
+        }
+        return Err("自动同步是 PRO 功能，请先激活或开始试用".to_string());
+    }
+
+    // PRO status valid, proceed with sync
+    sync_to_drive(app).await
 }
