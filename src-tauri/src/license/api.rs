@@ -4,12 +4,7 @@ use std::time::Duration;
 
 use crate::license::LicenseError;
 
-// Development environment (cargo build / cargo tauri dev)
-#[cfg(debug_assertions)]
-const API_BASE: &str = "http://localhost:8787";
-
-// Production environment (cargo build --release / cargo tauri build)
-#[cfg(not(debug_assertions))]
+// Always use production API (no local development server)
 const API_BASE: &str = "https://api.nekotick.com";
 
 const TIMEOUT_SECS: u64 = 10;
