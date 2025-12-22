@@ -75,7 +75,7 @@ impl DriveClient {
             .await
             .map_err(|e| DriveError::NetworkError(e.to_string()))?;
 
-        self.handle_response_status(&response)?;
+        Self::check_status(response.status().as_u16())?;
 
         response
             .json::<UserInfo>()
@@ -115,7 +115,7 @@ impl DriveClient {
             .await
             .map_err(|e| DriveError::NetworkError(e.to_string()))?;
 
-        self.handle_response_status(&response)?;
+        Self::check_status(response.status().as_u16())?;
 
         let list: FileListResponse = response
             .json()
@@ -148,7 +148,7 @@ impl DriveClient {
             .await
             .map_err(|e| DriveError::NetworkError(e.to_string()))?;
 
-        self.handle_response_status(&response)?;
+        Self::check_status(response.status().as_u16())?;
 
         let file: DriveFile = response
             .json()
@@ -183,7 +183,7 @@ impl DriveClient {
             .await
             .map_err(|e| DriveError::NetworkError(e.to_string()))?;
 
-        self.handle_response_status(&response)?;
+        Self::check_status(response.status().as_u16())?;
 
         let list: FileListResponse = response
             .json()
@@ -261,7 +261,7 @@ impl DriveClient {
             .await
             .map_err(|e| DriveError::NetworkError(e.to_string()))?;
 
-        self.handle_response_status(&response)?;
+        Self::check_status(response.status().as_u16())?;
 
         response
             .json()
@@ -284,7 +284,7 @@ impl DriveClient {
             .await
             .map_err(|e| DriveError::NetworkError(e.to_string()))?;
 
-        self.handle_response_status(&response)?;
+        Self::check_status(response.status().as_u16())?;
 
         response
             .json()
@@ -302,7 +302,7 @@ impl DriveClient {
             .await
             .map_err(|e| DriveError::NetworkError(e.to_string()))?;
 
-        self.handle_response_status(&response)?;
+        Self::check_status(response.status().as_u16())?;
 
         response
             .bytes()
@@ -312,16 +312,13 @@ impl DriveClient {
     }
 
     /// Handle HTTP response status codes
-    fn handle_response_status(&self, response: &reqwest::Response) -> Result<(), DriveError> {
-        match response.status().as_u16() {
+    fn check_status(status: u16) -> Result<(), DriveError> {
+        match status {
             200..=299 => Ok(()),
             401 => Err(DriveError::Unauthorized),
             404 => Err(DriveError::NotFound),
             429 => Err(DriveError::RateLimited),
-            _ => Err(DriveError::ApiError(format!(
-                "HTTP {}",
-                response.status()
-            ))),
+            _ => Err(DriveError::ApiError(format!("HTTP {}", status))),
         }
     }
 }

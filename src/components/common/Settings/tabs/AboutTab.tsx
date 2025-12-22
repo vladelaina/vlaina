@@ -53,6 +53,11 @@ export function AboutTab() {
 
   const handleSync = async () => {
     clearError();
+    if (!isConnected) {
+      // This shouldn't happen as button is only shown when connected
+      // but handle it gracefully
+      return;
+    }
     await syncToCloud();
   };
 

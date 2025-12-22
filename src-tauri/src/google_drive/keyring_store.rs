@@ -46,6 +46,7 @@ impl TokenManager {
             .set_password(&json)
             .map_err(|e| KeyringError::KeyringError(e.to_string()))?;
 
+        println!("[TokenManager] Tokens stored successfully for user: {:?}", tokens.user_email);
         Ok(())
     }
 
@@ -58,10 +59,17 @@ impl TokenManager {
             Ok(json) => {
                 let tokens: StoredTokens = serde_json::from_str(&json)
                     .map_err(|e| KeyringError::SerializationError(e.to_string()))?;
+                println!("[TokenManager] Tokens retrieved for user: {:?}", tokens.user_email);
                 Ok(Some(tokens))
             }
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(e) => Err(KeyringError::KeyringError(e.to_string())),
+            Err(keyring::Error::NoEntry) => {
+                println!("[TokenManager] No tokens found in keyring");
+                Ok(None)
+            }
+            Err(e) => {
+                println!("[TokenManager] Error getting tokens: {}", e);
+                Err(KeyringError::KeyringError(e.to_string()))
+            }
         }
     }
 

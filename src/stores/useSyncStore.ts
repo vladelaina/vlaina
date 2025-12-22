@@ -168,7 +168,13 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   },
 
   syncToCloud: async () => {
-    if (!get().isConnected) return false;
+    const state = get();
+    
+    // Check connection status - if not connected, try to check status first
+    if (!state.isConnected) {
+      set({ syncError: 'Not connected to Google Drive' });
+      return false;
+    }
     
     set({ isSyncing: true, syncError: null });
     try {
@@ -199,7 +205,12 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   },
 
   restoreFromCloud: async () => {
-    if (!get().isConnected) return false;
+    const state = get();
+    
+    if (!state.isConnected) {
+      set({ syncError: 'Not connected to Google Drive' });
+      return false;
+    }
     
     set({ isSyncing: true, syncError: null });
     try {

@@ -25,7 +25,7 @@ serde_json = "1"
 tauri-plugin-fs = "2"
 
 # Google Drive sync dependencies
-keyring = "3"
+keyring = { version = "3", features = ["windows-native"] }
 reqwest = { version = "0.12", features = ["json"] }
 sha2 = "0.10"
 base64 = "0.22"

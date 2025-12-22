@@ -223,8 +223,16 @@ pub async fn google_drive_disconnect() -> Result<(), String> {
 /// Get current sync status
 #[tauri::command]
 pub async fn get_sync_status(app: tauri::AppHandle) -> Result<SyncStatus, String> {
-    let tokens = TokenManager::get_tokens().map_err(|e| e.to_string())?;
     let sync_meta = load_sync_meta(&app);
+    
+    // Try to get tokens, handle errors gracefully
+    let tokens = match TokenManager::get_tokens() {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("Failed to get tokens from keyring: {}", e);
+            None
+        }
+    };
 
     match tokens {
         Some(t) => {
@@ -263,9 +271,18 @@ pub async fn get_sync_status(app: tauri::AppHandle) -> Result<SyncStatus, String
 /// Check if remote data exists
 #[tauri::command]
 pub async fn check_remote_data() -> Result<RemoteDataInfo, String> {
-    let tokens = TokenManager::get_tokens()
+    let mut tokens = TokenManager::get_tokens()
         .map_err(|e| e.to_string())?
         .ok_or("Not connected")?;
+
+    // Refresh token if expiring
+    if TokenManager::is_token_expiring(&tokens) {
+        let oauth = OAuthClient::new(GOOGLE_CLIENT_ID.to_string(), GOOGLE_CLIENT_SECRET.to_string());
+        if let Ok(new_tokens) = oauth.refresh_token(&tokens.refresh_token).await {
+            let _ = TokenManager::update_access_token(&new_tokens.access_token, new_tokens.expires_in);
+            tokens.access_token = new_tokens.access_token;
+        }
+    }
 
     let drive = DriveClient::new(tokens.access_token);
 
@@ -298,9 +315,18 @@ pub async fn check_remote_data() -> Result<RemoteDataInfo, String> {
 /// Sync local data to Google Drive
 #[tauri::command]
 pub async fn sync_to_drive(app: tauri::AppHandle) -> Result<SyncResult, String> {
-    let tokens = TokenManager::get_tokens()
+    let mut tokens = TokenManager::get_tokens()
         .map_err(|e| e.to_string())?
         .ok_or("Not connected")?;
+
+    // Refresh token if expiring
+    if TokenManager::is_token_expiring(&tokens) {
+        let oauth = OAuthClient::new(GOOGLE_CLIENT_ID.to_string(), GOOGLE_CLIENT_SECRET.to_string());
+        if let Ok(new_tokens) = oauth.refresh_token(&tokens.refresh_token).await {
+            let _ = TokenManager::update_access_token(&new_tokens.access_token, new_tokens.expires_in);
+            tokens.access_token = new_tokens.access_token;
+        }
+    }
 
     // Read local data file
     let mut data_path = get_data_dir(&app)?;
@@ -344,9 +370,18 @@ pub async fn sync_to_drive(app: tauri::AppHandle) -> Result<SyncResult, String> 
 /// Restore data from Google Drive
 #[tauri::command]
 pub async fn restore_from_drive(app: tauri::AppHandle) -> Result<SyncResult, String> {
-    let tokens = TokenManager::get_tokens()
+    let mut tokens = TokenManager::get_tokens()
         .map_err(|e| e.to_string())?
         .ok_or("Not connected")?;
+
+    // Refresh token if expiring
+    if TokenManager::is_token_expiring(&tokens) {
+        let oauth = OAuthClient::new(GOOGLE_CLIENT_ID.to_string(), GOOGLE_CLIENT_SECRET.to_string());
+        if let Ok(new_tokens) = oauth.refresh_token(&tokens.refresh_token).await {
+            let _ = TokenManager::update_access_token(&new_tokens.access_token, new_tokens.expires_in);
+            tokens.access_token = new_tokens.access_token;
+        }
+    }
 
     let drive = DriveClient::new(tokens.access_token);
 
