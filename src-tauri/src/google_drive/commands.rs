@@ -503,9 +503,10 @@ pub async fn restore_from_drive(app: tauri::AppHandle) -> Result<SyncResult, Str
 /// Auto sync to Google Drive (PRO feature - requires active PRO status)
 /// 
 /// This is the entry point for automatic sync. It checks PRO status before syncing.
+/// Uses bidirectional sync to ensure multi-device consistency.
 /// Manual sync (sync_to_drive) is always available regardless of PRO status.
 #[tauri::command]
-pub async fn auto_sync_to_drive(app: tauri::AppHandle) -> Result<SyncResult, String> {
+pub async fn auto_sync_to_drive(app: tauri::AppHandle) -> Result<BidirectionalSyncResult, String> {
     use crate::license::manager::LicenseManager;
 
     // Check PRO status
@@ -520,6 +521,156 @@ pub async fn auto_sync_to_drive(app: tauri::AppHandle) -> Result<SyncResult, Str
         return Err("自动同步是 PRO 功能，请先激活或开始试用".to_string());
     }
 
-    // PRO status valid, proceed with sync
-    sync_to_drive(app).await
+    // PRO status valid, proceed with bidirectional sync for multi-device consistency
+    sync_bidirectional(app).await
+}
+
+/// Bidirectional sync result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BidirectionalSyncResult {
+    pub success: bool,
+    pub timestamp: Option<i64>,
+    pub pulled_from_cloud: bool,
+    pub pushed_to_cloud: bool,
+    pub error: Option<String>,
+}
+
+/// Bidirectional sync - pulls from cloud if newer, then pushes local changes
+/// 
+/// This is for free users who want to manually sync.
+/// Strategy:
+/// 1. Compare local and remote modification times
+/// 2. If remote is newer, download and merge (currently: replace local)
+/// 3. Upload local data to cloud
+/// 
+/// Note: Currently uses "last write wins" strategy. Future versions may implement
+/// proper conflict resolution.
+#[tauri::command]
+pub async fn sync_bidirectional(app: tauri::AppHandle) -> Result<BidirectionalSyncResult, String> {
+    let store = get_credential_store(&app)?;
+    let mut creds = get_valid_credentials(&app).await?;
+
+    let base_path = get_data_dir(&app)?;
+    let drive = DriveClient::new(creds.access_token.clone());
+
+    // Get or create app folder
+    let app_folder_id = match creds.folder_id.clone() {
+        Some(id) => id,
+        None => {
+            let id = drive.ensure_app_folder().await.map_err(|e| e.to_string())?;
+            creds.update_folder_id(id.clone());
+            let _ = store.save(&creds);
+            id
+        }
+    };
+
+    let mut pulled_from_cloud = false;
+    let mut pushed_to_cloud = false;
+
+    // Step 1: Check if remote data exists and compare timestamps
+    let local_data_path = base_path.join(NEKOTICK_FOLDER).join(DATA_FILE_NAME);
+    let local_modified = if local_data_path.exists() {
+        fs::metadata(&local_data_path)
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64)
+    } else {
+        None
+    };
+
+    // Check remote
+    let remote_info = match drive.find_file(&app_folder_id, NEKOTICK_FOLDER).await {
+        Ok(Some(nekotick_folder)) => {
+            match drive.find_file(&nekotick_folder.id, DATA_FILE_NAME).await {
+                Ok(Some(file)) => Some((nekotick_folder.id, file)),
+                _ => None,
+            }
+        }
+        _ => None,
+    };
+
+    // Step 2: Pull from cloud if remote is newer
+    if let Some((_nekotick_folder_id, remote_file)) = &remote_info {
+        let should_pull = match (&remote_file.modified_time, local_modified) {
+            (Some(remote_time), Some(local_time)) => {
+                // Parse remote time (ISO 8601 format)
+                if let Ok(remote_dt) = chrono::DateTime::parse_from_rfc3339(remote_time) {
+                    remote_dt.timestamp() > local_time
+                } else {
+                    false
+                }
+            }
+            (Some(_), None) => true, // Remote exists, local doesn't
+            _ => false,
+        };
+
+        if should_pull {
+            // Download remote data
+            let remote_content = drive
+                .download_file(&remote_file.id)
+                .await
+                .map_err(|e| e.to_string())?;
+
+            // Ensure local directory exists
+            let nekotick_dir = base_path.join(NEKOTICK_FOLDER);
+            fs::create_dir_all(&nekotick_dir).map_err(|e| e.to_string())?;
+
+            // Backup existing local data
+            if local_data_path.exists() {
+                let backup_path = nekotick_dir.join(format!("{}.backup", DATA_FILE_NAME));
+                let _ = fs::copy(&local_data_path, &backup_path);
+            }
+
+            // Write remote data to local
+            fs::write(&local_data_path, &remote_content)
+                .map_err(|e| format!("Failed to write local data: {}", e))?;
+
+            pulled_from_cloud = true;
+        }
+    }
+
+    // Step 3: Push local data to cloud
+    // Create .nekotick subfolder in Drive if needed
+    let nekotick_folder_id = drive
+        .ensure_subfolder(&app_folder_id, NEKOTICK_FOLDER)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Upload data.json
+    if local_data_path.exists() {
+        let content = fs::read(&local_data_path)
+            .map_err(|e| format!("Failed to read {}: {}", DATA_FILE_NAME, e))?;
+        drive
+            .upload_file(&nekotick_folder_id, DATA_FILE_NAME, &content)
+            .await
+            .map_err(|e| e.to_string())?;
+        pushed_to_cloud = true;
+    }
+
+    // Upload nekotick.md
+    let md_path = base_path.join(MARKDOWN_FILE);
+    if md_path.exists() {
+        let content = fs::read(&md_path)
+            .map_err(|e| format!("Failed to read {}: {}", MARKDOWN_FILE, e))?;
+        drive
+            .upload_file(&app_folder_id, MARKDOWN_FILE, &content)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    // Update sync metadata
+    let now = chrono::Utc::now().timestamp();
+    let meta = SyncMeta {
+        last_sync_time: Some(now),
+    };
+    save_sync_meta(&app, &meta)?;
+
+    Ok(BidirectionalSyncResult {
+        success: true,
+        timestamp: Some(now),
+        pulled_from_cloud,
+        pushed_to_cloud,
+        error: None,
+    })
 }

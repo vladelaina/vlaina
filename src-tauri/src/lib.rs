@@ -173,6 +173,7 @@ pub fn run() {
             google_drive::commands::get_sync_status,
             google_drive::commands::sync_to_drive,
             google_drive::commands::auto_sync_to_drive,
+            google_drive::commands::sync_bidirectional,
             google_drive::commands::restore_from_drive,
             google_drive::commands::check_remote_data,
             license::commands::get_device_id,

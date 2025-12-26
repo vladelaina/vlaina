@@ -17,6 +17,9 @@
 
 import { readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
 import { appDataDir } from '@tauri-apps/api/path';
+import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
+import { useSyncStore } from '@/stores/useSyncStore';
+import { useLicenseStore } from '@/stores/useLicenseStore';
 
 // ============================================================================
 // Types
@@ -246,10 +249,27 @@ export async function saveUnifiedData(data: UnifiedData): Promise<void> {
       
       console.log('[UnifiedStorage] Saved data');
       pendingData = null;
+      
+      // Trigger auto-sync for PRO users
+      triggerAutoSyncIfEligible();
     } catch (error) {
       console.error('[UnifiedStorage] Failed to save:', error);
     }
   }, 300); // 300ms debounce
+}
+
+/**
+ * Trigger auto-sync if user is eligible (PRO + connected to Google Drive)
+ */
+function triggerAutoSyncIfEligible(): void {
+  const syncState = useSyncStore.getState();
+  const licenseState = useLicenseStore.getState();
+  
+  // Only trigger for PRO users connected to Google Drive
+  if (syncState.isConnected && licenseState.isProUser && !licenseState.timeTamperDetected) {
+    const autoSyncManager = getAutoSyncManager();
+    autoSyncManager.triggerSync();
+  }
 }
 
 // Force immediate save (for critical operations)

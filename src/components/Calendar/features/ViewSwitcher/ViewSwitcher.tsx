@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { CaretDown, CaretLeft, CaretRight, Check, MagnifyingGlass, SidebarSimple } from '@phosphor-icons/react';
 import { useCalendarStore, type ViewMode } from '@/stores/useCalendarStore';
 import { addDays, addMonths } from 'date-fns';
+import { SyncButton } from '@/components/common';
 
 // View mode labels
 const VIEW_MODE_LABELS: Record<ViewMode, string> = {
@@ -188,6 +189,9 @@ export function ViewSwitcher() {
 
   return (
     <div className="flex items-center gap-1">
+      {/* Sync Button (for free users) */}
+      <SyncButton />
+
       {/* Search Button */}
       <button
         className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"

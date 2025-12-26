@@ -31,6 +31,14 @@ interface SyncResult {
   error: string | null;
 }
 
+interface BidirectionalSyncResult {
+  success: boolean;
+  timestamp: number | null;
+  pulledFromCloud: boolean;
+  pushedToCloud: boolean;
+  error: string | null;
+}
+
 interface RemoteDataInfo {
   exists: boolean;
   modifiedTime: string | null;
@@ -79,6 +87,9 @@ interface SyncActions {
   
   // Sync local data to cloud
   syncToCloud: () => Promise<boolean>;
+  
+  // Bidirectional sync (pull from cloud if newer, then push local)
+  syncBidirectional: () => Promise<boolean>;
   
   // Restore data from cloud
   restoreFromCloud: () => Promise<boolean>;
@@ -226,6 +237,54 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     }
   },
 
+  syncBidirectional: async () => {
+    const state = get();
+    
+    if (!state.isConnected) {
+      set({ syncError: 'Not connected to Google Drive' });
+      return false;
+    }
+    
+    set({ isSyncing: true, syncStatus: 'syncing', syncError: null });
+    try {
+      const result = await invoke<BidirectionalSyncResult>('sync_bidirectional');
+      
+      if (result.success) {
+        set({
+          lastSyncTime: result.timestamp,
+          isSyncing: false,
+          hasRemoteData: true,
+          pendingSync: false,
+          syncStatus: 'idle',
+        });
+        localStorage.removeItem('pendingSync');
+        
+        // If we pulled data from cloud, reload the page to refresh
+        if (result.pulledFromCloud) {
+          console.log('[Sync] Pulled data from cloud, reloading...');
+          window.location.reload();
+        }
+        
+        return true;
+      } else {
+        set({
+          syncError: result.error || 'Sync failed',
+          isSyncing: false,
+          syncStatus: 'error',
+        });
+        return false;
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      set({
+        syncError: errorMsg,
+        isSyncing: false,
+        syncStatus: 'error',
+      });
+      return false;
+    }
+  },
+
   restoreFromCloud: async () => {
     const state = get();
     
@@ -333,7 +392,8 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     set({ isSyncing: true, syncStatus: 'syncing', syncError: null, lastSyncAttempt: Date.now() });
     
     try {
-      const result = await invoke<SyncResult>('auto_sync_to_drive');
+      // 使用双向同步，确保多设备数据一致性
+      const result = await invoke<BidirectionalSyncResult>('auto_sync_to_drive');
       
       if (result.success) {
         set({
@@ -345,7 +405,14 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
           syncRetryCount: 0,
         });
         localStorage.removeItem('pendingSync');
-        console.log('[AutoSync] Sync successful');
+        
+        // 如果从云端拉取了数据，刷新页面
+        if (result.pulledFromCloud) {
+          console.log('[AutoSync] Pulled data from cloud, reloading...');
+          window.location.reload();
+        } else {
+          console.log('[AutoSync] Sync successful');
+        }
         return true;
       } else {
         set({
