@@ -15,10 +15,14 @@ export const DEFAULT_DAY_START_MINUTES = 300;
  * Maps minutes so that dayStartMinutes appears at position 0
  */
 export function minutesToDisplayPosition(actualMinutes: number, dayStartMinutes: number = DEFAULT_DAY_START_MINUTES): number {
-  if (actualMinutes >= dayStartMinutes) {
-    return actualMinutes - dayStartMinutes;
+  // Normalize actualMinutes to 0-1439 range first
+  let normalized = actualMinutes % 1440;
+  if (normalized < 0) normalized += 1440;
+  
+  if (normalized >= dayStartMinutes) {
+    return normalized - dayStartMinutes;
   }
-  return actualMinutes + (1440 - dayStartMinutes);
+  return normalized + (1440 - dayStartMinutes);
 }
 
 /**
@@ -26,7 +30,14 @@ export function minutesToDisplayPosition(actualMinutes: number, dayStartMinutes:
  */
 export function displayPositionToMinutes(displayMinutes: number, dayStartMinutes: number = DEFAULT_DAY_START_MINUTES): number {
   const actualMinutes = displayMinutes + dayStartMinutes;
-  return actualMinutes >= 1440 ? actualMinutes - 1440 : actualMinutes;
+  // Handle wrap-around and ensure result is within 0-1439
+  if (actualMinutes >= 1440) {
+    return actualMinutes - 1440;
+  }
+  if (actualMinutes < 0) {
+    return actualMinutes + 1440;
+  }
+  return actualMinutes;
 }
 
 /**
@@ -34,19 +45,27 @@ export function displayPositionToMinutes(displayMinutes: number, dayStartMinutes
  * Maps hours so that day start hour appears at position 0
  */
 export function hourToDisplayPosition(hour: number, dayStartMinutes: number = DEFAULT_DAY_START_MINUTES): number {
+  // Normalize hour to 0-23 range
+  let normalizedHour = hour % 24;
+  if (normalizedHour < 0) normalizedHour += 24;
+  
   const dayStartHour = Math.floor(dayStartMinutes / 60);
-  if (hour >= dayStartHour) {
-    return hour - dayStartHour;
+  if (normalizedHour >= dayStartHour) {
+    return normalizedHour - dayStartHour;
   }
-  return hour + (24 - dayStartHour);
+  return normalizedHour + (24 - dayStartHour);
 }
 
 /**
  * Convert display position (0-23) to actual hour (0-23)
  */
 export function displayPositionToHour(position: number, dayStartMinutes: number = DEFAULT_DAY_START_MINUTES): number {
+  // Normalize position to 0-23 range
+  let normalizedPosition = position % 24;
+  if (normalizedPosition < 0) normalizedPosition += 24;
+  
   const dayStartHour = Math.floor(dayStartMinutes / 60);
-  const hour = position + dayStartHour;
+  const hour = normalizedPosition + dayStartHour;
   return hour >= 24 ? hour - 24 : hour;
 }
 
@@ -67,7 +86,11 @@ export function getSnapMinutes(hourHeight: number): number {
  */
 export function pixelsToMinutes(pixels: number, hourHeight: number, dayStartMinutes: number = DEFAULT_DAY_START_MINUTES): number {
   const displayMinutes = (pixels / hourHeight) * 60;
-  return displayPositionToMinutes(displayMinutes, dayStartMinutes);
+  // Clamp display minutes to valid range (0-1439) before conversion
+  const clampedDisplayMinutes = Math.max(0, Math.min(1439, displayMinutes));
+  const actualMinutes = displayPositionToMinutes(clampedDisplayMinutes, dayStartMinutes);
+  // Ensure result is also within valid range
+  return Math.max(0, Math.min(1439, actualMinutes));
 }
 
 /**
@@ -90,6 +113,7 @@ export function minutesToPixels(minutes: number, hourHeight: number, dayStartMin
  * Snap minutes to interval
  */
 export function snapMinutes(minutes: number, snapInterval: number): number {
+  if (snapInterval <= 0) return minutes; // Prevent division by zero
   return Math.round(minutes / snapInterval) * snapInterval;
 }
 
@@ -115,7 +139,8 @@ export function calculateEventTop(startDate: number, hourHeight: number, dayStar
  */
 export function calculateEventHeight(startDate: number, endDate: number, hourHeight: number): number {
   const durationMs = endDate - startDate;
-  const durationMinutes = durationMs / (1000 * 60);
+  // Ensure non-negative duration
+  const durationMinutes = Math.max(0, durationMs) / (1000 * 60);
   return (durationMinutes / 60) * hourHeight;
 }
 
@@ -202,8 +227,12 @@ export function parseTimeString(input: string, _use24Hour: boolean = true): { ho
  * Format minutes (0-1439) to time string
  */
 export function formatMinutesToTimeString(totalMinutes: number, use24Hour: boolean = true): string {
-  const hours = Math.floor(totalMinutes / 60) % 24;
-  const minutes = totalMinutes % 60;
+  // Normalize to valid range
+  let normalized = totalMinutes % 1440;
+  if (normalized < 0) normalized += 1440;
+  
+  const hours = Math.floor(normalized / 60) % 24;
+  const minutes = normalized % 60;
   
   if (use24Hour) {
     return `${hours}:${minutes.toString().padStart(2, '0')}`;
