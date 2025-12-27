@@ -30,7 +30,8 @@ import { createTaskActions } from './actions/taskActions';
 import { createCalendarActions } from './actions/calendarActions';
 import { createProgressActions } from './actions/progressActions';
 import { createSettingsActions } from './actions/settingsActions';
-import type { ItemColor, ViewMode } from './types';
+import type { ViewMode } from './types';
+import type { ItemColor } from '@/lib/colors';
 
 // Re-export types
 export type {

@@ -1,5 +1,8 @@
 // Store types and interfaces
 
+// 从统一颜色系统导入
+export { type ItemColor, COLOR_HEX as ITEM_COLORS } from '@/lib/colors';
+
 export interface Group {
   id: string;
   name: string;
@@ -8,25 +11,13 @@ export interface Group {
   pinned?: boolean;
 }
 
-// Unified color system: red, orange, yellow, green, blue, purple, brown, gray (default)
-export type ItemColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'brown' | 'default';
-
 // View mode type
 export type ViewMode = 'day' | 'week' | 'month';
 
-// Unified color configuration with new Apple-style colors
-export const ITEM_COLORS: Record<ItemColor, string> = {
-  red: '#FE002D',
-  orange: '#FF8500',
-  yellow: '#FEC900',
-  green: '#63DA38',
-  blue: '#008BFE',
-  purple: '#DD11E8',
-  brown: '#B47D58',
-  default: '#9F9FA9',
-} as const;
-
 // StoreTask type for archive components
+// 注意：ItemColor 从 @/lib/colors 导入
+import type { ItemColor as ColorType } from '@/lib/colors';
+
 export interface StoreTask {
   id: string;
   content: string;
@@ -37,7 +28,7 @@ export interface StoreTask {
   groupId: string;
   parentId: string | null;
   collapsed: boolean;
-  color: ItemColor;
+  color: ColorType;
   estimatedMinutes?: number;
   actualMinutes?: number;
   startDate?: number;

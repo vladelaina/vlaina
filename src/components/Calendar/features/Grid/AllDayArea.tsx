@@ -13,6 +13,7 @@ import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useGroupStore } from '@/stores/useGroupStore';
 import type { CalendarDisplayItem } from '../../hooks/useCalendarEvents';
 import { EventContextMenu } from '../Event/EventContextMenu';
+import { getAllDayColorStyles, getColorPriority } from '@/lib/colors';
 
 // ============ Constants ============
 
@@ -21,51 +22,6 @@ const EVENT_HEIGHT = 22;
 const EVENT_GAP = 2;
 const MIN_AREA_HEIGHT = 28;
 const COLLAPSED_HEIGHT = 28; // Height when collapsed with chevron
-
-// ============ Color Styles - Apple Style Colors ============
-
-const COLOR_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  red: {
-    bg: 'bg-[#FE002D]/15 dark:bg-[#FE002D]/25',
-    text: 'text-[#FE002D] dark:text-[#FF6B6B]',
-    border: 'border-[#FE002D]/30 dark:border-[#FE002D]/40',
-  },
-  orange: {
-    bg: 'bg-[#FF8500]/15 dark:bg-[#FF8500]/25',
-    text: 'text-[#FF8500] dark:text-[#FFB366]',
-    border: 'border-[#FF8500]/30 dark:border-[#FF8500]/40',
-  },
-  yellow: {
-    bg: 'bg-[#FEC900]/15 dark:bg-[#FEC900]/25',
-    text: 'text-[#B8920A] dark:text-[#FEC900]',
-    border: 'border-[#FEC900]/30 dark:border-[#FEC900]/40',
-  },
-  green: {
-    bg: 'bg-[#63DA38]/15 dark:bg-[#63DA38]/25',
-    text: 'text-[#4CAF2A] dark:text-[#63DA38]',
-    border: 'border-[#63DA38]/30 dark:border-[#63DA38]/40',
-  },
-  blue: {
-    bg: 'bg-[#008BFE]/15 dark:bg-[#008BFE]/25',
-    text: 'text-[#008BFE] dark:text-[#66B8FF]',
-    border: 'border-[#008BFE]/30 dark:border-[#008BFE]/40',
-  },
-  purple: {
-    bg: 'bg-[#DD11E8]/15 dark:bg-[#DD11E8]/25',
-    text: 'text-[#DD11E8] dark:text-[#E866F0]',
-    border: 'border-[#DD11E8]/30 dark:border-[#DD11E8]/40',
-  },
-  brown: {
-    bg: 'bg-[#B47D58]/15 dark:bg-[#B47D58]/25',
-    text: 'text-[#B47D58] dark:text-[#D4A484]',
-    border: 'border-[#B47D58]/30 dark:border-[#B47D58]/40',
-  },
-  default: {
-    bg: 'bg-[#9F9FA9]/15 dark:bg-[#9F9FA9]/25',
-    text: 'text-[#6B6B73] dark:text-[#9F9FA9]',
-    border: 'border-[#9F9FA9]/30 dark:border-[#9F9FA9]/40',
-  },
-};
 
 // ============ Types ============
 
@@ -85,22 +41,6 @@ interface LayoutedEvent {
   endCol: number;
 }
 
-// Color sort order: red, orange, yellow, green, blue, purple, brown, gray (default)
-const COLOR_SORT_ORDER: Record<string, number> = {
-  red: 0,
-  orange: 1,
-  yellow: 2,
-  green: 3,
-  blue: 4,
-  purple: 5,
-  brown: 6,
-  default: 7,
-};
-
-function getColorSortOrder(color?: string): number {
-  return COLOR_SORT_ORDER[color || 'default'] ?? COLOR_SORT_ORDER.default;
-}
-
 // ============ Layout Algorithm ============
 
 function calculateAllDayLayout(
@@ -116,8 +56,8 @@ function calculateAllDayLayout(
   // Sort events: by color priority first, then longer events, then by start date
   const sortedEvents = [...events].sort((a, b) => {
     // First by color priority
-    const colorOrderA = getColorSortOrder(a.color);
-    const colorOrderB = getColorSortOrder(b.color);
+    const colorOrderA = getColorPriority(a.color);
+    const colorOrderB = getColorPriority(b.color);
     if (colorOrderA !== colorOrderB) return colorOrderA - colorOrderB;
     
     // Then by duration (longer first)
@@ -418,7 +358,7 @@ export function AllDayArea({
         {/* Events - only show when expanded or single event */}
         {showEvents && layoutedEvents.map(({ event, row, startCol, endCol }) => {
             const dayWidth = 100 / days.length;
-            const colorStyles = COLOR_STYLES[event.color || 'default'] || COLOR_STYLES.default;
+            const colorStyles = getAllDayColorStyles(event.color);
             const isActive = editingEventId === event.id;
             const isMultiDay = endCol > startCol;
 

@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import type { Task } from '@/stores/useGroupStore';
 import { useUIStore, useGroupStore } from '@/stores/useGroupStore';
 import { parseTimeString } from '@/stores/timeParser';
+import { ALL_COLORS, COLOR_HEX, getColorHex } from '@/lib/colors';
 
 // 禁用拖拽动画
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
@@ -175,19 +176,9 @@ export function PanelTaskItem({
     (itemRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
   };
 
-  // 颜色值 - Apple 风格颜色
-  const colorHexMap: Record<string, string> = {
-    red: '#FE002D',
-    orange: '#FF8500',
-    yellow: '#FEC900',
-    green: '#63DA38',
-    blue: '#008BFE',
-    purple: '#DD11E8',
-    brown: '#B47D58',
-    default: '#9F9FA9',
-  };
+  // 颜色值
   const colorValue = task.color && task.color !== 'default'
-    ? colorHexMap[task.color]
+    ? getColorHex(task.color)
     : undefined;
 
   return (
@@ -320,7 +311,7 @@ export function PanelTaskItem({
               {/* 颜色选择器 */}
               <div className="px-3 py-2">
                 <div className="flex items-center justify-between gap-1.5">
-                  {(['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'brown', 'default'] as const).map((color) => (
+                  {ALL_COLORS.map((color) => (
                     <button
                       key={color}
                       onClick={() => {
@@ -334,7 +325,7 @@ export function PanelTaskItem({
                           : ""
                       )}
                       style={{
-                        borderColor: colorHexMap[color],
+                        borderColor: COLOR_HEX[color],
                         backgroundColor: color === 'default' ? 'transparent' : undefined
                       }}
                     />

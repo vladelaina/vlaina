@@ -7,8 +7,9 @@
  * - Calendar and todo are just different windows observing the same data
  */
 
-import { useUnifiedStore, type ItemColor } from './useUnifiedStore';
+import { useUnifiedStore } from './useUnifiedStore';
 import type { UnifiedTask } from '@/lib/storage/unifiedStorage';
+import { type ItemColor, DEFAULT_COLOR } from '@/lib/colors';
 
 // Re-export types
 export type ViewMode = 'day' | 'week' | 'month';
@@ -42,7 +43,7 @@ function toCalendarEvent(task: UnifiedTask): CalendarEvent {
     startDate: task.startDate!,
     endDate: task.endDate || task.startDate! + 60 * 60 * 1000,
     isAllDay: task.isAllDay || false,
-    color: task.color || 'default',
+    color: task.color || DEFAULT_COLOR,
     completed: task.completed,
     description: task.description,
     location: task.location,

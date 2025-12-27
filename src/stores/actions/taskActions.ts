@@ -4,7 +4,7 @@
 
 import { nanoid } from 'nanoid';
 import type { UnifiedData, UnifiedTask } from '@/lib/storage/unifiedStorage';
-import type { ItemColor } from '../types';
+import { type ItemColor, DEFAULT_COLOR } from '@/lib/colors';
 
 type SetState = (fn: (state: { data: UnifiedData }) => Partial<{ data: UnifiedData }>) => void;
 type GetState = () => { data: UnifiedData };
@@ -12,7 +12,7 @@ type Persist = (data: UnifiedData) => void;
 
 export function createTaskActions(set: SetState, get: GetState, persist: Persist) {
   return {
-    addTask: (content: string, groupId: string, color: ItemColor = 'default') => {
+    addTask: (content: string, groupId: string, color: ItemColor = DEFAULT_COLOR) => {
       const groupTasks = get().data.tasks.filter(t => t.groupId === groupId && !t.parentId && !t.startDate);
       const newTask: UnifiedTask = {
         id: nanoid(),
@@ -49,7 +49,7 @@ export function createTaskActions(set: SetState, get: GetState, persist: Persist
         groupId: parent.groupId,
         parentId,
         collapsed: false,
-        color: parent.color || 'default',
+        color: parent.color || DEFAULT_COLOR,
       };
       set((state) => {
         const newData = {

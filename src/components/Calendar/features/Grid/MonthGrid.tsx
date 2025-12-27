@@ -14,21 +14,9 @@ import {
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useCalendarEvents, type CalendarDisplayItem } from '../../hooks/useCalendarEvents';
 import { isEventInVisualDay, DEFAULT_DAY_START_MINUTES } from '../../utils/timeUtils';
-import type { ItemColor } from '@/stores/types';
+import { getColorPriority, getColorHex } from '@/lib/colors';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-// Color sort order: red, orange, yellow, green, blue, purple, brown, gray (default)
-const COLOR_SORT_ORDER: Record<ItemColor, number> = {
-  red: 0,
-  orange: 1,
-  yellow: 2,
-  green: 3,
-  blue: 4,
-  purple: 5,
-  brown: 6,
-  default: 7,
-};
 
 /**
  * Sort events by completion status and color
@@ -42,8 +30,8 @@ function sortEventsByColor(events: CalendarDisplayItem[]): CalendarDisplayItem[]
     if (completedA !== completedB) return completedA - completedB;
 
     // Then sort by color
-    const colorOrderA = COLOR_SORT_ORDER[a.color || 'default'] ?? COLOR_SORT_ORDER.default;
-    const colorOrderB = COLOR_SORT_ORDER[b.color || 'default'] ?? COLOR_SORT_ORDER.default;
+    const colorOrderA = getColorPriority(a.color);
+    const colorOrderB = getColorPriority(b.color);
     if (colorOrderA !== colorOrderB) return colorOrderA - colorOrderB;
 
     return a.startDate - b.startDate;
@@ -158,16 +146,7 @@ export function MonthGrid() {
                           }
                         `}
                         style={{
-                          borderLeft: `3px solid ${
-                            event.color === 'red' ? '#FE002D' :
-                            event.color === 'orange' ? '#FF8500' :
-                            event.color === 'yellow' ? '#FEC900' :
-                            event.color === 'green' ? '#63DA38' :
-                            event.color === 'blue' ? '#008BFE' :
-                            event.color === 'purple' ? '#DD11E8' :
-                            event.color === 'brown' ? '#B47D58' :
-                            '#9F9FA9'
-                          }`,
+                          borderLeft: `3px solid ${getColorHex(event.color)}`,
                         }}
                       >
                         {event.content}

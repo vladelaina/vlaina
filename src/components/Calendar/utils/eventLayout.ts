@@ -7,7 +7,7 @@
  * - This ensures no visual overlap between events
  */
 
-import type { ItemColor } from '@/stores/types';
+import { type ItemColor, getColorPriority } from '@/lib/colors';
 
 interface LayoutEvent {
   id: string;
@@ -23,25 +23,6 @@ export interface EventLayoutInfo {
   totalColumns: number;
   leftPercent: number;
   widthPercent: number;
-}
-
-// Color sort order: red, orange, yellow, green, blue, purple, brown, gray (default)
-const COLOR_SORT_ORDER: Record<ItemColor, number> = {
-  red: 0,
-  orange: 1,
-  yellow: 2,
-  green: 3,
-  blue: 4,
-  purple: 5,
-  brown: 6,
-  default: 7,
-};
-
-/**
- * Get the sort order of a color
- */
-function getColorSortOrder(color?: ItemColor): number {
-  return COLOR_SORT_ORDER[color || 'default'] ?? COLOR_SORT_ORDER.default;
 }
 
 /**
@@ -121,8 +102,8 @@ function layoutGroup(events: LayoutEvent[]): Map<string, EventLayoutInfo> {
     if (completedA !== completedB) return completedA - completedB;
     
     // Then by color
-    const colorOrderA = getColorSortOrder(a.color);
-    const colorOrderB = getColorSortOrder(b.color);
+    const colorOrderA = getColorPriority(a.color);
+    const colorOrderB = getColorPriority(b.color);
     if (colorOrderA !== colorOrderB) return colorOrderA - colorOrderB;
     
     // Finally by duration descending

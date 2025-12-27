@@ -12,7 +12,7 @@ import { motion } from 'framer-motion';
 import { Tray, Clock } from '@phosphor-icons/react';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useCalendarStore } from '@/stores/useCalendarStore';
-import { ITEM_COLORS } from '@/stores/types';
+import { getColorHex, getColorPriority } from '@/lib/colors';
 import { EventEditForm } from './EventEditForm';
 
 // ============ Main Component ============
@@ -37,11 +37,10 @@ export function ContextPanel() {
   // Inbox mode: show unscheduled tasks
   const unscheduledTasks = tasks.filter(t => !t.completed && !t.startDate);
 
-  // Sort by color: red, orange, yellow, green, blue, purple, brown, gray (default)
-  const colorOrder: Record<string, number> = { red: 0, orange: 1, yellow: 2, green: 3, blue: 4, purple: 5, brown: 6, default: 7 };
+  // Sort by color priority
   const sortedTasks = [...unscheduledTasks].sort((a, b) => {
-    const aOrder = colorOrder[a.color || 'default'];
-    const bOrder = colorOrder[b.color || 'default'];
+    const aOrder = getColorPriority(a.color);
+    const bOrder = getColorPriority(b.color);
     if (aOrder !== bOrder) return aOrder - bOrder;
     return a.createdAt - b.createdAt;
   });
@@ -126,7 +125,7 @@ function DraggableTaskCard({ task }: { task: any }) {
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 9999 }
     : undefined;
 
-  const taskColor = ITEM_COLORS[task.color as keyof typeof ITEM_COLORS] || ITEM_COLORS.default;
+  const taskColor = getColorHex(task.color);
   const hasColor = task.color && task.color !== 'default';
 
   return (

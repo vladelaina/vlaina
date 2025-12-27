@@ -12,86 +12,10 @@ import { EventContextMenu } from './EventContextMenu';
 import { type EventLayoutInfo } from '../../utils/eventLayout';
 import { type CalendarDisplayItem } from '../../hooks/useCalendarEvents';
 import { calculateEventTop, calculateEventHeight, CALENDAR_CONSTANTS, DEFAULT_DAY_START_MINUTES } from '../../utils/timeUtils';
+import { getEventColorStyles } from '@/lib/colors';
 
 const GAP = CALENDAR_CONSTANTS.GAP as number;
 const RESIZE_HANDLE_HEIGHT = CALENDAR_CONSTANTS.RESIZE_HANDLE_HEIGHT as number;
-
-// ============ Color System - Apple Style Colors ============
-
-const COLOR_STYLES: Record<string, { bg: string; text: string; border: string; ring: string; fill: string; overtime: string; accent: string }> = {
-  red: {
-    bg: 'bg-[#FE002D]/10 dark:bg-[#FE002D]/20',
-    text: 'text-[#FE002D] dark:text-[#FF6B6B]',
-    border: 'border-[#FE002D]/40 dark:border-[#FE002D]/50',
-    ring: 'ring-[#FE002D]/30 dark:ring-[#FE002D]/20',
-    fill: 'bg-[#FE002D]/30 dark:bg-[#FE002D]/40',
-    overtime: 'border-[#FE002D]',
-    accent: 'bg-[#FE002D]',
-  },
-  orange: {
-    bg: 'bg-[#FF8500]/10 dark:bg-[#FF8500]/20',
-    text: 'text-[#FF8500] dark:text-[#FFB366]',
-    border: 'border-[#FF8500]/40 dark:border-[#FF8500]/50',
-    ring: 'ring-[#FF8500]/30 dark:ring-[#FF8500]/20',
-    fill: 'bg-[#FF8500]/30 dark:bg-[#FF8500]/40',
-    overtime: 'border-[#FF8500]',
-    accent: 'bg-[#FF8500]',
-  },
-  yellow: {
-    bg: 'bg-[#FEC900]/10 dark:bg-[#FEC900]/20',
-    text: 'text-[#B8920A] dark:text-[#FEC900]',
-    border: 'border-[#FEC900]/40 dark:border-[#FEC900]/50',
-    ring: 'ring-[#FEC900]/30 dark:ring-[#FEC900]/20',
-    fill: 'bg-[#FEC900]/30 dark:bg-[#FEC900]/40',
-    overtime: 'border-[#FEC900]',
-    accent: 'bg-[#FEC900]',
-  },
-  green: {
-    bg: 'bg-[#63DA38]/10 dark:bg-[#63DA38]/20',
-    text: 'text-[#4CAF2A] dark:text-[#63DA38]',
-    border: 'border-[#63DA38]/40 dark:border-[#63DA38]/50',
-    ring: 'ring-[#63DA38]/30 dark:ring-[#63DA38]/20',
-    fill: 'bg-[#63DA38]/30 dark:bg-[#63DA38]/40',
-    overtime: 'border-[#63DA38]',
-    accent: 'bg-[#63DA38]',
-  },
-  blue: {
-    bg: 'bg-[#008BFE]/10 dark:bg-[#008BFE]/20',
-    text: 'text-[#008BFE] dark:text-[#66B8FF]',
-    border: 'border-[#008BFE]/40 dark:border-[#008BFE]/50',
-    ring: 'ring-[#008BFE]/30 dark:ring-[#008BFE]/20',
-    fill: 'bg-[#008BFE]/30 dark:bg-[#008BFE]/40',
-    overtime: 'border-[#008BFE]',
-    accent: 'bg-[#008BFE]',
-  },
-  purple: {
-    bg: 'bg-[#DD11E8]/10 dark:bg-[#DD11E8]/20',
-    text: 'text-[#DD11E8] dark:text-[#E866F0]',
-    border: 'border-[#DD11E8]/40 dark:border-[#DD11E8]/50',
-    ring: 'ring-[#DD11E8]/30 dark:ring-[#DD11E8]/20',
-    fill: 'bg-[#DD11E8]/30 dark:bg-[#DD11E8]/40',
-    overtime: 'border-[#DD11E8]',
-    accent: 'bg-[#DD11E8]',
-  },
-  brown: {
-    bg: 'bg-[#B47D58]/10 dark:bg-[#B47D58]/20',
-    text: 'text-[#B47D58] dark:text-[#D4A484]',
-    border: 'border-[#B47D58]/40 dark:border-[#B47D58]/50',
-    ring: 'ring-[#B47D58]/30 dark:ring-[#B47D58]/20',
-    fill: 'bg-[#B47D58]/30 dark:bg-[#B47D58]/40',
-    overtime: 'border-[#B47D58]',
-    accent: 'bg-[#B47D58]',
-  },
-  default: {
-    bg: 'bg-[#9F9FA9]/10 dark:bg-[#9F9FA9]/20',
-    text: 'text-[#6B6B73] dark:text-[#9F9FA9]',
-    border: 'border-[#9F9FA9]/40 dark:border-[#9F9FA9]/50',
-    ring: 'ring-[#9F9FA9]/30 dark:ring-[#9F9FA9]/20',
-    fill: 'bg-[#9F9FA9]/30 dark:bg-[#9F9FA9]/40',
-    overtime: 'border-[#9F9FA9]',
-    accent: 'bg-[#9F9FA9]',
-  },
-};
 
 // ============ Types ============
 
@@ -180,7 +104,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
   }, [height]);
 
   // Color
-  const colorStyles = COLOR_STYLES[event.color || 'default'] || COLOR_STYLES.default;
+  const colorStyles = getEventColorStyles(event.color);
 
   // Position calculation
   // Ensure events don't overlap by applying consistent gaps

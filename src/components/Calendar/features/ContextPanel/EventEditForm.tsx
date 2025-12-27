@@ -11,7 +11,7 @@ import { format, setHours, setMinutes, startOfDay, endOfDay } from 'date-fns';
 import { Clock, Folder, ChevronDown, X, Sun } from 'lucide-react';
 import { useCalendarStore, type CalendarEvent } from '@/stores/useCalendarStore';
 import { cn } from '@/lib/utils';
-import type { ItemColor } from '@/stores/types';
+import { ALL_COLORS, COLOR_HEX, type ItemColor } from '@/lib/colors';
 
 // ============ Time Parsing ============
 
@@ -190,20 +190,6 @@ function EditableTime({ date, onChange, use24Hour = true }: EditableTimeProps) {
   );
 }
 
-// ============ Color Configuration ============
-
-const COLOR_OPTIONS: ItemColor[] = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'brown', 'default'];
-const COLOR_VALUES: Record<ItemColor, string> = {
-  red: '#FE002D',
-  orange: '#FF8500',
-  yellow: '#FEC900',
-  green: '#63DA38',
-  blue: '#008BFE',
-  purple: '#DD11E8',
-  brown: '#B47D58',
-  default: '#9F9FA9',
-};
-
 // ============ Types ============
 
 interface EventEditFormProps {
@@ -317,13 +303,13 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     : 'h-full flex flex-col bg-white dark:bg-zinc-900';
 
   const currentColor = event.color || 'default';
-  const colorValue = COLOR_VALUES[currentColor];
+  const colorValue = COLOR_HEX[currentColor];
 
   // Toggle to next color when clicking the checkbox
   const handleColorToggle = () => {
-    const currentIndex = COLOR_OPTIONS.indexOf(currentColor);
-    const nextIndex = (currentIndex + 1) % COLOR_OPTIONS.length;
-    handleColorChange(COLOR_OPTIONS[nextIndex]);
+    const currentIndex = ALL_COLORS.indexOf(currentColor);
+    const nextIndex = (currentIndex + 1) % ALL_COLORS.length;
+    handleColorChange(ALL_COLORS[nextIndex]);
   };
 
   return (
@@ -377,7 +363,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
 
         {/* Color picker row */}
         <div className="flex items-center gap-1.5 mt-3 ml-7">
-          {COLOR_OPTIONS.map((color) => (
+          {ALL_COLORS.map((color) => (
             <button
               key={color}
               onClick={() => handleColorChange(color)}
@@ -388,7 +374,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
                   : ''
               )}
               style={{
-                borderColor: COLOR_VALUES[color],
+                borderColor: COLOR_HEX[color],
                 backgroundColor: color === 'default' ? 'transparent' : undefined,
               }}
               title={color === 'default' ? 'Default' : color}

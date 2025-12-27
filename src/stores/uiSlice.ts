@@ -2,11 +2,10 @@
 // Handles: drawer, search, filters, drag state, archive view settings
 
 import { create } from 'zustand';
-import type { ItemColor } from './types';
+import { ALL_COLORS, type ItemColor } from '@/lib/colors';
 
 const COLOR_FILTER_KEY = 'nekotick-color-filter';
 const STATUS_FILTER_KEY = 'nekotick-status-filter';
-const ALL_COLORS: ItemColor[] = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'brown', 'default'];
 
 export type TaskStatus = 'todo' | 'scheduled' | 'completed';
 const ALL_STATUSES: TaskStatus[] = ['todo', 'scheduled', 'completed'];
@@ -66,7 +65,7 @@ function loadColorFilter(): ItemColor[] {
   } catch {
     // Ignore parse errors
   }
-  return ALL_COLORS;
+  return [...ALL_COLORS];
 }
 
 function saveColorFilter(colors: ItemColor[]): void {
@@ -126,7 +125,7 @@ export const useUIStore = create<UIStore>()((set, get) => ({
 
   toggleAllColors: () => {
     set((state) => {
-      const newColors = state.selectedColors.length === ALL_COLORS.length ? [] : ALL_COLORS;
+      const newColors = state.selectedColors.length === ALL_COLORS.length ? [] : [...ALL_COLORS];
       saveColorFilter(newColors);
       return { selectedColors: newColors };
     });

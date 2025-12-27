@@ -5,8 +5,9 @@
  * All data operations are delegated to useUnifiedStore
  */
 
-import { useUnifiedStore, type ItemColor } from './useUnifiedStore';
+import { useUnifiedStore } from './useUnifiedStore';
 import { useUIStore } from './uiSlice';
+import type { ItemColor } from '@/lib/colors';
 
 export type { ItemColor };
 export { useUIStore };

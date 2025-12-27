@@ -7,7 +7,7 @@
 
 import { nanoid } from 'nanoid';
 import type { UnifiedData, UnifiedTask } from '@/lib/storage/unifiedStorage';
-import type { ItemColor } from '../types';
+import { getValidColor } from '@/lib/colors';
 
 type UndoAction = {
   type: 'deleteTask';
@@ -104,7 +104,7 @@ export function createCalendarActions(set: SetState, get: GetState, persist: Per
         groupId: eventData.groupId || 'default',
         parentId: null,
         collapsed: false,
-        color: (eventData.color as ItemColor) || 'default',
+        color: getValidColor(eventData.color),
         startDate: eventData.startDate,
         endDate: eventData.endDate,
         isAllDay: eventData.isAllDay,
@@ -132,7 +132,7 @@ export function createCalendarActions(set: SetState, get: GetState, persist: Per
             if ('startDate' in updates) newTask.startDate = updates.startDate;
             if ('endDate' in updates) newTask.endDate = updates.endDate;
             if ('isAllDay' in updates) newTask.isAllDay = updates.isAllDay;
-            if ('color' in updates) newTask.color = (updates.color as ItemColor) || t.color;
+            if ('color' in updates) newTask.color = getValidColor(updates.color) || t.color;
             if ('description' in updates) newTask.description = updates.description;
             if ('location' in updates) newTask.location = updates.location;
             if ('groupId' in updates) newTask.groupId = updates.groupId as string;

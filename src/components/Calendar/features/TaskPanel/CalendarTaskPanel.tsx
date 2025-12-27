@@ -26,55 +26,7 @@ import { PanelTaskItem } from './PanelTaskItem';
 import { SortableDivider } from './SortableDivider';
 import { usePanelDragAndDrop } from './usePanelDragAndDrop';
 import { ProgressContent } from '@/components/Progress/features/ProgressContent';
-
-// 颜色排序 - Apple 风格颜色顺序
-const colorOrder: Record<string, number> = { 
-  red: 0, orange: 1, yellow: 2, green: 3, blue: 4, purple: 5, brown: 6, default: 7 
-};
-
-// 颜色样式（用于日历事件块样式的 DragOverlay）- Apple 风格颜色
-const COLOR_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  red: {
-    bg: 'bg-[#FE002D]/15 dark:bg-[#FE002D]/25',
-    text: 'text-[#FE002D] dark:text-[#FE002D]',
-    border: 'border-[#FE002D] dark:border-[#FE002D]',
-  },
-  orange: {
-    bg: 'bg-[#FF8500]/15 dark:bg-[#FF8500]/25',
-    text: 'text-[#FF8500] dark:text-[#FF8500]',
-    border: 'border-[#FF8500] dark:border-[#FF8500]',
-  },
-  yellow: {
-    bg: 'bg-[#FEC900]/15 dark:bg-[#FEC900]/25',
-    text: 'text-[#FEC900] dark:text-[#FEC900]',
-    border: 'border-[#FEC900] dark:border-[#FEC900]',
-  },
-  green: {
-    bg: 'bg-[#63DA38]/15 dark:bg-[#63DA38]/25',
-    text: 'text-[#63DA38] dark:text-[#63DA38]',
-    border: 'border-[#63DA38] dark:border-[#63DA38]',
-  },
-  blue: {
-    bg: 'bg-[#008BFE]/15 dark:bg-[#008BFE]/25',
-    text: 'text-[#008BFE] dark:text-[#008BFE]',
-    border: 'border-[#008BFE] dark:border-[#008BFE]',
-  },
-  purple: {
-    bg: 'bg-[#DD11E8]/15 dark:bg-[#DD11E8]/25',
-    text: 'text-[#DD11E8] dark:text-[#DD11E8]',
-    border: 'border-[#DD11E8] dark:border-[#DD11E8]',
-  },
-  brown: {
-    bg: 'bg-[#B47D58]/15 dark:bg-[#B47D58]/25',
-    text: 'text-[#B47D58] dark:text-[#B47D58]',
-    border: 'border-[#B47D58] dark:border-[#B47D58]',
-  },
-  default: {
-    bg: 'bg-[#9F9FA9]/15 dark:bg-[#9F9FA9]/25',
-    text: 'text-[#9F9FA9] dark:text-[#9F9FA9]',
-    border: 'border-[#9F9FA9] dark:border-[#9F9FA9]',
-  },
-};
+import { getColorPriority, getAllDayColorStyles, getColorHex } from '@/lib/colors';
 
 // 面板视图类型
 type PanelView = 'tasks' | 'progress';
@@ -234,8 +186,8 @@ export function CalendarTaskPanel({
         return true;
       })
       .sort((a, b) => {
-        const aColor = colorOrder[a.color || 'default'];
-        const bColor = colorOrder[b.color || 'default'];
+        const aColor = getColorPriority(a.color);
+        const bColor = getColorPriority(b.color);
         if (aColor !== bColor) return aColor - bColor;
         return a.order - b.order;
       });
@@ -707,7 +659,7 @@ export function CalendarTaskPanel({
                 
                 // 在日历区域时显示日历事件块样式
                 if (isOverCalendar) {
-                  const colorStyles = COLOR_STYLES[task.color || 'default'] || COLOR_STYLES.default;
+                  const colorStyles = getAllDayColorStyles(task.color);
                   // 计算 25 分钟的实际高度：hourHeight * (25 / 60)
                   const eventHeight = Math.max(hourHeight * (25 / 60), 20);
                   return (
@@ -745,19 +697,8 @@ export function CalendarTaskPanel({
                 }
                 
                 // 默认任务卡片样式（带颜色复选框）
-                // Apple 风格颜色
-                const colorHexMap: Record<string, string> = {
-                  red: '#FE002D',
-                  orange: '#FF8500',
-                  yellow: '#FEC900',
-                  green: '#63DA38',
-                  blue: '#008BFE',
-                  purple: '#DD11E8',
-                  brown: '#B47D58',
-                  default: '#9F9FA9',
-                };
                 const colorValue = task.color && task.color !== 'default'
-                  ? colorHexMap[task.color]
+                  ? getColorHex(task.color)
                   : undefined;
                 
                 return (

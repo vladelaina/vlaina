@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import { Scissors, Copy, CopyPlus, Trash2, Check, Play, Pause, Square } from 'lucide-react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
+import { CONTEXT_MENU_COLORS, type ItemColor } from '@/lib/colors';
 
 interface EventContextMenuProps {
   eventId: string;
@@ -10,23 +11,10 @@ interface EventContextMenuProps {
   onClose: () => void;
 }
 
-// Unified color system - Apple style colors
-type ColorName = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'brown' | 'default';
-const COLORS: { name: ColorName; bg: string }[] = [
-  { name: 'red', bg: 'bg-[#FE002D]' },
-  { name: 'orange', bg: 'bg-[#FF8500]' },
-  { name: 'yellow', bg: 'bg-[#FEC900]' },
-  { name: 'green', bg: 'bg-[#63DA38]' },
-  { name: 'blue', bg: 'bg-[#008BFE]' },
-  { name: 'purple', bg: 'bg-[#DD11E8]' },
-  { name: 'brown', bg: 'bg-[#B47D58]' },
-  { name: 'default', bg: 'bg-[#9F9FA9]' },
-];
-
 export function EventContextMenu({ eventId, position, currentColor = 'blue', timerState = 'idle', onClose }: EventContextMenuProps) {
   const { updateEvent, deleteEvent, events, addEvent, startTimer, pauseTimer, resumeTimer, stopTimer } = useCalendarStore();
 
-  const handleColorChange = (color: ColorName) => {
+  const handleColorChange = (color: ItemColor) => {
     updateEvent(eventId, { color });
     onClose();
   };
@@ -89,7 +77,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
       >
         {/* Color Picker */}
         <div className="px-4 py-2 flex gap-2">
-          {COLORS.map((color) => (
+          {CONTEXT_MENU_COLORS.map((color) => (
             <button
               key={color.name}
               onClick={() => handleColorChange(color.name)}

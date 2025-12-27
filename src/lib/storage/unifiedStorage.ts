@@ -20,6 +20,7 @@ import { appDataDir } from '@tauri-apps/api/path';
 import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
 import { useSyncStore } from '@/stores/useSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
+import type { ItemColor } from '@/lib/colors';
 
 // ============================================================================
 // Types
@@ -45,7 +46,7 @@ export interface UnifiedTask {
   collapsed: boolean;
   
   // Unified color system - Apple style colors
-  color: 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'brown' | 'default';
+  color: ItemColor;
   
   // Time properties (with time = calendar event, without time = pure todo)
   startDate?: number;

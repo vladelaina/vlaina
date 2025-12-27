@@ -3,7 +3,7 @@ import { ChevronUp, ChevronDown } from 'lucide-react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useState } from 'react';
-import type { ItemColor } from '@/stores/types';
+import { ALL_COLORS, COLOR_HEX, RAINBOW_GRADIENT } from '@/lib/colors';
 
 export function MiniCalendar() {
   const { selectedDate, setSelectedDate } = useCalendarStore();
@@ -98,22 +98,8 @@ export function MiniCalendar() {
   );
 }
 
-const ALL_COLORS: ItemColor[] = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'brown', 'default'];
-
 function ColorFilter() {
   const { selectedColors, toggleColor, toggleAllColors } = useUIStore();
-  
-  // Apple 风格颜色
-  const colorHexMap: Record<string, string> = {
-    red: '#FE002D',
-    orange: '#FF8500',
-    yellow: '#FEC900',
-    green: '#63DA38',
-    blue: '#008BFE',
-    purple: '#DD11E8',
-    brown: '#B47D58',
-    default: '#9F9FA9',
-  };
   
   return (
     <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
@@ -130,7 +116,7 @@ function ColorFilter() {
                 : ''
             }`}
             style={{
-              borderColor: colorHexMap[color],
+              borderColor: COLOR_HEX[color],
               backgroundColor: color === 'default' ? 'transparent' : undefined
             }}
           />
@@ -143,9 +129,7 @@ function ColorFilter() {
               ? 'ring-2 ring-zinc-400 dark:ring-zinc-500 ring-offset-1'
               : ''
           }`}
-          style={{
-            background: 'linear-gradient(135deg, #FE002D, #FF8500, #FEC900, #63DA38, #008BFE, #DD11E8)'
-          }}
+          style={{ background: RAINBOW_GRADIENT }}
         >
           <span className="block w-full h-full bg-white dark:bg-zinc-900 rounded-sm" />
         </button>
