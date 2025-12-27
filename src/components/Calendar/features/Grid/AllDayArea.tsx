@@ -75,6 +75,20 @@ interface LayoutedEvent {
   endCol: number;
 }
 
+// Color sort order: consistent with eventLayout.ts
+const COLOR_SORT_ORDER: Record<string, number> = {
+  red: 0,
+  yellow: 1,
+  purple: 2,
+  green: 3,
+  blue: 4,
+  default: 5,
+};
+
+function getColorSortOrder(color?: string): number {
+  return COLOR_SORT_ORDER[color || 'default'] ?? COLOR_SORT_ORDER.default;
+}
+
 // ============ Layout Algorithm ============
 
 function calculateAllDayLayout(
@@ -87,11 +101,19 @@ function calculateAllDayLayout(
 
   const firstDay = startOfDay(days[0]);
 
-  // Sort events: longer events first, then by start date
+  // Sort events: by color priority first, then longer events, then by start date
   const sortedEvents = [...events].sort((a, b) => {
+    // First by color priority
+    const colorOrderA = getColorSortOrder(a.color);
+    const colorOrderB = getColorSortOrder(b.color);
+    if (colorOrderA !== colorOrderB) return colorOrderA - colorOrderB;
+    
+    // Then by duration (longer first)
     const durationA = a.endDate - a.startDate;
     const durationB = b.endDate - b.startDate;
     if (durationA !== durationB) return durationB - durationA;
+    
+    // Finally by start date
     return a.startDate - b.startDate;
   });
 
