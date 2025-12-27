@@ -1,7 +1,7 @@
 // Store types and interfaces
 
 // 从统一颜色系统导入
-export { type ItemColor, COLOR_HEX as ITEM_COLORS } from '@/lib/colors';
+export { type ItemColor } from '@/lib/colors';
 
 export interface Group {
   id: string;

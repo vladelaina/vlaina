@@ -3,7 +3,7 @@ import { Folder, RotateCcw } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
-import { parseTimeString, formatMinutesToTimeString } from '@/components/Calendar/utils/timeUtils';
+import { parseClockTime, formatClockTime } from '@/lib/time';
 
 /**
  * Appearance tab content - theme, colors, font size
@@ -18,7 +18,7 @@ export function AppearanceTab() {
   const [showFontSizeTooltip, setShowFontSizeTooltip] = useState(false);
   const [timezoneInput, setTimezoneInput] = useState(timezone.toString());
   const [dayStartInput, setDayStartInput] = useState(() => 
-    formatMinutesToTimeString(dayStartTime, use24Hour)
+    formatClockTime(dayStartTime, use24Hour)
   );
 
   // Update input when timezone changes externally
@@ -28,7 +28,7 @@ export function AppearanceTab() {
 
   // Update day start input when settings change
   useEffect(() => {
-    setDayStartInput(formatMinutesToTimeString(dayStartTime, use24Hour));
+    setDayStartInput(formatClockTime(dayStartTime, use24Hour));
   }, [dayStartTime, use24Hour]);
 
   // Apply global font size
@@ -80,13 +80,13 @@ export function AppearanceTab() {
   };
 
   const handleDayStartSubmit = () => {
-    const parsed = parseTimeString(dayStartInput, use24Hour);
+    const parsed = parseClockTime(dayStartInput);
     if (parsed) {
       const minutes = parsed.hours * 60 + parsed.minutes;
       setDayStartTime(minutes);
     } else {
       // Reset if invalid
-      setDayStartInput(formatMinutesToTimeString(dayStartTime, use24Hour));
+      setDayStartInput(formatClockTime(dayStartTime, use24Hour));
     }
   };
 

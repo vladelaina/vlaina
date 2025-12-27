@@ -20,9 +20,8 @@ export { useUndoStore } from './useUndoStore';
 
 // Types
 export type { Group, StoreTask, ArchiveTimeView, ItemColor } from './types';
-export { ITEM_COLORS } from './types';
 
-// Utilities
-export { parseTimeString, parseTimeEstimation } from './timeParser';
+// Utilities - Time (from unified time module)
+export { parseDuration, extractDuration } from '@/lib/time';
 export { collectTaskAndDescendants, calculateActualTime } from './taskUtils';
 export { reorderTasksInGroup, crossStatusReorderTask, moveTaskBetweenGroups } from './reorderUtils';

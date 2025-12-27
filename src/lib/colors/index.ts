@@ -297,9 +297,4 @@ export function getValidColor(color?: ItemColor | string): ItemColor {
   return color as ItemColor;
 }
 
-// ============ 向后兼容 ============
 
-/**
- * @deprecated 使用 COLOR_HEX 代替
- */
-export const ITEM_COLORS = COLOR_HEX;

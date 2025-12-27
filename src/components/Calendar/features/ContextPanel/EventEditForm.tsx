@@ -12,88 +12,7 @@ import { Clock, Folder, ChevronDown, X, Sun } from 'lucide-react';
 import { useCalendarStore, type CalendarEvent } from '@/stores/useCalendarStore';
 import { cn } from '@/lib/utils';
 import { ALL_COLORS, COLOR_HEX, type ItemColor } from '@/lib/colors';
-
-// ============ Time Parsing ============
-
-/**
- * Parse time string to hours and minutes
- * Supports formats:
- * - 24h: "14:30", "14：30", "1430", "14.30", "14-30"
- * - 12h: "2:30pm", "2:30 PM", "2pm", "230pm"
- * - Flexible separators: : ： . - (colon, Chinese colon, dot, dash)
- */
-function parseTimeString(input: string): { hours: number; minutes: number } | null {
-  // Normalize input: trim, lowercase, replace common separators with colon
-  let normalized = input.trim().toLowerCase();
-  // Replace Chinese colon, dot, dash with standard colon
-  normalized = normalized.replace(/[：.。\-－]/g, ':');
-  // Remove extra spaces
-  normalized = normalized.replace(/\s+/g, ' ');
-  
-  // Try HH:MM format (24h or 12h)
-  const colonMatch = normalized.match(/^(\d{1,2}):(\d{2})\s*(am|pm)?$/);
-  if (colonMatch) {
-    let hours = parseInt(colonMatch[1], 10);
-    const minutes = parseInt(colonMatch[2], 10);
-    const period = colonMatch[3];
-    
-    if (period === 'pm' && hours < 12) hours += 12;
-    if (period === 'am' && hours === 12) hours = 0;
-    
-    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
-      return { hours, minutes };
-    }
-  }
-  
-  // Try HHMM format (e.g., "1430" or "230", "230pm")
-  const numMatch = normalized.match(/^(\d{3,4})\s*(am|pm)?$/);
-  if (numMatch) {
-    const num = numMatch[1];
-    const period = numMatch[2];
-    let hours: number;
-    let minutes: number;
-    
-    if (num.length === 3) {
-      hours = parseInt(num[0], 10);
-      minutes = parseInt(num.slice(1), 10);
-    } else {
-      hours = parseInt(num.slice(0, 2), 10);
-      minutes = parseInt(num.slice(2), 10);
-    }
-    
-    if (period === 'pm' && hours < 12) hours += 12;
-    if (period === 'am' && hours === 12) hours = 0;
-    
-    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
-      return { hours, minutes };
-    }
-  }
-  
-  // Try H am/pm format (e.g., "2pm", "2 pm")
-  const simpleMatch = normalized.match(/^(\d{1,2})\s*(am|pm)$/);
-  if (simpleMatch) {
-    let hours = parseInt(simpleMatch[1], 10);
-    const period = simpleMatch[2];
-    
-    if (period === 'pm' && hours < 12) hours += 12;
-    if (period === 'am' && hours === 12) hours = 0;
-    
-    if (hours >= 0 && hours <= 23) {
-      return { hours, minutes: 0 };
-    }
-  }
-  
-  // Try plain hour (e.g., "14" -> 14:00, "9" -> 9:00)
-  const hourOnly = normalized.match(/^(\d{1,2})$/);
-  if (hourOnly) {
-    const hours = parseInt(hourOnly[1], 10);
-    if (hours >= 0 && hours <= 23) {
-      return { hours, minutes: 0 };
-    }
-  }
-  
-  return null;
-}
+import { parseClockTime } from '@/lib/time';
 
 // ============ Editable Time Component ============
 
@@ -114,7 +33,7 @@ function EditableTime({ date, onChange, use24Hour = true }: EditableTimeProps) {
   
   // 解析预览：显示用户输入被解析成什么，无效时显示当前时间
   const parsedPreview = (() => {
-    const parsed = parseTimeString(inputValue);
+    const parsed = parseClockTime(inputValue);
     const previewDate = parsed 
       ? setMinutes(setHours(new Date(), parsed.hours), parsed.minutes)
       : date;
@@ -140,7 +59,7 @@ function EditableTime({ date, onChange, use24Hour = true }: EditableTimeProps) {
   // 实时预览：输入时立即更新事件
   const handleInputChange = useCallback((value: string) => {
     setInputValue(value);
-    const parsed = parseTimeString(value);
+    const parsed = parseClockTime(value);
     if (parsed) {
       const newDate = setMinutes(setHours(date, parsed.hours), parsed.minutes);
       onChange(newDate);

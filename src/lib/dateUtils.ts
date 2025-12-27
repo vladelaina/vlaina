@@ -140,44 +140,4 @@ export function getDefaultExpandedDates(timeView: TimeView): Set<string> {
   }
 }
 
-/**
- * Format duration in minutes to human-readable string
- * e.g., 90 -> "1h30m", 45 -> "45m", 120 -> "2h"
- */
-export function formatDuration(minutes: number): string {
-  if (minutes < 60) {
-    return `${Math.round(minutes)}m`;
-  }
-  const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
-  if (mins === 0) {
-    return `${hours}h`;
-  }
-  return `${hours}h${mins}m`;
-}
 
-/**
- * Format duration with full precision (days, hours, minutes, seconds)
- * e.g., 1500.5 -> "1d1h0m30s", 90 -> "1h30m"
- */
-export function formatDurationFull(minutes: number): string {
-  if (!isFinite(minutes) || minutes < 0) {
-    return '0s';
-  }
-  
-  const cappedMinutes = Math.min(minutes, 144000); // Cap at 100 days
-  const totalSeconds = Math.round(cappedMinutes * 60);
-  
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const mins = Math.floor((totalSeconds % 3600) / 60);
-  const secs = totalSeconds % 60;
-  
-  const parts: string[] = [];
-  if (days > 0) parts.push(`${days}d`);
-  if (hours > 0) parts.push(`${hours}h`);
-  if (mins > 0) parts.push(`${mins}m`);
-  if (secs > 0) parts.push(`${secs}s`);
-  
-  return parts.length === 0 ? '0s' : parts.join('');
-}

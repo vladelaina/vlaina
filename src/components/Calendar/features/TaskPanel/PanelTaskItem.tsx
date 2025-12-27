@@ -12,7 +12,7 @@ import { GripVertical, ChevronRight, ChevronDown, MoreHorizontal, Trash2, Plus, 
 import { cn } from '@/lib/utils';
 import type { Task } from '@/stores/useGroupStore';
 import { useUIStore, useGroupStore } from '@/stores/useGroupStore';
-import { parseTimeString } from '@/stores/timeParser';
+import { parseDuration, formatDuration } from '@/lib/time';
 import { ALL_COLORS, COLOR_HEX, getColorHex } from '@/lib/colors';
 
 // 禁用拖拽动画
@@ -23,24 +23,12 @@ const animateLayoutChanges: AnimateLayoutChanges = (args) => {
 };
 
 function formatMinutes(minutes: number): string {
-  if (minutes >= 60) {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-  }
-  return `${minutes}m`;
+  return formatDuration(minutes);
 }
 
 function formatEstimatedTimeForInput(minutes: number | undefined): string {
   if (!minutes) return '';
-  const days = Math.floor(minutes / (24 * 60));
-  const hours = Math.floor((minutes % (24 * 60)) / 60);
-  const mins = minutes % 60;
-  const parts: string[] = [];
-  if (days > 0) parts.push(`${days}d`);
-  if (hours > 0) parts.push(`${hours}h`);
-  if (mins > 0) parts.push(`${mins}m`);
-  return parts.join(' ') || '';
+  return formatDuration(minutes, { showDays: true });
 }
 
 function formatScheduledTime(startDate: number, endDate?: number): string {
@@ -345,7 +333,7 @@ export function PanelTaskItem({
                     if (e.key === 'Enter') {
                       e.preventDefault();
                       if (estimatedTime.trim()) {
-                        const newEstimation = parseTimeString(estimatedTime.trim());
+                        const newEstimation = parseDuration(estimatedTime.trim());
                         if (newEstimation !== undefined) {
                           useGroupStore.getState().updateTaskEstimation(task.id, newEstimation);
                           setShowMenu(false);
@@ -365,7 +353,7 @@ export function PanelTaskItem({
                     const currentFormatted = formatEstimatedTimeForInput(task.estimatedMinutes);
                     if (estimatedTime.trim() !== currentFormatted) {
                       if (estimatedTime.trim()) {
-                        const newEstimation = parseTimeString(estimatedTime.trim());
+                        const newEstimation = parseDuration(estimatedTime.trim());
                         if (newEstimation !== undefined) {
                           useGroupStore.getState().updateTaskEstimation(task.id, newEstimation);
                         } else {
