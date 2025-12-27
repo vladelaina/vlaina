@@ -113,6 +113,90 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
     }
   }, []);
 
+  // Auto-scroll when dragging near edges
+  const autoScrollRef = useRef<{ 
+    rafId: number | null; 
+    lastMouseX: number; 
+    lastMouseY: number;
+    isScrolling: boolean;
+  }>({ 
+    rafId: null, 
+    lastMouseX: 0,
+    lastMouseY: 0,
+    isScrolling: false
+  });
+  
+  // Store a ref to trigger drag update for smooth dragging during auto-scroll
+  const triggerDragUpdateRef = useRef<(() => void) | null>(null);
+  
+  useEffect(() => {
+    const isAnyDragging = isDragging || eventDrag !== null;
+    
+    if (!isAnyDragging) {
+      // Cancel animation frame when not dragging
+      if (autoScrollRef.current.rafId !== null) {
+        cancelAnimationFrame(autoScrollRef.current.rafId);
+        autoScrollRef.current.rafId = null;
+      }
+      autoScrollRef.current.isScrolling = false;
+      return;
+    }
+
+    const EDGE_THRESHOLD = 80; // pixels from edge to trigger scroll
+    const MAX_SCROLL_SPEED = 15; // max pixels per frame
+    
+    const handleAutoScroll = () => {
+      if (!scrollRef.current) {
+        autoScrollRef.current.rafId = requestAnimationFrame(handleAutoScroll);
+        return;
+      }
+      
+      const scrollRect = scrollRef.current.getBoundingClientRect();
+      const allDayRect = allDayAreaRef.current?.getBoundingClientRect();
+      const mouseY = autoScrollRef.current.lastMouseY;
+      let scrollAmount = 0;
+      
+      // Top edge is the bottom of all-day area (or scroll area top if no all-day area)
+      const topEdge = allDayRect ? allDayRect.bottom : scrollRect.top;
+      
+      // Check if mouse is near top edge (below all-day area)
+      if (mouseY < topEdge + EDGE_THRESHOLD && mouseY > topEdge - 20) {
+        const distance = topEdge + EDGE_THRESHOLD - mouseY;
+        scrollAmount = -Math.ceil((distance / EDGE_THRESHOLD) * MAX_SCROLL_SPEED);
+      }
+      // Check if mouse is near bottom edge
+      else if (mouseY > scrollRect.bottom - EDGE_THRESHOLD && mouseY < scrollRect.bottom + 50) {
+        const distance = mouseY - (scrollRect.bottom - EDGE_THRESHOLD);
+        scrollAmount = Math.ceil((distance / EDGE_THRESHOLD) * MAX_SCROLL_SPEED);
+      }
+      
+      if (scrollAmount !== 0) {
+        scrollRef.current.scrollTop += scrollAmount;
+        autoScrollRef.current.isScrolling = true;
+        
+        // Trigger drag update immediately after scroll to keep event in sync
+        if (triggerDragUpdateRef.current) {
+          triggerDragUpdateRef.current();
+        }
+      } else {
+        autoScrollRef.current.isScrolling = false;
+      }
+      
+      // Continue the animation loop
+      autoScrollRef.current.rafId = requestAnimationFrame(handleAutoScroll);
+    };
+
+    // Start animation loop
+    autoScrollRef.current.rafId = requestAnimationFrame(handleAutoScroll);
+
+    return () => {
+      if (autoScrollRef.current.rafId !== null) {
+        cancelAnimationFrame(autoScrollRef.current.rafId);
+        autoScrollRef.current.rafId = null;
+      }
+    };
+  }, [isDragging, eventDrag]);
+
   // ============ Coordinate Calculation ============
 
   const getPositionFromMouse = useCallback((clientX: number, clientY: number) => {
@@ -157,92 +241,98 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
   }, [getPositionFromMouse, closeEditingEvent]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    // Check if mouse is in all-day area (for event drag conversion)
-    if (eventDrag && allDayAreaRef.current) {
-      const allDayRect = allDayAreaRef.current.getBoundingClientRect();
-      const isInAllDayArea = e.clientY >= allDayRect.top && e.clientY <= allDayRect.bottom;
-      setIsAllDayDropTarget(isInAllDayArea && eventDrag.edge === null && !eventDrag.originalIsAllDay);
-    }
+    // Update mouse position for auto-scroll
+    autoScrollRef.current.lastMouseX = e.clientX;
+    autoScrollRef.current.lastMouseY = e.clientY;
+    
+    // Core drag update logic - extracted so it can be called during auto-scroll
+    const updateDragPosition = (clientX: number, clientY: number) => {
+      // Check if mouse is in all-day area (for event drag conversion)
+      if (eventDrag && allDayAreaRef.current) {
+        const allDayRect = allDayAreaRef.current.getBoundingClientRect();
+        const isInAllDayArea = clientY >= allDayRect.top && clientY <= allDayRect.bottom;
+        setIsAllDayDropTarget(isInAllDayArea && eventDrag.edge === null && !eventDrag.originalIsAllDay);
+      }
 
-    // Handle create drag
-    if (isDragging && dragStart && scrollRef.current) {
-      const scrollRect = scrollRef.current.getBoundingClientRect();
-      const relativeY = e.clientY - scrollRect.top + scrollRef.current.scrollTop;
-      const totalMinutes = pixelsToMinutes(relativeY, hourHeight, dayStartMinutes);
-      let snappedMinutes = Math.round(totalMinutes / snapMinutes) * snapMinutes;
-      // Ensure snapped minutes stays within valid range (0-1439)
-      snappedMinutes = Math.max(0, Math.min(1439, snappedMinutes));
-      setDragEnd({ minutes: snappedMinutes });
-      // Update time indicator for drag-to-create
-      const startMin = Math.min(dragStart.minutes, snappedMinutes);
-      const endMin = Math.max(dragStart.minutes, snappedMinutes);
-      setDragTimeIndicator({
-        startMinutes: startMin,
-        endMinutes: endMin,
-      });
-    }
-
-    // Handle event drag
-    if (eventDrag && scrollRef.current) {
-      // If dragging an all-day event, we need different handling
-      if (eventDrag.originalIsAllDay) {
-        // For all-day events being dragged out, calculate target time based on mouse position
+      // Handle create drag
+      if (isDragging && dragStart && scrollRef.current) {
         const scrollRect = scrollRef.current.getBoundingClientRect();
-        const allDayRect = allDayAreaRef.current?.getBoundingClientRect();
-        
-        // Only update if mouse is in the time grid area (below all-day area)
-        if (allDayRect && e.clientY > allDayRect.bottom && canvasRef.current) {
-          const relativeY = e.clientY - scrollRect.top + scrollRef.current.scrollTop;
-          const totalMinutes = pixelsToMinutes(relativeY, hourHeight, dayStartMinutes);
-          let snappedMinutes = Math.round(totalMinutes / snapMinutes) * snapMinutes;
-          snappedMinutes = Math.max(0, Math.min(1439, snappedMinutes));
+        const relativeY = clientY - scrollRect.top + scrollRef.current.scrollTop;
+        const totalMinutes = pixelsToMinutes(relativeY, hourHeight, dayStartMinutes);
+        let snappedMinutes = Math.round(totalMinutes / snapMinutes) * snapMinutes;
+        // Ensure snapped minutes stays within valid range (0-1439)
+        snappedMinutes = Math.max(0, Math.min(1439, snappedMinutes));
+        setDragEnd({ minutes: snappedMinutes });
+        // Update time indicator for drag-to-create
+        const startMin = Math.min(dragStart.minutes, snappedMinutes);
+        const endMin = Math.max(dragStart.minutes, snappedMinutes);
+        setDragTimeIndicator({
+          startMinutes: startMin,
+          endMinutes: endMin,
+        });
+      }
+
+      // Handle event drag
+      if (eventDrag && scrollRef.current) {
+        // If dragging an all-day event, we need different handling
+        if (eventDrag.originalIsAllDay) {
+          // For all-day events being dragged out, calculate target time based on mouse position
+          const scrollRect = scrollRef.current.getBoundingClientRect();
+          const allDayRect = allDayAreaRef.current?.getBoundingClientRect();
           
-          // Calculate which day column the mouse is over
-          const canvasRect = canvasRef.current.getBoundingClientRect();
-          const relativeX = e.clientX - canvasRect.left;
-          const dayWidth = canvasRect.width / columnCount;
-          const dayIndex = Math.max(0, Math.min(columnCount - 1, Math.floor(relativeX / dayWidth)));
-          
-          const event = displayItems.find(item => item.id === eventDrag.eventId);
-          if (event) {
-            const targetDay = days[dayIndex];
-            if (targetDay) {
-              // Create new start/end times (default 1 hour duration)
-              const newStartDate = new Date(targetDay);
-              newStartDate.setHours(Math.floor(snappedMinutes / 60), snappedMinutes % 60, 0, 0);
-              const newEndDate = new Date(newStartDate.getTime() + 60 * 60 * 1000); // 1 hour later
-              
-              // Update event in real-time (convert to timed event)
+          // Only update if mouse is in the time grid area (below all-day area)
+          if (allDayRect && clientY > allDayRect.bottom && canvasRef.current) {
+            const relativeY = clientY - scrollRect.top + scrollRef.current.scrollTop;
+            const totalMinutes = pixelsToMinutes(relativeY, hourHeight, dayStartMinutes);
+            let snappedMinutes = Math.round(totalMinutes / snapMinutes) * snapMinutes;
+            snappedMinutes = Math.max(0, Math.min(1439, snappedMinutes));
+            
+            // Calculate which day column the mouse is over
+            const canvasRect = canvasRef.current.getBoundingClientRect();
+            const relativeX = clientX - canvasRect.left;
+            const dayWidth = canvasRect.width / columnCount;
+            const dayIndex = Math.max(0, Math.min(columnCount - 1, Math.floor(relativeX / dayWidth)));
+            
+            const event = displayItems.find(item => item.id === eventDrag.eventId);
+            if (event) {
+              const targetDay = days[dayIndex];
+              if (targetDay) {
+                // Create new start/end times (default 1 hour duration)
+                const newStartDate = new Date(targetDay);
+                newStartDate.setHours(Math.floor(snappedMinutes / 60), snappedMinutes % 60, 0, 0);
+                const newEndDate = new Date(newStartDate.getTime() + 60 * 60 * 1000); // 1 hour later
+                
+                // Update event in real-time (convert to timed event)
+                updateEvent(eventDrag.eventId, {
+                  isAllDay: false,
+                  startDate: newStartDate.getTime(),
+                  endDate: newEndDate.getTime(),
+                });
+                
+                // Show time indicator
+                setDragTimeIndicator({
+                  startMinutes: snappedMinutes,
+                  endMinutes: snappedMinutes + 60,
+                });
+              }
+            }
+          } else if (allDayRect && clientY <= allDayRect.bottom) {
+            // Mouse is back in all-day area, revert to all-day event
+            const event = displayItems.find(item => item.id === eventDrag.eventId);
+            if (event && !event.isAllDay) {
               updateEvent(eventDrag.eventId, {
-                isAllDay: false,
-                startDate: newStartDate.getTime(),
-                endDate: newEndDate.getTime(),
-              });
-              
-              // Show time indicator
-              setDragTimeIndicator({
-                startMinutes: snappedMinutes,
-                endMinutes: snappedMinutes + 60,
+                isAllDay: true,
+                startDate: eventDrag.originalStart,
+                endDate: eventDrag.originalEnd,
               });
             }
+            setDragTimeIndicator(null);
           }
-        } else if (allDayRect && e.clientY <= allDayRect.bottom) {
-          // Mouse is back in all-day area, revert to all-day event
-          const event = displayItems.find(item => item.id === eventDrag.eventId);
-          if (event && !event.isAllDay) {
-            updateEvent(eventDrag.eventId, {
-              isAllDay: true,
-              startDate: eventDrag.originalStart,
-              endDate: eventDrag.originalEnd,
-            });
-          }
-          setDragTimeIndicator(null);
+          return;
         }
-        return;
-      }
-      
-      const scrollDelta = scrollRef.current.scrollTop - eventDrag.startScrollTop;
-      const deltaY = e.clientY - eventDrag.startY + scrollDelta;
+        
+        const scrollDelta = scrollRef.current.scrollTop - eventDrag.startScrollTop;
+        const deltaY = clientY - eventDrag.startY + scrollDelta;
       // Use pixelsDeltaToMinutes for relative movement (no day start offset)
       const deltaMinutes = Math.round(pixelsDeltaToMinutes(deltaY, hourHeight) / snapMinutes) * snapMinutes;
       const deltaMs = deltaMinutes * 60 * 1000;
@@ -386,6 +476,15 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
         }
       }
     }
+    };
+    
+    // Set the trigger ref so auto-scroll can call this
+    triggerDragUpdateRef.current = () => {
+      updateDragPosition(autoScrollRef.current.lastMouseX, autoScrollRef.current.lastMouseY);
+    };
+    
+    // Call the update with current mouse position
+    updateDragPosition(e.clientX, e.clientY);
   }, [isDragging, dragStart, eventDrag, hourHeight, snapMinutes, displayItems, updateEvent, dayStartMinutes, columnCount, days]);
 
   const handleMouseUp = useCallback((e: MouseEvent) => {
