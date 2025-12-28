@@ -40,7 +40,8 @@ interface BaseTimeGridProps {
 export function BaseTimeGrid({ days }: BaseTimeGridProps) {
   const { 
     addEvent, setEditingEventId, closeEditingEvent, 
-    hourHeight, updateEvent, use24Hour, dayStartTime
+    hourHeight, updateEvent, use24Hour, dayStartTime,
+    events, deleteEvent, editingEventId
   } = useCalendarStore();
   const { toggleTask } = useGroupStore();
   const displayItems = useCalendarEvents();
@@ -229,6 +230,14 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
     const pos = getPositionFromMouse(e.clientX, e.clientY);
     if (!pos) return;
 
+    // If the event being edited has no content, delete it (cancel creation)
+    if (editingEventId) {
+      const editingEvent = events.find(ev => ev.id === editingEventId);
+      if (editingEvent && !editingEvent.content.trim()) {
+        deleteEvent(editingEventId);
+      }
+    }
+
     closeEditingEvent();
     setIsDragging(true);
     setDragStart(pos);
@@ -238,7 +247,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
       startMinutes: pos.minutes,
       endMinutes: pos.minutes,
     });
-  }, [getPositionFromMouse, closeEditingEvent]);
+  }, [getPositionFromMouse, closeEditingEvent, editingEventId, events, deleteEvent]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     // Update mouse position for auto-scroll

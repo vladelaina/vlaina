@@ -27,6 +27,7 @@ export type {
   CalendarDisplayItem,
   ItemColor,
   TimeView,
+  TaskStatus,
 } from './types';
 
 // Utilities - Time (from unified time module)

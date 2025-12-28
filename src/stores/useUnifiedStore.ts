@@ -1,5 +1,5 @@
 /**
- * Unified Store - Single Source of Truth
+ * Unified Store - Single Source of Truth for Data
  * 
  * Core concept: There is only one type of "item" (UnifiedTask)
  * - Items with startDate → displayed in calendar view
@@ -7,11 +7,12 @@
  * - Scheduling a todo = adding startDate property
  * - Removing calendar event time = removing startDate property
  * 
- * Data flow:
- * - useUnifiedStore: Single source of truth
- * - useCalendarStore: Calendar view data access layer (filters items with time)
- * - useGroupStore: Todo view data access layer
- * - useProgressStore: Progress view data access layer
+ * Architecture:
+ * - useUnifiedStore: 数据的单一真相来源（tasks, groups, progress, settings）
+ * - useUIStore: UI 状态的单一真相来源（sidebar, editing, selection 等）
+ * - useCalendarStore: Calendar view 数据访问层（委托到上述两个 store）
+ * - useGroupStore: Todo view 数据访问层
+ * - useProgressStore: Progress view 数据访问层
  */
 
 import { create } from 'zustand';
@@ -54,20 +55,14 @@ type UndoAction = {
   task: UnifiedTask;
 };
 
-// Store state interface
+// Store state interface - 只包含数据状态，UI 状态已迁移到 UIStore
 interface UnifiedStoreState {
   // Data
   data: UnifiedData;
   loaded: boolean;
   
-  // UI State (not persisted)
+  // Group selection (数据相关，保留在这里)
   activeGroupId: string;
-  editingEventId: string | null;
-  editingEventPosition: { x: number; y: number } | null;
-  selectedEventId: string | null;
-  showSidebar: boolean;
-  showContextPanel: boolean;
-  selectedDate: Date;
   
   // Undo stack
   undoStack: UndoAction[];
@@ -101,11 +96,8 @@ interface UnifiedStoreActions {
   moveTaskToGroup: (taskId: string, targetGroupId: string, overTaskId?: string | null) => void;
   archiveCompletedTasks: (groupId: string) => void;
   
-  // Calendar Actions
+  // Calendar Data Actions (UI actions 已迁移到 UIStore)
   updateTaskTime: (id: string, startDate?: number | null, endDate?: number | null, isAllDay?: boolean) => void;
-  setEditingEventId: (id: string | null, position?: { x: number; y: number }) => void;
-  setSelectedEventId: (id: string | null) => void;
-  closeEditingEvent: () => void;
   addEvent: (event: { content: string; startDate: number; endDate: number; isAllDay: boolean; color?: string; groupId?: string }) => string;
   updateEvent: (id: string, updates: Partial<UnifiedTask>) => void;
   deleteEvent: (id: string) => void;
@@ -125,14 +117,11 @@ interface UnifiedStoreActions {
   toggleProgressArchive: (id: string) => void;
   reorderProgress: (activeId: string, overId: string) => void;
   
-  // Settings Actions
+  // Settings Actions (数据持久化设置)
   setTimezone: (tz: number) => void;
   setViewMode: (mode: TimeView) => void;
   setDayCount: (count: number) => void;
   setHourHeight: (height: number) => void;
-  toggleSidebar: () => void;
-  toggleContextPanel: () => void;
-  setSelectedDate: (date: Date) => void;
   toggle24Hour: () => void;
   setDayStartTime: (minutes: number) => void;
 }
@@ -144,7 +133,7 @@ function persist(data: UnifiedData) {
   saveUnifiedData(data);
 }
 
-// Default initial state
+// Default initial state - 只包含数据状态
 const initialState: UnifiedStoreState = {
   data: {
     groups: [{ id: DEFAULT_GROUP_ID, name: DEFAULT_GROUP_NAME, pinned: false, createdAt: Date.now() }],
@@ -155,12 +144,6 @@ const initialState: UnifiedStoreState = {
   },
   loaded: false,
   activeGroupId: DEFAULT_GROUP_ID,
-  editingEventId: null,
-  editingEventPosition: null,
-  selectedEventId: null,
-  showSidebar: true,
-  showContextPanel: true,
-  selectedDate: new Date(),
   undoStack: [],
 };
 

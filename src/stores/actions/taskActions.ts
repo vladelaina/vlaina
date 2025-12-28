@@ -5,6 +5,7 @@
 import { nanoid } from 'nanoid';
 import type { UnifiedData, UnifiedTask } from '@/lib/storage/unifiedStorage';
 import { type ItemColor, DEFAULT_COLOR } from '@/lib/colors';
+import { MS_PER_MINUTE } from '@/lib/time/constants';
 
 type SetState = (fn: (state: { data: UnifiedData }) => Partial<{ data: UnifiedData }>) => void;
 type GetState = () => { data: UnifiedData };
@@ -141,7 +142,7 @@ export function createTaskActions(set: SetState, get: GetState, persist: Persist
           if (task.timerState === 'running' && task.timerStartedAt) {
             totalMs += now - task.timerStartedAt;
           }
-          actualMinutes = Math.round(totalMs / 60000);
+          actualMinutes = Math.round(totalMs / MS_PER_MINUTE);
         }
         
         const newData = {

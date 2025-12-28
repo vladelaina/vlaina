@@ -120,7 +120,7 @@ interface EventEditFormProps {
 // ============ Component ============
 
 export function EventEditForm({ event, mode = 'embedded', position }: EventEditFormProps) {
-  const { updateEvent, closeEditingEvent, groups, use24Hour } = useCalendarStore();
+  const { updateEvent, closeEditingEvent, groups, use24Hour, deleteEvent } = useCalendarStore();
   const [content, setContent] = useState(event.content || '');
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -128,7 +128,13 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
   const containerRef = useRef<HTMLDivElement>(null);
   const isNewEvent = useRef(!(event.content || '').trim());
 
-  const currentGroup = groups.find(g => g.id === event.groupId) || groups[0];
+  // Handle close button click - delete empty events
+  const handleClose = useCallback(() => {
+    if (!event.content.trim()) {
+      deleteEvent(event.id);
+    }
+    closeEditingEvent();
+  }, [event.id, event.content, deleteEvent, closeEditingEvent]);  const currentGroup = groups.find(g => g.id === event.groupId) || groups[0];
 
   // Sync content
   useEffect(() => {
@@ -241,7 +247,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
       {/* Header with close button */}
       <div className={`flex items-center justify-end p-2 ${mode === 'floating' ? 'p-2' : ''}`}>
         <button
-          onClick={closeEditingEvent}
+          onClick={handleClose}
           className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
         >
           <X className="size-4 text-zinc-400" />

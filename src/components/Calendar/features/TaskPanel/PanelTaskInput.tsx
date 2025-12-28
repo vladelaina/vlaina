@@ -12,9 +12,9 @@ import { cn } from '@/lib/utils';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
 import { ALL_COLORS, SIMPLE_COLOR_STYLES, COLOR_HEX, RAINBOW_GRADIENT, type ItemColor } from '@/lib/colors';
 import type { TaskStatus } from '@/stores/uiSlice';
+import { ALL_STATUSES } from '@/stores/uiSlice';
 
-// 所有状态选项
-const allStatuses: TaskStatus[] = ['todo', 'scheduled', 'completed'];
+// 状态标签
 const statusLabels: Record<TaskStatus, string> = {
   todo: 'Todo',
   scheduled: 'Scheduled',
@@ -259,7 +259,7 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
               <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-700">
                 <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">Status Filter</div>
                 <div className="flex items-center gap-1">
-                  {allStatuses.map(s => (
+                  {ALL_STATUSES.map(s => (
                     <button
                       key={s}
                       data-color-option
@@ -285,7 +285,7 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
                     }}
                     className={cn(
                       "px-2 py-0.5 text-[10px] rounded-md border transition-all",
-                      selectedStatuses.length === allStatuses.length
+                      selectedStatuses.length === ALL_STATUSES.length
                         ? "border-zinc-400 dark:border-zinc-500 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
                         : "border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-600"
                     )}

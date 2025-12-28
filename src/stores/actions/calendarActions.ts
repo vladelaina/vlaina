@@ -1,8 +1,11 @@
 /**
- * Calendar Actions - 日历事件相关操作
+ * Calendar Actions - 日历事件数据操作
  * 
  * 注意：日历事件就是带有 startDate 的 UnifiedTask
  * 这里的操作本质上是对 tasks 数组中带时间属性的任务进行操作
+ * 
+ * UI 操作（setEditingEventId, setSelectedEventId, closeEditingEvent）
+ * 已迁移到 UIStore (src/stores/uiSlice.ts)
  */
 
 import { nanoid } from 'nanoid';
@@ -10,6 +13,7 @@ import type { UnifiedData, UnifiedTask } from '@/lib/storage/unifiedStorage';
 import { getValidColor } from '@/lib/colors';
 import { DEFAULT_EVENT_DURATION_MS } from '@/lib/calendar';
 import { DEFAULT_GROUP_ID } from '@/lib/config';
+import { MS_PER_MINUTE } from '@/lib/time/constants';
 
 type UndoAction = {
   type: 'deleteTask';
@@ -18,26 +22,20 @@ type UndoAction = {
 
 type SetState = (fn: (state: { 
   data: UnifiedData; 
-  editingEventId: string | null;
-  selectedEventId: string | null;
   undoStack: UndoAction[];
 }) => Partial<{ 
   data: UnifiedData; 
-  editingEventId: string | null;
-  editingEventPosition: { x: number; y: number } | null;
-  selectedEventId: string | null;
   undoStack: UndoAction[];
 }>) => void;
 
 type GetState = () => { 
   data: UnifiedData; 
-  editingEventId: string | null;
   undoStack: UndoAction[];
 };
 
 type Persist = (data: UnifiedData) => void;
 
-export function createCalendarActions(set: SetState, get: GetState, persist: Persist) {
+export function createCalendarActions(set: SetState, _get: GetState, persist: Persist) {
   return {
     updateTaskTime: (id: string, startDate?: number | null, endDate?: number | null, isAllDay?: boolean) => {
       set((state) => {
@@ -61,31 +59,6 @@ export function createCalendarActions(set: SetState, get: GetState, persist: Per
         persist(newData);
         return { data: newData };
       });
-    },
-
-    setEditingEventId: (id: string | null, position?: { x: number; y: number }) => {
-      set(() => ({ editingEventId: id, editingEventPosition: position || null }));
-    },
-    
-    setSelectedEventId: (id: string | null) => {
-      set(() => ({ selectedEventId: id }));
-    },
-
-    closeEditingEvent: () => {
-      const { editingEventId, data } = get();
-      if (editingEventId) {
-        const task = data.tasks.find(t => t.id === editingEventId);
-        if (task && !(task.content || '').trim()) {
-          const newData = {
-            ...data,
-            tasks: data.tasks.filter(t => t.id !== editingEventId),
-          };
-          persist(newData);
-          set(() => ({ data: newData, editingEventId: null, editingEventPosition: null }));
-        } else {
-          set(() => ({ editingEventId: null, editingEventPosition: null }));
-        }
-      }
     },
 
     // 添加带时间的任务（日历事件）
@@ -162,8 +135,6 @@ export function createCalendarActions(set: SetState, get: GetState, persist: Per
         
         return {
           data: newData,
-          editingEventId: state.editingEventId === id ? null : state.editingEventId,
-          selectedEventId: state.selectedEventId === id ? null : state.selectedEventId,
           undoStack: newUndoStack,
         };
       });
@@ -271,7 +242,7 @@ export function createCalendarActions(set: SetState, get: GetState, persist: Per
             if (t.timerState === 'running' && t.timerStartedAt) {
               totalMs += now - t.timerStartedAt;
             }
-            const actualMinutes = Math.round(totalMs / 60000);
+            const actualMinutes = Math.round(totalMs / MS_PER_MINUTE);
             
             return {
               ...t,

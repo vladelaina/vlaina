@@ -5,10 +5,11 @@
  * Supports configurable day start time
  */
 
-/**
- * Default day start time in minutes (5:00 AM = 300 minutes)
- */
-export const DEFAULT_DAY_START_MINUTES = 300;
+import { DEFAULT_DAY_START_TIME } from '@/lib/config';
+import { MINUTES_PER_DAY } from '@/lib/time/constants';
+
+// Re-export for backward compatibility
+export const DEFAULT_DAY_START_MINUTES = DEFAULT_DAY_START_TIME;
 
 /**
  * Convert actual minutes (0-1439) to display position minutes (0-1439)
@@ -16,13 +17,13 @@ export const DEFAULT_DAY_START_MINUTES = 300;
  */
 export function minutesToDisplayPosition(actualMinutes: number, dayStartMinutes: number = DEFAULT_DAY_START_MINUTES): number {
   // Normalize actualMinutes to 0-1439 range first
-  let normalized = actualMinutes % 1440;
-  if (normalized < 0) normalized += 1440;
+  let normalized = actualMinutes % MINUTES_PER_DAY;
+  if (normalized < 0) normalized += MINUTES_PER_DAY;
   
   if (normalized >= dayStartMinutes) {
     return normalized - dayStartMinutes;
   }
-  return normalized + (1440 - dayStartMinutes);
+  return normalized + (MINUTES_PER_DAY - dayStartMinutes);
 }
 
 /**
@@ -31,11 +32,11 @@ export function minutesToDisplayPosition(actualMinutes: number, dayStartMinutes:
 export function displayPositionToMinutes(displayMinutes: number, dayStartMinutes: number = DEFAULT_DAY_START_MINUTES): number {
   const actualMinutes = displayMinutes + dayStartMinutes;
   // Handle wrap-around and ensure result is within 0-1439
-  if (actualMinutes >= 1440) {
-    return actualMinutes - 1440;
+  if (actualMinutes >= MINUTES_PER_DAY) {
+    return actualMinutes - MINUTES_PER_DAY;
   }
   if (actualMinutes < 0) {
-    return actualMinutes + 1440;
+    return actualMinutes + MINUTES_PER_DAY;
   }
   return actualMinutes;
 }

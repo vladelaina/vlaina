@@ -27,6 +27,9 @@ import type { ItemColor } from '@/lib/colors';
 // 从统一日期系统导入
 import type { TimeView } from '@/lib/date';
 
+// 从 UI Store 导入状态类型
+import type { TaskStatus } from './uiSlice';
+
 // ============ 核心类型 Re-export ============
 
 export type { 
@@ -39,6 +42,7 @@ export type {
 
 export type { ItemColor };
 export type { TimeView };
+export type { TaskStatus };
 
 // ============ 派生类型定义 ============
 

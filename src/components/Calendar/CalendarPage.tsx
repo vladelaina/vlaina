@@ -23,7 +23,8 @@ import { useCalendarZoom } from './hooks/useCalendarZoom';
 export function CalendarPage() {
   const {
     load, viewMode, showContextPanel,
-    editingEventId, editingEventPosition, closeEditingEvent, events
+    editingEventId, editingEventPosition, closeEditingEvent, events,
+    deleteEvent
   } = useCalendarStore();
 
   // Get the event being edited
@@ -54,12 +55,18 @@ export function CalendarPage() {
       // Check if clicked on context menu
       if (target.closest('[data-event-context-menu]')) return;
 
+      // If the event being edited has no content, delete it (cancel creation)
+      const editingEvent = events.find(e => e.id === editingEventId);
+      if (editingEvent && !editingEvent.content.trim()) {
+        deleteEvent(editingEventId);
+      }
+
       closeEditingEvent();
     };
 
     document.addEventListener('mousedown', handleGlobalClick);
     return () => document.removeEventListener('mousedown', handleGlobalClick);
-  }, [editingEventId, closeEditingEvent]);
+  }, [editingEventId, closeEditingEvent, events, deleteEvent]);
 
   // Render current view
   const renderGrid = () => {

@@ -6,6 +6,7 @@
  */
 
 import type { StoreTask } from './types';
+import { MS_PER_MINUTE } from '@/lib/time/constants';
 
 /**
  * Recursively collect a task and all its descendants
@@ -43,7 +44,7 @@ export function calculateActualTime(
   }
   
   // Keep seconds precision: convert ms to minutes without rounding
-  let actualMinutes = elapsedMs / 60000;
+  let actualMinutes = elapsedMs / MS_PER_MINUTE;
   
   // Ensure at least 1 second precision (0.0166... minutes)
   if (actualMinutes < 1 / 60 && elapsedMs > 0) {

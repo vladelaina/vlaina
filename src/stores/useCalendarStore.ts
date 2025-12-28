@@ -5,9 +5,14 @@
  * - Items with time properties appear in calendar view
  * - Items without time properties only appear in todo view
  * - Calendar and todo are just different windows observing the same data
+ * 
+ * Architecture:
+ * - Data state: 从 UnifiedStore 获取
+ * - UI state: 委托到 UIStore（统一 UI 状态管理）
  */
 
 import { useUnifiedStore } from './useUnifiedStore';
+import { useUIStore } from './uiSlice';
 import type { UnifiedTask } from '@/lib/storage/unifiedStorage';
 import { DEFAULT_COLOR } from '@/lib/colors';
 import { DEFAULT_EVENT_DURATION_MS } from '@/lib/calendar';
@@ -45,9 +50,12 @@ function toCalendarEvent(task: UnifiedTask): CalendarEvent {
  * 
  * Filters items with time properties from unified tasks
  * Provides all state and operations needed for calendar view
+ * 
+ * UI state is delegated to UIStore for unified management
  */
 export function useCalendarStore() {
   const store = useUnifiedStore();
+  const uiStore = useUIStore();
   
   // Filter items with time properties from tasks
   const calendarEvents = store.data.tasks
@@ -60,39 +68,42 @@ export function useCalendarStore() {
     groups: store.data.groups,
     loaded: store.loaded,
     
-    // View State
+    // View State - 数据相关设置 (来自 UnifiedStore)
     viewMode: store.data.settings.viewMode,
-    selectedDate: store.selectedDate,
     dayCount: store.data.settings.dayCount,
-    showSidebar: store.showSidebar,
-    showContextPanel: store.showContextPanel,
-    editingEventId: store.editingEventId,
-    editingEventPosition: store.editingEventPosition,
-    selectedEventId: store.selectedEventId,
     timezone: store.data.settings.timezone,
     hourHeight: store.data.settings.hourHeight ?? DEFAULT_HOUR_HEIGHT,
     use24Hour: store.data.settings.use24Hour ?? DEFAULT_USE_24_HOUR,
     dayStartTime: store.data.settings.dayStartTime ?? DEFAULT_DAY_START_TIME,
     
-    // Actions
+    // UI State - 委托到 UIStore
+    selectedDate: uiStore.selectedDate,
+    showSidebar: uiStore.showSidebar,
+    showContextPanel: uiStore.showContextPanel,
+    editingEventId: uiStore.editingEventId,
+    editingEventPosition: uiStore.editingEventPosition,
+    selectedEventId: uiStore.selectedEventId,
+    
+    // Data Actions (来自 UnifiedStore)
     load: store.load,
     addEvent: store.addEvent,
     updateEvent: store.updateEvent,
     deleteEvent: store.deleteEvent,
     undo: store.undo,
-    
     setViewMode: store.setViewMode,
-    setSelectedDate: store.setSelectedDate,
     setDayCount: store.setDayCount,
     setHourHeight: store.setHourHeight,
-    toggleSidebar: store.toggleSidebar,
-    toggleContextPanel: store.toggleContextPanel,
-    setEditingEventId: store.setEditingEventId,
-    setSelectedEventId: store.setSelectedEventId,
-    closeEditingEvent: store.closeEditingEvent,
     setTimezone: store.setTimezone,
     toggle24Hour: store.toggle24Hour,
     setDayStartTime: store.setDayStartTime,
+    
+    // UI Actions - 委托到 UIStore
+    setSelectedDate: uiStore.setSelectedDate,
+    toggleSidebar: uiStore.toggleSidebar,
+    toggleContextPanel: uiStore.toggleContextPanel,
+    setEditingEventId: uiStore.setEditingEventId,
+    setSelectedEventId: uiStore.setSelectedEventId,
+    closeEditingEvent: uiStore.closeEditingEvent,
     
     // Task operations (calendar events are essentially tasks)
     toggleTask: store.toggleTask,

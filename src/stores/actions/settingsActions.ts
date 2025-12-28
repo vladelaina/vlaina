@@ -1,5 +1,8 @@
 /**
- * Settings Actions - 设置相关操作
+ * Settings Actions - 设置相关操作（数据持久化设置）
+ * 
+ * 注意：UI 状态操作（toggleSidebar, toggleContextPanel, setSelectedDate）
+ * 已迁移到 UIStore (src/stores/uiSlice.ts)
  */
 
 import type { UnifiedData } from '@/lib/storage/unifiedStorage';
@@ -7,14 +10,8 @@ import type { TimeView } from '@/lib/date';
 
 type SetState = (fn: (state: { 
   data: UnifiedData; 
-  showSidebar: boolean;
-  showContextPanel: boolean;
-  selectedDate: Date;
 }) => Partial<{ 
   data: UnifiedData; 
-  showSidebar: boolean;
-  showContextPanel: boolean;
-  selectedDate: Date;
 }>) => void;
 
 type Persist = (data: UnifiedData) => void;
@@ -64,18 +61,6 @@ export function createSettingsActions(set: SetState, persist: Persist) {
         persist(newData);
         return { data: newData };
       });
-    },
-
-    toggleSidebar: () => {
-      set((state) => ({ showSidebar: !state.showSidebar }));
-    },
-
-    toggleContextPanel: () => {
-      set((state) => ({ showContextPanel: !state.showContextPanel }));
-    },
-
-    setSelectedDate: (date: Date) => {
-      set(() => ({ selectedDate: date }));
     },
     
     toggle24Hour: () => {

@@ -1,5 +1,14 @@
-// UI state store
-// Handles: drawer, search, filters, drag state, archive view settings
+/**
+ * UI State Store - 统一 UI 状态管理
+ * 
+ * 这个模块是所有 UI 状态的唯一真相来源。
+ * 包含：drawer、search、filters、drag state、archive view、calendar UI state
+ * 
+ * 设计原则：
+ * 1. 单一真相来源 - 所有 UI 状态集中在这里
+ * 2. 与数据分离 - UnifiedStore 只管数据，UIStore 只管 UI
+ * 3. 向后兼容 - useCalendarStore 透明委托到这里
+ */
 
 import { create } from 'zustand';
 import { ALL_COLORS, type ItemColor } from '@/lib/colors';
@@ -7,7 +16,7 @@ import { type TimeView } from '@/lib/date';
 import { STORAGE_KEY_COLOR_FILTER, STORAGE_KEY_STATUS_FILTER } from '@/lib/config';
 
 export type TaskStatus = 'todo' | 'scheduled' | 'completed';
-const ALL_STATUSES: TaskStatus[] = ['todo', 'scheduled', 'completed'];
+export const ALL_STATUSES: TaskStatus[] = ['todo', 'scheduled', 'completed'];
 
 interface UIStore {
   // Drawer state
@@ -53,6 +62,30 @@ interface UIStore {
   // 正在拖动到日历区域的任务ID（用于临时隐藏日历上的事件）
   draggingToCalendarTaskId: string | null;
   setDraggingToCalendarTaskId: (id: string | null) => void;
+  
+  // ============ Calendar UI State (从 UnifiedStore 迁移) ============
+  
+  // Sidebar visibility
+  showSidebar: boolean;
+  toggleSidebar: () => void;
+  
+  // Context panel visibility
+  showContextPanel: boolean;
+  toggleContextPanel: () => void;
+  
+  // Selected date for calendar view
+  selectedDate: Date;
+  setSelectedDate: (date: Date) => void;
+  
+  // Event editing state
+  editingEventId: string | null;
+  editingEventPosition: { x: number; y: number } | null;
+  setEditingEventId: (id: string | null, position?: { x: number; y: number }) => void;
+  closeEditingEvent: () => void;
+  
+  // Event selection state
+  selectedEventId: string | null;
+  setSelectedEventId: (id: string | null) => void;
 }
 
 function loadColorFilter(): ItemColor[] {
@@ -191,4 +224,34 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   // 正在拖动到日历区域的任务ID
   draggingToCalendarTaskId: null,
   setDraggingToCalendarTaskId: (id) => set({ draggingToCalendarTaskId: id }),
+  
+  // ============ Calendar UI State ============
+  
+  // Sidebar visibility
+  showSidebar: true,
+  toggleSidebar: () => set((state) => ({ showSidebar: !state.showSidebar })),
+  
+  // Context panel visibility
+  showContextPanel: true,
+  toggleContextPanel: () => set((state) => ({ showContextPanel: !state.showContextPanel })),
+  
+  // Selected date for calendar view
+  selectedDate: new Date(),
+  setSelectedDate: (date) => set({ selectedDate: date }),
+  
+  // Event editing state
+  editingEventId: null,
+  editingEventPosition: null,
+  setEditingEventId: (id, position) => set({ 
+    editingEventId: id, 
+    editingEventPosition: position || null 
+  }),
+  closeEditingEvent: () => set({ 
+    editingEventId: null, 
+    editingEventPosition: null 
+  }),
+  
+  // Event selection state
+  selectedEventId: null,
+  setSelectedEventId: (id) => set({ selectedEventId: id }),
 }));

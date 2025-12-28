@@ -34,7 +34,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
   const { 
     setEditingEventId, editingEventId, 
     setSelectedEventId, closeEditingEvent,
-    use24Hour
+    use24Hour, events, deleteEvent
   } = useCalendarStore();
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -213,12 +213,17 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
     if (resizeEdge) return;
 
     if (editingEventId && editingEventId !== event.id) {
+      // If the event being edited has no content, delete it (cancel creation)
+      const editingEvent = events.find(ev => ev.id === editingEventId);
+      if (editingEvent && !editingEvent.content.trim()) {
+        deleteEvent(editingEventId);
+      }
       closeEditingEvent();
     }
 
     setSelectedEventId(event.id);
     setEditingEventId(event.id);
-  }, [isDragging, resizeEdge, editingEventId, event.id, closeEditingEvent, setSelectedEventId, setEditingEventId]);
+  }, [isDragging, resizeEdge, editingEventId, event.id, closeEditingEvent, setSelectedEventId, setEditingEventId, events, deleteEvent]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

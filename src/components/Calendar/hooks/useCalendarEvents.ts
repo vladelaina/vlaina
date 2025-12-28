@@ -19,7 +19,8 @@ export type { CalendarDisplayItem };
  */
 export function useCalendarEvents(): CalendarDisplayItem[] {
   const tasks = useUnifiedStore(state => state.data.tasks);
-  const editingEventId = useUnifiedStore(state => state.editingEventId);
+  // editingEventId 已迁移到 UIStore
+  const editingEventId = useUIStore(state => state.editingEventId);
   const selectedColors = useUIStore(state => state.selectedColors);
   const selectedStatuses = useUIStore(state => state.selectedStatuses);
   const draggingToCalendarTaskId = useUIStore(state => state.draggingToCalendarTaskId);
