@@ -18,6 +18,8 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import type { Task } from '@/stores/useGroupStore';
+import { DEFAULT_EVENT_DURATION_MS } from '@/lib/calendar';
+import { CALENDAR_CONSTANTS, getSnapMinutes } from '@/components/Calendar/utils/timeUtils';
 
 interface UsePanelDragAndDropProps {
   tasks: Task[];
@@ -116,8 +118,8 @@ export function usePanelDragAndDrop({
         
         if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
           const { selectedDate, hourHeight, viewMode, dayCount } = calendarInfo;
-          const GUTTER_WIDTH = 48;
-          const SNAP_MINUTES = 15;
+          const GUTTER_WIDTH = CALENDAR_CONSTANTS.GUTTER_WIDTH;
+          const SNAP_MINUTES = getSnapMinutes(hourHeight);
           
           const scrollContainer = document.getElementById('time-grid-scroll');
           const scrollTop = scrollContainer?.scrollTop || 0;
@@ -154,7 +156,7 @@ export function usePanelDragAndDrop({
           startDate.setHours(0, 0, 0, 0);
           startDate.setMinutes(snappedMinutes);
           
-          const endDate = new Date(startDate.getTime() + 25 * 60 * 1000);
+          const endDate = new Date(startDate.getTime() + DEFAULT_EVENT_DURATION_MS);
           
           updateTaskTime(activeTask.id, startDate.getTime(), endDate.getTime());
           return;
@@ -174,7 +176,7 @@ export function usePanelDragAndDrop({
       } else if (!activeTask.completed) {
         // 待办任务拖到分割线上 = 设置时间（移到已分配）
         const startTime = Date.now();
-        const endTime = startTime + 25 * 60 * 1000;
+        const endTime = startTime + DEFAULT_EVENT_DURATION_MS;
         updateTaskTime(activeTask.id, startTime, endTime);
       }
       return;
@@ -207,7 +209,7 @@ export function usePanelDragAndDrop({
       // 从待办拖到已分配，自动创建当前时间开始的 25 分钟任务
       if (!activeIsScheduled && !activeIsCompleted && overIsScheduled && !overIsCompleted) {
         const startTime = Date.now();
-        const endTime = startTime + 25 * 60 * 1000;
+        const endTime = startTime + DEFAULT_EVENT_DURATION_MS;
         updateTaskTime(activeTask.id, startTime, endTime);
         return;
       }
@@ -231,7 +233,7 @@ export function usePanelDragAndDrop({
       if (activeIsCompleted && overIsScheduled && !overIsCompleted) {
         toggleTask(activeTask.id);
         const startTime = Date.now();
-        const endTime = startTime + 25 * 60 * 1000;
+        const endTime = startTime + DEFAULT_EVENT_DURATION_MS;
         updateTaskTime(activeTask.id, startTime, endTime);
         return;
       }

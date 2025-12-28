@@ -12,6 +12,21 @@
  * 3. 清晰命名 - 不同功能使用不同函数名，避免混淆
  */
 
+// ============ 时间常量 ============
+
+export {
+  SECONDS_PER_MINUTE,
+  MINUTES_PER_HOUR,
+  HOURS_PER_DAY,
+  MINUTES_PER_DAY,
+  DAYS_PER_WEEK,
+  MS_PER_SECOND,
+  MS_PER_MINUTE,
+  MS_PER_HOUR,
+  MS_PER_DAY,
+  MS_PER_WEEK,
+} from './constants';
+
 // ============ 时长相关 ============
 
 export {

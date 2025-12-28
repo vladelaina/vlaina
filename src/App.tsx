@@ -14,10 +14,9 @@ import { useSyncInit } from '@/hooks/useSyncInit';
 import { useLicenseInit } from '@/hooks/useLicenseInit';
 import { getShortcutKeys } from '@/lib/shortcuts';
 import { startOfWeek, addDays, startOfDay, addMinutes } from 'date-fns';
-import { CALENDAR_CONSTANTS } from '@/components/Calendar/utils/timeUtils';
+import { CALENDAR_CONSTANTS, getSnapMinutes } from '@/components/Calendar/utils/timeUtils';
 
 const { GUTTER_WIDTH } = CALENDAR_CONSTANTS;
-const SNAP_MINUTES = 15;
 
 function AppContent() {
   // Enable shortcuts
@@ -107,7 +106,8 @@ function AppContent() {
 
       const relativeY = y - rect.top + scrollTop;
       const totalMinutes = (relativeY / hourHeight) * 60;
-      const snappedMinutes = Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+      const snapMinutes = getSnapMinutes(hourHeight);
+      const snappedMinutes = Math.round(totalMinutes / snapMinutes) * snapMinutes;
 
       const weekStart = viewMode === 'week' 
         ? startOfWeek(selectedDate, { weekStartsOn: 1 })

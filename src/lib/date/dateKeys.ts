@@ -4,8 +4,7 @@
  * 提供日期键的生成和格式化功能。
  */
 
-// 每周毫秒数
-const MS_PER_WEEK = 604800000;
+import { MS_PER_WEEK } from '../time/constants';
 
 /**
  * 格式化日期为日期键 (YYYY-MM-DD)

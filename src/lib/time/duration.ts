@@ -5,6 +5,8 @@
  * 时长在内部统一使用分钟数表示。
  */
 
+import { MINUTES_PER_DAY, MINUTES_PER_HOUR } from './constants';
+
 // ============ 类型定义 ============
 
 /**
@@ -31,12 +33,6 @@ export interface ExtractDurationResult {
 
 /** 最大支持的分钟数（100天） */
 const MAX_MINUTES = 144000;
-
-/** 每天的分钟数 */
-const MINUTES_PER_DAY = 1440;
-
-/** 每小时的分钟数 */
-const MINUTES_PER_HOUR = 60;
 
 // ============ 解析函数 ============
 

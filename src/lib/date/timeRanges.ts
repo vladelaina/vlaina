@@ -4,6 +4,7 @@
  * 提供基于时间视图的范围键生成和显示格式化功能。
  */
 
+import { MS_PER_WEEK } from '../time/constants';
 import type { TimeView } from './index';
 import {
   formatDateKey,
@@ -12,9 +13,6 @@ import {
   getCurrentWeekKey,
   getCurrentMonthKey,
 } from './dateKeys';
-
-// 每周毫秒数
-const MS_PER_WEEK = 604800000;
 
 /**
  * 根据时间戳和视图类型获取时间范围键

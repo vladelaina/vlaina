@@ -5,6 +5,8 @@
  * 时钟时间表示一天中的某个时刻，范围 0:00 - 23:59。
  */
 
+import { MINUTES_PER_DAY } from './constants';
+
 // ============ 类型定义 ============
 
 /**
@@ -18,9 +20,6 @@ export interface ClockTime {
 }
 
 // ============ 常量 ============
-
-/** 一天的总分钟数 */
-const MINUTES_PER_DAY = 1440;
 
 /** PM 指示符 */
 const PM_INDICATORS = ['pm', 'p.m.', 'p.m', '下午', '晚上'];

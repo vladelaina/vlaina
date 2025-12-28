@@ -8,6 +8,7 @@
 import { nanoid } from 'nanoid';
 import type { UnifiedData, UnifiedTask } from '@/lib/storage/unifiedStorage';
 import { getValidColor } from '@/lib/colors';
+import { DEFAULT_EVENT_DURATION_MS } from '@/lib/calendar';
 
 type UndoAction = {
   type: 'deleteTask';
@@ -198,7 +199,7 @@ export function createCalendarActions(set: SetState, get: GetState, persist: Per
             if (t.id !== id) return t;
             
             // 计算任务时长
-            const duration = t.endDate && t.startDate ? t.endDate - t.startDate : 25 * 60 * 1000;
+            const duration = t.endDate && t.startDate ? t.endDate - t.startDate : DEFAULT_EVENT_DURATION_MS;
             
             return {
               ...t,

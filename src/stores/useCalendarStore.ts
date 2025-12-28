@@ -10,6 +10,7 @@
 import { useUnifiedStore } from './useUnifiedStore';
 import type { UnifiedTask } from '@/lib/storage/unifiedStorage';
 import { DEFAULT_COLOR } from '@/lib/colors';
+import { DEFAULT_EVENT_DURATION_MS } from '@/lib/calendar';
 
 // 从统一类型模块导入，保持向后兼容的 re-export
 import type { CalendarEvent, TimeView } from './types';
@@ -24,7 +25,7 @@ function toCalendarEvent(task: UnifiedTask): CalendarEvent {
     id: task.id,
     content: task.content,
     startDate: task.startDate!,
-    endDate: task.endDate || task.startDate! + 60 * 60 * 1000,
+    endDate: task.endDate || task.startDate! + DEFAULT_EVENT_DURATION_MS,
     isAllDay: task.isAllDay || false,
     color: task.color || DEFAULT_COLOR,
     completed: task.completed,

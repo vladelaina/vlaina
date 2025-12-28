@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useUIStore } from '@/stores/uiSlice';
+import { DEFAULT_EVENT_DURATION_MINUTES } from '@/lib/calendar';
 
 // 从统一类型模块导入，保持向后兼容的 re-export
 import type { CalendarDisplayItem } from '@/stores/types';
@@ -46,7 +47,7 @@ export function useCalendarEvents(): CalendarDisplayItem[] {
         id: t.id,
         content: t.content,
         startDate: t.startDate!,
-        endDate: t.endDate || t.startDate! + (t.estimatedMinutes || 60) * 60 * 1000,
+        endDate: t.endDate || t.startDate! + (t.estimatedMinutes || DEFAULT_EVENT_DURATION_MINUTES) * 60 * 1000,
         isAllDay: t.isAllDay || false,
         color: t.color || 'default',
         completed: t.completed,
