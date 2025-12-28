@@ -4,6 +4,7 @@
 
 import { nanoid } from 'nanoid';
 import type { UnifiedData, UnifiedGroup } from '@/lib/storage/unifiedStorage';
+import { DEFAULT_GROUP_ID } from '@/lib/config';
 
 type SetState = (fn: (state: { data: UnifiedData }) => Partial<{ data: UnifiedData; activeGroupId: string }>) => void;
 type GetState = () => { data: UnifiedData; activeGroupId: string };
@@ -42,7 +43,7 @@ export function createGroupActions(set: SetState, get: GetState, persist: Persis
     },
 
     deleteGroup: (id: string) => {
-      if (id === 'default') return;
+      if (id === DEFAULT_GROUP_ID) return;
       set((state) => {
         const newData = {
           ...state.data,
@@ -52,7 +53,7 @@ export function createGroupActions(set: SetState, get: GetState, persist: Persis
         persist(newData);
         return { 
           data: newData,
-          activeGroupId: get().activeGroupId === id ? 'default' : get().activeGroupId,
+          activeGroupId: get().activeGroupId === id ? DEFAULT_GROUP_ID : get().activeGroupId,
         };
       });
     },

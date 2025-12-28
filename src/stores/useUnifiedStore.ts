@@ -32,6 +32,11 @@ import { createProgressActions } from './actions/progressActions';
 import { createSettingsActions } from './actions/settingsActions';
 import type { TimeView } from '@/lib/date';
 import type { ItemColor } from '@/lib/colors';
+import { 
+  DEFAULT_GROUP_ID,
+  DEFAULT_GROUP_NAME,
+  DEFAULT_SETTINGS,
+} from '@/lib/config';
 
 // Re-export types
 export type {
@@ -142,14 +147,14 @@ function persist(data: UnifiedData) {
 // Default initial state
 const initialState: UnifiedStoreState = {
   data: {
-    groups: [{ id: 'default', name: 'Inbox', pinned: false, createdAt: Date.now() }],
+    groups: [{ id: DEFAULT_GROUP_ID, name: DEFAULT_GROUP_NAME, pinned: false, createdAt: Date.now() }],
     tasks: [],
     progress: [],
     archive: [],
-    settings: { timezone: 8, viewMode: 'week', dayCount: 1, hourHeight: 64, use24Hour: false },
+    settings: { ...DEFAULT_SETTINGS },
   },
   loaded: false,
-  activeGroupId: 'default',
+  activeGroupId: DEFAULT_GROUP_ID,
   editingEventId: null,
   editingEventPosition: null,
   selectedEventId: null,

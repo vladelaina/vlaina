@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as fc from 'fast-check';
 import { useSyncStore, SyncStatusType } from './useSyncStore';
+import { STORAGE_KEY_PENDING_SYNC } from '@/lib/config';
 
 // Mock useLicenseStore
 vi.mock('./useLicenseStore', () => ({
@@ -60,7 +61,7 @@ describe('useSyncStore', () => {
             const state = useSyncStore.getState();
             expect(state.pendingSync).toBe(true);
             expect(state.syncStatus).toBe('pending');
-            expect(localStorage.getItem('pendingSync')).toBe('true');
+            expect(localStorage.getItem(STORAGE_KEY_PENDING_SYNC)).toBe('true');
           }
         ),
         { numRuns: 100 }
@@ -82,7 +83,7 @@ describe('useSyncStore', () => {
               syncRetryCount: retryCount,
               syncStatus: 'pending',
             });
-            localStorage.setItem('pendingSync', 'true');
+            localStorage.setItem(STORAGE_KEY_PENDING_SYNC, 'true');
             
             // Action
             useSyncStore.getState().clearPendingSync();
@@ -91,7 +92,7 @@ describe('useSyncStore', () => {
             const state = useSyncStore.getState();
             expect(state.pendingSync).toBe(false);
             expect(state.syncStatus).toBe('idle');
-            expect(localStorage.getItem('pendingSync')).toBeNull();
+            expect(localStorage.getItem(STORAGE_KEY_PENDING_SYNC)).toBeNull();
           }
         ),
         { numRuns: 100 }

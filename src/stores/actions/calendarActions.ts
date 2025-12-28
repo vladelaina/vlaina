@@ -9,6 +9,7 @@ import { nanoid } from 'nanoid';
 import type { UnifiedData, UnifiedTask } from '@/lib/storage/unifiedStorage';
 import { getValidColor } from '@/lib/colors';
 import { DEFAULT_EVENT_DURATION_MS } from '@/lib/calendar';
+import { DEFAULT_GROUP_ID } from '@/lib/config';
 
 type UndoAction = {
   type: 'deleteTask';
@@ -102,7 +103,7 @@ export function createCalendarActions(set: SetState, get: GetState, persist: Per
         completed: false,
         createdAt: Date.now(),
         order: 0,
-        groupId: eventData.groupId || 'default',
+        groupId: eventData.groupId || DEFAULT_GROUP_ID,
         parentId: null,
         collapsed: false,
         color: getValidColor(eventData.color),

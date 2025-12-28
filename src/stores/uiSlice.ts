@@ -4,9 +4,7 @@
 import { create } from 'zustand';
 import { ALL_COLORS, type ItemColor } from '@/lib/colors';
 import { type TimeView } from '@/lib/date';
-
-const COLOR_FILTER_KEY = 'nekotick-color-filter';
-const STATUS_FILTER_KEY = 'nekotick-status-filter';
+import { STORAGE_KEY_COLOR_FILTER, STORAGE_KEY_STATUS_FILTER } from '@/lib/config';
 
 export type TaskStatus = 'todo' | 'scheduled' | 'completed';
 const ALL_STATUSES: TaskStatus[] = ['todo', 'scheduled', 'completed'];
@@ -59,7 +57,7 @@ interface UIStore {
 
 function loadColorFilter(): ItemColor[] {
   try {
-    const saved = localStorage.getItem(COLOR_FILTER_KEY);
+    const saved = localStorage.getItem(STORAGE_KEY_COLOR_FILTER);
     if (saved) {
       return JSON.parse(saved);
     }
@@ -70,12 +68,12 @@ function loadColorFilter(): ItemColor[] {
 }
 
 function saveColorFilter(colors: ItemColor[]): void {
-  localStorage.setItem(COLOR_FILTER_KEY, JSON.stringify(colors));
+  localStorage.setItem(STORAGE_KEY_COLOR_FILTER, JSON.stringify(colors));
 }
 
 function loadStatusFilter(): TaskStatus[] {
   try {
-    const saved = localStorage.getItem(STATUS_FILTER_KEY);
+    const saved = localStorage.getItem(STORAGE_KEY_STATUS_FILTER);
     if (saved) {
       return JSON.parse(saved);
     }
@@ -86,7 +84,7 @@ function loadStatusFilter(): TaskStatus[] {
 }
 
 function saveStatusFilter(statuses: TaskStatus[]): void {
-  localStorage.setItem(STATUS_FILTER_KEY, JSON.stringify(statuses));
+  localStorage.setItem(STORAGE_KEY_STATUS_FILTER, JSON.stringify(statuses));
 }
 
 export const useUIStore = create<UIStore>()((set, get) => ({

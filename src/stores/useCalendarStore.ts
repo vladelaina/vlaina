@@ -11,6 +11,11 @@ import { useUnifiedStore } from './useUnifiedStore';
 import type { UnifiedTask } from '@/lib/storage/unifiedStorage';
 import { DEFAULT_COLOR } from '@/lib/colors';
 import { DEFAULT_EVENT_DURATION_MS } from '@/lib/calendar';
+import { 
+  DEFAULT_HOUR_HEIGHT, 
+  DEFAULT_USE_24_HOUR, 
+  DEFAULT_DAY_START_TIME,
+} from '@/lib/config';
 
 // 从统一类型模块导入，保持向后兼容的 re-export
 import type { CalendarEvent, TimeView } from './types';
@@ -65,9 +70,9 @@ export function useCalendarStore() {
     editingEventPosition: store.editingEventPosition,
     selectedEventId: store.selectedEventId,
     timezone: store.data.settings.timezone,
-    hourHeight: store.data.settings.hourHeight ?? 64,
-    use24Hour: store.data.settings.use24Hour ?? false,
-    dayStartTime: store.data.settings.dayStartTime ?? 300, // 默认 5:00 (300分钟)
+    hourHeight: store.data.settings.hourHeight ?? DEFAULT_HOUR_HEIGHT,
+    use24Hour: store.data.settings.use24Hour ?? DEFAULT_USE_24_HOUR,
+    dayStartTime: store.data.settings.dayStartTime ?? DEFAULT_DAY_START_TIME,
     
     // Actions
     load: store.load,

@@ -22,6 +22,13 @@ import { useSyncStore } from '@/stores/useSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
 import type { ItemColor } from '@/lib/colors';
 import type { TimeView } from '@/lib/date';
+import { 
+  DEFAULT_TIMEZONE, 
+  DEFAULT_VIEW_MODE, 
+  DEFAULT_DAY_COUNT,
+  DEFAULT_GROUP_ID,
+  DEFAULT_GROUP_NAME,
+} from '@/lib/config';
 
 // ============================================================================
 // Types
@@ -170,8 +177,8 @@ async function ensureDirectories(): Promise<void> {
 function getDefaultData(): UnifiedData {
   return {
     groups: [{
-      id: 'default',
-      name: 'Inbox',
+      id: DEFAULT_GROUP_ID,
+      name: DEFAULT_GROUP_NAME,
       pinned: false,
       createdAt: Date.now(),
     }],
@@ -179,9 +186,9 @@ function getDefaultData(): UnifiedData {
     progress: [],
     archive: [],
     settings: {
-      timezone: 8,
-      viewMode: 'day',
-      dayCount: 1,
+      timezone: DEFAULT_TIMEZONE,
+      viewMode: DEFAULT_VIEW_MODE,
+      dayCount: DEFAULT_DAY_COUNT,
     },
   };
 }
@@ -318,7 +325,7 @@ function generateMarkdown(data: UnifiedData): string {
   
   for (const group of data.groups) {
     const groupTasks = data.tasks.filter(t => t.groupId === group.id);
-    if (groupTasks.length === 0 && group.id !== 'default') continue;
+    if (groupTasks.length === 0 && group.id !== DEFAULT_GROUP_ID) continue;
     
     lines.push(`## ${group.name}`);
     lines.push('');

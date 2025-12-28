@@ -7,6 +7,7 @@
 
 import { useUnifiedStore } from './useUnifiedStore';
 import { useUIStore } from './uiSlice';
+import { DEFAULT_GROUP_ID } from '@/lib/config';
 
 // 从统一类型模块导入，保持向后兼容的 re-export
 import type { Task, Group, ItemColor } from './types';
@@ -25,7 +26,7 @@ export function useGroupStore() {
     activeGroupId: store.activeGroupId,
 
     // Group Actions
-    setActiveGroup: (id: string | null) => store.setActiveGroup(id || 'default'),
+    setActiveGroup: (id: string | null) => store.setActiveGroup(id || DEFAULT_GROUP_ID),
     addGroup: store.addGroup,
     updateGroup: store.updateGroup,
     deleteGroup: store.deleteGroup,

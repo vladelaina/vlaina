@@ -8,6 +8,7 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { useLicenseStore } from './useLicenseStore';
+import { STORAGE_KEY_PENDING_SYNC } from '@/lib/config';
 
 // Types matching Rust backend
 interface SyncStatus {
@@ -257,7 +258,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
           pendingSync: false,
           syncStatus: 'idle',
         });
-        localStorage.removeItem('pendingSync');
+        localStorage.removeItem(STORAGE_KEY_PENDING_SYNC);
         
         // If we pulled data from cloud, reload the page to refresh
         if (result.pulledFromCloud) {
@@ -343,12 +344,12 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   markPendingSync: () => {
     set({ pendingSync: true, syncStatus: 'pending' });
     // 持久化到 localStorage
-    localStorage.setItem('pendingSync', 'true');
+    localStorage.setItem(STORAGE_KEY_PENDING_SYNC, 'true');
   },
 
   clearPendingSync: () => {
     set({ pendingSync: false, syncStatus: 'idle' });
-    localStorage.removeItem('pendingSync');
+    localStorage.removeItem(STORAGE_KEY_PENDING_SYNC);
   },
 
   setSyncStatus: (status: SyncStatusType) => {
@@ -404,7 +405,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
           syncStatus: 'idle',
           syncRetryCount: 0,
         });
-        localStorage.removeItem('pendingSync');
+        localStorage.removeItem(STORAGE_KEY_PENDING_SYNC);
         
         // 如果从云端拉取了数据，刷新页面
         if (result.pulledFromCloud) {

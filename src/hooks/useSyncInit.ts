@@ -11,6 +11,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useSyncStore } from '@/stores/useSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
 import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
+import { STORAGE_KEY_PENDING_SYNC } from '@/lib/config';
 
 // Check token status every 4 minutes (tokens expire warning at 5 min)
 const TOKEN_CHECK_INTERVAL = 4 * 60 * 1000;
@@ -42,7 +43,7 @@ export function useSyncInit() {
       await checkStatus();
       
       // Restore pendingSync from localStorage
-      const savedPendingSync = localStorage.getItem('pendingSync');
+      const savedPendingSync = localStorage.getItem(STORAGE_KEY_PENDING_SYNC);
       if (savedPendingSync === 'true') {
         useSyncStore.getState().markPendingSync();
       }

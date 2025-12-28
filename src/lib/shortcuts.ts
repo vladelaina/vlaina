@@ -1,5 +1,7 @@
 // Shortcut configuration management
 
+import { STORAGE_KEY_SHORTCUTS } from '@/lib/config';
+
 export type ShortcutId = 
   | 'toggle-drawer'
   | 'archive-completed'
@@ -12,8 +14,6 @@ export interface ShortcutConfig {
   keys: string[]; // Empty array means not set
   editable: boolean;
 }
-
-const SHORTCUTS_STORAGE_KEY = 'nekotick-shortcuts';
 
 // Default shortcut configuration (all empty, let users set them)
 const defaultShortcuts: ShortcutConfig[] = [
@@ -46,7 +46,7 @@ const defaultShortcuts: ShortcutConfig[] = [
 // Get all shortcut configurations
 export function getShortcuts(): ShortcutConfig[] {
   try {
-    const stored = localStorage.getItem(SHORTCUTS_STORAGE_KEY);
+    const stored = localStorage.getItem(STORAGE_KEY_SHORTCUTS);
     if (stored) {
       const parsed = JSON.parse(stored) as ShortcutConfig[];
       // Merge default config with user config (prevent loss when new shortcuts are added)
@@ -72,7 +72,7 @@ export function getShortcutKeys(id: ShortcutId): string[] | null {
 // Save shortcut configuration
 export function saveShortcuts(shortcuts: ShortcutConfig[]): void {
   try {
-    localStorage.setItem(SHORTCUTS_STORAGE_KEY, JSON.stringify(shortcuts));
+    localStorage.setItem(STORAGE_KEY_SHORTCUTS, JSON.stringify(shortcuts));
   } catch (error) {
     console.error('Failed to save shortcuts:', error);
   }
