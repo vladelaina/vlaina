@@ -38,6 +38,7 @@ import {
   DEFAULT_GROUP_NAME,
   DEFAULT_SETTINGS,
 } from '@/lib/config';
+import type { UndoAction } from './types';
 
 // Re-export types
 export type {
@@ -48,12 +49,6 @@ export type {
 };
 
 export type { ItemColor, TimeView };
-
-// Undo action type
-type UndoAction = {
-  type: 'deleteTask';
-  task: UnifiedTask;
-};
 
 // Store state interface - 只包含数据状态，UI 状态已迁移到 UIStore
 interface UnifiedStoreState {

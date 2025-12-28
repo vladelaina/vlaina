@@ -75,3 +75,16 @@ export type Task = UnifiedTask;
  * 保持向后兼容。
  */
 export type Group = UnifiedGroup;
+
+// ============ Undo 系统类型 ============
+
+/**
+ * UndoAction - 撤销操作类型
+ * 
+ * 这是 undo 系统的统一类型定义。
+ * 目前支持删除任务的撤销。
+ */
+export type UndoAction = {
+  type: 'deleteTask';
+  task: UnifiedTask;
+};

@@ -14,11 +14,7 @@ import { getValidColor } from '@/lib/colors';
 import { DEFAULT_EVENT_DURATION_MS } from '@/lib/calendar';
 import { DEFAULT_GROUP_ID } from '@/lib/config';
 import { MS_PER_MINUTE } from '@/lib/time/constants';
-
-type UndoAction = {
-  type: 'deleteTask';
-  task: UnifiedTask;
-};
+import type { UndoAction } from '../types';
 
 type SetState = (fn: (state: { 
   data: UnifiedData; 

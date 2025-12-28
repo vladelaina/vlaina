@@ -15,7 +15,6 @@ export { useProgressStore } from './useProgressStore';
 
 // UI stores
 export { useToastStore } from './useToastStore';
-export { useUndoStore } from './useUndoStore';
 
 // Types - 统一从 types.ts 导出
 export type { 
