@@ -42,7 +42,7 @@ const COLOR_DEFINITIONS: readonly ColorDefinition[] = [
   { name: 'yellow',  hex: '#FEC900', priority: 2, darkText: '#FFE066' },
   { name: 'green',   hex: '#63DA38', priority: 3, darkText: '#8AE86B' },
   { name: 'blue',    hex: '#008BFE', priority: 4, darkText: '#66B3FF' },
-  { name: 'purple',  hex: '#DD11E8', priority: 5, darkText: '#E866F0' },
+  { name: 'purple',  hex: '#AD46FF', priority: 5, darkText: '#C77FFF' },
   { name: 'brown',   hex: '#B47D58', priority: 6, darkText: '#D4A882' },
   { name: 'default', hex: '#9F9FA9', priority: 7, darkText: '#B8B8C0' },
 ] as const;
