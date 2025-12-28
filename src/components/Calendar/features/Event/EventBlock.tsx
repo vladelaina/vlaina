@@ -331,12 +331,16 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
                   onToggle?.(event.id);
                 }}
                 className={`
-                  flex-shrink-0 w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center transition-all duration-150 mt-0.5
+                  flex-shrink-0 w-3.5 h-3.5 rounded-[4px] border-2 flex items-center justify-center mt-0.5
                   ${isCompleted
-                    ? 'bg-zinc-400 border-zinc-400 dark:bg-zinc-500 dark:border-zinc-500'
-                    : 'border-current opacity-50 bg-white/50 dark:bg-zinc-800/50 hover:opacity-80'
+                    ? ''
+                    : 'bg-white/50 dark:bg-zinc-800/50'
                   }
                 `}
+                style={{
+                  borderColor: colorStyles.accent,
+                  backgroundColor: isCompleted ? colorStyles.accent : undefined,
+                }}
               >
                 {isCompleted && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
               </button>
