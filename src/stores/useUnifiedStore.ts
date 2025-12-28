@@ -82,6 +82,7 @@ interface UnifiedStoreActions {
   updateTask: (id: string, content: string) => void;
   updateTaskColor: (id: string, color: ItemColor) => void;
   updateTaskEstimation: (id: string, estimatedMinutes?: number) => void;
+  updateTaskIcon: (id: string, icon?: string) => void;
   updateTaskParent: (id: string, parentId: string | null, order: number) => void;
   toggleTask: (id: string) => void;
   toggleTaskCollapse: (id: string) => void;

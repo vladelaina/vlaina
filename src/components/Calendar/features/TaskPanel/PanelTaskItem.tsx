@@ -14,6 +14,8 @@ import type { Task } from '@/stores/useGroupStore';
 import { useUIStore, useGroupStore } from '@/stores/useGroupStore';
 import { parseDuration, formatDuration } from '@/lib/time';
 import { ALL_COLORS, COLOR_HEX, getColorHex } from '@/lib/colors';
+import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
+import { IconSelector } from '@/components/common';
 
 // 禁用拖拽动画
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
@@ -226,6 +228,17 @@ export function PanelTaskItem({
           />
         </div>
 
+        {/* 图标 */}
+        {task.icon && (() => {
+          const IconComponent = getIconByName(task.icon);
+          if (!IconComponent) return null;
+          return (
+            <div className="mt-0.5 flex-shrink-0 text-zinc-400 dark:text-zinc-500">
+              <IconComponent className="h-3.5 w-3.5" weight="duotone" />
+            </div>
+          );
+        })()}
+
         {/* 内容 */}
         <div className="flex-1 min-w-0">
           {isEditing ? (
@@ -320,6 +333,15 @@ export function PanelTaskItem({
                   ))}
                 </div>
               </div>
+              
+              {/* 图标选择器 */}
+              <IconSelector 
+                value={task.icon} 
+                onChange={(icon) => {
+                  useGroupStore.getState().updateTaskIcon(task.id, icon);
+                  setShowMenu(false);
+                }} 
+              />
               <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
               
               {/* 预估时间 */}

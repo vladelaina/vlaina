@@ -1,0 +1,131 @@
+/**
+ * IconSelector - 紧凑型图标选择器
+ * 
+ * 用于右键菜单中的图标选择，复用 Progress 模块的图标数据
+ */
+
+import { useState } from 'react';
+import { Sparkle } from '@phosphor-icons/react';
+import { X } from 'lucide-react';
+import { ICON_CATEGORIES } from '@/components/Progress/features/IconPicker/data';
+import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
+
+interface IconSelectorProps {
+  value?: string;
+  onChange: (icon: string | undefined) => void;
+  /** 是否在选择后自动关闭（默认 true） */
+  closeOnSelect?: boolean;
+}
+
+// 常用图标（从各分类中精选）
+const QUICK_ICONS = [
+  'coffee', 'book', 'code', 'briefcase', 'heart', 'flame', 
+  'music', 'game', 'home', 'car', 'plane', 'shopping',
+];
+
+export function IconSelector({ value, onChange, closeOnSelect = true }: IconSelectorProps) {
+  const [showAll, setShowAll] = useState(false);
+
+  const handleSelect = (icon: string | undefined) => {
+    onChange(icon);
+    if (closeOnSelect) {
+      setShowAll(false);
+    }
+  };
+
+  if (showAll) {
+    return (
+      <div className="px-3 py-2">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide">Icon</span>
+          <button
+            onClick={() => setShowAll(false)}
+            className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+          >
+            <X className="size-3" />
+          </button>
+        </div>
+        
+        {/* All icons grid - scrollable */}
+        <div className="max-h-48 overflow-y-auto -mx-1 px-1 space-y-3">
+          {ICON_CATEGORIES.map((category) => (
+            <div key={category.name}>
+              <div className="text-[9px] font-medium text-zinc-400 dark:text-zinc-600 uppercase tracking-wide mb-1.5">
+                {category.name}
+              </div>
+              <div className="grid grid-cols-6 gap-1">
+                {category.icons.slice(0, 12).map(({ name, icon: Icon }) => (
+                  <button
+                    key={name}
+                    onClick={() => handleSelect(name)}
+                    className={`
+                      aspect-square rounded-md flex items-center justify-center transition-all
+                      ${value === name 
+                        ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' 
+                        : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300'
+                      }
+                    `}
+                  >
+                    <Icon className="size-4" weight={value === name ? 'duotone' : 'light'} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-3 py-2">
+      {/* Quick icons row */}
+      <div className="flex items-center gap-1.5">
+        {/* Clear button */}
+        <button
+          onClick={() => handleSelect(undefined)}
+          className={`
+            w-6 h-6 rounded-md flex items-center justify-center transition-all
+            ${!value 
+              ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300' 
+              : 'text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-400'
+            }
+          `}
+          title="No icon"
+        >
+          <Sparkle className="size-3.5" weight="light" />
+        </button>
+        
+        {/* Quick icons */}
+        {QUICK_ICONS.slice(0, 6).map((name) => {
+          const Icon = getIconByName(name);
+          if (!Icon) return null;
+          return (
+            <button
+              key={name}
+              onClick={() => handleSelect(name)}
+              className={`
+                w-6 h-6 rounded-md flex items-center justify-center transition-all
+                ${value === name 
+                  ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300' 
+                  : 'text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-400'
+                }
+              `}
+            >
+              <Icon className="size-3.5" weight={value === name ? 'duotone' : 'light'} />
+            </button>
+          );
+        })}
+        
+        {/* More button */}
+        <button
+          onClick={() => setShowAll(true)}
+          className="w-6 h-6 rounded-md flex items-center justify-center text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-400 text-[10px] font-medium"
+        >
+          ···
+        </button>
+      </div>
+    </div>
+  );
+}

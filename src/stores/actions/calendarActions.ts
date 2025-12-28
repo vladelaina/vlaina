@@ -107,6 +107,7 @@ export function createCalendarActions(set: SetState, _get: GetState, persist: Pe
             if ('description' in updates) newTask.description = updates.description;
             if ('location' in updates) newTask.location = updates.location;
             if ('groupId' in updates) newTask.groupId = updates.groupId as string;
+            if ('icon' in updates) newTask.icon = updates.icon;
             return newTask;
           }),
         };

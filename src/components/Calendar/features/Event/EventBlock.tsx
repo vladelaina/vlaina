@@ -13,6 +13,7 @@ import { type EventLayoutInfo } from '../../utils/eventLayout';
 import { type CalendarDisplayItem } from '../../hooks/useCalendarEvents';
 import { calculateEventTop, calculateEventHeight, CALENDAR_CONSTANTS, DEFAULT_DAY_START_MINUTES } from '../../utils/timeUtils';
 import { getEventInlineStyles } from '@/lib/colors';
+import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
 
 const GAP = CALENDAR_CONSTANTS.GAP as number;
 const RESIZE_HANDLE_HEIGHT = CALENDAR_CONSTANTS.RESIZE_HANDLE_HEIGHT as number;
@@ -322,6 +323,28 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
             />
           )}
 
+          {/* Icon watermark - 右下角淡淡的图标背景 */}
+          {event.icon && heightLevel !== 'micro' && heightLevel !== 'tiny' && (() => {
+            const IconComponent = getIconByName(event.icon);
+            if (!IconComponent) return null;
+            // 图标尺寸随事件高度自适应，最小 24px，最大 48px
+            const iconSize = Math.min(Math.max(height * 0.6, 24), 48);
+            return (
+              <div 
+                className="absolute right-1 bottom-0 pointer-events-none"
+                style={{ 
+                  opacity: 0.08,
+                  color: colorStyles.accent,
+                }}
+              >
+                <IconComponent 
+                  style={{ width: iconSize, height: iconSize }} 
+                  weight="duotone" 
+                />
+              </div>
+            );
+          })()}
+
           {/* Content layer */}
           <div className={`relative z-10 flex items-start gap-1.5 pl-3 pr-2 py-1 ${heightLevel === 'tiny' ? 'items-center' : ''}`}>
             {showCheckbox && (
@@ -387,6 +410,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
           eventId={event.id}
           position={contextMenu}
           currentColor={event.color}
+          currentIcon={event.icon}
           timerState={event.timerState}
           onClose={() => setContextMenu(null)}
         />

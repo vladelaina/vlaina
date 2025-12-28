@@ -39,6 +39,7 @@ export function useGroupStore() {
     updateTask: store.updateTask,
     updateTaskEstimation: store.updateTaskEstimation,
     updateTaskColor: store.updateTaskColor,
+    updateTaskIcon: store.updateTaskIcon,
     updateTaskParent: store.updateTaskParent,
     updateTaskTime: store.updateTaskTime,
     toggleTask: store.toggleTask,
@@ -65,6 +66,7 @@ useGroupStore.getState = () => {
     updateTaskParent: store.updateTaskParent,
     updateTaskColor: store.updateTaskColor,
     updateTaskEstimation: store.updateTaskEstimation,
+    updateTaskIcon: store.updateTaskIcon,
   };
 };
 

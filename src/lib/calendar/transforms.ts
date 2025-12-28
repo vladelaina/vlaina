@@ -34,6 +34,8 @@ export interface CalendarDisplayItem {
   description?: string;
   location?: string;
   groupId: string;
+  // 图标
+  icon?: string;
   // 计时器状态
   timerState?: 'idle' | 'running' | 'paused';
   timerStartedAt?: number;
@@ -102,6 +104,7 @@ export function toCalendarDisplayItem(task: UnifiedTask): CalendarDisplayItem {
     description: task.description,
     location: task.location,
     groupId: task.groupId,
+    icon: task.icon,
     timerState: task.timerState,
     timerStartedAt: task.timerStartedAt,
     timerAccumulated: task.timerAccumulated,

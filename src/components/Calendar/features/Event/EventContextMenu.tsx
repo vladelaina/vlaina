@@ -1,22 +1,32 @@
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Scissors, Copy, CopyPlus, Trash2, Check, Play, Pause, Square } from 'lucide-react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { CONTEXT_MENU_COLORS, type ItemColor } from '@/lib/colors';
+import { IconSelector } from '@/components/common';
 
 interface EventContextMenuProps {
   eventId: string;
   position: { x: number; y: number };
   currentColor?: string;
+  currentIcon?: string;
   timerState?: 'idle' | 'running' | 'paused';
   onClose: () => void;
 }
 
-export function EventContextMenu({ eventId, position, currentColor = 'blue', timerState = 'idle', onClose }: EventContextMenuProps) {
-  const { updateEvent, deleteEvent, events, addEvent, startTimer, pauseTimer, resumeTimer, stopTimer } = useCalendarStore();
+export function EventContextMenu({ eventId, position, currentColor = 'blue', currentIcon, timerState = 'idle', onClose }: EventContextMenuProps) {
+  const { updateEvent, updateTaskIcon, deleteEvent, events, addEvent, startTimer, pauseTimer, resumeTimer, stopTimer } = useCalendarStore();
+  const [selectedIcon, setSelectedIcon] = useState(currentIcon);
 
   const handleColorChange = (color: ItemColor) => {
     updateEvent(eventId, { color });
     onClose();
+  };
+
+  const handleIconChange = (icon: string | undefined) => {
+    setSelectedIcon(icon);
+    updateTaskIcon(eventId, icon);
+    onClose(); // 选择后关闭菜单
   };
 
   const handleDelete = () => {
@@ -74,6 +84,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
         className="fixed z-[99999] w-56 bg-zinc-900 rounded-xl shadow-2xl py-2 overflow-hidden"
         style={{ top: position.y, left: position.x }}
         onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Color Picker */}
         <div className="px-4 py-2 flex gap-2">
@@ -88,6 +99,9 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
             </button>
           ))}
         </div>
+
+        {/* Icon Selector */}
+        <IconSelector value={selectedIcon} onChange={handleIconChange} closeOnSelect={false} />
 
         <div className="h-px bg-zinc-700 my-2" />
 

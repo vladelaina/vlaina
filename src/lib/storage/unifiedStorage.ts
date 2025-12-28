@@ -70,6 +70,9 @@ export interface UnifiedTask {
   timerStartedAt?: number;      // 本次计时开始的时间戳
   timerAccumulated?: number;    // 累计的毫秒数（用于暂停恢复）
   
+  // Icon (Phosphor icon name, shared with Progress module)
+  icon?: string;
+  
   // Calendar related (optional)
   location?: string;
   description?: string;

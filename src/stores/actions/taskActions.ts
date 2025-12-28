@@ -101,6 +101,19 @@ export function createTaskActions(set: SetState, get: GetState, persist: Persist
       });
     },
 
+    updateTaskIcon: (id: string, icon?: string) => {
+      set((state) => {
+        const newData = {
+          ...state.data,
+          tasks: state.data.tasks.map(t =>
+            t.id === id ? { ...t, icon } : t
+          ),
+        };
+        persist(newData);
+        return { data: newData };
+      });
+    },
+
     updateTaskParent: (id: string, parentId: string | null, order: number) => {
       set((state) => {
         const task = state.data.tasks.find(t => t.id === id);
