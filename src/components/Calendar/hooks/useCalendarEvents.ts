@@ -1,27 +1,11 @@
 import { useMemo } from 'react';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useUIStore } from '@/stores/uiSlice';
-import type { ItemColor } from '@/stores/useUnifiedStore';
 
-/**
- * Calendar event display item
- * 
- * Uses same field names as UnifiedTask for consistency
- */
-export interface CalendarDisplayItem {
-  id: string;
-  content: string;
-  startDate: number;
-  endDate: number;
-  isAllDay: boolean;
-  color: ItemColor;
-  completed: boolean;
-  groupId: string;
-  // Timer state
-  timerState?: 'idle' | 'running' | 'paused';
-  timerStartedAt?: number;
-  timerAccumulated?: number;
-}
+// 从统一类型模块导入，保持向后兼容的 re-export
+import type { CalendarDisplayItem } from '@/stores/types';
+
+export type { CalendarDisplayItem };
 
 /**
  * Calendar events hook under unified item model

@@ -9,30 +9,12 @@
 
 import { useUnifiedStore } from './useUnifiedStore';
 import type { UnifiedTask } from '@/lib/storage/unifiedStorage';
-import { type ItemColor, DEFAULT_COLOR } from '@/lib/colors';
-import type { TimeView } from '@/lib/date';
+import { DEFAULT_COLOR } from '@/lib/colors';
 
-// Re-export types
-export type { TimeView };
+// 从统一类型模块导入，保持向后兼容的 re-export
+import type { CalendarEvent, TimeView } from './types';
 
-/**
- * Calendar event type
- * 
- * This is the view layer representation of UnifiedTask with time properties
- * Uses same field names as UnifiedTask for consistency
- */
-export interface CalendarEvent {
-  id: string;
-  content: string;
-  startDate: number;
-  endDate: number;
-  isAllDay: boolean;
-  color: ItemColor;
-  completed: boolean;
-  description?: string;
-  location?: string;
-  groupId: string;
-}
+export type { CalendarEvent, TimeView };
 
 /**
  * Convert UnifiedTask to CalendarEvent view format

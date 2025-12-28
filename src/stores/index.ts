@@ -17,9 +17,17 @@ export { useProgressStore } from './useProgressStore';
 export { useToastStore } from './useToastStore';
 export { useUndoStore } from './useUndoStore';
 
-// Types
-export type { Group, StoreTask, ItemColor } from './types';
-export type { TimeView } from '@/lib/date';
+// Types - 统一从 types.ts 导出
+export type { 
+  UnifiedTask,
+  Group, 
+  StoreTask, 
+  Task,
+  CalendarEvent,
+  CalendarDisplayItem,
+  ItemColor,
+  TimeView,
+} from './types';
 
 // Utilities - Time (from unified time module)
 export { parseDuration, extractDuration } from '@/lib/time';

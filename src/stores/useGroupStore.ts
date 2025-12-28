@@ -7,38 +7,12 @@
 
 import { useUnifiedStore } from './useUnifiedStore';
 import { useUIStore } from './uiSlice';
-import type { ItemColor } from '@/lib/colors';
 
-export type { ItemColor };
+// 从统一类型模块导入，保持向后兼容的 re-export
+import type { Task, Group, ItemColor } from './types';
+
+export type { Task, Group, ItemColor };
 export { useUIStore };
-
-// Group type
-export interface Group {
-  id: string;
-  name: string;
-  pinned?: boolean;
-  createdAt: number;
-  updatedAt?: number;
-}
-
-// Task type (unified item model)
-export interface Task {
-  id: string;
-  content: string;
-  completed: boolean;
-  createdAt: number;
-  completedAt?: number;
-  order: number;
-  groupId: string;
-  parentId: string | null;
-  collapsed: boolean;
-  color: ItemColor;
-  estimatedMinutes?: number;
-  actualMinutes?: number;
-  startDate?: number;
-  endDate?: number;
-  isAllDay?: boolean;
-}
 
 export function useGroupStore() {
   const store = useUnifiedStore();
