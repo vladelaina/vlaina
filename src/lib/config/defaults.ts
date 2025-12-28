@@ -53,6 +53,12 @@ export const STORAGE_KEY_SHORTCUTS = 'nekotick-shortcuts';
 /** localStorage key: 待同步标记 */
 export const STORAGE_KEY_PENDING_SYNC = 'pendingSync';
 
+/** localStorage key: 字体大小 */
+export const STORAGE_KEY_FONT_SIZE = 'fontSize';
+
+/** localStorage key: 自动更新 */
+export const STORAGE_KEY_AUTO_UPDATE = 'autoUpdate';
+
 // ============ Aggregated Defaults ============
 
 /**

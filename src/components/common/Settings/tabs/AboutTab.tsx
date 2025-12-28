@@ -4,13 +4,14 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
 import { useSyncStore } from '@/stores/useSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
+import { STORAGE_KEY_AUTO_UPDATE } from '@/lib/config';
 
 /**
  * About tab content - cloud sync, license, version, updates, language
  */
 export function AboutTab() {
   const [autoUpdate, setAutoUpdate] = useState<boolean>(() => {
-    const saved = localStorage.getItem('autoUpdate');
+    const saved = localStorage.getItem(STORAGE_KEY_AUTO_UPDATE);
     return saved !== null ? JSON.parse(saved) : true;
   });
   const [licenseInput, setLicenseInput] = useState('');
@@ -107,7 +108,7 @@ export function AboutTab() {
   const toggleAutoUpdate = () => {
     const newValue = !autoUpdate;
     setAutoUpdate(newValue);
-    localStorage.setItem('autoUpdate', JSON.stringify(newValue));
+    localStorage.setItem(STORAGE_KEY_AUTO_UPDATE, JSON.stringify(newValue));
   };
 
   const openGitHub = async () => {

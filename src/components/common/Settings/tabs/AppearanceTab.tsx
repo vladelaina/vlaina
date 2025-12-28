@@ -4,6 +4,7 @@ import { useTheme } from 'next-themes';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
 import { parseClockTime, formatClockTime } from '@/lib/time';
+import { STORAGE_KEY_FONT_SIZE } from '@/lib/config';
 
 /**
  * Appearance tab content - theme, colors, font size
@@ -12,7 +13,7 @@ export function AppearanceTab() {
   const { theme, setTheme } = useTheme();
   const { timezone, setTimezone, use24Hour, toggle24Hour, dayStartTime, setDayStartTime } = useCalendarStore();
   const [fontSize, setFontSize] = useState<number>(() => {
-    const saved = localStorage.getItem('fontSize');
+    const saved = localStorage.getItem(STORAGE_KEY_FONT_SIZE);
     return saved !== null ? parseInt(saved) : 14;
   });
   const [showFontSizeTooltip, setShowFontSizeTooltip] = useState(false);
@@ -44,7 +45,7 @@ export function AppearanceTab() {
         const delta = e.deltaY > 0 ? -1 : 1;
         setFontSize(prev => {
           const newSize = Math.min(20, Math.max(12, prev + delta));
-          localStorage.setItem('fontSize', newSize.toString());
+          localStorage.setItem(STORAGE_KEY_FONT_SIZE, newSize.toString());
           return newSize;
         });
       }
@@ -57,12 +58,12 @@ export function AppearanceTab() {
   const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSize = parseInt(e.target.value);
     setFontSize(newSize);
-    localStorage.setItem('fontSize', newSize.toString());
+    localStorage.setItem(STORAGE_KEY_FONT_SIZE, newSize.toString());
   };
 
   const resetFontSize = () => {
     setFontSize(14);
-    localStorage.setItem('fontSize', '14');
+    localStorage.setItem(STORAGE_KEY_FONT_SIZE, '14');
   };
 
   const handleTimezoneSubmit = () => {

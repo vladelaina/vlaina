@@ -1,10 +1,7 @@
 import { useMemo } from 'react';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useUIStore } from '@/stores/uiSlice';
-import { DEFAULT_EVENT_DURATION_MINUTES } from '@/lib/calendar';
-
-// 从统一类型模块导入，保持向后兼容的 re-export
-import type { CalendarDisplayItem } from '@/stores/types';
+import { toCalendarDisplayItem, type CalendarDisplayItem } from '@/lib/calendar';
 
 export type { CalendarDisplayItem };
 
@@ -44,19 +41,8 @@ export function useCalendarEvents(): CalendarDisplayItem[] {
           return selectedStatuses.includes('scheduled');
         }
       })
-      .map(t => ({
-        id: t.id,
-        content: t.content,
-        startDate: t.startDate!,
-        endDate: t.endDate || t.startDate! + (t.estimatedMinutes || DEFAULT_EVENT_DURATION_MINUTES) * 60 * 1000,
-        isAllDay: t.isAllDay || false,
-        color: t.color || 'default',
-        completed: t.completed,
-        groupId: t.groupId,
-        timerState: t.timerState,
-        timerStartedAt: t.timerStartedAt,
-        timerAccumulated: t.timerAccumulated,
-      }));
+      // 使用统一的转换函数
+      .map(toCalendarDisplayItem);
   }, [tasks, selectedColors, selectedStatuses, editingEventId, draggingToCalendarTaskId]);
 
   return displayItems;

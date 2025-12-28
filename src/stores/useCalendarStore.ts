@@ -9,13 +9,12 @@
  * Architecture:
  * - Data state: 从 UnifiedStore 获取
  * - UI state: 委托到 UIStore（统一 UI 状态管理）
+ * - 转换逻辑: 使用 @/lib/calendar 的统一转换函数
  */
 
 import { useUnifiedStore } from './useUnifiedStore';
 import { useUIStore } from './uiSlice';
-import type { UnifiedTask } from '@/lib/storage/unifiedStorage';
-import { DEFAULT_COLOR } from '@/lib/colors';
-import { DEFAULT_EVENT_DURATION_MS } from '@/lib/calendar';
+import { toCalendarDisplayItems } from '@/lib/calendar';
 import { 
   DEFAULT_HOUR_HEIGHT, 
   DEFAULT_USE_24_HOUR, 
@@ -23,27 +22,9 @@ import {
 } from '@/lib/config';
 
 // 从统一类型模块导入，保持向后兼容的 re-export
-import type { CalendarEvent, TimeView } from './types';
+import type { CalendarEvent, CalendarDisplayItem, TimeView } from './types';
 
-export type { CalendarEvent, TimeView };
-
-/**
- * Convert UnifiedTask to CalendarEvent view format
- */
-function toCalendarEvent(task: UnifiedTask): CalendarEvent {
-  return {
-    id: task.id,
-    content: task.content,
-    startDate: task.startDate!,
-    endDate: task.endDate || task.startDate! + DEFAULT_EVENT_DURATION_MS,
-    isAllDay: task.isAllDay || false,
-    color: task.color || DEFAULT_COLOR,
-    completed: task.completed,
-    description: task.description,
-    location: task.location,
-    groupId: task.groupId,
-  };
-}
+export type { CalendarEvent, CalendarDisplayItem, TimeView };
 
 /**
  * Calendar view data access hook
@@ -57,10 +38,8 @@ export function useCalendarStore() {
   const store = useUnifiedStore();
   const uiStore = useUIStore();
   
-  // Filter items with time properties from tasks
-  const calendarEvents = store.data.tasks
-    .filter(t => t.startDate !== undefined)
-    .map(toCalendarEvent);
+  // 使用统一的转换函数将任务转换为日历显示项
+  const calendarEvents = toCalendarDisplayItems(store.data.tasks);
   
   return {
     // Data - calendar events (tasks with time properties)

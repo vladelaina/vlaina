@@ -6,8 +6,9 @@
  * 
  * 设计原则：
  * 1. UnifiedTask 是唯一的核心类型定义（在 unifiedStorage.ts）
- * 2. 其他类型通过 type alias 或 Pick/Omit 派生
- * 3. 保持向后兼容，原有类型名称继续可用
+ * 2. CalendarDisplayItem 是日历显示类型（在 calendar/transforms.ts）
+ * 3. 其他类型通过 type alias 或 Pick/Omit 派生
+ * 4. 保持向后兼容，原有类型名称继续可用
  */
 
 // ============ 核心类型导入 ============
@@ -30,6 +31,9 @@ import type { TimeView } from '@/lib/date';
 // 从 UI Store 导入状态类型
 import type { TaskStatus } from './uiSlice';
 
+// 从日历模块导入显示类型
+import type { CalendarDisplayItem, CalendarEvent } from '@/lib/calendar';
+
 // ============ 核心类型 Re-export ============
 
 export type { 
@@ -43,6 +47,9 @@ export type {
 export type { ItemColor };
 export type { TimeView };
 export type { TaskStatus };
+
+// 日历显示类型 Re-export
+export type { CalendarDisplayItem, CalendarEvent };
 
 // ============ 派生类型定义 ============
 
@@ -68,33 +75,3 @@ export type Task = UnifiedTask;
  * 保持向后兼容。
  */
 export type Group = UnifiedGroup;
-
-/**
- * CalendarEvent - 日历事件视图类型
- * 
- * 从 UnifiedTask 派生，包含日历视图所需的字段。
- * startDate 是必需的（日历事件必须有时间）。
- */
-export interface CalendarEvent {
-  id: string;
-  content: string;
-  startDate: number;  // 必需
-  endDate: number;    // 必需
-  isAllDay: boolean;
-  color: ItemColor;
-  completed: boolean;
-  description?: string;
-  location?: string;
-  groupId: string;
-}
-
-/**
- * CalendarDisplayItem - 日历显示项类型
- * 
- * 扩展 CalendarEvent，包含计时器状态等显示所需的额外字段。
- */
-export interface CalendarDisplayItem extends CalendarEvent {
-  timerState?: 'idle' | 'running' | 'paused';
-  timerStartedAt?: number;
-  timerAccumulated?: number;
-}
