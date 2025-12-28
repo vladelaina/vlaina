@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { type TimeView } from '@/lib/dateUtils';
+import { type TimeView } from '@/lib/date';
 
 interface TimeViewSelectorProps {
   timeView: TimeView;

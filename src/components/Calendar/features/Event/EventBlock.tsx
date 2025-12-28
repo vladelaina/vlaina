@@ -12,7 +12,7 @@ import { EventContextMenu } from './EventContextMenu';
 import { type EventLayoutInfo } from '../../utils/eventLayout';
 import { type CalendarDisplayItem } from '../../hooks/useCalendarEvents';
 import { calculateEventTop, calculateEventHeight, CALENDAR_CONSTANTS, DEFAULT_DAY_START_MINUTES } from '../../utils/timeUtils';
-import { getEventColorStyles } from '@/lib/colors';
+import { getEventInlineStyles } from '@/lib/colors';
 
 const GAP = CALENDAR_CONSTANTS.GAP as number;
 const RESIZE_HANDLE_HEIGHT = CALENDAR_CONSTANTS.RESIZE_HANDLE_HEIGHT as number;
@@ -103,8 +103,13 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
     return 'large';
   }, [height]);
 
-  // Color
-  const colorStyles = getEventColorStyles(event.color);
+  // Color - use inline styles instead of Tailwind classes
+  const colorStyles = getEventInlineStyles(event.color);
+  const isDark = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
+  const bgColor = isDark ? colorStyles.bgDark : colorStyles.bg;
+  const textColor = isDark ? colorStyles.textDark : colorStyles.text;
+  const ringColor = isDark ? colorStyles.ringDark : colorStyles.ring;
+  const fillColor = isDark ? colorStyles.fillDark : colorStyles.fill;
 
   // Position calculation
   // Ensure events don't overlap by applying consistent gaps
@@ -271,25 +276,30 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
         <div
           className={`
             w-full h-full flex flex-col relative overflow-hidden
-            ${isTimerActive && !isCompleted ? 'opacity-60' : ''} ${colorStyles.bg}
+            ${isTimerActive && !isCompleted ? 'opacity-60' : ''}
             rounded-[5px]
             transition-shadow duration-200 ease-out
             ${shadowClass}
-            ${isActive ? `ring-2 ${colorStyles.ring}` : ''}
-            ${isHovered && !isActive ? `ring-1 ${colorStyles.ring}` : ''}
           `}
-          style={{ opacity: isCompleted ? 0.6 : 1 }}
+          style={{ 
+            backgroundColor: bgColor,
+            opacity: isCompleted ? 0.6 : 1,
+            ...(isActive ? { boxShadow: `0 0 0 2px ${ringColor}` } : {}),
+            ...(isHovered && !isActive ? { boxShadow: `0 0 0 1px ${ringColor}` } : {}),
+          }}
         >
           {/* Apple Calendar style - left accent bar */}
           <div 
-            className={`absolute left-1 top-1 bottom-1 w-[3px] rounded-full ${colorStyles.accent} ${isTimerActive && !isCompleted ? 'opacity-60' : ''}`}
+            className={`absolute left-1 top-1 bottom-1 w-[3px] rounded-full ${isTimerActive && !isCompleted ? 'opacity-60' : ''}`}
+            style={{ backgroundColor: colorStyles.accent }}
           />
 
           {/* Timer fill layer - 扫描线效果（已完成不显示） */}
           {isTimerActive && !isCompleted && (
             <div 
-              className={`absolute inset-0 ${colorStyles.fill} transition-all duration-1000 ease-linear rounded-[4px]`}
+              className="absolute inset-0 transition-all duration-1000 ease-linear rounded-[4px]"
               style={{ 
+                backgroundColor: fillColor,
                 height: `${fillPercent}%`,
                 opacity: 1,
               }}
@@ -299,8 +309,11 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
           {/* 超时分界线 */}
           {isOvertime && (
             <div 
-              className={`absolute left-0 right-0 border-t-2 ${colorStyles.overtime}`}
-              style={{ top: `${plannedHeight}px` }}
+              className="absolute left-0 right-0 border-t-2"
+              style={{ 
+                top: `${plannedHeight}px`,
+                borderColor: colorStyles.accent,
+              }}
             />
           )}
 
@@ -327,13 +340,17 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
               <div className="flex items-center gap-1">
                 {isTimerPaused && <Pause className="w-2.5 h-2.5 flex-shrink-0 opacity-70" />}
                 <p
-                  className={`font-medium leading-tight truncate ${colorStyles.text} ${isCompleted ? 'line-through opacity-60' : ''} ${heightLevel === 'micro' ? 'text-[9px]' : 'text-[11px]'}`}
+                  className={`font-medium leading-tight truncate ${isCompleted ? 'line-through opacity-60' : ''} ${heightLevel === 'micro' ? 'text-[9px]' : 'text-[11px]'}`}
+                  style={{ color: textColor }}
                 >
                   {event.content || 'Untitled'}
                 </p>
               </div>
               {showTime && (
-                <p className={`mt-0.5 tabular-nums font-medium ${colorStyles.text} opacity-70 ${heightLevel === 'small' ? 'text-[8px]' : 'text-[9px]'}`}>
+                <p 
+                  className={`mt-0.5 tabular-nums font-medium opacity-70 ${heightLevel === 'small' ? 'text-[8px]' : 'text-[9px]'}`}
+                  style={{ color: textColor }}
+                >
                   {isTimerActive ? (
                     // 计时中显示：已用时间 / 计划时间（都用时:分:秒格式）
                     <>

@@ -3,6 +3,9 @@
 // 从统一颜色系统导入
 export { type ItemColor } from '@/lib/colors';
 
+// 从统一日期系统导入
+export { type TimeView } from '@/lib/date';
+
 export interface Group {
   id: string;
   name: string;
@@ -11,11 +14,7 @@ export interface Group {
   pinned?: boolean;
 }
 
-// View mode type
-export type ViewMode = 'day' | 'week' | 'month';
-
 // StoreTask type for archive components
-// 注意：ItemColor 从 @/lib/colors 导入
 import type { ItemColor as ColorType } from '@/lib/colors';
 
 export interface StoreTask {
@@ -35,6 +34,3 @@ export interface StoreTask {
   endDate?: number;
   isAllDay?: boolean;
 }
-
-// Archive time view type
-export type ArchiveTimeView = 'day' | 'week' | 'month';

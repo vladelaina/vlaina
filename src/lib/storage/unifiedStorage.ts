@@ -21,6 +21,7 @@ import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
 import { useSyncStore } from '@/stores/useSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
 import type { ItemColor } from '@/lib/colors';
+import type { TimeView } from '@/lib/date';
 
 // ============================================================================
 // Types
@@ -118,7 +119,7 @@ export interface UnifiedData {
   archive: UnifiedArchiveSection[];
   settings: {
     timezone: number;
-    viewMode: 'day' | 'week' | 'month';
+    viewMode: TimeView;
     dayCount: number;
     hourHeight?: number;
     use24Hour?: boolean;

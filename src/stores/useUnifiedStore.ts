@@ -30,7 +30,7 @@ import { createTaskActions } from './actions/taskActions';
 import { createCalendarActions } from './actions/calendarActions';
 import { createProgressActions } from './actions/progressActions';
 import { createSettingsActions } from './actions/settingsActions';
-import type { ViewMode } from './types';
+import type { TimeView } from '@/lib/date';
 import type { ItemColor } from '@/lib/colors';
 
 // Re-export types
@@ -41,7 +41,7 @@ export type {
   UnifiedArchiveSection,
 };
 
-export type { ItemColor, ViewMode };
+export type { ItemColor, TimeView };
 
 // Undo action type
 type UndoAction = {
@@ -122,7 +122,7 @@ interface UnifiedStoreActions {
   
   // Settings Actions
   setTimezone: (tz: number) => void;
-  setViewMode: (mode: ViewMode) => void;
+  setViewMode: (mode: TimeView) => void;
   setDayCount: (count: number) => void;
   setHourHeight: (height: number) => void;
   toggleSidebar: () => void;

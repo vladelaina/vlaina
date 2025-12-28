@@ -26,7 +26,7 @@ import { PanelTaskItem } from './PanelTaskItem';
 import { SortableDivider } from './SortableDivider';
 import { usePanelDragAndDrop } from './usePanelDragAndDrop';
 import { ProgressContent } from '@/components/Progress/features/ProgressContent';
-import { getColorPriority, getAllDayColorStyles, getColorHex } from '@/lib/colors';
+import { getColorPriority, getAllDayInlineStyles, getColorHex } from '@/lib/colors';
 
 // 面板视图类型
 type PanelView = 'tasks' | 'progress';
@@ -659,7 +659,11 @@ export function CalendarTaskPanel({
                 
                 // 在日历区域时显示日历事件块样式
                 if (isOverCalendar) {
-                  const colorStyles = getAllDayColorStyles(task.color);
+                  const colorStyles = getAllDayInlineStyles(task.color);
+                  const isDark = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
+                  const bgColor = isDark ? colorStyles.bgDark : colorStyles.bg;
+                  const textColor = isDark ? colorStyles.textDark : colorStyles.text;
+                  const borderColor = isDark ? colorStyles.borderDark : colorStyles.border;
                   // 计算 25 分钟的实际高度：hourHeight * (25 / 60)
                   const eventHeight = Math.max(hourHeight * (25 / 60), 20);
                   return (
@@ -667,26 +671,28 @@ export function CalendarTaskPanel({
                       className={cn(
                         "w-[120px] flex flex-col",
                         "border-l-[3px]",
-                        colorStyles.border,
-                        colorStyles.bg,
                         "rounded-[5px]",
                         "shadow-xl shadow-black/15 dark:shadow-black/40"
                       )}
-                      style={{ height: `${eventHeight}px` }}
+                      style={{ 
+                        height: `${eventHeight}px`,
+                        backgroundColor: bgColor,
+                        borderLeftColor: borderColor,
+                      }}
                     >
                       <div className="flex items-start gap-1.5 px-2 py-1">
                         <div className="flex-1 min-w-0">
-                          <p className={cn(
-                            "font-medium leading-tight truncate text-[11px]",
-                            colorStyles.text
-                          )}>
+                          <p 
+                            className="font-medium leading-tight truncate text-[11px]"
+                            style={{ color: textColor }}
+                          >
                             {task.content || 'Untitled'}
                           </p>
                           {eventHeight >= 32 && (
-                            <p className={cn(
-                              "mt-0.5 tabular-nums font-medium text-[9px] opacity-70",
-                              colorStyles.text
-                            )}>
+                            <p 
+                              className="mt-0.5 tabular-nums font-medium text-[9px] opacity-70"
+                              style={{ color: textColor }}
+                            >
                               25m
                             </p>
                           )}

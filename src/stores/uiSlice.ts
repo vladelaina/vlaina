@@ -3,6 +3,7 @@
 
 import { create } from 'zustand';
 import { ALL_COLORS, type ItemColor } from '@/lib/colors';
+import { type TimeView } from '@/lib/date';
 
 const COLOR_FILTER_KEY = 'nekotick-color-filter';
 const STATUS_FILTER_KEY = 'nekotick-status-filter';
@@ -39,12 +40,12 @@ interface UIStore {
   toggleAllStatuses: () => void;
   
   // Archive time view settings
-  archiveTimeView: 'day' | 'week' | 'month';
+  archiveTimeView: TimeView;
   archiveDayRange: number | 'all';
   archiveWeekRange: number | 'all';
   archiveMonthRange: number | 'all';
-  setArchiveTimeView: (view: 'day' | 'week' | 'month') => void;
-  setArchiveRange: (view: 'day' | 'week' | 'month', range: number | 'all') => void;
+  setArchiveTimeView: (view: TimeView) => void;
+  setArchiveRange: (view: TimeView, range: number | 'all') => void;
   getArchiveMaxDays: () => number | null;
   
   // Drag state

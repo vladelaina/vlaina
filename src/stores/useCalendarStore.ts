@@ -10,9 +10,10 @@
 import { useUnifiedStore } from './useUnifiedStore';
 import type { UnifiedTask } from '@/lib/storage/unifiedStorage';
 import { type ItemColor, DEFAULT_COLOR } from '@/lib/colors';
+import type { TimeView } from '@/lib/date';
 
 // Re-export types
-export type ViewMode = 'day' | 'week' | 'month';
+export type { TimeView };
 
 /**
  * Calendar event type

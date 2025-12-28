@@ -3,7 +3,7 @@
  */
 
 import type { UnifiedData } from '@/lib/storage/unifiedStorage';
-import type { ViewMode } from '../types';
+import type { TimeView } from '@/lib/date';
 
 type SetState = (fn: (state: { 
   data: UnifiedData; 
@@ -32,7 +32,7 @@ export function createSettingsActions(set: SetState, persist: Persist) {
       });
     },
 
-    setViewMode: (mode: ViewMode) => {
+    setViewMode: (mode: TimeView) => {
       set((state) => {
         const newData = {
           ...state.data,

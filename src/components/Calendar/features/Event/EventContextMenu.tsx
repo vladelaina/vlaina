@@ -81,7 +81,8 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
             <button
               key={color.name}
               onClick={() => handleColorChange(color.name)}
-              className={`w-6 h-6 rounded-md ${color.bg} flex items-center justify-center hover:scale-110 transition-transform`}
+              className="w-6 h-6 rounded-md flex items-center justify-center hover:scale-110 transition-transform"
+              style={{ backgroundColor: color.hex }}
             >
               {currentColor === color.name && <Check className="size-4 text-white" />}
             </button>

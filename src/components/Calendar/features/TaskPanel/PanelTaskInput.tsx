@@ -121,12 +121,11 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
             className="flex items-center justify-center w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-600 hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors"
           >
             <div
-              className={cn(
-                "w-2.5 h-2.5 rounded-full transition-colors",
-                color && color !== 'default'
-                  ? SIMPLE_COLOR_STYLES[color].bg
-                  : "bg-transparent"
-              )}
+              className="w-2.5 h-2.5 rounded-full transition-colors"
+              style={color && color !== 'default' 
+                ? { backgroundColor: SIMPLE_COLOR_STYLES[color].hex }
+                : undefined
+              }
             />
           </button>
 
@@ -148,12 +147,11 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
                     className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
                   >
                     <div
-                      className={cn(
-                        "w-3 h-3 rounded-full",
-                        c && c !== 'default'
-                          ? SIMPLE_COLOR_STYLES[c].bg
-                          : "border border-zinc-300 dark:border-zinc-600"
-                      )}
+                      className="w-3 h-3 rounded-full"
+                      style={c && c !== 'default'
+                        ? { backgroundColor: SIMPLE_COLOR_STYLES[c].hex }
+                        : { border: '1px solid' }
+                      }
                     />
                   </button>
                 ))}

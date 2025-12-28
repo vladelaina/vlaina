@@ -1,57 +1,23 @@
-// Date utility functions for time-based grouping and display
+/**
+ * 时间范围计算函数
+ * 
+ * 提供基于时间视图的范围键生成和显示格式化功能。
+ */
 
-export type TimeView = 'day' | 'week' | 'month';
+import type { TimeView } from './index';
+import {
+  formatDateKey,
+  getTodayKey,
+  getYesterdayKey,
+  getCurrentWeekKey,
+  getCurrentMonthKey,
+} from './dateKeys';
 
-// Milliseconds per week
+// 每周毫秒数
 const MS_PER_WEEK = 604800000;
 
 /**
- * Format a date as YYYY-MM-DD
- */
-export function formatDateKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-/**
- * Get today's date key (YYYY-MM-DD)
- */
-export function getTodayKey(): string {
-  return formatDateKey(new Date());
-}
-
-/**
- * Get yesterday's date key (YYYY-MM-DD)
- */
-export function getYesterdayKey(): string {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  return formatDateKey(yesterday);
-}
-
-/**
- * Get current week key (YYYY-Wxx)
- */
-export function getCurrentWeekKey(): string {
-  const today = new Date();
-  const firstDay = new Date(today);
-  const day = today.getDay();
-  const diff = day === 0 ? -6 : 1 - day; // Monday as first day
-  firstDay.setDate(today.getDate() + diff);
-  const yearStart = new Date(firstDay.getFullYear(), 0, 1);
-  const weekNum = Math.ceil((firstDay.getTime() - yearStart.getTime()) / MS_PER_WEEK) + 1;
-  return `${firstDay.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
-}
-
-/**
- * Get current month key (YYYY-MM)
- */
-export function getCurrentMonthKey(): string {
-  const today = new Date();
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-}
-
-/**
- * Get time range key based on timestamp and view type
+ * 根据时间戳和视图类型获取时间范围键
  */
 export function getTimeRangeKey(timestamp: number, timeView: TimeView): string {
   const date = new Date(timestamp);
@@ -72,7 +38,12 @@ export function getTimeRangeKey(timestamp: number, timeView: TimeView): string {
 }
 
 /**
- * Format time range key for display
+ * 格式化时间范围键为显示文本
+ * - 今天 -> "Today"
+ * - 昨天 -> "Yesterday"
+ * - 本周 -> "This Week"
+ * - 本月 -> "This Month"
+ * - 其他 -> 原始格式或详细格式
  */
 export function formatTimeRangeDisplay(timeKey: string, timeView: TimeView): string {
   if (timeView === 'day') {
@@ -128,7 +99,10 @@ export function formatTimeRangeDisplay(timeKey: string, timeView: TimeView): str
 }
 
 /**
- * Get default expanded dates based on time view
+ * 获取默认展开的日期集合
+ * - day: 今天和昨天
+ * - week: 本周
+ * - month: 本月
  */
 export function getDefaultExpandedDates(timeView: TimeView): Set<string> {
   if (timeView === 'day') {
@@ -139,5 +113,3 @@ export function getDefaultExpandedDates(timeView: TimeView): Set<string> {
     return new Set([getCurrentMonthKey()]);
   }
 }
-
-

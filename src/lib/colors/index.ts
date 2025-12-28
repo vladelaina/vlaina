@@ -114,7 +114,118 @@ export function sortByColorPriority<T>(
 // ============ 样式生成 ============
 
 /**
- * 事件块样式（用于日历事件、全天事件等）
+ * 将 hex 颜色转换为带透明度的 rgba
+ */
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
+ * 事件块的 inline 样式（用于日历事件）
+ * 
+ * 注意：使用 inline styles 而非 Tailwind 动态类，
+ * 因为 Tailwind JIT 无法识别运行时生成的类名如 `bg-[#FE002D]/10`
+ */
+export interface EventInlineStyles {
+  bg: string;           // 背景色 (rgba)
+  bgDark: string;       // 深色模式背景色 (rgba)
+  text: string;         // 文字颜色 (hex)
+  textDark: string;     // 深色模式文字颜色 (hex)
+  border: string;       // 边框颜色 (rgba)
+  borderDark: string;   // 深色模式边框颜色 (rgba)
+  ring: string;         // 聚焦环颜色 (rgba)
+  ringDark: string;     // 深色模式聚焦环颜色 (rgba)
+  fill: string;         // 填充颜色 (rgba) - 用于计时器进度
+  fillDark: string;     // 深色模式填充颜色 (rgba)
+  accent: string;       // 强调色 (hex) - 用于左侧条
+}
+
+/**
+ * 生成事件块的 inline 样式
+ */
+function generateEventInlineStyles(def: ColorDefinition): EventInlineStyles {
+  const { hex, darkText } = def;
+  const textColor = darkText || hex;
+  
+  return {
+    bg: hexToRgba(hex, 0.10),
+    bgDark: hexToRgba(hex, 0.20),
+    text: hex,
+    textDark: textColor,
+    border: hexToRgba(hex, 0.40),
+    borderDark: hexToRgba(hex, 0.50),
+    ring: hexToRgba(hex, 0.30),
+    ringDark: hexToRgba(hex, 0.20),
+    fill: hexToRgba(hex, 0.30),
+    fillDark: hexToRgba(hex, 0.40),
+    accent: hex,
+  };
+}
+
+/**
+ * 所有颜色的事件块 inline 样式
+ */
+export const EVENT_INLINE_STYLES: Record<ItemColor, EventInlineStyles> = Object.fromEntries(
+  COLOR_DEFINITIONS.map(def => [def.name, generateEventInlineStyles(def)])
+) as Record<ItemColor, EventInlineStyles>;
+
+/**
+ * 获取事件块 inline 样式
+ */
+export function getEventInlineStyles(color?: ItemColor | string): EventInlineStyles {
+  return EVENT_INLINE_STYLES[(color as ItemColor) || 'default'] || EVENT_INLINE_STYLES.default;
+}
+
+/**
+ * 全天事件的 inline 样式（比普通事件稍微深一点）
+ */
+export interface AllDayInlineStyles {
+  bg: string;           // 背景色 (rgba)
+  bgDark: string;       // 深色模式背景色 (rgba)
+  text: string;         // 文字颜色 (hex)
+  textDark: string;     // 深色模式文字颜色 (hex)
+  border: string;       // 边框颜色 (rgba)
+  borderDark: string;   // 深色模式边框颜色 (rgba)
+}
+
+/**
+ * 生成全天事件的 inline 样式
+ */
+function generateAllDayInlineStyles(def: ColorDefinition): AllDayInlineStyles {
+  const { hex, darkText } = def;
+  const textColor = darkText || hex;
+  
+  return {
+    bg: hexToRgba(hex, 0.15),
+    bgDark: hexToRgba(hex, 0.25),
+    text: hex,
+    textDark: textColor,
+    border: hexToRgba(hex, 0.50),
+    borderDark: hexToRgba(hex, 0.60),
+  };
+}
+
+/**
+ * 所有颜色的全天事件 inline 样式
+ */
+export const ALL_DAY_INLINE_STYLES: Record<ItemColor, AllDayInlineStyles> = Object.fromEntries(
+  COLOR_DEFINITIONS.map(def => [def.name, generateAllDayInlineStyles(def)])
+) as Record<ItemColor, AllDayInlineStyles>;
+
+/**
+ * 获取全天事件 inline 样式
+ */
+export function getAllDayInlineStyles(color?: ItemColor | string): AllDayInlineStyles {
+  return ALL_DAY_INLINE_STYLES[(color as ItemColor) || 'default'] || ALL_DAY_INLINE_STYLES.default;
+}
+
+// ============ 向后兼容的旧 API（已废弃，将在下个版本移除） ============
+
+/**
+ * @deprecated 使用 getEventInlineStyles 替代
  */
 export interface EventColorStyles {
   bg: string;
@@ -127,39 +238,24 @@ export interface EventColorStyles {
 }
 
 /**
- * 生成事件块的 Tailwind 样式类
+ * @deprecated 使用 getEventInlineStyles 替代
  */
-function generateEventStyles(def: ColorDefinition): EventColorStyles {
-  const { hex, darkText } = def;
-  const textColor = darkText || hex;
-  
+export function getEventColorStyles(_color?: ItemColor | string): EventColorStyles {
+  // 返回空字符串，因为这些 Tailwind 类不会工作
+  // 组件应该迁移到使用 inline styles
   return {
-    bg: `bg-[${hex}]/10 dark:bg-[${hex}]/20`,
-    text: `text-[${hex}] dark:text-[${textColor}]`,
-    border: `border-[${hex}]/40 dark:border-[${hex}]/50`,
-    ring: `ring-[${hex}]/30 dark:ring-[${hex}]/20`,
-    fill: `bg-[${hex}]/30 dark:bg-[${hex}]/40`,
-    overtime: `border-[${hex}]`,
-    accent: `bg-[${hex}]`,
+    bg: '',
+    text: '',
+    border: '',
+    ring: '',
+    fill: '',
+    overtime: '',
+    accent: '',
   };
 }
 
 /**
- * 所有颜色的事件块样式
- */
-export const EVENT_COLOR_STYLES: Record<ItemColor, EventColorStyles> = Object.fromEntries(
-  COLOR_DEFINITIONS.map(def => [def.name, generateEventStyles(def)])
-) as Record<ItemColor, EventColorStyles>;
-
-/**
- * 获取事件块样式
- */
-export function getEventColorStyles(color?: ItemColor | string): EventColorStyles {
-  return EVENT_COLOR_STYLES[(color as ItemColor) || 'default'] || EVENT_COLOR_STYLES.default;
-}
-
-/**
- * 全天事件样式（比普通事件稍微深一点）
+ * @deprecated 使用 getAllDayInlineStyles 替代
  */
 export interface AllDayColorStyles {
   bg: string;
@@ -168,65 +264,38 @@ export interface AllDayColorStyles {
 }
 
 /**
- * 生成全天事件的 Tailwind 样式类
+ * @deprecated 使用 getAllDayInlineStyles 替代
  */
-function generateAllDayStyles(def: ColorDefinition): AllDayColorStyles {
-  const { hex, darkText } = def;
-  const textColor = darkText || hex;
-  
+export function getAllDayColorStyles(_color?: ItemColor | string): AllDayColorStyles {
+  // 返回空字符串，因为这些 Tailwind 类不会工作
   return {
-    bg: `bg-[${hex}]/15 dark:bg-[${hex}]/25`,
-    text: `text-[${hex}] dark:text-[${textColor}]`,
-    border: `border-[${hex}]/50 dark:border-[${hex}]/60`,
+    bg: '',
+    text: '',
+    border: '',
   };
 }
 
 /**
- * 所有颜色的全天事件样式
+ * 获取简单颜色的 hex 值（用于颜色选择器、复选框边框等）
  */
-export const ALL_DAY_COLOR_STYLES: Record<ItemColor, AllDayColorStyles> = Object.fromEntries(
-  COLOR_DEFINITIONS.map(def => [def.name, generateAllDayStyles(def)])
-) as Record<ItemColor, AllDayColorStyles>;
-
-/**
- * 获取全天事件样式
- */
-export function getAllDayColorStyles(color?: ItemColor | string): AllDayColorStyles {
-  return ALL_DAY_COLOR_STYLES[(color as ItemColor) || 'default'] || ALL_DAY_COLOR_STYLES.default;
+export function getSimpleColorHex(color?: ItemColor | string): string {
+  return COLOR_HEX[(color as ItemColor) || 'default'] || COLOR_HEX.default;
 }
 
 /**
- * 简单颜色样式（用于颜色选择器、复选框边框等）
+ * 简单颜色样式（用于颜色选择器等需要背景色的场景）
+ * 使用 hex 值而非 Tailwind 类，因为动态类不会被编译
  */
 export interface SimpleColorStyles {
-  bg: string;
-  border: string;
-}
-
-/**
- * 生成简单颜色的 Tailwind 样式类
- */
-function generateSimpleStyles(def: ColorDefinition): SimpleColorStyles {
-  const { hex } = def;
-  return {
-    bg: `bg-[${hex}]`,
-    border: `border-[${hex}]`,
-  };
+  hex: string;
 }
 
 /**
  * 所有颜色的简单样式
  */
 export const SIMPLE_COLOR_STYLES: Record<ItemColor, SimpleColorStyles> = Object.fromEntries(
-  COLOR_DEFINITIONS.map(def => [def.name, generateSimpleStyles(def)])
+  COLOR_DEFINITIONS.map(def => [def.name, { hex: def.hex }])
 ) as Record<ItemColor, SimpleColorStyles>;
-
-/**
- * 获取简单颜色样式
- */
-export function getSimpleColorStyles(color?: ItemColor | string): SimpleColorStyles {
-  return SIMPLE_COLOR_STYLES[(color as ItemColor) || 'default'] || SIMPLE_COLOR_STYLES.default;
-}
 
 // ============ 颜色选择器数据 ============
 
@@ -258,11 +327,11 @@ export const RAINBOW_GRADIENT = `linear-gradient(135deg, ${COLOR_DEFINITIONS.sli
 // ============ 右键菜单颜色选择器 ============
 
 /**
- * 右键菜单颜色选项（带 Tailwind bg 类）
+ * 右键菜单颜色选项（使用 hex 值而非 Tailwind 类）
  */
 export interface ContextMenuColorOption {
   name: ItemColor;
-  bg: string;
+  hex: string;
 }
 
 /**
@@ -270,7 +339,7 @@ export interface ContextMenuColorOption {
  */
 export const CONTEXT_MENU_COLORS: readonly ContextMenuColorOption[] = COLOR_DEFINITIONS.map(def => ({
   name: def.name,
-  bg: `bg-[${def.hex}]`,
+  hex: def.hex,
 }));
 
 // ============ 默认颜色 ============

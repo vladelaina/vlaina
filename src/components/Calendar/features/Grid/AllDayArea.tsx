@@ -13,7 +13,7 @@ import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useGroupStore } from '@/stores/useGroupStore';
 import type { CalendarDisplayItem } from '../../hooks/useCalendarEvents';
 import { EventContextMenu } from '../Event/EventContextMenu';
-import { getAllDayColorStyles, getColorPriority } from '@/lib/colors';
+import { getAllDayInlineStyles, getColorPriority } from '@/lib/colors';
 
 // ============ Constants ============
 
@@ -358,7 +358,10 @@ export function AllDayArea({
         {/* Events - only show when expanded or single event */}
         {showEvents && layoutedEvents.map(({ event, row, startCol, endCol }) => {
             const dayWidth = 100 / days.length;
-            const colorStyles = getAllDayColorStyles(event.color);
+            const colorStyles = getAllDayInlineStyles(event.color);
+            const isDark = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
+            const bgColor = isDark ? colorStyles.bgDark : colorStyles.bg;
+            const textColor = isDark ? colorStyles.textDark : colorStyles.text;
             const isActive = editingEventId === event.id;
             const isMultiDay = endCol > startCol;
 
@@ -368,7 +371,6 @@ export function AllDayArea({
                 className={`
                   all-day-event absolute flex items-center gap-1 px-1.5 rounded
                   transition-all duration-150 select-none
-                  ${colorStyles.bg} ${colorStyles.text}
                   ${isActive ? 'ring-2 ring-blue-400 dark:ring-blue-500 shadow-md z-30' : 'hover:shadow-sm z-10'}
                   ${event.completed ? 'opacity-60' : ''}
                 `}
@@ -377,6 +379,8 @@ export function AllDayArea({
                   width: `calc(${(endCol - startCol + 1) * dayWidth}% - 4px)`,
                   top: row * (EVENT_HEIGHT + EVENT_GAP) + EVENT_GAP,
                   height: EVENT_HEIGHT,
+                  backgroundColor: bgColor,
+                  color: textColor,
                 }}
                 onClick={(e) => handleEventClick(e, event.id)}
                 onMouseDown={(e) => handleEventMouseDown(e, event.id)}

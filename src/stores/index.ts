@@ -7,7 +7,6 @@
 
 // Main unified store
 export { useUnifiedStore, useStore } from './useUnifiedStore';
-export type { ViewMode } from './useUnifiedStore';
 
 // View-specific stores (wrappers around UnifiedStore)
 export { useGroupStore, useUIStore } from './useGroupStore';
@@ -19,7 +18,8 @@ export { useToastStore } from './useToastStore';
 export { useUndoStore } from './useUndoStore';
 
 // Types
-export type { Group, StoreTask, ArchiveTimeView, ItemColor } from './types';
+export type { Group, StoreTask, ItemColor } from './types';
+export type { TimeView } from '@/lib/date';
 
 // Utilities - Time (from unified time module)
 export { parseDuration, extractDuration } from '@/lib/time';

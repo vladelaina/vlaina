@@ -4,14 +4,10 @@
 
 import { nanoid } from 'nanoid';
 import type { UnifiedData, UnifiedProgress } from '@/lib/storage/unifiedStorage';
+import { getTodayKey } from '@/lib/date';
 
 type SetState = (fn: (state: { data: UnifiedData }) => Partial<{ data: UnifiedData }>) => void;
 type Persist = (data: UnifiedData) => void;
-
-function getTodayKey(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 export function createProgressActions(set: SetState, persist: Persist) {
   return {

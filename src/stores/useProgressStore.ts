@@ -6,6 +6,7 @@
 
 import { useUnifiedStore } from './useUnifiedStore';
 import type { UnifiedProgress } from '@/lib/storage/unifiedStorage';
+import { getTodayKey } from '@/lib/date';
 
 export interface ProgressItem {
   id: string;
@@ -83,11 +84,6 @@ function toProgressOrCounter(item: UnifiedProgress): ProgressOrCounter {
     createdAt: item.createdAt,
     archived: item.archived || false,
   };
-}
-
-function getTodayKey(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export function useProgressStore() {

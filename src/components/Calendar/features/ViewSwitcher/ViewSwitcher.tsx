@@ -1,26 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { CaretDown, CaretLeft, CaretRight, Check, MagnifyingGlass, SidebarSimple } from '@phosphor-icons/react';
-import { useCalendarStore, type ViewMode } from '@/stores/useCalendarStore';
+import { useCalendarStore, type TimeView } from '@/stores/useCalendarStore';
 import { addDays, addMonths } from 'date-fns';
 import { SyncButton } from '@/components/common';
 
 // View mode labels
-const VIEW_MODE_LABELS: Record<ViewMode, string> = {
+const VIEW_MODE_LABELS: Record<TimeView, string> = {
   day: 'Day',
   week: 'Week',
   month: 'Month',
 };
 
 // Keyboard shortcuts display
-const VIEW_MODE_SHORTCUTS: Record<ViewMode, string> = {
+const VIEW_MODE_SHORTCUTS: Record<TimeView, string> = {
   day: '1 or D',
   week: '0 or W',
   month: 'M',
 };
 
 // View mode order for dropdown
-const VIEW_MODE_ORDER: ViewMode[] = ['day', 'week', 'month'];
+const VIEW_MODE_ORDER: TimeView[] = ['day', 'week', 'month'];
 
 // Day count options (2-9)
 const DAY_COUNT_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9];
@@ -118,7 +118,7 @@ export function ViewSwitcher() {
   }, [setViewMode, setDayCount]);
 
   // Handle view mode selection
-  const handleSelectViewMode = (mode: ViewMode) => {
+  const handleSelectViewMode = (mode: TimeView) => {
     // When selecting "day" mode from the main menu, reset to single day
     if (mode === 'day') {
       setDayCount(1);
