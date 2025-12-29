@@ -324,7 +324,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
             />
           )}
 
-          {/* Icon watermark - 右下角淡淡的图标背景 */}
+          {/* Icon watermark - 右下角图标 */}
           {heightLevel !== 'micro' && heightLevel !== 'tiny' && (() => {
             // 如果当前事件正在被预览，使用预览图标；否则使用事件本身的图标
             const displayIconName = (previewIconEventId === event.id && previewIcon !== null) 
@@ -333,13 +333,15 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
             if (!displayIconName) return null;
             const IconComponent = getIconByName(displayIconName);
             if (!IconComponent) return null;
-            // 图标尺寸随事件高度自适应，最小 24px，最大 48px
-            const iconSize = Math.min(Math.max(height * 0.6, 24), 48);
+            // 图标尺寸基于 hourHeight 自适应，随用户缩放调整
+            // hourHeight 范围通常是 40-120，图标大小按比例缩放
+            // 使用更大的系数让变化更明显
+            const iconSize = Math.min(Math.max(hourHeight * 0.7, 24), 80);
             return (
               <div 
                 className="absolute right-1 bottom-0 pointer-events-none"
                 style={{ 
-                  opacity: 0.08,
+                  opacity: 0.25,
                   color: colorStyles.accent,
                 }}
               >
