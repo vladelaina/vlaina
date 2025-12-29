@@ -13,6 +13,8 @@ import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
 interface IconSelectorProps {
   value?: string;
   onChange: (icon: string | undefined) => void;
+  /** 鼠标悬停时的回调，用于实时预览。传入 null 表示鼠标离开，停止预览 */
+  onHover?: (icon: string | undefined | null) => void;
   /** 是否在选择后自动关闭（默认 true） */
   closeOnSelect?: boolean;
 }
@@ -23,7 +25,7 @@ const QUICK_ICONS = [
   'music', 'game', 'home', 'car', 'plane', 'shopping',
 ];
 
-export function IconSelector({ value, onChange, closeOnSelect = true }: IconSelectorProps) {
+export function IconSelector({ value, onChange, onHover, closeOnSelect = true }: IconSelectorProps) {
   const [showAll, setShowAll] = useState(false);
 
   const handleSelect = (icon: string | undefined) => {
@@ -33,9 +35,19 @@ export function IconSelector({ value, onChange, closeOnSelect = true }: IconSele
     }
   };
 
+  // 鼠标悬停时调用 onHover
+  const handleHover = (icon: string | undefined) => {
+    onHover?.(icon);
+  };
+
+  // 鼠标离开时传递 null 表示停止预览
+  const handleMouseLeave = () => {
+    onHover?.(null);
+  };
+
   if (showAll) {
     return (
-      <div className="px-3 py-2">
+      <div className="py-1" onMouseLeave={handleMouseLeave}>
         {/* Header */}
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide">Icon</span>
@@ -48,7 +60,7 @@ export function IconSelector({ value, onChange, closeOnSelect = true }: IconSele
         </div>
         
         {/* All icons grid - scrollable */}
-        <div className="max-h-48 overflow-y-auto -mx-1 px-1 space-y-3">
+        <div className="max-h-48 overflow-y-auto space-y-3">
           {ICON_CATEGORIES.map((category) => (
             <div key={category.name}>
               <div className="text-[9px] font-medium text-zinc-400 dark:text-zinc-600 uppercase tracking-wide mb-1.5">
@@ -59,6 +71,7 @@ export function IconSelector({ value, onChange, closeOnSelect = true }: IconSele
                   <button
                     key={name}
                     onClick={() => handleSelect(name)}
+                    onMouseEnter={() => handleHover(name)}
                     className={`
                       aspect-square rounded-md flex items-center justify-center transition-all
                       ${value === name 
@@ -79,12 +92,13 @@ export function IconSelector({ value, onChange, closeOnSelect = true }: IconSele
   }
 
   return (
-    <div className="px-3 py-2">
+    <div className="py-1" onMouseLeave={handleMouseLeave}>
       {/* Quick icons row */}
       <div className="flex items-center gap-1.5">
         {/* Clear button */}
         <button
           onClick={() => handleSelect(undefined)}
+          onMouseEnter={() => handleHover(undefined)}
           className={`
             w-6 h-6 rounded-md flex items-center justify-center transition-all
             ${!value 
@@ -105,6 +119,7 @@ export function IconSelector({ value, onChange, closeOnSelect = true }: IconSele
             <button
               key={name}
               onClick={() => handleSelect(name)}
+              onMouseEnter={() => handleHover(name)}
               className={`
                 w-6 h-6 rounded-md flex items-center justify-center transition-all
                 ${value === name 
@@ -121,6 +136,7 @@ export function IconSelector({ value, onChange, closeOnSelect = true }: IconSele
         {/* More button */}
         <button
           onClick={() => setShowAll(true)}
+          onMouseEnter={() => handleHover(value)} // 悬停在 more 按钮时保持当前图标
           className="w-6 h-6 rounded-md flex items-center justify-center text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-400 text-[10px] font-medium"
         >
           ···

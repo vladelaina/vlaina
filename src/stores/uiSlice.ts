@@ -86,6 +86,11 @@ interface UIStore {
   // Event selection state
   selectedEventId: string | null;
   setSelectedEventId: (id: string | null) => void;
+  
+  // Icon preview state (for hover preview on calendar)
+  previewIconEventId: string | null;
+  previewIcon: string | undefined | null;
+  setPreviewIcon: (eventId: string | null, icon: string | undefined | null) => void;
 }
 
 function loadColorFilter(): ItemColor[] {
@@ -254,4 +259,12 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   // Event selection state
   selectedEventId: null,
   setSelectedEventId: (id) => set({ selectedEventId: id }),
+  
+  // Icon preview state (for hover preview on calendar)
+  previewIconEventId: null,
+  previewIcon: null,
+  setPreviewIcon: (eventId, icon) => set({ 
+    previewIconEventId: eventId, 
+    previewIcon: icon 
+  }),
 }));

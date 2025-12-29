@@ -10,9 +10,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { format, setHours, setMinutes, startOfDay, endOfDay } from 'date-fns';
 import { Clock, Folder, ChevronDown, X, Sun } from 'lucide-react';
 import { useCalendarStore, type CalendarEvent } from '@/stores/useCalendarStore';
+import { useUIStore } from '@/stores/uiSlice';
 import { cn } from '@/lib/utils';
 import { ALL_COLORS, COLOR_HEX, type ItemColor } from '@/lib/colors';
 import { parseClockTime } from '@/lib/time';
+import { IconSelector } from '@/components/common';
 
 // ============ Editable Time Component ============
 
@@ -120,7 +122,8 @@ interface EventEditFormProps {
 // ============ Component ============
 
 export function EventEditForm({ event, mode = 'embedded', position }: EventEditFormProps) {
-  const { updateEvent, closeEditingEvent, groups, use24Hour, deleteEvent } = useCalendarStore();
+  const { updateEvent, updateTaskIcon, closeEditingEvent, groups, use24Hour, deleteEvent } = useCalendarStore();
+  const { setPreviewIcon } = useUIStore();
   const [content, setContent] = useState(event.content || '');
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -133,8 +136,23 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     if (!event.content.trim()) {
       deleteEvent(event.id);
     }
+    // 清除全局预览状态
+    setPreviewIcon(null, null);
     closeEditingEvent();
-  }, [event.id, event.content, deleteEvent, closeEditingEvent]);  const currentGroup = groups.find(g => g.id === event.groupId) || groups[0];
+  }, [event.id, event.content, deleteEvent, closeEditingEvent, setPreviewIcon]);
+
+  // 图标悬停预览回调 - 更新全局状态让 EventBlock 显示预览
+  const handleIconHover = useCallback((icon: string | undefined | null) => {
+    if (icon === null) {
+      // 鼠标离开，清除预览
+      setPreviewIcon(null, null);
+    } else {
+      // 鼠标悬停，设置预览
+      setPreviewIcon(event.id, icon);
+    }
+  }, [event.id, setPreviewIcon]);
+
+  const currentGroup = groups.find(g => g.id === event.groupId) || groups[0];
 
   // Sync content
   useEffect(() => {
@@ -305,6 +323,16 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
               title={color === 'default' ? 'Default' : color}
             />
           ))}
+        </div>
+
+        {/* Icon picker row */}
+        <div className="flex items-center mt-3 ml-7">
+          {/* 图标选择器 - 预览直接显示在日历事件上 */}
+          <IconSelector 
+            value={event.icon} 
+            onChange={(icon) => updateTaskIcon(event.id, icon)}
+            onHover={handleIconHover}
+          />
         </div>
 
         {/* Divider */}

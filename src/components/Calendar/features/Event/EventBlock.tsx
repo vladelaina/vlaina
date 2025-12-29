@@ -35,7 +35,8 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
   const { 
     setEditingEventId, editingEventId, 
     setSelectedEventId, closeEditingEvent,
-    use24Hour, events, deleteEvent
+    use24Hour, events, deleteEvent,
+    previewIconEventId, previewIcon
   } = useCalendarStore();
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -324,8 +325,13 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
           )}
 
           {/* Icon watermark - 右下角淡淡的图标背景 */}
-          {event.icon && heightLevel !== 'micro' && heightLevel !== 'tiny' && (() => {
-            const IconComponent = getIconByName(event.icon);
+          {heightLevel !== 'micro' && heightLevel !== 'tiny' && (() => {
+            // 如果当前事件正在被预览，使用预览图标；否则使用事件本身的图标
+            const displayIconName = (previewIconEventId === event.id && previewIcon !== null) 
+              ? previewIcon 
+              : event.icon;
+            if (!displayIconName) return null;
+            const IconComponent = getIconByName(displayIconName);
             if (!IconComponent) return null;
             // 图标尺寸随事件高度自适应，最小 24px，最大 48px
             const iconSize = Math.min(Math.max(height * 0.6, 24), 48);

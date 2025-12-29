@@ -62,6 +62,8 @@ export function useCalendarStore() {
     editingEventId: uiStore.editingEventId,
     editingEventPosition: uiStore.editingEventPosition,
     selectedEventId: uiStore.selectedEventId,
+    previewIconEventId: uiStore.previewIconEventId,
+    previewIcon: uiStore.previewIcon,
     
     // Data Actions (来自 UnifiedStore)
     load: store.load,
