@@ -599,6 +599,27 @@ export function AboutTab() {
             </button>
           </div>
         </div>
+
+        {/* Discord */}
+        <div className="py-3 border-b border-zinc-200 dark:border-zinc-700">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-0.5">
+                Discord Community
+              </div>
+              <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                Join our community for support and discussions.
+              </div>
+            </div>
+            <button
+              onClick={() => openUrl('https://discord.gg/TtUzNPqNJw')}
+              className={`${settingsButtonClassName} flex items-center gap-1.5`}
+            >
+              <ExternalLink className="size-3.5" />
+              Join
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
