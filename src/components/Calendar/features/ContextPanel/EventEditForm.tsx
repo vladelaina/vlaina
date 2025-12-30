@@ -322,8 +322,8 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
           />
         </div>
 
-        {/* Icon picker row */}
-        <div className="flex items-center mt-3 ml-7">
+        {/* Icon picker row - 让图标网格自适应宽度 */}
+        <div className="mt-3 ml-7">
           <IconSelector 
             value={event.icon} 
             onChange={(icon) => updateTaskIcon(event.id, icon)}

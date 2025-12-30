@@ -14,55 +14,53 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const { icons } = await import('@phosphor-icons/core');
 
 // Phosphor Icons 的官方分类（小写）
+// 按用户使用频率排序：常用的放前面
 const CATEGORIES = {
-  'arrows': [],
-  'brand': [],
-  'commerce': [],
-  'communication': [],
-  'design': [],
-  'development': [],
-  'editor': [],
-  'education': [],
-  'finances': [],
-  'games': [],
-  'health': [],
-  'map': [],
-  'media': [],
-  'nature': [],
-  'objects': [],
-  'office': [],
-  'people': [],
-  'security': [],
-  'system': [],
-  'time': [],
-  'weather': [],
-  'other': [],
+  // 高频使用 - 日常生活、工作、娱乐
+  'commerce': [],              // 购物、食物、日用品
+  'health & wellness': [],     // 健康、运动、心情
+  'office': [],                // 办公、工作
+  'media': [],                 // 媒体、音乐、视频
+  'games': [],                 // 游戏、娱乐
+  'communications': [],        // 通讯、社交
+  'maps & travel': [],         // 地图、旅行
+  'nature': [],                // 自然、动物
+  'weather': [],               // 天气
+  'people': [],                // 人物
+  'finances': [],              // 金融
+  'objects': [],               // 物品
+  // 中频使用 - 技术相关
+  'technology & development': [], // 开发
+  'design': [],                // 设计
+  'system': [],                // 系统
+  'editor': [],                // 编辑器
+  // 低频使用
+  'brands': [],                // 品牌 Logo
+  'arrows': [],                // 箭头（放最后）
+  'other': [],                 // 其他
 };
 
-// 分类显示名称映射
+// 分类显示名称映射（更友好的中英文名称）
 const CATEGORY_DISPLAY_NAMES = {
-  'arrows': 'Arrows',
-  'brand': 'Brand',
-  'commerce': 'Commerce',
-  'communication': 'Communication',
-  'design': 'Design',
-  'development': 'Development',
-  'editor': 'Editor',
-  'education': 'Education',
-  'finances': 'Finance',
-  'games': 'Games',
-  'health': 'Health',
-  'map': 'Map',
-  'media': 'Media',
-  'nature': 'Nature',
-  'objects': 'Objects',
-  'office': 'Office',
-  'people': 'People',
-  'security': 'Security',
-  'system': 'System',
-  'time': 'Time',
-  'weather': 'Weather',
-  'other': 'Other',
+  'commerce': '🛒 Shopping & Food',
+  'health & wellness': '💪 Health & Sports',
+  'office': '💼 Work & Office',
+  'media': '🎵 Media & Music',
+  'games': '🎮 Games & Fun',
+  'communications': '💬 Social',
+  'maps & travel': '✈️ Travel',
+  'nature': '🌿 Nature',
+  'weather': '☀️ Weather',
+  'people': '👤 People',
+  'finances': '💰 Finance',
+  'objects': '📦 Objects',
+  'technology & development': '💻 Tech & Dev',
+  'design': '🎨 Design',
+  'system': '⚙️ System',
+  'editor': '📝 Editor',
+  'brands': '🏷️ Brands',
+  'arrows': '➡️ Arrows',
+  'other': '📁 Other',
 };
 
 // 将 kebab-case 转换为 PascalCase
