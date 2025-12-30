@@ -14,7 +14,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { cn } from '@/lib/utils';
 import { ALL_COLORS, COLOR_HEX, type ItemColor } from '@/lib/colors';
 import { parseClockTime } from '@/lib/time';
-import { IconSelector } from '@/components/common';
+import { IconSelector, TaskIcon, ColorPicker } from '@/components/common';
 
 // ============ Editable Time Component ============
 
@@ -274,8 +274,8 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
 
       {/* Task-like content area */}
       <div className={`px-4 pb-4 ${mode === 'floating' ? 'px-3 pb-3' : ''}`}>
-        {/* Main row: Color checkbox + Content input */}
-        <div className="flex items-start gap-3">
+        {/* Main row: Color checkbox + Icon preview + Content input */}
+        <div className="flex items-start gap-2">
           {/* Color checkbox - like todo item */}
           <button
             onClick={handleColorToggle}
@@ -283,6 +283,16 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
             style={{ borderColor: colorValue }}
             title="Click to change color"
           />
+          
+          {/* Icon preview - same position as todo item, using event color */}
+          <div className="mt-1.5">
+            <TaskIcon 
+              itemId={event.id}
+              icon={event.icon}
+              color={colorValue}
+              sizeClass="size-4"
+            />
+          </div>
           
           {/* Content input */}
           <input
@@ -306,28 +316,14 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
 
         {/* Color picker row */}
         <div className="flex items-center gap-1.5 mt-3 ml-7">
-          {ALL_COLORS.map((color) => (
-            <button
-              key={color}
-              onClick={() => handleColorChange(color)}
-              className={cn(
-                'w-5 h-5 rounded-sm border-2 transition-all hover:scale-110',
-                currentColor === color
-                  ? 'ring-2 ring-zinc-400 dark:ring-zinc-500 ring-offset-1 dark:ring-offset-zinc-900'
-                  : ''
-              )}
-              style={{
-                borderColor: COLOR_HEX[color],
-                backgroundColor: color === 'default' ? 'transparent' : undefined,
-              }}
-              title={color === 'default' ? 'Default' : color}
-            />
-          ))}
+          <ColorPicker
+            value={currentColor}
+            onChange={handleColorChange}
+          />
         </div>
 
         {/* Icon picker row */}
         <div className="flex items-center mt-3 ml-7">
-          {/* 图标选择器 - 预览直接显示在日历事件上 */}
           <IconSelector 
             value={event.icon} 
             onChange={(icon) => updateTaskIcon(event.id, icon)}

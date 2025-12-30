@@ -17,6 +17,10 @@ interface IconSelectorProps {
   onHover?: (icon: string | undefined | null) => void;
   /** 是否在选择后自动关闭（默认 true） */
   closeOnSelect?: boolean;
+  /** 图标颜色（用于紧凑模式显示当前图标） */
+  color?: string;
+  /** 紧凑模式：只显示当前图标，点击展开选择器 */
+  compact?: boolean;
 }
 
 // 常用图标（从各分类中精选）
@@ -25,7 +29,7 @@ const QUICK_ICONS = [
   'music', 'game', 'home', 'car', 'plane', 'shopping',
 ];
 
-export function IconSelector({ value, onChange, onHover, closeOnSelect = true }: IconSelectorProps) {
+export function IconSelector({ value, onChange, onHover, closeOnSelect = true, color, compact = false }: IconSelectorProps) {
   const [showAll, setShowAll] = useState(false);
 
   const handleSelect = (icon: string | undefined) => {
@@ -44,6 +48,25 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true }:
   const handleMouseLeave = () => {
     onHover?.(null);
   };
+
+  // Compact mode: show only current icon, click to expand
+  if (compact && !showAll) {
+    const CurrentIcon = value ? getIconByName(value) : null;
+    return (
+      <button
+        onClick={() => setShowAll(true)}
+        className="w-4 h-4 flex items-center justify-center rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+        style={{ color: color || undefined }}
+        title="Change icon"
+      >
+        {CurrentIcon ? (
+          <CurrentIcon className="size-3.5" weight="duotone" />
+        ) : (
+          <Sparkle className="size-3.5 text-zinc-400 dark:text-zinc-500" weight="light" />
+        )}
+      </button>
+    );
+  }
 
   if (showAll) {
     return (

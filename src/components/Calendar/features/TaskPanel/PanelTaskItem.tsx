@@ -13,9 +13,8 @@ import { cn } from '@/lib/utils';
 import type { Task } from '@/stores/useGroupStore';
 import { useUIStore, useGroupStore } from '@/stores/useGroupStore';
 import { parseDuration, formatDuration } from '@/lib/time';
-import { ALL_COLORS, COLOR_HEX, getColorHex } from '@/lib/colors';
-import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
-import { IconSelector } from '@/components/common';
+import { getColorHex } from '@/lib/colors';
+import { IconSelector, TaskIcon, ColorPicker } from '@/components/common';
 
 // 禁用拖拽动画
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
@@ -229,15 +228,15 @@ export function PanelTaskItem({
         </div>
 
         {/* 图标 */}
-        {task.icon && (() => {
-          const IconComponent = getIconByName(task.icon);
-          if (!IconComponent) return null;
-          return (
-            <div className="mt-0.5 flex-shrink-0 text-zinc-400 dark:text-zinc-500">
-              <IconComponent className="h-3.5 w-3.5" weight="duotone" />
-            </div>
-          );
-        })()}
+        <div className="mt-0.5">
+          <TaskIcon 
+            itemId={task.id}
+            icon={task.icon}
+            color={colorValue}
+            sizeClass="h-3.5 w-3.5"
+            enablePreview={false}
+          />
+        </div>
 
         {/* 内容 */}
         <div className="flex-1 min-w-0">
@@ -311,27 +310,13 @@ export function PanelTaskItem({
             >
               {/* 颜色选择器 */}
               <div className="px-3 py-2">
-                <div className="flex items-center justify-between gap-1.5">
-                  {ALL_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => {
-                        useGroupStore.getState().updateTaskColor(task.id, color);
-                        setShowMenu(false);
-                      }}
-                      className={cn(
-                        "w-5 h-5 rounded-sm border-2 transition-all hover:scale-110",
-                        task.color === color || (!task.color && color === 'default')
-                          ? "ring-2 ring-zinc-400 dark:ring-zinc-500 ring-offset-1"
-                          : ""
-                      )}
-                      style={{
-                        borderColor: COLOR_HEX[color],
-                        backgroundColor: color === 'default' ? 'transparent' : undefined
-                      }}
-                    />
-                  ))}
-                </div>
+                <ColorPicker
+                  value={task.color}
+                  onChange={(color) => {
+                    useGroupStore.getState().updateTaskColor(task.id, color);
+                    setShowMenu(false);
+                  }}
+                />
               </div>
               
               {/* 图标选择器 */}
