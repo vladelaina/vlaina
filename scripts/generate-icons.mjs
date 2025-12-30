@@ -40,27 +40,27 @@ const CATEGORIES = {
   'other': [],                 // 其他
 };
 
-// 分类显示名称映射（更友好的中英文名称）
+// 分类显示名称映射（更友好的名称）
 const CATEGORY_DISPLAY_NAMES = {
-  'commerce': '🛒 Shopping & Food',
-  'health & wellness': '💪 Health & Sports',
-  'office': '💼 Work & Office',
-  'media': '🎵 Media & Music',
-  'games': '🎮 Games & Fun',
-  'communications': '💬 Social',
-  'maps & travel': '✈️ Travel',
-  'nature': '🌿 Nature',
-  'weather': '☀️ Weather',
-  'people': '👤 People',
-  'finances': '💰 Finance',
-  'objects': '📦 Objects',
-  'technology & development': '💻 Tech & Dev',
-  'design': '🎨 Design',
-  'system': '⚙️ System',
-  'editor': '📝 Editor',
-  'brands': '🏷️ Brands',
-  'arrows': '➡️ Arrows',
-  'other': '📁 Other',
+  'commerce': 'Shopping & Food',
+  'health & wellness': 'Health & Sports',
+  'office': 'Work & Office',
+  'media': 'Media & Music',
+  'games': 'Games & Fun',
+  'communications': 'Social',
+  'maps & travel': 'Travel',
+  'nature': 'Nature',
+  'weather': 'Weather',
+  'people': 'People',
+  'finances': 'Finance',
+  'objects': 'Objects',
+  'technology & development': 'Tech & Dev',
+  'design': 'Design',
+  'system': 'System',
+  'editor': 'Editor',
+  'brands': 'Brands',
+  'arrows': 'Arrows',
+  'other': 'Other',
 };
 
 // 将 kebab-case 转换为 PascalCase

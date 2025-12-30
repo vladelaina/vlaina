@@ -123,7 +123,7 @@ interface EventEditFormProps {
 
 export function EventEditForm({ event, mode = 'embedded', position }: EventEditFormProps) {
   const { updateEvent, updateTaskIcon, closeEditingEvent, groups, use24Hour, deleteEvent } = useCalendarStore();
-  const { setPreviewIcon } = useUIStore();
+  const { setPreviewIcon, setPreviewColor } = useUIStore();
   const [content, setContent] = useState(event.content || '');
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -138,8 +138,9 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     }
     // 清除全局预览状态
     setPreviewIcon(null, null);
+    setPreviewColor(null, null);
     closeEditingEvent();
-  }, [event.id, event.content, deleteEvent, closeEditingEvent, setPreviewIcon]);
+  }, [event.id, event.content, deleteEvent, closeEditingEvent, setPreviewIcon, setPreviewColor]);
 
   // 图标悬停预览回调 - 更新全局状态让 EventBlock 显示预览
   const handleIconHover = useCallback((icon: string | undefined | null) => {
@@ -151,6 +152,17 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
       setPreviewIcon(event.id, icon);
     }
   }, [event.id, setPreviewIcon]);
+
+  // 颜色悬停预览回调 - 更新全局状态让 EventBlock 显示预览
+  const handleColorHover = useCallback((color: ItemColor | null) => {
+    if (color === null) {
+      // 鼠标离开，清除预览
+      setPreviewColor(null, null);
+    } else {
+      // 鼠标悬停，设置预览
+      setPreviewColor(event.id, color);
+    }
+  }, [event.id, setPreviewColor]);
 
   const currentGroup = groups.find(g => g.id === event.groupId) || groups[0];
 
@@ -319,6 +331,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
           <ColorPicker
             value={currentColor}
             onChange={handleColorChange}
+            onHover={handleColorHover}
           />
         </div>
 

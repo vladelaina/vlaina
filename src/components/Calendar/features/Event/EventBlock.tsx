@@ -37,7 +37,8 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
     setEditingEventId, editingEventId, 
     setSelectedEventId, closeEditingEvent,
     use24Hour, events, deleteEvent,
-    previewIconEventId, previewIcon
+    previewIconEventId, previewIcon,
+    previewColorEventId, previewColor
   } = useCalendarStore();
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -106,8 +107,11 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
     return 'large';
   }, [height]);
 
-  // Color - use inline styles instead of Tailwind classes
-  const colorStyles = getEventInlineStyles(event.color);
+  // Color - use preview color when hovering, otherwise use event color
+  const displayColor = (previewColorEventId === event.id && previewColor !== null) 
+    ? previewColor 
+    : event.color;
+  const colorStyles = getEventInlineStyles(displayColor);
   const isDark = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
   const bgColor = isDark ? colorStyles.bgDark : colorStyles.bg;
   const textColor = isDark ? colorStyles.textDark : colorStyles.text;

@@ -1535,7 +1535,7 @@ export interface IconCategory {
 
 export const ICON_CATEGORIES_FULL: IconCategory[] = [
   {
-    name: '🛒 Shopping & Food',
+    name: 'Shopping & Food',
     icons: [
       { name: 'avocado', icon: Avocado },
       { name: 'axe', icon: Axe },
@@ -1686,7 +1686,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '💪 Health & Sports',
+    name: 'Health & Sports',
     icons: [
       { name: 'ambulance', icon: Ambulance },
       { name: 'asclepius', icon: Asclepius },
@@ -1727,7 +1727,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '💼 Work & Office',
+    name: 'Work & Office',
     icons: [
       { name: 'archive', icon: Archive },
       { name: 'book', icon: Book },
@@ -1839,7 +1839,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '🎵 Media & Music',
+    name: 'Media & Music',
     icons: [
       { name: 'airplay', icon: Airplay },
       { name: 'article', icon: Article },
@@ -1938,7 +1938,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '🎮 Games & Fun',
+    name: 'Games & Fun',
     icons: [
       { name: 'alien', icon: Alien },
       { name: 'baseball', icon: Baseball },
@@ -2001,7 +2001,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '💬 Social',
+    name: 'Social',
     icons: [
       { name: 'address-book', icon: AddressBook },
       { name: 'address-book-tabs', icon: AddressBookTabs },
@@ -2112,7 +2112,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '✈️ Travel',
+    name: 'Travel',
     icons: [
       { name: 'air-traffic-control', icon: AirTrafficControl },
       { name: 'airplane', icon: Airplane },
@@ -2219,7 +2219,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '🌿 Nature',
+    name: 'Nature',
     icons: [
       { name: 'binoculars', icon: Binoculars },
       { name: 'bird', icon: Bird },
@@ -2264,7 +2264,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '☀️ Weather',
+    name: 'Weather',
     icons: [
       { name: 'cloud-fog', icon: CloudFog },
       { name: 'cloud-lightning', icon: CloudLightning },
@@ -2287,7 +2287,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '👤 People',
+    name: 'People',
     icons: [
       { name: 'baby', icon: Baby },
       { name: 'detective', icon: Detective },
@@ -2341,7 +2341,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '💰 Finance',
+    name: 'Finance',
     icons: [
       { name: 'acorn', icon: Acorn },
       { name: 'approximate-equals', icon: ApproximateEquals },
@@ -2419,7 +2419,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '📦 Objects',
+    name: 'Objects',
     icons: [
       { name: 'armchair', icon: Armchair },
       { name: 'bathtub', icon: Bathtub },
@@ -2487,7 +2487,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '💻 Tech & Dev',
+    name: 'Tech & Dev',
     icons: [
       { name: 'atom', icon: Atom },
       { name: 'binary', icon: Binary },
@@ -2553,7 +2553,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '🎨 Design',
+    name: 'Design',
     icons: [
       { name: 'align-bottom', icon: AlignBottom },
       { name: 'align-bottom-simple', icon: AlignBottomSimple },
@@ -2720,7 +2720,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '⚙️ System',
+    name: 'System',
     icons: [
       { name: 'alarm', icon: Alarm },
       { name: 'backspace', icon: Backspace },
@@ -2897,7 +2897,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '📝 Editor',
+    name: 'Editor',
     icons: [
       { name: 'command', icon: Command },
       { name: 'copy', icon: Copy },
@@ -2928,7 +2928,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '🏷️ Brands',
+    name: 'Brands',
     icons: [
       { name: 'amazon-logo', icon: AmazonLogo },
       { name: 'android-logo', icon: AndroidLogo },
@@ -3007,7 +3007,7 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
     ],
   },
   {
-    name: '➡️ Arrows',
+    name: 'Arrows',
     icons: [
       { name: 'arrow-arc-left', icon: ArrowArcLeft },
       { name: 'arrow-arc-right', icon: ArrowArcRight },

@@ -64,6 +64,8 @@ export function useCalendarStore() {
     selectedEventId: uiStore.selectedEventId,
     previewIconEventId: uiStore.previewIconEventId,
     previewIcon: uiStore.previewIcon,
+    previewColorEventId: uiStore.previewColorEventId,
+    previewColor: uiStore.previewColor,
     
     // Data Actions (来自 UnifiedStore)
     load: store.load,

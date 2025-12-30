@@ -156,7 +156,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
             {/* 自定义常用分类 - 放在最前面 */}
             <div>
               <div className="text-[10px] font-medium text-zinc-400 dark:text-zinc-600 uppercase tracking-wide mb-1.5 sticky top-0 bg-white dark:bg-zinc-900 py-0.5">
-                ⭐ Featured
+                Featured
               </div>
               <div 
                 className="grid gap-1"
