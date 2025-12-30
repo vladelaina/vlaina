@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { CaretLeft, Prohibit } from '@phosphor-icons/react';
-import { ICON_CATEGORIES } from './data';
+import { ICON_CATEGORIES_FULL } from './fullIcons';
 
 interface IconGridViewProps {
   value?: string;
@@ -35,7 +35,7 @@ export const IconGridView = memo(function IconGridView({ value, onChange, onCanc
         dark:[&::-webkit-scrollbar-thumb]:bg-zinc-800
         dark:[&::-webkit-scrollbar-thumb]:hover:bg-zinc-700
       ">
-        {ICON_CATEGORIES.map((category) => (
+        {ICON_CATEGORIES_FULL.map((category) => (
             <div key={category.name} className="mb-6">
                 <div className="text-[10px] font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-widest px-2 mb-3 sticky top-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md py-2 z-20">
                     {category.name}

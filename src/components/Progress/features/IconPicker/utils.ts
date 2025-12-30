@@ -1,7 +1,6 @@
 import { type Icon as PhosphorIcon } from '@phosphor-icons/react';
-import { ALL_ICONS } from './data';
+import { ICON_MAP_FULL } from './fullIcons';
 
 export function getIconByName(name: string): PhosphorIcon | null {
-  const found = ALL_ICONS.find(i => i.name === name);
-  return found?.icon || null;
+  return ICON_MAP_FULL.get(name) || null;
 }

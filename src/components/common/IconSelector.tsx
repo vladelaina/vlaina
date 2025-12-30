@@ -5,9 +5,8 @@
  */
 
 import { useState } from 'react';
-import { Sparkle, ProhibitInset } from '@phosphor-icons/react';
-import { X } from 'lucide-react';
-import { ICON_CATEGORIES } from '@/components/Progress/features/IconPicker/data';
+import { Prohibit, X } from '@phosphor-icons/react';
+import { ICON_CATEGORIES_FULL } from '@/components/Progress/features/IconPicker/fullIcons';
 import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
 
 interface IconSelectorProps {
@@ -23,10 +22,10 @@ interface IconSelectorProps {
   compact?: boolean;
 }
 
-// 常用图标（从各分类中精选）
+// 常用图标（使用完整图标列表中的名称）
 const QUICK_ICONS = [
   'coffee', 'book', 'code', 'briefcase', 'heart', 'flame', 
-  'music', 'game', 'home', 'car', 'plane', 'shopping',
+  'music-note', 'game-controller', 'house', 'car', 'airplane', 'shopping-bag',
 ];
 
 export function IconSelector({ value, onChange, onHover, closeOnSelect = true, color, compact = false }: IconSelectorProps) {
@@ -62,7 +61,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
         {CurrentIcon ? (
           <CurrentIcon className="size-3.5" weight="duotone" />
         ) : (
-          <Sparkle className="size-3.5 text-zinc-400 dark:text-zinc-500" weight="light" />
+          <span className="size-3.5 text-zinc-400 dark:text-zinc-500">✦</span>
         )}
       </button>
     );
@@ -85,7 +84,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
           `}
           title="清除图标"
         >
-          <ProhibitInset className="size-3.5" weight="light" />
+          <Prohibit className="size-3.5" weight="light" />
         </button>
         
         {/* Quick icons */}
@@ -129,14 +128,14 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
       {/* Expanded icons grid - 在快捷图标下方展开 */}
       {showAll && (
         <div className="mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-          <div className="max-h-40 overflow-y-auto space-y-2.5">
-            {ICON_CATEGORIES.map((category) => (
+          <div className="max-h-64 overflow-y-auto space-y-2.5">
+            {ICON_CATEGORIES_FULL.map((category) => (
               <div key={category.name}>
-                <div className="text-[9px] font-medium text-zinc-400 dark:text-zinc-600 uppercase tracking-wide mb-1">
+                <div className="text-[9px] font-medium text-zinc-400 dark:text-zinc-600 uppercase tracking-wide mb-1 sticky top-0 bg-white dark:bg-zinc-900 py-0.5">
                   {category.name}
                 </div>
                 <div className="grid grid-cols-8 gap-0.5">
-                  {category.icons.slice(0, 16).map(({ name, icon: Icon }) => (
+                  {category.icons.map(({ name, icon: Icon }) => (
                     <button
                       key={name}
                       onClick={() => handleSelect(name)}
@@ -148,6 +147,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
                           : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300'
                         }
                       `}
+                      title={name}
                     >
                       <Icon className="size-3.5" weight={value === name ? 'duotone' : 'light'} />
                     </button>
