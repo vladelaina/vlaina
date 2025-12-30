@@ -76,6 +76,12 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
     endMinutes: number;
   } | null>(null);
 
+  // Hover time indicator (for resize edge preview)
+  const [hoverTimeIndicator, setHoverTimeIndicator] = useState<{
+    startMinutes: number;
+    endMinutes: number;
+  } | null>(null);
+
   const columnCount = days.length;
   const snapMinutes = getSnapMinutes(hourHeight);
   
@@ -606,6 +612,9 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
     const event = displayItems.find(item => item.id === eventId);
     if (!event) return;
 
+    // Clear hover indicator when drag starts
+    setHoverTimeIndicator(null);
+
     // Initialize time indicator with current event times
     const startDate = new Date(event.startDate);
     const endDate = new Date(event.endDate);
@@ -624,6 +633,18 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
       originalIsAllDay: event.isAllDay,
     });
   }, [displayItems]);
+
+  // Handle event hover (preview time in gutter)
+  const handleEventHover = useCallback((startMinutes: number | null, endMinutes: number | null) => {
+    // Only show hover indicator when not dragging
+    if (!eventDrag && !isDragging) {
+      if (startMinutes !== null && endMinutes !== null) {
+        setHoverTimeIndicator({ startMinutes, endMinutes });
+      } else {
+        setHoverTimeIndicator(null);
+      }
+    }
+  }, [eventDrag, isDragging]);
 
   // Handle creating all-day event from AllDayArea
   const handleCreateAllDay = useCallback((startDay: Date, endDay: Date) => {
@@ -775,6 +796,42 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                 )}
               </>
             )}
+            
+            {/* Hover time indicator - preview when hovering resize edge */}
+            {hoverTimeIndicator && !dragTimeIndicator && (
+              <>
+                {/* Start time indicator */}
+                {hoverTimeIndicator.startMinutes % 60 !== 0 && (
+                  <div 
+                    className="absolute z-20 pointer-events-none transition-all duration-75"
+                    style={{ 
+                      top: `${minutesToPixels(hoverTimeIndicator.startMinutes, hourHeight, dayStartMinutes)}px`,
+                      right: 12,
+                      transform: 'translateY(-50%)',
+                    }}
+                  >
+                    <span className="text-[11px] text-zinc-400/70 dark:text-zinc-500/70 font-medium tabular-nums">
+                      :{String(hoverTimeIndicator.startMinutes % 60).padStart(2, '0')}
+                    </span>
+                  </div>
+                )}
+                {/* End time indicator */}
+                {hoverTimeIndicator.endMinutes % 60 !== 0 && (
+                  <div 
+                    className="absolute z-20 pointer-events-none transition-all duration-75"
+                    style={{ 
+                      top: `${minutesToPixels(hoverTimeIndicator.endMinutes, hourHeight, dayStartMinutes)}px`,
+                      right: 12,
+                      transform: 'translateY(-50%)',
+                    }}
+                  >
+                    <span className="text-[11px] text-zinc-400/70 dark:text-zinc-500/70 font-medium tabular-nums">
+                      :{String(hoverTimeIndicator.endMinutes % 60).padStart(2, '0')}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* Canvas */}
@@ -905,6 +962,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                           hourHeight={hourHeight}
                           onToggle={toggleTask}
                           onDragStart={handleEventDragStart}
+                          onHover={handleEventHover}
                           dayStartMinutes={dayStartMinutes}
                         />
                       </div>

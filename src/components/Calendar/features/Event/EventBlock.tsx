@@ -26,12 +26,13 @@ interface EventBlockProps {
   hourHeight: number;
   onToggle?: (id: string) => void;
   onDragStart?: (eventId: string, edge: 'top' | 'bottom' | null, clientY: number) => void;
+  onHover?: (startMinutes: number | null, endMinutes: number | null) => void;
   dayStartMinutes?: number;
 }
 
 // ============ Component ============
 
-export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, dayStartMinutes = DEFAULT_DAY_START_MINUTES }: EventBlockProps) {
+export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, onHover, dayStartMinutes = DEFAULT_DAY_START_MINUTES }: EventBlockProps) {
   const { 
     setEditingEventId, editingEventId, 
     setSelectedEventId, closeEditingEvent,
@@ -273,10 +274,21 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, d
         onClick={handleClick}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
-        onMouseEnter={() => setIsHovered(true)}
+        onMouseEnter={() => {
+          setIsHovered(true);
+          // Show time indicator when hovering event
+          const startDate = new Date(event.startDate);
+          const endDate = new Date(event.endDate);
+          const startMinutes = startDate.getHours() * 60 + startDate.getMinutes();
+          const endMinutes = endDate.getHours() * 60 + endDate.getMinutes();
+          onHover?.(startMinutes, endMinutes);
+        }}
         onMouseLeave={() => {
           setIsHovered(false);
-          if (!isDragging) setResizeEdge(null);
+          if (!isDragging) {
+            setResizeEdge(null);
+          }
+          onHover?.(null, null);
         }}
         onContextMenu={handleContextMenu}
       >
