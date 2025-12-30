@@ -318,7 +318,7 @@ export const ICON_CATEGORIES: IconCategory[] = [
       { name: 'ship', icon: Sailboat },
       { name: 'anchor', icon: Anchor },
       { name: 'map', icon: MapTrifold },
-      { name: 'pin', icon: MapPin },
+      { name: 'map-pin', icon: MapPin },
       { name: 'compass', icon: Compass },
       { name: 'globe', icon: Globe },
       { name: 'luggage', icon: Suitcase },

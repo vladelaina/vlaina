@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import { Sparkle } from '@phosphor-icons/react';
+import { Sparkle, ProhibitInset } from '@phosphor-icons/react';
 import { X } from 'lucide-react';
 import { ICON_CATEGORIES } from '@/components/Progress/features/IconPicker/data';
 import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
@@ -68,70 +68,24 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
     );
   }
 
-  if (showAll) {
-    return (
-      <div className="py-1" onMouseLeave={handleMouseLeave}>
-        {/* Header */}
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide">Icon</span>
-          <button
-            onClick={() => setShowAll(false)}
-            className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-          >
-            <X className="size-3" />
-          </button>
-        </div>
-        
-        {/* All icons grid - scrollable */}
-        <div className="max-h-48 overflow-y-auto space-y-3">
-          {ICON_CATEGORIES.map((category) => (
-            <div key={category.name}>
-              <div className="text-[9px] font-medium text-zinc-400 dark:text-zinc-600 uppercase tracking-wide mb-1.5">
-                {category.name}
-              </div>
-              <div className="grid grid-cols-6 gap-1">
-                {category.icons.slice(0, 12).map(({ name, icon: Icon }) => (
-                  <button
-                    key={name}
-                    onClick={() => handleSelect(name)}
-                    onMouseEnter={() => handleHover(name)}
-                    className={`
-                      aspect-square rounded-md flex items-center justify-center transition-all
-                      ${value === name 
-                        ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' 
-                        : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300'
-                      }
-                    `}
-                  >
-                    <Icon className="size-4" weight={value === name ? 'duotone' : 'light'} />
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="py-1" onMouseLeave={handleMouseLeave}>
-      {/* Quick icons row */}
+      {/* Quick icons row - 始终显示 */}
       <div className="flex items-center gap-1.5">
-        {/* Clear button */}
+        {/* Clear button - 清除图标 */}
         <button
           onClick={() => handleSelect(undefined)}
           onMouseEnter={() => handleHover(undefined)}
           className={`
             w-6 h-6 rounded-md flex items-center justify-center transition-all
             ${!value 
-              ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300' 
+              ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400' 
               : 'text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-400'
             }
           `}
-          title="No icon"
+          title="清除图标"
         >
-          <Sparkle className="size-3.5" weight="light" />
+          <ProhibitInset className="size-3.5" weight="light" />
         </button>
         
         {/* Quick icons */}
@@ -156,15 +110,54 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
           );
         })}
         
-        {/* More button */}
+        {/* More/Collapse button */}
         <button
-          onClick={() => setShowAll(true)}
-          onMouseEnter={() => handleHover(value)} // 悬停在 more 按钮时保持当前图标
-          className="w-6 h-6 rounded-md flex items-center justify-center text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-400 text-[10px] font-medium"
+          onClick={() => setShowAll(!showAll)}
+          onMouseEnter={() => handleHover(value)}
+          className={`
+            w-6 h-6 rounded-md flex items-center justify-center transition-all text-[10px] font-medium
+            ${showAll 
+              ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300' 
+              : 'text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-400'
+            }
+          `}
         >
-          ···
+          {showAll ? <X className="size-3" /> : '···'}
         </button>
       </div>
+      
+      {/* Expanded icons grid - 在快捷图标下方展开 */}
+      {showAll && (
+        <div className="mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+          <div className="max-h-40 overflow-y-auto space-y-2.5">
+            {ICON_CATEGORIES.map((category) => (
+              <div key={category.name}>
+                <div className="text-[9px] font-medium text-zinc-400 dark:text-zinc-600 uppercase tracking-wide mb-1">
+                  {category.name}
+                </div>
+                <div className="grid grid-cols-8 gap-0.5">
+                  {category.icons.slice(0, 16).map(({ name, icon: Icon }) => (
+                    <button
+                      key={name}
+                      onClick={() => handleSelect(name)}
+                      onMouseEnter={() => handleHover(name)}
+                      className={`
+                        aspect-square rounded flex items-center justify-center transition-all
+                        ${value === name 
+                          ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100' 
+                          : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300'
+                        }
+                      `}
+                    >
+                      <Icon className="size-3.5" weight={value === name ? 'duotone' : 'light'} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
