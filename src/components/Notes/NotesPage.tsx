@@ -67,7 +67,6 @@ export function NotesPage() {
     showAIPanel,
     setShowOutline,
     setShowBacklinks,
-    toggleAIPanel,
   } = useNotesStore();
   
   // Local UI State
@@ -285,88 +284,71 @@ export function NotesPage() {
                 />
               </aside>
             )}
-
-            {/* AI Panel */}
-            {showAIPanel && (
-              <aside 
-                className="flex-shrink-0 border-l border-[var(--neko-border)] bg-[var(--neko-bg-primary)] flex flex-col"
-                style={{ width: AI_PANEL_WIDTH }}
-              >
-                {/* AI Panel Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--neko-border)]">
-                  <div className="flex items-center gap-2">
-                    <SparklesFilledIcon className="w-5 h-5" style={{ color: '#1E96EB' }} />
-                    <span className="font-medium text-[var(--neko-text-primary)]">AI 助手</span>
-                  </div>
-                  <button
-                    onClick={toggleAIPanel}
-                    className="p-1.5 rounded-md hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] transition-colors"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                </div>
-                
-                {/* AI Panel Content - Chat Messages Area */}
-                <div className="flex-1 overflow-auto neko-scrollbar p-4">
-                  <div className="flex flex-col items-center justify-center h-full text-center">
-                    <div 
-                      className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
-                      style={{ backgroundColor: 'rgba(30, 150, 235, 0.1)' }}
-                    >
-                      <SparklesFilledIcon className="w-8 h-8" style={{ color: '#1E96EB' }} />
-                    </div>
-                    <h3 className="text-lg font-medium text-[var(--neko-text-primary)] mb-2">
-                      AI 助手
-                    </h3>
-                    <p className="text-sm text-[var(--neko-text-secondary)]">
-                      即将推出...
-                    </p>
-                  </div>
-                </div>
-
-                {/* AI Panel Input */}
-                <div className="p-3 border-t border-[var(--neko-border)]">
-                  <div className="relative">
-                    <textarea
-                      placeholder="Ask anything... (⌘ Enter to send)"
-                      rows={3}
-                      className={cn(
-                        "w-full px-3 py-2.5 pr-10 rounded-lg resize-none",
-                        "bg-[var(--neko-bg-secondary)] border border-[var(--neko-border)]",
-                        "text-sm text-[var(--neko-text-primary)]",
-                        "placeholder:text-[var(--neko-text-tertiary)]",
-                        "outline-none focus:border-[#1E96EB] transition-colors"
-                      )}
-                      disabled
-                    />
-                    <button 
-                      className={cn(
-                        "absolute right-2 bottom-2 p-1.5 rounded-md transition-colors",
-                        "hover:bg-[var(--neko-hover)]"
-                      )}
-                      style={{ color: '#1E96EB' }}
-                      disabled
-                    >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </aside>
-            )}
           </div>
         ) : (
           <EmptyState onCreateNote={() => createNote()} onOpenSearch={() => setShowSearch(true)} />
         )}
       </main>
 
+      {/* AI Panel - Outside main to extend full height */}
+      {showAIPanel && (
+        <aside 
+          className="flex-shrink-0 border-l border-[var(--neko-border)] bg-[var(--neko-bg-primary)] flex flex-col"
+          style={{ width: AI_PANEL_WIDTH }}
+        >
+          {/* AI Panel Content - Chat Messages Area */}
+          <div className="flex-1 overflow-auto neko-scrollbar px-4 pb-4">
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div 
+                className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+                style={{ backgroundColor: 'rgba(30, 150, 235, 0.1)' }}
+              >
+                <SparklesFilledIcon className="w-8 h-8" style={{ color: '#1E96EB' }} />
+              </div>
+              <h3 className="text-lg font-medium text-[var(--neko-text-primary)] mb-2">
+                AI 助手
+              </h3>
+              <p className="text-sm text-[var(--neko-text-secondary)]">
+                即将推出...
+              </p>
+            </div>
+          </div>
+
+          {/* AI Panel Input */}
+          <div className="p-3 border-t border-[var(--neko-border)]">
+            <div className="relative">
+              <textarea
+                placeholder="Ask anything... (⌘ Enter to send)"
+                rows={3}
+                className={cn(
+                  "w-full px-3 py-2.5 pr-10 rounded-lg resize-none",
+                  "bg-[var(--neko-bg-secondary)] border border-[var(--neko-border)]",
+                  "text-sm text-[var(--neko-text-primary)]",
+                  "placeholder:text-[var(--neko-text-tertiary)]",
+                  "outline-none focus:border-[#1E96EB] transition-colors"
+                )}
+                disabled
+              />
+              <button 
+                className={cn(
+                  "absolute right-2 bottom-2 p-1.5 rounded-md transition-colors",
+                  "hover:bg-[var(--neko-hover)]"
+                )}
+                style={{ color: '#1E96EB' }}
+                disabled
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </aside>
+      )}
+
       {/* Floating Actions */}
       {currentNote && (
-        <div className="absolute right-4 bottom-4 flex items-center gap-2">
+        <div className="absolute left-4 bottom-4 flex items-center gap-2">
           <FloatingButton
             onClick={() => setShowShortcutsModal(true)}
             active={false}
