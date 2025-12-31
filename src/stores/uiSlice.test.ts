@@ -12,18 +12,85 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as fc from 'fast-check';
-import { useUIStore } from './uiSlice';
+import { useUIStore, type AppViewMode } from './uiSlice';
 
 describe('UIStore Property Tests', () => {
   beforeEach(() => {
     // Reset UIStore to initial state before each test
     useUIStore.setState({
+      appViewMode: 'calendar',
       showSidebar: true,
       showContextPanel: true,
       selectedDate: new Date(),
       editingEventId: null,
       editingEventPosition: null,
       selectedEventId: null,
+    });
+  });
+
+  describe('Property 0: App View Mode Toggle Round-Trip', () => {
+    /**
+     * Property 0: View Toggle Round-Trip
+     * For any initial view state, toggling the view mode twice 
+     * SHALL return to the original view state.
+     * 
+     * **Feature: markdown-notes, Property 1: View Toggle Round-Trip**
+     * **Validates: Requirements 1.1, 1.3**
+     */
+    it('toggleAppViewMode twice returns to original state', () => {
+      fc.assert(
+        fc.property(
+          fc.constantFrom('calendar', 'notes') as fc.Arbitrary<AppViewMode>,
+          (initialMode) => {
+            // Setup
+            useUIStore.setState({ appViewMode: initialMode });
+            
+            // Action: toggle twice
+            useUIStore.getState().toggleAppViewMode();
+            useUIStore.getState().toggleAppViewMode();
+            
+            // Assert: should return to original state
+            expect(useUIStore.getState().appViewMode).toBe(initialMode);
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    it('single toggle switches between calendar and notes', () => {
+      fc.assert(
+        fc.property(
+          fc.constantFrom('calendar', 'notes') as fc.Arbitrary<AppViewMode>,
+          (initialMode) => {
+            // Setup
+            useUIStore.setState({ appViewMode: initialMode });
+            
+            // Action: toggle once
+            useUIStore.getState().toggleAppViewMode();
+            
+            // Assert: should switch to the other mode
+            const expectedMode = initialMode === 'calendar' ? 'notes' : 'calendar';
+            expect(useUIStore.getState().appViewMode).toBe(expectedMode);
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+
+    it('setAppViewMode sets exact value', () => {
+      fc.assert(
+        fc.property(
+          fc.constantFrom('calendar', 'notes') as fc.Arbitrary<AppViewMode>,
+          (mode) => {
+            // Action
+            useUIStore.getState().setAppViewMode(mode);
+            
+            // Assert
+            expect(useUIStore.getState().appViewMode).toBe(mode);
+          }
+        ),
+        { numRuns: 100 }
+      );
     });
   });
 

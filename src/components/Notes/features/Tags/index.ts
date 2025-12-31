@@ -1,0 +1,1 @@
+export { TagsPanel } from './TagsPanel';

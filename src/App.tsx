@@ -3,11 +3,13 @@ import { DndContext, useSensor, useSensors, PointerSensor, DragEndEvent, DragSta
 import { SettingsModal } from '@/components/common/Settings';
 import { CalendarPage, CalendarToolbar, CalendarTaskPanel } from '@/components/Calendar';
 import { CalendarHeaderControl } from '@/components/Calendar/features/Grid/CalendarHeaderControl';
+import { NotesPage } from '@/components/Notes/NotesPage';
 import { Layout } from '@/components/layout';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useCalendarStore } from '@/stores/useCalendarStore';
+import { useUIStore } from '@/stores/uiSlice';
 import { useVimShortcuts } from '@/hooks/useVimShortcuts';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
@@ -23,6 +25,7 @@ function AppContent() {
   useShortcuts();
   const { loadData, updateTaskTime, updateTaskEstimation } = useGroupStore();
   const { showContextPanel, selectedDate, hourHeight, viewMode, dayCount } = useCalendarStore();
+  const { appViewMode } = useUIStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Enable VIM-style keyboard navigation
@@ -128,16 +131,26 @@ function AppContent() {
       {/* Settings Modal - Global */}
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
-      {/* Calendar Page */}
-      <Layout 
-        onOpenSettings={() => setSettingsOpen(true)} 
-        toolbar={<CalendarToolbar />}
-        content={<CalendarHeaderControl />}
-        rightPanel={<CalendarTaskPanel />}
-        showRightPanel={showContextPanel}
-      >
-        <CalendarPage />
-      </Layout>
+      {/* Conditional View Rendering */}
+      {appViewMode === 'calendar' ? (
+        /* Calendar Page */
+        <Layout 
+          onOpenSettings={() => setSettingsOpen(true)} 
+          toolbar={<CalendarToolbar />}
+          content={<CalendarHeaderControl />}
+          rightPanel={<CalendarTaskPanel />}
+          showRightPanel={showContextPanel}
+        >
+          <CalendarPage />
+        </Layout>
+      ) : (
+        /* Notes Page */
+        <Layout 
+          onOpenSettings={() => setSettingsOpen(true)}
+        >
+          <NotesPage />
+        </Layout>
+      )}
     </DndContext>
   );
 }

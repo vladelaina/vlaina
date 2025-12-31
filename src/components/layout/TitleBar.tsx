@@ -1,7 +1,9 @@
 import { ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Settings } from 'lucide-react';
+import { NotePencil, CalendarBlank } from '@phosphor-icons/react';
 import { WindowControls } from './WindowControls';
+import { useUIStore } from '@/stores/uiSlice';
 
 const appWindow = getCurrentWindow();
 
@@ -14,6 +16,8 @@ interface TitleBarProps {
 }
 
 export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls }: TitleBarProps) {
+  const { appViewMode, toggleAppViewMode } = useUIStore();
+  
   const startDrag = async () => {
     await appWindow.startDragging();
   };
@@ -32,6 +36,19 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
         title="Settings"
       >
         <Settings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
+      </button>
+
+      {/* Notes/Calendar Toggle Button */}
+      <button
+        onClick={toggleAppViewMode}
+        className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
+        title={appViewMode === 'calendar' ? 'Switch to Notes' : 'Switch to Calendar'}
+      >
+        {appViewMode === 'calendar' ? (
+          <NotePencil className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" weight="duotone" />
+        ) : (
+          <CalendarBlank className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" weight="duotone" />
+        )}
       </button>
 
       {/* Center Content Area - Absolutely positioned for true centering */}

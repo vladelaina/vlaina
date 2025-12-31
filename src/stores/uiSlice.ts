@@ -18,7 +18,15 @@ import { STORAGE_KEY_COLOR_FILTER, STORAGE_KEY_STATUS_FILTER } from '@/lib/confi
 export type TaskStatus = 'todo' | 'scheduled' | 'completed';
 export const ALL_STATUSES: TaskStatus[] = ['todo', 'scheduled', 'completed'];
 
+// App view mode - calendar or notes
+export type AppViewMode = 'calendar' | 'notes';
+
 interface UIStore {
+  // App view mode
+  appViewMode: AppViewMode;
+  setAppViewMode: (mode: AppViewMode) => void;
+  toggleAppViewMode: () => void;
+
   // Drawer state
   drawerOpen: boolean;
   setDrawerOpen: (open: boolean) => void;
@@ -131,6 +139,13 @@ function saveStatusFilter(statuses: TaskStatus[]): void {
 }
 
 export const useUIStore = create<UIStore>()((set, get) => ({
+  // App view mode
+  appViewMode: 'calendar' as AppViewMode,
+  setAppViewMode: (mode) => set({ appViewMode: mode }),
+  toggleAppViewMode: () => set((state) => ({ 
+    appViewMode: state.appViewMode === 'calendar' ? 'notes' : 'calendar' 
+  })),
+
   // Drawer state
   drawerOpen: false,
   setDrawerOpen: (open) => set({ drawerOpen: open }),
