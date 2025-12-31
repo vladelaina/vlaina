@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Settings, PanelLeft, PanelRight, MessageCircle, Save, Star, MoreHorizontal, Clock, FileText, X, Plus } from 'lucide-react';
 import { NotePencil, CalendarBlank } from '@phosphor-icons/react';
@@ -8,6 +8,31 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 
 const appWindow = getCurrentWindow();
+
+/* Custom Tooltip Component */
+function Tooltip({ children, content, shortcut }: { children: ReactNode; content: string; shortcut?: string }) {
+  const [show, setShow] = useState(false);
+  
+  return (
+    <div 
+      className="relative"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 pointer-events-none">
+          <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 whitespace-nowrap flex items-center gap-2">
+            <span className="text-[12px] text-zinc-700 dark:text-zinc-200">{content}</span>
+            {shortcut && (
+              <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{shortcut}</span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface TitleBarProps {
   onOpenSettings?: () => void;
@@ -156,25 +181,32 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                   closeTab(tab.path);
                 }}
                 className={cn(
-                  "p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto",
-                  "hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 dark:text-zinc-500"
+                  "p-0.5 rounded transition-all ml-auto",
+                  "opacity-0 group-hover:opacity-100",
+                  "text-zinc-300 dark:text-zinc-600",
+                  "hover:text-zinc-500 dark:hover:text-zinc-400"
                 )}
               >
-                <X className="w-3 h-3" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           ))}
           
           {/* Add new tab button */}
-          <button
-            onClick={() => {
-              // This will be handled by the store
-            }}
-            className="flex-shrink-0 p-1.5 rounded-lg hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50 text-zinc-400 dark:text-zinc-500 transition-colors"
-            title="New tab"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
+          <Tooltip content="New tab" shortcut="Ctrl+T">
+            <button
+              onClick={() => {
+                // This will be handled by the store
+              }}
+              className={cn(
+                "flex-shrink-0 p-1.5 rounded-lg transition-colors",
+                "text-zinc-300 dark:text-zinc-600",
+                "hover:text-zinc-500 dark:hover:text-zinc-400"
+              )}
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </Tooltip>
         </div>
       )}
 

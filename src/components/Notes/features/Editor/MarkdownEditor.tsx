@@ -12,7 +12,6 @@ import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { EditorStatusBar } from './EditorStatusBar';
 
 // Editor styles
 import './editor.css';
@@ -77,17 +76,12 @@ function MilkdownEditorInner() {
 }
 
 export function MarkdownEditor() {
-  const { currentNote } = useNotesStore();
-
   return (
     <div className="h-full flex flex-col bg-[var(--neko-bg-primary)]">
       {/* Editor Content */}
       <MilkdownProvider>
         <MilkdownEditorInner />
       </MilkdownProvider>
-
-      {/* Status Bar */}
-      <EditorStatusBar content={currentNote?.content || ''} />
     </div>
   );
 }
