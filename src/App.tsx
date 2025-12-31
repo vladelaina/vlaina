@@ -10,6 +10,7 @@ import { ToastContainer } from '@/components/ui/Toast';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useUIStore } from '@/stores/uiSlice';
+import { useNotesStore } from '@/stores/useNotesStore';
 import { useVimShortcuts } from '@/hooks/useVimShortcuts';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
@@ -26,7 +27,11 @@ function AppContent() {
   const { loadData, updateTaskTime, updateTaskEstimation } = useGroupStore();
   const { showContextPanel, selectedDate, hourHeight, viewMode, dayCount } = useCalendarStore();
   const { appViewMode } = useUIStore();
+  const { currentNote } = useNotesStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Get current note title for TitleBar
+  const noteTitle = currentNote?.path.split('/').pop()?.replace('.md', '') || undefined;
 
   // Enable VIM-style keyboard navigation
   useVimShortcuts();
@@ -147,6 +152,7 @@ function AppContent() {
         /* Notes Page */
         <Layout 
           onOpenSettings={() => setSettingsOpen(true)}
+          noteTitle={noteTitle}
         >
           <NotesPage />
         </Layout>

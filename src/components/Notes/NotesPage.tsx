@@ -160,8 +160,8 @@ export function NotesPage() {
       <aside 
         className={cn(
           "flex-shrink-0 flex flex-col overflow-hidden transition-[width] duration-200",
-          "bg-[var(--neko-sidebar-bg)] border-r border-[var(--neko-border)]",
-          sidebarCollapsed && "w-0 border-r-0"
+          "bg-[var(--neko-sidebar-bg)]",
+          sidebarCollapsed && "w-0"
         )}
         style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
       >
@@ -230,12 +230,12 @@ export function NotesPage() {
         </div>
       </aside>
 
-      {/* Resize Handle */}
+      {/* Resize Handle - Hidden when sidebar collapsed */}
       {!sidebarCollapsed && (
         <div
           onMouseDown={handleDragStart}
           className={cn(
-            "w-1 flex-shrink-0 cursor-col-resize transition-colors",
+            "w-1 flex-shrink-0 cursor-col-resize transition-colors bg-[var(--neko-sidebar-bg)]",
             "hover:bg-[var(--neko-accent)]",
             isDragging && "bg-[var(--neko-accent)]"
           )}
@@ -244,7 +244,7 @@ export function NotesPage() {
 
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[var(--neko-bg-primary)]">
+      <main className="flex-1 flex flex-col min-w-0 bg-[var(--neko-bg-primary)] rounded-tl-xl">
         {/* Tab Bar */}
         {openTabs.length > 0 && (
           <NoteTabs
