@@ -34,7 +34,6 @@ import { FileTree } from './features/FileTree';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
 import { NoteOutline } from './features/Outline';
-import { NoteTabs } from './features/Tabs';
 import { BacklinksPanel } from './features/Backlinks';
 import { PropertiesPanel } from './features/Properties';
 import { KeyboardShortcutsModal } from './features/BlockEditor/widgets';
@@ -57,8 +56,6 @@ export function NotesPage() {
     createNoteWithContent,
     createFolder,
     openNote,
-    openTabs,
-    closeTab,
     // UI State from store
     sidebarCollapsed,
     rightPanelCollapsed,
@@ -244,18 +241,7 @@ export function NotesPage() {
 
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[var(--neko-bg-primary)] rounded-tl-xl">
-        {/* Tab Bar */}
-        {openTabs.length > 0 && (
-          <NoteTabs
-            tabs={openTabs}
-            activeTabPath={currentNote?.path || null}
-            onTabClick={(path) => openNote(path)}
-            onTabClose={closeTab}
-            onTabMiddleClick={closeTab}
-          />
-        )}
-
+      <main className="flex-1 flex flex-col min-w-0 bg-[var(--neko-bg-primary)]">
         {/* Editor or Empty State */}
         {currentNote ? (
           <div className="flex-1 flex min-h-0">

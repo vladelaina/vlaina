@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Settings, PanelLeft, PanelRight, MessageCircle, Save, Star, MoreHorizontal, Clock } from 'lucide-react';
+import { Settings, PanelLeft, PanelRight, MessageCircle, Save, Star, MoreHorizontal, Clock, FileText, X, Plus } from 'lucide-react';
 import { NotePencil, CalendarBlank } from '@phosphor-icons/react';
 import { WindowControls } from './WindowControls';
 import { useUIStore } from '@/stores/uiSlice';
@@ -13,13 +13,11 @@ interface TitleBarProps {
   onOpenSettings?: () => void;
   toolbar?: ReactNode;
   content?: ReactNode;
-  /** Current note title to display in center */
-  noteTitle?: string;
   /** When true, window controls are hidden (shown in right panel instead) */
   hideWindowControls?: boolean;
 }
 
-export function TitleBar({ onOpenSettings, toolbar, content, noteTitle, hideWindowControls }: TitleBarProps) {
+export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls }: TitleBarProps) {
   const { appViewMode, toggleAppViewMode } = useUIStore();
   const { 
     sidebarCollapsed, 
@@ -33,9 +31,16 @@ export function TitleBar({ onOpenSettings, toolbar, content, noteTitle, hideWind
     saveNote,
     isStarred,
     toggleStarred,
+    openTabs,
+    closeTab,
+    openNote,
   } = useNotesStore();
 
   const starred = currentNote ? isStarred(currentNote.path) : false;
+  
+  // Sidebar width from NotesPage - used to align tabs with content area
+  const SIDEBAR_WIDTH = 248;
+  const RESIZE_HANDLE_WIDTH = 4; // 1px handle
   
   const startDrag = async () => {
     await appWindow.startDragging();
@@ -48,6 +53,16 @@ export function TitleBar({ onOpenSettings, toolbar, content, noteTitle, hideWind
       }}
       className="h-10 bg-[#F6F6F6] dark:bg-zinc-900 flex items-center select-none relative z-50"
     >
+      {/* White background area for main content - creates the "cutout" effect */}
+      {appViewMode === 'notes' && !sidebarCollapsed && (
+        <div 
+          className="absolute top-0 bottom-0 right-0 bg-white dark:bg-zinc-800 rounded-tl-xl"
+          style={{ 
+            left: SIDEBAR_WIDTH + RESIZE_HANDLE_WIDTH,
+          }}
+        />
+      )}
+
       {/* Left: Sidebar Toggle (Notes view only) */}
       {appViewMode === 'notes' && (
         <button
@@ -87,24 +102,98 @@ export function TitleBar({ onOpenSettings, toolbar, content, noteTitle, hideWind
         )}
       </button>
 
-      {/* Center Content Area - Absolutely positioned for true centering */}
-      <div 
-        onMouseDown={(e) => {
-          if (e.target === e.currentTarget || (e.target as HTMLElement).hasAttribute('data-tauri-drag-region')) {
-            startDrag();
-          }
-        }}
-        className="absolute inset-0 flex items-center justify-center pointer-events-none"
-        data-tauri-drag-region
-      >
-        <div className="pointer-events-auto">
-          {content || (noteTitle && (
-            <span className="text-[13px] text-[var(--neko-text-secondary)]">
-              {noteTitle}
-            </span>
+      {/* Note Tabs (Notes view only) - positioned to align with sidebar edge */}
+      {appViewMode === 'notes' && openTabs.length > 0 && (
+        <div 
+          className="absolute top-0 bottom-0 flex items-center overflow-x-auto neko-scrollbar z-20 gap-1 px-2"
+          style={{ 
+            left: sidebarCollapsed ? 0 : SIDEBAR_WIDTH + RESIZE_HANDLE_WIDTH,
+          }}
+        >
+          {openTabs.map((tab) => (
+            <div
+              key={tab.path}
+              onClick={() => openNote(tab.path)}
+              onMouseDown={(e) => {
+                if (e.button === 1) {
+                  e.preventDefault();
+                  closeTab(tab.path);
+                }
+              }}
+              className={cn(
+                "group relative flex items-center gap-2 px-3 py-1.5 cursor-pointer min-w-0 max-w-[200px]",
+                "transition-all rounded-lg",
+                currentNote?.path === tab.path 
+                  ? "bg-white dark:bg-zinc-800 shadow-sm" 
+                  : "hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50"
+              )}
+            >
+              <FileText 
+                className={cn(
+                  "w-4 h-4 flex-shrink-0",
+                  currentNote?.path === tab.path 
+                    ? "text-[var(--neko-accent)]" 
+                    : "text-zinc-400 dark:text-zinc-500"
+                )} 
+              />
+              
+              <span className={cn(
+                "text-[13px] truncate",
+                currentNote?.path === tab.path 
+                  ? "text-zinc-700 dark:text-zinc-200 font-medium" 
+                  : "text-zinc-500 dark:text-zinc-400"
+              )}>
+                {tab.name}
+              </span>
+              
+              {tab.isDirty && (
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--neko-accent)] flex-shrink-0" />
+              )}
+              
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeTab(tab.path);
+                }}
+                className={cn(
+                  "p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto",
+                  "hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 dark:text-zinc-500"
+                )}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
           ))}
+          
+          {/* Add new tab button */}
+          <button
+            onClick={() => {
+              // This will be handled by the store
+            }}
+            className="flex-shrink-0 p-1.5 rounded-lg hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50 text-zinc-400 dark:text-zinc-500 transition-colors"
+            title="New tab"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
-      </div>
+      )}
+
+      {/* Center Content Area - Absolutely positioned for true centering */}
+      {content && (
+        <div 
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget || (e.target as HTMLElement).hasAttribute('data-tauri-drag-region')) {
+              startDrag();
+            }
+          }}
+          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          data-tauri-drag-region
+        >
+          <div className="pointer-events-auto">
+            {content}
+          </div>
+        </div>
+      )}
 
       {/* Spacer to push toolbar and controls to the right */}
       <div className="flex-1" />
