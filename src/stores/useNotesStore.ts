@@ -51,6 +51,11 @@ interface NotesState {
   openTabs: { path: string; name: string; isDirty: boolean }[]; // Open tabs
   noteContentsCache: Map<string, string>; // Cache for backlinks/search
   starredNotes: string[]; // Starred/bookmarked note paths
+  // UI State
+  sidebarCollapsed: boolean;
+  rightPanelCollapsed: boolean;
+  showOutline: boolean;
+  showBacklinks: boolean;
 }
 
 interface NotesActions {
@@ -75,6 +80,11 @@ interface NotesActions {
   getAllTags: () => { tag: string; count: number }[];
   toggleStarred: (path: string) => void;
   isStarred: (path: string) => boolean;
+  // UI Actions
+  toggleSidebar: () => void;
+  toggleRightPanel: () => void;
+  setShowOutline: (show: boolean) => void;
+  setShowBacklinks: (show: boolean) => void;
 }
 
 type NotesStore = NotesState & NotesActions;
@@ -204,6 +214,11 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   openTabs: [],
   noteContentsCache: new Map(),
   starredNotes: loadStarredNotes(),
+  // UI State
+  sidebarCollapsed: false,
+  rightPanelCollapsed: true,
+  showOutline: false,
+  showBacklinks: false,
 
   // Load file tree from disk
   loadFileTree: async () => {
@@ -651,5 +666,31 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   // Check if a note is starred
   isStarred: (path: string) => {
     return get().starredNotes.includes(path);
+  },
+
+  // UI Actions
+  toggleSidebar: () => {
+    set(state => ({ sidebarCollapsed: !state.sidebarCollapsed }));
+  },
+
+  toggleRightPanel: () => {
+    const { rightPanelCollapsed, showOutline, showBacklinks } = get();
+    if (rightPanelCollapsed) {
+      // Opening: if nothing is shown, show outline by default
+      set({ 
+        rightPanelCollapsed: false,
+        showOutline: !showOutline && !showBacklinks ? true : showOutline,
+      });
+    } else {
+      set({ rightPanelCollapsed: true });
+    }
+  },
+
+  setShowOutline: (show: boolean) => {
+    set({ showOutline: show, rightPanelCollapsed: show ? false : get().rightPanelCollapsed });
+  },
+
+  setShowBacklinks: (show: boolean) => {
+    set({ showBacklinks: show, rightPanelCollapsed: show ? false : get().rightPanelCollapsed });
   },
 }));

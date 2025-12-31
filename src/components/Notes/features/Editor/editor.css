@@ -1,12 +1,12 @@
 /**
  * Milkdown Editor Styles
  * 
- * Obsidian-inspired styling for the WYSIWYG Markdown editor
+ * Modern block-editor styling for the WYSIWYG Markdown editor
  */
 
 /* Editor container */
 .milkdown {
-  padding: 1.5rem 2rem;
+  padding: 2rem 2.5rem;
   min-height: 100%;
   outline: none;
   max-width: 800px;
@@ -20,14 +20,9 @@
   margin-top: 2rem;
   margin-bottom: 1rem;
   line-height: 1.2;
-  color: #18181b;
-  border-bottom: 1px solid #e4e4e7;
+  color: var(--neko-text-primary);
+  border-bottom: 1px solid var(--neko-divider);
   padding-bottom: 0.5rem;
-}
-
-.dark .milkdown h1 {
-  color: #fafafa;
-  border-bottom-color: #3f3f46;
 }
 
 .milkdown h2 {
@@ -36,11 +31,7 @@
   margin-top: 1.75rem;
   margin-bottom: 0.75rem;
   line-height: 1.3;
-  color: #27272a;
-}
-
-.dark .milkdown h2 {
-  color: #e4e4e7;
+  color: var(--neko-text-primary);
 }
 
 .milkdown h3 {
@@ -49,11 +40,7 @@
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
   line-height: 1.4;
-  color: #3f3f46;
-}
-
-.dark .milkdown h3 {
-  color: #d4d4d8;
+  color: var(--neko-text-primary);
 }
 
 .milkdown h4,
@@ -63,23 +50,13 @@
   font-weight: 600;
   margin-top: 1rem;
   margin-bottom: 0.25rem;
-  color: #52525b;
-}
-
-.dark .milkdown h4,
-.dark .milkdown h5,
-.dark .milkdown h6 {
-  color: #a1a1aa;
+  color: var(--neko-text-secondary);
 }
 
 .milkdown p {
   margin-bottom: 1rem;
   line-height: 1.75;
-  color: #3f3f46;
-}
-
-.dark .milkdown p {
-  color: #d4d4d8;
+  color: var(--neko-text-primary);
 }
 
 /* Lists */
@@ -100,11 +77,7 @@
 .milkdown li {
   margin-bottom: 0.375rem;
   line-height: 1.6;
-  color: #3f3f46;
-}
-
-.dark .milkdown li {
-  color: #d4d4d8;
+  color: var(--neko-text-primary);
 }
 
 .milkdown li > ul,
@@ -124,53 +97,40 @@
 
 .milkdown li.task-list-item input[type="checkbox"] {
   margin-top: 0.375rem;
-  accent-color: #3b82f6;
+  accent-color: var(--neko-accent);
 }
 
 /* Links */
 .milkdown a {
-  color: #7c3aed;
+  color: var(--neko-accent);
   text-decoration: none;
   border-bottom: 1px solid transparent;
   transition: border-color 0.15s;
 }
 
 .milkdown a:hover {
-  border-bottom-color: #7c3aed;
-}
-
-.dark .milkdown a {
-  color: #a78bfa;
-}
-
-.dark .milkdown a:hover {
-  border-bottom-color: #a78bfa;
+  border-bottom-color: var(--neko-accent);
 }
 
 /* Internal links (wiki-style) */
 .milkdown .internal-link {
-  color: #8b5cf6;
-  background-color: #f5f3ff;
+  color: var(--neko-accent);
+  background-color: var(--neko-accent-light);
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
-}
-
-.dark .milkdown .internal-link {
-  background-color: #2e1065;
 }
 
 /* Code */
 .milkdown code {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.875em;
-  background-color: #f4f4f5;
+  background-color: var(--neko-bg-tertiary);
   color: #be185d;
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
 }
 
 .dark .milkdown code {
-  background-color: #27272a;
   color: #f472b6;
 }
 
@@ -180,12 +140,11 @@
   border-radius: 0.5rem;
   overflow-x: auto;
   margin-bottom: 1rem;
-  border: 1px solid #27272a;
+  border: 1px solid var(--neko-border);
 }
 
 .dark .milkdown pre {
   background-color: #09090b;
-  border-color: #3f3f46;
 }
 
 .milkdown pre code {
@@ -198,43 +157,29 @@
 
 /* Blockquote */
 .milkdown blockquote {
-  border-left: 4px solid #8b5cf6;
+  border-left: 4px solid var(--neko-accent);
   padding-left: 1rem;
   margin-left: 0;
   margin-bottom: 1rem;
-  color: #71717a;
+  color: var(--neko-text-secondary);
   font-style: italic;
-  background-color: #faf5ff;
+  background-color: var(--neko-accent-light);
   padding: 0.75rem 1rem;
   border-radius: 0 0.5rem 0.5rem 0;
-}
-
-.dark .milkdown blockquote {
-  border-left-color: #7c3aed;
-  color: #a1a1aa;
-  background-color: #1e1b4b;
 }
 
 /* Horizontal rule */
 .milkdown hr {
   border: none;
-  height: 2px;
-  background: linear-gradient(to right, transparent, #d4d4d8, transparent);
+  height: 1px;
+  background: var(--neko-divider);
   margin: 2rem 0;
-}
-
-.dark .milkdown hr {
-  background: linear-gradient(to right, transparent, #52525b, transparent);
 }
 
 /* Strong and emphasis */
 .milkdown strong {
   font-weight: 600;
-  color: #18181b;
-}
-
-.dark .milkdown strong {
-  color: #fafafa;
+  color: var(--neko-text-primary);
 }
 
 .milkdown em {
@@ -244,7 +189,7 @@
 /* Strikethrough (GFM) */
 .milkdown del {
   text-decoration: line-through;
-  color: #a1a1aa;
+  color: var(--neko-text-tertiary);
 }
 
 /* Tables (GFM) */
@@ -257,31 +202,18 @@
 
 .milkdown th,
 .milkdown td {
-  border: 1px solid #e4e4e7;
+  border: 1px solid var(--neko-border);
   padding: 0.5rem 0.75rem;
   text-align: left;
 }
 
-.dark .milkdown th,
-.dark .milkdown td {
-  border-color: #3f3f46;
-}
-
 .milkdown th {
-  background-color: #f4f4f5;
+  background-color: var(--neko-bg-tertiary);
   font-weight: 600;
 }
 
-.dark .milkdown th {
-  background-color: #27272a;
-}
-
 .milkdown tr:nth-child(even) {
-  background-color: #fafafa;
-}
-
-.dark .milkdown tr:nth-child(even) {
-  background-color: #18181b;
+  background-color: var(--neko-bg-secondary);
 }
 
 /* Images */
@@ -295,17 +227,13 @@
 
 /* Selection */
 .milkdown ::selection {
-  background-color: #c4b5fd;
-}
-
-.dark .milkdown ::selection {
-  background-color: #4c1d95;
+  background-color: var(--neko-accent-light);
 }
 
 /* Placeholder */
 .milkdown .ProseMirror-placeholder::before {
   content: attr(data-placeholder);
-  color: #a1a1aa;
+  color: var(--neko-text-tertiary);
   pointer-events: none;
   position: absolute;
 }
@@ -317,17 +245,13 @@
 
 /* Cursor */
 .milkdown .ProseMirror {
-  caret-color: #7c3aed;
-}
-
-.dark .milkdown .ProseMirror {
-  caret-color: #a78bfa;
+  caret-color: var(--neko-accent);
 }
 
 /* Wiki Links [[note]] */
 .milkdown .wiki-link {
-  color: #8b5cf6;
-  background-color: rgba(139, 92, 246, 0.1);
+  color: var(--neko-accent);
+  background-color: var(--neko-accent-light);
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
   cursor: pointer;
@@ -336,27 +260,14 @@
 }
 
 .milkdown .wiki-link:hover {
-  background-color: rgba(139, 92, 246, 0.2);
+  background-color: var(--neko-hover-filled);
   text-decoration: underline;
-}
-
-.dark .milkdown .wiki-link {
-  color: #a78bfa;
-  background-color: rgba(167, 139, 250, 0.15);
-}
-
-.dark .milkdown .wiki-link:hover {
-  background-color: rgba(167, 139, 250, 0.25);
 }
 
 /* Tags #tag */
 .milkdown .tag {
-  color: #8b5cf6;
+  color: var(--neko-accent);
   font-size: 0.875em;
-}
-
-.dark .milkdown .tag {
-  color: #a78bfa;
 }
 
 /* Callouts / Admonitions */
@@ -368,12 +279,8 @@
 }
 
 .milkdown .callout-note {
-  background-color: #eff6ff;
-  border-left-color: #3b82f6;
-}
-
-.dark .milkdown .callout-note {
-  background-color: #1e3a5f;
+  background-color: var(--neko-accent-light);
+  border-left-color: var(--neko-accent);
 }
 
 .milkdown .callout-warning {
@@ -396,11 +303,7 @@
 
 /* Editor container improvements */
 .milkdown-editor {
-  background-color: #ffffff;
-}
-
-.dark .milkdown-editor {
-  background-color: #09090b;
+  background-color: var(--neko-bg-primary);
 }
 
 /* Smooth scrolling */
@@ -417,22 +320,14 @@
 .milkdown .footnote-ref {
   font-size: 0.75em;
   vertical-align: super;
-  color: #7c3aed;
-}
-
-.dark .milkdown .footnote-ref {
-  color: #a78bfa;
+  color: var(--neko-accent);
 }
 
 /* Math blocks (if supported) */
 .milkdown .math-block {
   overflow-x: auto;
   padding: 1rem;
-  background-color: #fafafa;
+  background-color: var(--neko-bg-secondary);
   border-radius: 0.5rem;
   margin-bottom: 1rem;
-}
-
-.dark .milkdown .math-block {
-  background-color: #18181b;
 }

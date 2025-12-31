@@ -1,7 +1,7 @@
 /**
  * EditorStatusBar - Status bar showing word count and other stats
  * 
- * Obsidian-style status bar at the bottom of the editor
+ * Modern block-editor style status bar
  */
 
 import { useMemo } from 'react';
@@ -27,7 +27,7 @@ export function EditorStatusBar({ content }: EditorStatusBarProps) {
   }, [content]);
 
   return (
-    <div className="flex items-center gap-4 px-4 py-1.5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 text-[11px] text-zinc-400 dark:text-zinc-500">
+    <div className="flex items-center gap-4 px-4 py-1.5 border-t border-[var(--neko-border)] bg-[var(--neko-bg-secondary)] text-[11px] text-[var(--neko-text-tertiary)]">
       <span>{stats.words} words</span>
       <span>{stats.chars} characters</span>
       <span>{stats.lines} lines</span>

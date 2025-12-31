@@ -1,9 +1,11 @@
 import { ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Settings } from 'lucide-react';
+import { Settings, PanelLeft, PanelRight } from 'lucide-react';
 import { NotePencil, CalendarBlank } from '@phosphor-icons/react';
 import { WindowControls } from './WindowControls';
 import { useUIStore } from '@/stores/uiSlice';
+import { useNotesStore } from '@/stores/useNotesStore';
+import { cn } from '@/lib/utils';
 
 const appWindow = getCurrentWindow();
 
@@ -17,10 +19,21 @@ interface TitleBarProps {
 
 export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls }: TitleBarProps) {
   const { appViewMode, toggleAppViewMode } = useUIStore();
+  const { 
+    sidebarCollapsed, 
+    rightPanelCollapsed, 
+    showOutline, 
+    showBacklinks,
+    toggleSidebar, 
+    toggleRightPanel 
+  } = useNotesStore();
   
   const startDrag = async () => {
     await appWindow.startDragging();
   };
+
+  // Check if right panel has content
+  const rightPanelHasContent = showOutline || showBacklinks;
 
   return (
     <div 
@@ -29,10 +42,25 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
       }}
       className="h-10 bg-white dark:bg-zinc-900 flex items-center select-none relative z-50 border-b border-zinc-200 dark:border-zinc-800"
     >
-      {/* Left: Settings Button */}
+      {/* Left: Sidebar Toggle (Notes view only) */}
+      {appViewMode === 'notes' && (
+        <button
+          onClick={toggleSidebar}
+          className={cn(
+            "h-full w-9 flex items-center justify-center transition-colors z-20",
+            "hover:bg-zinc-100 dark:hover:bg-zinc-800",
+            !sidebarCollapsed && "text-blue-500"
+          )}
+          title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+        >
+          <PanelLeft className="size-4" />
+        </button>
+      )}
+
+      {/* Settings Button */}
       <button
         onClick={onOpenSettings}
-        className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 transition-colors z-20"
+        className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
         title="Settings"
       >
         <Settings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
@@ -74,6 +102,21 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
         <div className="flex items-center h-full z-20 pr-3">
           {toolbar}
         </div>
+      )}
+
+      {/* Right Panel Toggle (Notes view only) */}
+      {appViewMode === 'notes' && (
+        <button
+          onClick={toggleRightPanel}
+          className={cn(
+            "h-full w-9 flex items-center justify-center transition-colors z-20",
+            "hover:bg-zinc-100 dark:hover:bg-zinc-800",
+            !rightPanelCollapsed && rightPanelHasContent && "text-blue-500"
+          )}
+          title={rightPanelCollapsed ? "Show right panel" : "Hide right panel"}
+        >
+          <PanelRight className="size-4" />
+        </button>
       )}
 
       {/* Window Controls - only show when right panel is hidden */}

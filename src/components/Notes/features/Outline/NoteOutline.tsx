@@ -1,7 +1,7 @@
 /**
  * NoteOutline - Table of contents for current note
  * 
- * Displays heading structure like Obsidian's outline view
+ * Modern block-editor style outline view
  */
 
 import { useMemo } from 'react';
@@ -44,8 +44,8 @@ export function NoteOutline({ content, onHeadingClick }: NoteOutlineProps) {
   if (headings.length === 0) {
     return (
       <div className="p-4 text-center">
-        <ListBulletsIcon className="size-8 text-zinc-300 dark:text-zinc-700 mx-auto mb-2" weight="duotone" />
-        <p className="text-xs text-zinc-400 dark:text-zinc-600">
+        <ListBulletsIcon className="w-8 h-8 text-[var(--neko-text-disabled)] mx-auto mb-2" weight="duotone" />
+        <p className="text-xs text-[var(--neko-text-tertiary)]">
           No headings found
         </p>
       </div>
@@ -57,7 +57,7 @@ export function NoteOutline({ content, onHeadingClick }: NoteOutlineProps) {
 
   return (
     <div className="py-2">
-      <div className="px-3 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+      <div className="px-3 py-1.5 text-[11px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider">
         Outline
       </div>
       <nav className="space-y-0.5">
@@ -68,9 +68,9 @@ export function NoteOutline({ content, onHeadingClick }: NoteOutlineProps) {
             style={{ paddingLeft: `${(heading.level - minLevel) * 12 + 12}px` }}
             className={cn(
               "w-full py-1 pr-3 text-left text-xs truncate transition-colors",
-              "text-zinc-600 dark:text-zinc-400",
-              "hover:text-zinc-900 dark:hover:text-zinc-200",
-              "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              "text-[var(--neko-text-secondary)]",
+              "hover:text-[var(--neko-text-primary)]",
+              "hover:bg-[var(--neko-hover)]"
             )}
           >
             {heading.text}

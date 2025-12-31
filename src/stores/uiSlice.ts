@@ -140,7 +140,7 @@ function saveStatusFilter(statuses: TaskStatus[]): void {
 
 export const useUIStore = create<UIStore>()((set, get) => ({
   // App view mode
-  appViewMode: 'calendar' as AppViewMode,
+  appViewMode: 'notes' as AppViewMode,
   setAppViewMode: (mode) => set({ appViewMode: mode }),
   toggleAppViewMode: () => set((state) => ({ 
     appViewMode: state.appViewMode === 'calendar' ? 'notes' : 'calendar' 

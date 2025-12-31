@@ -128,3 +128,98 @@
 .scrollbar-hidden::-webkit-scrollbar {
   display: none;
 }
+
+/* ============================================
+   NekoTick Notes Theme Variables
+   ============================================ */
+
+:root {
+  /* Light Theme Colors */
+  --neko-bg-primary: #ffffff;
+  --neko-bg-secondary: #fafafa;
+  --neko-bg-tertiary: #f4f4f5;
+  --neko-bg-hover: rgba(0, 0, 0, 0.04);
+  --neko-bg-active: rgba(0, 0, 0, 0.08);
+  
+  --neko-text-primary: #121212;
+  --neko-text-secondary: #8e8d91;
+  --neko-text-tertiary: #b9b9bc;
+  --neko-text-disabled: #c9c9ca;
+  
+  --neko-border: #e3e2e4;
+  --neko-divider: #e3e2e4;
+  
+  --neko-accent: #1e96eb;
+  --neko-accent-hover: #0c7fd9;
+  --neko-accent-light: rgba(30, 150, 235, 0.1);
+  
+  --neko-icon-primary: #77757d;
+  --neko-icon-secondary: #8e8d91;
+  --neko-icon-active: #1e96eb;
+  
+  --neko-hover: rgba(0, 0, 0, 0.04);
+  --neko-hover-filled: #f4f4f5;
+  
+  /* Sidebar */
+  --neko-sidebar-width: 248px;
+  --neko-sidebar-bg: #fbfbfc;
+  --neko-header-height: 52px;
+}
+
+.dark {
+  /* Dark Theme Colors */
+  --neko-bg-primary: #141414;
+  --neko-bg-secondary: #1e1e1e;
+  --neko-bg-tertiary: #252525;
+  --neko-bg-hover: rgba(255, 255, 255, 0.06);
+  --neko-bg-active: rgba(255, 255, 255, 0.1);
+  
+  --neko-text-primary: #e6e6e6;
+  --neko-text-secondary: #8e8d91;
+  --neko-text-tertiary: #5d5d5f;
+  --neko-text-disabled: #424242;
+  
+  --neko-border: #2d2d2d;
+  --neko-divider: #2d2d2d;
+  
+  --neko-accent: #4a9ef5;
+  --neko-accent-hover: #5eabf7;
+  --neko-accent-light: rgba(74, 158, 245, 0.15);
+  
+  --neko-icon-primary: #a0a0a0;
+  --neko-icon-secondary: #6b6b6b;
+  --neko-icon-active: #4a9ef5;
+  
+  --neko-hover: rgba(255, 255, 255, 0.06);
+  --neko-hover-filled: #252525;
+  
+  /* Sidebar */
+  --neko-sidebar-bg: #1a1a1a;
+}
+
+/* ============================================
+   Custom Scrollbar
+   ============================================ */
+
+.neko-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--neko-border) transparent;
+}
+
+.neko-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.neko-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.neko-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--neko-border);
+  border-radius: 3px;
+}
+
+.neko-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--neko-text-tertiary);
+}

@@ -1,13 +1,7 @@
 /**
  * PropertiesPanel - Display note metadata/properties
  * 
- * Obsidian-style properties panel showing:
- * - Created date
- * - Modified date
- * - Word count
- * - Character count
- * - Tags in note
- * - Links in note
+ * Modern block-editor style properties panel
  */
 
 import { useMemo } from 'react';
@@ -60,9 +54,9 @@ export function PropertiesPanel({ content, path }: PropertiesPanelProps) {
   const folderPath = path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : 'Root';
 
   return (
-    <div className="border-t border-zinc-200 dark:border-zinc-800">
-      <div className="px-3 py-2 flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-        <InfoIcon className="size-3.5" weight="bold" />
+    <div className="border-t border-[var(--neko-border)]">
+      <div className="px-3 py-2 flex items-center gap-2 text-[11px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider">
+        <InfoIcon className="w-3.5 h-3.5" weight="bold" />
         Properties
       </div>
       
@@ -70,50 +64,50 @@ export function PropertiesPanel({ content, path }: PropertiesPanelProps) {
         {/* File info */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-zinc-400 dark:text-zinc-500">Name</span>
-            <span className="text-zinc-700 dark:text-zinc-300 truncate max-w-[140px]" title={noteName}>
+            <span className="text-[var(--neko-text-tertiary)]">Name</span>
+            <span className="text-[var(--neko-text-primary)] truncate max-w-[140px]" title={noteName}>
               {noteName}
             </span>
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-zinc-400 dark:text-zinc-500">Folder</span>
-            <span className="text-zinc-700 dark:text-zinc-300 truncate max-w-[140px]" title={folderPath}>
+            <span className="text-[var(--neko-text-tertiary)]">Folder</span>
+            <span className="text-[var(--neko-text-primary)] truncate max-w-[140px]" title={folderPath}>
               {folderPath}
             </span>
           </div>
         </div>
 
         {/* Statistics */}
-        <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-1.5">
+        <div className="pt-2 border-t border-[var(--neko-divider)] space-y-1.5">
           <div className="flex items-center gap-2 text-xs">
-            <TextAaIcon className="size-3.5 text-zinc-400" weight="bold" />
-            <span className="text-zinc-400 dark:text-zinc-500">Words</span>
-            <span className="ml-auto text-zinc-700 dark:text-zinc-300">{stats.words.toLocaleString()}</span>
+            <TextAaIcon className="w-3.5 h-3.5 text-[var(--neko-icon-secondary)]" weight="bold" />
+            <span className="text-[var(--neko-text-tertiary)]">Words</span>
+            <span className="ml-auto text-[var(--neko-text-primary)]">{stats.words.toLocaleString()}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <span className="size-3.5" />
-            <span className="text-zinc-400 dark:text-zinc-500">Characters</span>
-            <span className="ml-auto text-zinc-700 dark:text-zinc-300">{stats.chars.toLocaleString()}</span>
+            <span className="w-3.5 h-3.5" />
+            <span className="text-[var(--neko-text-tertiary)]">Characters</span>
+            <span className="ml-auto text-[var(--neko-text-primary)]">{stats.chars.toLocaleString()}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <span className="size-3.5" />
-            <span className="text-zinc-400 dark:text-zinc-500">Lines</span>
-            <span className="ml-auto text-zinc-700 dark:text-zinc-300">{stats.lines.toLocaleString()}</span>
+            <span className="w-3.5 h-3.5" />
+            <span className="text-[var(--neko-text-tertiary)]">Lines</span>
+            <span className="ml-auto text-[var(--neko-text-primary)]">{stats.lines.toLocaleString()}</span>
           </div>
         </div>
 
         {/* Tags */}
         {stats.tags.length > 0 && (
-          <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
+          <div className="pt-2 border-t border-[var(--neko-divider)]">
             <div className="flex items-center gap-2 text-xs mb-2">
-              <HashIcon className="size-3.5 text-zinc-400" weight="bold" />
-              <span className="text-zinc-400 dark:text-zinc-500">Tags ({stats.tags.length})</span>
+              <HashIcon className="w-3.5 h-3.5 text-[var(--neko-icon-secondary)]" weight="bold" />
+              <span className="text-[var(--neko-text-tertiary)]">Tags ({stats.tags.length})</span>
             </div>
             <div className="flex flex-wrap gap-1">
               {stats.tags.map(tag => (
                 <span 
                   key={tag}
-                  className="px-1.5 py-0.5 text-[10px] bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded"
+                  className="px-1.5 py-0.5 text-[10px] bg-[var(--neko-accent-light)] text-[var(--neko-accent)] rounded"
                 >
                   #{tag}
                 </span>
@@ -124,22 +118,22 @@ export function PropertiesPanel({ content, path }: PropertiesPanelProps) {
 
         {/* Links */}
         {stats.links.length > 0 && (
-          <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
+          <div className="pt-2 border-t border-[var(--neko-divider)]">
             <div className="flex items-center gap-2 text-xs mb-2">
-              <LinkIcon className="size-3.5 text-zinc-400" weight="bold" />
-              <span className="text-zinc-400 dark:text-zinc-500">Links ({stats.links.length})</span>
+              <LinkIcon className="w-3.5 h-3.5 text-[var(--neko-icon-secondary)]" weight="bold" />
+              <span className="text-[var(--neko-text-tertiary)]">Links ({stats.links.length})</span>
             </div>
             <div className="flex flex-wrap gap-1">
               {stats.links.slice(0, 10).map(link => (
                 <span 
                   key={link}
-                  className="px-1.5 py-0.5 text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded"
+                  className="px-1.5 py-0.5 text-[10px] bg-[var(--neko-accent-light)] text-[var(--neko-accent)] rounded"
                 >
                   [[{link}]]
                 </span>
               ))}
               {stats.links.length > 10 && (
-                <span className="px-1.5 py-0.5 text-[10px] text-zinc-400">
+                <span className="px-1.5 py-0.5 text-[10px] text-[var(--neko-text-tertiary)]">
                   +{stats.links.length - 10} more
                 </span>
               )}

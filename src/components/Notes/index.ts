@@ -7,11 +7,10 @@
  * Features:
  * - File tree navigation with folders
  * - WYSIWYG Markdown editing (Milkdown)
- * - Quick search (Ctrl+P)
+ * - Quick search
  * - Outline view
  * - Recent notes
  * - Word count & reading time
- * - Keyboard shortcuts
  */
 
 export { NotesPage } from './NotesPage';
@@ -19,4 +18,3 @@ export { FileTree } from './features/FileTree';
 export { MarkdownEditor } from './features/Editor/MarkdownEditor';
 export { NoteSearch } from './features/Search';
 export { NoteOutline } from './features/Outline';
-export { KeyboardShortcuts } from './features/Help';

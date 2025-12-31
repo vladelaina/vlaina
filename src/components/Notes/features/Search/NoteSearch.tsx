@@ -1,7 +1,7 @@
 /**
  * NoteSearch - Full-text search for notes
  * 
- * Obsidian-style quick search with fuzzy matching
+ * Modern block-editor style quick search
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -152,10 +152,10 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
       />
       
       {/* Search Modal */}
-      <div className="relative w-full max-w-lg bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+      <div className="relative w-full max-w-lg bg-[var(--neko-bg-primary)] rounded-xl shadow-2xl border border-[var(--neko-border)] overflow-hidden">
         {/* Search Input */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
-          <MagnifyingGlassIcon className="size-5 text-zinc-400" weight="bold" />
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--neko-border)]">
+          <MagnifyingGlassIcon className="w-5 h-5 text-[var(--neko-icon-secondary)]" weight="bold" />
           <input
             ref={inputRef}
             type="text"
@@ -163,21 +163,21 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search notes..."
-            className="flex-1 bg-transparent text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 outline-none"
+            className="flex-1 bg-transparent text-sm text-[var(--neko-text-primary)] placeholder:text-[var(--neko-text-tertiary)] outline-none"
           />
           {query && (
-            <button onClick={() => setQuery('')} className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded">
-              <XIcon className="size-4 text-zinc-400" />
+            <button onClick={() => setQuery('')} className="p-1 hover:bg-[var(--neko-hover)] rounded">
+              <XIcon className="w-4 h-4 text-[var(--neko-icon-secondary)]" />
             </button>
           )}
         </div>
 
         {/* Results */}
         {displayResults.length > 0 && (
-          <div className="max-h-80 overflow-auto py-2">
+          <div className="max-h-80 overflow-auto py-2 neko-scrollbar">
             {!query.trim() && recentResults.length > 0 && (
-              <div className="px-4 py-1.5 text-[10px] font-medium text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                <ClockIcon className="size-3" />
+              <div className="px-4 py-1.5 text-[10px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider flex items-center gap-1.5">
+                <ClockIcon className="w-3 h-3" />
                 Recent
               </div>
             )}
@@ -188,17 +188,17 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
                 className={cn(
                   "w-full px-4 py-2 flex items-center gap-3 text-left transition-colors",
                   index === selectedIndex 
-                    ? "bg-blue-50 dark:bg-blue-900/30" 
-                    : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                    ? "bg-[var(--neko-accent-light)]" 
+                    : "hover:bg-[var(--neko-hover)]"
                 )}
               >
-                <FileTextIcon className="size-4 text-zinc-400 flex-shrink-0" weight="duotone" />
+                <FileTextIcon className="w-4 h-4 text-[var(--neko-icon-secondary)] flex-shrink-0" weight="duotone" />
                 <div className="min-w-0">
-                  <div className="text-sm text-zinc-900 dark:text-zinc-100 truncate">
+                  <div className="text-sm text-[var(--neko-text-primary)] truncate">
                     {result.name}
                   </div>
                   {result.preview && (
-                    <div className="text-xs text-zinc-400 truncate">
+                    <div className="text-xs text-[var(--neko-text-tertiary)] truncate">
                       {result.preview}
                     </div>
                   )}
@@ -210,14 +210,14 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
 
         {/* Empty state */}
         {query && results.length === 0 && (
-          <div className="py-8 text-center text-sm text-zinc-400">
+          <div className="py-8 text-center text-sm text-[var(--neko-text-tertiary)]">
             No notes found
           </div>
         )}
 
         {/* Hint */}
         {!query && recentResults.length === 0 && (
-          <div className="py-6 text-center text-xs text-zinc-400">
+          <div className="py-6 text-center text-xs text-[var(--neko-text-tertiary)]">
             Type to search your notes
           </div>
         )}
