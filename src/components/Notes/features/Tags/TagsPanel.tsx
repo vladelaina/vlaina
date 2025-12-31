@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { HashIcon, CaretRightIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react';
+import { IconHash, IconChevronRight, IconRefresh } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 
@@ -57,11 +57,10 @@ export function TagsPanel({ onTagClick }: TagsPanelProps) {
           onClick={() => setIsExpanded(!isExpanded)}
           className="flex items-center gap-2 hover:text-zinc-700 dark:hover:text-zinc-300"
         >
-          <CaretRightIcon 
+          <IconChevronRight 
             className={cn("size-3 transition-transform", isExpanded && "rotate-90")} 
-            weight="bold" 
           />
-          <HashIcon className="size-3.5" weight="bold" />
+          <IconHash className="size-3.5" />
           Tags
         </button>
         {tagCounts.length > 0 && (
@@ -74,7 +73,7 @@ export function TagsPanel({ onTagClick }: TagsPanelProps) {
           className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
           title="Refresh tags"
         >
-          <ArrowsClockwiseIcon className="size-3" weight="bold" />
+          <IconRefresh className="size-3" />
         </button>
       </div>
       

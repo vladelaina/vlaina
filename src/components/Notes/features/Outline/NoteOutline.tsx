@@ -5,7 +5,7 @@
  */
 
 import { useMemo } from 'react';
-import { ListBulletsIcon } from '@phosphor-icons/react';
+import { IconListCheck } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 
 interface HeadingItem {
@@ -44,7 +44,7 @@ export function NoteOutline({ content, onHeadingClick }: NoteOutlineProps) {
   if (headings.length === 0) {
     return (
       <div className="p-4 text-center">
-        <ListBulletsIcon className="w-8 h-8 text-[var(--neko-text-disabled)] mx-auto mb-2" weight="duotone" />
+        <IconListCheck className="w-8 h-8 text-[var(--neko-text-disabled)] mx-auto mb-2" />
         <p className="text-xs text-[var(--neko-text-tertiary)]">
           No headings found
         </p>

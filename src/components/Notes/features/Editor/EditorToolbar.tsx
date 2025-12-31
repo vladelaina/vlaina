@@ -5,17 +5,17 @@
  */
 
 import { 
-  Bold,
-  Italic,
-  Strikethrough,
-  Code,
-  List,
-  ListOrdered,
-  Quote,
-  Link,
-  Image,
-  Minus
-} from 'lucide-react';
+  IconBold,
+  IconItalic,
+  IconStrikethrough,
+  IconCode,
+  IconList,
+  IconListNumbers,
+  IconQuote,
+  IconLink,
+  IconPhoto,
+  IconMinus
+} from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 
 interface ToolbarButtonProps {
@@ -56,24 +56,24 @@ export function EditorToolbar({ onFormat }: EditorToolbarProps) {
     <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
       {/* Text formatting */}
       <ToolbarButton
-        icon={<Bold className="size-4" />}
+        icon={<IconBold className="size-4" />}
         title="Bold"
         shortcut="Ctrl+B"
         onClick={() => onFormat('bold')}
       />
       <ToolbarButton
-        icon={<Italic className="size-4" />}
+        icon={<IconItalic className="size-4" />}
         title="Italic"
         shortcut="Ctrl+I"
         onClick={() => onFormat('italic')}
       />
       <ToolbarButton
-        icon={<Strikethrough className="size-4" />}
+        icon={<IconStrikethrough className="size-4" />}
         title="Strikethrough"
         onClick={() => onFormat('strikethrough')}
       />
       <ToolbarButton
-        icon={<Code className="size-4" />}
+        icon={<IconCode className="size-4" />}
         title="Inline Code"
         onClick={() => onFormat('code')}
       />
@@ -82,12 +82,12 @@ export function EditorToolbar({ onFormat }: EditorToolbarProps) {
 
       {/* Lists */}
       <ToolbarButton
-        icon={<List className="size-4" />}
+        icon={<IconList className="size-4" />}
         title="Bullet List"
         onClick={() => onFormat('bulletList')}
       />
       <ToolbarButton
-        icon={<ListOrdered className="size-4" />}
+        icon={<IconListNumbers className="size-4" />}
         title="Numbered List"
         onClick={() => onFormat('numberedList')}
       />
@@ -96,12 +96,12 @@ export function EditorToolbar({ onFormat }: EditorToolbarProps) {
 
       {/* Block elements */}
       <ToolbarButton
-        icon={<Quote className="size-4" />}
+        icon={<IconQuote className="size-4" />}
         title="Blockquote"
         onClick={() => onFormat('blockquote')}
       />
       <ToolbarButton
-        icon={<Minus className="size-4" />}
+        icon={<IconMinus className="size-4" />}
         title="Horizontal Rule"
         onClick={() => onFormat('hr')}
       />
@@ -110,12 +110,12 @@ export function EditorToolbar({ onFormat }: EditorToolbarProps) {
 
       {/* Links and media */}
       <ToolbarButton
-        icon={<Link className="size-4" />}
+        icon={<IconLink className="size-4" />}
         title="Insert Link"
         onClick={() => onFormat('link')}
       />
       <ToolbarButton
-        icon={<Image className="size-4" />}
+        icon={<IconPhoto className="size-4" />}
         title="Insert Image"
         onClick={() => onFormat('image')}
       />

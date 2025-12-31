@@ -5,7 +5,7 @@
  */
 
 import { useMemo } from 'react';
-import { InfoIcon, TextAaIcon, HashIcon, LinkIcon } from '@phosphor-icons/react';
+import { IconInfoCircle, IconTextSize, IconHash, IconLink } from '@tabler/icons-react';
 
 interface PropertiesPanelProps {
   content: string;
@@ -56,7 +56,7 @@ export function PropertiesPanel({ content, path }: PropertiesPanelProps) {
   return (
     <div className="border-t border-[var(--neko-border)]">
       <div className="px-3 py-2 flex items-center gap-2 text-[11px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider">
-        <InfoIcon className="w-3.5 h-3.5" weight="bold" />
+        <IconInfoCircle className="w-3.5 h-3.5" />
         Properties
       </div>
       
@@ -80,7 +80,7 @@ export function PropertiesPanel({ content, path }: PropertiesPanelProps) {
         {/* Statistics */}
         <div className="pt-2 border-t border-[var(--neko-divider)] space-y-1.5">
           <div className="flex items-center gap-2 text-xs">
-            <TextAaIcon className="w-3.5 h-3.5 text-[var(--neko-icon-secondary)]" weight="bold" />
+            <IconTextSize className="w-3.5 h-3.5 text-[var(--neko-icon-secondary)]" />
             <span className="text-[var(--neko-text-tertiary)]">Words</span>
             <span className="ml-auto text-[var(--neko-text-primary)]">{stats.words.toLocaleString()}</span>
           </div>
@@ -100,7 +100,7 @@ export function PropertiesPanel({ content, path }: PropertiesPanelProps) {
         {stats.tags.length > 0 && (
           <div className="pt-2 border-t border-[var(--neko-divider)]">
             <div className="flex items-center gap-2 text-xs mb-2">
-              <HashIcon className="w-3.5 h-3.5 text-[var(--neko-icon-secondary)]" weight="bold" />
+              <IconHash className="w-3.5 h-3.5 text-[var(--neko-icon-secondary)]" />
               <span className="text-[var(--neko-text-tertiary)]">Tags ({stats.tags.length})</span>
             </div>
             <div className="flex flex-wrap gap-1">
@@ -120,7 +120,7 @@ export function PropertiesPanel({ content, path }: PropertiesPanelProps) {
         {stats.links.length > 0 && (
           <div className="pt-2 border-t border-[var(--neko-divider)]">
             <div className="flex items-center gap-2 text-xs mb-2">
-              <LinkIcon className="w-3.5 h-3.5 text-[var(--neko-icon-secondary)]" weight="bold" />
+              <IconLink className="w-3.5 h-3.5 text-[var(--neko-icon-secondary)]" />
               <span className="text-[var(--neko-text-tertiary)]">Links ({stats.links.length})</span>
             </div>
             <div className="flex flex-wrap gap-1">

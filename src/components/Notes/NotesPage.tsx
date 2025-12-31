@@ -6,16 +6,16 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { 
-  MagnifyingGlassIcon, 
-  PlusIcon,
-  HouseIcon,
-  ClockIcon,
-  StarIcon,
-  TrashIcon,
-  FolderIcon,
-  CaretDoubleLeftIcon,
-  ListIcon,
-} from '@phosphor-icons/react';
+  IconSearch, 
+  IconPlus,
+  IconHome,
+  IconClock,
+  IconStar,
+  IconTrash,
+  IconFolder,
+  IconLayoutSidebar,
+  IconListCheck,
+} from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { FileTree } from './features/FileTree';
 import { MarkdownEditor } from './features/Editor';
@@ -167,7 +167,7 @@ export function NotesPage() {
             className="p-1 rounded hover:bg-[var(--neko-hover)] text-[var(--neko-icon-secondary)] transition-colors"
             title="Collapse sidebar"
           >
-            <CaretDoubleLeftIcon className="w-4 h-4" weight="bold" />
+            <IconLayoutSidebar className="w-4 h-4" />
           </button>
         </div>
 
@@ -182,17 +182,17 @@ export function NotesPage() {
               "transition-colors"
             )}
           >
-            <MagnifyingGlassIcon className="w-4 h-4" />
+            <IconSearch className="w-4 h-4" />
             <span className="flex-1 text-left">Quick Search</span>
           </button>
         </div>
 
         {/* Navigation Items */}
         <div className="px-2 space-y-0.5">
-          <NavItem icon={<HouseIcon weight="duotone" />} label="Home" />
-          <NavItem icon={<ClockIcon weight="duotone" />} label="Recent" />
-          <NavItem icon={<StarIcon weight="duotone" />} label="Favorites" />
-          <NavItem icon={<TrashIcon weight="duotone" />} label="Trash" />
+          <NavItem icon={<IconHome />} label="Home" />
+          <NavItem icon={<IconClock />} label="Recent" />
+          <NavItem icon={<IconStar />} label="Favorites" />
+          <NavItem icon={<IconTrash />} label="Trash" />
         </div>
 
         {/* Divider */}
@@ -210,7 +210,7 @@ export function NotesPage() {
                 className="p-1 rounded hover:bg-[var(--neko-hover)] text-[var(--neko-icon-secondary)] transition-colors"
                 title="New Note"
               >
-                <PlusIcon className="w-3.5 h-3.5" weight="bold" />
+                <IconPlus className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => {
@@ -220,7 +220,7 @@ export function NotesPage() {
                 className="p-1 rounded hover:bg-[var(--neko-hover)] text-[var(--neko-icon-secondary)] transition-colors"
                 title="New Folder"
               >
-                <FolderIcon className="w-3.5 h-3.5" weight="bold" />
+                <IconFolder className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -319,7 +319,7 @@ export function NotesPage() {
             active={showOutline && !rightPanelCollapsed}
             title="Outline"
           >
-            <ListIcon className="w-5 h-5" weight="bold" />
+            <IconListCheck className="w-5 h-5" />
           </FloatingButton>
         </div>
       )}
@@ -412,7 +412,7 @@ function EmptyState({ onCreateNote, onOpenSearch }: { onCreateNote: () => void; 
               "text-white text-[14px] font-medium transition-colors"
             )}
           >
-            <PlusIcon className="w-4 h-4" weight="bold" />
+            <IconPlus className="w-4 h-4" />
             New Note
           </button>
           <button
@@ -423,7 +423,7 @@ function EmptyState({ onCreateNote, onOpenSearch }: { onCreateNote: () => void; 
               "text-[var(--neko-text-primary)] text-[14px] font-medium transition-colors"
             )}
           >
-            <MagnifyingGlassIcon className="w-4 h-4" />
+            <IconSearch className="w-4 h-4" />
             Open Note
           </button>
         </div>

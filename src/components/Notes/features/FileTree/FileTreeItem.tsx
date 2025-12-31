@@ -6,13 +6,13 @@
 
 import { useState, useRef } from 'react';
 import { 
-  CaretRightIcon, 
-  DotsThreeIcon, 
-  TrashIcon, 
-  PencilSimpleIcon,
-  FileTextIcon,
-  FolderIcon,
-} from '@phosphor-icons/react';
+  IconChevronRight, 
+  IconDots, 
+  IconTrash, 
+  IconPencil,
+  IconFileText,
+  IconFolder,
+} from '@tabler/icons-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 
@@ -148,12 +148,11 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
         {/* Expand/Collapse Icon */}
         {node.isFolder ? (
           <span className="w-4 h-4 flex items-center justify-center">
-            <CaretRightIcon 
+            <IconChevronRight 
               className={cn(
                 "w-3 h-3 text-[var(--neko-icon-secondary)] transition-transform duration-150",
                 node.expanded && "rotate-90"
               )} 
-              weight="bold"
             />
           </span>
         ) : (
@@ -163,20 +162,18 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
         {/* Icon */}
         <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
           {node.isFolder ? (
-            <FolderIcon 
+            <IconFolder 
               className={cn(
                 "w-4 h-4",
                 isActive ? "text-[var(--neko-accent)]" : "text-amber-500"
               )} 
-              weight="duotone" 
             />
           ) : (
-            <FileTextIcon 
+            <IconFileText 
               className={cn(
                 "w-4 h-4",
                 isActive ? "text-[var(--neko-accent)]" : "text-[var(--neko-icon-secondary)]"
               )} 
-              weight="duotone" 
             />
           )}
         </span>
@@ -222,7 +219,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
             "hover:bg-[var(--neko-bg-active)] text-[var(--neko-icon-secondary)]"
           )}
         >
-          <DotsThreeIcon className="w-4 h-4" weight="bold" />
+          <IconDots className="w-4 h-4" />
         </button>
       </div>
 
@@ -243,12 +240,12 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
             {node.isFolder && (
               <>
                 <MenuItem 
-                  icon={<FileTextIcon weight="duotone" />} 
+                  icon={<IconFileText />} 
                   label="New Note" 
                   onClick={handleNewNoteInFolder} 
                 />
                 <MenuItem 
-                  icon={<FolderIcon weight="duotone" />} 
+                  icon={<IconFolder />} 
                   label="New Folder" 
                   onClick={handleNewFolderInFolder} 
                 />
@@ -256,12 +253,12 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
               </>
             )}
             <MenuItem 
-              icon={<PencilSimpleIcon weight="duotone" />} 
+              icon={<IconPencil />} 
               label="Rename" 
               onClick={handleRename} 
             />
             <MenuItem 
-              icon={<TrashIcon weight="duotone" />} 
+              icon={<IconTrash />} 
               label="Delete" 
               onClick={handleDelete}
               danger 

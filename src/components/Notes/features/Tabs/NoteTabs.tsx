@@ -4,7 +4,7 @@
  * Modern block-editor style tab management
  */
 
-import { XIcon, FileTextIcon } from '@phosphor-icons/react';
+import { IconX, IconFileText } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 
 export interface NoteTab {
@@ -60,14 +60,13 @@ export function NoteTabs({
             <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--neko-accent)]" />
           )}
           
-          <FileTextIcon 
+          <IconFileText 
             className={cn(
               "w-3.5 h-3.5 flex-shrink-0",
               activeTabPath === tab.path 
                 ? "text-[var(--neko-accent)]" 
                 : "text-[var(--neko-icon-secondary)]"
             )} 
-            weight="duotone" 
           />
           
           <span className={cn(
@@ -93,7 +92,7 @@ export function NoteTabs({
               "hover:bg-[var(--neko-hover-filled)] text-[var(--neko-icon-secondary)]"
             )}
           >
-            <XIcon className="w-3 h-3" />
+            <IconX className="w-3 h-3" />
           </button>
         </div>
       ))}

@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { MagnifyingGlassIcon, FileTextIcon, XIcon, ClockIcon } from '@phosphor-icons/react';
+import { IconSearch, IconFileText, IconX, IconClock } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 
@@ -155,7 +155,7 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
       <div className="relative w-full max-w-lg bg-[var(--neko-bg-primary)] rounded-xl shadow-2xl border border-[var(--neko-border)] overflow-hidden">
         {/* Search Input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--neko-border)]">
-          <MagnifyingGlassIcon className="w-5 h-5 text-[var(--neko-icon-secondary)]" weight="bold" />
+          <IconSearch className="w-5 h-5 text-[var(--neko-icon-secondary)]" />
           <input
             ref={inputRef}
             type="text"
@@ -167,7 +167,7 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
           />
           {query && (
             <button onClick={() => setQuery('')} className="p-1 hover:bg-[var(--neko-hover)] rounded">
-              <XIcon className="w-4 h-4 text-[var(--neko-icon-secondary)]" />
+              <IconX className="w-4 h-4 text-[var(--neko-icon-secondary)]" />
             </button>
           )}
         </div>
@@ -177,7 +177,7 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
           <div className="max-h-80 overflow-auto py-2 neko-scrollbar">
             {!query.trim() && recentResults.length > 0 && (
               <div className="px-4 py-1.5 text-[10px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider flex items-center gap-1.5">
-                <ClockIcon className="w-3 h-3" />
+                <IconClock className="w-3 h-3" />
                 Recent
               </div>
             )}
@@ -192,7 +192,7 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
                     : "hover:bg-[var(--neko-hover)]"
                 )}
               >
-                <FileTextIcon className="w-4 h-4 text-[var(--neko-icon-secondary)] flex-shrink-0" weight="duotone" />
+                <IconFileText className="w-4 h-4 text-[var(--neko-icon-secondary)] flex-shrink-0" />
                 <div className="min-w-0">
                   <div className="text-sm text-[var(--neko-text-primary)] truncate">
                     {result.name}

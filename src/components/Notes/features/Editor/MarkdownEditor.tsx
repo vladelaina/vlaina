@@ -12,7 +12,7 @@ import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { FloppyDiskBackIcon, StarIcon, DotsThreeIcon, ClockIcon } from '@phosphor-icons/react';
+import { IconDeviceFloppy, IconStar, IconStarFilled, IconDots, IconClock } from '@tabler/icons-react';
 import { EditorStatusBar } from './EditorStatusBar';
 import { cn } from '@/lib/utils';
 
@@ -115,7 +115,7 @@ export function MarkdownEditor() {
         <div className="flex items-center gap-1">
           {/* Last edited indicator */}
           <div className="flex items-center gap-1 px-2 py-1 text-[11px] text-[var(--neko-text-tertiary)]">
-            <ClockIcon className="w-3 h-3" />
+            <IconClock className="w-3 h-3" />
             <span>Just now</span>
           </div>
           
@@ -132,7 +132,7 @@ export function MarkdownEditor() {
             )}
             title={starred ? "Unstar" : "Star"}
           >
-            <StarIcon className="w-4 h-4" weight={starred ? "fill" : "regular"} />
+            {starred ? <IconStarFilled className="w-4 h-4" /> : <IconStar className="w-4 h-4" />}
           </button>
           
           {/* Save button */}
@@ -147,7 +147,7 @@ export function MarkdownEditor() {
             )}
             title="Save (Ctrl+S)"
           >
-            <FloppyDiskBackIcon className="w-4 h-4" weight="duotone" />
+            <IconDeviceFloppy className="w-4 h-4" />
           </button>
           
           {/* More options */}
@@ -155,7 +155,7 @@ export function MarkdownEditor() {
             className="p-1.5 rounded-md text-[var(--neko-icon-secondary)] hover:bg-[var(--neko-hover)] transition-colors"
             title="More options"
           >
-            <DotsThreeIcon className="w-4 h-4" weight="bold" />
+            <IconDots className="w-4 h-4" />
           </button>
         </div>
       </div>

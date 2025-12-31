@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import { ClockIcon, CaretRightIcon, FileTextIcon } from '@phosphor-icons/react';
+import { IconClock, IconChevronRight, IconFileText } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 
@@ -37,11 +37,10 @@ export function RecentPanel({ onNoteClick }: RecentPanelProps) {
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full px-3 py-2 flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider hover:bg-zinc-50 dark:hover:bg-zinc-800"
       >
-        <CaretRightIcon 
+        <IconChevronRight 
           className={cn("size-3 transition-transform", isExpanded && "rotate-90")} 
-          weight="bold" 
         />
-        <ClockIcon className="size-3.5" weight="bold" />
+        <IconClock className="size-3.5" />
         Recent
         {recentNotes.length > 0 && (
           <span className="ml-auto text-zinc-400 dark:text-zinc-600 font-normal">
@@ -71,7 +70,7 @@ export function RecentPanel({ onNoteClick }: RecentPanelProps) {
                     onClick={() => onNoteClick(path)}
                     className="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors group"
                   >
-                    <FileTextIcon className="size-4 text-zinc-400 flex-shrink-0" weight="duotone" />
+                    <IconFileText className="size-4 text-zinc-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <span className="text-sm text-zinc-700 dark:text-zinc-300 truncate block">
                         {getNoteName(path)}

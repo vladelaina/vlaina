@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useMemo } from 'react';
-import { ArrowUUpLeftIcon, FileTextIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react';
+import { IconCornerUpLeft, IconFileText, IconRefresh } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
 
 interface BacklinksPanelProps {
@@ -42,7 +42,7 @@ export function BacklinksPanel({ currentNotePath, onNavigate }: BacklinksPanelPr
     <div className="border-t border-[var(--neko-border)]">
       <div className="px-3 py-2 flex items-center justify-between">
         <div className="flex items-center gap-2 text-[11px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider">
-          <ArrowUUpLeftIcon className="w-3.5 h-3.5" weight="bold" />
+          <IconCornerUpLeft className="w-3.5 h-3.5" />
           Backlinks
           {backlinks.length > 0 && (
             <span className="text-[var(--neko-text-disabled)] font-normal normal-case">
@@ -55,7 +55,7 @@ export function BacklinksPanel({ currentNotePath, onNavigate }: BacklinksPanelPr
           className="p-1 rounded hover:bg-[var(--neko-hover)] text-[var(--neko-icon-secondary)] hover:text-[var(--neko-icon-primary)]"
           title="Refresh backlinks"
         >
-          <ArrowsClockwiseIcon className="w-3.5 h-3.5" weight="bold" />
+          <IconRefresh className="w-3.5 h-3.5" />
         </button>
       </div>
       
@@ -77,7 +77,7 @@ export function BacklinksPanel({ currentNotePath, onNavigate }: BacklinksPanelPr
               className="w-full px-3 py-2 text-left hover:bg-[var(--neko-hover)] transition-colors"
             >
               <div className="flex items-center gap-2">
-                <FileTextIcon className="w-4 h-4 text-[var(--neko-icon-secondary)]" weight="duotone" />
+                <IconFileText className="w-4 h-4 text-[var(--neko-icon-secondary)]" />
                 <span className="text-sm text-[var(--neko-text-primary)] truncate">
                   {link.name}
                 </span>
