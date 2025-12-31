@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Settings, PanelLeft, PanelRight } from 'lucide-react';
+import { Settings, PanelLeft, PanelRight, MessageCircle } from 'lucide-react';
 import { NotePencil, CalendarBlank } from '@phosphor-icons/react';
 import { WindowControls } from './WindowControls';
 import { useUIStore } from '@/stores/uiSlice';
@@ -22,18 +22,15 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
   const { 
     sidebarCollapsed, 
     rightPanelCollapsed, 
-    showOutline, 
-    showBacklinks,
+    showAIPanel,
     toggleSidebar, 
-    toggleRightPanel 
+    toggleRightPanel,
+    toggleAIPanel,
   } = useNotesStore();
   
   const startDrag = async () => {
     await appWindow.startDragging();
   };
-
-  // Check if right panel has content
-  const rightPanelHasContent = showOutline || showBacklinks;
 
   return (
     <div 
@@ -49,7 +46,9 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           className={cn(
             "h-full w-9 flex items-center justify-center transition-colors z-20",
             "hover:bg-zinc-100 dark:hover:bg-zinc-800",
-            "text-zinc-400 dark:text-zinc-500"
+            !sidebarCollapsed
+              ? "text-zinc-400 dark:text-zinc-500"
+              : "text-zinc-200 dark:text-zinc-700"
           )}
           title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
         >
@@ -111,11 +110,30 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           className={cn(
             "h-full w-9 flex items-center justify-center transition-colors z-20",
             "hover:bg-zinc-100 dark:hover:bg-zinc-800",
-            "text-zinc-400 dark:text-zinc-500"
+            !rightPanelCollapsed
+              ? "text-zinc-400 dark:text-zinc-500"
+              : "text-zinc-200 dark:text-zinc-700"
           )}
           title={rightPanelCollapsed ? "Show right panel" : "Hide right panel"}
         >
           <PanelRight className="size-4" />
+        </button>
+      )}
+
+      {/* AI Chat Toggle (Notes view only) */}
+      {appViewMode === 'notes' && (
+        <button
+          onClick={toggleAIPanel}
+          className={cn(
+            "h-full w-9 flex items-center justify-center transition-colors z-20",
+            "hover:bg-zinc-100 dark:hover:bg-zinc-800",
+            showAIPanel
+              ? "text-zinc-400 dark:text-zinc-500"
+              : "text-zinc-200 dark:text-zinc-700"
+          )}
+          title={showAIPanel ? "Hide AI Chat" : "Show AI Chat"}
+        >
+          <MessageCircle className="size-4" />
         </button>
       )}
 

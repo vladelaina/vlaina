@@ -56,6 +56,7 @@ interface NotesState {
   rightPanelCollapsed: boolean;
   showOutline: boolean;
   showBacklinks: boolean;
+  showAIPanel: boolean;
 }
 
 interface NotesActions {
@@ -85,6 +86,7 @@ interface NotesActions {
   toggleRightPanel: () => void;
   setShowOutline: (show: boolean) => void;
   setShowBacklinks: (show: boolean) => void;
+  toggleAIPanel: () => void;
 }
 
 type NotesStore = NotesState & NotesActions;
@@ -219,6 +221,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   rightPanelCollapsed: true,
   showOutline: false,
   showBacklinks: false,
+  showAIPanel: false,
 
   // Load file tree from disk
   loadFileTree: async () => {
@@ -692,5 +695,9 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   setShowBacklinks: (show: boolean) => {
     set({ showBacklinks: show, rightPanelCollapsed: show ? false : get().rightPanelCollapsed });
+  },
+
+  toggleAIPanel: () => {
+    set(state => ({ showAIPanel: !state.showAIPanel }));
   },
 }));
