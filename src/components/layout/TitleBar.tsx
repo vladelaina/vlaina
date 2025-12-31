@@ -49,7 +49,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           className={cn(
             "h-full w-9 flex items-center justify-center transition-colors z-20",
             "hover:bg-zinc-100 dark:hover:bg-zinc-800",
-            !sidebarCollapsed && "text-blue-500"
+            "text-zinc-400 dark:text-zinc-500"
           )}
           title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
         >
@@ -111,7 +111,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           className={cn(
             "h-full w-9 flex items-center justify-center transition-colors z-20",
             "hover:bg-zinc-100 dark:hover:bg-zinc-800",
-            !rightPanelCollapsed && rightPanelHasContent && "text-blue-500"
+            "text-zinc-400 dark:text-zinc-500"
           )}
           title={rightPanelCollapsed ? "Show right panel" : "Hide right panel"}
         >

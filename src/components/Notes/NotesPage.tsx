@@ -8,8 +8,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { 
   IconSearch, 
   IconPlus,
-  IconHome,
-  IconClock,
+  IconFiles,
   IconStar,
   IconTrash,
   IconFolder,
@@ -149,30 +148,8 @@ export function NotesPage() {
         style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
       >
 
-        {/* Sidebar Header */}
-        <div 
-          className="flex items-center justify-between px-3 h-[52px] flex-shrink-0"
-          style={{ minHeight: 52 }}
-        >
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-              <span className="text-white text-xs font-bold">N</span>
-            </div>
-            <span className="text-[13px] font-medium text-[var(--neko-text-primary)]">
-              Notes
-            </span>
-          </div>
-          <button
-            onClick={toggleSidebar}
-            className="p-1 rounded hover:bg-[var(--neko-hover)] text-[var(--neko-icon-secondary)] transition-colors"
-            title="Collapse sidebar"
-          >
-            <IconLayoutSidebar className="w-4 h-4" />
-          </button>
-        </div>
-
         {/* Quick Search */}
-        <div className="px-2 pb-2">
+        <div className="px-2 pt-3 pb-2">
           <button
             onClick={() => setShowSearch(true)}
             className={cn(
@@ -183,23 +160,13 @@ export function NotesPage() {
             )}
           >
             <IconSearch className="w-4 h-4" />
-            <span className="flex-1 text-left">Quick Search</span>
+            <span className="flex-1 text-left">Search</span>
           </button>
         </div>
 
-        {/* Navigation Items */}
-        <div className="px-2 space-y-0.5">
-          <NavItem icon={<IconHome />} label="Home" />
-          <NavItem icon={<IconClock />} label="Recent" />
-          <NavItem icon={<IconStar />} label="Favorites" />
-          <NavItem icon={<IconTrash />} label="Trash" />
-        </div>
-
-        {/* Divider */}
-        <div className="mx-3 my-3 h-px bg-[var(--neko-divider)]" />
-
-        {/* File Tree Section */}
-        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-auto neko-scrollbar">
+          {/* File Tree Section */}
           <div className="px-3 py-1.5 flex items-center justify-between">
             <span className="text-[11px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider">
               Workspace
@@ -225,18 +192,23 @@ export function NotesPage() {
             </div>
           </div>
           
-          <div className="flex-1 overflow-auto px-1 neko-scrollbar">
+          <div className="px-1">
             <FileTree 
               rootFolder={rootFolder} 
               isLoading={isLoading}
               currentNotePath={currentNote?.path}
             />
           </div>
-        </div>
 
-        {/* Sidebar Footer */}
-        <div className="px-2 py-2 border-t border-[var(--neko-divider)]">
-          {/* Footer area - reserved for future use */}
+          {/* Divider */}
+          <div className="mx-3 my-3 h-px bg-[var(--neko-divider)]" />
+
+          {/* Navigation Items */}
+          <div className="px-2 space-y-0.5 pb-2">
+            <NavItem icon={<IconFiles />} label="All docs" />
+            <NavItem icon={<IconStar />} label="Favorites" />
+            <NavItem icon={<IconTrash />} label="Trash" />
+          </div>
         </div>
       </aside>
 
