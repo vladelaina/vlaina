@@ -283,7 +283,7 @@ function buildEmojiCategories(): EmojiCategory[] {
 
 const EMOJI_CATEGORIES = buildEmojiCategories();
 
-const ICON_LIST = [
+export const ICON_LIST = [
   // 常用
   { name: 'file', icon: IconFileText, color: '#6366f1' },
   { name: 'folder', icon: IconFolder, color: '#f59e0b' },
