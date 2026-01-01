@@ -15,6 +15,7 @@ import {
 } from '@tabler/icons-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
+import { NoteIcon } from '../IconPicker/NoteIcon';
 import {
   Dialog,
   DialogContent,
@@ -183,7 +184,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
               )} 
             />
           ) : noteIcon ? (
-            <span className="text-sm leading-none">{noteIcon}</span>
+            <NoteIcon icon={noteIcon} size={16} />
           ) : (
             <IconFileText 
               className={cn(

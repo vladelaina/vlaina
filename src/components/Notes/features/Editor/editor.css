@@ -6,7 +6,7 @@
 
 /* Editor container */
 .milkdown {
-  padding: 2rem 2.5rem;
+  padding: 0 2.5rem 2rem 2.5rem;
   min-height: 100%;
   outline: none;
   max-width: 800px;
@@ -17,7 +17,7 @@
 .milkdown h1 {
   font-size: 2rem;
   font-weight: 700;
-  margin-top: 2rem;
+  margin-top: 0;
   margin-bottom: 1rem;
   line-height: 1.2;
   color: var(--neko-text-primary);

@@ -14,7 +14,7 @@ import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { MoreHorizontal, Star, Smile } from 'lucide-react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
-import { IconPicker } from '../IconPicker/IconPicker';
+import { IconPicker, NoteIcon } from '../IconPicker';
 
 // Editor styles
 import './editor.css';
@@ -97,22 +97,37 @@ export function MarkdownEditor() {
   const starred = currentNote ? isStarred(currentNote.path) : false;
   const noteIcon = currentNote ? getNoteIcon(currentNote.path) : undefined;
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [previewIcon, setPreviewIcon] = useState<string | null>(null);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
+  
+  // 显示的图标：预览图标优先，否则显示实际图标
+  const displayIcon = previewIcon || noteIcon;
   
   const handleIconSelect = (emoji: string) => {
     if (currentNote) {
       setNoteIcon(currentNote.path, emoji);
+      setPreviewIcon(null);
     }
   };
 
   const handleRemoveIcon = () => {
     if (currentNote) {
       setNoteIcon(currentNote.path, null);
+      setPreviewIcon(null);
     }
   };
   
+  const handleIconPreview = (icon: string | null) => {
+    setPreviewIcon(icon);
+  };
+  
+  const handleIconPickerClose = () => {
+    setShowIconPicker(false);
+    setPreviewIcon(null);
+  };
+  
   return (
-    <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative">
+    <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative overflow-auto neko-scrollbar">
       {/* File action buttons - top right corner */}
       <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
         {/* Star button */}
@@ -139,58 +154,49 @@ export function MarkdownEditor() {
         </button>
       </div>
 
-      {/* Document Icon & Add Icon Button */}
-      <div className="px-12 pt-10 pb-2">
-        {noteIcon ? (
-          <div className="group relative inline-block">
+      {/* Content wrapper - matches editor layout */}
+      <div className="max-w-[800px] mx-auto w-full px-10">
+        {/* Document Icon & Add Icon Button - aligned with editor content */}
+        <div className="pt-8 pb-1">
+          {displayIcon ? (
             <button
               ref={iconButtonRef}
               onClick={() => setShowIconPicker(true)}
               className="text-5xl hover:scale-110 transition-transform cursor-pointer"
             >
-              {noteIcon}
+              <NoteIcon icon={displayIcon} size={48} />
             </button>
-            {/* Remove icon button */}
+          ) : (
             <button
-              onClick={handleRemoveIcon}
+              ref={iconButtonRef}
+              onClick={() => setShowIconPicker(true)}
               className={cn(
-                "absolute -top-1 -right-1 w-5 h-5 rounded-full",
-                "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400",
-                "flex items-center justify-center text-xs",
-                "opacity-0 group-hover:opacity-100 transition-opacity",
-                "hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                "flex items-center gap-1.5 py-1 rounded-md text-sm",
+                "text-zinc-400 dark:text-zinc-500",
+                "hover:text-zinc-500 dark:hover:text-zinc-400",
+                "transition-colors"
               )}
             >
-              ×
+              <Smile className="size-4" />
+              <span>添加图标</span>
             </button>
-          </div>
-        ) : (
-          <button
-            ref={iconButtonRef}
-            onClick={() => setShowIconPicker(true)}
-            className={cn(
-              "flex items-center gap-1.5 px-2 py-1 rounded-md text-sm",
-              "text-zinc-400 dark:text-zinc-500",
-              "hover:bg-zinc-100 dark:hover:bg-zinc-800",
-              "transition-colors"
-            )}
-          >
-            <Smile className="size-4" />
-            <span>添加图标</span>
-          </button>
-        )}
-        
-        {/* Icon Picker Popup */}
-        {showIconPicker && (
-          <div className="relative">
-            <div className="absolute top-2 left-0">
-              <IconPicker
-                onSelect={handleIconSelect}
-                onClose={() => setShowIconPicker(false)}
-              />
+          )}
+          
+          {/* Icon Picker Popup */}
+          {showIconPicker && (
+            <div className="relative">
+              <div className="absolute top-2 left-0 z-50">
+                <IconPicker
+                  onSelect={handleIconSelect}
+                  onPreview={handleIconPreview}
+                  onRemove={handleRemoveIcon}
+                  onClose={handleIconPickerClose}
+                  hasIcon={!!noteIcon}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       
       {/* Editor Content - key forces re-mount when note changes */}

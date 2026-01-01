@@ -262,6 +262,32 @@ function restoreExpandedState(nodes: FileTreeNode[], expandedPaths: Set<string>)
   });
 }
 
+// 从 Markdown 内容中提取第一个一级标题
+function extractFirstH1(content: string): string | null {
+  // 匹配 # 开头的一级标题（不是 ## 或更多）
+  const match = content.match(/^#\s+(.+)$/m);
+  if (match && match[1]) {
+    // 清理标题文本，移除不能用于文件名的字符
+    let title = match[1].trim();
+    // 移除 Windows/Unix 文件名中不允许的字符
+    title = title.replace(/[<>:"/\\|?*]/g, '');
+    // 移除首尾空格
+    title = title.trim();
+    return title || null;
+  }
+  return null;
+}
+
+// 清理文件名，确保合法
+function sanitizeFileName(name: string): string {
+  // 移除不允许的字符
+  let sanitized = name.replace(/[<>:"/\\|?*]/g, '');
+  // 移除首尾空格和点
+  sanitized = sanitized.trim().replace(/^\.+|\.+$/g, '');
+  // 如果为空，返回默认名称
+  return sanitized || 'Untitled';
+}
+
 // ============ Store ============
 
 export const useNotesStore = create<NotesStore>()((set, get) => ({
@@ -373,10 +399,93 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   // Save current note to disk
   saveNote: async () => {
-    const { currentNote, notesPath } = get();
+    const { currentNote, notesPath, openTabs, loadFileTree, rootFolder, noteIcons, starredNotes } = get();
     if (!currentNote) return;
     
+    // 保存当前展开的文件夹路径
+    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
+    
     try {
+      // 提取一级标题
+      const h1Title = extractFirstH1(currentNote.content);
+      const currentFileName = currentNote.path.split('/').pop()?.replace('.md', '') || '';
+      const dirPath = currentNote.path.includes('/') 
+        ? currentNote.path.substring(0, currentNote.path.lastIndexOf('/')) 
+        : '';
+      
+      // 如果有一级标题且与当前文件名不同，则重命名文件
+      if (h1Title && h1Title !== currentFileName) {
+        const sanitizedTitle = sanitizeFileName(h1Title);
+        const newFileName = `${sanitizedTitle}.md`;
+        const newPath = dirPath ? `${dirPath}/${newFileName}` : newFileName;
+        const newFullPath = await join(notesPath, newPath);
+        
+        // 检查新文件名是否已存在（排除当前文件）
+        const newFileExists = await exists(newFullPath);
+        const oldFullPath = await join(notesPath, currentNote.path);
+        
+        if (!newFileExists || newFullPath === oldFullPath) {
+          // 先保存内容到当前文件
+          await writeTextFile(oldFullPath, currentNote.content);
+          
+          // 如果文件名需要改变
+          if (newPath !== currentNote.path) {
+            // 重命名文件
+            await rename(oldFullPath, newFullPath);
+            
+            // 更新图标映射（如果有）
+            const icon = noteIcons.get(currentNote.path);
+            if (icon) {
+              const updatedIcons = new Map(noteIcons);
+              updatedIcons.delete(currentNote.path);
+              updatedIcons.set(newPath, icon);
+              saveNoteIcons(updatedIcons);
+              set({ noteIcons: updatedIcons });
+            }
+            
+            // 更新收藏状态（如果有）
+            if (starredNotes.includes(currentNote.path)) {
+              const updatedStarred = starredNotes.map(p => 
+                p === currentNote.path ? newPath : p
+              );
+              saveStarredNotes(updatedStarred);
+              set({ starredNotes: updatedStarred });
+            }
+            
+            // 更新标签页
+            const updatedTabs = openTabs.map(tab => 
+              tab.path === currentNote.path 
+                ? { ...tab, path: newPath, name: sanitizedTitle }
+                : tab
+            );
+            
+            // 更新当前笔记路径
+            set({
+              currentNote: { path: newPath, content: currentNote.content },
+              isDirty: false,
+              openTabs: updatedTabs,
+            });
+            
+            // 重新加载文件树
+            await loadFileTree();
+            
+            // 恢复文件夹展开状态
+            const currentRootFolder = get().rootFolder;
+            if (currentRootFolder) {
+              set({
+                rootFolder: {
+                  ...currentRootFolder,
+                  children: restoreExpandedState(currentRootFolder.children, expandedPaths),
+                },
+              });
+            }
+            
+            return;
+          }
+        }
+      }
+      
+      // 普通保存（没有标题变化或无法重命名）
       const fullPath = await join(notesPath, currentNote.path);
       await writeTextFile(fullPath, currentNote.content);
       set({ isDirty: false });

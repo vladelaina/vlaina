@@ -7,6 +7,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
 import {
   DndContext,
   closestCenter,
@@ -91,7 +92,9 @@ function SortableTab({ tab, isActive, onClose, onClick, icon }: SortableTabProps
       )}
     >
       {icon ? (
-        <span className="text-sm flex-shrink-0 pointer-events-none">{icon}</span>
+        <span className="flex-shrink-0 pointer-events-none">
+          <NoteIcon icon={icon} size={16} />
+        </span>
       ) : (
         <FileText 
           className={cn(
@@ -154,7 +157,9 @@ function TabOverlay({ tab, isActive, icon }: TabOverlayProps) {
       )}
     >
       {icon ? (
-        <span className="text-sm flex-shrink-0">{icon}</span>
+        <span className="flex-shrink-0">
+          <NoteIcon icon={icon} size={16} />
+        </span>
       ) : (
         <FileText 
           className={cn(
