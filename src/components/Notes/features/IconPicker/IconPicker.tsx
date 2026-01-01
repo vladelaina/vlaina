@@ -415,13 +415,14 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
       // Ctrl+Tab 切换到下一个标签，Ctrl+Shift+Tab 切换到上一个标签
       if (e.key === 'Tab' && e.ctrlKey) {
         e.preventDefault();
+        e.stopPropagation(); // 阻止事件冒泡到 NotesPage
         const newTab = activeTab === 'emoji' ? 'icons' : 'emoji';
         setActiveTab(newTab);
         saveActiveTab(newTab);
       }
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown, true); // 使用捕获阶段
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [onClose, onPreview, activeTab]);
 
   useEffect(() => {
