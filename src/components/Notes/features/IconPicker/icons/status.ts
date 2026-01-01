@@ -93,7 +93,7 @@ import { IconCategory, DEFAULT_ICON_COLOR } from './types';
 
 export const statusIcons: IconCategory = {
   id: 'status',
-  name: '状态',
+  name: 'Status',
   emoji: IconHeartbeat,
   icons: [
     { name: 'check', icon: IconCheck, color: DEFAULT_ICON_COLOR },

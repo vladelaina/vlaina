@@ -94,7 +94,7 @@ import { IconCategory, DEFAULT_ICON_COLOR } from './types';
 
 export const docIcons: IconCategory = {
   id: 'doc',
-  name: '文档',
+  name: 'Documents',
   emoji: IconNotebook,
   icons: [
     { name: 'note', icon: IconNote, color: DEFAULT_ICON_COLOR },

@@ -17,6 +17,7 @@ type TabType = 'emoji' | 'icons';
 // localStorage keys
 const RECENT_ICONS_KEY = 'nekotick-recent-icons';
 const SKIN_TONE_KEY = 'nekotick-emoji-skin-tone';
+const ACTIVE_TAB_KEY = 'nekotick-icon-picker-tab';
 const MAX_RECENT_EMOJIS = 18; // 两行，每行9个
 
 // Skin tones - using waving hand emoji
@@ -49,7 +50,9 @@ function addToRecentIcons(icon: string, current: string[]): string[] {
   if (icon.startsWith('icon:')) {
     const icons = filtered.filter(i => i.startsWith('icon:'));
     const emojis = filtered.filter(i => !i.startsWith('icon:'));
-    return [icon, ...icons.slice(0, MAX_RECENT_EMOJIS - 1), ...emojis];
+    const updated = [icon, ...icons.slice(0, MAX_RECENT_EMOJIS - 1), ...emojis];
+    saveRecentIcons(updated);
+    return updated;
   } else {
     const icons = filtered.filter(i => i.startsWith('icon:'));
     const emojis = filtered.filter(i => !i.startsWith('icon:'));
@@ -71,6 +74,21 @@ function loadSkinTone(): number {
 function saveSkinTone(tone: number): void {
   try {
     localStorage.setItem(SKIN_TONE_KEY, tone.toString());
+  } catch { /* ignore */ }
+}
+
+function loadActiveTab(): TabType {
+  try {
+    const saved = localStorage.getItem(ACTIVE_TAB_KEY);
+    return (saved === 'emoji' || saved === 'icons') ? saved : 'emoji';
+  } catch {
+    return 'emoji';
+  }
+}
+
+function saveActiveTab(tab: TabType): void {
+  try {
+    localStorage.setItem(ACTIVE_TAB_KEY, tab);
   } catch { /* ignore */ }
 }
 
@@ -267,7 +285,7 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
   const searchInputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const categoryTitleRef = useRef<HTMLDivElement>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('emoji');
+  const [activeTab, setActiveTab] = useState<TabType>(loadActiveTab);
   const [recentIcons, setRecentIcons] = useState<string[]>(loadRecentIcons);
   const [searchQuery, setSearchQuery] = useState('');
   const [skinTone, setSkinTone] = useState(loadSkinTone);
@@ -276,6 +294,13 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
   const [activeIconCategory, setActiveIconCategory] = useState<string>('common');
   const [previewSkinTone, setPreviewSkinTone] = useState<number | null>(null); // 预览肤色
   const iconScrollContainerRef = useRef<HTMLDivElement>(null);
+  const iconCategoryTitleRef = useRef<HTMLDivElement>(null);
+
+  // Compute recent icons list (filter for icon: prefix)
+  const recentIconsList = useMemo(() => 
+    recentIcons.filter(i => i.startsWith('icon:')), 
+    [recentIcons]
+  );
 
   // 实际使用的肤色（预览优先）
   const effectiveSkinTone = previewSkinTone !== null ? previewSkinTone : skinTone;
@@ -450,7 +475,10 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-[var(--neko-border)]">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => setActiveTab('emoji')}
+            onClick={() => {
+              setActiveTab('emoji');
+              saveActiveTab('emoji');
+            }}
             className={cn(
               "text-sm font-medium pb-1 border-b-2 transition-colors",
               activeTab === 'emoji'
@@ -461,7 +489,10 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
             Emoji
           </button>
           <button
-            onClick={() => setActiveTab('icons')}
+            onClick={() => {
+              setActiveTab('icons');
+              saveActiveTab('icons');
+            }}
             className={cn(
               "text-sm font-medium pb-1 border-b-2 transition-colors",
               activeTab === 'icons'
@@ -627,12 +658,47 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
             className="p-3 max-h-[280px] overflow-y-auto neko-scrollbar"
             onMouseLeave={() => onPreview?.(null)}
           >
+            {/* Recent Icons - always show at top of each category */}
+            {recentIconsList.length > 0 && (
+              <div className="mb-3">
+                <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2 font-medium">
+                  Recent
+                </div>
+                <div className="grid grid-cols-8 gap-1">
+                  {recentIconsList.slice(0, 16).map((iconValue: string, index: number) => {
+                    const parts = iconValue.split(':');
+                    const iconName = parts[1];
+                    const color = parts[2] || '#f59e0b';
+                    const iconItem = ICON_LIST.find(i => i.name === iconName);
+                    if (!iconItem) return null;
+                    const IconComponent = iconItem.icon;
+                    return (
+                      <button
+                        key={`recent-icon-${index}`}
+                        onClick={() => handleIconSelect(iconName, color)}
+                        onMouseEnter={() => onPreview?.(iconValue)}
+                        className={cn(
+                          "w-9 h-9 flex items-center justify-center rounded-md",
+                          "hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                        )}
+                      >
+                        <IconComponent size={20} style={{ color }} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            
             {ICON_CATEGORIES.map((category) => (
               <div 
                 key={category.id}
                 style={{ display: activeIconCategory === category.id ? 'block' : 'none' }}
               >
-                <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2 font-medium">
+                <div 
+                  ref={activeIconCategory === category.id ? iconCategoryTitleRef : undefined}
+                  className="text-xs text-zinc-400 dark:text-zinc-500 mb-2 font-medium"
+                >
                   {category.name}
                 </div>
                 <div className="grid grid-cols-8 gap-1">

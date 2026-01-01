@@ -92,7 +92,7 @@ import { IconCategory, DEFAULT_ICON_COLOR } from './types';
 
 export const userIcons: IconCategory = {
   id: 'user',
-  name: '用户',
+  name: 'Social',
   emoji: IconSend,
   icons: [
     { name: 'user', icon: IconUser, color: DEFAULT_ICON_COLOR },

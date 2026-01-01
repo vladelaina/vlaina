@@ -94,7 +94,7 @@ import { IconCategory, DEFAULT_ICON_COLOR } from './types';
 
 export const placeIcons: IconCategory = {
   id: 'place',
-  name: '地点',
+  name: 'Places',
   emoji: IconComet,
   icons: [
     { name: 'home', icon: IconHome, color: DEFAULT_ICON_COLOR },

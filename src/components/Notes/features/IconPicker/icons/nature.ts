@@ -92,7 +92,7 @@ import { IconCategory, DEFAULT_ICON_COLOR } from './types';
 
 export const natureIcons: IconCategory = {
   id: 'nature',
-  name: '自然',
+  name: 'Nature',
   emoji: IconDeer,
   icons: [
     { name: 'plant', icon: IconPlant, color: DEFAULT_ICON_COLOR },

@@ -93,7 +93,7 @@ import { IconCategory, DEFAULT_ICON_COLOR } from './types';
 
 export const mediaIcons: IconCategory = {
   id: 'media',
-  name: '媒体',
+  name: 'Media',
   emoji: IconCameraSelfie,
   icons: [
     { name: 'camera', icon: IconCamera, color: DEFAULT_ICON_COLOR },

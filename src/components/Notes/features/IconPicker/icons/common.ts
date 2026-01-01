@@ -91,7 +91,7 @@ import { IconCategory, DEFAULT_ICON_COLOR } from './types';
 
 export const commonIcons: IconCategory = {
   id: 'common',
-  name: '常用',
+  name: 'Common',
   emoji: IconAward,
   icons: [
     { name: 'file', icon: IconFileText, color: DEFAULT_ICON_COLOR },
