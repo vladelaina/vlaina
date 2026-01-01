@@ -11,7 +11,8 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
-import { MoreHorizontal, Star, Smile } from 'lucide-react';
+import { MoreHorizontal, Star } from 'lucide-react';
+import { IconHeartbeat } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 import { IconPicker, NoteIcon } from '../IconPicker';
@@ -86,7 +87,7 @@ function MilkdownEditorInner() {
   }, [currentNote?.path]);
 
   return (
-    <div className="flex-1 overflow-auto neko-scrollbar milkdown-editor">
+    <div className="milkdown-editor">
       <Milkdown />
     </div>
   );
@@ -132,7 +133,7 @@ export function MarkdownEditor() {
   };
   
   return (
-    <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative overflow-auto neko-scrollbar">
+    <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative">
       {/* File action buttons - top right corner */}
       <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
         {/* Star button */}
@@ -159,57 +160,60 @@ export function MarkdownEditor() {
         </button>
       </div>
 
-      {/* Content wrapper - matches editor layout */}
-      <div className="max-w-[800px] mx-auto w-full px-10">
-        {/* Document Icon & Add Icon Button - aligned with editor content */}
-        <div className="pt-8 pb-1">
-          {displayIcon ? (
-            <button
-              ref={iconButtonRef}
-              onClick={() => setShowIconPicker(true)}
-              className="text-5xl hover:scale-110 transition-transform cursor-pointer"
-            >
-              <NoteIcon icon={displayIcon} size={48} />
-            </button>
-          ) : (
-            <button
-              ref={iconButtonRef}
-              onClick={() => setShowIconPicker(true)}
-              className={cn(
-                "flex items-center gap-1.5 py-1 rounded-md text-sm",
-                "text-zinc-400 dark:text-zinc-500",
-                "hover:text-zinc-500 dark:hover:text-zinc-400",
-                "transition-colors"
-              )}
-            >
-              <Smile className="size-4" />
-              <span>添加图标</span>
-            </button>
-          )}
-          
-          {/* Icon Picker Popup */}
-          {showIconPicker && (
-            <div className="relative">
-              <div className="absolute top-2 left-0 z-50">
-                <IconPicker
-                  onSelect={handleIconSelect}
-                  onPreview={handleIconPreview}
-                  onRemove={handleRemoveIcon}
-                  onClose={handleIconPickerClose}
-                  hasIcon={!!noteIcon}
-                  currentIcon={noteIcon}
-                  onIconChange={(emoji) => currentNote && setNoteIcon(currentNote.path, emoji)}
-                />
+      {/* Scrollable content area - icon and editor scroll together */}
+      <div className="flex-1 overflow-auto neko-scrollbar">
+        {/* Content wrapper - matches editor layout */}
+        <div className="max-w-[800px] mx-auto w-full px-10">
+          {/* Document Icon & Add Icon Button - aligned with editor content */}
+          <div className="pt-8 pb-1">
+            {displayIcon ? (
+              <button
+                ref={iconButtonRef}
+                onClick={() => setShowIconPicker(true)}
+                className="text-5xl hover:scale-110 transition-transform cursor-pointer"
+              >
+                <NoteIcon icon={displayIcon} size={48} />
+              </button>
+            ) : (
+              <button
+                ref={iconButtonRef}
+                onClick={() => setShowIconPicker(true)}
+                className={cn(
+                  "flex items-center gap-1.5 py-1 rounded-md text-sm",
+                  "text-zinc-400 dark:text-zinc-500",
+                  "hover:text-zinc-500 dark:hover:text-zinc-400",
+                  "transition-colors"
+                )}
+              >
+                <IconHeartbeat className="size-4" />
+                <span>Add icon</span>
+              </button>
+            )}
+            
+            {/* Icon Picker Popup */}
+            {showIconPicker && (
+              <div className="relative">
+                <div className="absolute top-2 left-0 z-50">
+                  <IconPicker
+                    onSelect={handleIconSelect}
+                    onPreview={handleIconPreview}
+                    onRemove={handleRemoveIcon}
+                    onClose={handleIconPickerClose}
+                    hasIcon={!!noteIcon}
+                    currentIcon={noteIcon}
+                    onIconChange={(emoji) => currentNote && setNoteIcon(currentNote.path, emoji)}
+                  />
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
+        
+        {/* Editor Content - key forces re-mount when note changes */}
+        <MilkdownProvider key={currentNote?.path}>
+          <MilkdownEditorInner />
+        </MilkdownProvider>
       </div>
-      
-      {/* Editor Content - key forces re-mount when note changes */}
-      <MilkdownProvider key={currentNote?.path}>
-        <MilkdownEditorInner />
-      </MilkdownProvider>
     </div>
   );
 }
