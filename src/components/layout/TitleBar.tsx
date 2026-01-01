@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Settings, PanelLeft, PanelRight, MessageCircle, Save, Star, MoreHorizontal, Clock, FileText, X, Plus } from 'lucide-react';
+import { Settings, PanelLeft, PanelRight, MessageCircle, Star, MoreHorizontal, FileText, X, Plus } from 'lucide-react';
 import { NotePencil, CalendarBlank } from '@phosphor-icons/react';
 import { WindowControls } from './WindowControls';
 import { useUIStore } from '@/stores/uiSlice';
@@ -28,7 +28,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
     toggleAIPanel,
     currentNote,
     isDirty,
-    saveNote,
     isStarred,
     toggleStarred,
     openTabs,
@@ -103,84 +102,96 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
       </button>
 
       {/* Note Tabs (Notes view only) - positioned to align with sidebar edge */}
-      {appViewMode === 'notes' && openTabs.length > 0 && (
+      {appViewMode === 'notes' && (
         <div 
-          className="absolute top-0 bottom-0 flex items-center overflow-x-auto neko-scrollbar z-20 gap-1 px-2"
+          className="absolute top-0 bottom-0 flex items-center z-20"
           style={{ 
             left: sidebarCollapsed ? 0 : SIDEBAR_WIDTH + RESIZE_HANDLE_WIDTH,
+            right: 120, // Leave space for right buttons
           }}
         >
-          {openTabs.map((tab) => (
-            <div
-              key={tab.path}
-              onClick={() => openNote(tab.path)}
-              onMouseDown={(e) => {
-                if (e.button === 1) {
-                  e.preventDefault();
-                  closeTab(tab.path);
-                }
-              }}
-              className={cn(
-                "group relative flex items-center gap-2 px-3 py-1.5 cursor-pointer min-w-0 max-w-[200px]",
-                "transition-all rounded-lg",
-                currentNote?.path === tab.path 
-                  ? "bg-white dark:bg-zinc-800 shadow-sm" 
-                  : "hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50"
-              )}
-            >
-              <FileText 
-                className={cn(
-                  "w-4 h-4 flex-shrink-0",
-                  currentNote?.path === tab.path 
-                    ? "text-[var(--neko-accent)]" 
-                    : "text-zinc-400 dark:text-zinc-500"
-                )} 
-              />
-              
-              <span className={cn(
-                "text-[13px] truncate",
-                currentNote?.path === tab.path 
-                  ? "text-zinc-700 dark:text-zinc-200 font-medium" 
-                  : "text-zinc-500 dark:text-zinc-400"
-              )}>
-                {tab.name}
-              </span>
-              
-              {tab.isDirty && (
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--neko-accent)] flex-shrink-0" />
-              )}
-              
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  closeTab(tab.path);
+          {/* Tabs container */}
+          <div className="flex items-center overflow-x-auto neko-scrollbar gap-1 px-2 h-full flex-shrink-0">
+            {openTabs.map((tab) => (
+              <div
+                key={tab.path}
+                onClick={() => openNote(tab.path)}
+                onMouseDown={(e) => {
+                  if (e.button === 1) {
+                    e.preventDefault();
+                    closeTab(tab.path);
+                  }
                 }}
                 className={cn(
-                  "p-0.5 rounded transition-all ml-auto",
-                  "opacity-0 group-hover:opacity-100",
+                  "group relative flex items-center gap-2 px-3 py-1.5 cursor-pointer min-w-0 max-w-[200px]",
+                  "transition-all rounded-lg my-1",
+                  currentNote?.path === tab.path 
+                    ? "bg-white dark:bg-zinc-800 shadow-sm" 
+                    : "hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50"
+                )}
+              >
+                <FileText 
+                  className={cn(
+                    "w-4 h-4 flex-shrink-0",
+                    currentNote?.path === tab.path 
+                      ? "text-[var(--neko-accent)]" 
+                      : "text-zinc-400 dark:text-zinc-500"
+                  )} 
+                />
+                
+                <span className={cn(
+                  "text-[13px] truncate",
+                  currentNote?.path === tab.path 
+                    ? "text-zinc-700 dark:text-zinc-200 font-medium" 
+                    : "text-zinc-500 dark:text-zinc-400"
+                )}>
+                  {tab.name}
+                </span>
+                
+                {tab.isDirty && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--neko-accent)] flex-shrink-0" />
+                )}
+                
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeTab(tab.path);
+                  }}
+                  className={cn(
+                    "p-0.5 rounded transition-all ml-auto",
+                    "opacity-0 group-hover:opacity-100",
+                    "text-zinc-300 dark:text-zinc-600",
+                    "hover:text-zinc-500 dark:hover:text-zinc-400"
+                  )}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+            
+            {/* Add new tab button */}
+            {openTabs.length > 0 && (
+              <button
+                onClick={() => {
+                  // This will be handled by the store
+                }}
+                className={cn(
+                  "flex-shrink-0 p-1.5 rounded-lg transition-colors",
                   "text-zinc-300 dark:text-zinc-600",
                   "hover:text-zinc-500 dark:hover:text-zinc-400"
                 )}
+                title="New tab (Ctrl+T)"
               >
-                <X className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
               </button>
-            </div>
-          ))}
-          
-          {/* Add new tab button */}
-          <button
-            onClick={() => {
-              // This will be handled by the store
-            }}
-            className={cn(
-              "flex-shrink-0 p-1.5 rounded-lg transition-colors",
-              "text-zinc-300 dark:text-zinc-600",
-              "hover:text-zinc-500 dark:hover:text-zinc-400"
             )}
-            title="New tab (Ctrl+T)"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
+          </div>
+          
+          {/* Draggable empty area - fills remaining space */}
+          <div 
+            className="flex-1 h-full cursor-default"
+            onMouseDown={startDrag}
+          />
         </div>
       )}
 
@@ -221,14 +232,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
             </span>
           )}
           
-          {/* Last edited indicator */}
-          <div className="flex items-center gap-1 px-1.5 py-1 text-[11px] text-[var(--neko-text-tertiary)]">
-            <Clock className="w-3 h-3" />
-            <span>Just now</span>
-          </div>
-          
-          <div className="w-px h-4 bg-[var(--neko-divider)] mx-1" />
-          
           {/* Star button */}
           <button
             onClick={() => currentNote && toggleStarred(currentNote.path)}
@@ -242,22 +245,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
             title={starred ? "Unstar" : "Star"}
           >
             <Star className="size-4" fill={starred ? "currentColor" : "none"} />
-          </button>
-          
-          {/* Save button */}
-          <button
-            onClick={saveNote}
-            disabled={!isDirty}
-            className={cn(
-              "h-full w-8 flex items-center justify-center transition-colors",
-              "hover:bg-zinc-100 dark:hover:bg-zinc-800",
-              isDirty 
-                ? "text-zinc-500 dark:text-zinc-400" 
-                : "text-zinc-200 dark:text-zinc-700 cursor-not-allowed"
-            )}
-            title="Save (Ctrl+S)"
-          >
-            <Save className="size-4" />
           </button>
           
           {/* More options */}
