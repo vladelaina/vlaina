@@ -51,7 +51,6 @@ import {
   IconDownload,
   IconUpload,
   IconLink,
-  IconPaperclip,
   IconPencil,
   IconTrash,
   IconArchive,
@@ -73,6 +72,81 @@ import {
   IconFlame,
   IconDroplet,
   IconSnowflake,
+  IconTarget,
+  IconBell,
+  IconMessage,
+  IconSend,
+  IconInbox,
+  IconAt,
+  IconHash,
+  IconTag,
+  IconPin,
+  IconMapPin,
+  IconCompass,
+  IconPlane,
+  IconCar,
+  IconMountain,
+  IconTree,
+  IconFlower,
+  IconApple,
+  IconCoffee,
+  IconPizza,
+  IconCake,
+  IconCookie,
+  IconBeer,
+  IconFish,
+  IconIceCream,
+  IconBurger,
+  IconMoodSmile,
+  IconMoodHappy,
+  IconMoodWink,
+  IconThumbUp,
+  IconEye,
+  IconBrain,
+  IconDna,
+  IconPill,
+  IconMicroscope,
+  IconCalculator,
+  IconTriangle,
+  IconSquare,
+  IconCircle,
+  IconHexagon,
+  IconDiamond,
+  IconCrown,
+  IconAward,
+  IconMedal,
+  IconSparkles,
+  IconWand,
+  IconBattery,
+  IconCpu,
+  IconDeviceDesktop,
+  IconDeviceLaptop,
+  IconDeviceMobile,
+  IconDeviceTablet,
+  IconDeviceGamepad,
+  IconHeadphones,
+  IconMicrophone,
+  IconVolume,
+  IconPlayerPlay,
+  IconWifi,
+  IconPrinter,
+  IconShield,
+  IconFriends,
+  IconBuilding,
+  IconTent,
+  IconCampfire,
+  IconTrain,
+  IconBalloon,
+  IconConfetti,
+  IconGhost,
+  IconSkull,
+  IconCat,
+  IconDog,
+  IconDeer,
+  IconHorse,
+  IconPig,
+  IconFeather,
+  IconButterfly,
 } from '@tabler/icons-react';
 
 type TabType = 'emoji' | 'icons';
@@ -210,70 +284,162 @@ function buildEmojiCategories(): EmojiCategory[] {
 const EMOJI_CATEGORIES = buildEmojiCategories();
 
 const ICON_LIST = [
+  // 常用
   { name: 'file', icon: IconFileText, color: '#6366f1' },
   { name: 'folder', icon: IconFolder, color: '#f59e0b' },
   { name: 'star', icon: IconStar, color: '#eab308' },
   { name: 'heart', icon: IconHeart, color: '#ef4444' },
   { name: 'bookmark', icon: IconBookmark, color: '#8b5cf6' },
+  { name: 'target', icon: IconTarget, color: '#ef4444' },
   { name: 'bulb', icon: IconBulb, color: '#f59e0b' },
   { name: 'rocket', icon: IconRocket, color: '#3b82f6' },
-  { name: 'code', icon: IconCode, color: '#10b981' },
-  { name: 'bug', icon: IconBug, color: '#ef4444' },
+  { name: 'sparkles', icon: IconSparkles, color: '#f59e0b' },
+  { name: 'crown', icon: IconCrown, color: '#f59e0b' },
+  { name: 'award', icon: IconAward, color: '#f59e0b' },
+  { name: 'trophy', icon: IconTrophy, color: '#f59e0b' },
+  { name: 'medal', icon: IconMedal, color: '#f59e0b' },
+  { name: 'gift', icon: IconGift, color: '#ec4899' },
+  // 状态
   { name: 'check', icon: IconCheck, color: '#22c55e' },
   { name: 'x', icon: IconX, color: '#ef4444' },
   { name: 'alert', icon: IconAlertCircle, color: '#f59e0b' },
   { name: 'info', icon: IconInfoCircle, color: '#3b82f6' },
   { name: 'question', icon: IconQuestionMark, color: '#8b5cf6' },
+  { name: 'bell', icon: IconBell, color: '#f59e0b' },
+  { name: 'pin', icon: IconPin, color: '#ef4444' },
+  { name: 'flag', icon: IconFlag, color: '#ef4444' },
+  // 开发
+  { name: 'code', icon: IconCode, color: '#10b981' },
+  { name: 'bug', icon: IconBug, color: '#ef4444' },
+  { name: 'database', icon: IconDatabase, color: '#6b7280' },
+  { name: 'cpu', icon: IconCpu, color: '#6b7280' },
+  { name: 'cloud', icon: IconCloud, color: '#3b82f6' },
+  { name: 'wifi', icon: IconWifi, color: '#3b82f6' },
+  { name: 'shield', icon: IconShield, color: '#22c55e' },
   { name: 'lock', icon: IconLock, color: '#6b7280' },
   { name: 'key', icon: IconKey, color: '#f59e0b' },
   { name: 'settings', icon: IconSettings, color: '#6b7280' },
+  // 用户
   { name: 'user', icon: IconUser, color: '#3b82f6' },
   { name: 'users', icon: IconUsers, color: '#3b82f6' },
-  { name: 'home', icon: IconHome, color: '#6366f1' },
+  { name: 'friends', icon: IconFriends, color: '#3b82f6' },
+  { name: 'smile', icon: IconMoodSmile, color: '#f59e0b' },
+  { name: 'happy', icon: IconMoodHappy, color: '#22c55e' },
+  { name: 'wink', icon: IconMoodWink, color: '#ec4899' },
+  { name: 'thumbup', icon: IconThumbUp, color: '#3b82f6' },
+  { name: 'eye', icon: IconEye, color: '#6b7280' },
+  // 通讯
+  { name: 'mail', icon: IconMail, color: '#3b82f6' },
+  { name: 'message', icon: IconMessage, color: '#3b82f6' },
+  { name: 'send', icon: IconSend, color: '#3b82f6' },
+  { name: 'inbox', icon: IconInbox, color: '#6b7280' },
+  { name: 'phone', icon: IconPhone, color: '#22c55e' },
+  { name: 'at', icon: IconAt, color: '#3b82f6' },
+  { name: 'hash', icon: IconHash, color: '#6b7280' },
+  { name: 'tag', icon: IconTag, color: '#8b5cf6' },
+  { name: 'link', icon: IconLink, color: '#6366f1' },
+  // 时间
   { name: 'calendar', icon: IconCalendar, color: '#ef4444' },
   { name: 'clock', icon: IconClock, color: '#6b7280' },
-  { name: 'mail', icon: IconMail, color: '#3b82f6' },
-  { name: 'phone', icon: IconPhone, color: '#22c55e' },
+  { name: 'sun', icon: IconSun, color: '#f59e0b' },
+  { name: 'moon', icon: IconMoon, color: '#6366f1' },
+  // 地点
+  { name: 'home', icon: IconHome, color: '#6366f1' },
+  { name: 'building', icon: IconBuilding, color: '#6b7280' },
+  { name: 'world', icon: IconWorld, color: '#3b82f6' },
+  { name: 'map', icon: IconMap, color: '#22c55e' },
+  { name: 'mappin', icon: IconMapPin, color: '#ef4444' },
+  { name: 'compass', icon: IconCompass, color: '#3b82f6' },
+  { name: 'plane', icon: IconPlane, color: '#3b82f6' },
+  { name: 'car', icon: IconCar, color: '#6b7280' },
+  { name: 'train', icon: IconTrain, color: '#6b7280' },
+  { name: 'mountain', icon: IconMountain, color: '#22c55e' },
+  { name: 'tent', icon: IconTent, color: '#f59e0b' },
+  { name: 'campfire', icon: IconCampfire, color: '#ef4444' },
+  // 媒体
   { name: 'camera', icon: IconCamera, color: '#6b7280' },
   { name: 'photo', icon: IconPhoto, color: '#8b5cf6' },
   { name: 'music', icon: IconMusic, color: '#ec4899' },
   { name: 'video', icon: IconVideo, color: '#ef4444' },
-  { name: 'world', icon: IconWorld, color: '#3b82f6' },
-  { name: 'map', icon: IconMap, color: '#22c55e' },
-  { name: 'flag', icon: IconFlag, color: '#ef4444' },
-  { name: 'trophy', icon: IconTrophy, color: '#f59e0b' },
-  { name: 'gift', icon: IconGift, color: '#ec4899' },
-  { name: 'cart', icon: IconShoppingCart, color: '#6366f1' },
-  { name: 'card', icon: IconCreditCard, color: '#6b7280' },
-  { name: 'wallet', icon: IconWallet, color: '#f59e0b' },
-  { name: 'chart', icon: IconChartBar, color: '#3b82f6' },
-  { name: 'database', icon: IconDatabase, color: '#6b7280' },
-  { name: 'cloud', icon: IconCloud, color: '#3b82f6' },
-  { name: 'download', icon: IconDownload, color: '#22c55e' },
-  { name: 'upload', icon: IconUpload, color: '#3b82f6' },
-  { name: 'link', icon: IconLink, color: '#6366f1' },
-  { name: 'clip', icon: IconPaperclip, color: '#6b7280' },
-  { name: 'pencil', icon: IconPencil, color: '#f59e0b' },
-  { name: 'trash', icon: IconTrash, color: '#ef4444' },
-  { name: 'archive', icon: IconArchive, color: '#6b7280' },
-  { name: 'clipboard', icon: IconClipboard, color: '#6366f1' },
+  { name: 'headphones', icon: IconHeadphones, color: '#6b7280' },
+  { name: 'microphone', icon: IconMicrophone, color: '#ef4444' },
+  { name: 'play', icon: IconPlayerPlay, color: '#22c55e' },
+  { name: 'volume', icon: IconVolume, color: '#3b82f6' },
+  // 文档
   { name: 'note', icon: IconNote, color: '#f59e0b' },
   { name: 'book', icon: IconBook, color: '#8b5cf6' },
-  { name: 'school', icon: IconSchool, color: '#3b82f6' },
+  { name: 'clipboard', icon: IconClipboard, color: '#6366f1' },
+  { name: 'pencil', icon: IconPencil, color: '#f59e0b' },
+  { name: 'archive', icon: IconArchive, color: '#6b7280' },
+  { name: 'trash', icon: IconTrash, color: '#ef4444' },
+  { name: 'download', icon: IconDownload, color: '#22c55e' },
+  { name: 'upload', icon: IconUpload, color: '#3b82f6' },
+  { name: 'printer', icon: IconPrinter, color: '#6b7280' },
+  // 工作
   { name: 'briefcase', icon: IconBriefcase, color: '#6b7280' },
-  { name: 'tools', icon: IconTools, color: '#6b7280' },
+  { name: 'school', icon: IconSchool, color: '#3b82f6' },
+  { name: 'chart', icon: IconChartBar, color: '#3b82f6' },
+  { name: 'wallet', icon: IconWallet, color: '#f59e0b' },
+  { name: 'cart', icon: IconShoppingCart, color: '#6366f1' },
+  { name: 'card', icon: IconCreditCard, color: '#6b7280' },
+  { name: 'calculator', icon: IconCalculator, color: '#6b7280' },
+  // 创意
   { name: 'palette', icon: IconPalette, color: '#ec4899' },
   { name: 'brush', icon: IconBrush, color: '#8b5cf6' },
+  { name: 'wand', icon: IconWand, color: '#8b5cf6' },
+  { name: 'tools', icon: IconTools, color: '#6b7280' },
+  // 科学
   { name: 'flask', icon: IconFlask, color: '#22c55e' },
   { name: 'atom', icon: IconAtom, color: '#3b82f6' },
+  { name: 'microscope', icon: IconMicroscope, color: '#6b7280' },
+  { name: 'dna', icon: IconDna, color: '#8b5cf6' },
+  { name: 'brain', icon: IconBrain, color: '#ec4899' },
+  { name: 'pill', icon: IconPill, color: '#ef4444' },
+  // 自然
   { name: 'plant', icon: IconPlant, color: '#22c55e' },
   { name: 'leaf', icon: IconLeaf, color: '#22c55e' },
-  { name: 'sun', icon: IconSun, color: '#f59e0b' },
-  { name: 'moon', icon: IconMoon, color: '#6366f1' },
-  { name: 'bolt', icon: IconBolt, color: '#f59e0b' },
-  { name: 'flame', icon: IconFlame, color: '#ef4444' },
+  { name: 'tree', icon: IconTree, color: '#22c55e' },
+  { name: 'flower', icon: IconFlower, color: '#ec4899' },
   { name: 'droplet', icon: IconDroplet, color: '#3b82f6' },
   { name: 'snowflake', icon: IconSnowflake, color: '#06b6d4' },
+  { name: 'bolt', icon: IconBolt, color: '#f59e0b' },
+  { name: 'flame', icon: IconFlame, color: '#ef4444' },
+  // 食物
+  { name: 'coffee', icon: IconCoffee, color: '#92400e' },
+  { name: 'pizza', icon: IconPizza, color: '#f59e0b' },
+  { name: 'cake', icon: IconCake, color: '#ec4899' },
+  { name: 'apple', icon: IconApple, color: '#ef4444' },
+  { name: 'cookie', icon: IconCookie, color: '#f59e0b' },
+  { name: 'icecream', icon: IconIceCream, color: '#ec4899' },
+  { name: 'beer', icon: IconBeer, color: '#f59e0b' },
+  { name: 'burger', icon: IconBurger, color: '#f59e0b' },
+  { name: 'fish', icon: IconFish, color: '#06b6d4' },
+  // 动物
+  { name: 'cat', icon: IconCat, color: '#f59e0b' },
+  { name: 'dog', icon: IconDog, color: '#92400e' },
+  { name: 'deer', icon: IconDeer, color: '#92400e' },
+  { name: 'horse', icon: IconHorse, color: '#92400e' },
+  { name: 'pig', icon: IconPig, color: '#ec4899' },
+  { name: 'feather', icon: IconFeather, color: '#3b82f6' },
+  { name: 'butterfly', icon: IconButterfly, color: '#ec4899' },
+  // 节日
+  { name: 'balloon', icon: IconBalloon, color: '#ef4444' },
+  { name: 'confetti', icon: IconConfetti, color: '#f59e0b' },
+  { name: 'ghost', icon: IconGhost, color: '#6b7280' },
+  { name: 'skull', icon: IconSkull, color: '#1f2937' },
+  // 设备
+  { name: 'desktop', icon: IconDeviceDesktop, color: '#6b7280' },
+  { name: 'laptop', icon: IconDeviceLaptop, color: '#6b7280' },
+  { name: 'mobile', icon: IconDeviceMobile, color: '#6b7280' },
+  { name: 'tablet', icon: IconDeviceTablet, color: '#6b7280' },
+  { name: 'gamepad', icon: IconDeviceGamepad, color: '#8b5cf6' },
+  { name: 'battery', icon: IconBattery, color: '#22c55e' },
+  // 形状
+  { name: 'circle', icon: IconCircle, color: '#3b82f6' },
+  { name: 'square', icon: IconSquare, color: '#22c55e' },
+  { name: 'triangle', icon: IconTriangle, color: '#f59e0b' },
+  { name: 'diamond', icon: IconDiamond, color: '#06b6d4' },
+  { name: 'hexagon', icon: IconHexagon, color: '#8b5cf6' },
 ];
 
 interface IconPickerProps {
@@ -479,7 +645,6 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
   }, [searchQuery]);
 
   const recentEmojis = recentIcons.filter(i => !i.startsWith('icon:')).slice(0, MAX_RECENT_EMOJIS);
-  const recentIconItems = recentIcons.filter(i => i.startsWith('icon:'));
 
   const handleEmojiSelect = useCallback((emoji: string) => {
     const updated = addToRecentIcons(emoji, recentIcons);
@@ -735,39 +900,6 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
           className="p-3 max-h-[320px] overflow-y-auto neko-scrollbar"
           onMouseLeave={() => onPreview?.(null)}
         >
-          {recentIconItems.length > 0 && (
-            <div className="mb-3">
-              <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2 font-medium">
-                最近使用
-              </div>
-              <div className="grid grid-cols-8 gap-1">
-                {recentIconItems.map((iconValue, index) => {
-                  const parts = iconValue.split(':');
-                  const iconName = parts[1];
-                  const color = parts[2] || '#6b7280';
-                  const iconItem = ICON_LIST.find(i => i.name === iconName);
-                  if (!iconItem) return null;
-                  const IconComponent = iconItem.icon;
-                  return (
-                    <button
-                      key={`recent-icon-${index}`}
-                      onClick={() => handleIconSelect(iconName, color)}
-                      onMouseEnter={() => onPreview?.(iconValue)}
-                      className={cn(
-                        "w-9 h-9 flex items-center justify-center rounded-md",
-                        "hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                      )}
-                    >
-                      <IconComponent size={20} style={{ color }} />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2 font-medium">
-            全部图标
-          </div>
           <div className="grid grid-cols-8 gap-1">
             {ICON_LIST.map((item) => {
               const IconComponent = item.icon;

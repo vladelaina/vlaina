@@ -93,9 +93,13 @@ function MilkdownEditorInner() {
 }
 
 export function MarkdownEditor() {
-  const { currentNote, isStarred, toggleStarred, getDisplayIcon, getNoteIcon, setNoteIcon, setPreviewIcon } = useNotesStore();
+  const { currentNote, isStarred, toggleStarred, getNoteIcon, setNoteIcon, setPreviewIcon, noteIcons, previewIcon } = useNotesStore();
   const starred = currentNote ? isStarred(currentNote.path) : false;
-  const displayIcon = currentNote ? getDisplayIcon(currentNote.path) : undefined;
+  
+  // 直接计算显示图标，订阅 previewIcon 和 noteIcons 状态
+  const displayIcon = currentNote 
+    ? (previewIcon?.path === currentNote.path ? previewIcon.icon : noteIcons.get(currentNote.path))
+    : undefined;
   const noteIcon = currentNote ? getNoteIcon(currentNote.path) : undefined;
   const [showIconPicker, setShowIconPicker] = useState(false);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
