@@ -721,7 +721,6 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
                       ? "bg-zinc-200 dark:bg-zinc-700"
                       : "hover:bg-zinc-200 dark:hover:bg-zinc-700"
                   )}
-                  title={category.name}
                 >
                   {CATEGORY_ICONS[category.id]}
                 </button>
