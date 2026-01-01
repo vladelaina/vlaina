@@ -7,7 +7,7 @@
 import { useRef, useEffect, useState, useMemo, useCallback, memo } from 'react';
 import data from '@emoji-mart/data';
 import { cn } from '@/lib/utils';
-import { IconSearch } from '@tabler/icons-react';
+import { IconSearch, IconX } from '@tabler/icons-react';
 import { ICON_CATEGORIES, ICON_LIST } from './icons';
 
 export { ICON_LIST };
@@ -19,14 +19,14 @@ const RECENT_ICONS_KEY = 'nekotick-recent-icons';
 const SKIN_TONE_KEY = 'nekotick-emoji-skin-tone';
 const MAX_RECENT_EMOJIS = 18; // 两行，每行9个
 
-// 皮肤色调 - 使用挥手 emoji
+// Skin tones - using waving hand emoji
 const SKIN_TONES = [
-  { tone: 0, emoji: '\u{1F44B}', label: '默认' },
-  { tone: 1, emoji: '\u{1F44B}\u{1F3FB}', label: '浅色' },
-  { tone: 2, emoji: '\u{1F44B}\u{1F3FC}', label: '中浅色' },
-  { tone: 3, emoji: '\u{1F44B}\u{1F3FD}', label: '中色' },
-  { tone: 4, emoji: '\u{1F44B}\u{1F3FE}', label: '中深色' },
-  { tone: 5, emoji: '\u{1F44B}\u{1F3FF}', label: '深色' },
+  { tone: 0, emoji: '\u{1F44B}', label: 'Default' },
+  { tone: 1, emoji: '\u{1F44B}\u{1F3FB}', label: 'Light' },
+  { tone: 2, emoji: '\u{1F44B}\u{1F3FC}', label: 'Medium-Light' },
+  { tone: 3, emoji: '\u{1F44B}\u{1F3FD}', label: 'Medium' },
+  { tone: 4, emoji: '\u{1F44B}\u{1F3FE}', label: 'Medium-Dark' },
+  { tone: 5, emoji: '\u{1F44B}\u{1F3FF}', label: 'Dark' },
 ];
 
 function loadRecentIcons(): string[] {
@@ -89,15 +89,15 @@ interface EmojiCategory {
 }
 
 const CATEGORY_NAMES: Record<string, string> = {
-  frequent: '最近使用',
-  people: '表情与人物',
-  nature: '动物与自然',
-  foods: '食物与饮料',
-  activity: '活动',
-  places: '旅行与地点',
-  objects: '物品',
-  symbols: '符号',
-  flags: '旗帜',
+  frequent: 'Recent',
+  people: 'Smileys & People',
+  nature: 'Animals & Nature',
+  foods: 'Food & Drink',
+  activity: 'Activity',
+  places: 'Travel & Places',
+  objects: 'Objects',
+  symbols: 'Symbols',
+  flags: 'Flags',
 };
 
 // 分类图标映射
@@ -227,7 +227,7 @@ const EmojiCategorySection = memo(function EmojiCategorySection({
       {showRecent && recentEmojis.length > 0 && (
         <>
           <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2 font-medium">
-            最近使用
+            Recent
           </div>
           <div className="grid grid-cols-9 gap-0.5 mb-3">
             {recentEmojisWithSkin.slice(0, MAX_RECENT_EMOJIS).map((emoji, index) => (
@@ -494,12 +494,21 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={cn(
-                  "w-full pl-8 pr-3 py-1.5 text-sm rounded-md",
+                  "w-full pl-8 py-1.5 text-sm rounded-md",
+                  searchQuery ? "pr-8" : "pr-3",
                   "bg-zinc-100 dark:bg-zinc-800",
                   "border border-transparent focus:border-[var(--neko-accent)]",
                   "outline-none transition-colors"
                 )}
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400 transition-colors"
+                >
+                  <IconX className="size-4" />
+                </button>
+              )}
             </div>
             <div className="relative">
               <button
@@ -508,7 +517,7 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
                   "w-7 h-7 rounded-md flex items-center justify-center text-base",
                   "hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                 )}
-                title="选择皮肤色调"
+                title="Skin tone"
               >
                 {SKIN_TONES[skinTone].emoji}
               </button>
@@ -547,7 +556,7 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
             {searchQuery && searchResults && (
               <div className="px-3 py-2">
                 <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2 font-medium">
-                  搜索结果 ({searchResults.length})
+                  Results ({searchResults.length})
                 </div>
                 {searchResults.length > 0 ? (
                   <div className="grid grid-cols-9 gap-0.5">
@@ -567,7 +576,7 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
                   </div>
                 ) : (
                   <div className="py-4 text-center text-zinc-400 dark:text-zinc-500 text-sm">
-                    没有找到匹配的 emoji
+                    No emoji found
                   </div>
                 )}
               </div>
@@ -662,7 +671,6 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
                       ? "bg-zinc-200 dark:bg-zinc-700"
                       : "hover:bg-zinc-200 dark:hover:bg-zinc-700"
                   )}
-                  title={category.name}
                 >
                   {isComponent && IconComponent ? (
                     <IconComponent size={18} className="text-[#f59e0b]" />
