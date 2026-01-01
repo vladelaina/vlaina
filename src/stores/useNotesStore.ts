@@ -78,7 +78,7 @@ interface NotesActions {
   toggleFolder: (path: string) => void;
   updateContent: (content: string) => void;
   closeNote: () => void;
-  closeTab: (path: string) => void;
+  closeTab: (path: string) => Promise<void>;
   switchTab: (path: string) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
   scanAllNotes: () => Promise<void>;
@@ -831,12 +831,39 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   },
 
   // Close a specific tab
-  closeTab: (path: string) => {
-    const { openTabs, currentNote, isDirty, saveNote } = get();
+  closeTab: async (path: string) => {
+    const { openTabs, currentNote, isDirty, saveNote, notesPath, loadFileTree, rootFolder } = get();
     
-    // Save if closing current dirty note
-    if (currentNote?.path === path && isDirty) {
-      saveNote();
+    // 检查是否是空笔记（只有 "# " 或空白内容）
+    const isEmptyNote = currentNote?.path === path && 
+      (!currentNote.content.trim() || currentNote.content.trim() === '#' || currentNote.content.trim() === '# ');
+    
+    if (isEmptyNote) {
+      // 删除空笔记文件
+      try {
+        const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
+        const fullPath = await join(notesPath, path);
+        await remove(fullPath);
+        
+        // 重新加载文件树
+        await loadFileTree();
+        
+        // 恢复文件夹展开状态
+        const currentRootFolder = get().rootFolder;
+        if (currentRootFolder) {
+          set({
+            rootFolder: {
+              ...currentRootFolder,
+              children: restoreExpandedState(currentRootFolder.children, expandedPaths),
+            },
+          });
+        }
+      } catch {
+        // 忽略删除失败的错误
+      }
+    } else if (currentNote?.path === path && isDirty) {
+      // 保存非空的脏笔记
+      await saveNote();
     }
     
     const updatedTabs = openTabs.filter(t => t.path !== path);

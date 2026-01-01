@@ -31,7 +31,7 @@ const appWindow = getCurrentWindow();
 interface SortableTabProps {
   tab: { path: string; name: string; isDirty: boolean };
   isActive: boolean;
-  onClose: (path: string) => void;
+  onClose: (path: string) => void | Promise<void>;
   onClick: (path: string) => void;
   icon?: string;
 }
