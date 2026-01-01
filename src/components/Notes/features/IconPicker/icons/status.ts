@@ -50,6 +50,7 @@ import {
   IconProgressCheck,
   IconActivity,
   IconHeartbeat,
+  IconHeartRateMonitor,
   IconWaveSine,
   IconChartDots,
   IconLoader,
@@ -93,7 +94,7 @@ import { IconCategory, DEFAULT_ICON_COLOR } from './types';
 export const statusIcons: IconCategory = {
   id: 'status',
   name: '状态',
-  emoji: '✅',
+  emoji: IconHeartbeat,
   icons: [
     { name: 'check', icon: IconCheck, color: DEFAULT_ICON_COLOR },
     { name: 'x', icon: IconX, color: DEFAULT_ICON_COLOR },

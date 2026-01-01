@@ -93,7 +93,7 @@ import { IconCategory, DEFAULT_ICON_COLOR } from './types';
 export const devIcons: IconCategory = {
   id: 'dev',
   name: '开发',
-  emoji: '💻',
+  emoji: IconCode,
   icons: [
     { name: 'code', icon: IconCode, color: DEFAULT_ICON_COLOR },
     { name: 'codedots', icon: IconCodeDots, color: DEFAULT_ICON_COLOR },

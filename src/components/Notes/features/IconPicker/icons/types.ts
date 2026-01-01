@@ -8,7 +8,7 @@ export interface IconItem {
 export interface IconCategory {
   id: string;
   name: string;
-  emoji: string;
+  emoji: string | React.ComponentType<{ size?: number; className?: string }>;
   icons: IconItem[];
 }
 

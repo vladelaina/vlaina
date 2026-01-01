@@ -3,6 +3,7 @@ import {
   IconHomeFilled,
   IconHomeOff,
   IconHome2,
+  IconComet,
   IconBuilding,
   IconBuildingSkyscraper,
   IconBuildingStore,
@@ -94,7 +95,7 @@ import { IconCategory, DEFAULT_ICON_COLOR } from './types';
 export const placeIcons: IconCategory = {
   id: 'place',
   name: '地点',
-  emoji: '🗺️',
+  emoji: IconComet,
   icons: [
     { name: 'home', icon: IconHome, color: DEFAULT_ICON_COLOR },
     { name: 'homefilled', icon: IconHomeFilled, color: DEFAULT_ICON_COLOR },

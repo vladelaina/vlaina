@@ -649,21 +649,29 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
             ))}
           </div>
           <div className="flex items-center justify-around px-2 py-1.5 border-t border-[var(--neko-border)] bg-zinc-50 dark:bg-zinc-800/50">
-            {ICON_CATEGORIES.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => handleIconCategoryChange(category.id)}
-                className={cn(
-                  "w-8 h-8 flex items-center justify-center rounded-md text-lg transition-colors",
-                  activeIconCategory === category.id
-                    ? "bg-zinc-200 dark:bg-zinc-700"
-                    : "hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                )}
-                title={category.name}
-              >
-                {category.emoji}
-              </button>
-            ))}
+            {ICON_CATEGORIES.map((category) => {
+              const isComponent = typeof category.emoji !== 'string';
+              const IconComponent = isComponent ? category.emoji as React.ComponentType<{ size?: number; className?: string }> : null;
+              return (
+                <button
+                  key={category.id}
+                  onClick={() => handleIconCategoryChange(category.id)}
+                  className={cn(
+                    "w-8 h-8 flex items-center justify-center rounded-md text-lg transition-colors",
+                    activeIconCategory === category.id
+                      ? "bg-zinc-200 dark:bg-zinc-700"
+                      : "hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                  )}
+                  title={category.name}
+                >
+                  {isComponent && IconComponent ? (
+                    <IconComponent size={18} className="text-[#f59e0b]" />
+                  ) : (
+                    category.emoji as string
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

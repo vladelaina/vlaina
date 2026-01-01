@@ -3,6 +3,7 @@ import {
   IconNoteOff,
   IconNotes,
   IconNotebook,
+  IconAddressBook,
   IconBook,
   IconBook2,
   IconBookOff,
@@ -94,7 +95,7 @@ import { IconCategory, DEFAULT_ICON_COLOR } from './types';
 export const docIcons: IconCategory = {
   id: 'doc',
   name: '文档',
-  emoji: '📄',
+  emoji: IconNotebook,
   icons: [
     { name: 'note', icon: IconNote, color: DEFAULT_ICON_COLOR },
     { name: 'noteoff', icon: IconNoteOff, color: DEFAULT_ICON_COLOR },
