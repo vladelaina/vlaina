@@ -3,7 +3,6 @@ import {
   IconNoteOff,
   IconNotes,
   IconNotebook,
-  IconAddressBook,
   IconBook,
   IconBook2,
   IconBookOff,

@@ -206,7 +206,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
     toggleRightPanel,
     toggleAIPanel,
     currentNote,
-    isDirty,
     openTabs,
     closeTab,
     openNote,

@@ -50,7 +50,6 @@ import {
   IconProgressCheck,
   IconActivity,
   IconHeartbeat,
-  IconHeartRateMonitor,
   IconWaveSine,
   IconChartDots,
   IconLoader,
