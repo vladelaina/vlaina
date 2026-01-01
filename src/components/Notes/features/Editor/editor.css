@@ -238,6 +238,21 @@
   position: absolute;
 }
 
+/* H1 Title placeholder - 当标题为空时显示 "Title" */
+.milkdown h1:first-child:empty::before,
+.milkdown h1:first-child:has(br:only-child)::before {
+  content: "Title";
+  color: #d4d4d8;
+  pointer-events: none;
+  position: absolute;
+  user-select: none;
+}
+
+.dark .milkdown h1:first-child:empty::before,
+.dark .milkdown h1:first-child:has(br:only-child)::before {
+  color: #3f3f46;
+}
+
 /* Focus styles */
 .milkdown .ProseMirror:focus {
   outline: none;

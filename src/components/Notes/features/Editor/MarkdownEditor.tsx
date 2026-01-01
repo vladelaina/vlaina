@@ -4,13 +4,15 @@
  * Modern block-editor style with enhanced features
  */
 
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Editor, rootCtx, defaultValueCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
+import { $prose } from '@milkdown/kit/utils';
+import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { MoreHorizontal, Star } from 'lucide-react';
 import { IconHeartbeat } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -20,19 +22,59 @@ import { IconPicker, NoteIcon } from '../IconPicker';
 // Editor styles
 import './editor.css';
 
+// 防止删除第一行 # 前缀的插件
+const protectHeadingPluginKey = new PluginKey('protectHeading');
+
+const protectHeadingPlugin = $prose(() => {
+  return new Plugin({
+    key: protectHeadingPluginKey,
+    props: {
+      handleKeyDown(view, event) {
+        const { state } = view;
+        const { selection, doc } = state;
+        const { from, empty } = selection;
+        
+        // 获取第一个节点（应该是标题）
+        const firstNode = doc.firstChild;
+        if (!firstNode || firstNode.type.name !== 'heading') return false;
+        
+        // 第一个节点的起始位置是 1（0 是文档开始）
+        // 我们只在光标位于第一个节点的最开始位置时阻止 Backspace
+        const firstNodeStart = 1;
+        
+        // 处理 Backspace 键 - 只在光标在第一个节点开头时阻止
+        if (event.key === 'Backspace' && empty && from === firstNodeStart) {
+          return true; // 阻止删除，防止标题变成普通段落
+        }
+        
+        return false;
+      }
+    }
+  });
+});
+
 function MilkdownEditorInner() {
   const { currentNote, updateContent, saveNote } = useNotesStore();
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  // Auto-save with debounce
+  // 防抖保存 - 300ms 延迟，避免频繁保存导致光标跳动
   const debouncedSave = useCallback(() => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     saveTimeoutRef.current = setTimeout(() => {
       saveNote();
-    }, 1000);
+    }, 300);
   }, [saveNote]);
+
+  // 组件卸载时清理
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Keyboard shortcut for save
   useEffect(() => {
@@ -46,15 +88,6 @@ function MilkdownEditorInner() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [saveNote]);
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, []);
-
   useEditor((root) =>
     Editor.make()
       .config((ctx) => {
@@ -63,14 +96,24 @@ function MilkdownEditorInner() {
         const content = currentNote?.content || '';
         ctx.set(defaultValueCtx, content);
         ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
-          updateContent(markdown);
+          // 确保内容始终以 # 开头（防止用户删除标题前缀）
+          let finalContent = markdown;
+          if (!markdown.trim() || markdown.trim() === '') {
+            finalContent = '# ';
+          } else if (!markdown.startsWith('#')) {
+            // 如果第一行不是标题，在开头添加 # 
+            finalContent = '# ' + markdown;
+          }
+          updateContent(finalContent);
+          // 防抖保存
           debouncedSave();
         });
       })
       .use(commonmark)
       .use(gfm)
       .use(history)
-      .use(listener),
+      .use(listener)
+      .use(protectHeadingPlugin),
     [currentNote?.path]
   );
 

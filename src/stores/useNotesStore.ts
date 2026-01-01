@@ -53,6 +53,7 @@ interface NotesState {
   starredNotes: string[]; // Starred/bookmarked note paths
   noteIcons: Map<string, string>; // Note path -> emoji icon mapping
   previewIcon: { path: string; icon: string } | null; // Preview icon for current note (used by IconPicker)
+  displayNames: Map<string, string>; // Note path -> display name (from H1 title, for real-time UI updates)
   // UI State
   sidebarCollapsed: boolean;
   sidebarWidth: number; // Sidebar width in pixels
@@ -90,6 +91,8 @@ interface NotesActions {
   setNoteIcon: (path: string, emoji: string | null) => void;
   setPreviewIcon: (path: string, icon: string | null) => void;
   getDisplayIcon: (path: string) => string | undefined; // Returns preview icon if available, otherwise actual icon
+  // Display Name Actions
+  getDisplayName: (path: string) => string; // Returns display name (from H1 title) or file name
   // UI Actions
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
@@ -307,6 +310,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   starredNotes: loadStarredNotes(),
   noteIcons: loadNoteIcons(),
   previewIcon: null,
+  displayNames: new Map(),
   // UI State
   sidebarCollapsed: false,
   sidebarWidth: 248, // Default sidebar width
@@ -463,11 +467,17 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
                 : tab
             );
             
+            // 清理旧路径的显示名称
+            const { displayNames } = get();
+            const updatedDisplayNames = new Map(displayNames);
+            updatedDisplayNames.delete(currentNote.path);
+            
             // 更新当前笔记路径
             set({
               currentNote: { path: newPath, content: currentNote.content },
               isDirty: false,
               openTabs: updatedTabs,
+              displayNames: updatedDisplayNames,
             });
             
             // 重新加载文件树
@@ -492,7 +502,13 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       // 普通保存（没有标题变化或无法重命名）
       const fullPath = await join(notesPath, currentNote.path);
       await writeTextFile(fullPath, currentNote.content);
-      set({ isDirty: false });
+      
+      // 清理显示名称（文件名没变，但标题可能和文件名一致了）
+      const { displayNames } = get();
+      const updatedDisplayNames = new Map(displayNames);
+      updatedDisplayNames.delete(currentNote.path);
+      
+      set({ isDirty: false, displayNames: updatedDisplayNames });
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to save note',
@@ -528,8 +544,9 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
         counter++;
       }
       
-      // Create empty file
-      await writeTextFile(fullPath, '');
+      // Create file with default H1 heading
+      const defaultContent = '# ';
+      await writeTextFile(fullPath, defaultContent);
       
       // Reload file tree
       await loadFileTree();
@@ -552,9 +569,9 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       // Add to recent notes
       const updatedRecent = addToRecentNotes(relativePath, recentNotes);
       
-      // Open the new note
+      // Open the new note with default H1 content
       set({
-        currentNote: { path: relativePath, content: '' },
+        currentNote: { path: relativePath, content: defaultContent },
         isDirty: false,
         openTabs: updatedTabs,
         recentNotes: updatedRecent,
@@ -777,12 +794,34 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   // Update note content (marks as dirty)
   updateContent: (content: string) => {
-    const { currentNote } = get();
+    const { currentNote, openTabs } = get();
     if (!currentNote) return;
+    
+    // 提取标题用于实时更新标签名（不触发文件重命名）
+    const h1Title = extractFirstH1(content);
+    const displayName = h1Title || currentNote.path.split('/').pop()?.replace('.md', '') || 'Untitled';
+    
+    // 只更新标签名显示，不更新 isDirty（避免触发保存）
+    const updatedTabs = openTabs.map(tab => 
+      tab.path === currentNote.path 
+        ? { ...tab, name: displayName }
+        : tab
+    );
+    
+    // 更新显示名称映射（用于文件树实时显示）
+    const { displayNames } = get();
+    const updatedDisplayNames = new Map(displayNames);
+    if (h1Title) {
+      updatedDisplayNames.set(currentNote.path, h1Title);
+    } else {
+      updatedDisplayNames.delete(currentNote.path);
+    }
     
     set({
       currentNote: { ...currentNote, content },
       isDirty: true,
+      openTabs: updatedTabs,
+      displayNames: updatedDisplayNames,
     });
   },
 
@@ -1038,6 +1077,17 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
     }
     // Otherwise return the actual icon
     return noteIcons.get(path);
+  },
+
+  // Get display name (from H1 title if available, otherwise file name)
+  getDisplayName: (path: string) => {
+    const { displayNames } = get();
+    const displayName = displayNames.get(path);
+    if (displayName) {
+      return displayName;
+    }
+    // Fallback to file name
+    return path.split('/').pop()?.replace('.md', '') || 'Untitled';
   },
 
   // UI Actions

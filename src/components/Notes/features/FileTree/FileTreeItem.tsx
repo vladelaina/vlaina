@@ -43,6 +43,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
     moveItem,
     noteIcons,
     previewIcon,
+    getDisplayName,
   } = useNotesStore();
   
   const [showMenu, setShowMenu] = useState(false);
@@ -226,7 +227,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
               ? "text-[var(--neko-accent)] font-medium" 
               : "text-[var(--neko-text-primary)]"
           )}>
-            {node.name.replace('.md', '')}
+            {node.isFolder ? node.name : getDisplayName(node.path)}
           </span>
         )}
 

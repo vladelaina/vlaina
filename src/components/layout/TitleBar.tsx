@@ -510,18 +510,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
         </div>
       )}
 
-      {/* Note Editor Actions (Notes view only, when note is open) */}
-      {appViewMode === 'notes' && currentNote && (
-        <div className="flex items-center gap-0.5 z-20 mr-1">
-          {/* Dirty indicator */}
-          {isDirty && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] bg-[var(--neko-accent-light)] text-[var(--neko-accent)] mr-1">
-              Editing
-            </span>
-          )}
-        </div>
-      )}
-
       {/* Right Panel Toggle (Notes view only) */}
       {appViewMode === 'notes' && (
         <button
