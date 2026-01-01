@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Settings, PanelLeft, PanelRight, MessageCircle, Star, MoreHorizontal, FileText, X, Plus } from 'lucide-react';
+import { Settings, PanelLeft, PanelRight, MessageCircle, FileText, X, Plus } from 'lucide-react';
 import { NotePencil, CalendarBlank } from '@phosphor-icons/react';
 import { WindowControls } from './WindowControls';
 import { useUIStore } from '@/stores/uiSlice';
@@ -172,16 +172,12 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
     toggleAIPanel,
     currentNote,
     isDirty,
-    isStarred,
-    toggleStarred,
     openTabs,
     closeTab,
     openNote,
     createNote,
     reorderTabs,
   } = useNotesStore();
-
-  const starred = currentNote ? isStarred(currentNote.path) : false;
   
   // Sidebar width from NotesPage - used to align tabs with content area
   const SIDEBAR_WIDTH = 248;
@@ -418,33 +414,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
               Editing
             </span>
           )}
-          
-          {/* Star button */}
-          <button
-            onClick={() => currentNote && toggleStarred(currentNote.path)}
-            className={cn(
-              "h-full w-8 flex items-center justify-center transition-colors",
-              "hover:bg-zinc-100 dark:hover:bg-zinc-800",
-              starred 
-                ? "text-yellow-500" 
-                : "text-zinc-300 dark:text-zinc-600 hover:text-yellow-500"
-            )}
-            title={starred ? "Unstar" : "Star"}
-          >
-            <Star className="size-4" fill={starred ? "currentColor" : "none"} />
-          </button>
-          
-          {/* More options */}
-          <button
-            className={cn(
-              "h-full w-8 flex items-center justify-center transition-colors",
-              "hover:bg-zinc-100 dark:hover:bg-zinc-800",
-              "text-zinc-300 dark:text-zinc-600"
-            )}
-            title="More options"
-          >
-            <MoreHorizontal className="size-4" />
-          </button>
         </div>
       )}
 

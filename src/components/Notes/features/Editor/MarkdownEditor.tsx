@@ -11,7 +11,9 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
+import { MoreHorizontal, Star } from 'lucide-react';
 import { useNotesStore } from '@/stores/useNotesStore';
+import { cn } from '@/lib/utils';
 
 // Editor styles
 import './editor.css';
@@ -90,10 +92,37 @@ function MilkdownEditorInner() {
 }
 
 export function MarkdownEditor() {
-  const { currentNote } = useNotesStore();
+  const { currentNote, isStarred, toggleStarred } = useNotesStore();
+  const starred = currentNote ? isStarred(currentNote.path) : false;
   
   return (
-    <div className="h-full flex flex-col bg-[var(--neko-bg-primary)]">
+    <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative">
+      {/* File action buttons - top right corner */}
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+        {/* Star button */}
+        <button
+          onClick={() => currentNote && toggleStarred(currentNote.path)}
+          className={cn(
+            "p-1.5 transition-colors",
+            starred 
+              ? "text-yellow-500" 
+              : "text-zinc-200 dark:text-zinc-700 hover:text-yellow-500"
+          )}
+        >
+          <Star className="size-4" fill={starred ? "currentColor" : "none"} />
+        </button>
+        
+        {/* More options button */}
+        <button
+          className={cn(
+            "p-1.5 transition-colors",
+            "text-zinc-200 dark:text-zinc-700 hover:text-zinc-500 dark:hover:text-zinc-400"
+          )}
+        >
+          <MoreHorizontal className="size-4" />
+        </button>
+      </div>
+      
       {/* Editor Content - key forces re-mount when note changes */}
       <MilkdownProvider key={currentNote?.path}>
         <MilkdownEditorInner />
