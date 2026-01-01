@@ -62,7 +62,7 @@ function SortableTab({ tab, isActive, onClose, onClick }: SortableTabProps) {
         }
       }}
       className={cn(
-        "group relative flex items-center gap-2 px-3 py-1.5 cursor-pointer min-w-0 max-w-[200px]",
+        "group relative flex items-center gap-2 px-3 py-1.5 cursor-pointer min-w-0 flex-shrink",
         "rounded-lg my-1",
         isActive 
           ? "bg-white dark:bg-zinc-800 shadow-sm" 
@@ -301,13 +301,12 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
         )}
       </button>
 
-      {/* Note Tabs (Notes view only) - positioned to align with sidebar edge */}
+      {/* Note Tabs (Notes view only) - in flex flow with other elements */}
       {appViewMode === 'notes' && (
         <div 
-          className="absolute top-0 bottom-0 flex items-center z-20"
+          className="flex-1 flex items-center z-20 overflow-hidden min-w-0 h-full"
           style={{ 
-            left: sidebarCollapsed ? 0 : SIDEBAR_WIDTH + RESIZE_HANDLE_WIDTH,
-            right: 120, // Leave space for right buttons
+            marginLeft: sidebarCollapsed ? 0 : SIDEBAR_WIDTH + RESIZE_HANDLE_WIDTH - 120, // Offset for left buttons
           }}
         >
           {/* Tabs container */}
@@ -321,7 +320,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
               items={openTabs.map(tab => tab.path)}
               strategy={horizontalListSortingStrategy}
             >
-              <div className="flex items-center overflow-x-auto neko-scrollbar gap-1 px-2 h-full flex-shrink-0">
+              <div className="flex items-center gap-1 px-2 h-full min-w-0 flex-shrink">
                 {openTabs.map((tab) => (
                   <SortableTab
                     key={tab.path}
@@ -370,13 +369,16 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
             </DragOverlay>
           </DndContext>
           
-          {/* Draggable empty area - fills remaining space */}
+          {/* Draggable empty area - fills remaining space, outside DndContext */}
           <div 
-            className="flex-1 h-full cursor-default"
+            className="flex-1 h-full min-w-[20px] cursor-default"
             onMouseDown={startDrag}
           />
         </div>
       )}
+
+      {/* Spacer - only when not in notes view */}
+      {appViewMode !== 'notes' && <div className="flex-1" />}
 
       {/* Center Content Area - Absolutely positioned for true centering */}
       {content && (
@@ -394,9 +396,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           </div>
         </div>
       )}
-
-      {/* Spacer to push toolbar and controls to the right */}
-      <div className="flex-1" />
 
       {/* Custom Toolbar (e.g., Calendar controls) */}
       {toolbar && (
