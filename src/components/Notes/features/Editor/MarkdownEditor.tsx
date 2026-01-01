@@ -76,10 +76,12 @@ function MilkdownEditorInner() {
 }
 
 export function MarkdownEditor() {
+  const { currentNote } = useNotesStore();
+  
   return (
     <div className="h-full flex flex-col bg-[var(--neko-bg-primary)]">
-      {/* Editor Content */}
-      <MilkdownProvider>
+      {/* Editor Content - key forces re-mount when note changes */}
+      <MilkdownProvider key={currentNote?.path}>
         <MilkdownEditorInner />
       </MilkdownProvider>
     </div>

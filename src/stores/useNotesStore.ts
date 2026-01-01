@@ -203,6 +203,37 @@ function updateFolderExpanded(nodes: FileTreeNode[], targetPath: string): FileTr
   });
 }
 
+// 收集所有展开的文件夹路径
+function collectExpandedPaths(nodes: FileTreeNode[]): Set<string> {
+  const expandedPaths = new Set<string>();
+  const collect = (nodes: FileTreeNode[]) => {
+    for (const node of nodes) {
+      if (node.isFolder) {
+        if (node.expanded) {
+          expandedPaths.add(node.path);
+        }
+        collect(node.children);
+      }
+    }
+  };
+  collect(nodes);
+  return expandedPaths;
+}
+
+// 恢复文件夹展开状态
+function restoreExpandedState(nodes: FileTreeNode[], expandedPaths: Set<string>): FileTreeNode[] {
+  return nodes.map(node => {
+    if (node.isFolder) {
+      return {
+        ...node,
+        expanded: expandedPaths.has(node.path),
+        children: restoreExpandedState(node.children, expandedPaths),
+      };
+    }
+    return node;
+  });
+}
+
 // ============ Store ============
 
 export const useNotesStore = create<NotesStore>()((set, get) => ({
@@ -309,7 +340,10 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   // Create a new note
   createNote: async (folderPath?: string) => {
-    let { notesPath, loadFileTree, openTabs, recentNotes } = get();
+    let { notesPath, loadFileTree, openTabs, recentNotes, rootFolder } = get();
+    
+    // 保存当前展开的文件夹路径
+    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
     
     // Ensure notesPath is set
     if (!notesPath) {
@@ -338,6 +372,17 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       // Reload file tree
       await loadFileTree();
       
+      // 恢复文件夹展开状态
+      const currentRootFolder = get().rootFolder;
+      if (currentRootFolder) {
+        set({
+          rootFolder: {
+            ...currentRootFolder,
+            children: restoreExpandedState(currentRootFolder.children, expandedPaths),
+          },
+        });
+      }
+      
       // Add to open tabs
       const tabName = fileName.replace('.md', '');
       const updatedTabs = [...openTabs, { path: relativePath, name: tabName, isDirty: false }];
@@ -364,19 +409,45 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   // Delete a note
   deleteNote: async (path: string) => {
-    const { notesPath, currentNote, loadFileTree } = get();
+    const { notesPath, currentNote, loadFileTree, rootFolder, openTabs } = get();
+    
+    // 保存当前展开的文件夹路径
+    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
     
     try {
       const fullPath = await join(notesPath, path);
       await remove(fullPath);
       
-      // Close if current note was deleted
+      // 从打开的标签中移除被删除的笔记
+      const updatedTabs = openTabs.filter(t => t.path !== path);
+      
+      // Close if current note was deleted, switch to another tab
       if (currentNote?.path === path) {
-        set({ currentNote: null, isDirty: false });
+        if (updatedTabs.length > 0) {
+          const lastTab = updatedTabs[updatedTabs.length - 1];
+          // 先更新标签，再打开新笔记
+          set({ openTabs: updatedTabs });
+          await get().openNote(lastTab.path);
+        } else {
+          set({ currentNote: null, isDirty: false, openTabs: updatedTabs });
+        }
+      } else {
+        set({ openTabs: updatedTabs });
       }
       
       // Reload file tree
       await loadFileTree();
+      
+      // 恢复文件夹展开状态
+      const currentRootFolder = get().rootFolder;
+      if (currentRootFolder) {
+        set({
+          rootFolder: {
+            ...currentRootFolder,
+            children: restoreExpandedState(currentRootFolder.children, expandedPaths),
+          },
+        });
+      }
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to delete note',
@@ -386,7 +457,10 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   // Rename a note
   renameNote: async (path: string, newName: string) => {
-    const { notesPath, currentNote, loadFileTree } = get();
+    const { notesPath, currentNote, loadFileTree, rootFolder } = get();
+    
+    // 保存当前展开的文件夹路径
+    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
     
     try {
       const fullPath = await join(notesPath, path);
@@ -404,6 +478,17 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       
       // Reload file tree
       await loadFileTree();
+      
+      // 恢复文件夹展开状态
+      const currentRootFolder = get().rootFolder;
+      if (currentRootFolder) {
+        set({
+          rootFolder: {
+            ...currentRootFolder,
+            children: restoreExpandedState(currentRootFolder.children, expandedPaths),
+          },
+        });
+      }
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to rename note',
@@ -413,7 +498,10 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   // Create a new folder
   createFolder: async (parentPath: string, name: string) => {
-    const { notesPath, loadFileTree } = get();
+    const { notesPath, loadFileTree, rootFolder } = get();
+    
+    // 保存当前展开的文件夹路径
+    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
     
     try {
       const folderPath = parentPath ? `${parentPath}/${name}` : name;
@@ -423,6 +511,17 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       
       // Reload file tree
       await loadFileTree();
+      
+      // 恢复文件夹展开状态
+      const currentRootFolder = get().rootFolder;
+      if (currentRootFolder) {
+        set({
+          rootFolder: {
+            ...currentRootFolder,
+            children: restoreExpandedState(currentRootFolder.children, expandedPaths),
+          },
+        });
+      }
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to create folder',
@@ -432,7 +531,10 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   // Delete a folder
   deleteFolder: async (path: string) => {
-    const { notesPath, loadFileTree } = get();
+    const { notesPath, loadFileTree, rootFolder } = get();
+    
+    // 保存当前展开的文件夹路径
+    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
     
     try {
       const fullPath = await join(notesPath, path);
@@ -440,6 +542,17 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       
       // Reload file tree
       await loadFileTree();
+      
+      // 恢复文件夹展开状态
+      const currentRootFolder = get().rootFolder;
+      if (currentRootFolder) {
+        set({
+          rootFolder: {
+            ...currentRootFolder,
+            children: restoreExpandedState(currentRootFolder.children, expandedPaths),
+          },
+        });
+      }
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to delete folder',
@@ -449,7 +562,10 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   // Move item (file or folder) to a new location
   moveItem: async (sourcePath: string, targetFolderPath: string) => {
-    const { notesPath, currentNote, loadFileTree } = get();
+    const { notesPath, currentNote, loadFileTree, rootFolder } = get();
+    
+    // 保存当前展开的文件夹路径
+    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
     
     try {
       const fileName = sourcePath.split('/').pop() || '';
@@ -466,6 +582,17 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       
       // Reload file tree
       await loadFileTree();
+      
+      // 恢复文件夹展开状态
+      const currentRootFolder = get().rootFolder;
+      if (currentRootFolder) {
+        set({
+          rootFolder: {
+            ...currentRootFolder,
+            children: restoreExpandedState(currentRootFolder.children, expandedPaths),
+          },
+        });
+      }
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to move item',
@@ -547,7 +674,10 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   // Create note with specific content (for templates/daily notes)
   createNoteWithContent: async (folderPath: string | undefined, name: string, content: string) => {
-    let { notesPath, loadFileTree } = get();
+    let { notesPath, loadFileTree, rootFolder } = get();
+    
+    // 保存当前展开的文件夹路径
+    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
     
     // Ensure notesPath is set
     if (!notesPath) {
@@ -575,6 +705,17 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       
       // Reload file tree
       await loadFileTree();
+      
+      // 恢复文件夹展开状态
+      const currentRootFolder = get().rootFolder;
+      if (currentRootFolder) {
+        set({
+          rootFolder: {
+            ...currentRootFolder,
+            children: restoreExpandedState(currentRootFolder.children, expandedPaths),
+          },
+        });
+      }
       
       // Open the new note
       set({
