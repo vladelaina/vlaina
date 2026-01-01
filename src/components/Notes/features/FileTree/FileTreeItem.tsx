@@ -41,7 +41,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
     createNote, 
     createFolder, 
     moveItem,
-    getNoteIcon,
+    getDisplayIcon,
   } = useNotesStore();
   
   const [showMenu, setShowMenu] = useState(false);
@@ -53,7 +53,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
 
   const isActive = !node.isFolder && node.path === currentNotePath;
   const paddingLeft = 8 + depth * 16;
-  const noteIcon = !node.isFolder ? getNoteIcon(node.path) : undefined;
+  const noteIcon = !node.isFolder ? getDisplayIcon(node.path) : undefined;
 
   const handleClick = (e: React.MouseEvent) => {
     if (node.isFolder) {

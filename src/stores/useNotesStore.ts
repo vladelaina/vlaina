@@ -52,6 +52,7 @@ interface NotesState {
   noteContentsCache: Map<string, string>; // Cache for backlinks/search
   starredNotes: string[]; // Starred/bookmarked note paths
   noteIcons: Map<string, string>; // Note path -> emoji icon mapping
+  previewIcon: { path: string; icon: string } | null; // Preview icon for current note (used by IconPicker)
   // UI State
   sidebarCollapsed: boolean;
   sidebarWidth: number; // Sidebar width in pixels
@@ -87,6 +88,8 @@ interface NotesActions {
   // Icon Actions
   getNoteIcon: (path: string) => string | undefined;
   setNoteIcon: (path: string, emoji: string | null) => void;
+  setPreviewIcon: (path: string, icon: string | null) => void;
+  getDisplayIcon: (path: string) => string | undefined; // Returns preview icon if available, otherwise actual icon
   // UI Actions
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
@@ -303,6 +306,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   noteContentsCache: new Map(),
   starredNotes: loadStarredNotes(),
   noteIcons: loadNoteIcons(),
+  previewIcon: null,
   // UI State
   sidebarCollapsed: false,
   sidebarWidth: 248, // Default sidebar width
@@ -1014,6 +1018,26 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
     
     saveNoteIcons(updated);
     set({ noteIcons: updated });
+  },
+
+  // Set preview icon (for hover preview in IconPicker)
+  setPreviewIcon: (path: string, icon: string | null) => {
+    if (icon) {
+      set({ previewIcon: { path, icon } });
+    } else {
+      set({ previewIcon: null });
+    }
+  },
+
+  // Get display icon (preview icon if available, otherwise actual icon)
+  getDisplayIcon: (path: string) => {
+    const { previewIcon, noteIcons } = get();
+    // If there's a preview icon for this path, return it
+    if (previewIcon && previewIcon.path === path) {
+      return previewIcon.icon;
+    }
+    // Otherwise return the actual icon
+    return noteIcons.get(path);
   },
 
   // UI Actions

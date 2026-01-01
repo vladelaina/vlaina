@@ -82,14 +82,14 @@ const RECENT_ICONS_KEY = 'nekotick-recent-icons';
 const SKIN_TONE_KEY = 'nekotick-emoji-skin-tone';
 const MAX_RECENT_EMOJIS = 18; // 两行，每行9个
 
-// 皮肤色调
+// 皮肤色调 - 使用挥手 emoji
 const SKIN_TONES = [
-  { tone: 0, color: '#ffc93a', label: '默认' },
-  { tone: 1, color: '#fadcbc', label: '浅色' },
-  { tone: 2, color: '#e0bb95', label: '中浅色' },
-  { tone: 3, color: '#bf8f68', label: '中色' },
-  { tone: 4, color: '#9b643d', label: '中深色' },
-  { tone: 5, color: '#594539', label: '深色' },
+  { tone: 0, emoji: '\u{1F44B}', label: '默认' },
+  { tone: 1, emoji: '\u{1F44B}\u{1F3FB}', label: '浅色' },
+  { tone: 2, emoji: '\u{1F44B}\u{1F3FC}', label: '中浅色' },
+  { tone: 3, emoji: '\u{1F44B}\u{1F3FD}', label: '中色' },
+  { tone: 4, emoji: '\u{1F44B}\u{1F3FE}', label: '中深色' },
+  { tone: 5, emoji: '\u{1F44B}\u{1F3FF}', label: '深色' },
 ];
 
 function loadRecentIcons(): string[] {
@@ -282,6 +282,8 @@ interface IconPickerProps {
   onRemove?: () => void;
   onClose: () => void;
   hasIcon?: boolean;
+  currentIcon?: string; // 当前已应用的图标，用于肤色预览
+  onIconChange?: (emoji: string) => void; // 更新图标但不关闭 picker（用于肤色切换）
 }
 
 const EmojiButton = memo(function EmojiButton({ 
@@ -329,6 +331,25 @@ const EmojiCategorySection = memo(function EmojiCategorySection({
     });
   }, [category.emojis, skinTone]);
 
+  // 将最近使用的 emoji 转换为当前皮肤色调
+  const recentEmojisWithSkin = useMemo(() => {
+    return recentEmojis.map(emoji => {
+      // 查找这个 emoji 对应的数据
+      for (const cat of EMOJI_CATEGORIES) {
+        for (const item of cat.emojis) {
+          // 检查是否匹配（可能是默认版本或任何皮肤版本）
+          if (item.native === emoji || item.skins?.some(s => s.native === emoji)) {
+            if (skinTone === 0 || !item.skins || item.skins.length <= skinTone) {
+              return item.native;
+            }
+            return item.skins[skinTone]?.native || item.native;
+          }
+        }
+      }
+      return emoji; // 找不到就返回原 emoji
+    });
+  }, [recentEmojis, skinTone]);
+
   return (
     <div className="px-3 py-2">
       {recentEmojis.length > 0 && (
@@ -337,7 +358,7 @@ const EmojiCategorySection = memo(function EmojiCategorySection({
             最近使用
           </div>
           <div className="grid grid-cols-9 gap-0.5 mb-3">
-            {recentEmojis.slice(0, MAX_RECENT_EMOJIS).map((emoji, index) => (
+            {recentEmojisWithSkin.slice(0, MAX_RECENT_EMOJIS).map((emoji, index) => (
               <EmojiButton
                 key={`recent-${index}`}
                 emoji={emoji}
@@ -369,7 +390,7 @@ const EmojiCategorySection = memo(function EmojiCategorySection({
   );
 });
 
-export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = false }: IconPickerProps) {
+export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = false, currentIcon, onIconChange }: IconPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -380,6 +401,41 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
   const [skinTone, setSkinTone] = useState(loadSkinTone);
   const [showSkinTonePicker, setShowSkinTonePicker] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('people');
+  const [previewSkinTone, setPreviewSkinTone] = useState<number | null>(null); // 预览肤色
+
+  // 实际使用的肤色（预览优先）
+  const effectiveSkinTone = previewSkinTone !== null ? previewSkinTone : skinTone;
+
+  // 根据 emoji 和肤色获取对应版本
+  const getEmojiWithSkinTone = useCallback((emoji: string, tone: number): string | null => {
+    if (!emoji || emoji.startsWith('icon:')) return null;
+    
+    // 从 emoji-mart data 查找这个 emoji
+    for (const cat of EMOJI_CATEGORIES) {
+      for (const item of cat.emojis) {
+        if (item.native === emoji || item.skins?.some((s: any) => s.native === emoji)) {
+          if (tone === 0 || !item.skins || item.skins.length <= tone) {
+            return item.native;
+          }
+          return item.skins[tone]?.native || item.native;
+        }
+      }
+    }
+    return emoji; // 找不到就返回原 emoji
+  }, []);
+
+  // 悬浮肤色时预览当前图标的对应肤色版本
+  const handleSkinToneHover = useCallback((tone: number | null) => {
+    setPreviewSkinTone(tone);
+    if (tone !== null && currentIcon && !currentIcon.startsWith('icon:')) {
+      const previewEmoji = getEmojiWithSkinTone(currentIcon, tone);
+      if (previewEmoji) {
+        onPreview?.(previewEmoji);
+      }
+    } else if (tone === null) {
+      onPreview?.(null);
+    }
+  }, [currentIcon, getEmojiWithSkinTone, onPreview]);
 
   // 切换分类时，非第一个分类自动滚动到分类标题
   const handleCategoryChange = useCallback((categoryId: string) => {
@@ -492,6 +548,16 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
     setSkinTone(tone);
     saveSkinTone(tone);
     setShowSkinTonePicker(false);
+    setPreviewSkinTone(null);
+    onPreview?.(null); // 清除父组件的预览状态
+    
+    // 如果当前有图标，更新为对应肤色版本（不关闭 picker）
+    if (currentIcon && !currentIcon.startsWith('icon:')) {
+      const newEmoji = getEmojiWithSkinTone(currentIcon, tone);
+      if (newEmoji && newEmoji !== currentIcon) {
+        onIconChange?.(newEmoji);
+      }
+    }
   };
 
 
@@ -562,15 +628,12 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
               <button
                 onClick={() => setShowSkinTonePicker(!showSkinTonePicker)}
                 className={cn(
-                  "w-7 h-7 rounded-md flex items-center justify-center",
+                  "w-7 h-7 rounded-md flex items-center justify-center text-base",
                   "hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                 )}
                 title="选择皮肤色调"
               >
-                <span 
-                  className="w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-600"
-                  style={{ backgroundColor: SKIN_TONES[skinTone].color }}
-                />
+                {SKIN_TONES[skinTone].emoji}
               </button>
               {showSkinTonePicker && (
                 <div className={cn(
@@ -582,15 +645,17 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
                     <button
                       key={st.tone}
                       onClick={() => handleSkinToneChange(st.tone)}
+                      onMouseEnter={() => handleSkinToneHover(st.tone)}
+                      onMouseLeave={() => handleSkinToneHover(null)}
                       className={cn(
-                        "w-6 h-6 rounded-full border-2 transition-all",
+                        "w-7 h-7 rounded-md flex items-center justify-center text-lg transition-all",
                         skinTone === st.tone 
-                          ? "border-[var(--neko-accent)] scale-110" 
-                          : "border-transparent hover:scale-105"
+                          ? "bg-zinc-200 dark:bg-zinc-700 scale-110" 
+                          : "hover:bg-zinc-100 dark:hover:bg-zinc-700 hover:scale-105"
                       )}
-                      style={{ backgroundColor: st.color }}
-                      title={st.label}
-                    />
+                    >
+                      {st.emoji}
+                    </button>
                   ))}
                 </div>
               )}
@@ -610,9 +675,9 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
                 {searchResults.length > 0 ? (
                   <div className="grid grid-cols-9 gap-0.5">
                     {searchResults.slice(0, 90).map((emoji) => {
-                      const displayEmoji = skinTone === 0 || !emoji.skins || emoji.skins.length <= skinTone
+                      const displayEmoji = effectiveSkinTone === 0 || !emoji.skins || emoji.skins.length <= effectiveSkinTone
                         ? emoji.native
-                        : emoji.skins[skinTone]?.native || emoji.native;
+                        : emoji.skins[effectiveSkinTone]?.native || emoji.native;
                       return (
                         <EmojiButton
                           key={emoji.id}
@@ -635,7 +700,7 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
               <EmojiCategorySection
                 key={currentCategory.id}
                 category={currentCategory}
-                skinTone={skinTone}
+                skinTone={effectiveSkinTone}
                 onSelect={handleEmojiSelect}
                 onPreview={handlePreview}
                 recentEmojis={recentEmojis}

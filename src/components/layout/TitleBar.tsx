@@ -212,7 +212,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
     openNote,
     createNote,
     reorderTabs,
-    getNoteIcon,
+    getDisplayIcon,
   } = useNotesStore();
   
   // Resize handle width
@@ -425,7 +425,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                     isActive={currentNote?.path === tab.path}
                     onClose={closeTab}
                     onClick={openNote}
-                    icon={getNoteIcon(tab.path)}
+                    icon={getDisplayIcon(tab.path)}
                   />
                 ))}
                 
@@ -462,7 +462,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                 <TabOverlay 
                   tab={activeTab} 
                   isActive={currentNote?.path === activeTab.path}
-                  icon={getNoteIcon(activeTab.path)}
+                  icon={getDisplayIcon(activeTab.path)}
                 />
               ) : null}
             </DragOverlay>

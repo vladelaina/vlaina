@@ -93,37 +93,38 @@ function MilkdownEditorInner() {
 }
 
 export function MarkdownEditor() {
-  const { currentNote, isStarred, toggleStarred, getNoteIcon, setNoteIcon } = useNotesStore();
+  const { currentNote, isStarred, toggleStarred, getDisplayIcon, getNoteIcon, setNoteIcon, setPreviewIcon } = useNotesStore();
   const starred = currentNote ? isStarred(currentNote.path) : false;
+  const displayIcon = currentNote ? getDisplayIcon(currentNote.path) : undefined;
   const noteIcon = currentNote ? getNoteIcon(currentNote.path) : undefined;
   const [showIconPicker, setShowIconPicker] = useState(false);
-  const [previewIcon, setPreviewIcon] = useState<string | null>(null);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
-  
-  // 显示的图标：预览图标优先，否则显示实际图标
-  const displayIcon = previewIcon || noteIcon;
   
   const handleIconSelect = (emoji: string) => {
     if (currentNote) {
       setNoteIcon(currentNote.path, emoji);
-      setPreviewIcon(null);
+      setPreviewIcon(currentNote.path, null);
     }
   };
 
   const handleRemoveIcon = () => {
     if (currentNote) {
       setNoteIcon(currentNote.path, null);
-      setPreviewIcon(null);
+      setPreviewIcon(currentNote.path, null);
     }
   };
   
   const handleIconPreview = (icon: string | null) => {
-    setPreviewIcon(icon);
+    if (currentNote) {
+      setPreviewIcon(currentNote.path, icon);
+    }
   };
   
   const handleIconPickerClose = () => {
     setShowIconPicker(false);
-    setPreviewIcon(null);
+    if (currentNote) {
+      setPreviewIcon(currentNote.path, null);
+    }
   };
   
   return (
@@ -192,6 +193,8 @@ export function MarkdownEditor() {
                   onRemove={handleRemoveIcon}
                   onClose={handleIconPickerClose}
                   hasIcon={!!noteIcon}
+                  currentIcon={noteIcon}
+                  onIconChange={(emoji) => currentNote && setNoteIcon(currentNote.path, emoji)}
                 />
               </div>
             </div>
