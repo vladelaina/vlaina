@@ -55,6 +55,8 @@ export function NotesPage() {
     createNoteWithContent,
     createFolder,
     openNote,
+    openTabs,
+    closeTab,
     // UI State from store
     sidebarCollapsed,
     sidebarWidth,
@@ -79,6 +81,38 @@ export function NotesPage() {
   useEffect(() => {
     loadFileTree();
   }, [loadFileTree]);
+
+  // Global keyboard shortcuts for tab switching (Ctrl+Tab / Ctrl+Shift+Tab) and close (Ctrl+W)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Tab / Ctrl+Shift+Tab: 切换标签
+      if (e.key === 'Tab' && e.ctrlKey && openTabs.length > 1) {
+        e.preventDefault();
+        const currentIndex = openTabs.findIndex(t => t.path === currentNote?.path);
+        if (currentIndex === -1) return;
+        
+        let nextIndex: number;
+        if (e.shiftKey) {
+          // Ctrl+Shift+Tab: 切换到上一个标签
+          nextIndex = currentIndex === 0 ? openTabs.length - 1 : currentIndex - 1;
+        } else {
+          // Ctrl+Tab: 切换到下一个标签
+          nextIndex = currentIndex === openTabs.length - 1 ? 0 : currentIndex + 1;
+        }
+        
+        openNote(openTabs[nextIndex].path);
+      }
+      
+      // Ctrl+W: 关闭当前标签
+      if (e.key === 'w' && e.ctrlKey && !e.shiftKey && !e.altKey && currentNote) {
+        e.preventDefault();
+        closeTab(currentNote.path);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [openTabs, currentNote, openNote, closeTab]);
 
   // Handle wiki link clicks
   useEffect(() => {
