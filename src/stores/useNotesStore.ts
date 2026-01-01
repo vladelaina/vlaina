@@ -76,6 +76,7 @@ interface NotesActions {
   closeNote: () => void;
   closeTab: (path: string) => void;
   switchTab: (path: string) => void;
+  reorderTabs: (fromIndex: number, toIndex: number) => void;
   scanAllNotes: () => Promise<void>;
   getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];
   getAllTags: () => { tag: string; count: number }[];
@@ -308,7 +309,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   // Create a new note
   createNote: async (folderPath?: string) => {
-    let { notesPath, loadFileTree } = get();
+    let { notesPath, loadFileTree, openTabs, recentNotes } = get();
     
     // Ensure notesPath is set
     if (!notesPath) {
@@ -337,10 +338,19 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       // Reload file tree
       await loadFileTree();
       
+      // Add to open tabs
+      const tabName = fileName.replace('.md', '');
+      const updatedTabs = [...openTabs, { path: relativePath, name: tabName, isDirty: false }];
+      
+      // Add to recent notes
+      const updatedRecent = addToRecentNotes(relativePath, recentNotes);
+      
       // Open the new note
       set({
         currentNote: { path: relativePath, content: '' },
         isDirty: false,
+        openTabs: updatedTabs,
+        recentNotes: updatedRecent,
       });
       
       return relativePath;
@@ -519,6 +529,20 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   // Switch to a tab
   switchTab: (path: string) => {
     get().openNote(path);
+  },
+
+  // Reorder tabs by drag and drop
+  reorderTabs: (fromIndex: number, toIndex: number) => {
+    const { openTabs } = get();
+    if (fromIndex === toIndex) return;
+    if (fromIndex < 0 || fromIndex >= openTabs.length) return;
+    if (toIndex < 0 || toIndex >= openTabs.length) return;
+    
+    const updatedTabs = [...openTabs];
+    const [movedTab] = updatedTabs.splice(fromIndex, 1);
+    updatedTabs.splice(toIndex, 0, movedTab);
+    
+    set({ openTabs: updatedTabs });
   },
 
   // Create note with specific content (for templates/daily notes)
