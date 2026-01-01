@@ -8,146 +8,9 @@ import { useRef, useEffect, useState, useMemo, useCallback, memo } from 'react';
 import data from '@emoji-mart/data';
 import { cn } from '@/lib/utils';
 import { IconSearch } from '@tabler/icons-react';
-import {
-  IconFileText,
-  IconFolder,
-  IconStar,
-  IconHeart,
-  IconBookmark,
-  IconBulb,
-  IconRocket,
-  IconCode,
-  IconBug,
-  IconCheck,
-  IconX,
-  IconAlertCircle,
-  IconInfoCircle,
-  IconQuestionMark,
-  IconLock,
-  IconKey,
-  IconSettings,
-  IconUser,
-  IconUsers,
-  IconHome,
-  IconCalendar,
-  IconClock,
-  IconMail,
-  IconPhone,
-  IconCamera,
-  IconPhoto,
-  IconMusic,
-  IconVideo,
-  IconWorld,
-  IconMap,
-  IconFlag,
-  IconTrophy,
-  IconGift,
-  IconShoppingCart,
-  IconCreditCard,
-  IconWallet,
-  IconChartBar,
-  IconDatabase,
-  IconCloud,
-  IconDownload,
-  IconUpload,
-  IconLink,
-  IconPencil,
-  IconTrash,
-  IconArchive,
-  IconClipboard,
-  IconNote,
-  IconBook,
-  IconSchool,
-  IconBriefcase,
-  IconTools,
-  IconPalette,
-  IconBrush,
-  IconFlask,
-  IconAtom,
-  IconPlant,
-  IconLeaf,
-  IconSun,
-  IconMoon,
-  IconBolt,
-  IconFlame,
-  IconDroplet,
-  IconSnowflake,
-  IconTarget,
-  IconBell,
-  IconMessage,
-  IconSend,
-  IconInbox,
-  IconAt,
-  IconHash,
-  IconTag,
-  IconPin,
-  IconMapPin,
-  IconCompass,
-  IconPlane,
-  IconCar,
-  IconMountain,
-  IconTree,
-  IconFlower,
-  IconApple,
-  IconCoffee,
-  IconPizza,
-  IconCake,
-  IconCookie,
-  IconBeer,
-  IconFish,
-  IconIceCream,
-  IconBurger,
-  IconMoodSmile,
-  IconMoodHappy,
-  IconMoodWink,
-  IconThumbUp,
-  IconEye,
-  IconBrain,
-  IconDna,
-  IconPill,
-  IconMicroscope,
-  IconCalculator,
-  IconTriangle,
-  IconSquare,
-  IconCircle,
-  IconHexagon,
-  IconDiamond,
-  IconCrown,
-  IconAward,
-  IconMedal,
-  IconSparkles,
-  IconWand,
-  IconBattery,
-  IconCpu,
-  IconDeviceDesktop,
-  IconDeviceLaptop,
-  IconDeviceMobile,
-  IconDeviceTablet,
-  IconDeviceGamepad,
-  IconHeadphones,
-  IconMicrophone,
-  IconVolume,
-  IconPlayerPlay,
-  IconWifi,
-  IconPrinter,
-  IconShield,
-  IconFriends,
-  IconBuilding,
-  IconTent,
-  IconCampfire,
-  IconTrain,
-  IconBalloon,
-  IconConfetti,
-  IconGhost,
-  IconSkull,
-  IconCat,
-  IconDog,
-  IconDeer,
-  IconHorse,
-  IconPig,
-  IconFeather,
-  IconButterfly,
-} from '@tabler/icons-react';
+import { ICON_CATEGORIES, ICON_LIST } from './icons';
+
+export { ICON_LIST };
 
 type TabType = 'emoji' | 'icons';
 
@@ -283,165 +146,6 @@ function buildEmojiCategories(): EmojiCategory[] {
 
 const EMOJI_CATEGORIES = buildEmojiCategories();
 
-export const ICON_LIST = [
-  // 常用
-  { name: 'file', icon: IconFileText, color: '#f59e0b' },
-  { name: 'folder', icon: IconFolder, color: '#f59e0b' },
-  { name: 'star', icon: IconStar, color: '#f59e0b' },
-  { name: 'heart', icon: IconHeart, color: '#f59e0b' },
-  { name: 'bookmark', icon: IconBookmark, color: '#f59e0b' },
-  { name: 'target', icon: IconTarget, color: '#f59e0b' },
-  { name: 'bulb', icon: IconBulb, color: '#f59e0b' },
-  { name: 'rocket', icon: IconRocket, color: '#f59e0b' },
-  { name: 'sparkles', icon: IconSparkles, color: '#f59e0b' },
-  { name: 'crown', icon: IconCrown, color: '#f59e0b' },
-  { name: 'award', icon: IconAward, color: '#f59e0b' },
-  { name: 'trophy', icon: IconTrophy, color: '#f59e0b' },
-  { name: 'medal', icon: IconMedal, color: '#f59e0b' },
-  { name: 'gift', icon: IconGift, color: '#f59e0b' },
-  // 状态
-  { name: 'check', icon: IconCheck, color: '#f59e0b' },
-  { name: 'x', icon: IconX, color: '#f59e0b' },
-  { name: 'alert', icon: IconAlertCircle, color: '#f59e0b' },
-  { name: 'info', icon: IconInfoCircle, color: '#f59e0b' },
-  { name: 'question', icon: IconQuestionMark, color: '#f59e0b' },
-  { name: 'bell', icon: IconBell, color: '#f59e0b' },
-  { name: 'pin', icon: IconPin, color: '#f59e0b' },
-  { name: 'flag', icon: IconFlag, color: '#f59e0b' },
-  // 开发
-  { name: 'code', icon: IconCode, color: '#f59e0b' },
-  { name: 'bug', icon: IconBug, color: '#f59e0b' },
-  { name: 'database', icon: IconDatabase, color: '#f59e0b' },
-  { name: 'cpu', icon: IconCpu, color: '#f59e0b' },
-  { name: 'cloud', icon: IconCloud, color: '#f59e0b' },
-  { name: 'wifi', icon: IconWifi, color: '#f59e0b' },
-  { name: 'shield', icon: IconShield, color: '#f59e0b' },
-  { name: 'lock', icon: IconLock, color: '#f59e0b' },
-  { name: 'key', icon: IconKey, color: '#f59e0b' },
-  { name: 'settings', icon: IconSettings, color: '#f59e0b' },
-  // 用户
-  { name: 'user', icon: IconUser, color: '#f59e0b' },
-  { name: 'users', icon: IconUsers, color: '#f59e0b' },
-  { name: 'friends', icon: IconFriends, color: '#f59e0b' },
-  { name: 'smile', icon: IconMoodSmile, color: '#f59e0b' },
-  { name: 'happy', icon: IconMoodHappy, color: '#f59e0b' },
-  { name: 'wink', icon: IconMoodWink, color: '#f59e0b' },
-  { name: 'thumbup', icon: IconThumbUp, color: '#f59e0b' },
-  { name: 'eye', icon: IconEye, color: '#f59e0b' },
-  // 通讯
-  { name: 'mail', icon: IconMail, color: '#f59e0b' },
-  { name: 'message', icon: IconMessage, color: '#f59e0b' },
-  { name: 'send', icon: IconSend, color: '#f59e0b' },
-  { name: 'inbox', icon: IconInbox, color: '#f59e0b' },
-  { name: 'phone', icon: IconPhone, color: '#f59e0b' },
-  { name: 'at', icon: IconAt, color: '#f59e0b' },
-  { name: 'hash', icon: IconHash, color: '#f59e0b' },
-  { name: 'tag', icon: IconTag, color: '#f59e0b' },
-  { name: 'link', icon: IconLink, color: '#f59e0b' },
-  // 时间
-  { name: 'calendar', icon: IconCalendar, color: '#f59e0b' },
-  { name: 'clock', icon: IconClock, color: '#f59e0b' },
-  { name: 'sun', icon: IconSun, color: '#f59e0b' },
-  { name: 'moon', icon: IconMoon, color: '#f59e0b' },
-  // 地点
-  { name: 'home', icon: IconHome, color: '#f59e0b' },
-  { name: 'building', icon: IconBuilding, color: '#f59e0b' },
-  { name: 'world', icon: IconWorld, color: '#f59e0b' },
-  { name: 'map', icon: IconMap, color: '#f59e0b' },
-  { name: 'mappin', icon: IconMapPin, color: '#f59e0b' },
-  { name: 'compass', icon: IconCompass, color: '#f59e0b' },
-  { name: 'plane', icon: IconPlane, color: '#f59e0b' },
-  { name: 'car', icon: IconCar, color: '#f59e0b' },
-  { name: 'train', icon: IconTrain, color: '#f59e0b' },
-  { name: 'mountain', icon: IconMountain, color: '#f59e0b' },
-  { name: 'tent', icon: IconTent, color: '#f59e0b' },
-  { name: 'campfire', icon: IconCampfire, color: '#f59e0b' },
-  // 媒体
-  { name: 'camera', icon: IconCamera, color: '#f59e0b' },
-  { name: 'photo', icon: IconPhoto, color: '#f59e0b' },
-  { name: 'music', icon: IconMusic, color: '#f59e0b' },
-  { name: 'video', icon: IconVideo, color: '#f59e0b' },
-  { name: 'headphones', icon: IconHeadphones, color: '#f59e0b' },
-  { name: 'microphone', icon: IconMicrophone, color: '#f59e0b' },
-  { name: 'play', icon: IconPlayerPlay, color: '#f59e0b' },
-  { name: 'volume', icon: IconVolume, color: '#f59e0b' },
-  // 文档
-  { name: 'note', icon: IconNote, color: '#f59e0b' },
-  { name: 'book', icon: IconBook, color: '#f59e0b' },
-  { name: 'clipboard', icon: IconClipboard, color: '#f59e0b' },
-  { name: 'pencil', icon: IconPencil, color: '#f59e0b' },
-  { name: 'archive', icon: IconArchive, color: '#f59e0b' },
-  { name: 'trash', icon: IconTrash, color: '#f59e0b' },
-  { name: 'download', icon: IconDownload, color: '#f59e0b' },
-  { name: 'upload', icon: IconUpload, color: '#f59e0b' },
-  { name: 'printer', icon: IconPrinter, color: '#f59e0b' },
-  // 工作
-  { name: 'briefcase', icon: IconBriefcase, color: '#f59e0b' },
-  { name: 'school', icon: IconSchool, color: '#f59e0b' },
-  { name: 'chart', icon: IconChartBar, color: '#f59e0b' },
-  { name: 'wallet', icon: IconWallet, color: '#f59e0b' },
-  { name: 'cart', icon: IconShoppingCart, color: '#f59e0b' },
-  { name: 'card', icon: IconCreditCard, color: '#f59e0b' },
-  { name: 'calculator', icon: IconCalculator, color: '#f59e0b' },
-  // 创意
-  { name: 'palette', icon: IconPalette, color: '#f59e0b' },
-  { name: 'brush', icon: IconBrush, color: '#f59e0b' },
-  { name: 'wand', icon: IconWand, color: '#f59e0b' },
-  { name: 'tools', icon: IconTools, color: '#f59e0b' },
-  // 科学
-  { name: 'flask', icon: IconFlask, color: '#f59e0b' },
-  { name: 'atom', icon: IconAtom, color: '#f59e0b' },
-  { name: 'microscope', icon: IconMicroscope, color: '#f59e0b' },
-  { name: 'dna', icon: IconDna, color: '#f59e0b' },
-  { name: 'brain', icon: IconBrain, color: '#f59e0b' },
-  { name: 'pill', icon: IconPill, color: '#f59e0b' },
-  // 自然
-  { name: 'plant', icon: IconPlant, color: '#f59e0b' },
-  { name: 'leaf', icon: IconLeaf, color: '#f59e0b' },
-  { name: 'tree', icon: IconTree, color: '#f59e0b' },
-  { name: 'flower', icon: IconFlower, color: '#f59e0b' },
-  { name: 'droplet', icon: IconDroplet, color: '#f59e0b' },
-  { name: 'snowflake', icon: IconSnowflake, color: '#f59e0b' },
-  { name: 'bolt', icon: IconBolt, color: '#f59e0b' },
-  { name: 'flame', icon: IconFlame, color: '#f59e0b' },
-  // 食物
-  { name: 'coffee', icon: IconCoffee, color: '#f59e0b' },
-  { name: 'pizza', icon: IconPizza, color: '#f59e0b' },
-  { name: 'cake', icon: IconCake, color: '#f59e0b' },
-  { name: 'apple', icon: IconApple, color: '#f59e0b' },
-  { name: 'cookie', icon: IconCookie, color: '#f59e0b' },
-  { name: 'icecream', icon: IconIceCream, color: '#f59e0b' },
-  { name: 'beer', icon: IconBeer, color: '#f59e0b' },
-  { name: 'burger', icon: IconBurger, color: '#f59e0b' },
-  { name: 'fish', icon: IconFish, color: '#f59e0b' },
-  // 动物
-  { name: 'cat', icon: IconCat, color: '#f59e0b' },
-  { name: 'dog', icon: IconDog, color: '#f59e0b' },
-  { name: 'deer', icon: IconDeer, color: '#f59e0b' },
-  { name: 'horse', icon: IconHorse, color: '#f59e0b' },
-  { name: 'pig', icon: IconPig, color: '#f59e0b' },
-  { name: 'feather', icon: IconFeather, color: '#f59e0b' },
-  { name: 'butterfly', icon: IconButterfly, color: '#f59e0b' },
-  // 节日
-  { name: 'balloon', icon: IconBalloon, color: '#f59e0b' },
-  { name: 'confetti', icon: IconConfetti, color: '#f59e0b' },
-  { name: 'ghost', icon: IconGhost, color: '#f59e0b' },
-  { name: 'skull', icon: IconSkull, color: '#f59e0b' },
-  // 设备
-  { name: 'desktop', icon: IconDeviceDesktop, color: '#f59e0b' },
-  { name: 'laptop', icon: IconDeviceLaptop, color: '#f59e0b' },
-  { name: 'mobile', icon: IconDeviceMobile, color: '#f59e0b' },
-  { name: 'tablet', icon: IconDeviceTablet, color: '#f59e0b' },
-  { name: 'gamepad', icon: IconDeviceGamepad, color: '#f59e0b' },
-  { name: 'battery', icon: IconBattery, color: '#f59e0b' },
-  // 形状
-  { name: 'circle', icon: IconCircle, color: '#f59e0b' },
-  { name: 'square', icon: IconSquare, color: '#f59e0b' },
-  { name: 'triangle', icon: IconTriangle, color: '#f59e0b' },
-  { name: 'diamond', icon: IconDiamond, color: '#f59e0b' },
-  { name: 'hexagon', icon: IconHexagon, color: '#f59e0b' },
-];
-
 interface IconPickerProps {
   onSelect: (emoji: string) => void;
   onPreview?: (emoji: string | null) => void;
@@ -569,7 +273,9 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
   const [skinTone, setSkinTone] = useState(loadSkinTone);
   const [showSkinTonePicker, setShowSkinTonePicker] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('people');
+  const [activeIconCategory, setActiveIconCategory] = useState<string>('common');
   const [previewSkinTone, setPreviewSkinTone] = useState<number | null>(null); // 预览肤色
+  const iconScrollContainerRef = useRef<HTMLDivElement>(null);
 
   // 实际使用的肤色（预览优先）
   const effectiveSkinTone = previewSkinTone !== null ? previewSkinTone : skinTone;
@@ -691,6 +397,16 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
       searchInputRef.current?.focus();
     }
   }, [activeTab]);
+
+  // 切换 Icon 分类时滚动到顶部
+  const handleIconCategoryChange = useCallback((categoryId: string) => {
+    setActiveIconCategory(categoryId);
+    requestAnimationFrame(() => {
+      if (iconScrollContainerRef.current) {
+        iconScrollContainerRef.current.scrollTop = 0;
+      }
+    });
+  }, []);
 
   const handleIconSelect = (iconName: string, color: string) => {
     const iconValue = `icon:${iconName}:${color}`;
@@ -896,28 +612,58 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
           )}
         </div>
       ) : (
-        <div 
-          className="p-3 max-h-[320px] overflow-y-auto neko-scrollbar"
-          onMouseLeave={() => onPreview?.(null)}
-        >
-          <div className="grid grid-cols-8 gap-1">
-            {ICON_LIST.map((item) => {
-              const IconComponent = item.icon;
-              const iconValue = `icon:${item.name}:${item.color}`;
-              return (
-                <button
-                  key={item.name}
-                  onClick={() => handleIconSelect(item.name, item.color)}
-                  onMouseEnter={() => onPreview?.(iconValue)}
-                  className={cn(
-                    "w-9 h-9 flex items-center justify-center rounded-md",
-                    "hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                  )}
-                >
-                  <IconComponent size={20} style={{ color: item.color }} />
-                </button>
-              );
-            })}
+        <div>
+          <div 
+            ref={iconScrollContainerRef}
+            className="p-3 max-h-[280px] overflow-y-auto neko-scrollbar"
+            onMouseLeave={() => onPreview?.(null)}
+          >
+            {ICON_CATEGORIES.map((category) => (
+              <div 
+                key={category.id}
+                style={{ display: activeIconCategory === category.id ? 'block' : 'none' }}
+              >
+                <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2 font-medium">
+                  {category.name}
+                </div>
+                <div className="grid grid-cols-8 gap-1">
+                  {category.icons.map((item) => {
+                    const IconComponent = item.icon;
+                    const iconValue = `icon:${item.name}:${item.color}`;
+                    return (
+                      <button
+                        key={item.name}
+                        onClick={() => handleIconSelect(item.name, item.color)}
+                        onMouseEnter={() => onPreview?.(iconValue)}
+                        className={cn(
+                          "w-9 h-9 flex items-center justify-center rounded-md",
+                          "hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                        )}
+                      >
+                        <IconComponent size={20} style={{ color: item.color }} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-around px-2 py-1.5 border-t border-[var(--neko-border)] bg-zinc-50 dark:bg-zinc-800/50">
+            {ICON_CATEGORIES.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => handleIconCategoryChange(category.id)}
+                className={cn(
+                  "w-8 h-8 flex items-center justify-center rounded-md text-lg transition-colors",
+                  activeIconCategory === category.id
+                    ? "bg-zinc-200 dark:bg-zinc-700"
+                    : "hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                )}
+                title={category.name}
+              >
+                {category.emoji}
+              </button>
+            ))}
           </div>
         </div>
       )}
