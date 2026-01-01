@@ -2,7 +2,7 @@
  * Link Suggest - Wiki-style link suggestions triggered by [[
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { IconFile, IconFilePlus } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 

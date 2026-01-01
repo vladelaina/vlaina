@@ -2,7 +2,7 @@
  * Code Block Toolbar - Language selector and copy button
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { IconCopy, IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 

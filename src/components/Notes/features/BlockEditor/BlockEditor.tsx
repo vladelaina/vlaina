@@ -8,7 +8,6 @@ import React, { useState, useCallback } from 'react';
 import { EditorProvider, useEditorContext } from './EditorContext';
 import { BlockRenderer } from './blocks';
 import { SlashMenu, DragHandle, InlineToolbar, LinkSuggest, KeyboardShortcutsModal } from './widgets';
-import type { LinkSuggestNote } from './widgets';
 import { useEditorStore } from './EditorStore';
 import { cn } from '@/lib/utils';
 import { IconKeyboard } from '@tabler/icons-react';

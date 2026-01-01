@@ -11,7 +11,6 @@ import type {
   BlockSelection,
   EditorState,
   HistoryEntry,
-  TextRange,
   InlineFormat,
 } from './types';
 import {
@@ -22,7 +21,6 @@ import {
   mergeDelta,
   getDeltaLength,
   applyFormat,
-  textToDelta,
 } from './utils';
 
 const MAX_HISTORY_SIZE = 100;
@@ -327,7 +325,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   applyInlineFormat: (format, value = true) => {
-    const { selection, blocks } = get();
+    const { selection } = get();
     if (!selection || !selection.range || selection.range.length === 0) return;
 
     set((state) => {
