@@ -15,6 +15,14 @@ import {
 } from '@tabler/icons-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface FileTreeItemProps {
   node: FileTreeNode;
@@ -38,16 +46,18 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(node.name);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isActive = !node.isFolder && node.path === currentNotePath;
   const paddingLeft = 8 + depth * 16;
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
     if (node.isFolder) {
       toggleFolder(node.path);
     } else {
-      openNote(node.path);
+      // Ctrl+点击在新标签中打开，普通点击替换当前标签
+      openNote(node.path, e.ctrlKey || e.metaKey);
     }
   };
 
@@ -56,16 +66,18 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
     setShowMenu(true);
   };
 
-  const handleDelete = async () => {
-    const confirmed = confirm(`Delete "${node.name}"?`);
-    if (confirmed) {
-      if (node.isFolder) {
-        await deleteFolder(node.path);
-      } else {
-        await deleteNote(node.path);
-      }
-    }
+  const handleDeleteClick = () => {
     setShowMenu(false);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (node.isFolder) {
+      await deleteFolder(node.path);
+    } else {
+      await deleteNote(node.path);
+    }
+    setShowDeleteDialog(false);
   };
 
   const handleRename = () => {
@@ -260,7 +272,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
             <MenuItem 
               icon={<IconTrash />} 
               label="Delete" 
-              onClick={handleDelete}
+              onClick={handleDeleteClick}
               danger 
             />
           </div>
@@ -280,6 +292,44 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent 
+          showCloseButton={false}
+          className="bg-[var(--neko-bg-primary)] border-[var(--neko-border)] max-w-[320px]"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-[var(--neko-text-primary)]">
+              删除{node.isFolder ? '文件夹' : '笔记'}
+            </DialogTitle>
+            <DialogDescription className="text-[var(--neko-text-secondary)]">
+              确定要删除 "{node.name}" 吗？{node.isFolder ? '文件夹内的所有内容都将被删除。' : ''}此操作无法撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <button
+              onClick={() => setShowDeleteDialog(false)}
+              className={cn(
+                "px-4 py-2 text-sm rounded-md transition-colors",
+                "bg-[var(--neko-bg-secondary)] text-[var(--neko-text-primary)]",
+                "hover:bg-[var(--neko-hover)] border border-[var(--neko-border)]"
+              )}
+            >
+              取消
+            </button>
+            <button
+              onClick={handleDeleteConfirm}
+              className={cn(
+                "px-4 py-2 text-sm rounded-md transition-colors",
+                "bg-red-500 text-white hover:bg-red-600"
+              )}
+            >
+              删除
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

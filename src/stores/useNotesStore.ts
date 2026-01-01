@@ -63,7 +63,7 @@ interface NotesState {
 interface NotesActions {
   // Actions
   loadFileTree: () => Promise<void>;
-  openNote: (path: string) => Promise<void>;
+  openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   saveNote: () => Promise<void>;
   createNote: (folderPath?: string) => Promise<string>;
   createNoteWithContent: (folderPath: string | undefined, name: string, content: string) => Promise<string>;
@@ -289,8 +289,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   },
 
   // Open a note for editing
-  openNote: async (path: string) => {
-    const { notesPath, isDirty, saveNote, recentNotes, openTabs } = get();
+  openNote: async (path: string, openInNewTab: boolean = false) => {
+    const { notesPath, isDirty, saveNote, recentNotes, openTabs, currentNote } = get();
     
     // Auto-save current note if dirty
     if (isDirty) {
@@ -304,12 +304,31 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       // Add to recent notes
       const updatedRecent = addToRecentNotes(path, recentNotes);
       
-      // Add to open tabs if not already open
-      const fileName = path.split('/').pop()?.replace('.md', '') || 'Untitled';
+      // Check if already open in a tab
       const existingTab = openTabs.find(t => t.path === path);
-      const updatedTabs = existingTab 
-        ? openTabs 
-        : [...openTabs, { path, name: fileName, isDirty: false }];
+      
+      let updatedTabs = openTabs;
+      
+      if (existingTab) {
+        // Already open, just switch to it
+        updatedTabs = openTabs;
+      } else if (openInNewTab || openTabs.length === 0) {
+        // Open in new tab (Ctrl+click or no tabs open)
+        const fileName = path.split('/').pop()?.replace('.md', '') || 'Untitled';
+        updatedTabs = [...openTabs, { path, name: fileName, isDirty: false }];
+      } else {
+        // Replace current tab
+        const currentTabIndex = openTabs.findIndex(t => t.path === currentNote?.path);
+        if (currentTabIndex !== -1) {
+          const fileName = path.split('/').pop()?.replace('.md', '') || 'Untitled';
+          updatedTabs = [...openTabs];
+          updatedTabs[currentTabIndex] = { path, name: fileName, isDirty: false };
+        } else {
+          // No current tab found, add as new
+          const fileName = path.split('/').pop()?.replace('.md', '') || 'Untitled';
+          updatedTabs = [...openTabs, { path, name: fileName, isDirty: false }];
+        }
+      }
       
       set({
         currentNote: { path, content },
@@ -643,17 +662,19 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
     
     const updatedTabs = openTabs.filter(t => t.path !== path);
     
+    // 先更新标签列表
+    set({ openTabs: updatedTabs });
+    
     // If closing current tab, switch to another
     if (currentNote?.path === path) {
       if (updatedTabs.length > 0) {
+        // 切换到最后一个标签
         const lastTab = updatedTabs[updatedTabs.length - 1];
         get().openNote(lastTab.path);
       } else {
         set({ currentNote: null, isDirty: false });
       }
     }
-    
-    set({ openTabs: updatedTabs });
   },
 
   // Switch to a tab

@@ -48,17 +48,36 @@ function SortableTab({ tab, isActive, onClose, onClick }: SortableTabProps) {
     transition: undefined, // 禁用动画
   };
 
+  // 处理指针按下事件，合并 dnd-kit 的 listeners
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // 中键点击直接关闭标签，不触发拖拽
+    if (e.button === 1) {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose(tab.path);
+      return;
+    }
+    // 其他情况调用 dnd-kit 的处理器
+    listeners?.onPointerDown?.(e);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      onClick={() => onClick(tab.path)}
-      onMouseDown={(e) => {
+      onPointerDown={handlePointerDown}
+      onClick={(e) => {
+        // 中键点击不触发切换
+        if (e.button === 1) return;
+        onClick(tab.path);
+      }}
+      onAuxClick={(e) => {
+        // 阻止中键点击的默认行为
         if (e.button === 1) {
           e.preventDefault();
-          onClose(tab.path);
+          e.stopPropagation();
         }
       }}
       className={cn(
