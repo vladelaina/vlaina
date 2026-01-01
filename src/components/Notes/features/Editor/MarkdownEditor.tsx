@@ -55,7 +55,9 @@ function MilkdownEditorInner() {
     Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, root);
-        ctx.set(defaultValueCtx, currentNote?.content || '');
+        // 如果内容为空，给一个空行让编辑器可以聚焦
+        const content = currentNote?.content || '';
+        ctx.set(defaultValueCtx, content);
         ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
           updateContent(markdown);
           debouncedSave();
@@ -67,6 +69,18 @@ function MilkdownEditorInner() {
       .use(listener),
     [currentNote?.path]
   );
+
+  // 编辑器挂载后自动聚焦
+  useEffect(() => {
+    // 延迟聚焦，等待编辑器完全初始化
+    const timer = setTimeout(() => {
+      const editor = document.querySelector('.milkdown .ProseMirror') as HTMLElement;
+      if (editor) {
+        editor.focus();
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [currentNote?.path]);
 
   return (
     <div className="flex-1 overflow-auto neko-scrollbar milkdown-editor">
