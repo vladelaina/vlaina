@@ -40,7 +40,6 @@ import { KeyboardShortcutsModal } from './features/BlockEditor/widgets';
 import './features/BlockEditor/styles.css';
 import { cn } from '@/lib/utils';
 
-const SIDEBAR_WIDTH = 248;
 const SIDEBAR_MIN_WIDTH = 200;
 const SIDEBAR_MAX_WIDTH = 400;
 const RIGHT_PANEL_WIDTH = 260;
@@ -58,6 +57,8 @@ export function NotesPage() {
     openNote,
     // UI State from store
     sidebarCollapsed,
+    sidebarWidth,
+    setSidebarWidth,
     rightPanelCollapsed,
     showOutline,
     showBacklinks,
@@ -67,7 +68,6 @@ export function NotesPage() {
   } = useNotesStore();
   
   // Local UI State
-  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH);
   const [isDragging, setIsDragging] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
@@ -156,7 +156,7 @@ export function NotesPage() {
       {/* Left Sidebar */}
       <aside 
         className={cn(
-          "flex-shrink-0 flex flex-col overflow-hidden transition-[width] duration-200",
+          "flex-shrink-0 flex flex-col overflow-hidden",
           "bg-[var(--neko-sidebar-bg)]",
           sidebarCollapsed && "w-0"
         )}
@@ -227,16 +227,31 @@ export function NotesPage() {
         </div>
       </aside>
 
-      {/* Resize Handle - Hidden when sidebar collapsed */}
+      {/* Resize Handle - Hidden when sidebar collapsed, extends full window height */}
       {!sidebarCollapsed && (
-        <div
-          onMouseDown={handleDragStart}
-          className={cn(
-            "w-1 flex-shrink-0 cursor-col-resize transition-colors bg-[var(--neko-sidebar-bg)]",
-            "hover:bg-[var(--neko-accent)]",
-            isDragging && "bg-[var(--neko-accent)]"
-          )}
-        />
+        <>
+          {/* Spacer to maintain layout */}
+          <div className="w-1 flex-shrink-0 bg-[var(--neko-sidebar-bg)]" />
+          {/* Actual resize handle with fixed positioning - wider hit area but thin visible line */}
+          <div
+            onMouseDown={handleDragStart}
+            className={cn(
+              "w-2 cursor-col-resize group",
+              "fixed top-0 bottom-0 z-[100]",
+              "flex items-center justify-center"
+            )}
+            style={{ left: sidebarWidth - 2 }}
+          >
+            {/* Thin visible line */}
+            <div 
+              className={cn(
+                "w-0.5 h-full transition-colors",
+                "group-hover:bg-[var(--neko-accent)]",
+                isDragging && "bg-[var(--neko-accent)]"
+              )}
+            />
+          </div>
+        </>
       )}
 
 

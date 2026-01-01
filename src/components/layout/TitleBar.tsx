@@ -165,6 +165,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
   const { appViewMode, toggleAppViewMode } = useUIStore();
   const { 
     sidebarCollapsed, 
+    sidebarWidth,
     rightPanelCollapsed, 
     showAIPanel,
     toggleSidebar, 
@@ -179,9 +180,8 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
     reorderTabs,
   } = useNotesStore();
   
-  // Sidebar width from NotesPage - used to align tabs with content area
-  const SIDEBAR_WIDTH = 248;
-  const RESIZE_HANDLE_WIDTH = 4; // 1px handle
+  // Resize handle width
+  const RESIZE_HANDLE_WIDTH = 4;
   
   // 当前拖拽的标签
   const [activeTabId, setActiveTabId] = React.useState<string | null>(null);
@@ -252,62 +252,124 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
       }}
       className="h-10 bg-[#F6F6F6] dark:bg-zinc-900 flex items-center select-none relative z-50"
     >
+      {/* Left sidebar area - matches sidebar width */}
+      {appViewMode === 'notes' && !sidebarCollapsed && (
+        <div 
+          className="h-full flex items-center flex-shrink-0 z-20"
+          style={{ width: sidebarWidth }}
+        >
+          {/* Sidebar Toggle */}
+          <button
+            onClick={toggleSidebar}
+            className={cn(
+              "h-full w-9 flex items-center justify-center transition-colors",
+              "hover:bg-zinc-100 dark:hover:bg-zinc-800",
+              "text-zinc-400 dark:text-zinc-500"
+            )}
+            title="Hide sidebar"
+          >
+            <PanelLeft className="size-4" />
+          </button>
+
+          {/* Settings Button */}
+          <button
+            onClick={onOpenSettings}
+            className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            title="Settings"
+          >
+            <Settings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
+          </button>
+
+          {/* Notes/Calendar Toggle Button */}
+          <button
+            onClick={toggleAppViewMode}
+            className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            title="Switch to Calendar"
+          >
+            <CalendarBlank className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" weight="duotone" />
+          </button>
+          
+          {/* Draggable area to fill remaining space in sidebar header */}
+          <div 
+            className="flex-1 h-full cursor-default"
+            onMouseDown={startDrag}
+          />
+        </div>
+      )}
+
+      {/* When sidebar is collapsed, show buttons normally */}
+      {appViewMode === 'notes' && sidebarCollapsed && (
+        <>
+          <button
+            onClick={toggleSidebar}
+            className={cn(
+              "h-full w-9 flex items-center justify-center transition-colors z-20",
+              "hover:bg-zinc-100 dark:hover:bg-zinc-800",
+              "text-zinc-200 dark:text-zinc-700"
+            )}
+            title="Show sidebar"
+          >
+            <PanelLeft className="size-4" />
+          </button>
+
+          <button
+            onClick={onOpenSettings}
+            className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
+            title="Settings"
+          >
+            <Settings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
+          </button>
+
+          <button
+            onClick={toggleAppViewMode}
+            className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
+            title="Switch to Calendar"
+          >
+            <CalendarBlank className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" weight="duotone" />
+          </button>
+        </>
+      )}
+
+      {/* Calendar view buttons */}
+      {appViewMode === 'calendar' && (
+        <>
+          <button
+            onClick={onOpenSettings}
+            className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
+            title="Settings"
+          >
+            <Settings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
+          </button>
+
+          <button
+            onClick={toggleAppViewMode}
+            className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
+            title="Switch to Notes"
+          >
+            <NotePencil className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" weight="duotone" />
+          </button>
+        </>
+      )}
+
+      {/* Resize handle spacer - only when sidebar is expanded */}
+      {appViewMode === 'notes' && !sidebarCollapsed && (
+        <div className="w-1 h-full flex-shrink-0" />
+      )}
+
       {/* White background area for main content - creates the "cutout" effect */}
       {appViewMode === 'notes' && !sidebarCollapsed && (
         <div 
           className="absolute top-0 bottom-0 right-0 bg-white dark:bg-zinc-800 rounded-tl-xl"
           style={{ 
-            left: SIDEBAR_WIDTH + RESIZE_HANDLE_WIDTH,
+            left: sidebarWidth + RESIZE_HANDLE_WIDTH,
           }}
         />
       )}
-
-      {/* Left: Sidebar Toggle (Notes view only) */}
-      {appViewMode === 'notes' && (
-        <button
-          onClick={toggleSidebar}
-          className={cn(
-            "h-full w-9 flex items-center justify-center transition-colors z-20",
-            "hover:bg-zinc-100 dark:hover:bg-zinc-800",
-            !sidebarCollapsed
-              ? "text-zinc-400 dark:text-zinc-500"
-              : "text-zinc-200 dark:text-zinc-700"
-          )}
-          title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-        >
-          <PanelLeft className="size-4" />
-        </button>
-      )}
-
-      {/* Settings Button */}
-      <button
-        onClick={onOpenSettings}
-        className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
-        title="Settings"
-      >
-        <Settings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
-      </button>
-
-      {/* Notes/Calendar Toggle Button */}
-      <button
-        onClick={toggleAppViewMode}
-        className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
-        title={appViewMode === 'calendar' ? 'Switch to Notes' : 'Switch to Calendar'}
-      >
-        {appViewMode === 'calendar' ? (
-          <NotePencil className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" weight="duotone" />
-        ) : (
-          <CalendarBlank className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" weight="duotone" />
-        )}
-      </button>
 
       {/* Note Tabs (Notes view only) - in flex flow with other elements */}
       {appViewMode === 'notes' && (
         <div 
           className="flex-1 flex items-center z-20 overflow-hidden min-w-0 h-full"
-          style={{ 
-            marginLeft: sidebarCollapsed ? 0 : SIDEBAR_WIDTH + RESIZE_HANDLE_WIDTH - 120, // Offset for left buttons
-          }}
         >
           {/* Tabs container */}
           <DndContext

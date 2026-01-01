@@ -53,6 +53,7 @@ interface NotesState {
   starredNotes: string[]; // Starred/bookmarked note paths
   // UI State
   sidebarCollapsed: boolean;
+  sidebarWidth: number; // Sidebar width in pixels
   rightPanelCollapsed: boolean;
   showOutline: boolean;
   showBacklinks: boolean;
@@ -84,6 +85,7 @@ interface NotesActions {
   isStarred: (path: string) => boolean;
   // UI Actions
   toggleSidebar: () => void;
+  setSidebarWidth: (width: number) => void;
   toggleRightPanel: () => void;
   setShowOutline: (show: boolean) => void;
   setShowBacklinks: (show: boolean) => void;
@@ -250,6 +252,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   starredNotes: loadStarredNotes(),
   // UI State
   sidebarCollapsed: false,
+  sidebarWidth: 248, // Default sidebar width
   rightPanelCollapsed: true,
   showOutline: false,
   showBacklinks: false,
@@ -839,6 +842,10 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   // UI Actions
   toggleSidebar: () => {
     set(state => ({ sidebarCollapsed: !state.sidebarCollapsed }));
+  },
+
+  setSidebarWidth: (width: number) => {
+    set({ sidebarWidth: width });
   },
 
   toggleRightPanel: () => {
