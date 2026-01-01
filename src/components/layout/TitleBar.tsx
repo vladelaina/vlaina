@@ -212,8 +212,15 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
     openNote,
     createNote,
     reorderTabs,
-    getDisplayIcon,
+    noteIcons,
+    previewIcon,
   } = useNotesStore();
+  
+  // 获取显示图标的辅助函数（直接订阅状态）
+  const getDisplayIcon = (path: string) => {
+    if (previewIcon?.path === path) return previewIcon.icon;
+    return noteIcons.get(path);
+  };
   
   // Resize handle width
   const RESIZE_HANDLE_WIDTH = 4;

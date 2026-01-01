@@ -41,7 +41,8 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
     createNote, 
     createFolder, 
     moveItem,
-    getDisplayIcon,
+    noteIcons,
+    previewIcon,
   } = useNotesStore();
   
   const [showMenu, setShowMenu] = useState(false);
@@ -53,7 +54,11 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
 
   const isActive = !node.isFolder && node.path === currentNotePath;
   const paddingLeft = 8 + depth * 16;
-  const noteIcon = !node.isFolder ? getDisplayIcon(node.path) : undefined;
+  
+  // 直接计算显示图标，订阅 previewIcon 和 noteIcons 状态
+  const noteIcon = !node.isFolder 
+    ? (previewIcon?.path === node.path ? previewIcon.icon : noteIcons.get(node.path))
+    : undefined;
 
   const handleClick = (e: React.MouseEvent) => {
     if (node.isFolder) {

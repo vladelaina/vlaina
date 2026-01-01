@@ -314,6 +314,7 @@ const EmojiCategorySection = memo(function EmojiCategorySection({
   onPreview,
   recentEmojis,
   categoryTitleRef,
+  showRecent = true,
 }: {
   category: EmojiCategory;
   skinTone: number;
@@ -321,6 +322,7 @@ const EmojiCategorySection = memo(function EmojiCategorySection({
   onPreview?: (emoji: string | null) => void;
   recentEmojis: string[];
   categoryTitleRef?: React.RefObject<HTMLDivElement | null>;
+  showRecent?: boolean;
 }) {
   const emojisWithSkin = useMemo(() => {
     return category.emojis.map(emoji => {
@@ -352,7 +354,7 @@ const EmojiCategorySection = memo(function EmojiCategorySection({
 
   return (
     <div className="px-3 py-2">
-      {recentEmojis.length > 0 && (
+      {showRecent && recentEmojis.length > 0 && (
         <>
           <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2 font-medium">
             最近使用
@@ -440,21 +442,19 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
   // 切换分类时，非第一个分类自动滚动到分类标题
   const handleCategoryChange = useCallback((categoryId: string) => {
     setActiveCategory(categoryId);
-    // 如果不是第一个分类，等待渲染后滚动到分类标题
-    if (categoryId !== 'people') {
-      setTimeout(() => {
+    // 使用 requestAnimationFrame 确保 DOM 更新后立即滚动
+    requestAnimationFrame(() => {
+      if (categoryId !== 'people') {
         if (categoryTitleRef.current && scrollContainerRef.current) {
           categoryTitleRef.current.scrollIntoView({ behavior: 'instant', block: 'start' });
         }
-      }, 0);
-    } else {
-      // 第一个分类滚动到顶部
-      setTimeout(() => {
+      } else {
+        // 第一个分类滚动到顶部
         if (scrollContainerRef.current) {
           scrollContainerRef.current.scrollTop = 0;
         }
-      }, 0);
-    }
+      }
+    });
   }, []);
 
   const searchResults = useMemo(() => {
@@ -477,10 +477,6 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
     
     return results;
   }, [searchQuery]);
-
-  const currentCategory = useMemo(() => {
-    return EMOJI_CATEGORIES.find(c => c.id === activeCategory) || EMOJI_CATEGORIES[0];
-  }, [activeCategory]);
 
   const recentEmojis = recentIcons.filter(i => !i.startsWith('icon:')).slice(0, MAX_RECENT_EMOJIS);
   const recentIconItems = recentIcons.filter(i => i.startsWith('icon:'));
@@ -613,7 +609,7 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="搜索 emoji..."
+                placeholder="Filter..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={cn(
@@ -696,17 +692,23 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
               </div>
             )}
             
-            {!searchQuery && currentCategory && (
-              <EmojiCategorySection
-                key={currentCategory.id}
-                category={currentCategory}
-                skinTone={effectiveSkinTone}
-                onSelect={handleEmojiSelect}
-                onPreview={handlePreview}
-                recentEmojis={recentEmojis}
-                categoryTitleRef={categoryTitleRef}
-              />
-            )}
+            {/* 预渲染所有分类，但只显示当前分类 */}
+            {!searchQuery && EMOJI_CATEGORIES.map((category, index) => (
+              <div 
+                key={category.id} 
+                style={{ display: activeCategory === category.id ? 'block' : 'none' }}
+              >
+                <EmojiCategorySection
+                  category={category}
+                  skinTone={effectiveSkinTone}
+                  onSelect={handleEmojiSelect}
+                  onPreview={handlePreview}
+                  recentEmojis={recentEmojis}
+                  categoryTitleRef={activeCategory === category.id ? categoryTitleRef : undefined}
+                  showRecent={index === 0 || activeCategory === category.id}
+                />
+              </div>
+            ))}
           </div>
 
           {!searchQuery && (
