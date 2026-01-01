@@ -39,7 +39,8 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
     renameNote, 
     createNote, 
     createFolder, 
-    moveItem 
+    moveItem,
+    getNoteIcon,
   } = useNotesStore();
   
   const [showMenu, setShowMenu] = useState(false);
@@ -51,6 +52,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
 
   const isActive = !node.isFolder && node.path === currentNotePath;
   const paddingLeft = 8 + depth * 16;
+  const noteIcon = !node.isFolder ? getNoteIcon(node.path) : undefined;
 
   const handleClick = (e: React.MouseEvent) => {
     if (node.isFolder) {
@@ -180,6 +182,8 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
                 isActive ? "text-[var(--neko-accent)]" : "text-amber-500"
               )} 
             />
+          ) : noteIcon ? (
+            <span className="text-sm leading-none">{noteIcon}</span>
           ) : (
             <IconFileText 
               className={cn(

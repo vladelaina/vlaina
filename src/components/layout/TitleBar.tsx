@@ -32,9 +32,10 @@ interface SortableTabProps {
   isActive: boolean;
   onClose: (path: string) => void;
   onClick: (path: string) => void;
+  icon?: string;
 }
 
-function SortableTab({ tab, isActive, onClose, onClick }: SortableTabProps) {
+function SortableTab({ tab, isActive, onClose, onClick, icon }: SortableTabProps) {
   const {
     attributes,
     listeners,
@@ -89,14 +90,18 @@ function SortableTab({ tab, isActive, onClose, onClick }: SortableTabProps) {
         isDragging && "opacity-50 z-50"
       )}
     >
-      <FileText 
-        className={cn(
-          "w-4 h-4 flex-shrink-0 pointer-events-none",
-          isActive 
-            ? "text-[var(--neko-accent)]" 
-            : "text-zinc-400 dark:text-zinc-500"
-        )} 
-      />
+      {icon ? (
+        <span className="text-sm flex-shrink-0 pointer-events-none">{icon}</span>
+      ) : (
+        <FileText 
+          className={cn(
+            "w-4 h-4 flex-shrink-0 pointer-events-none",
+            isActive 
+              ? "text-[var(--neko-accent)]" 
+              : "text-zinc-400 dark:text-zinc-500"
+          )} 
+        />
+      )}
       
       <span className={cn(
         "text-[13px] truncate pointer-events-none",
@@ -134,9 +139,10 @@ function SortableTab({ tab, isActive, onClose, onClick }: SortableTabProps) {
 interface TabOverlayProps {
   tab: { path: string; name: string; isDirty: boolean };
   isActive: boolean;
+  icon?: string;
 }
 
-function TabOverlay({ tab, isActive }: TabOverlayProps) {
+function TabOverlay({ tab, isActive, icon }: TabOverlayProps) {
   return (
     <div
       className={cn(
@@ -147,14 +153,18 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
           : "bg-zinc-100 dark:bg-zinc-700"
       )}
     >
-      <FileText 
-        className={cn(
-          "w-4 h-4 flex-shrink-0",
-          isActive 
-            ? "text-[var(--neko-accent)]" 
-            : "text-zinc-400 dark:text-zinc-500"
-        )} 
-      />
+      {icon ? (
+        <span className="text-sm flex-shrink-0">{icon}</span>
+      ) : (
+        <FileText 
+          className={cn(
+            "w-4 h-4 flex-shrink-0",
+            isActive 
+              ? "text-[var(--neko-accent)]" 
+              : "text-zinc-400 dark:text-zinc-500"
+          )} 
+        />
+      )}
       
       <span className={cn(
         "text-[13px] truncate",
@@ -197,6 +207,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
     openNote,
     createNote,
     reorderTabs,
+    getNoteIcon,
   } = useNotesStore();
   
   // Resize handle width
@@ -409,6 +420,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                     isActive={currentNote?.path === tab.path}
                     onClose={closeTab}
                     onClick={openNote}
+                    icon={getNoteIcon(tab.path)}
                   />
                 ))}
                 
@@ -444,7 +456,8 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
               {activeTab ? (
                 <TabOverlay 
                   tab={activeTab} 
-                  isActive={currentNote?.path === activeTab.path} 
+                  isActive={currentNote?.path === activeTab.path}
+                  icon={getNoteIcon(activeTab.path)}
                 />
               ) : null}
             </DragOverlay>

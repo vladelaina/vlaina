@@ -51,6 +51,7 @@ interface NotesState {
   openTabs: { path: string; name: string; isDirty: boolean }[]; // Open tabs
   noteContentsCache: Map<string, string>; // Cache for backlinks/search
   starredNotes: string[]; // Starred/bookmarked note paths
+  noteIcons: Map<string, string>; // Note path -> emoji icon mapping
   // UI State
   sidebarCollapsed: boolean;
   sidebarWidth: number; // Sidebar width in pixels
@@ -83,6 +84,9 @@ interface NotesActions {
   getAllTags: () => { tag: string; count: number }[];
   toggleStarred: (path: string) => void;
   isStarred: (path: string) => boolean;
+  // Icon Actions
+  getNoteIcon: (path: string) => string | undefined;
+  setNoteIcon: (path: string, emoji: string | null) => void;
   // UI Actions
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
@@ -122,6 +126,28 @@ function loadStarredNotes(): string[] {
 function saveStarredNotes(paths: string[]): void {
   try {
     localStorage.setItem(STARRED_NOTES_KEY, JSON.stringify(paths));
+  } catch { /* ignore */ }
+}
+
+const NOTE_ICONS_KEY = 'nekotick-note-icons';
+
+function loadNoteIcons(): Map<string, string> {
+  try {
+    const saved = localStorage.getItem(NOTE_ICONS_KEY);
+    if (saved) {
+      const obj = JSON.parse(saved);
+      return new Map(Object.entries(obj));
+    }
+    return new Map();
+  } catch {
+    return new Map();
+  }
+}
+
+function saveNoteIcons(icons: Map<string, string>): void {
+  try {
+    const obj = Object.fromEntries(icons);
+    localStorage.setItem(NOTE_ICONS_KEY, JSON.stringify(obj));
   } catch { /* ignore */ }
 }
 
@@ -250,6 +276,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   openTabs: [],
   noteContentsCache: new Map(),
   starredNotes: loadStarredNotes(),
+  noteIcons: loadNoteIcons(),
   // UI State
   sidebarCollapsed: false,
   sidebarWidth: 248, // Default sidebar width
@@ -858,6 +885,26 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   // Check if a note is starred
   isStarred: (path: string) => {
     return get().starredNotes.includes(path);
+  },
+
+  // Get note icon
+  getNoteIcon: (path: string) => {
+    return get().noteIcons.get(path);
+  },
+
+  // Set note icon
+  setNoteIcon: (path: string, emoji: string | null) => {
+    const { noteIcons } = get();
+    const updated = new Map(noteIcons);
+    
+    if (emoji) {
+      updated.set(path, emoji);
+    } else {
+      updated.delete(path);
+    }
+    
+    saveNoteIcons(updated);
+    set({ noteIcons: updated });
   },
 
   // UI Actions
