@@ -42,6 +42,7 @@ export function NoteIcon({ icon, size = 16, className }: NoteIconProps) {
         fontSize: size,
         lineHeight: 1,
         display: 'inline-block',
+        userSelect: 'none',
       }}
     >
       {icon}
