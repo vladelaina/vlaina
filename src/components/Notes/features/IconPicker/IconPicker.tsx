@@ -338,16 +338,16 @@ function VirtualEmojiGrid({
               }}
             >
               {row.type === 'title' ? (
-                <div className="px-3 pt-2 pb-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
+                <div className="px-2 pt-2 pb-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
                   {row.content as string}
                 </div>
               ) : (
-                <div className="px-3 flex gap-0.5">
+                <div className="px-2 grid grid-cols-9 gap-0.5">
                   {(row.content as string[]).map((emoji, i) => (
                     <button
                       key={i}
                       data-emoji={emoji}
-                      className="w-8 h-8 flex items-center justify-center rounded-md text-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      className="w-full aspect-square flex items-center justify-center rounded-md text-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     >
                       {emoji}
                     </button>
@@ -467,11 +467,11 @@ function VirtualIconGrid({
               }}
             >
               {row.type === 'title' ? (
-                <div className="px-3 pt-2 pb-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
+                <div className="px-2 pt-2 pb-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
                   {row.content as string}
                 </div>
               ) : (
-                <div className="px-3 flex gap-1">
+                <div className="px-2 grid grid-cols-8 gap-1">
                   {(row.content as IconItem[]).map((item) => {
                     const IconComponent = item.icon;
                     return (
@@ -479,7 +479,7 @@ function VirtualIconGrid({
                         key={item.name}
                         data-icon={item.name}
                         data-color={item.color}
-                        className="w-9 h-9 flex items-center justify-center rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        className="w-full aspect-square flex items-center justify-center rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
                       >
                         <IconComponent size={20} style={{ color: item.color }} />
                       </button>
@@ -590,16 +590,16 @@ function VirtualSearchResults({
               }}
             >
               {row.type === 'title' ? (
-                <div className="px-3 pt-2 pb-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
+                <div className="px-2 pt-2 pb-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
                   {row.content as string}
                 </div>
               ) : (
-                <div className="px-3 flex gap-0.5">
+                <div className="px-2 grid grid-cols-9 gap-0.5">
                   {(row.content as string[]).map((emoji, i) => (
                     <button
                       key={i}
                       data-emoji={emoji}
-                      className="w-8 h-8 flex items-center justify-center rounded-md text-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      className="w-full aspect-square flex items-center justify-center rounded-md text-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     >
                       {emoji}
                     </button>
