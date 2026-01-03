@@ -4,7 +4,7 @@
  * Modern style tree item with hover states
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, memo } from 'react';
 import { 
   IconChevronRight, 
   IconDots, 
@@ -31,20 +31,28 @@ interface FileTreeItemProps {
   currentNotePath?: string;
 }
 
-export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps) {
-  const { 
-    openNote, 
-    toggleFolder, 
-    deleteNote, 
-    deleteFolder, 
-    renameNote, 
-    createNote, 
-    createFolder, 
-    moveItem,
-    noteIcons,
-    previewIcon,
-    getDisplayName,
-  } = useNotesStore();
+export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps) {
+  const openNote = useNotesStore(s => s.openNote);
+  const toggleFolder = useNotesStore(s => s.toggleFolder);
+  const deleteNote = useNotesStore(s => s.deleteNote);
+  const deleteFolder = useNotesStore(s => s.deleteFolder);
+  const renameNote = useNotesStore(s => s.renameNote);
+  const createNote = useNotesStore(s => s.createNote);
+  const createFolder = useNotesStore(s => s.createFolder);
+  const moveItem = useNotesStore(s => s.moveItem);
+  
+  // 只订阅当前节点需要的状态
+  const noteIcon = useNotesStore(s => {
+    if (node.isFolder) return undefined;
+    const preview = s.previewIcon;
+    if (preview?.path === node.path) return preview.icon;
+    return s.noteIcons.get(node.path);
+  });
+  
+  const displayName = useNotesStore(s => {
+    if (node.isFolder) return node.name;
+    return s.displayNames.get(node.path) || node.name;
+  });
   
   const [showMenu, setShowMenu] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -55,11 +63,6 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
 
   const isActive = !node.isFolder && node.path === currentNotePath;
   const paddingLeft = 8 + depth * 16;
-  
-  // 直接计算显示图标，订阅 previewIcon 和 noteIcons 状态
-  const noteIcon = !node.isFolder 
-    ? (previewIcon?.path === node.path ? previewIcon.icon : noteIcons.get(node.path))
-    : undefined;
 
   const handleClick = (e: React.MouseEvent) => {
     if (node.isFolder) {
@@ -227,7 +230,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
               ? "text-[var(--neko-accent)] font-medium" 
               : "text-[var(--neko-text-primary)]"
           )}>
-            {node.isFolder ? node.name : getDisplayName(node.path)}
+            {displayName}
           </span>
         )}
 
@@ -343,7 +346,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
       </Dialog>
     </div>
   );
-}
+});
 
 /* Menu Item Component */
 function MenuItem({ 

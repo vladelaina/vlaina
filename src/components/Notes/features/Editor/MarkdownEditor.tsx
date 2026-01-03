@@ -53,18 +53,71 @@ const protectHeadingPlugin = $prose(() => {
   });
 });
 
+// 实时标题同步插件 - 在每次 transaction 时立即更新
+const titleSyncPluginKey = new PluginKey('titleSync');
+let lastSyncedTitle = '';
+let lastSyncedPath = '';
+
+const titleSyncPlugin = $prose(() => {
+  return new Plugin({
+    key: titleSyncPluginKey,
+    view() {
+      return {
+        update(view, prevState) {
+          // 只在文档内容变化时检查
+          if (prevState && prevState.doc.eq(view.state.doc)) return;
+          
+          const { doc } = view.state;
+          const firstNode = doc.firstChild;
+          if (firstNode?.type.name === 'heading' && firstNode.attrs.level === 1) {
+            const title = firstNode.textContent.trim() || 'Untitled';
+            const path = useNotesStore.getState().currentNote?.path;
+            
+            // 只在标题或路径变化时更新
+            if (path && (title !== lastSyncedTitle || path !== lastSyncedPath)) {
+              lastSyncedTitle = title;
+              lastSyncedPath = path;
+              
+              // 使用 setState 的函数形式，避免不必要的状态读取
+              useNotesStore.setState(state => {
+                const currentTab = state.openTabs.find(t => t.path === path);
+                const currentDisplayName = state.displayNames.get(path);
+                
+                // 如果都没变化，返回空对象不触发更新
+                if (currentTab?.name === title && currentDisplayName === title) {
+                  return {};
+                }
+                
+                const updatedTabs = currentTab?.name !== title
+                  ? state.openTabs.map(tab => tab.path === path ? { ...tab, name: title } : tab)
+                  : state.openTabs;
+                  
+                const updatedDisplayNames = currentDisplayName !== title
+                  ? new Map(state.displayNames).set(path, title)
+                  : state.displayNames;
+                
+                return { openTabs: updatedTabs, displayNames: updatedDisplayNames };
+              });
+            }
+          }
+        }
+      };
+    }
+  });
+});
+
 function MilkdownEditorInner() {
   const { currentNote, updateContent, saveNote } = useNotesStore();
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  // 防抖保存 - 300ms 延迟，避免频繁保存导致光标跳动
+  // 防抖保存 - 2000ms 延迟，避免频繁保存导致文件重命名和光标跳动
   const debouncedSave = useCallback(() => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     saveTimeoutRef.current = setTimeout(() => {
       saveNote();
-    }, 300);
+    }, 2000);
   }, [saveNote]);
 
   // 组件卸载时清理
@@ -92,28 +145,29 @@ function MilkdownEditorInner() {
     Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, root);
-        // 如果内容为空，给一个空行让编辑器可以聚焦
         const content = currentNote?.content || '';
         ctx.set(defaultValueCtx, content);
-        ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
-          // 确保内容始终以 # 开头（防止用户删除标题前缀）
-          let finalContent = markdown;
-          if (!markdown.trim() || markdown.trim() === '') {
-            finalContent = '# ';
-          } else if (!markdown.startsWith('#')) {
-            // 如果第一行不是标题，在开头添加 # 
-            finalContent = '# ' + markdown;
-          }
-          updateContent(finalContent);
-          // 防抖保存
-          debouncedSave();
-        });
+        // 重置同步状态
+        lastSyncedTitle = '';
+        lastSyncedPath = '';
+        ctx.get(listenerCtx)
+          .markdownUpdated((_ctx, markdown) => {
+            let finalContent = markdown;
+            if (!markdown.trim() || markdown.trim() === '') {
+              finalContent = '# ';
+            } else if (!markdown.startsWith('#')) {
+              finalContent = '# ' + markdown;
+            }
+            updateContent(finalContent);
+            debouncedSave();
+          });
       })
       .use(commonmark)
       .use(gfm)
       .use(history)
       .use(listener)
-      .use(protectHeadingPlugin),
+      .use(protectHeadingPlugin)
+      .use(titleSyncPlugin),
     [currentNote?.path]
   );
 
@@ -137,13 +191,22 @@ function MilkdownEditorInner() {
 }
 
 export function MarkdownEditor() {
-  const { currentNote, isStarred, toggleStarred, getNoteIcon, setNoteIcon, setPreviewIcon, noteIcons, previewIcon } = useNotesStore();
-  const starred = currentNote ? isStarred(currentNote.path) : false;
+  const currentNote = useNotesStore(s => s.currentNote);
+  const isStarred = useNotesStore(s => s.isStarred);
+  const toggleStarred = useNotesStore(s => s.toggleStarred);
+  const getNoteIcon = useNotesStore(s => s.getNoteIcon);
+  const setNoteIcon = useNotesStore(s => s.setNoteIcon);
+  const setPreviewIcon = useNotesStore(s => s.setPreviewIcon);
   
-  // 直接计算显示图标，订阅 previewIcon 和 noteIcons 状态
-  const displayIcon = currentNote 
-    ? (previewIcon?.path === currentNote.path ? previewIcon.icon : noteIcons.get(currentNote.path))
-    : undefined;
+  // 只订阅当前笔记需要的图标状态
+  const displayIcon = useNotesStore(s => {
+    if (!s.currentNote) return undefined;
+    const path = s.currentNote.path;
+    if (s.previewIcon?.path === path) return s.previewIcon.icon;
+    return s.noteIcons.get(path);
+  });
+  
+  const starred = currentNote ? isStarred(currentNote.path) : false;
   const noteIcon = currentNote ? getNoteIcon(currentNote.path) : undefined;
   const [showIconPicker, setShowIconPicker] = useState(false);
   const iconButtonRef = useRef<HTMLButtonElement>(null);

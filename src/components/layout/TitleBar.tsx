@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, memo } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { 
   IconSettings, 
@@ -85,7 +85,7 @@ interface SortableTabProps {
   icon?: string;
 }
 
-function SortableTab({ tab, isActive, onClose, onClick, icon }: SortableTabProps) {
+const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick, icon }: SortableTabProps) {
   const {
     attributes,
     listeners,
@@ -155,7 +155,7 @@ function SortableTab({ tab, isActive, onClose, onClick, icon }: SortableTabProps
       </button>
     </div>
   );
-}
+});
 
 interface TabOverlayProps {
   tab: { path: string; name: string; isDirty: boolean };
@@ -206,21 +206,19 @@ interface TitleBarProps {
 
 export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls }: TitleBarProps) {
   const { appViewMode, toggleAppViewMode } = useUIStore();
-  const { 
-    sidebarCollapsed, 
-    sidebarWidth,
-    showAIPanel,
-    toggleSidebar, 
-    toggleAIPanel,
-    currentNote,
-    openTabs,
-    closeTab,
-    openNote,
-    createNote,
-    reorderTabs,
-    noteIcons,
-    previewIcon,
-  } = useNotesStore();
+  const sidebarCollapsed = useNotesStore(s => s.sidebarCollapsed);
+  const sidebarWidth = useNotesStore(s => s.sidebarWidth);
+  const showAIPanel = useNotesStore(s => s.showAIPanel);
+  const toggleSidebar = useNotesStore(s => s.toggleSidebar);
+  const toggleAIPanel = useNotesStore(s => s.toggleAIPanel);
+  const currentNote = useNotesStore(s => s.currentNote);
+  const openTabs = useNotesStore(s => s.openTabs);
+  const closeTab = useNotesStore(s => s.closeTab);
+  const openNote = useNotesStore(s => s.openNote);
+  const createNote = useNotesStore(s => s.createNote);
+  const reorderTabs = useNotesStore(s => s.reorderTabs);
+  const noteIcons = useNotesStore(s => s.noteIcons);
+  const previewIcon = useNotesStore(s => s.previewIcon);
   
   const getDisplayIcon = (path: string) => {
     if (previewIcon?.path === path) return previewIcon.icon;

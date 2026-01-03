@@ -219,6 +219,19 @@ export function sortFileTree(nodes: FileTreeNode[]): FileTreeNode[] {
   });
 }
 
+// Update a single file node's path and name in the tree (for rename without full reload)
+function updateFileNodePath(nodes: FileTreeNode[], oldPath: string, newPath: string, newName: string): FileTreeNode[] {
+  return nodes.map(node => {
+    if (node.isFolder) {
+      return { ...node, children: updateFileNodePath(node.children, oldPath, newPath, newName) };
+    }
+    if (node.path === oldPath) {
+      return { ...node, id: newPath, path: newPath, name: newName };
+    }
+    return node;
+  });
+}
+
 function updateFolderExpanded(nodes: FileTreeNode[], targetPath: string): FileTreeNode[] {
   return nodes.map(node => {
     if (node.isFolder) {
@@ -398,11 +411,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   // Save current note to disk
   saveNote: async () => {
-    const { currentNote, notesPath, openTabs, loadFileTree, rootFolder, noteIcons, starredNotes } = get();
+    const { currentNote, notesPath, openTabs, noteIcons, starredNotes } = get();
     if (!currentNote) return;
-    
-    // 保存当前展开的文件夹路径
-    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
     
     try {
       // 提取一级标题
@@ -463,6 +473,17 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
             const updatedDisplayNames = new Map(displayNames);
             updatedDisplayNames.delete(currentNote.path);
             
+            // 更新文件树中的节点（局部更新，不重新加载）
+            const currentRootFolder = get().rootFolder;
+            if (currentRootFolder) {
+              set({
+                rootFolder: {
+                  ...currentRootFolder,
+                  children: updateFileNodePath(currentRootFolder.children, currentNote.path, newPath, sanitizedTitle),
+                },
+              });
+            }
+            
             // 更新当前笔记路径
             set({
               currentNote: { path: newPath, content: currentNote.content },
@@ -470,20 +491,6 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
               openTabs: updatedTabs,
               displayNames: updatedDisplayNames,
             });
-            
-            // 重新加载文件树
-            await loadFileTree();
-            
-            // 恢复文件夹展开状态
-            const currentRootFolder = get().rootFolder;
-            if (currentRootFolder) {
-              set({
-                rootFolder: {
-                  ...currentRootFolder,
-                  children: restoreExpandedState(currentRootFolder.children, expandedPaths),
-                },
-              });
-            }
             
             return;
           }
@@ -785,34 +792,13 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   // Update note content (marks as dirty)
   updateContent: (content: string) => {
-    const { currentNote, openTabs } = get();
-    if (!currentNote) return;
+    const { currentNote } = get();
+    if (!currentNote || currentNote.content === content) return;
     
-    // 提取标题用于实时更新标签名（不触发文件重命名）
-    const h1Title = extractFirstH1(content);
-    const displayName = h1Title || currentNote.path.split('/').pop()?.replace('.md', '') || 'Untitled';
-    
-    // 只更新标签名显示，不更新 isDirty（避免触发保存）
-    const updatedTabs = openTabs.map(tab => 
-      tab.path === currentNote.path 
-        ? { ...tab, name: displayName }
-        : tab
-    );
-    
-    // 更新显示名称映射（用于文件树实时显示）
-    const { displayNames } = get();
-    const updatedDisplayNames = new Map(displayNames);
-    if (h1Title) {
-      updatedDisplayNames.set(currentNote.path, h1Title);
-    } else {
-      updatedDisplayNames.delete(currentNote.path);
-    }
-    
+    // 只更新内容和 dirty 状态，标题更新由编辑器的 titleSyncPlugin 实时处理
     set({
       currentNote: { ...currentNote, content },
       isDirty: true,
-      openTabs: updatedTabs,
-      displayNames: updatedDisplayNames,
     });
   },
 
