@@ -311,11 +311,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           {/* Sidebar Toggle */}
           <button
             onClick={toggleSidebar}
-            className={cn(
-              "h-full w-9 flex items-center justify-center transition-colors",
-              "hover:bg-zinc-100 dark:hover:bg-zinc-800",
-              "text-zinc-400 dark:text-zinc-500"
-            )}
+            className="h-full w-9 flex items-center justify-center transition-colors text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
             title="Hide sidebar"
           >
             <IconLayoutSidebarLeftCollapse className="size-4" />
@@ -324,19 +320,19 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           {/* Settings Button */}
           <button
             onClick={onOpenSettings}
-            className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="h-full px-3 flex items-center justify-center transition-colors text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
             title="Settings"
           >
-            <IconSettings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
+            <IconSettings className="size-4" />
           </button>
 
           {/* Notes/Calendar Toggle Button */}
           <button
             onClick={toggleAppViewMode}
-            className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="h-full px-3 flex items-center justify-center transition-colors text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
             title="Switch to Calendar"
           >
-            <IconCalendar className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" />
+            <IconCalendar className="size-4" />
           </button>
           
           {/* Draggable area to fill remaining space in sidebar header */}
@@ -352,11 +348,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
         <>
           <button
             onClick={toggleSidebar}
-            className={cn(
-              "h-full w-9 flex items-center justify-center transition-colors z-20",
-              "hover:bg-zinc-100 dark:hover:bg-zinc-800",
-              "text-zinc-200 dark:text-zinc-700"
-            )}
+            className="h-full w-9 flex items-center justify-center transition-colors z-20 text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
             title="Show sidebar"
           >
             <IconLayoutSidebarLeftCollapse className="size-4" />
@@ -364,18 +356,18 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
 
           <button
             onClick={onOpenSettings}
-            className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
+            className="h-full px-3 flex items-center justify-center transition-colors z-20 text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
             title="Settings"
           >
-            <IconSettings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
+            <IconSettings className="size-4" />
           </button>
 
           <button
             onClick={toggleAppViewMode}
-            className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
+            className="h-full px-3 flex items-center justify-center transition-colors z-20 text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
             title="Switch to Calendar"
           >
-            <IconCalendar className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" />
+            <IconCalendar className="size-4" />
           </button>
         </>
       )}
@@ -385,18 +377,18 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
         <>
           <button
             onClick={onOpenSettings}
-            className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
+            className="h-full px-3 flex items-center justify-center transition-colors z-20 text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
             title="Settings"
           >
-            <IconSettings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
+            <IconSettings className="size-4" />
           </button>
 
           <button
             onClick={toggleAppViewMode}
-            className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
+            className="h-full px-3 flex items-center justify-center transition-colors z-20 text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
             title="Switch to Notes"
           >
-            <IconNote className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" />
+            <IconNote className="size-4" />
           </button>
         </>
       )}
@@ -531,10 +523,9 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           onClick={toggleRightPanel}
           className={cn(
             "h-full w-9 flex items-center justify-center transition-colors z-20",
-            "hover:bg-zinc-100 dark:hover:bg-zinc-800",
-            !rightPanelCollapsed
-              ? "text-zinc-400 dark:text-zinc-500"
-              : "text-zinc-200 dark:text-zinc-700"
+            rightPanelCollapsed
+              ? "text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
+              : "text-zinc-500 dark:text-zinc-400"
           )}
           title={rightPanelCollapsed ? "Show right panel" : "Hide right panel"}
         >
@@ -548,10 +539,9 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           onClick={toggleAIPanel}
           className={cn(
             "h-full w-9 flex items-center justify-center transition-colors z-20",
-            "hover:bg-zinc-100 dark:hover:bg-zinc-800",
             showAIPanel
-              ? "text-zinc-400 dark:text-zinc-500"
-              : "text-zinc-200 dark:text-zinc-700"
+              ? "text-zinc-500 dark:text-zinc-400"
+              : "text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
           )}
           title={showAIPanel ? "Hide AI Chat" : "Show AI Chat"}
         >

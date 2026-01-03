@@ -793,8 +793,8 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
             className={cn(
               "text-sm font-medium pb-1 border-b-2 transition-colors",
               activeTab === 'emoji'
-                ? "text-[var(--neko-accent)] border-[var(--neko-accent)]"
-                : "text-zinc-500 border-transparent hover:text-zinc-700 dark:hover:text-zinc-300"
+                ? "text-zinc-900 dark:text-zinc-100 border-zinc-900 dark:border-zinc-100"
+                : "text-zinc-400 dark:text-zinc-500 border-transparent hover:text-zinc-600 dark:hover:text-zinc-300"
             )}
           >
             Emoji
@@ -804,8 +804,8 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
             className={cn(
               "text-sm font-medium pb-1 border-b-2 transition-colors",
               activeTab === 'icons'
-                ? "text-[var(--neko-accent)] border-[var(--neko-accent)]"
-                : "text-zinc-500 border-transparent hover:text-zinc-700 dark:hover:text-zinc-300"
+                ? "text-zinc-900 dark:text-zinc-100 border-zinc-900 dark:border-zinc-100"
+                : "text-zinc-400 dark:text-zinc-500 border-transparent hover:text-zinc-600 dark:hover:text-zinc-300"
             )}
           >
             Icons
@@ -814,7 +814,7 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
         {hasIcon && onRemove && (
           <button
             onClick={handleRemove}
-            className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+            className="text-sm text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
           >
             Remove
           </button>
@@ -825,7 +825,7 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
         <div>
           <div className="px-3 pt-3 pb-2 flex items-center gap-2">
             <div className="flex-1 relative">
-              <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400" />
+              <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 dark:text-zinc-500" />
               <input
                 ref={searchInputRef}
                 type="text"
@@ -836,14 +836,14 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
                   "w-full pl-8 py-1.5 text-sm rounded-md",
                   searchQuery ? "pr-8" : "pr-3",
                   "bg-zinc-100 dark:bg-zinc-800",
-                  "border border-transparent focus:border-[var(--neko-accent)]",
+                  "border border-transparent focus:border-zinc-300 dark:focus:border-zinc-600",
                   "outline-none transition-colors"
                 )}
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400 transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                 >
                   <IconX className="size-4" />
                 </button>
@@ -852,10 +852,7 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
             <div className="relative">
               <button
                 onClick={() => setShowSkinTonePicker(!showSkinTonePicker)}
-                className={cn(
-                  "w-7 h-7 rounded-md flex items-center justify-center text-base",
-                  "hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                )}
+                className="w-7 h-7 flex items-center justify-center text-base opacity-60 hover:opacity-100 transition-opacity"
                 title="Skin tone"
               >
                 {SKIN_TONES[skinTone].emoji}
@@ -873,10 +870,10 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
                       onMouseEnter={() => handleSkinToneHover(st.tone)}
                       onMouseLeave={() => handleSkinToneHover(null)}
                       className={cn(
-                        "w-7 h-7 rounded-md flex items-center justify-center text-lg transition-all",
+                        "w-7 h-7 flex items-center justify-center text-lg transition-all",
                         skinTone === st.tone 
-                          ? "bg-zinc-200 dark:bg-zinc-700 scale-110" 
-                          : "hover:bg-zinc-100 dark:hover:bg-zinc-700 hover:scale-105"
+                          ? "opacity-100 scale-110" 
+                          : "opacity-60 hover:opacity-100 hover:scale-105"
                       )}
                     >
                       {st.emoji}
