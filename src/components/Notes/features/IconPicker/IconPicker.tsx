@@ -298,14 +298,18 @@ function VirtualEmojiGrid({
     overscan: 8,
   });
 
-  // Scroll to category title on mount (skip Recent section, except for first category)
+  // Scroll to category title on mount or category change (skip Recent section, except for first category)
   useEffect(() => {
     // First category (Smileys & People) should show Recent section
-    if (recentWithSkin.length > 0 && categoryName !== 'Smileys & People') {
+    if (categoryName === 'Smileys & People') {
+      virtualizer.scrollToIndex(0, { align: 'start' });
+    } else if (recentWithSkin.length > 0) {
       const recentRows = Math.ceil(recentWithSkin.length / EMOJI_PER_ROW) + 1;
       virtualizer.scrollToIndex(recentRows, { align: 'start' });
+    } else {
+      virtualizer.scrollToIndex(0, { align: 'start' });
     }
-  }, []);
+  }, [categoryName]);
 
   const lastPreviewRef = useRef<string | null>(null);
 
@@ -452,14 +456,18 @@ function VirtualIconGrid({
     overscan: 8,
   });
 
-  // Scroll to category title on mount (skip Recent section, except for first category)
+  // Scroll to category title on mount or category change (skip Recent section, except for first category)
   useEffect(() => {
     // First category (Common) should show Recent section
-    if (recentIconItems.length > 0 && categoryName !== 'Common') {
+    if (categoryName === 'Common') {
+      virtualizer.scrollToIndex(0, { align: 'start' });
+    } else if (recentIconItems.length > 0) {
       const recentRows = Math.ceil(recentIconItems.length / ICON_PER_ROW) + 1;
       virtualizer.scrollToIndex(recentRows, { align: 'start' });
+    } else {
+      virtualizer.scrollToIndex(0, { align: 'start' });
     }
-  }, []);
+  }, [categoryName]);
 
   const lastPreviewRef = useRef<string | null>(null);
 
@@ -928,7 +936,6 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
             />
           ) : (
             <VirtualEmojiGrid
-              key={activeCategory}
               emojis={currentCategory.emojis}
               skinTone={effectiveSkinTone}
               onSelect={handleEmojiSelect}
@@ -960,7 +967,6 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
       ) : (
         <div>
           <VirtualIconGrid
-            key={activeIconCategory}
             icons={currentIconCategory.icons}
             onSelect={handleIconSelect}
             onPreview={handlePreview}
