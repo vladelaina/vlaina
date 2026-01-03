@@ -298,9 +298,10 @@ function VirtualEmojiGrid({
     overscan: 8,
   });
 
-  // Scroll to category title on mount (skip Recent section)
+  // Scroll to category title on mount (skip Recent section, except for first category)
   useEffect(() => {
-    if (recentWithSkin.length > 0) {
+    // First category (Smileys & People) should show Recent section
+    if (recentWithSkin.length > 0 && categoryName !== 'Smileys & People') {
       const recentRows = Math.ceil(recentWithSkin.length / EMOJI_PER_ROW) + 1;
       virtualizer.scrollToIndex(recentRows, { align: 'start' });
     }
@@ -451,9 +452,10 @@ function VirtualIconGrid({
     overscan: 8,
   });
 
-  // Scroll to category title on mount (skip Recent section)
+  // Scroll to category title on mount (skip Recent section, except for first category)
   useEffect(() => {
-    if (recentIconItems.length > 0) {
+    // First category (Common) should show Recent section
+    if (recentIconItems.length > 0 && categoryName !== 'Common') {
       const recentRows = Math.ceil(recentIconItems.length / ICON_PER_ROW) + 1;
       virtualizer.scrollToIndex(recentRows, { align: 'start' });
     }

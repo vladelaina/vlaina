@@ -57,7 +57,6 @@ interface NotesState {
   // UI State
   sidebarCollapsed: boolean;
   sidebarWidth: number;
-  rightPanelCollapsed: boolean;
   showAIPanel: boolean;
 }
 
@@ -94,7 +93,6 @@ interface NotesActions {
   // UI Actions
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
-  toggleRightPanel: () => void;
   toggleAIPanel: () => void;
 }
 
@@ -310,7 +308,6 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   // UI State
   sidebarCollapsed: false,
   sidebarWidth: 248,
-  rightPanelCollapsed: true,
   showAIPanel: false,
 
   // Load file tree from disk
@@ -1118,11 +1115,6 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   setSidebarWidth: (width: number) => {
     set({ sidebarWidth: width });
-  },
-
-  toggleRightPanel: () => {
-    const { rightPanelCollapsed } = get();
-    set({ rightPanelCollapsed: !rightPanelCollapsed });
   },
 
   toggleAIPanel: () => {
