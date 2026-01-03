@@ -147,6 +147,8 @@ export function MarkdownEditor() {
   const noteIcon = currentNote ? getNoteIcon(currentNote.path) : undefined;
   const [showIconPicker, setShowIconPicker] = useState(false);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
+  const previewRafRef = useRef<number | null>(null);
+  const clearPreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const handleIconSelect = (emoji: string) => {
     if (currentNote) {
@@ -162,14 +164,42 @@ export function MarkdownEditor() {
     }
   };
   
-  const handleIconPreview = (icon: string | null) => {
-    if (currentNote) {
-      setPreviewIcon(currentNote.path, icon);
+  const handleIconPreview = useCallback((icon: string | null) => {
+    if (!currentNote) return;
+    
+    // Clear any pending clear timer
+    if (clearPreviewTimerRef.current) {
+      clearTimeout(clearPreviewTimerRef.current);
+      clearPreviewTimerRef.current = null;
     }
-  };
+    
+    if (icon === null) {
+      // Delay clearing preview to avoid flicker when moving between icons
+      clearPreviewTimerRef.current = setTimeout(() => {
+        setPreviewIcon(currentNote.path, null);
+      }, 80);
+    } else {
+      // Immediately show new preview
+      if (previewRafRef.current !== null) {
+        cancelAnimationFrame(previewRafRef.current);
+      }
+      previewRafRef.current = requestAnimationFrame(() => {
+        previewRafRef.current = null;
+        setPreviewIcon(currentNote.path, icon);
+      });
+    }
+  }, [currentNote, setPreviewIcon]);
   
   const handleIconPickerClose = () => {
     setShowIconPicker(false);
+    if (previewRafRef.current !== null) {
+      cancelAnimationFrame(previewRafRef.current);
+      previewRafRef.current = null;
+    }
+    if (clearPreviewTimerRef.current) {
+      clearTimeout(clearPreviewTimerRef.current);
+      clearPreviewTimerRef.current = null;
+    }
     if (currentNote) {
       setPreviewIcon(currentNote.path, null);
     }
@@ -213,7 +243,7 @@ export function MarkdownEditor() {
               <button
                 ref={iconButtonRef}
                 onClick={() => setShowIconPicker(true)}
-                className="text-5xl hover:scale-110 transition-transform cursor-pointer"
+                className="h-12 hover:scale-110 transition-transform cursor-pointer flex items-center"
               >
                 <NoteIcon icon={displayIcon} size={48} />
               </button>

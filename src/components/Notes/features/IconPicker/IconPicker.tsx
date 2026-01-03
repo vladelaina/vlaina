@@ -2,7 +2,7 @@
  * IconPicker - Emoji and Icon picker with virtual scrolling
  */
 
-import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import { useRef, useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import data from '@emoji-mart/data';
 import { cn } from '@/lib/utils';
@@ -28,7 +28,7 @@ const EMOJI_PER_ROW = 9;
 const EMOJI_SIZE = 32;
 const ROW_GAP = 2;
 const ICON_PER_ROW = 8;
-const ICON_SIZE = 36;
+const ICON_SIZE = 32;
 
 const SKIN_TONES = [
   { tone: 0, emoji: '\u{1F44B}', label: 'Default' },
@@ -216,6 +216,22 @@ interface IconPickerProps {
   onIconChange?: (emoji: string) => void;
 }
 
+const EmojiRow = memo(function EmojiRow({ emojis }: { emojis: string[] }) {
+  return (
+    <div className="px-2 grid grid-cols-9 gap-0.5">
+      {emojis.map((emoji, i) => (
+        <button
+          key={i}
+          data-emoji={emoji}
+          className="w-full aspect-square flex items-center justify-center rounded-md text-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        >
+          {emoji}
+        </button>
+      ))}
+    </div>
+  );
+});
+
 // 虚拟滚动的 Emoji 网格
 function VirtualEmojiGrid({
   emojis,
@@ -281,10 +297,11 @@ function VirtualEmojiGrid({
     count: rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: (index) => rows[index].type === 'title' ? 28 : EMOJI_SIZE + ROW_GAP,
-    overscan: 5,
+    overscan: 8,
   });
 
-  // 事件委托处理点击和悬停
+  const lastPreviewRef = useRef<string | null>(null);
+
   const handleClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     const button = target.closest('[data-emoji]') as HTMLElement;
@@ -297,13 +314,15 @@ function VirtualEmojiGrid({
   const handleMouseOver = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     const button = target.closest('[data-emoji]') as HTMLElement;
-    if (button) {
-      const emoji = button.dataset.emoji;
-      onPreview?.(emoji || null);
+    const emoji = button?.dataset.emoji || null;
+    if (emoji !== lastPreviewRef.current) {
+      lastPreviewRef.current = emoji;
+      onPreview?.(emoji);
     }
   }, [onPreview]);
 
   const handleMouseLeave = useCallback(() => {
+    lastPreviewRef.current = null;
     onPreview?.(null);
   }, [onPreview]);
 
@@ -311,7 +330,7 @@ function VirtualEmojiGrid({
     <div
       ref={parentRef}
       className="h-[280px] overflow-auto neko-scrollbar"
-      style={{ contain: 'strict' }}
+      style={{ contain: 'strict', willChange: 'scroll-position' }}
       onClick={handleClick}
       onMouseOver={handleMouseOver}
       onMouseLeave={handleMouseLeave}
@@ -342,17 +361,7 @@ function VirtualEmojiGrid({
                   {row.content as string}
                 </div>
               ) : (
-                <div className="px-2 grid grid-cols-9 gap-0.5">
-                  {(row.content as string[]).map((emoji, i) => (
-                    <button
-                      key={i}
-                      data-emoji={emoji}
-                      className="w-full aspect-square flex items-center justify-center rounded-md text-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
+                <EmojiRow emojis={row.content as string[]} />
               )}
             </div>
           );
@@ -361,6 +370,26 @@ function VirtualEmojiGrid({
     </div>
   );
 }
+
+const IconRow = memo(function IconRow({ items }: { items: IconItem[] }) {
+  return (
+    <div className="px-2 grid grid-cols-8 gap-1">
+      {items.map((item) => {
+        const IconComponent = item.icon;
+        return (
+          <button
+            key={item.name}
+            data-icon={item.name}
+            data-color={item.color}
+            className="w-full aspect-square flex items-center justify-center rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            <IconComponent size={20} style={{ color: item.color }} />
+          </button>
+        );
+      })}
+    </div>
+  );
+});
 
 function VirtualIconGrid({
   icons,
@@ -413,8 +442,10 @@ function VirtualIconGrid({
     count: rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: (index) => rows[index].type === 'title' ? 28 : ICON_SIZE + ROW_GAP,
-    overscan: 5,
+    overscan: 8,
   });
+
+  const lastPreviewRef = useRef<string | null>(null);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -427,12 +458,17 @@ function VirtualIconGrid({
   const handleMouseOver = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     const button = target.closest('[data-icon]') as HTMLElement;
-    if (button?.dataset.icon && button?.dataset.color) {
-      onPreview?.(`icon:${button.dataset.icon}:${button.dataset.color}`);
+    const iconValue = button?.dataset.icon && button?.dataset.color 
+      ? `icon:${button.dataset.icon}:${button.dataset.color}` 
+      : null;
+    if (iconValue !== lastPreviewRef.current) {
+      lastPreviewRef.current = iconValue;
+      onPreview?.(iconValue);
     }
   }, [onPreview]);
 
   const handleMouseLeave = useCallback(() => {
+    lastPreviewRef.current = null;
     onPreview?.(null);
   }, [onPreview]);
 
@@ -440,7 +476,7 @@ function VirtualIconGrid({
     <div
       ref={parentRef}
       className="h-[280px] overflow-auto neko-scrollbar"
-      style={{ contain: 'strict' }}
+      style={{ contain: 'strict', willChange: 'scroll-position' }}
       onClick={handleClick}
       onMouseOver={handleMouseOver}
       onMouseLeave={handleMouseLeave}
@@ -471,21 +507,7 @@ function VirtualIconGrid({
                   {row.content as string}
                 </div>
               ) : (
-                <div className="px-2 grid grid-cols-8 gap-1">
-                  {(row.content as IconItem[]).map((item) => {
-                    const IconComponent = item.icon;
-                    return (
-                      <button
-                        key={item.name}
-                        data-icon={item.name}
-                        data-color={item.color}
-                        className="w-full aspect-square flex items-center justify-center rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                      >
-                        <IconComponent size={20} style={{ color: item.color }} />
-                      </button>
-                    );
-                  })}
-                </div>
+                <IconRow items={row.content as IconItem[]} />
               )}
             </div>
           );
@@ -530,8 +552,10 @@ function VirtualSearchResults({
     count: rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: (index) => rows[index].type === 'title' ? 28 : EMOJI_SIZE + ROW_GAP,
-    overscan: 5,
+    overscan: 8,
   });
+
+  const lastPreviewRef = useRef<string | null>(null);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -544,10 +568,15 @@ function VirtualSearchResults({
   const handleMouseOver = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     const button = target.closest('[data-emoji]') as HTMLElement;
-    onPreview?.(button?.dataset.emoji || null);
+    const emoji = button?.dataset.emoji || null;
+    if (emoji !== lastPreviewRef.current) {
+      lastPreviewRef.current = emoji;
+      onPreview?.(emoji);
+    }
   }, [onPreview]);
 
   const handleMouseLeave = useCallback(() => {
+    lastPreviewRef.current = null;
     onPreview?.(null);
   }, [onPreview]);
 
@@ -563,7 +592,7 @@ function VirtualSearchResults({
     <div
       ref={parentRef}
       className="h-[280px] overflow-auto neko-scrollbar"
-      style={{ contain: 'strict' }}
+      style={{ contain: 'strict', willChange: 'scroll-position' }}
       onClick={handleClick}
       onMouseOver={handleMouseOver}
       onMouseLeave={handleMouseLeave}
@@ -594,17 +623,7 @@ function VirtualSearchResults({
                   {row.content as string}
                 </div>
               ) : (
-                <div className="px-2 grid grid-cols-9 gap-0.5">
-                  {(row.content as string[]).map((emoji, i) => (
-                    <button
-                      key={i}
-                      data-emoji={emoji}
-                      className="w-full aspect-square flex items-center justify-center rounded-md text-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
+                <EmojiRow emojis={row.content as string[]} />
               )}
             </div>
           );
