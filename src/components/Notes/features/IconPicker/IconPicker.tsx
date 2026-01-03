@@ -300,6 +300,14 @@ function VirtualEmojiGrid({
     overscan: 8,
   });
 
+  // Scroll to category title on mount (skip Recent section)
+  useEffect(() => {
+    if (recentWithSkin.length > 0) {
+      const recentRows = Math.ceil(recentWithSkin.length / EMOJI_PER_ROW) + 1;
+      virtualizer.scrollToIndex(recentRows, { align: 'start' });
+    }
+  }, []);
+
   const lastPreviewRef = useRef<string | null>(null);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
@@ -444,6 +452,14 @@ function VirtualIconGrid({
     estimateSize: (index) => rows[index].type === 'title' ? 28 : ICON_SIZE + ROW_GAP,
     overscan: 8,
   });
+
+  // Scroll to category title on mount (skip Recent section)
+  useEffect(() => {
+    if (recentIconItems.length > 0) {
+      const recentRows = Math.ceil(recentIconItems.length / ICON_PER_ROW) + 1;
+      virtualizer.scrollToIndex(recentRows, { align: 'start' });
+    }
+  }, []);
 
   const lastPreviewRef = useRef<string | null>(null);
 
