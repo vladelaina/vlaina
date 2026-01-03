@@ -3,7 +3,7 @@
  */
 
 import { IconFileText } from '@tabler/icons-react';
-import { ICON_LIST } from './IconPicker';
+import { ICON_LIST } from './icons';
 
 const ICON_MAP = Object.fromEntries(
   ICON_LIST.map(item => [item.name, item.icon])

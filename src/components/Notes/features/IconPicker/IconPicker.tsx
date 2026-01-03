@@ -10,8 +10,6 @@ import { IconSearch, IconX } from '@tabler/icons-react';
 import { ICON_CATEGORIES, ICON_LIST } from './icons';
 import type { IconItem } from './icons';
 
-export { ICON_LIST };
-
 // 构建用于快速查找的 icon Map
 const ICON_MAP = new Map<string, IconItem>();
 for (const icon of ICON_LIST) {
