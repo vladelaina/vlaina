@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { IconChevronDown } from '@tabler/icons-react';
 import { type TimeView } from '@/lib/date';
 
 interface TimeRangeSelectorProps {
@@ -94,7 +94,7 @@ export function TimeRangeSelector({ timeView, currentRange, onRangeChange }: Tim
         }`}
       >
         {formatRangeText(currentRange)}
-        <ChevronDown className="h-3 w-3" />
+        <IconChevronDown className="h-3 w-3" />
       </button>
       {showMenu && (
         <div className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50">

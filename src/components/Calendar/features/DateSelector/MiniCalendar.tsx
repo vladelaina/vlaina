@@ -12,7 +12,7 @@ import {
   isSameDay, 
   isToday 
 } from 'date-fns';
-import { CaretLeft, CaretRight } from '@phosphor-icons/react';
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 
 interface MiniCalendarProps {
@@ -50,13 +50,13 @@ export function MiniCalendar({ selectedDate, onSelect }: MiniCalendarProps) {
             onClick={prevMonth}
             className="p-1 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
           >
-            <CaretLeft className="size-4" />
+            <IconChevronLeft className="size-4" />
           </button>
           <button
             onClick={nextMonth}
             className="p-1 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
           >
-            <CaretRight className="size-4" />
+            <IconChevronRight className="size-4" />
           </button>
         </div>
       </div>

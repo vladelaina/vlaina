@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Folder, FolderOpen, HardDrive, ExternalLink } from 'lucide-react';
+import { IconFolder, IconFolderOpen, IconDeviceDesktop, IconExternalLink } from '@tabler/icons-react';
 import { getBasePath } from '@/lib/storage/paths';
 import { openPath } from '@tauri-apps/plugin-opener';
 
@@ -36,7 +36,7 @@ export function StorageTab() {
         </label>
         
         <div className="flex items-center gap-3 p-3 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-          <HardDrive className="size-5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" />
+          <IconDeviceDesktop className="size-5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" />
           <code className="text-xs text-zinc-600 dark:text-zinc-300 break-all font-mono flex-1">
             {storagePath}
           </code>
@@ -51,7 +51,7 @@ export function StorageTab() {
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-600 transition-colors text-xs flex-shrink-0"
             title="Open in file manager"
           >
-            <ExternalLink className="size-3.5" />
+            <IconExternalLink className="size-3.5" />
             <span>Open</span>
           </button>
         </div>
@@ -71,7 +71,7 @@ export function StorageTab() {
           disabled
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed text-sm"
         >
-          <FolderOpen className="size-4" />
+          <IconFolderOpen className="size-4" />
           <span>Choose Folder</span>
           <span className="ml-auto text-xs bg-zinc-200 dark:bg-zinc-700 px-2 py-0.5 rounded">
             Coming Soon
@@ -91,7 +91,7 @@ export function StorageTab() {
         
         <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 font-mono text-xs text-zinc-600 dark:text-zinc-400">
           <div className="flex items-center gap-2">
-            <Folder className="size-3.5" />
+            <IconFolder className="size-3.5" />
             <span>Nekotick/</span>
           </div>
           <div className="ml-5 space-y-0.5 mt-1">

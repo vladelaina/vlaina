@@ -1,5 +1,5 @@
 import { format, isSameYear } from 'date-fns';
-import { CaretDown } from '@phosphor-icons/react';
+import { IconChevronDown } from '@tabler/icons-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { MiniCalendar } from './MiniCalendar';
@@ -34,8 +34,7 @@ export function DateSelector() {
             <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">
               {displayText}
             </span>
-            <CaretDown 
-              weight="bold" 
+            <IconChevronDown 
               className={`size-3 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} 
             />
           </div>

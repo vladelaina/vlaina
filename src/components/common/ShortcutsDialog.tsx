@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { IconX } from '@tabler/icons-react';
 import { getShortcuts, saveShortcuts, type ShortcutConfig } from '@/lib/shortcuts';
 
 interface ShortcutsDialogProps {
@@ -151,7 +151,7 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
                           className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-500 rounded-full transition-colors"
                           aria-label="Clear"
                         >
-                          <X className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-300" />
+                          <IconX className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-300" />
                         </button>
                       )}
                     </div>
@@ -172,7 +172,7 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
                           className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 flex items-center justify-center bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-500 rounded-full"
                           aria-label="Clear shortcut"
                         >
-                          <X className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-300" />
+                          <IconX className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-300" />
                         </button>
                       )}
                     </div>

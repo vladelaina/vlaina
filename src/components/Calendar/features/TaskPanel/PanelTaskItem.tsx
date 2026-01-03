@@ -8,7 +8,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useSortable, defaultAnimateLayoutChanges, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
-import { GripVertical, ChevronRight, ChevronDown, MoreHorizontal, Trash2, Plus, Archive } from 'lucide-react';
+import { IconGripVertical, IconChevronRight, IconChevronDown, IconDots, IconTrash, IconPlus, IconArchive } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/stores/useGroupStore';
 import { useUIStore, useGroupStore } from '@/stores/useGroupStore';
@@ -191,9 +191,9 @@ export function PanelTaskItem({
             className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
           >
             {collapsed ? (
-              <ChevronRight className="h-3.5 w-3.5 text-zinc-400" />
+              <IconChevronRight className="h-3.5 w-3.5 text-zinc-400" />
             ) : (
-              <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
+              <IconChevronDown className="h-3.5 w-3.5 text-zinc-400" />
             )}
           </button>
         ) : (
@@ -210,7 +210,7 @@ export function PanelTaskItem({
             'touch-none flex-shrink-0'
           )}
         >
-          <GripVertical className="h-3.5 w-3.5 text-zinc-400" />
+          <IconGripVertical className="h-3.5 w-3.5 text-zinc-400" />
         </button>
 
         {/* 复选框 */}
@@ -300,7 +300,7 @@ export function PanelTaskItem({
                 : 'opacity-0 group-hover:opacity-100 hover:bg-zinc-100 dark:hover:bg-zinc-800'
             )}
           >
-            <MoreHorizontal className="h-3.5 w-3.5 text-zinc-400" />
+            <IconDots className="h-3.5 w-3.5 text-zinc-400" />
           </button>
 
           {showMenu && (
@@ -394,7 +394,7 @@ export function PanelTaskItem({
                     : "text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
                 )}
               >
-                <Plus className="h-4 w-4" />
+                <IconPlus className="h-4 w-4" />
                 <span>Add Subtask</span>
                 {!canAddSubTask && <span className="ml-auto text-xs">(Max)</span>}
               </button>
@@ -406,7 +406,7 @@ export function PanelTaskItem({
                   onClick={() => setShowMenu(false)}
                   className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
                 >
-                  <Archive className="h-4 w-4" />
+                  <IconArchive className="h-4 w-4" />
                   <span>Archive</span>
                 </button>
               )}
@@ -419,7 +419,7 @@ export function PanelTaskItem({
                 }}
                 className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
               >
-                <Trash2 className="h-4 w-4" />
+                <IconTrash className="h-4 w-4" />
                 <span>Delete</span>
               </button>
             </div>

@@ -10,14 +10,14 @@ import {
   CommandSeparator,
 } from '@/components/ui/command';
 import {
-  Sun,
-  Moon,
-  Monitor,
-  Plus,
-  Trash2,
-  Settings,
-  Keyboard,
-} from 'lucide-react';
+  IconSun,
+  IconMoon,
+  IconDeviceDesktop,
+  IconPlus,
+  IconTrash,
+  IconSettings,
+  IconKeyboard,
+} from '@tabler/icons-react';
 import { useGroupStore } from '@/stores/useGroupStore';
 
 interface CommandMenuProps {
@@ -68,7 +68,7 @@ export function CommandMenu({ onFocusInput }: CommandMenuProps) {
             onSelect={() => runCommand(() => setTheme('light'))}
             className="gap-2"
           >
-            <Sun className="h-4 w-4" />
+            <IconSun className="h-4 w-4" />
             <span>Light Mode</span>
             {theme === 'light' && (
               <span className="ml-auto text-xs text-muted-foreground">Active</span>
@@ -78,7 +78,7 @@ export function CommandMenu({ onFocusInput }: CommandMenuProps) {
             onSelect={() => runCommand(() => setTheme('dark'))}
             className="gap-2"
           >
-            <Moon className="h-4 w-4" />
+            <IconMoon className="h-4 w-4" />
             <span>Dark Mode</span>
             {theme === 'dark' && (
               <span className="ml-auto text-xs text-muted-foreground">Active</span>
@@ -88,7 +88,7 @@ export function CommandMenu({ onFocusInput }: CommandMenuProps) {
             onSelect={() => runCommand(() => setTheme('system'))}
             className="gap-2"
           >
-            <Monitor className="h-4 w-4" />
+            <IconDeviceDesktop className="h-4 w-4" />
             <span>System Theme</span>
             {theme === 'system' && (
               <span className="ml-auto text-xs text-muted-foreground">Active</span>
@@ -104,7 +104,7 @@ export function CommandMenu({ onFocusInput }: CommandMenuProps) {
             onSelect={() => runCommand(() => onFocusInput?.())}
             className="gap-2"
           >
-            <Plus className="h-4 w-4" />
+            <IconPlus className="h-4 w-4" />
             <span>New Task</span>
             <span className="ml-auto text-xs text-muted-foreground">
               Focus input
@@ -115,7 +115,7 @@ export function CommandMenu({ onFocusInput }: CommandMenuProps) {
               onSelect={() => runCommand(handleClearCompleted)}
               className="gap-2"
             >
-              <Trash2 className="h-4 w-4" />
+              <IconTrash className="h-4 w-4" />
               <span>Clear Completed Tasks</span>
               <span className="ml-auto text-xs text-muted-foreground">
                 {completedCount} task{completedCount > 1 ? 's' : ''}
@@ -135,7 +135,7 @@ export function CommandMenu({ onFocusInput }: CommandMenuProps) {
             })}
             className="gap-2"
           >
-            <Settings className="h-4 w-4" />
+            <IconSettings className="h-4 w-4" />
             <span>Settings</span>
             <span className="ml-auto text-xs text-muted-foreground">
               Coming soon
@@ -145,7 +145,7 @@ export function CommandMenu({ onFocusInput }: CommandMenuProps) {
             disabled
             className="gap-2 opacity-50"
           >
-            <Keyboard className="h-4 w-4" />
+            <IconKeyboard className="h-4 w-4" />
             <span>Keyboard Shortcuts</span>
             <span className="ml-auto text-xs text-muted-foreground">
               ⌘K

@@ -1,6 +1,6 @@
 import * as React from "react"
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
-import { CheckIcon } from "lucide-react"
+import { IconCheck } from "@tabler/icons-react"
 
 import { cn } from "@/lib/utils"
 
@@ -31,7 +31,7 @@ function Checkbox({
         style={{ transition: 'none', animation: 'none' }}
         forceMount
       >
-        <CheckIcon 
+        <IconCheck 
           className="size-3.5" 
           style={{ 
             opacity: props.checked ? 1 : 0,

@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import { Prohibit, X } from '@phosphor-icons/react';
+import { IconBan, IconX } from '@tabler/icons-react';
 import { ICON_CATEGORIES_FULL } from '@/components/Progress/features/IconPicker/fullIcons';
 import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
 

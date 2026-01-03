@@ -6,7 +6,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Check, Pause } from 'lucide-react';
+import { IconCheck, IconPlayerPause } from '@tabler/icons-react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { EventContextMenu } from './EventContextMenu';
 import { type EventLayoutInfo } from '../../utils/eventLayout';
@@ -389,12 +389,12 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
                   backgroundColor: isCompleted ? colorStyles.accent : undefined,
                 }}
               >
-                {isCompleted && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+                {isCompleted && <IconCheck className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
               </button>
             )}
             <div className="flex-1 min-w-0 flex flex-col justify-center">
               <div className="flex items-center gap-1">
-                {isTimerPaused && <Pause className="w-2.5 h-2.5 flex-shrink-0 opacity-70" />}
+                {isTimerPaused && <IconPlayerPause className="w-2.5 h-2.5 flex-shrink-0 opacity-70" />}
                 <p
                   className={`font-medium leading-tight truncate ${isCompleted ? 'line-through opacity-60' : ''} ${heightLevel === 'micro' ? 'text-[9px]' : 'text-[11px]'}`}
                   style={{ color: textColor }}

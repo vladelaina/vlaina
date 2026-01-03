@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus } from '@phosphor-icons/react';
+import { IconPlus, IconMinus } from '@tabler/icons-react';
 import type { ProgressOrCounter, ProgressItem, CounterItem } from '@/stores/useProgressStore';
 import { MetadataSection } from './MetadataSection';
 import type { FocusTarget } from './useDetailModal';
@@ -232,7 +232,7 @@ function QuickUpdateButton({
   onClick,
 }: QuickUpdateButtonProps) {
   const isLeft = direction === 'decrement';
-  const Icon = isLeft ? Minus : Plus;
+  const Icon = isLeft ? IconMinus : IconPlus;
 
   return (
     <AnimatePresence>
@@ -256,7 +256,7 @@ function QuickUpdateButton({
           }}
           tabIndex={-1}
         >
-          <Icon weight="thin" className="size-10" />
+          <Icon className="size-10" />
         </motion.button>
       )}
     </AnimatePresence>

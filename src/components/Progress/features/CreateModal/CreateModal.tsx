@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { Check } from '@phosphor-icons/react';
+import { IconCheck } from '@tabler/icons-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getIconByName } from '../IconPicker';
@@ -161,7 +161,7 @@ export function CreateModal({
                     `}
                   >
                      {DisplayIcon ? (
-                         <DisplayIcon className="size-6" weight="duotone" />
+                         <DisplayIcon className="size-6" />
                      ) : (
                          <div className="text-2xl font-light opacity-50">+</div>
                      )}
@@ -285,7 +285,7 @@ export function CreateModal({
                    >
                      <span className="relative z-10 flex items-center gap-2">
                        Begin Journey
-                       <Check weight="bold" className="size-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+                       <IconCheck className="size-4 opacity-50 group-hover:opacity-100 transition-opacity" />
                      </span>
                      
                      <div className="absolute inset-0 rounded-full bg-zinc-900 dark:bg-zinc-100 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300" />

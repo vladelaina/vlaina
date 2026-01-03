@@ -10,12 +10,12 @@
 
 import { useState } from 'react';
 import { 
-  CloudIcon, 
-  CloudArrowUpIcon, 
-  CloudCheckIcon, 
-  CloudSlashIcon, 
-  ArrowsClockwiseIcon 
-} from '@phosphor-icons/react';
+  IconCloud, 
+  IconCloudUpload, 
+  IconCloudCheck, 
+  IconCloudOff, 
+  IconRefresh 
+} from '@tabler/icons-react';
 import { useSyncStore } from '@/stores/useSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
 import { cn } from '@/lib/utils';

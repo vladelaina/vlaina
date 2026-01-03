@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Scissors, Copy, CopyPlus, Trash2, Check, Play, Pause, Square } from 'lucide-react';
+import { IconScissors, IconCopy, IconCopyPlus, IconTrash, IconCheck, IconPlayerPlay, IconPlayerPause, IconPlayerStop } from '@tabler/icons-react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { CONTEXT_MENU_COLORS, type ItemColor } from '@/lib/colors';
 import { IconSelector } from '@/components/common';
@@ -95,7 +95,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
               className="w-6 h-6 rounded-md flex items-center justify-center hover:scale-110 transition-transform"
               style={{ backgroundColor: color.hex }}
             >
-              {currentColor === color.name && <Check className="size-4 text-white" />}
+              {currentColor === color.name && <IconCheck className="size-4 text-white" />}
             </button>
           ))}
         </div>
@@ -111,7 +111,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
             onClick={handleStartTimer}
             className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
           >
-            <Play className="size-4" />
+            <IconPlayerPlay className="size-4" />
             <span className="flex-1 text-left">Start Timer</span>
           </button>
         )}
@@ -122,14 +122,14 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
               onClick={handlePauseTimer}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
-              <Pause className="size-4" />
+              <IconPlayerPause className="size-4" />
               <span className="flex-1 text-left">Pause Timer</span>
             </button>
             <button 
               onClick={handleStopTimer}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
-              <Square className="size-4" />
+              <IconPlayerStop className="size-4" />
               <span className="flex-1 text-left">Stop Timer</span>
             </button>
           </>
@@ -141,14 +141,14 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
               onClick={handleResumeTimer}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
-              <Play className="size-4" />
+              <IconPlayerPlay className="size-4" />
               <span className="flex-1 text-left">Resume Timer</span>
             </button>
             <button 
               onClick={handleStopTimer}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
-              <Square className="size-4" />
+              <IconPlayerStop className="size-4" />
               <span className="flex-1 text-left">Stop Timer</span>
             </button>
           </>
@@ -158,13 +158,13 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
 
         {/* Actions */}
         <button className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800">
-          <Scissors className="size-4" />
+          <IconScissors className="size-4" />
           <span className="flex-1 text-left">Cut</span>
           <span className="text-zinc-500 text-xs">Ctrl X</span>
         </button>
 
         <button className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800">
-          <Copy className="size-4" />
+          <IconCopy className="size-4" />
           <span className="flex-1 text-left">Copy</span>
           <span className="text-zinc-500 text-xs">Ctrl C</span>
         </button>
@@ -173,7 +173,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
           onClick={handleDuplicate}
           className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
         >
-          <CopyPlus className="size-4" />
+          <IconCopyPlus className="size-4" />
           <span className="flex-1 text-left">Duplicate</span>
           <span className="text-zinc-500 text-xs">Ctrl D</span>
         </button>
@@ -184,7 +184,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
           onClick={handleDelete}
           className="w-full px-4 py-2 flex items-center gap-3 text-sm text-red-400 hover:bg-zinc-800"
         >
-          <Trash2 className="size-4" />
+          <IconTrash className="size-4" />
           <span className="flex-1 text-left">Delete</span>
           <span className="text-zinc-500 text-xs">Del</span>
         </button>

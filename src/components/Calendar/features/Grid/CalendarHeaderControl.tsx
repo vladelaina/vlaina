@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
-import { CaretDown } from '@phosphor-icons/react';
+import { IconChevronDown } from '@tabler/icons-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MiniCalendar } from '../DateSelector/MiniCalendar';
 import { useCalendarStore } from '@/stores/useCalendarStore';
@@ -30,7 +30,7 @@ export function CalendarHeaderControl() {
               <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                 {format(selectedDate, 'MMMM yyyy')}
               </span>
-              <CaretDown weight="bold" className={`size-3 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-transform duration-200 ${datePickerOpen ? 'rotate-180' : ''}`} />
+              <IconChevronDown className={`size-3 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-transform duration-200 ${datePickerOpen ? 'rotate-180' : ''}`} />
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-2" align="center" sideOffset={8}>
@@ -60,7 +60,7 @@ export function CalendarHeaderControl() {
                   </div>
                 ))}
               </div>
-              <CaretDown weight="bold" className={`size-3 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-transform duration-200 ${datePickerOpen ? 'rotate-180' : ''}`} />
+              <IconChevronDown className={`size-3 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-transform duration-200 ${datePickerOpen ? 'rotate-180' : ''}`} />
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-2" align="center" sideOffset={8}>

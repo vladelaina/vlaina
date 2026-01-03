@@ -9,7 +9,7 @@
 import { useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { motion } from 'framer-motion';
-import { Tray, Clock } from '@phosphor-icons/react';
+import { IconInbox, IconClock } from '@tabler/icons-react';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { getColorHex, getColorPriority } from '@/lib/colors';
@@ -80,7 +80,7 @@ export function ContextPanel() {
         {/* Empty state */}
         {unscheduledTasks.length === 0 && (
           <div className="flex items-center justify-center h-full">
-            <Tray weight="light" className="size-7 text-zinc-200 dark:text-zinc-700" />
+            <IconInbox className="size-7 text-zinc-200 dark:text-zinc-700" />
           </div>
         )}
 
@@ -162,7 +162,7 @@ function DraggableTaskCard({ task }: { task: any }) {
 
         {task.estimatedMinutes && (
           <div className="flex items-center gap-1 mt-1.5">
-            <Clock weight="regular" className="size-3 text-zinc-300 dark:text-zinc-600" />
+            <IconClock className="size-3 text-zinc-300 dark:text-zinc-600" />
             <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
               {task.estimatedMinutes >= 60
                 ? `${Math.floor(task.estimatedMinutes / 60)}h${task.estimatedMinutes % 60 > 0 ? ` ${task.estimatedMinutes % 60}m` : ''}`

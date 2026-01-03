@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowCounterClockwise, Trash } from '@phosphor-icons/react';
+import { IconRefresh, IconTrash } from '@tabler/icons-react';
 import { getIconByName } from '../IconPicker';
 import { ItemCardProps } from './types';
 
@@ -48,7 +48,6 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
                     <div className="flex-shrink-0 transition-transform duration-700 ease-out group-hover:scale-110 group-hover:-rotate-12 group-hover:translate-x-1">
                       <Icon 
                           className={`${compact ? 'size-10' : 'size-16'} text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] mix-blend-multiply dark:mix-blend-overlay transition-colors duration-300`} 
-                          weight="duotone" 
                       />
                     </div>
                   ) : (
@@ -122,7 +121,7 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
               `}
               title="Restore to active list"
             >
-              <ArrowCounterClockwise className={compact ? 'size-4' : 'size-5'} weight="bold" />
+              <IconRefresh className={compact ? 'size-4' : 'size-5'} />
             </button>
 
             {/* Delete - The Final Release */}
@@ -141,7 +140,7 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
               `}
               title="Delete permanently"
             >
-              <Trash className={compact ? 'size-4' : 'size-5'} weight="bold" />
+              <IconTrash className={compact ? 'size-4' : 'size-5'} />
             </button>
          </div>
       </motion.div>

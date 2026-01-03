@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ExternalLink, Cloud, CloudOff, RefreshCw, Download, Loader2, AlertCircle, Crown, Unlink, Clock } from 'lucide-react';
+import { IconExternalLink, IconCloud, IconCloudOff, IconRefresh, IconDownload, IconLoader2, IconAlertCircle, IconCrown, IconUnlink, IconClock } from '@tabler/icons-react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
 import { useSyncStore } from '@/stores/useSyncStore';
@@ -172,9 +172,9 @@ export function AboutTab() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {isConnected ? (
-                <Cloud className="size-5 text-green-500" />
+                <IconCloud className="size-5 text-green-500" />
               ) : (
-                <CloudOff className="size-5 text-zinc-400" />
+                <IconCloudOff className="size-5 text-zinc-400" />
               )}
               <div>
                 <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
@@ -189,7 +189,7 @@ export function AboutTab() {
             </div>
             
             {isLoading ? (
-              <Loader2 className="size-4 animate-spin text-zinc-400" />
+              <IconLoader2 className="size-4 animate-spin text-zinc-400" />
             ) : isConnected ? (
               <button
                 onClick={handleDisconnect}
@@ -205,12 +205,12 @@ export function AboutTab() {
               >
                 {isConnecting ? (
                   <>
-                    <Loader2 className="size-3.5 animate-spin" />
+                    <IconLoader2 className="size-3.5 animate-spin" />
                     Connecting...
                   </>
                 ) : (
                   <>
-                    <Cloud className="size-3.5" />
+                    <IconCloud className="size-3.5" />
                     Connect Google Drive
                   </>
                 )}
@@ -238,7 +238,7 @@ export function AboutTab() {
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 rounded-md transition-colors disabled:opacity-50"
                       title="Restore from cloud backup"
                     >
-                      <Download className="size-3.5" />
+                      <IconDownload className="size-3.5" />
                       Restore
                     </button>
                   )}
@@ -250,12 +250,12 @@ export function AboutTab() {
                   >
                     {isSyncing ? (
                       <>
-                        <Loader2 className="size-3.5 animate-spin" />
+                        <IconLoader2 className="size-3.5 animate-spin" />
                         Syncing...
                       </>
                     ) : (
                       <>
-                        <RefreshCw className="size-3.5" />
+                        <IconRefresh className="size-3.5" />
                         Sync Now
                       </>
                     )}
@@ -268,7 +268,7 @@ export function AboutTab() {
           {/* Error Message */}
           {syncError && (
             <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
-              <AlertCircle className="size-4 flex-shrink-0 mt-0.5" />
+              <IconAlertCircle className="size-4 flex-shrink-0 mt-0.5" />
               <div className="text-xs">{syncError}</div>
             </div>
           )}
@@ -286,14 +286,14 @@ export function AboutTab() {
         <div className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 space-y-4">
           {isLicenseLoading ? (
             <div className="flex items-center justify-center py-4">
-              <Loader2 className="size-5 animate-spin text-zinc-400" />
+              <IconLoader2 className="size-5 animate-spin text-zinc-400" />
             </div>
           ) : timeTamperDetected ? (
             // Time tamper detected - show warning
             <>
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900/30">
-                  <AlertCircle className="size-5 text-amber-500" />
+                  <IconAlertCircle className="size-5 text-amber-500" />
                 </div>
                 <div>
                   <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
@@ -306,7 +306,7 @@ export function AboutTab() {
               </div>
 
               <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
-                <AlertCircle className="size-4 flex-shrink-0 mt-0.5" />
+                <IconAlertCircle className="size-4 flex-shrink-0 mt-0.5" />
                 <div className="text-xs">
                   检测到系统时间异常，请校准系统时间以恢复 PRO 功能。时间恢复正常后将自动恢复。
                 </div>
@@ -320,7 +320,7 @@ export function AboutTab() {
                   // Phase 2: Last 24 hours - orange warning
                   <>
                     <div className="p-2 rounded-full bg-orange-100 dark:bg-orange-900/30">
-                      <Clock className="size-5 text-orange-500" />
+                      <IconClock className="size-5 text-orange-500" />
                     </div>
                     <div>
                       <div className="text-sm font-medium text-orange-600 dark:text-orange-400">
@@ -335,7 +335,7 @@ export function AboutTab() {
                   // Phase 1: Normal trial (>24h) - subtle gray/blue
                   <>
                     <div className="p-2 rounded-full bg-zinc-100 dark:bg-zinc-700">
-                      <Clock className="size-5 text-zinc-500 dark:text-zinc-400" />
+                      <IconClock className="size-5 text-zinc-500 dark:text-zinc-400" />
                     </div>
                     <div>
                       <div className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
@@ -368,7 +368,7 @@ export function AboutTab() {
                 >
                   {isActivating ? (
                     <>
-                      <Loader2 className="size-4 animate-spin" />
+                      <IconLoader2 className="size-4 animate-spin" />
                       激活中...
                     </>
                   ) : (
@@ -379,7 +379,7 @@ export function AboutTab() {
 
               {licenseError && (
                 <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
-                  <AlertCircle className="size-4 flex-shrink-0 mt-0.5" />
+                  <IconAlertCircle className="size-4 flex-shrink-0 mt-0.5" />
                   <div className="text-xs">{licenseError}</div>
                 </div>
               )}
@@ -390,7 +390,7 @@ export function AboutTab() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900/30">
-                    <Crown className="size-5 text-amber-500" />
+                    <IconCrown className="size-5 text-amber-500" />
                   </div>
                   <div>
                     <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
@@ -409,12 +409,12 @@ export function AboutTab() {
                 >
                   {isDeactivating ? (
                     <>
-                      <Loader2 className="size-3.5 animate-spin" />
+                      <IconLoader2 className="size-3.5 animate-spin" />
                       Unbinding...
                     </>
                   ) : (
                     <>
-                      <Unlink className="size-3.5" />
+                      <IconUnlink className="size-3.5" />
                       Unbind Device
                     </>
                   )}
@@ -444,7 +444,7 @@ export function AboutTab() {
 
               {inGracePeriod && (
                 <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
-                  <AlertCircle className="size-4 flex-shrink-0 mt-0.5" />
+                  <IconAlertCircle className="size-4 flex-shrink-0 mt-0.5" />
                   <div className="text-xs">
                     宽限期至 {formatActivatedDate(gracePeriodEndsAt)}，请确保网络连接以完成验证
                   </div>
@@ -456,7 +456,7 @@ export function AboutTab() {
             <>
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-full bg-red-100 dark:bg-red-900/30">
-                  <AlertCircle className="size-5 text-red-500" />
+                  <IconAlertCircle className="size-5 text-red-500" />
                 </div>
                 <div>
                   <div className="text-sm font-medium text-red-600 dark:text-red-400">
@@ -487,7 +487,7 @@ export function AboutTab() {
                 >
                   {isActivating ? (
                     <>
-                      <Loader2 className="size-4 animate-spin" />
+                      <IconLoader2 className="size-4 animate-spin" />
                       激活中...
                     </>
                   ) : (
@@ -498,7 +498,7 @@ export function AboutTab() {
 
               {licenseError && (
                 <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
-                  <AlertCircle className="size-4 flex-shrink-0 mt-0.5" />
+                  <IconAlertCircle className="size-4 flex-shrink-0 mt-0.5" />
                   <div className="text-xs">{licenseError}</div>
                 </div>
               )}
@@ -594,7 +594,7 @@ export function AboutTab() {
               onClick={openGitHub}
               className={`${settingsButtonClassName} flex items-center gap-1.5`}
             >
-              <ExternalLink className="size-3.5" />
+              <IconExternalLink className="size-3.5" />
               Open
             </button>
           </div>
@@ -615,7 +615,7 @@ export function AboutTab() {
               onClick={() => openUrl('https://discord.gg/TtUzNPqNJw')}
               className={`${settingsButtonClassName} flex items-center gap-1.5`}
             >
-              <ExternalLink className="size-3.5" />
+              <IconExternalLink className="size-3.5" />
               Join
             </button>
           </div>

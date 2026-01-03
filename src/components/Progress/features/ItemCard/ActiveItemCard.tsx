@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion'; // Removed AnimatePresence
-import { Plus, Minus, ArrowsClockwise } from '@phosphor-icons/react';
+import { IconPlus, IconMinus, IconRefresh } from '@tabler/icons-react';
 import { getIconByName } from '../IconPicker';
 import { ItemCardProps } from './types';
 import { ProgressBar, CounterEffects, Ripple, DebrisField } from './VisualEffects';
@@ -144,7 +144,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
                       <motion.div className={`flex-shrink-0 flex items-center justify-center ${compact ? 'w-10' : 'w-16'}`}>
                           {Icon ? (
                               <div className={`text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] ${compact ? 'scale-[1.5]' : 'scale-[2.5]'} -rotate-12 mix-blend-multiply dark:mix-blend-overlay origin-center`}>
-                                  <Icon className={compact ? 'size-6' : 'size-10'} weight="duotone" />
+                                  <Icon className={compact ? 'size-6' : 'size-10'} />
                               </div>
                           ) : (
                               <div className={compact ? 'w-10' : 'w-16'} /> 
@@ -159,7 +159,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
                     </span>
                     <div className={`flex items-center gap-1.5 ${compact ? 'text-[9px]' : 'text-[10px]'} font-bold uppercase tracking-[0.2em] overflow-hidden text-zinc-400 dark:text-zinc-500`}>
                       {item.resetFrequency === 'daily' && (
-                          <ArrowsClockwise weight="bold" className={compact ? 'size-2.5 opacity-70' : 'size-3 opacity-70'} />
+                          <IconRefresh className={compact ? 'size-2.5 opacity-70' : 'size-3 opacity-70'} />
                       )}
                       <span>
                         {item.todayCount > 0 ? `Today ${item.todayCount}` : "Tap to Start"}
@@ -199,7 +199,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
           </div>
 
           <KineticAction 
-            icon={Minus}
+            icon={IconMinus}
             step={Math.abs(item.step)}
             direction="left"
             isActive={hoverZone === 'left'}
@@ -230,7 +230,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
           />
 
           <KineticAction 
-            icon={Plus}
+            icon={IconPlus}
             step={Math.abs(item.step)}
             direction="right"
             isActive={hoverZone === 'right'}

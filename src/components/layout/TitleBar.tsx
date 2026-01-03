@@ -1,7 +1,16 @@
 import React, { ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Settings, PanelLeft, PanelRight, MessageCircle, FileText, X, Plus } from 'lucide-react';
-import { NotePencil, CalendarBlank } from '@phosphor-icons/react';
+import { 
+  IconSettings, 
+  IconLayoutSidebarLeftCollapse,
+  IconLayoutSidebarRightCollapse,
+  IconMessageCircle,
+  IconFileText,
+  IconX,
+  IconPlus,
+  IconNote,
+  IconCalendar,
+} from '@tabler/icons-react';
 import { WindowControls } from './WindowControls';
 import { useUIStore } from '@/stores/uiSlice';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -96,7 +105,7 @@ function SortableTab({ tab, isActive, onClose, onClick, icon }: SortableTabProps
           <NoteIcon icon={icon} size={16} />
         </span>
       ) : (
-        <FileText 
+        <IconFileText 
           className={cn(
             "w-4 h-4 flex-shrink-0 pointer-events-none",
             isActive 
@@ -132,7 +141,7 @@ function SortableTab({ tab, isActive, onClose, onClick, icon }: SortableTabProps
           "hover:text-zinc-500 dark:hover:text-zinc-400"
         )}
       >
-        <X className="w-3.5 h-3.5" />
+        <IconX className="w-3.5 h-3.5" />
       </button>
     </div>
   );
@@ -161,7 +170,7 @@ function TabOverlay({ tab, isActive, icon }: TabOverlayProps) {
           <NoteIcon icon={icon} size={16} />
         </span>
       ) : (
-        <FileText 
+        <IconFileText 
           className={cn(
             "w-4 h-4 flex-shrink-0",
             isActive 
@@ -309,7 +318,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
             )}
             title="Hide sidebar"
           >
-            <PanelLeft className="size-4" />
+            <IconLayoutSidebarLeftCollapse className="size-4" />
           </button>
 
           {/* Settings Button */}
@@ -318,7 +327,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
             className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             title="Settings"
           >
-            <Settings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
+            <IconSettings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
           </button>
 
           {/* Notes/Calendar Toggle Button */}
@@ -327,7 +336,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
             className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             title="Switch to Calendar"
           >
-            <CalendarBlank className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" weight="duotone" />
+            <IconCalendar className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" />
           </button>
           
           {/* Draggable area to fill remaining space in sidebar header */}
@@ -350,7 +359,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
             )}
             title="Show sidebar"
           >
-            <PanelLeft className="size-4" />
+            <IconLayoutSidebarLeftCollapse className="size-4" />
           </button>
 
           <button
@@ -358,7 +367,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
             className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
             title="Settings"
           >
-            <Settings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
+            <IconSettings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
           </button>
 
           <button
@@ -366,7 +375,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
             className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
             title="Switch to Calendar"
           >
-            <CalendarBlank className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" weight="duotone" />
+            <IconCalendar className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" />
           </button>
         </>
       )}
@@ -379,7 +388,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
             className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
             title="Settings"
           >
-            <Settings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
+            <IconSettings className="size-4 text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500" />
           </button>
 
           <button
@@ -387,7 +396,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
             className="h-full px-3 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-20"
             title="Switch to Notes"
           >
-            <NotePencil className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" weight="duotone" />
+            <IconNote className="size-4 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300" />
           </button>
         </>
       )}
@@ -404,6 +413,13 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           style={{ 
             left: sidebarWidth + RESIZE_HANDLE_WIDTH,
           }}
+        />
+      )}
+
+      {/* White background when sidebar is collapsed */}
+      {appViewMode === 'notes' && sidebarCollapsed && (
+        <div 
+          className="absolute top-0 bottom-0 left-0 right-0 bg-white dark:bg-zinc-800"
         />
       )}
 
@@ -447,7 +463,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                           "hover:text-zinc-500 dark:hover:text-zinc-400"
                         )}
                       >
-                        <Plus className="w-4 h-4" />
+                        <IconPlus className="w-4 h-4" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" sideOffset={2}>
@@ -522,7 +538,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           )}
           title={rightPanelCollapsed ? "Show right panel" : "Hide right panel"}
         >
-          <PanelRight className="size-4" />
+          <IconLayoutSidebarRightCollapse className="size-4" />
         </button>
       )}
 
@@ -539,7 +555,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           )}
           title={showAIPanel ? "Hide AI Chat" : "Show AI Chat"}
         >
-          <MessageCircle className="size-4" />
+          <IconMessageCircle className="size-4" />
         </button>
       )}
 

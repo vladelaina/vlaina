@@ -13,7 +13,7 @@ import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
-import { MoreHorizontal, Star } from 'lucide-react';
+import { IconDots, IconStar } from '@tabler/icons-react';
 import { IconHeartbeat } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
@@ -189,7 +189,7 @@ export function MarkdownEditor() {
               : "text-zinc-200 dark:text-zinc-700 hover:text-yellow-500"
           )}
         >
-          <Star className="size-4" fill={starred ? "currentColor" : "none"} />
+          <IconStar className="size-4" fill={starred ? "currentColor" : "none"} />
         </button>
         
         {/* More options button */}
@@ -199,7 +199,7 @@ export function MarkdownEditor() {
             "text-zinc-200 dark:text-zinc-700 hover:text-zinc-500 dark:hover:text-zinc-400"
           )}
         >
-          <MoreHorizontal className="size-4" />
+          <IconDots className="size-4" />
         </button>
       </div>
 

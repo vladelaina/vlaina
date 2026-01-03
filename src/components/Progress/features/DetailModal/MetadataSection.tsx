@@ -1,4 +1,4 @@
-import { ArrowsClockwise } from '@phosphor-icons/react';
+import { IconRefresh } from '@tabler/icons-react';
 import type { ProgressOrCounter, ProgressItem, CounterItem } from '@/stores/useProgressStore';
 import { MetadataField, MetadataInput } from './MetadataField';
 import type { FocusTarget } from './useDetailModal';
@@ -266,8 +266,7 @@ function ResetField({
           className="flex items-center justify-center gap-1 cursor-pointer group/reset"
         >
           {resetFrequency === 'daily' ? (
-            <ArrowsClockwise
-              weight="duotone"
+            <IconRefresh
               className="size-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors"
             />
           ) : (

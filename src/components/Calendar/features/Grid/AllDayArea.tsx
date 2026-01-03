@@ -7,7 +7,7 @@
 
 import { useMemo, useCallback, useState, useRef } from 'react';
 import { startOfDay, differenceInDays } from 'date-fns';
-import { Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { IconCheck, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useGroupStore } from '@/stores/useGroupStore';
@@ -325,9 +325,9 @@ export function AllDayArea({
             // Notion-style: chevron + count when collapsed
             <div className="flex items-center gap-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">
               {isExpanded ? (
-                <ChevronUp className="w-3 h-3" />
+                <IconChevronUp className="w-3 h-3" />
               ) : (
-                <ChevronDown className="w-3 h-3" />
+                <IconChevronDown className="w-3 h-3" />
               )}
               <span className="font-medium">{layoutedEvents.length}</span>
             </div>
@@ -397,7 +397,7 @@ export function AllDayArea({
                     }
                   `}
                 >
-                  {event.completed && <Check className="w-2 h-2 text-white" strokeWidth={3} />}
+                  {event.completed && <IconCheck className="w-2 h-2 text-white" strokeWidth={3} />}
                 </button>
 
                 {/* Content */}

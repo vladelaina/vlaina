@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { format, setHours, setMinutes, startOfDay, endOfDay } from 'date-fns';
-import { Clock, Folder, ChevronDown, X, Sun } from 'lucide-react';
+import { IconClock, IconFolder, IconChevronDown, IconX, IconSun } from '@tabler/icons-react';
 import { useCalendarStore, type CalendarEvent } from '@/stores/useCalendarStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { cn } from '@/lib/utils';
@@ -280,7 +280,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
           onClick={handleClose}
           className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
         >
-          <X className="size-4 text-zinc-400" />
+          <IconX className="size-4 text-zinc-400" />
         </button>
       </div>
 
@@ -349,7 +349,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
 
         {/* All-day toggle */}
         <div className="flex items-center gap-3">
-          <Sun className="size-4 text-zinc-400" />
+          <IconSun className="size-4 text-zinc-400" />
           <button
             onClick={() => {
               if (event.isAllDay) {
@@ -397,7 +397,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         {/* Time (only show for non-all-day events) */}
         {!event.isAllDay && (
           <div className="flex items-start gap-3 mt-3">
-            <Clock className="size-4 text-zinc-400 mt-0.5" />
+            <IconClock className="size-4 text-zinc-400 mt-0.5" />
             <div className="flex items-center text-sm">
               <EditableTime
                 date={startDate}
@@ -427,13 +427,13 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
 
         {/* Group picker */}
         <div className="flex items-center gap-3 mt-3 relative" ref={groupPickerRef}>
-          <Folder className="size-4 text-zinc-400" />
+          <IconFolder className="size-4 text-zinc-400" />
           <button
             onClick={() => setShowGroupPicker(!showGroupPicker)}
             className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors"
           >
             <span>{currentGroup?.name || 'Inbox'}</span>
-            <ChevronDown className={`size-3.5 text-zinc-400 transition-transform ${showGroupPicker ? 'rotate-180' : ''}`} />
+            <IconChevronDown className={`size-3.5 text-zinc-400 transition-transform ${showGroupPicker ? 'rotate-180' : ''}`} />
           </button>
 
           {showGroupPicker && (

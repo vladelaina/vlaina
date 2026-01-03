@@ -7,10 +7,10 @@ import {
   useTransform, 
   useVelocity
 } from 'framer-motion';
-import { Plus, Minus, CaretUp, CaretDown } from '@phosphor-icons/react';
+import { IconPlus, IconMinus, IconChevronUp, IconChevronDown } from '@tabler/icons-react';
 
 interface KineticActionProps {
-  icon: typeof Plus | typeof Minus;
+  icon: typeof IconPlus | typeof IconMinus;
   step: number;
   direction: 'left' | 'right';
   onTrigger: () => void; // Single click
@@ -349,7 +349,7 @@ export function KineticAction({
           transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
           className="text-zinc-300 dark:text-zinc-600 pointer-events-none"
         >
-           <Icon className="size-8" weight="light" />
+           <Icon className="size-8" />
         </motion.div>
       </div>
 
@@ -387,14 +387,14 @@ export function KineticAction({
                     ">
                         {/* Speed Indicator (Visual Feedback for "Throttle") */}
                         <div className="flex flex-col items-center justify-center w-8 gap-0.5 opacity-80">
-                             <CaretUp weight="bold" className={`size-3 ${speedMultiplier > 2 ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-300 dark:text-zinc-700'}`} />
+                             <IconChevronUp className={`size-3 ${speedMultiplier > 2 ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-300 dark:text-zinc-700'}`} />
                              <div className="h-5 w-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden relative">
                                 <motion.div 
                                     className="absolute bottom-0 inset-x-0 bg-zinc-900 dark:bg-zinc-100"
                                     style={{ height: `${Math.min(100, (speedMultiplier - 0.5) * 20)}%` }}
                                 />
                              </div>
-                             <CaretDown weight="bold" className={`size-3 ${speedMultiplier < 0.8 ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-300 dark:text-zinc-700'}`} />
+                             <IconChevronDown className={`size-3 ${speedMultiplier < 0.8 ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-300 dark:text-zinc-700'}`} />
                         </div>
 
                         <div className="w-px h-8 bg-zinc-100 dark:bg-zinc-800" />
