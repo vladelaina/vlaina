@@ -204,6 +204,18 @@ export function MarkdownEditor() {
       setPreviewIcon(currentNote.path, null);
     }
   };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (previewRafRef.current !== null) {
+        cancelAnimationFrame(previewRafRef.current);
+      }
+      if (clearPreviewTimerRef.current) {
+        clearTimeout(clearPreviewTimerRef.current);
+      }
+    };
+  }, []);
   
   return (
     <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative">
