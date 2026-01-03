@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IconX } from '@tabler/icons-react';
-import { getShortcuts, saveShortcuts, type ShortcutConfig } from '@/lib/shortcuts';
+import { useShortcutEditor } from '@/components/common/Settings/hooks/useShortcutEditor';
 
 interface ShortcutsDialogProps {
   open: boolean;
@@ -9,97 +9,31 @@ interface ShortcutsDialogProps {
 }
 
 export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
-  const [shortcuts, setShortcuts] = useState<ShortcutConfig[]>(() => getShortcuts());
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [recordingKeys, setRecordingKeys] = useState<string[]>([]);
+  const {
+    shortcuts,
+    editingId,
+    recordingKeys,
+    startEditing,
+    clearShortcut,
+    handleKeyDown,
+    resetState,
+  } = useShortcutEditor();
 
-  // Load shortcut configuration
   useEffect(() => {
-    if (open) {
-      setShortcuts(getShortcuts());
-    }
-  }, [open]);
+    if (open) resetState();
+  }, [open, resetState]);
 
-  useEffect(() => {
-    if (!open) {
-      setEditingId(null);
-      setRecordingKeys([]);
-    }
-  }, [open]);
-
-  // Click outside to exit editing state
-  useEffect(() => {
-    if (!editingId) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      // Check if clicked outside input or its children
-      if (!target.closest('.shortcut-input-container')) {
-        setEditingId(null);
-        setRecordingKeys([]);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [editingId]);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    // ESC to close dialog
+  const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
       if (editingId) {
-        // Cancel editing
-        setEditingId(null);
-        setRecordingKeys([]);
+        resetState();
       } else {
-        // Close dialog
         onClose();
       }
       return;
     }
-    
-    if (!editingId) return;
-    
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const keys: string[] = [];
-    if (e.ctrlKey) keys.push('Ctrl');
-    if (e.altKey) keys.push('Alt');
-    if (e.shiftKey) keys.push('Shift');
-    if (e.metaKey) keys.push('Meta');
-    
-    if (!['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
-      keys.push(e.key.toUpperCase());
-    }
-    
-    if (keys.length > 1) {
-      setRecordingKeys(keys);
-      
-      setTimeout(() => {
-        const updated = shortcuts.map(s => 
-          s.id === editingId ? { ...s, keys } : s
-        );
-        setShortcuts(updated);
-        saveShortcuts(updated); // Save to localStorage
-        setEditingId(null);
-        setRecordingKeys([]);
-      }, 300);
-    }
-  };
-
-  const startEditing = (id: string) => {
-    setEditingId(id);
-    setRecordingKeys([]);
-  };
-
-  const clearShortcut = (id: string) => {
-    const updated = shortcuts.map(s => 
-      s.id === id ? { ...s, keys: [] } : s
-    );
-    setShortcuts(updated);
-    saveShortcuts(updated);
+    handleKeyDown(e);
   };
 
   return (
@@ -117,7 +51,7 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={handleKeyDown}
+            onKeyDown={onKeyDown}
             tabIndex={-1}
             className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl w-[400px] max-w-[90vw] p-4"
           >
@@ -128,7 +62,7 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
                   className="flex items-center justify-between py-2"
                 >
                   <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                    {shortcut.name}
+                    {shortcut.description}
                   </span>
                   
                   {editingId === shortcut.id ? (
@@ -145,11 +79,9 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setRecordingKeys([]);
                             clearShortcut(shortcut.id);
                           }}
                           className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-500 rounded-full transition-colors"
-                          aria-label="Clear"
                         >
                           <IconX className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-300" />
                         </button>
@@ -170,7 +102,6 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
                             clearShortcut(shortcut.id);
                           }}
                           className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 flex items-center justify-center bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-500 rounded-full"
-                          aria-label="Clear shortcut"
                         >
                           <IconX className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-300" />
                         </button>

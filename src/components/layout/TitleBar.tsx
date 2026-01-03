@@ -12,11 +12,13 @@ import {
   IconCalendar,
 } from '@tabler/icons-react';
 import { WindowControls } from './WindowControls';
+import { TitleBarButton } from './TitleBarButton';
 import { useUIStore } from '@/stores/uiSlice';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
+import { useShortcuts } from '@/hooks/useShortcuts';
 import {
   DndContext,
   closestCenter,
@@ -36,70 +38,15 @@ import { CSS } from '@dnd-kit/utilities';
 
 const appWindow = getCurrentWindow();
 
-// 可排序的标签组件
-interface SortableTabProps {
+interface TabContentProps {
   tab: { path: string; name: string; isDirty: boolean };
   isActive: boolean;
-  onClose: (path: string) => void | Promise<void>;
-  onClick: (path: string) => void;
   icon?: string;
 }
 
-function SortableTab({ tab, isActive, onClose, onClick, icon }: SortableTabProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    isDragging,
-  } = useSortable({ id: tab.path });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition: undefined, // 禁用动画
-  };
-
-  // 处理指针按下事件，合并 dnd-kit 的 listeners
-  const handlePointerDown = (e: React.PointerEvent) => {
-    // 中键点击直接关闭标签，不触发拖拽
-    if (e.button === 1) {
-      e.preventDefault();
-      e.stopPropagation();
-      onClose(tab.path);
-      return;
-    }
-    // 其他情况调用 dnd-kit 的处理器
-    listeners?.onPointerDown?.(e);
-  };
-
+function TabContent({ tab, isActive, icon }: TabContentProps) {
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      onPointerDown={handlePointerDown}
-      onClick={(e) => {
-        // 中键点击不触发切换
-        if (e.button === 1) return;
-        onClick(tab.path);
-      }}
-      onAuxClick={(e) => {
-        // 阻止中键点击的默认行为
-        if (e.button === 1) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      }}
-      className={cn(
-        "group relative flex items-center gap-2 px-3 py-1.5 cursor-pointer min-w-0 flex-shrink",
-        "rounded-lg my-1",
-        isActive 
-          ? "bg-white dark:bg-zinc-800 shadow-sm" 
-          : "hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50",
-        isDragging && "opacity-50 z-50"
-      )}
-    >
+    <>
       {icon ? (
         <span className="flex-shrink-0 pointer-events-none">
           <NoteIcon icon={icon} size={16} />
@@ -127,6 +74,70 @@ function SortableTab({ tab, isActive, onClose, onClick, icon }: SortableTabProps
       {tab.isDirty && (
         <span className="w-1.5 h-1.5 rounded-full bg-[var(--neko-accent)] flex-shrink-0 pointer-events-none" />
       )}
+    </>
+  );
+}
+
+interface SortableTabProps {
+  tab: { path: string; name: string; isDirty: boolean };
+  isActive: boolean;
+  onClose: (path: string) => void | Promise<void>;
+  onClick: (path: string) => void;
+  icon?: string;
+}
+
+function SortableTab({ tab, isActive, onClose, onClick, icon }: SortableTabProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useSortable({ id: tab.path });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: undefined,
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Middle click closes tab without triggering drag
+    if (e.button === 1) {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose(tab.path);
+      return;
+    }
+    listeners?.onPointerDown?.(e);
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onPointerDown={handlePointerDown}
+      onClick={(e) => {
+        if (e.button === 1) return;
+        onClick(tab.path);
+      }}
+      onAuxClick={(e) => {
+        if (e.button === 1) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
+      className={cn(
+        "group relative flex items-center gap-2 px-3 py-1.5 cursor-pointer min-w-0 flex-shrink",
+        "rounded-lg my-1",
+        isActive 
+          ? "bg-white dark:bg-zinc-800 shadow-sm" 
+          : "hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50",
+        isDragging && "opacity-50 z-50"
+      )}
+    >
+      <TabContent tab={tab} isActive={isActive} icon={icon} />
       
       <button
         onClick={(e) => {
@@ -147,7 +158,6 @@ function SortableTab({ tab, isActive, onClose, onClick, icon }: SortableTabProps
   );
 }
 
-// 拖拽预览组件
 interface TabOverlayProps {
   tab: { path: string; name: string; isDirty: boolean };
   isActive: boolean;
@@ -165,34 +175,25 @@ function TabOverlay({ tab, isActive, icon }: TabOverlayProps) {
           : "bg-zinc-100 dark:bg-zinc-700"
       )}
     >
-      {icon ? (
-        <span className="flex-shrink-0">
-          <NoteIcon icon={icon} size={16} />
-        </span>
-      ) : (
-        <IconFileText 
-          className={cn(
-            "w-4 h-4 flex-shrink-0",
-            isActive 
-              ? "text-[var(--neko-accent)]" 
-              : "text-zinc-400 dark:text-zinc-500"
-          )} 
-        />
-      )}
-      
-      <span className={cn(
-        "text-[13px] truncate",
-        isActive 
-          ? "text-zinc-700 dark:text-zinc-200 font-medium" 
-          : "text-zinc-500 dark:text-zinc-400"
-      )}>
-        {tab.name}
-      </span>
-      
-      {tab.isDirty && (
-        <span className="w-1.5 h-1.5 rounded-full bg-[var(--neko-accent)] flex-shrink-0" />
-      )}
+      <TabContent tab={tab} isActive={isActive} icon={icon} />
     </div>
+  );
+}
+
+interface LeftButtonsProps {
+  onToggleSidebar: () => void;
+  onOpenSettings?: () => void;
+  onToggleViewMode: () => void;
+  viewModeIcon: typeof IconCalendar;
+}
+
+function LeftButtons({ onToggleSidebar, onOpenSettings, onToggleViewMode, viewModeIcon }: LeftButtonsProps) {
+  return (
+    <>
+      <TitleBarButton icon={IconLayoutSidebarLeftCollapse} onClick={onToggleSidebar} className="w-9 px-0" />
+      <TitleBarButton icon={IconSettings} onClick={onOpenSettings} />
+      <TitleBarButton icon={viewModeIcon} onClick={onToggleViewMode} />
+    </>
   );
 }
 
@@ -224,16 +225,13 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
     previewIcon,
   } = useNotesStore();
   
-  // 获取显示图标的辅助函数（直接订阅状态）
   const getDisplayIcon = (path: string) => {
     if (previewIcon?.path === path) return previewIcon.icon;
     return noteIcons.get(path);
   };
   
-  // Resize handle width
   const RESIZE_HANDLE_WIDTH = 4;
   
-  // 当前拖拽的标签
   const [activeTabId, setActiveTabId] = React.useState<string | null>(null);
   
   // DnD sensors for tab reordering
@@ -247,17 +245,13 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
     await appWindow.startDragging();
   };
 
-  // Get current note's folder path
-  const getCurrentFolderPath = () => {
-    if (!currentNote?.path) return undefined;
-    const lastSlash = currentNote.path.lastIndexOf('/');
-    return lastSlash > 0 ? currentNote.path.substring(0, lastSlash) : undefined;
-  };
-
   // Handle new note creation
-  const handleCreateNote = () => {
-    createNote(getCurrentFolderPath());
-  };
+  const handleCreateNote = React.useCallback(() => {
+    const folderPath = currentNote?.path 
+      ? currentNote.path.substring(0, currentNote.path.lastIndexOf('/')) || undefined
+      : undefined;
+    createNote(folderPath);
+  }, [currentNote?.path, createNote]);
 
   // Handle tab drag start
   const handleDragStart = (event: DragStartEvent) => {
@@ -280,20 +274,9 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
     }
   };
   
-  // 获取当前拖拽的标签
   const activeTab = activeTabId ? openTabs.find(tab => tab.path === activeTabId) : null;
 
-  // Keyboard shortcut for Ctrl+T
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 't' && appViewMode === 'notes') {
-        e.preventDefault();
-        handleCreateNote();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [appViewMode, currentNote?.path]);
+  useShortcuts({ scope: 'notes' });
 
   return (
     <div 
@@ -308,32 +291,12 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           className="h-full flex items-center flex-shrink-0 z-20"
           style={{ width: sidebarWidth }}
         >
-          {/* Sidebar Toggle */}
-          <button
-            onClick={toggleSidebar}
-            className="h-full w-9 flex items-center justify-center transition-colors text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
-            title="Hide sidebar"
-          >
-            <IconLayoutSidebarLeftCollapse className="size-4" />
-          </button>
-
-          {/* Settings Button */}
-          <button
-            onClick={onOpenSettings}
-            className="h-full px-3 flex items-center justify-center transition-colors text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
-            title="Settings"
-          >
-            <IconSettings className="size-4" />
-          </button>
-
-          {/* Notes/Calendar Toggle Button */}
-          <button
-            onClick={toggleAppViewMode}
-            className="h-full px-3 flex items-center justify-center transition-colors text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
-            title="Switch to Calendar"
-          >
-            <IconCalendar className="size-4" />
-          </button>
+          <LeftButtons 
+            onToggleSidebar={toggleSidebar}
+            onOpenSettings={onOpenSettings}
+            onToggleViewMode={toggleAppViewMode}
+            viewModeIcon={IconCalendar}
+          />
           
           {/* Draggable area to fill remaining space in sidebar header */}
           <div 
@@ -345,52 +308,22 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
 
       {/* When sidebar is collapsed, show buttons normally */}
       {appViewMode === 'notes' && sidebarCollapsed && (
-        <>
-          <button
-            onClick={toggleSidebar}
-            className="h-full w-9 flex items-center justify-center transition-colors z-20 text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
-            title="Show sidebar"
-          >
-            <IconLayoutSidebarLeftCollapse className="size-4" />
-          </button>
-
-          <button
-            onClick={onOpenSettings}
-            className="h-full px-3 flex items-center justify-center transition-colors z-20 text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
-            title="Settings"
-          >
-            <IconSettings className="size-4" />
-          </button>
-
-          <button
-            onClick={toggleAppViewMode}
-            className="h-full px-3 flex items-center justify-center transition-colors z-20 text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
-            title="Switch to Calendar"
-          >
-            <IconCalendar className="size-4" />
-          </button>
-        </>
+        <div className="flex items-center z-20">
+          <LeftButtons 
+            onToggleSidebar={toggleSidebar}
+            onOpenSettings={onOpenSettings}
+            onToggleViewMode={toggleAppViewMode}
+            viewModeIcon={IconCalendar}
+          />
+        </div>
       )}
 
       {/* Calendar view buttons */}
       {appViewMode === 'calendar' && (
-        <>
-          <button
-            onClick={onOpenSettings}
-            className="h-full px-3 flex items-center justify-center transition-colors z-20 text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
-            title="Settings"
-          >
-            <IconSettings className="size-4" />
-          </button>
-
-          <button
-            onClick={toggleAppViewMode}
-            className="h-full px-3 flex items-center justify-center transition-colors z-20 text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
-            title="Switch to Notes"
-          >
-            <IconNote className="size-4" />
-          </button>
-        </>
+        <div className="flex items-center z-20">
+          <TitleBarButton icon={IconSettings} onClick={onOpenSettings} />
+          <TitleBarButton icon={IconNote} onClick={toggleAppViewMode} />
+        </div>
       )}
 
       {/* Resize handle spacer - only when sidebar is expanded */}
@@ -470,7 +403,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
               </div>
             </SortableContext>
             
-            {/* 拖拽预览 */}
             <DragOverlay dropAnimation={null}>
               {activeTab ? (
                 <TabOverlay 
@@ -519,34 +451,22 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
 
       {/* Right Panel Toggle (Notes view only) */}
       {appViewMode === 'notes' && (
-        <button
+        <TitleBarButton 
+          icon={IconLayoutSidebarRightCollapse} 
           onClick={toggleRightPanel}
-          className={cn(
-            "h-full w-9 flex items-center justify-center transition-colors z-20",
-            rightPanelCollapsed
-              ? "text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
-              : "text-zinc-500 dark:text-zinc-400"
-          )}
-          title={rightPanelCollapsed ? "Show right panel" : "Hide right panel"}
-        >
-          <IconLayoutSidebarRightCollapse className="size-4" />
-        </button>
+          isActive={!rightPanelCollapsed}
+          className="w-9 px-0 z-20"
+        />
       )}
 
       {/* AI Chat Toggle (Notes view only) */}
       {appViewMode === 'notes' && (
-        <button
+        <TitleBarButton 
+          icon={IconMessageCircle} 
           onClick={toggleAIPanel}
-          className={cn(
-            "h-full w-9 flex items-center justify-center transition-colors z-20",
-            showAIPanel
-              ? "text-zinc-500 dark:text-zinc-400"
-              : "text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400"
-          )}
-          title={showAIPanel ? "Hide AI Chat" : "Show AI Chat"}
-        >
-          <IconMessageCircle className="size-4" />
-        </button>
+          isActive={showAIPanel}
+          className="w-9 px-0 z-20"
+        />
       )}
 
       {/* Window Controls - only show when right panel is hidden */}

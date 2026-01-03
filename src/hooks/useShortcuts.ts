@@ -1,73 +1,89 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
-import { invoke } from '@tauri-apps/api/core';
-import { getShortcutKeys, type ShortcutId } from '@/lib/shortcuts';
+import { useNotesStore } from '@/stores/useNotesStore';
+import { useUIStore as useAppUIStore } from '@/stores/uiSlice';
+import { getShortcuts, getKeysFromEvent, matchShortcut, ShortcutScope, ShortcutHandler } from '@/lib/shortcuts';
 
-export function useShortcuts() {
+interface UseShortcutsOptions {
+  scope?: ShortcutScope;
+  handlers?: Record<string, ShortcutHandler>;
+}
+
+export function useShortcuts(options: UseShortcutsOptions = {}) {
+  const { scope = 'global', handlers: extraHandlers = {} } = options;
+  
   const { activeGroupId, archiveCompletedTasks, setActiveGroup } = useGroupStore();
   const undoLastAction = useUnifiedStore(state => state.undo);
   const { toggleDrawer } = useUIStore();
+  const { toggleSidebar, toggleAIPanel, createNote, currentNote } = useNotesStore();
+  const { appViewMode } = useAppUIStore();
+
+  const builtinHandlers = useMemo<Record<string, ShortcutHandler>>(() => ({
+    toggleSidebar,
+    toggleAIPanel,
+    newTab: () => {
+      const folderPath = currentNote?.path 
+        ? currentNote.path.substring(0, currentNote.path.lastIndexOf('/')) || undefined
+        : undefined;
+      createNote(folderPath);
+    },
+    toggleDrawer,
+    archiveCompleted: async () => {
+      if (activeGroupId && activeGroupId !== '__archive__') {
+        await archiveCompletedTasks(activeGroupId);
+      }
+    },
+    openArchive: () => setActiveGroup('__archive__'),
+  }), [toggleSidebar, toggleAIPanel, createNote, currentNote?.path, toggleDrawer, activeGroupId, archiveCompletedTasks, setActiveGroup]);
+
+  const handlers = useMemo(() => ({
+    ...builtinHandlers,
+    ...extraHandlers,
+  }), [builtinHandlers, extraHandlers]);
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      const shortcuts = {
-        'toggle-drawer': () => toggleDrawer(),
-        'archive-completed': async () => {
-          if (activeGroupId && activeGroupId !== '__archive__') {
-            try {
-              await archiveCompletedTasks(activeGroupId);
-            } catch (error) {
-              console.error('Failed to archive completed tasks:', error);
-            }
-          }
-        },
-        'open-archive': () => setActiveGroup('__archive__'),
-      };
-
-      // Check if each shortcut matches
-      for (const [id, handler] of Object.entries(shortcuts)) {
-        const keys = getShortcutKeys(id as ShortcutId);
-        if (!keys || keys.length === 0) continue;
-
-        const matchesShortcut = keys.every((key: string) => {
-          if (key === 'Ctrl') return e.ctrlKey;
-          if (key === 'Shift') return e.shiftKey;
-          if (key === 'Alt') return e.altKey;
-          if (key === 'Meta') return e.metaKey;
-          return e.key.toUpperCase() === key.toUpperCase();
-        });
-
-        if (matchesShortcut) {
-          e.preventDefault();
-          await handler();
-          return;
-        }
-      }
-      
-      // F11: Toggle Fullscreen (fixed shortcut, not customizable)
+      // Fixed shortcuts (not customizable)
       if (e.key === 'F11') {
         e.preventDefault();
-        try {
-          await invoke('toggle_fullscreen');
-        } catch (error) {
-          console.error('Failed to toggle fullscreen:', error);
-        }
+        await invoke('toggle_fullscreen').catch(console.error);
+        return;
       }
       
-      // Ctrl+Z: Undo (fixed shortcut, not customizable)
       if (e.ctrlKey && e.key === 'z' && !e.shiftKey && !e.altKey) {
-        // If focus is in an input field, don't intercept (let browser handle text undo)
         const target = e.target as HTMLElement;
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
           return;
         }
         e.preventDefault();
         undoLastAction();
+        return;
+      }
+
+      const pressedKeys = getKeysFromEvent(e);
+      if (pressedKeys.length < 2) return;
+      
+      const shortcuts = getShortcuts();
+      
+      for (const shortcut of shortcuts) {
+        const shortcutScope = shortcut.scope || 'global';
+        if (shortcutScope !== 'global' && shortcutScope !== scope) continue;
+        if (shortcutScope === 'notes' && appViewMode !== 'notes') continue;
+        
+        if (matchShortcut(pressedKeys, shortcut)) {
+          const handler = handlers[shortcut.id];
+          if (handler) {
+            e.preventDefault();
+            await handler();
+          }
+          break;
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleDrawer, activeGroupId, archiveCompletedTasks, setActiveGroup, undoLastAction]);
+  }, [scope, appViewMode, handlers, undoLastAction]);
 }

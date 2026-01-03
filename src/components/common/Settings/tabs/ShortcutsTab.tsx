@@ -30,7 +30,7 @@ export function ShortcutsTab({
             className="flex items-center justify-between py-1.5"
           >
             <span className="text-xs text-zinc-700 dark:text-zinc-300">
-              {shortcut.name}
+              {shortcut.description}
             </span>
             
             {editingId === shortcut.id ? (

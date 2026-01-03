@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { DndContext, useSensor, useSensors, PointerSensor, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { SettingsModal } from '@/components/common/Settings';
 import { CalendarPage, CalendarToolbar, CalendarTaskPanel } from '@/components/Calendar';
@@ -14,19 +14,24 @@ import { useVimShortcuts } from '@/hooks/useVimShortcuts';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
 import { useLicenseInit } from '@/hooks/useLicenseInit';
-import { getShortcutKeys } from '@/lib/shortcuts';
 import { startOfWeek, addDays, startOfDay, addMinutes } from 'date-fns';
 import { CALENDAR_CONSTANTS, getSnapMinutes } from '@/components/Calendar/utils/timeUtils';
 
 const { GUTTER_WIDTH } = CALENDAR_CONSTANTS;
 
 function AppContent() {
-  // Enable shortcuts
-  useShortcuts();
   const { loadData, updateTaskTime, updateTaskEstimation } = useGroupStore();
   const { showContextPanel, selectedDate, hourHeight, viewMode, dayCount } = useCalendarStore();
   const { appViewMode } = useUIStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const toggleSettings = useCallback(() => setSettingsOpen(prev => !prev), []);
+  
+  const shortcutHandlers = useMemo(() => ({
+    'open-settings': toggleSettings,
+  }), [toggleSettings]);
+
+  useShortcuts({ handlers: shortcutHandlers });
 
   // Enable VIM-style keyboard navigation
   useVimShortcuts();
@@ -41,30 +46,6 @@ function AppContent() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  // Open/close settings shortcut
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Settings shortcut
-      const keys = getShortcutKeys('open-settings');
-      if (!keys || keys.length === 0) return;
-
-      const matchesShortcut = keys.every((key: string) => {
-        if (key === 'Ctrl') return e.ctrlKey;
-        if (key === 'Shift') return e.shiftKey;
-        if (key === 'Alt') return e.altKey;
-        if (key === 'Meta') return e.metaKey;
-        return e.key.toUpperCase() === key.toUpperCase();
-      });
-
-      if (matchesShortcut) {
-        e.preventDefault();
-        setSettingsOpen(prev => !prev);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   // DnD sensors for cross-panel dragging
   const sensors = useSensors(

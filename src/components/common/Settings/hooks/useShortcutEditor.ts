@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getShortcuts, saveShortcuts, type ShortcutConfig } from '@/lib/shortcuts';
+import { getShortcuts, saveShortcuts, ShortcutConfig } from '@/lib/shortcuts';
 
 interface UseShortcutEditorReturn {
   shortcuts: ShortcutConfig[];
@@ -11,15 +11,11 @@ interface UseShortcutEditorReturn {
   resetState: () => void;
 }
 
-/**
- * Hook for managing shortcut editing
- */
 export function useShortcutEditor(): UseShortcutEditorReturn {
   const [shortcuts, setShortcuts] = useState<ShortcutConfig[]>(() => getShortcuts());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [recordingKeys, setRecordingKeys] = useState<string[]>([]);
 
-  // Click outside to cancel editing
   useEffect(() => {
     if (!editingId) return;
 

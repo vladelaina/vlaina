@@ -22,7 +22,6 @@ export function WindowControls({ className }: WindowControlsProps) {
       <button
         onClick={togglePin}
         className="h-full w-12 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-        title={isPinned ? 'Unpin window' : 'Pin window'}
       >
         <IconPin className={`size-4 transition-all duration-200 ${isPinned ? 'text-zinc-500 rotate-0' : 'text-zinc-200 hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-500 rotate-45'}`} />
       </button>
