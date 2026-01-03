@@ -14,6 +14,7 @@ import {
   IconFolder,
 } from '@tabler/icons-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
+import { useDisplayName, useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import {
@@ -41,18 +42,9 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
   const createFolder = useNotesStore(s => s.createFolder);
   const moveItem = useNotesStore(s => s.moveItem);
   
-  // 只订阅当前节点需要的状态
-  const noteIcon = useNotesStore(s => {
-    if (node.isFolder) return undefined;
-    const preview = s.previewIcon;
-    if (preview?.path === node.path) return preview.icon;
-    return s.noteIcons.get(node.path);
-  });
-  
-  const displayName = useNotesStore(s => {
-    if (node.isFolder) return node.name;
-    return s.displayNames.get(node.path) || node.name;
-  });
+  // 使用统一的 hooks 订阅显示名称和图标
+  const displayName = useDisplayName(node.isFolder ? undefined : node.path) || node.name;
+  const noteIcon = useDisplayIcon(node.isFolder ? undefined : node.path);
   
   const [showMenu, setShowMenu] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);

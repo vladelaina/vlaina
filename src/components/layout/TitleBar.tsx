@@ -14,6 +14,7 @@ import { WindowControls } from './WindowControls';
 import { TitleBarButton } from './TitleBarButton';
 import { useUIStore } from '@/stores/uiSlice';
 import { useNotesStore } from '@/stores/useNotesStore';
+import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
@@ -82,10 +83,10 @@ interface SortableTabProps {
   isActive: boolean;
   onClose: (path: string) => void | Promise<void>;
   onClick: (path: string) => void;
-  icon?: string;
 }
 
-const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick, icon }: SortableTabProps) {
+const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick }: SortableTabProps) {
+  const icon = useDisplayIcon(tab.path);
   const {
     attributes,
     listeners,
@@ -160,10 +161,10 @@ const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick,
 interface TabOverlayProps {
   tab: { path: string; name: string; isDirty: boolean };
   isActive: boolean;
-  icon?: string;
 }
 
-function TabOverlay({ tab, isActive, icon }: TabOverlayProps) {
+function TabOverlay({ tab, isActive }: TabOverlayProps) {
+  const icon = useDisplayIcon(tab.path);
   return (
     <div
       className={cn(
@@ -217,13 +218,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
   const openNote = useNotesStore(s => s.openNote);
   const createNote = useNotesStore(s => s.createNote);
   const reorderTabs = useNotesStore(s => s.reorderTabs);
-  const noteIcons = useNotesStore(s => s.noteIcons);
-  const previewIcon = useNotesStore(s => s.previewIcon);
-  
-  const getDisplayIcon = (path: string) => {
-    if (previewIcon?.path === path) return previewIcon.icon;
-    return noteIcons.get(path);
-  };
   
   const RESIZE_HANDLE_WIDTH = 4;
   
@@ -367,7 +361,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                     isActive={currentNote?.path === tab.path}
                     onClose={closeTab}
                     onClick={openNote}
-                    icon={getDisplayIcon(tab.path)}
                   />
                 ))}
                 
@@ -403,7 +396,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                 <TabOverlay 
                   tab={activeTab} 
                   isActive={currentNote?.path === activeTab.path}
-                  icon={getDisplayIcon(activeTab.path)}
                 />
               ) : null}
             </DragOverlay>

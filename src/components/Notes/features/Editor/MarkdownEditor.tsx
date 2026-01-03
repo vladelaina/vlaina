@@ -16,6 +16,7 @@ import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { IconDots, IconStar } from '@tabler/icons-react';
 import { IconHeartbeat } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
+import { syncTitle, resetTitleSync, useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
 import { IconPicker, NoteIcon } from '../IconPicker';
 
@@ -34,17 +35,12 @@ const protectHeadingPlugin = $prose(() => {
         const { selection, doc } = state;
         const { from, empty } = selection;
         
-        // 获取第一个节点（应该是标题）
         const firstNode = doc.firstChild;
         if (!firstNode || firstNode.type.name !== 'heading') return false;
         
-        // 第一个节点的起始位置是 1（0 是文档开始）
-        // 我们只在光标位于第一个节点的最开始位置时阻止 Backspace
         const firstNodeStart = 1;
-        
-        // 处理 Backspace 键 - 只在光标在第一个节点开头时阻止
         if (event.key === 'Backspace' && empty && from === firstNodeStart) {
-          return true; // 阻止删除，防止标题变成普通段落
+          return true;
         }
         
         return false;
@@ -53,10 +49,8 @@ const protectHeadingPlugin = $prose(() => {
   });
 });
 
-// 实时标题同步插件 - 在每次 transaction 时立即更新
+// 实时标题同步插件
 const titleSyncPluginKey = new PluginKey('titleSync');
-let lastSyncedTitle = '';
-let lastSyncedPath = '';
 
 const titleSyncPlugin = $prose(() => {
   return new Plugin({
@@ -64,7 +58,6 @@ const titleSyncPlugin = $prose(() => {
     view() {
       return {
         update(view, prevState) {
-          // 只在文档内容变化时检查
           if (prevState && prevState.doc.eq(view.state.doc)) return;
           
           const { doc } = view.state;
@@ -72,32 +65,8 @@ const titleSyncPlugin = $prose(() => {
           if (firstNode?.type.name === 'heading' && firstNode.attrs.level === 1) {
             const title = firstNode.textContent.trim() || 'Untitled';
             const path = useNotesStore.getState().currentNote?.path;
-            
-            // 只在标题或路径变化时更新
-            if (path && (title !== lastSyncedTitle || path !== lastSyncedPath)) {
-              lastSyncedTitle = title;
-              lastSyncedPath = path;
-              
-              // 使用 setState 的函数形式，避免不必要的状态读取
-              useNotesStore.setState(state => {
-                const currentTab = state.openTabs.find(t => t.path === path);
-                const currentDisplayName = state.displayNames.get(path);
-                
-                // 如果都没变化，返回空对象不触发更新
-                if (currentTab?.name === title && currentDisplayName === title) {
-                  return {};
-                }
-                
-                const updatedTabs = currentTab?.name !== title
-                  ? state.openTabs.map(tab => tab.path === path ? { ...tab, name: title } : tab)
-                  : state.openTabs;
-                  
-                const updatedDisplayNames = currentDisplayName !== title
-                  ? new Map(state.displayNames).set(path, title)
-                  : state.displayNames;
-                
-                return { openTabs: updatedTabs, displayNames: updatedDisplayNames };
-              });
+            if (path) {
+              syncTitle(title, path);
             }
           }
         }
@@ -147,9 +116,7 @@ function MilkdownEditorInner() {
         ctx.set(rootCtx, root);
         const content = currentNote?.content || '';
         ctx.set(defaultValueCtx, content);
-        // 重置同步状态
-        lastSyncedTitle = '';
-        lastSyncedPath = '';
+        resetTitleSync();
         ctx.get(listenerCtx)
           .markdownUpdated((_ctx, markdown) => {
             let finalContent = markdown;
@@ -198,14 +165,7 @@ export function MarkdownEditor() {
   const setNoteIcon = useNotesStore(s => s.setNoteIcon);
   const setPreviewIcon = useNotesStore(s => s.setPreviewIcon);
   
-  // 只订阅当前笔记需要的图标状态
-  const displayIcon = useNotesStore(s => {
-    if (!s.currentNote) return undefined;
-    const path = s.currentNote.path;
-    if (s.previewIcon?.path === path) return s.previewIcon.icon;
-    return s.noteIcons.get(path);
-  });
-  
+  const displayIcon = useDisplayIcon(currentNote?.path);
   const starred = currentNote ? isStarred(currentNote.path) : false;
   const noteIcon = currentNote ? getNoteIcon(currentNote.path) : undefined;
   const [showIconPicker, setShowIconPicker] = useState(false);
