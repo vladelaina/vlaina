@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { IconBan, IconX } from '@tabler/icons-react';
-import { ICON_CATEGORIES_FULL } from '@/components/Progress/features/IconPicker/fullIcons';
+import { ICON_CATEGORIES_FULL } from '@/components/Progress/features/IconPicker/icons';
 import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
 
 interface IconSelectorProps {
@@ -22,34 +22,34 @@ interface IconSelectorProps {
   compact?: boolean;
 }
 
-// 常用图标（快捷栏显示）
+// 常用图标（快捷栏显示）- 使用新的图标名称
 const QUICK_ICONS = [
   'coffee', 'book', 'code', 'briefcase', 'heart', 'flame', 
-  'music-note', 'game-controller', 'house', 'car', 'airplane', 'shopping-bag',
+  'music', 'gamepad', 'home', 'car', 'plane', 'wallet',
 ];
 
 // 自定义"常用"分类 - 针对日历和待办场景精选
 const FEATURED_ICONS = [
   // 日常生活
-  'coffee', 'bed', 'house', 'shower', 'cooking-pot', 'fork-knife',
+  'coffee', 'home', 'kitchen', 'chef',
   // 工作学习
-  'briefcase', 'book', 'graduation-cap', 'laptop', 'code', 'presentation-chart',
+  'briefcase', 'book', 'laptop', 'code',
   // 运动健康
-  'barbell', 'heart', 'person-simple-run', 'bicycle', 'soccer-ball', 'swimming-pool',
+  'barbell', 'heart', 'run', 'bike',
   // 娱乐休闲
-  'music-note', 'game-controller', 'film-strip', 'headphones', 'palette', 'guitar',
+  'music', 'gamepad', 'movie', 'headphones',
   // 社交通讯
-  'phone', 'chat-circle', 'envelope', 'users', 'video-camera', 'handshake',
+  'phone', 'messagecircle', 'mail', 'users',
   // 出行旅游
-  'airplane', 'car', 'train', 'map-pin', 'suitcase', 'compass',
+  'plane', 'car', 'train', 'mappin',
   // 购物消费
-  'shopping-cart', 'shopping-bag', 'credit-card', 'receipt', 'gift', 'tag',
+  'wallet', 'creditcard', 'receipt', 'gift',
   // 时间日程
-  'calendar', 'clock', 'alarm', 'timer', 'hourglass', 'bell',
+  'calendar', 'clock', 'alarm', 'hourglass',
   // 目标成就
-  'target', 'trophy', 'star', 'flag', 'check-circle', 'rocket',
+  'target', 'trophy', 'star', 'flag',
   // 情绪状态
-  'smiley', 'heart', 'fire', 'lightning', 'sun', 'moon',
+  'moodsmile', 'heart', 'flame', 'sun',
 ];
 
 export function IconSelector({ value, onChange, onHover, closeOnSelect = true, color, compact = false }: IconSelectorProps) {
@@ -83,7 +83,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
         title="Change icon"
       >
         {CurrentIcon ? (
-          <CurrentIcon className="size-3.5" weight="duotone" />
+          <CurrentIcon className="size-3.5" stroke={1.5} />
         ) : (
           <span className="size-3.5 text-zinc-400 dark:text-zinc-500">✦</span>
         )}
@@ -108,7 +108,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
           `}
           title="清除图标"
         >
-          <Prohibit className="size-3.5" weight="light" />
+          <IconBan className="size-3.5" stroke={1.5} />
         </button>
         
         {/* Quick icons */}
@@ -128,7 +128,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
                 }
               `}
             >
-              <Icon className="size-3.5" weight={value === name ? 'duotone' : 'light'} />
+              <Icon className="size-3.5" stroke={value === name ? 2 : 1.5} />
             </button>
           );
         })}
@@ -145,7 +145,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
             }
           `}
         >
-          {showAll ? <X className="size-3" /> : '···'}
+          {showAll ? <IconX className="size-3" /> : '···'}
         </button>
       </div>
       
@@ -179,7 +179,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
                       `}
                       title={name}
                     >
-                      <Icon className="size-5" weight={value === name ? 'duotone' : 'light'} />
+                      <Icon className="size-5" stroke={value === name ? 2 : 1.5} />
                     </button>
                   );
                 })}
@@ -211,7 +211,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
                       `}
                       title={name}
                     >
-                      <Icon className="size-5" weight={value === name ? 'duotone' : 'light'} />
+                      <Icon className="size-5" stroke={value === name ? 2 : 1.5} />
                     </button>
                   ))}
                 </div>

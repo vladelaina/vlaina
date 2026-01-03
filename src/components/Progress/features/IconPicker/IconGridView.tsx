@@ -1,6 +1,6 @@
 import { memo } from 'react';
-import { CaretLeft, Prohibit } from '@phosphor-icons/react';
-import { ICON_CATEGORIES_FULL } from './fullIcons';
+import { IconChevronLeft, IconCircleOff } from '@tabler/icons-react';
+import { ICON_CATEGORIES_FULL } from './icons';
 
 interface IconGridViewProps {
   value?: string;
@@ -19,7 +19,7 @@ export const IconGridView = memo(function IconGridView({ value, onChange, onCanc
               className="p-2 -ml-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               title="Back"
             >
-              <CaretLeft weight="bold" className="size-5" />
+              <IconChevronLeft className="size-5" stroke={2.5} />
             </button>
         )}
       </div>
@@ -54,9 +54,9 @@ export const IconGridView = memo(function IconGridView({ value, onChange, onCanc
                             `}
                             title="No Icon"
                         >
-                            <Prohibit 
-                            className={`transition-transform duration-300 ${!value ? 'size-6 opacity-100' : 'size-6 opacity-40 group-hover:opacity-100'}`}
-                            weight={!value ? "bold" : "regular"}
+                            <IconCircleOff 
+                              className={`transition-transform duration-300 ${!value ? 'size-6 opacity-100' : 'size-6 opacity-40 group-hover:opacity-100'}`}
+                              stroke={!value ? 2.5 : 1.5}
                             />
                         </button>
                     )}
@@ -77,8 +77,8 @@ export const IconGridView = memo(function IconGridView({ value, onChange, onCanc
                             title={name}
                         >
                             <Icon 
-                            className="size-7 transition-transform duration-300" 
-                            weight={isSelected ? "duotone" : "light"}
+                              className="size-7 transition-transform duration-300" 
+                              stroke={isSelected ? 2 : 1.5}
                             />
                         </button>
                         );

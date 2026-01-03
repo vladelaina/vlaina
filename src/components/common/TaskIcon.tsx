@@ -48,7 +48,7 @@ export function TaskIcon({
     >
       <IconComponent 
         className={cn(sizeClass, !color && "text-zinc-400 dark:text-zinc-500")} 
-        weight="duotone" 
+        stroke={1.5} 
       />
     </div>
   );

@@ -61,15 +61,15 @@ export function SyncButton({ className }: SyncButtonProps) {
   // Get status info for tooltip
   const getStatusInfo = (): { text: string; icon: React.ReactNode } => {
     if (isSyncing || animating) {
-      return { text: '同步中...', icon: <ArrowsClockwiseIcon weight="bold" className="size-4 animate-spin" /> };
+      return { text: '同步中...', icon: <IconRefresh className="size-4 animate-spin" /> };
     }
     if (syncStatus === 'error' || syncError) {
-      return { text: '同步失败，点击重试', icon: <CloudSlashIcon weight="fill" className="size-4" /> };
+      return { text: '同步失败，点击重试', icon: <IconCloudOff className="size-4" /> };
     }
     if (pendingSync) {
-      return { text: '有待同步的更改', icon: <CloudArrowUpIcon weight="fill" className="size-4" /> };
+      return { text: '有待同步的更改', icon: <IconCloudUpload className="size-4" /> };
     }
-    return { text: '已同步', icon: <CloudCheckIcon weight="fill" className="size-4" /> };
+    return { text: '已同步', icon: <IconCloudCheck className="size-4" /> };
   };
 
   const statusInfo = getStatusInfo();
@@ -95,11 +95,11 @@ export function SyncButton({ className }: SyncButtonProps) {
       >
         {/* Main icon */}
         {isSyncing || animating ? (
-          <ArrowsClockwiseIcon weight="bold" className="size-5 animate-spin" />
+          <IconRefresh className="size-5 animate-spin" />
         ) : isError ? (
-          <CloudSlashIcon weight="fill" className="size-5" />
+          <IconCloudOff className="size-5" />
         ) : (
-          <CloudIcon weight={pendingSync ? 'fill' : 'regular'} className="size-5" />
+          <IconCloud className="size-5" stroke={pendingSync ? 2 : 1.5} />
         )}
         
         {/* Pending sync indicator dot */}

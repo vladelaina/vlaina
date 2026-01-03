@@ -363,7 +363,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
               >
                 <IconComponent 
                   style={{ width: iconSize, height: iconSize }} 
-                  weight="duotone" 
+                  stroke={1.5} 
                 />
               </div>
             );
