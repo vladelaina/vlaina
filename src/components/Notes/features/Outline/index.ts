@@ -1,1 +1,0 @@
-export { NoteOutline } from './NoteOutline';

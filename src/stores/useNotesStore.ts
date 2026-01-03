@@ -56,10 +56,8 @@ interface NotesState {
   displayNames: Map<string, string>; // Note path -> display name (from H1 title, for real-time UI updates)
   // UI State
   sidebarCollapsed: boolean;
-  sidebarWidth: number; // Sidebar width in pixels
+  sidebarWidth: number;
   rightPanelCollapsed: boolean;
-  showOutline: boolean;
-  showBacklinks: boolean;
   showAIPanel: boolean;
 }
 
@@ -97,8 +95,6 @@ interface NotesActions {
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
   toggleRightPanel: () => void;
-  setShowOutline: (show: boolean) => void;
-  setShowBacklinks: (show: boolean) => void;
   toggleAIPanel: () => void;
 }
 
@@ -313,10 +309,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   displayNames: new Map(),
   // UI State
   sidebarCollapsed: false,
-  sidebarWidth: 248, // Default sidebar width
+  sidebarWidth: 248,
   rightPanelCollapsed: true,
-  showOutline: false,
-  showBacklinks: false,
   showAIPanel: false,
 
   // Load file tree from disk
@@ -1127,24 +1121,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   },
 
   toggleRightPanel: () => {
-    const { rightPanelCollapsed, showOutline, showBacklinks } = get();
-    if (rightPanelCollapsed) {
-      // Opening: if nothing is shown, show outline by default
-      set({ 
-        rightPanelCollapsed: false,
-        showOutline: !showOutline && !showBacklinks ? true : showOutline,
-      });
-    } else {
-      set({ rightPanelCollapsed: true });
-    }
-  },
-
-  setShowOutline: (show: boolean) => {
-    set({ showOutline: show, rightPanelCollapsed: show ? false : get().rightPanelCollapsed });
-  },
-
-  setShowBacklinks: (show: boolean) => {
-    set({ showBacklinks: show, rightPanelCollapsed: show ? false : get().rightPanelCollapsed });
+    const { rightPanelCollapsed } = get();
+    set({ rightPanelCollapsed: !rightPanelCollapsed });
   },
 
   toggleAIPanel: () => {

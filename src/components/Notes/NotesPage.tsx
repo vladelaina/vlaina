@@ -12,8 +12,6 @@ import {
   IconStar,
   IconTrash,
   IconFolder,
-  IconListCheck,
-  IconKeyboard,
 } from '@tabler/icons-react';
 
 // Custom filled sparkles icon
@@ -33,10 +31,7 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { FileTree } from './features/FileTree';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
-import { NoteOutline } from './features/Outline';
-import { BacklinksPanel } from './features/Backlinks';
 import { PropertiesPanel } from './features/Properties';
-import { KeyboardShortcutsModal } from './features/BlockEditor/widgets';
 import './features/BlockEditor/styles.css';
 import { cn } from '@/lib/utils';
 
@@ -62,17 +57,12 @@ export function NotesPage() {
     sidebarWidth,
     setSidebarWidth,
     rightPanelCollapsed,
-    showOutline,
-    showBacklinks,
     showAIPanel,
-    setShowOutline,
-    setShowBacklinks,
   } = useNotesStore();
   
   // Local UI State
   const [isDragging, setIsDragging] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(0);
@@ -298,21 +288,12 @@ export function NotesPage() {
               <MarkdownEditor />
             </div>
             
-            {/* Right Panel - Outline/Backlinks */}
-            {!rightPanelCollapsed && (showOutline || showBacklinks) && (
+            {/* Right Panel - Properties */}
+            {!rightPanelCollapsed && (
               <aside 
                 className="flex-shrink-0 border-l border-[var(--neko-border)] bg-[var(--neko-bg-secondary)] overflow-auto neko-scrollbar"
                 style={{ width: RIGHT_PANEL_WIDTH }}
               >
-                {showOutline && (
-                  <NoteOutline content={currentNote.content} />
-                )}
-                {showBacklinks && (
-                  <BacklinksPanel 
-                    currentNotePath={currentNote.path}
-                    onNavigate={openNote}
-                  />
-                )}
                 <PropertiesPanel 
                   content={currentNote.content}
                   path={currentNote.path}
@@ -330,43 +311,8 @@ export function NotesPage() {
         <AIPanelContent />
       )}
 
-      {/* Floating Actions */}
-      {currentNote && (
-        <div className="absolute left-4 bottom-4 flex items-center gap-2">
-          <FloatingButton
-            onClick={() => setShowShortcutsModal(true)}
-            active={false}
-            title="键盘快捷键"
-          >
-            <IconKeyboard className="w-5 h-5" />
-          </FloatingButton>
-          <FloatingButton
-            onClick={() => setShowBacklinks(!showBacklinks)}
-            active={showBacklinks && !rightPanelCollapsed}
-            title="Backlinks"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 17H7A5 5 0 0 1 7 7h2" />
-              <path d="M15 7h2a5 5 0 1 1 0 10h-2" />
-              <line x1="8" y1="12" x2="16" y2="12" />
-            </svg>
-          </FloatingButton>
-          <FloatingButton
-            onClick={() => setShowOutline(!showOutline)}
-            active={showOutline && !rightPanelCollapsed}
-            title="Outline"
-          >
-            <IconListCheck className="w-5 h-5" />
-          </FloatingButton>
-        </div>
-      )}
-
       {/* Modals */}
       <NoteSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
-      <KeyboardShortcutsModal 
-        isOpen={showShortcutsModal} 
-        onClose={() => setShowShortcutsModal(false)} 
-      />
     </div>
   );
 }
@@ -392,34 +338,6 @@ function NavItem({ icon, label, active = false, onClick }: {
         {icon}
       </span>
       <span>{label}</span>
-    </button>
-  );
-}
-
-/* Floating Button Component */
-function FloatingButton({ 
-  children, 
-  onClick, 
-  active, 
-  title 
-}: { 
-  children: React.ReactNode; 
-  onClick: () => void; 
-  active: boolean;
-  title: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "p-2.5 rounded-lg shadow-lg transition-all",
-        active 
-          ? "bg-[var(--neko-accent)] text-white" 
-          : "bg-[var(--neko-bg-primary)] text-[var(--neko-icon-secondary)] border border-[var(--neko-border)] hover:bg-[var(--neko-hover-filled)]"
-      )}
-      title={title}
-    >
-      {children}
     </button>
   );
 }

@@ -7,10 +7,9 @@
 import React, { useState, useCallback } from 'react';
 import { EditorProvider, useEditorContext } from './EditorContext';
 import { BlockRenderer } from './blocks';
-import { SlashMenu, DragHandle, InlineToolbar, LinkSuggest, KeyboardShortcutsModal } from './widgets';
+import { SlashMenu, DragHandle, InlineToolbar, LinkSuggest } from './widgets';
 import { useEditorStore } from './EditorStore';
 import { cn } from '@/lib/utils';
-import { IconKeyboard } from '@tabler/icons-react';
 import './styles.css';
 
 interface BlockEditorInnerProps {
@@ -22,7 +21,6 @@ function BlockEditorInner({ className }: BlockEditorInnerProps) {
   const { moveBlock } = useEditorStore();
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const [dropPosition, setDropPosition] = useState<'before' | 'after'>('after');
-  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
   // Handle drag over
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -113,21 +111,6 @@ function BlockEditorInner({ className }: BlockEditorInnerProps) {
           onClose={() => setLinkSuggest(prev => ({ ...prev, isOpen: false }))}
         />
       )}
-
-      {/* Keyboard Shortcuts Button */}
-      <button
-        className="keyboard-shortcuts-btn"
-        onClick={() => setShowShortcutsModal(true)}
-        title="键盘快捷键"
-      >
-        <IconKeyboard size={18} />
-      </button>
-
-      {/* Keyboard Shortcuts Modal */}
-      <KeyboardShortcutsModal
-        isOpen={showShortcutsModal}
-        onClose={() => setShowShortcutsModal(false)}
-      />
     </div>
   );
 }
