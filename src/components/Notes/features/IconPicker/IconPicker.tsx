@@ -118,7 +118,6 @@ const CATEGORY_NAMES: Record<string, string> = {
   flags: 'Flags',
 };
 
-// 分类图标映射
 const CATEGORY_ICONS: Record<string, string> = {
   people: '\u{1F497}',
   nature: '\u{1F984}',
@@ -130,6 +129,11 @@ const CATEGORY_ICONS: Record<string, string> = {
   flags: '\u{1F3F3}\u{FE0F}\u{200D}\u{1F308}',
 };
 
+// 允许的旗帜 emoji
+const ALLOWED_FLAGS = new Set([
+  '🏁', '🎌', '🏴', '🏴‍☠️', '🏳️‍🌈', '🏳️‍⚧️', '🚩', '🏳️',
+]);
+
 
 function buildEmojiCategories(): EmojiCategory[] {
   const emojiData = data as any;
@@ -139,12 +143,26 @@ function buildEmojiCategories(): EmojiCategory[] {
     if (cat.id === 'frequent') continue;
     
     const emojis: EmojiItem[] = [];
+    const seenNative = new Set<string>();
+    
     for (const emojiId of cat.emojis) {
       const emoji = emojiData.emojis[emojiId];
       if (emoji && emoji.skins && emoji.skins[0]) {
+        const native = emoji.skins[0].native;
+        
+        // flags 分类只保留白名单中的旗帜
+        if (cat.id === 'flags' && !ALLOWED_FLAGS.has(native)) {
+          continue;
+        }
+        
+        if (seenNative.has(native)) {
+          continue;
+        }
+        seenNative.add(native);
+        
         emojis.push({
           id: emojiId,
-          native: emoji.skins[0].native,
+          native,
           name: emoji.name || emojiId,
           keywords: emoji.keywords || [],
           skins: emoji.skins,
@@ -170,8 +188,8 @@ interface IconPickerProps {
   onRemove?: () => void;
   onClose: () => void;
   hasIcon?: boolean;
-  currentIcon?: string; // 当前已应用的图标，用于肤色预览
-  onIconChange?: (emoji: string) => void; // 更新图标但不关闭 picker（用于肤色切换）
+  currentIcon?: string;
+  onIconChange?: (emoji: string) => void;
 }
 
 const EmojiButton = memo(function EmojiButton({ 
@@ -292,24 +310,20 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
   const [showSkinTonePicker, setShowSkinTonePicker] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('people');
   const [activeIconCategory, setActiveIconCategory] = useState<string>('common');
-  const [previewSkinTone, setPreviewSkinTone] = useState<number | null>(null); // 预览肤色
+  const [previewSkinTone, setPreviewSkinTone] = useState<number | null>(null);
   const iconScrollContainerRef = useRef<HTMLDivElement>(null);
   const iconCategoryTitleRef = useRef<HTMLDivElement>(null);
 
-  // Compute recent icons list (filter for icon: prefix)
   const recentIconsList = useMemo(() => 
     recentIcons.filter(i => i.startsWith('icon:')), 
     [recentIcons]
   );
 
-  // 实际使用的肤色（预览优先）
   const effectiveSkinTone = previewSkinTone !== null ? previewSkinTone : skinTone;
 
-  // 根据 emoji 和肤色获取对应版本
   const getEmojiWithSkinTone = useCallback((emoji: string, tone: number): string | null => {
     if (!emoji || emoji.startsWith('icon:')) return null;
     
-    // 从 emoji-mart data 查找这个 emoji
     for (const cat of EMOJI_CATEGORIES) {
       for (const item of cat.emojis) {
         if (item.native === emoji || item.skins?.some((s: any) => s.native === emoji)) {
@@ -320,10 +334,9 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
         }
       }
     }
-    return emoji; // 找不到就返回原 emoji
+    return emoji;
   }, []);
 
-  // 悬浮肤色时预览当前图标的对应肤色版本
   const handleSkinToneHover = useCallback((tone: number | null) => {
     setPreviewSkinTone(tone);
     if (tone !== null && currentIcon && !currentIcon.startsWith('icon:')) {
@@ -336,17 +349,14 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
     }
   }, [currentIcon, getEmojiWithSkinTone, onPreview]);
 
-  // 切换分类时，非第一个分类自动滚动到分类标题
   const handleCategoryChange = useCallback((categoryId: string) => {
     setActiveCategory(categoryId);
-    // 使用 requestAnimationFrame 确保 DOM 更新后立即滚动
     requestAnimationFrame(() => {
       if (categoryId !== 'people') {
         if (categoryTitleRef.current && scrollContainerRef.current) {
           categoryTitleRef.current.scrollIntoView({ behavior: 'instant', block: 'start' });
         }
       } else {
-        // 第一个分类滚动到顶部
         if (scrollContainerRef.current) {
           scrollContainerRef.current.scrollTop = 0;
         }
@@ -412,16 +422,15 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
         onPreview?.(null);
         onClose();
       }
-      // Ctrl+Tab 切换到下一个标签，Ctrl+Shift+Tab 切换到上一个标签
       if (e.key === 'Tab' && e.ctrlKey) {
         e.preventDefault();
-        e.stopPropagation(); // 阻止事件冒泡到 NotesPage
+        e.stopPropagation();
         const newTab = activeTab === 'emoji' ? 'icons' : 'emoji';
         setActiveTab(newTab);
         saveActiveTab(newTab);
       }
     };
-    document.addEventListener('keydown', handleKeyDown, true); // 使用捕获阶段
+    document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [onClose, onPreview, activeTab]);
 
@@ -431,7 +440,6 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
     }
   }, [activeTab]);
 
-  // 切换 Icon 分类时滚动到顶部
   const handleIconCategoryChange = useCallback((categoryId: string) => {
     setActiveIconCategory(categoryId);
     requestAnimationFrame(() => {
@@ -459,9 +467,8 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
     saveSkinTone(tone);
     setShowSkinTonePicker(false);
     setPreviewSkinTone(null);
-    onPreview?.(null); // 清除父组件的预览状态
+    onPreview?.(null);
     
-    // 如果当前有图标，更新为对应肤色版本（不关闭 picker）
     if (currentIcon && !currentIcon.startsWith('icon:')) {
       const newEmoji = getEmojiWithSkinTone(currentIcon, tone);
       if (newEmoji && newEmoji !== currentIcon) {
@@ -621,7 +628,6 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
               </div>
             )}
             
-            {/* 预渲染所有分类，但只显示当前分类 */}
             {!searchQuery && EMOJI_CATEGORIES.map((category, index) => (
               <div 
                 key={category.id} 
@@ -666,7 +672,6 @@ export function IconPicker({ onSelect, onPreview, onRemove, onClose, hasIcon = f
             className="p-3 max-h-[280px] overflow-y-auto neko-scrollbar"
             onMouseLeave={() => onPreview?.(null)}
           >
-            {/* Recent Icons - always show at top of each category */}
             {recentIconsList.length > 0 && (
               <div className="mb-3">
                 <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2 font-medium">
