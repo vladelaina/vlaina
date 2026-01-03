@@ -31,13 +31,11 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { FileTree } from './features/FileTree';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
-import { PropertiesPanel } from './features/Properties';
 import './features/BlockEditor/styles.css';
 import { cn } from '@/lib/utils';
 
 const SIDEBAR_MIN_WIDTH = 200;
 const SIDEBAR_MAX_WIDTH = 400;
-const RIGHT_PANEL_WIDTH = 260;
 const AI_PANEL_WIDTH = 360;
 
 export function NotesPage() {
@@ -56,7 +54,6 @@ export function NotesPage() {
     sidebarCollapsed,
     sidebarWidth,
     setSidebarWidth,
-    rightPanelCollapsed,
     showAIPanel,
   } = useNotesStore();
   
@@ -287,19 +284,6 @@ export function NotesPage() {
             <div className="flex-1 min-w-0">
               <MarkdownEditor />
             </div>
-            
-            {/* Right Panel - Properties */}
-            {!rightPanelCollapsed && (
-              <aside 
-                className="flex-shrink-0 border-l border-[var(--neko-border)] bg-[var(--neko-bg-secondary)] overflow-auto neko-scrollbar"
-                style={{ width: RIGHT_PANEL_WIDTH }}
-              >
-                <PropertiesPanel 
-                  content={currentNote.content}
-                  path={currentNote.path}
-                />
-              </aside>
-            )}
           </div>
         ) : (
           <EmptyState onCreateNote={() => createNote()} onOpenSearch={() => setShowSearch(true)} />

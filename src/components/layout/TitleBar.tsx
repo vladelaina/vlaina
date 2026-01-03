@@ -3,7 +3,6 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { 
   IconSettings, 
   IconLayoutSidebarLeftCollapse,
-  IconLayoutSidebarRightCollapse,
   IconMessageCircle,
   IconFileText,
   IconX,
@@ -210,10 +209,8 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
   const { 
     sidebarCollapsed, 
     sidebarWidth,
-    rightPanelCollapsed, 
     showAIPanel,
     toggleSidebar, 
-    toggleRightPanel,
     toggleAIPanel,
     currentNote,
     openTabs,
@@ -447,16 +444,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
         <div className="flex items-center h-full z-20 pr-3">
           {toolbar}
         </div>
-      )}
-
-      {/* Right Panel Toggle (Notes view only) */}
-      {appViewMode === 'notes' && (
-        <TitleBarButton 
-          icon={IconLayoutSidebarRightCollapse} 
-          onClick={toggleRightPanel}
-          isActive={!rightPanelCollapsed}
-          className="w-9 px-0 z-20"
-        />
       )}
 
       {/* AI Chat Toggle (Notes view only) */}
