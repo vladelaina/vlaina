@@ -18,6 +18,7 @@ import {
   exists,
 } from '@tauri-apps/plugin-fs';
 import { join, documentDir } from '@tauri-apps/api/path';
+import { setDisplayName, removeDisplayName, moveDisplayName, getDisplayName } from '@/hooks/useTitleSync';
 
 // ============ Types ============
 
@@ -275,16 +276,22 @@ function restoreExpandedState(nodes: FileTreeNode[], expandedPaths: Set<string>)
   });
 }
 
-// 从 Markdown 内容中提取第一个一级标题
+// 从 Markdown 内容中提取第一个一级标题（必须在文件开头）
 function extractFirstH1(content: string): string | null {
-  // 匹配 # 开头的一级标题（不是 ## 或更多）
-  const match = content.match(/^#\s+(.+)$/m);
+  // 获取第一行
+  const firstLineEnd = content.indexOf('\n');
+  const firstLine = firstLineEnd === -1 ? content : content.substring(0, firstLineEnd);
+  
+  // 检查第一行是否是 H1 标题格式
+  const match = firstLine.match(/^#\s+(.+)$/);
   if (match && match[1]) {
-    // 清理标题文本，移除不能用于文件名的字符
     let title = match[1].trim();
+    // 排除 placeholder 文字
+    if (title === 'Title' || title === '') {
+      return null;
+    }
     // 移除 Windows/Unix 文件名中不允许的字符
     title = title.replace(/[<>:"/\\|?*]/g, '');
-    // 移除首尾空格
     title = title.trim();
     return title || null;
   }
@@ -366,6 +373,10 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       const fullPath = await join(notesPath, path);
       const content = await readTextFile(fullPath);
       
+      // 从内容中提取标题，如果没有则使用 Untitled
+      const h1Title = extractFirstH1(content);
+      const tabName = h1Title || 'Untitled';
+      
       // Add to recent notes
       const updatedRecent = addToRecentNotes(path, recentNotes);
       
@@ -375,25 +386,25 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       let updatedTabs = openTabs;
       
       if (existingTab) {
-        // Already open, just switch to it
-        updatedTabs = openTabs;
+        // Already open, update name from content
+        updatedTabs = openTabs.map(t => t.path === path ? { ...t, name: tabName } : t);
       } else if (openInNewTab || openTabs.length === 0) {
         // Open in new tab (Ctrl+click or no tabs open)
-        const fileName = path.split('/').pop()?.replace('.md', '') || 'Untitled';
-        updatedTabs = [...openTabs, { path, name: fileName, isDirty: false }];
+        updatedTabs = [...openTabs, { path, name: tabName, isDirty: false }];
       } else {
         // Replace current tab
         const currentTabIndex = openTabs.findIndex(t => t.path === currentNote?.path);
         if (currentTabIndex !== -1) {
-          const fileName = path.split('/').pop()?.replace('.md', '') || 'Untitled';
           updatedTabs = [...openTabs];
-          updatedTabs[currentTabIndex] = { path, name: fileName, isDirty: false };
+          updatedTabs[currentTabIndex] = { path, name: tabName, isDirty: false };
         } else {
           // No current tab found, add as new
-          const fileName = path.split('/').pop()?.replace('.md', '') || 'Untitled';
-          updatedTabs = [...openTabs, { path, name: fileName, isDirty: false }];
+          updatedTabs = [...openTabs, { path, name: tabName, isDirty: false }];
         }
       }
+      
+      // 更新 displayNames (通过统一模块)
+      setDisplayName(path, tabName);
       
       set({
         currentNote: { path, content },
@@ -468,10 +479,9 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
                 : tab
             );
             
-            // 清理旧路径的显示名称
-            const { displayNames } = get();
-            const updatedDisplayNames = new Map(displayNames);
-            updatedDisplayNames.delete(currentNote.path);
+            // 更新显示名称 (通过统一模块)
+            moveDisplayName(currentNote.path, newPath);
+            setDisplayName(newPath, sanitizedTitle);
             
             // 更新文件树中的节点（局部更新，不重新加载）
             const currentRootFolder = get().rootFolder;
@@ -489,7 +499,6 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
               currentNote: { path: newPath, content: currentNote.content },
               isDirty: false,
               openTabs: updatedTabs,
-              displayNames: updatedDisplayNames,
             });
             
             return;
@@ -501,12 +510,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       const fullPath = await join(notesPath, currentNote.path);
       await writeTextFile(fullPath, currentNote.content);
       
-      // 清理显示名称（文件名没变，但标题可能和文件名一致了）
-      const { displayNames } = get();
-      const updatedDisplayNames = new Map(displayNames);
-      updatedDisplayNames.delete(currentNote.path);
-      
-      set({ isDirty: false, displayNames: updatedDisplayNames });
+      set({ isDirty: false });
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to save note',
@@ -598,11 +602,13 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       // 从打开的标签中移除被删除的笔记
       const updatedTabs = openTabs.filter(t => t.path !== path);
       
+      // 清理 displayNames (通过统一模块)
+      removeDisplayName(path);
+      
       // Close if current note was deleted, switch to another tab
       if (currentNote?.path === path) {
         if (updatedTabs.length > 0) {
           const lastTab = updatedTabs[updatedTabs.length - 1];
-          // 先更新标签，再打开新笔记
           set({ openTabs: updatedTabs });
           await get().openNote(lastTab.path);
         } else {
@@ -634,7 +640,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   // Rename a note
   renameNote: async (path: string, newName: string) => {
-    const { notesPath, currentNote, loadFileTree, rootFolder } = get();
+    const { notesPath, currentNote, loadFileTree, rootFolder, openTabs } = get();
     
     // 保存当前展开的文件夹路径
     const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
@@ -648,9 +654,22 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       
       await rename(fullPath, newFullPath);
       
+      // 更新 displayNames (通过统一模块)
+      moveDisplayName(path, newPath);
+      
+      // 更新 openTabs
+      const updatedTabs = openTabs.map(tab => 
+        tab.path === path ? { ...tab, path: newPath } : tab
+      );
+      
       // Update current note path if renamed
       if (currentNote?.path === path) {
-        set({ currentNote: { ...currentNote, path: newPath } });
+        set({ 
+          currentNote: { ...currentNote, path: newPath },
+          openTabs: updatedTabs,
+        });
+      } else {
+        set({ openTabs: updatedTabs });
       }
       
       // Reload file tree
@@ -739,7 +758,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
   // Move item (file or folder) to a new location
   moveItem: async (sourcePath: string, targetFolderPath: string) => {
-    const { notesPath, currentNote, loadFileTree, rootFolder } = get();
+    const { notesPath, currentNote, loadFileTree, rootFolder, openTabs } = get();
     
     // 保存当前展开的文件夹路径
     const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
@@ -752,9 +771,22 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       
       await rename(sourceFullPath, targetFullPath);
       
+      // 更新 displayNames (通过统一模块)
+      moveDisplayName(sourcePath, newPath);
+      
+      // 更新 openTabs
+      const updatedTabs = openTabs.map(tab => 
+        tab.path === sourcePath ? { ...tab, path: newPath } : tab
+      );
+      
       // Update current note path if moved
       if (currentNote?.path === sourcePath) {
-        set({ currentNote: { ...currentNote, path: newPath } });
+        set({ 
+          currentNote: { ...currentNote, path: newPath },
+          openTabs: updatedTabs,
+        });
+      } else {
+        set({ openTabs: updatedTabs });
       }
       
       // Reload file tree
@@ -821,6 +853,9 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
         const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
         const fullPath = await join(notesPath, path);
         await remove(fullPath);
+        
+        // 清理 displayNames (通过统一模块)
+        removeDisplayName(path);
         
         // 重新加载文件树
         await loadFileTree();
@@ -1075,24 +1110,14 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   // Get display icon (preview icon if available, otherwise actual icon)
   getDisplayIcon: (path: string) => {
     const { previewIcon, noteIcons } = get();
-    // If there's a preview icon for this path, return it
     if (previewIcon && previewIcon.path === path) {
       return previewIcon.icon;
     }
-    // Otherwise return the actual icon
     return noteIcons.get(path);
   },
 
   // Get display name (from H1 title if available, otherwise file name)
-  getDisplayName: (path: string) => {
-    const { displayNames } = get();
-    const displayName = displayNames.get(path);
-    if (displayName) {
-      return displayName;
-    }
-    // Fallback to file name
-    return path.split('/').pop()?.replace('.md', '') || 'Untitled';
-  },
+  getDisplayName,
 
   // UI Actions
   toggleSidebar: () => {

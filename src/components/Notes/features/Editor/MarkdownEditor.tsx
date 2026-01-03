@@ -62,13 +62,21 @@ const titleSyncPlugin = $prose(() => {
           
           const { doc } = view.state;
           const firstNode = doc.firstChild;
+          const path = useNotesStore.getState().currentNote?.path;
+          if (!path) return;
+          
+          // 只有当第一个节点是 H1 标题且有有效内容时才使用标题
           if (firstNode?.type.name === 'heading' && firstNode.attrs.level === 1) {
-            const title = firstNode.textContent.trim() || 'Untitled';
-            const path = useNotesStore.getState().currentNote?.path;
-            if (path) {
-              syncTitle(title, path);
+            const titleText = firstNode.textContent.trim();
+            // 排除空标题和 placeholder 文字
+            if (titleText && titleText !== 'Title') {
+              syncTitle(titleText, path);
+              return;
             }
           }
+          
+          // 其他情况使用 Untitled
+          syncTitle('Untitled', path);
         }
       };
     }
@@ -119,12 +127,9 @@ function MilkdownEditorInner() {
         resetTitleSync();
         ctx.get(listenerCtx)
           .markdownUpdated((_ctx, markdown) => {
-            let finalContent = markdown;
-            if (!markdown.trim() || markdown.trim() === '') {
-              finalContent = '# ';
-            } else if (!markdown.startsWith('#')) {
-              finalContent = '# ' + markdown;
-            }
+            // 只有当内容完全为空时才添加空标题
+            // 不要自动把正文变成标题
+            const finalContent = (!markdown.trim() || markdown.trim() === '') ? '# ' : markdown;
             updateContent(finalContent);
             debouncedSave();
           });
