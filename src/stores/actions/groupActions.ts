@@ -1,5 +1,5 @@
 /**
- * Group Actions - 分组相关操作
+ * Group Actions
  */
 
 import { nanoid } from 'nanoid';

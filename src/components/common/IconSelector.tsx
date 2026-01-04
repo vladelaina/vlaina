@@ -1,7 +1,5 @@
 /**
- * IconSelector - 紧凑型图标选择器
- * 
- * 用于右键菜单中的图标选择，复用 Progress 模块的图标数据
+ * IconSelector - Compact icon selector for context menus
  */
 
 import { useState } from 'react';
@@ -12,43 +10,27 @@ import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
 interface IconSelectorProps {
   value?: string;
   onChange: (icon: string | undefined) => void;
-  /** 鼠标悬停时的回调，用于实时预览。传入 null 表示鼠标离开，停止预览 */
   onHover?: (icon: string | undefined | null) => void;
-  /** 是否在选择后自动关闭（默认 true） */
   closeOnSelect?: boolean;
-  /** 图标颜色（用于紧凑模式显示当前图标） */
   color?: string;
-  /** 紧凑模式：只显示当前图标，点击展开选择器 */
   compact?: boolean;
 }
 
-// 常用图标（快捷栏显示）- 使用新的图标名称
 const QUICK_ICONS = [
   'coffee', 'book', 'code', 'briefcase', 'heart', 'flame', 
   'music', 'gamepad', 'home', 'car', 'plane', 'wallet',
 ];
 
-// 自定义"常用"分类 - 针对日历和待办场景精选
 const FEATURED_ICONS = [
-  // 日常生活
   'coffee', 'home', 'kitchen', 'chef',
-  // 工作学习
   'briefcase', 'book', 'laptop', 'code',
-  // 运动健康
   'barbell', 'heart', 'run', 'bike',
-  // 娱乐休闲
   'music', 'gamepad', 'movie', 'headphones',
-  // 社交通讯
   'phone', 'messagecircle', 'mail', 'users',
-  // 出行旅游
   'plane', 'car', 'train', 'mappin',
-  // 购物消费
   'wallet', 'creditcard', 'receipt', 'gift',
-  // 时间日程
   'calendar', 'clock', 'alarm', 'hourglass',
-  // 目标成就
   'target', 'trophy', 'star', 'flag',
-  // 情绪状态
   'moodsmile', 'heart', 'flame', 'sun',
 ];
 
@@ -62,17 +44,14 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
     }
   };
 
-  // 鼠标悬停时调用 onHover
   const handleHover = (icon: string | undefined) => {
     onHover?.(icon);
   };
 
-  // 鼠标离开时传递 null 表示停止预览
   const handleMouseLeave = () => {
     onHover?.(null);
   };
 
-  // Compact mode: show only current icon, click to expand
   if (compact && !showAll) {
     const CurrentIcon = value ? getIconByName(value) : null;
     return (
@@ -93,9 +72,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
 
   return (
     <div className="py-1" onMouseLeave={handleMouseLeave}>
-      {/* Quick icons row - 始终显示 */}
       <div className="flex items-center gap-1.5">
-        {/* Clear button - 清除图标 */}
         <button
           onClick={() => handleSelect(undefined)}
           onMouseEnter={() => handleHover(undefined)}
@@ -106,12 +83,11 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
               : 'text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-400'
             }
           `}
-          title="清除图标"
+          title="Clear icon"
         >
           <IconBan className="size-3.5" stroke={1.5} />
         </button>
         
-        {/* Quick icons */}
         {QUICK_ICONS.slice(0, 6).map((name) => {
           const Icon = getIconByName(name);
           if (!Icon) return null;
@@ -133,7 +109,6 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
           );
         })}
         
-        {/* More/Collapse button */}
         <button
           onClick={() => setShowAll(!showAll)}
           onMouseEnter={() => handleHover(value)}
@@ -149,11 +124,9 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
         </button>
       </div>
       
-      {/* Expanded icons grid - 在快捷图标下方展开，自适应宽度 */}
       {showAll && (
         <div className="mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
           <div className="max-h-72 overflow-y-auto space-y-3">
-            {/* 自定义常用分类 - 放在最前面 */}
             <div>
               <div className="text-[10px] font-medium text-zinc-400 dark:text-zinc-600 uppercase tracking-wide mb-1.5 sticky top-0 bg-white dark:bg-zinc-900 py-0.5">
                 Featured
@@ -186,13 +159,11 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
               </div>
             </div>
 
-            {/* 其他分类 */}
             {ICON_CATEGORIES_FULL.map((category) => (
               <div key={category.name}>
                 <div className="text-[10px] font-medium text-zinc-400 dark:text-zinc-600 uppercase tracking-wide mb-1.5 sticky top-0 bg-white dark:bg-zinc-900 py-0.5">
                   {category.name}
                 </div>
-                {/* 使用 auto-fill 自适应宽度，每个图标最小 32px */}
                 <div 
                   className="grid gap-1"
                   style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(32px, 1fr))' }}

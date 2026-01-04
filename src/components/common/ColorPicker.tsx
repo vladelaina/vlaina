@@ -30,7 +30,6 @@ export function ColorPicker({
 }: ColorPickerProps) {
   const currentColor = value || 'default';
   
-  // 鼠标离开整个颜色选择器时清除预览
   const handleMouseLeave = () => {
     onHover?.(null);
   };

@@ -10,8 +10,6 @@ import { startOfDay, addMinutes } from 'date-fns';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { getSnapMinutes, CALENDAR_CONSTANTS } from '../utils/timeUtils';
 
-// ============ Type Definitions ============
-
 export type InteractionType = 'idle' | 'creating' | 'moving' | 'resizing';
 export type ResizeEdge = 'top' | 'bottom';
 
@@ -74,11 +72,7 @@ interface CalendarInteractionContextValue {
   getGhostEvent: () => { startMinutes: number; endMinutes: number; dayIndex: number } | null;
 }
 
-// ============ Context ============
-
 const CalendarInteractionContext = createContext<CalendarInteractionContextValue | null>(null);
-
-// ============ Provider ============
 
 interface CalendarInteractionProviderProps {
   children: ReactNode;
@@ -100,7 +94,7 @@ export function CalendarInteractionProvider({ children, hourHeight }: CalendarIn
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // ============ Create Event ============
+  // Create event
   
   const startCreate = useCallback((dayIndex: number, minutes: number) => {
     const snapped = Math.round(minutes / snapMinutes) * snapMinutes;
@@ -157,7 +151,7 @@ export function CalendarInteractionProvider({ children, hourHeight }: CalendarIn
     setState({ type: 'idle', create: null, move: null, resize: null });
   }, []);
 
-  // ============ Move Event ============
+  // Move event
   
   const startMove = useCallback((eventId: string, startDate: number, endDate: number) => {
     setState({
@@ -228,7 +222,7 @@ export function CalendarInteractionProvider({ children, hourHeight }: CalendarIn
     setState({ type: 'idle', create: null, move: null, resize: null });
   }, [updateEvent]);
 
-  // ============ Resize ============
+  // Resize
   
   const startResize = useCallback((eventId: string, edge: ResizeEdge, startDate: number, endDate: number) => {
     setState({
@@ -303,7 +297,7 @@ export function CalendarInteractionProvider({ children, hourHeight }: CalendarIn
     setState({ type: 'idle', create: null, move: null, resize: null });
   }, [updateEvent]);
 
-  // ============ Helper Methods ============
+  // Helper methods
   
   const getEventTempTimes = useCallback((eventId: string) => {
     const current = stateRef.current;
@@ -360,8 +354,6 @@ export function CalendarInteractionProvider({ children, hourHeight }: CalendarIn
     </CalendarInteractionContext.Provider>
   );
 }
-
-// ============ Hook ============
 
 export function useCalendarInteraction() {
   const context = useContext(CalendarInteractionContext);

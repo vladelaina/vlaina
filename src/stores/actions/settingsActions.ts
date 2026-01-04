@@ -1,9 +1,4 @@
-/**
- * Settings Actions - 设置相关操作（数据持久化设置）
- * 
- * 注意：UI 状态操作（toggleSidebar, toggleContextPanel, setSelectedDate）
- * 已迁移到 UIStore (src/stores/uiSlice.ts)
- */
+// Settings Actions
 
 import type { UnifiedData } from '@/lib/storage/unifiedStorage';
 import type { TimeView } from '@/lib/date';
@@ -75,7 +70,6 @@ export function createSettingsActions(set: SetState, persist: Persist) {
     },
 
     setDayStartTime: (minutes: number) => {
-      // 限制在 0-1439 分钟范围内
       const clampedMinutes = Math.max(0, Math.min(1439, minutes));
       set((state) => {
         const newData = {

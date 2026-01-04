@@ -1,7 +1,5 @@
 /**
- * PanelTaskItem - 面板内的任务项
- * 
- * 紧凑版的任务项，适配右侧面板
+ * PanelTaskItem - Task item for the panel
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -16,7 +14,6 @@ import { parseDuration, formatDuration } from '@/lib/time';
 import { getColorHex } from '@/lib/colors';
 import { IconSelector, TaskIcon, ColorPicker } from '@/components/common';
 
-// 禁用拖拽动画
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
   const { isSorting, wasDragging } = args;
   if (isSorting || wasDragging) return false;
@@ -120,7 +117,6 @@ export function PanelTaskItem({
     setContent(task.content);
   }, [task.content]);
 
-  // 关闭菜单
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -165,7 +161,6 @@ export function PanelTaskItem({
     (itemRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
   };
 
-  // 颜色值
   const colorValue = task.color && task.color !== 'default'
     ? getColorHex(task.color)
     : undefined;

@@ -1,8 +1,4 @@
-/**
- * FileTreeItem - Individual file or folder item
- * 
- * Modern style tree item with hover states
- */
+// FileTreeItem - Individual file or folder item
 
 import { useState, useRef, memo } from 'react';
 import { 
@@ -42,7 +38,6 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
   const createFolder = useNotesStore(s => s.createFolder);
   const moveItem = useNotesStore(s => s.moveItem);
   
-  // 使用统一的 hooks 订阅显示名称和图标
   const displayName = useDisplayName(node.isFolder ? undefined : node.path) || node.name;
   const noteIcon = useDisplayIcon(node.isFolder ? undefined : node.path);
   
@@ -60,7 +55,6 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
     if (node.isFolder) {
       toggleFolder(node.path);
     } else {
-      // Ctrl+点击在新标签中打开，普通点击替换当前标签
       openNote(node.path, e.ctrlKey || e.metaKey);
     }
   };
@@ -113,7 +107,6 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
     setShowMenu(false);
   };
 
-  // Drag and drop
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', node.path);
     e.dataTransfer.effectAllowed = 'move';
@@ -161,7 +154,6 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
           isDragOver && "bg-[var(--neko-accent-light)] ring-1 ring-[var(--neko-accent)]"
         )}
       >
-        {/* Expand/Collapse Icon */}
         {node.isFolder ? (
           <span className="w-4 h-4 flex items-center justify-center">
             <IconChevronRight 
@@ -175,8 +167,7 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
           <span className="w-4" />
         )}
 
-        {/* Icon */}
-        <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+        <span className="w-4 h-4 flex items-center justify-center">
           {node.isFolder ? (
             <IconFolder 
               className={cn(
@@ -196,7 +187,6 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
           )}
         </span>
 
-        {/* Name */}
         {isRenaming ? (
           <input
             type="text"
@@ -226,7 +216,6 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
           </span>
         )}
 
-        {/* Menu Button */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -241,7 +230,6 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
         </button>
       </div>
 
-      {/* Context Menu */}
       {showMenu && (
         <>
           <div 
@@ -285,7 +273,6 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
         </>
       )}
 
-      {/* Children */}
       {node.isFolder && node.expanded && node.children.length > 0 && (
         <div>
           {node.children.map((child) => (
@@ -299,7 +286,6 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
         </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent 
           showCloseButton={false}
@@ -340,7 +326,6 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
   );
 });
 
-/* Menu Item Component */
 function MenuItem({ 
   icon, 
   label, 

@@ -7,8 +7,6 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { ICON_PER_ROW, ICON_SIZE, ROW_GAP, ICON_MAP } from './constants';
 import type { IconItem } from './icons';
 
-// ============ IconRow Component ============
-
 const IconRow = memo(function IconRow({ items }: { items: IconItem[] }) {
   return (
     <div className="px-2 grid grid-cols-8 gap-1">
@@ -28,8 +26,6 @@ const IconRow = memo(function IconRow({ items }: { items: IconItem[] }) {
     </div>
   );
 });
-
-// ============ VirtualIconGrid Component ============
 
 interface VirtualIconGridProps {
   icons: IconItem[];

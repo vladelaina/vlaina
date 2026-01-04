@@ -1,12 +1,4 @@
-/**
- * Calendar Actions - 日历事件数据操作
- * 
- * 注意：日历事件就是带有 startDate 的 UnifiedTask
- * 这里的操作本质上是对 tasks 数组中带时间属性的任务进行操作
- * 
- * UI 操作（setEditingEventId, setSelectedEventId, closeEditingEvent）
- * 已迁移到 UIStore (src/stores/uiSlice.ts)
- */
+// Calendar Actions
 
 import { nanoid } from 'nanoid';
 import type { UnifiedData, UnifiedTask } from '@/lib/storage/unifiedStorage';
@@ -40,7 +32,6 @@ export function createCalendarActions(set: SetState, _get: GetState, persist: Pe
           tasks: state.data.tasks.map(t => {
             if (t.id !== id) return t;
             
-            // 使用 null 表示清除时间，undefined 表示保持不变
             const newStartDate = startDate === null ? undefined : (startDate !== undefined ? startDate : t.startDate);
             const newEndDate = endDate === null ? undefined : (endDate !== undefined ? endDate : t.endDate);
             
@@ -57,7 +48,6 @@ export function createCalendarActions(set: SetState, _get: GetState, persist: Pe
       });
     },
 
-    // 添加带时间的任务（日历事件）
     addEvent: (eventData: { 
       content: string; 
       startDate: number; 
@@ -91,7 +81,6 @@ export function createCalendarActions(set: SetState, _get: GetState, persist: Pe
       return newTask.id;
     },
 
-    // 更新任务（包括日历事件）
     updateEvent: (id: string, updates: Partial<UnifiedTask>) => {
       set((state) => {
         const newData = {
@@ -116,7 +105,6 @@ export function createCalendarActions(set: SetState, _get: GetState, persist: Pe
       });
     },
 
-    // 删除任务（包括日历事件）
     deleteEvent: (id: string) => {
       set((state) => {
         const taskToDelete = state.data.tasks.find(t => t.id === id);
@@ -161,13 +149,11 @@ export function createCalendarActions(set: SetState, _get: GetState, persist: Pe
     startTimer: (id: string) => {
       const now = Date.now();
       set((state) => {
-        // 启动目标任务的计时器，并移动到当前时间
         const newData = {
           ...state.data,
           tasks: state.data.tasks.map(t => {
             if (t.id !== id) return t;
             
-            // 计算任务时长
             const duration = t.endDate && t.startDate ? t.endDate - t.startDate : DEFAULT_EVENT_DURATION_MS;
             
             return {
@@ -175,7 +161,6 @@ export function createCalendarActions(set: SetState, _get: GetState, persist: Pe
               timerState: 'running' as const,
               timerStartedAt: now,
               timerAccumulated: t.timerAccumulated || 0,
-              // 移动事件到当前时间线
               startDate: now,
               endDate: now + duration,
             };
@@ -234,7 +219,6 @@ export function createCalendarActions(set: SetState, _get: GetState, persist: Pe
           tasks: state.data.tasks.map(t => {
             if (t.id !== id) return t;
             
-            // 计算总耗时
             let totalMs = t.timerAccumulated || 0;
             if (t.timerState === 'running' && t.timerStartedAt) {
               totalMs += now - t.timerStartedAt;
@@ -247,7 +231,6 @@ export function createCalendarActions(set: SetState, _get: GetState, persist: Pe
               timerStartedAt: undefined,
               timerAccumulated: undefined,
               actualMinutes,
-              // 自动标记完成
               completed: true,
               completedAt: now,
             };

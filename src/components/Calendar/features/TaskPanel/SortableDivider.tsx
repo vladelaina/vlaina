@@ -1,8 +1,5 @@
 /**
- * SortableDivider - 可排序的分割线
- * 
- * 这个组件作为 sortable 元素参与拖拽排序，
- * 但它本身不能被拖动，只能被其他任务"推动"
+ * SortableDivider - Sortable divider that can be pushed by other items
  */
 
 import { useSortable } from '@dnd-kit/sortable';
@@ -39,7 +36,6 @@ export function SortableDivider({
     transition,
   } = useSortable({ 
     id,
-    // 禁用拖拽，只能被推动
     disabled: true,
   });
 

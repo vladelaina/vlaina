@@ -1,8 +1,4 @@
-/**
- * MarkdownEditor - WYSIWYG Markdown editor using Milkdown
- * 
- * Modern block-editor style with enhanced features
- */
+// MarkdownEditor - WYSIWYG Markdown editor using Milkdown
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Editor, rootCtx, defaultValueCtx } from '@milkdown/kit/core';
@@ -24,7 +20,6 @@ import { IconPicker, NoteIcon } from '../IconPicker';
 // Editor styles
 import './editor.css';
 
-// 防止删除第一行 # 前缀的插件
 const protectHeadingPluginKey = new PluginKey('protectHeading');
 
 const protectHeadingPlugin = $prose(() => {
@@ -50,7 +45,6 @@ const protectHeadingPlugin = $prose(() => {
   });
 });
 
-// 实时标题同步插件
 const titleSyncPluginKey = new PluginKey('titleSync');
 
 const titleSyncPlugin = $prose(() => {
@@ -66,17 +60,14 @@ const titleSyncPlugin = $prose(() => {
           const path = useNotesStore.getState().currentNote?.path;
           if (!path) return;
           
-          // 只有当第一个节点是 H1 标题且有有效内容时才使用标题
           if (firstNode?.type.name === 'heading' && firstNode.attrs.level === 1) {
             const titleText = firstNode.textContent.trim();
-            // 排除空标题和 placeholder 文字
             if (titleText && titleText !== 'Title') {
               useNotesStore.getState().syncDisplayName(path, titleText);
               return;
             }
           }
           
-          // 其他情况使用 Untitled
           useNotesStore.getState().syncDisplayName(path, 'Untitled');
         }
       };
@@ -88,7 +79,6 @@ function MilkdownEditorInner() {
   const { currentNote, updateContent, saveNote } = useNotesStore();
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  // 防抖保存 - 2000ms 延迟，避免频繁保存导致文件重命名和光标跳动
   const debouncedSave = useCallback(() => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -98,7 +88,6 @@ function MilkdownEditorInner() {
     }, 2000);
   }, [saveNote]);
 
-  // 组件卸载时清理
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
@@ -107,7 +96,6 @@ function MilkdownEditorInner() {
     };
   }, []);
 
-  // Keyboard shortcut for save
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -127,8 +115,6 @@ function MilkdownEditorInner() {
         ctx.set(defaultValueCtx, content);
         ctx.get(listenerCtx)
           .markdownUpdated((_ctx, markdown) => {
-            // 只有当内容完全为空时才添加空标题
-            // 不要自动把正文变成标题
             const finalContent = (!markdown.trim() || markdown.trim() === '') ? '# ' : markdown;
             updateContent(finalContent);
             debouncedSave();
@@ -143,9 +129,7 @@ function MilkdownEditorInner() {
     [currentNote?.path]
   );
 
-  // 编辑器挂载后自动聚焦
   useEffect(() => {
-    // 延迟聚焦，等待编辑器完全初始化
     const timer = setTimeout(() => {
       const editor = document.querySelector('.milkdown .ProseMirror') as HTMLElement;
       if (editor) {
@@ -169,7 +153,6 @@ export function MarkdownEditor() {
   const getNoteIcon = useNotesStore(s => s.getNoteIcon);
   const setNoteIcon = useNotesStore(s => s.setNoteIcon);
   
-  // UI state from useUIStore
   const setNotesPreviewIcon = useUIStore(s => s.setNotesPreviewIcon);
   
   const displayIcon = useDisplayIcon(currentNote?.path);
@@ -197,19 +180,16 @@ export function MarkdownEditor() {
   const handleIconPreview = useCallback((icon: string | null) => {
     if (!currentNote) return;
     
-    // Clear any pending clear timer
     if (clearPreviewTimerRef.current) {
       clearTimeout(clearPreviewTimerRef.current);
       clearPreviewTimerRef.current = null;
     }
     
     if (icon === null) {
-      // Delay clearing preview to avoid flicker when moving between icons
       clearPreviewTimerRef.current = setTimeout(() => {
         setNotesPreviewIcon(null, null);
       }, 80);
     } else {
-      // Immediately show new preview
       if (previewRafRef.current !== null) {
         cancelAnimationFrame(previewRafRef.current);
       }
@@ -233,7 +213,6 @@ export function MarkdownEditor() {
     setNotesPreviewIcon(null, null);
   };
 
-  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (previewRafRef.current !== null) {
@@ -247,9 +226,7 @@ export function MarkdownEditor() {
   
   return (
     <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative">
-      {/* File action buttons - top right corner */}
       <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
-        {/* Star button */}
         <button
           onClick={() => currentNote && toggleStarred(currentNote.path)}
           className={cn(
@@ -262,7 +239,6 @@ export function MarkdownEditor() {
           <IconStar className="size-4" fill={starred ? "currentColor" : "none"} />
         </button>
         
-        {/* More options button */}
         <button
           className={cn(
             "p-1.5 transition-colors",
@@ -273,11 +249,8 @@ export function MarkdownEditor() {
         </button>
       </div>
 
-      {/* Scrollable content area - icon and editor scroll together */}
       <div className="flex-1 overflow-auto neko-scrollbar">
-        {/* Content wrapper - matches editor layout */}
         <div className="max-w-[800px] mx-auto w-full px-10">
-          {/* Document Icon & Add Icon Button - aligned with editor content */}
           <div className="pt-8 pb-1">
             {displayIcon ? (
               <button
@@ -303,7 +276,6 @@ export function MarkdownEditor() {
               </button>
             )}
             
-            {/* Icon Picker Popup */}
             {showIconPicker && (
               <div className="relative">
                 <div className="absolute top-2 left-0 z-50">
@@ -322,7 +294,6 @@ export function MarkdownEditor() {
           </div>
         </div>
         
-        {/* Editor Content - key forces re-mount when note changes */}
         <MilkdownProvider key={currentNote?.path}>
           <MilkdownEditorInner />
         </MilkdownProvider>

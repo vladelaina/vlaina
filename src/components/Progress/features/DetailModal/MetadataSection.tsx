@@ -15,9 +15,6 @@ interface MetadataSectionProps {
   onDirectUpdate: (data: Partial<ProgressOrCounter>) => void;
 }
 
-/**
- * Metadata section that renders different layouts for Progress vs Counter
- */
 export function MetadataSection({
   displayItem,
   isEditing,

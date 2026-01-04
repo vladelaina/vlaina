@@ -26,7 +26,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
   const handleIconChange = (icon: string | undefined) => {
     setSelectedIcon(icon);
     updateTaskIcon(eventId, icon);
-    onClose(); // 选择后关闭菜单
+    onClose();
   };
 
   const handleDelete = () => {

@@ -1,13 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useProgressStore } from '../stores/useProgressStore';
 
-/**
- * The Midnight Watchman
- * 
- * A hook that vigilantly monitors the passage of time.
- * It detects when the day changes (either while the app is running or upon waking from sleep)
- * and triggers a validation of the daily state.
- */
+// Day Change Hook - Detects day changes and triggers daily state validation
 export function useDayChange() {
   const { validateDailyState } = useProgressStore();
   const lastCheck = useRef<string>(new Date().toDateString());

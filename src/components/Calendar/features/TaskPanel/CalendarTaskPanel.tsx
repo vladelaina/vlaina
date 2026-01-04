@@ -1,9 +1,7 @@
 /**
- * CalendarTaskPanel - 日历右侧的统一面板
+ * CalendarTaskPanel - Unified panel on the right side of calendar
  * 
- * 支持在待办和进度之间切换：
- * - Tasks: 待办任务列表
- * - Progress: 进度追踪
+ * Supports switching between tasks and progress views
  */
 
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
@@ -28,7 +26,6 @@ import { usePanelDragAndDrop } from './usePanelDragAndDrop';
 import { ProgressContent } from '@/components/Progress/features/ProgressContent';
 import { getColorPriority, getAllDayInlineStyles, getColorHex } from '@/lib/colors';
 
-// 面板视图类型
 type PanelView = 'tasks' | 'progress';
 
 interface CalendarTaskPanelProps {
@@ -66,13 +63,8 @@ export function CalendarTaskPanel({
 
   const { editingEventId, events, selectedDate, hourHeight, viewMode, dayCount } = useCalendarStore();
 
-  // 面板视图状态
   const [panelView, setPanelView] = useState<PanelView>('tasks');
-
-  // 追踪拖拽是否在日历区域
   const [isOverCalendar, setIsOverCalendar] = useState(false);
-
-  // 本地状态
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -86,13 +78,9 @@ export function CalendarTaskPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const completedMenuRef = useRef<HTMLDivElement>(null);
 
-  // 当前分组
   const currentGroup = groups.find(g => g.id === activeGroupId) || groups[0];
-
-  // 如果正在编辑事件，显示事件编辑表单
   const editingEvent = editingEventId ? events.find(e => e.id === editingEventId) : null;
 
-  // 拖拽 hook
   const {
     sensors,
     customCollisionDetection,
@@ -115,7 +103,6 @@ export function CalendarTaskPanel({
     },
   });
 
-  // 检测拖拽是否在日历区域
   const checkIsOverCalendar = useCallback((event: DragMoveEvent) => {
     const gridContainer = document.getElementById('time-grid-container');
     if (!gridContainer) {
@@ -127,7 +114,6 @@ export function CalendarTaskPanel({
     const rect = gridContainer.getBoundingClientRect();
     const { activatorEvent, active } = event;
     
-    // 获取当前鼠标位置
     if (activatorEvent instanceof MouseEvent || activatorEvent instanceof PointerEvent) {
       const delta = event.delta;
       const initialX = (activatorEvent as MouseEvent).clientX;
@@ -139,7 +125,6 @@ export function CalendarTaskPanel({
                      currentY >= rect.top && currentY <= rect.bottom;
       setIsOverCalendar(isOver);
       
-      // 如果拖动的是已分配任务且进入日历区域，隐藏日历上的事件
       if (isOver) {
         const task = tasks.find(t => t.id === active.id);
         if (task?.startDate) {
@@ -151,20 +136,17 @@ export function CalendarTaskPanel({
     }
   }, [tasks, setDraggingToCalendarTaskId]);
 
-  // 包装 handleDragMove 以同时检测日历区域
   const wrappedHandleDragMove = useCallback((event: DragMoveEvent) => {
     handleDragMove(event);
     checkIsOverCalendar(event);
   }, [handleDragMove, checkIsOverCalendar]);
 
-  // 包装 handleDragEnd 以重置状态
   const wrappedHandleDragEnd = useCallback((event: Parameters<typeof handleDragEnd>[0]) => {
     handleDragEnd(event);
     setIsOverCalendar(false);
     setDraggingToCalendarTaskId(null);
   }, [handleDragEnd, setDraggingToCalendarTaskId]);
 
-  // 获取子任务
   const getChildren = useCallback((parentId: string) => {
     return tasks
       .filter(t => t.parentId === parentId && t.groupId === activeGroupId)
@@ -172,13 +154,11 @@ export function CalendarTaskPanel({
   }, [tasks, activeGroupId]);
 
 
-  // 过滤和排序任务
   const { incompleteTasks, scheduledTasks, completedTasks } = useMemo(() => {
     const topLevelTasks = tasks
       .filter((t) => {
         if (t.groupId !== activeGroupId || t.parentId) return false;
         if (!selectedColors.includes(t.color || 'default')) return false;
-        // 搜索过滤
         if (searchQuery.trim()) {
           const query = searchQuery.toLowerCase();
           if (!t.content.toLowerCase().includes(query)) return false;
@@ -192,15 +172,10 @@ export function CalendarTaskPanel({
         return a.order - b.order;
       });
 
-    // 未完成的任务
     const notCompleted = topLevelTasks.filter((t) => !t.completed);
-    
-    // 已分配（有 startDate）vs 待办（没有 startDate）
-    // 都按颜色优先级排序，保持统一逻辑
     const scheduled = notCompleted.filter((t) => t.startDate);
     const unscheduled = notCompleted.filter((t) => !t.startDate);
 
-    // 根据状态筛选决定是否显示
     const showTodo = selectedStatuses.includes('todo' as TaskStatus);
     const showScheduled = selectedStatuses.includes('scheduled' as TaskStatus);
     const showCompleted = selectedStatuses.includes('completed' as TaskStatus);
@@ -212,7 +187,6 @@ export function CalendarTaskPanel({
     };
   }, [tasks, activeGroupId, hideCompleted, selectedColors, selectedStatuses, searchQuery]);
 
-  // 任务 ID 列表
   const incompleteTaskIds = useMemo(() => {
     const ids: string[] = [];
     const addTaskAndChildren = (task: typeof incompleteTasks[0]) => {
@@ -246,28 +220,21 @@ export function CalendarTaskPanel({
     return ids;
   }, [completedTasks, tasks]);
 
-  // 分割线的虚拟 ID
   const SCHEDULED_DIVIDER_ID = '__divider_scheduled__';
   const COMPLETED_DIVIDER_ID = '__divider_completed__';
 
-  // 所有 sortable items（包括分割线）
-  // 只包含当前展开的区域的任务
   const allSortableIds = useMemo(() => {
     const ids: string[] = [...incompleteTaskIds];
     
-    // 如果有已分配任务，添加分割线
     if (scheduledTasks.length > 0) {
       ids.push(SCHEDULED_DIVIDER_ID);
-      // 只有展开时才添加任务 ID
       if (scheduledExpanded) {
         ids.push(...scheduledTaskIds);
       }
     }
     
-    // 如果有已完成任务，添加分割线
     if (completedTasks.length > 0) {
       ids.push(COMPLETED_DIVIDER_ID);
-      // 只有展开时才添加任务 ID
       if (completedExpanded) {
         ids.push(...completedTaskIds);
       }
@@ -276,7 +243,6 @@ export function CalendarTaskPanel({
     return ids;
   }, [incompleteTaskIds, scheduledTaskIds, completedTaskIds, scheduledTasks.length, completedTasks.length, scheduledExpanded, completedExpanded]);
 
-  // 关闭菜单
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -293,7 +259,6 @@ export function CalendarTaskPanel({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 处理子任务
   const handleAddSubTask = useCallback((parentId: string) => {
     setAddingSubTaskFor(parentId);
     setSubTaskContent('');
@@ -307,7 +272,6 @@ export function CalendarTaskPanel({
     setSubTaskContent('');
   }, [addingSubTaskFor, subTaskContent, addSubTask]);
 
-  // 渲染单个任务
   const renderTaskItem = useCallback((task: typeof incompleteTasks[0], level: number = 0) => {
     const children = getChildren(task.id);
     const hasChildren = children.length > 0;
@@ -345,7 +309,6 @@ export function CalendarTaskPanel({
     );
   }, [activeId, getChildren, tasks, toggleTask, updateTask, deleteTask, handleAddSubTask, toggleCollapse]);
 
-  // 如果正在编辑事件，显示编辑表单
   if (editingEvent) {
     return (
       <div data-context-panel className="h-full overflow-visible">
@@ -657,14 +620,12 @@ export function CalendarTaskPanel({
                 const task = tasks.find(t => t.id === activeId);
                 if (!task) return null;
                 
-                // 在日历区域时显示日历事件块样式
                 if (isOverCalendar) {
                   const colorStyles = getAllDayInlineStyles(task.color);
                   const isDark = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
                   const bgColor = isDark ? colorStyles.bgDark : colorStyles.bg;
                   const textColor = isDark ? colorStyles.textDark : colorStyles.text;
                   const borderColor = isDark ? colorStyles.borderDark : colorStyles.border;
-                  // 计算 25 分钟的实际高度：hourHeight * (25 / 60)
                   const eventHeight = Math.max(hourHeight * (25 / 60), 20);
                   return (
                     <div 
@@ -702,7 +663,6 @@ export function CalendarTaskPanel({
                   );
                 }
                 
-                // 默认任务卡片样式（带颜色复选框）
                 const colorValue = task.color && task.color !== 'default'
                   ? getColorHex(task.color)
                   : undefined;

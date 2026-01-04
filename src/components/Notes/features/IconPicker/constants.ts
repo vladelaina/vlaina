@@ -1,12 +1,8 @@
-/**
- * IconPicker Constants and Utilities
- */
+/** IconPicker Constants and Utilities */
 
 import data from '@emoji-mart/data';
 import { ICON_LIST } from './icons';
 import type { IconItem } from './icons';
-
-// ============ Constants ============
 
 export type TabType = 'emoji' | 'icons';
 
@@ -52,12 +48,9 @@ export const CATEGORY_ICONS: Record<string, string> = {
   flags: '\u{1F3F3}\u{FE0F}\u{200D}\u{1F308}',
 };
 
-// 允许的旗帜 emoji
 const ALLOWED_FLAGS = new Set([
   '🏁', '🎌', '🏴', '🏴‍☠️', '🏳️‍🌈', '🏳️‍⚧️', '🚩', '🏳️',
 ]);
-
-// ============ Types ============
 
 export interface EmojiItem {
   id: string;
@@ -72,8 +65,6 @@ export interface EmojiCategory {
   name: string;
   emojis: EmojiItem[];
 }
-
-// ============ Emoji Data ============
 
 function buildEmojiCategories(): EmojiCategory[] {
   const emojiData = data as any;
@@ -90,7 +81,6 @@ function buildEmojiCategories(): EmojiCategory[] {
       if (emoji && emoji.skins && emoji.skins[0]) {
         const native = emoji.skins[0].native;
         
-        // flags 分类只保留白名单中的旗帜
         if (cat.id === 'flags' && !ALLOWED_FLAGS.has(native)) {
           continue;
         }
@@ -122,7 +112,6 @@ function buildEmojiCategories(): EmojiCategory[] {
 
 export const EMOJI_CATEGORIES = buildEmojiCategories();
 
-// 构建用于快速查找的 emoji Map
 export const EMOJI_MAP = new Map<string, EmojiItem>();
 for (const cat of EMOJI_CATEGORIES) {
   for (const emoji of cat.emojis) {
@@ -137,13 +126,10 @@ for (const cat of EMOJI_CATEGORIES) {
   }
 }
 
-// 构建用于快速查找的 icon Map
 export const ICON_MAP = new Map<string, IconItem>();
 for (const icon of ICON_LIST) {
   ICON_MAP.set(icon.name, icon);
 }
-
-// ============ LocalStorage Utilities ============
 
 export function loadRecentIcons(): string[] {
   try {
@@ -157,7 +143,7 @@ export function loadRecentIcons(): string[] {
 export function saveRecentIcons(icons: string[]): void {
   try {
     localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(icons));
-  } catch { /* ignore */ }
+  } catch {}
 }
 
 export function addToRecentIcons(icon: string, current: string[]): string[] {
@@ -189,7 +175,7 @@ export function loadSkinTone(): number {
 export function saveSkinTone(tone: number): void {
   try {
     localStorage.setItem(SKIN_TONE_KEY, tone.toString());
-  } catch { /* ignore */ }
+  } catch {}
 }
 
 export function loadActiveTab(): TabType {
@@ -204,5 +190,5 @@ export function loadActiveTab(): TabType {
 export function saveActiveTab(tab: TabType): void {
   try {
     localStorage.setItem(ACTIVE_TAB_KEY, tab);
-  } catch { /* ignore */ }
+  } catch {}
 }

@@ -1,5 +1,5 @@
 /**
- * Store Actions - 导出所有 action 创建函数
+ * Store Actions - Export all action creators
  */
 
 export { createGroupActions } from './groupActions';

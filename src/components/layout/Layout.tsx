@@ -24,7 +24,6 @@ interface LayoutProps {
   showRightPanel?: boolean;
 }
 
-// 从 localStorage 读取面板宽度
 function loadPanelWidth(key: string, defaultValue: number): number {
   try {
     const saved = localStorage.getItem(key);

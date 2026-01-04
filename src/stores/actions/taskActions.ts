@@ -1,6 +1,4 @@
-/**
- * Task Actions - 任务相关操作
- */
+// Task Actions
 
 import { nanoid } from 'nanoid';
 import type { UnifiedData, UnifiedTask } from '@/lib/storage/unifiedStorage';
@@ -148,7 +146,6 @@ export function createTaskActions(set: SetState, get: GetState, persist: Persist
         const isCompleting = !task.completed;
         const now = Date.now();
         
-        // 如果是完成任务且正在计时，同时停止计时
         let actualMinutes = task.actualMinutes;
         if (isCompleting && (task.timerState === 'running' || task.timerState === 'paused')) {
           let totalMs = task.timerAccumulated || 0;
@@ -165,7 +162,6 @@ export function createTaskActions(set: SetState, get: GetState, persist: Persist
               ...t,
               completed: isCompleting,
               completedAt: isCompleting ? now : undefined,
-              // 完成时停止计时
               timerState: isCompleting ? ('idle' as const) : t.timerState,
               timerStartedAt: isCompleting ? undefined : t.timerStartedAt,
               timerAccumulated: isCompleting ? undefined : t.timerAccumulated,

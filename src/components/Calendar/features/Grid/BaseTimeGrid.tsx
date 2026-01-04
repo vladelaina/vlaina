@@ -29,13 +29,9 @@ import {
 
 const GUTTER_WIDTH = CALENDAR_CONSTANTS.GUTTER_WIDTH as number;
 
-// ============ Types ============
-
 interface BaseTimeGridProps {
   days: Date[];
 }
-
-// ============ Component ============
 
 export function BaseTimeGrid({ days }: BaseTimeGridProps) {
   const { 
@@ -204,7 +200,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
     };
   }, [isDragging, eventDrag]);
 
-  // ============ Coordinate Calculation ============
+  // Coordinate calculation
 
   const getPositionFromMouse = useCallback((clientX: number, clientY: number) => {
     if (!canvasRef.current || !scrollRef.current) return null;
@@ -227,7 +223,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
     return { dayIndex, minutes: snappedMinutes };
   }, [columnCount, hourHeight, snapMinutes, dayStartMinutes]);
 
-  // ============ Drag to Create Event ============
+  // Drag to create event
 
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -716,7 +712,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
     };
   }, [isDragging, eventDrag, handleMouseMove, handleMouseUp, handleKeyDown]);
 
-  // ============ Render ============
+  // Render
 
   const nowHour = getHours(now);
   const nowMinutes = getMinutes(now);

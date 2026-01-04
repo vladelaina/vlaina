@@ -45,7 +45,6 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      // Fixed shortcuts (not customizable)
       if (e.key === 'F11') {
         e.preventDefault();
         await invoke('toggle_fullscreen').catch(console.error);

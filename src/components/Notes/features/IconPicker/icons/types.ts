@@ -1,4 +1,3 @@
-// Icon 类型定义
 export interface IconItem {
   name: string;
   icon: any;

@@ -18,8 +18,6 @@ import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
 const GAP = CALENDAR_CONSTANTS.GAP as number;
 const RESIZE_HANDLE_HEIGHT = CALENDAR_CONSTANTS.RESIZE_HANDLE_HEIGHT as number;
 
-// ============ Types ============
-
 interface EventBlockProps {
   event: CalendarDisplayItem;
   layout?: EventLayoutInfo;
@@ -29,8 +27,6 @@ interface EventBlockProps {
   onHover?: (startMinutes: number | null, endMinutes: number | null) => void;
   dayStartMinutes?: number;
 }
-
-// ============ Component ============
 
 export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, onHover, dayStartMinutes = DEFAULT_DAY_START_MINUTES }: EventBlockProps) {
   const { 
@@ -54,21 +50,17 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   const isTimerPaused = event.timerState === 'paused';
   const isTimerActive = isTimerRunning || isTimerPaused;
 
-  // Timer tick effect
   useEffect(() => {
-    // 非计时状态，清除 elapsed
     if (!isTimerRunning && !isTimerPaused) {
       setElapsedMs(0);
       return;
     }
     
-    // 暂停时显示累计时间
     if (isTimerPaused) {
       setElapsedMs(event.timerAccumulated || 0);
       return;
     }
 
-    // 计时中：每秒更新
     const updateElapsed = () => {
       const accumulated = event.timerAccumulated || 0;
       const startedAt = event.timerStartedAt || Date.now();
@@ -76,11 +68,9 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
       setElapsedMs(accumulated + sinceStart);
     };
 
-    // 立即更新一次
     updateElapsed();
     
-    // 设置定时器
-    const interval = setInterval(updateElapsed, 100); // 100ms 更新一次，更流畅
+    const interval = setInterval(updateElapsed, 100);
     return () => clearInterval(interval);
   }, [isTimerRunning, isTimerPaused, event.timerStartedAt, event.timerAccumulated]);
 
@@ -89,7 +79,6 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   const plannedDuration = event.endDate - event.startDate;
   const plannedHeight = calculateEventHeight(event.startDate, event.endDate, hourHeight);
   
-  // 计算实际高度（包括超时部分）
   const actualHeight = useMemo(() => {
     if (!isTimerActive) return plannedHeight;
     const elapsedHeight = (elapsedMs / 3600000) * hourHeight;
@@ -171,7 +160,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
     return 'cursor-default';
   }, [resizeEdge, isDragging]);
 
-  // ============ Event Handlers ============
+  // Event handlers
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (isDragging) return;
@@ -238,19 +227,17 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
 
-  // ============ Render ============
+  // Render
 
   const showTime = heightLevel !== 'micro' && heightLevel !== 'tiny';
   const showEndTime = heightLevel === 'large' || heightLevel === 'medium';
   const showCheckbox = heightLevel !== 'micro';
 
-  // 计时相关计算
   const isOvertime = elapsedMs > plannedDuration;
   const fillPercent = isTimerActive 
     ? Math.min((elapsedMs / plannedDuration) * 100, 100) 
     : 0;
 
-  // 格式化计时显示（以秒为单位）
   const formatElapsed = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
     const hours = Math.floor(totalSeconds / 3600);
@@ -340,18 +327,14 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
             />
           )}
 
-          {/* Icon watermark - 右下角图标 */}
+          {/* Icon watermark */}
           {heightLevel !== 'micro' && heightLevel !== 'tiny' && (() => {
-            // 如果当前事件正在被预览，使用预览图标；否则使用事件本身的图标
             const displayIconName = (previewIconEventId === event.id && previewIcon !== null) 
               ? previewIcon 
               : event.icon;
             if (!displayIconName) return null;
             const IconComponent = getIconByName(displayIconName);
             if (!IconComponent) return null;
-            // 图标尺寸基于 hourHeight 自适应，随用户缩放调整
-            // hourHeight 范围通常是 40-120，图标大小按比例缩放
-            // 使用更大的系数让变化更明显
             const iconSize = Math.min(Math.max(hourHeight * 0.7, 24), 80);
             return (
               <div 
@@ -408,7 +391,6 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
                   style={{ color: textColor }}
                 >
                   {isTimerActive ? (
-                    // 计时中显示：已用时间 / 计划时间（都用时:分:秒格式）
                     <>
                       <span className={isOvertime ? 'text-red-500' : ''}>
                         {formatElapsed(elapsedMs)}
@@ -416,7 +398,6 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
                       <span className="opacity-50"> / {formatElapsed(plannedDuration)}</span>
                     </>
                   ) : (
-                    // 正常显示时间范围
                     <>
                       {use24Hour ? format(event.startDate, 'H:mm') : format(event.startDate, 'h:mma').toLowerCase()}
                       {showEndTime && ` - ${use24Hour ? format(event.endDate, 'H:mm') : format(event.endDate, 'h:mma').toLowerCase()}`}

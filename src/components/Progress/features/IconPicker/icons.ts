@@ -1,11 +1,9 @@
 /**
- * Progress 模块图标库 - 基于 @tabler/icons-react
- * 统一使用与 Notes 模块相同的图标库
+ * Progress module icon library - based on @tabler/icons-react
  */
 
 import type { Icon as TablerIcon } from '@tabler/icons-react';
 
-// 图标定义接口
 export interface IconDefinition {
   name: string;
   icon: TablerIcon;
@@ -16,7 +14,6 @@ export interface IconCategory {
   icons: IconDefinition[];
 }
 
-// ============ Activity 分类 ============
 import {
   IconRun,
   IconWalk,
@@ -109,7 +106,6 @@ export const activityIcons: IconCategory = {
 };
 
 
-// ============ Health 分类 ============
 import {
   IconHeart,
   IconHeartbeat,
@@ -180,7 +176,6 @@ export const healthIcons: IconCategory = {
 };
 
 
-// ============ Work 分类 ============
 import {
   IconBriefcase,
   IconBuilding,
@@ -253,7 +248,6 @@ export const workIcons: IconCategory = {
 };
 
 
-// ============ Food 分类 ============
 import {
   IconCoffee,
   IconCup,
@@ -323,7 +317,6 @@ export const foodIcons: IconCategory = {
 };
 
 
-// ============ Finance 分类 ============
 import {
   IconCash,
   IconCoin,
@@ -394,7 +387,6 @@ export const financeIcons: IconCategory = {
 };
 
 
-// ============ Social 分类 ============
 import {
   IconUser,
   IconUsers,
@@ -465,7 +457,6 @@ export const socialIcons: IconCategory = {
 };
 
 
-// ============ Nature 分类 ============
 import {
   IconTree,
   IconTrees,
@@ -535,7 +526,6 @@ export const natureIcons: IconCategory = {
 };
 
 
-// ============ Travel 分类 ============
 import {
   IconCar,
   IconBus,
@@ -606,7 +596,6 @@ export const travelIcons: IconCategory = {
 };
 
 
-// ============ Status 分类 ============
 import {
   IconCheck,
   IconCircleCheck,
@@ -679,7 +668,6 @@ export const statusIcons: IconCategory = {
 };
 
 
-// ============ Objects 分类 ============
 import {
   IconGift,
   IconBalloon,
@@ -748,9 +736,6 @@ export const objectsIcons: IconCategory = {
 };
 
 
-// ============ 导出所有分类和工具函数 ============
-
-// 所有分类数组
 export const ICON_CATEGORIES_FULL: IconCategory[] = [
   activityIcons,
   healthIcons,
@@ -764,15 +749,12 @@ export const ICON_CATEGORIES_FULL: IconCategory[] = [
   objectsIcons,
 ];
 
-// 扁平化的所有图标列表
 export const ALL_ICONS_FULL: IconDefinition[] = ICON_CATEGORIES_FULL.flatMap(cat => cat.icons);
 
-// 图标名称到组件的映射
 export const ICON_MAP_FULL = new Map<string, TablerIcon>(
   ALL_ICONS_FULL.map(({ name, icon }) => [name, icon])
 );
 
-// 根据名称获取图标
 export function getIconByNameFull(name: string): TablerIcon | undefined {
   return ICON_MAP_FULL.get(name);
 }

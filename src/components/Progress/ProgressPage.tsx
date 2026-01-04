@@ -20,15 +20,11 @@ import { CreateModal } from './features/CreateModal';
 import { DetailModal } from './features/DetailModal';
 
 
-/**
- * Progress tracking page with list view and creation modal
- */
 export function ProgressPage() {
-  useDayChange(); // Activate The Midnight Watchman
+  useDayChange();
 
   const { items, addProgress, addCounter, updateCurrent, deleteItem, updateItem, loadItems, reorderItems } = useProgressStore();
   
-  // Scroll state for smart collapsing button
   const [isScrolled, setIsScrolled] = useState(false);
   const [isArchiveView, setIsArchiveView] = useState(false);
   const [dragWidth, setDragWidth] = useState<number | null>(null);
@@ -49,21 +45,17 @@ export function ProgressPage() {
     if (item) {
       const updates: any = { archived: !item.archived };
       
-      // Smart Restore Logic:
       if (item.archived && item.type === 'progress' && item.current >= item.total) {
          updates.current = 0;
       }
 
-      // Auto-Exit Logic:
-      // If we are in archive view, restoring an item, and it's the last one...
       if (isArchiveView && item.archived && archivedCount === 1) {
         setIsArchiveView(false);
       }
 
-      // Trigger "Entry" animation if we are archiving (Flip to History)
       if (!item.archived) {
         setIsStatusHovered(true);
-        setTimeout(() => setIsStatusHovered(false), 800); // Stay flipped for a moment
+        setTimeout(() => setIsStatusHovered(false), 800);
       }
 
       updateItem(id, updates);
@@ -71,19 +63,16 @@ export function ProgressPage() {
   };
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null); // Store ID instead of object
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewOverride, setPreviewOverride] = useState<{ icon?: string; title?: string } | null>(null);
   const [isStatusHovered, setIsStatusHovered] = useState(false);
 
-  // Derive the selected item from the fresh store data
   const selectedItem = items.find(i => i.id === selectedId) || null;
 
-  // Filter items based on archive view
   const visibleItems = items.filter(item => 
     isArchiveView ? item.archived : !item.archived
   );
 
-  // Drag and drop
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
@@ -106,12 +95,10 @@ export function ProgressPage() {
     }
   };
 
-  // Handle opening create modal
   const openCreateModal = () => {
     setShowCreateModal(true);
   };
 
-  // Handle form submissions
   const handleCreateProgress = (data: {
     title: string;
     icon?: string;
@@ -140,16 +127,14 @@ export function ProgressPage() {
     addCounter(data);
   };
 
-  // Time & Greeting Logic
   const now = new Date();
   const day = now.getDate();
   const weekday = now.toLocaleDateString('en-US', { weekday: 'long' });
   
-  // Calculate Pending Count (Active items that are not 100% complete)
   const pendingCount = items.filter(i => {
     if (i.archived) return false;
     if (i.type === 'progress') return i.current < i.total;
-    return true; // Counters are always "pending" daily tasks
+    return true;
   }).length;
 
   const archivedCount = items.filter(i => i.archived).length;
@@ -160,7 +145,6 @@ export function ProgressPage() {
     if (icon === undefined && title === undefined) {
       setPreviewOverride(null);
     } else {
-      // Only update if values actually changed to avoid unnecessary renders
       setPreviewOverride(prev => {
         if (prev?.icon === icon && prev?.title === title) return prev;
         return { icon, title };
@@ -189,15 +173,15 @@ export function ProgressPage() {
               onClick={openCreateModal}
               initial={false}
               animate={{
-                width: isScrolled ? 40 : "auto", // Slightly larger touch target
+                width: isScrolled ? 40 : "auto",
                 height: 40,
-                paddingLeft: isScrolled ? 0 : 16, // Balanced padding
+                paddingLeft: isScrolled ? 0 : 16,
                 paddingRight: isScrolled ? 0 : 20,
                 backgroundColor: isScrolled ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.6)',
                 borderRadius: 9999,
                 gap: isScrolled ? 0 : 8,
               }}
-              style={{ borderRadius: 9999 }} // Force hardware rounded corners
+              style={{ borderRadius: 9999 }}
               transition={{ 
                 type: "spring", 
                 stiffness: 850, 
@@ -236,11 +220,11 @@ export function ProgressPage() {
               >
                 <motion.span 
                   animate={{ 
-                    x: isScrolled ? -20 : 0, // Start from behind the icon (-20px)
-                    filter: isScrolled ? "blur(10px)" : "blur(0px)", // Stronger blur for "materialization"
+                    x: isScrolled ? -20 : 0,
+                    filter: isScrolled ? "blur(10px)" : "blur(0px)",
                     opacity: isScrolled ? 0 : 1
                   }}
-                  transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }} // High-Velocity Momentum
+                  transition={{ type: "spring", stiffness: 850, damping: 35, mass: 0.5 }}
                   className="text-[13px] font-bold tracking-wider uppercase whitespace-nowrap leading-none pt-[1px]"
                 >
                   New
@@ -404,10 +388,6 @@ export function ProgressPage() {
             >
               <div className="space-y-3">
                 {visibleItems.map((item) => {
-                  // const isDropTarget = item.id === overId && overId !== activeId; // Unused for now
-                  // const activeIndex = activeId ? visibleItems.findIndex(i => i.id === activeId) : -1;
-                  // const overIndex = overId ? visibleItems.findIndex(i => i.id === overId) : -1;
-                  
                   return (
                     <div key={item.id} id={`sortable-item-${item.id}`}>
                       <ItemCard
@@ -430,7 +410,7 @@ export function ProgressPage() {
               <DragOverlay 
                 dropAnimation={null} 
                 className="cursor-grabbing" 
-                style={{ zIndex: 999999 }} // Force Topmost Layer
+                style={{ zIndex: 999999 }}
               >
                 {activeId ? (() => {
                   const item = items.find(i => i.id === activeId);

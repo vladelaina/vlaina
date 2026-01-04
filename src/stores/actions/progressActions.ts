@@ -1,5 +1,5 @@
 /**
- * Progress Actions - 进度相关操作
+ * Progress Actions
  */
 
 import { nanoid } from 'nanoid';

@@ -17,10 +17,6 @@ interface DetailModalContentProps {
   onDirectUpdate: (data: Partial<ProgressOrCounter>) => void;
 }
 
-/**
- * Center content section of DetailModal
- * Contains title, main value display, and metadata fields
- */
 export function DetailModalContent({
   displayItem,
   isEditing,

@@ -19,10 +19,6 @@ interface DetailModalProps {
   onPreviewChange?: (icon?: string, title?: string) => void;
 }
 
-/**
- * "Liquid Hero" - Global Tuning Edition
- * Concept: One Check to Rule Them All.
- */
 export function DetailModal({
   item,
   onClose,

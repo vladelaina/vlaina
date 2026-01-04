@@ -31,7 +31,6 @@ export function TaskIcon({
 }: TaskIconProps) {
   const { previewIconEventId, previewIcon } = useUIStore();
   
-  // 如果启用预览且当前项正在被预览，使用预览图标
   const displayIconName = enablePreview && previewIconEventId === itemId && previewIcon !== null
     ? previewIcon 
     : icon;

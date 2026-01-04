@@ -1,7 +1,5 @@
 /**
- * Config Module - 应用配置
- * 
- * 这个模块是应用配置的统一导出入口。
+ * Config Module - Application configuration
  */
 
 export {

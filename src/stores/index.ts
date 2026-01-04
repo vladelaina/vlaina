@@ -1,9 +1,4 @@
-/**
- * Store Module Exports
- * 
- * Main entry point for all stores.
- * useUnifiedStore is the source of truth for all data.
- */
+// Store Module Exports
 
 // Main unified store
 export { useUnifiedStore, useStore } from './useUnifiedStore';
@@ -16,7 +11,7 @@ export { useProgressStore } from './useProgressStore';
 // UI stores
 export { useToastStore } from './useToastStore';
 
-// Types - 统一从 types.ts 导出
+// Types
 export type { 
   UnifiedTask,
   Group, 

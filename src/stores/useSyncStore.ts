@@ -1,16 +1,10 @@
-/**
- * Sync Store - Google Drive sync state management
- * 
- * Manages connection status, sync operations, and error states
- * for Google Drive integration.
- */
+/** Sync Store - Google Drive sync state management */
 
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { useLicenseStore } from './useLicenseStore';
 import { STORAGE_KEY_PENDING_SYNC } from '@/lib/config';
 
-// Types matching Rust backend
 interface SyncStatus {
   connected: boolean;
   userEmail: string | null;
@@ -46,62 +40,33 @@ interface RemoteDataInfo {
   fileId: string | null;
 }
 
-// Sync status for UI indicator
 export type SyncStatusType = 'idle' | 'pending' | 'syncing' | 'success' | 'error';
 
-// Store state
 interface SyncState {
-  // Connection state
   isConnected: boolean;
   userEmail: string | null;
-  
-  // Sync state
   isSyncing: boolean;
   isConnecting: boolean;
   lastSyncTime: number | null;
   syncError: string | null;
-  
-  // Remote data info
   hasRemoteData: boolean;
   remoteModifiedTime: string | null;
-  
-  // Loading state
   isLoading: boolean;
-  
-  // Auto sync state (PRO feature)
-  pendingSync: boolean;           // 是否有待同步的变更
-  lastSyncAttempt: number | null; // 上次同步尝试时间戳
-  syncRetryCount: number;         // 当前重试次数
-  syncStatus: SyncStatusType;     // 同步状态（用于 UI 指示器）
+  pendingSync: boolean;
+  lastSyncAttempt: number | null;
+  syncRetryCount: number;
+  syncStatus: SyncStatusType;
 }
 
-// Store actions
 interface SyncActions {
-  // Check current status
   checkStatus: () => Promise<void>;
-  
-  // Connect to Google Drive
   connect: () => Promise<boolean>;
-  
-  // Disconnect from Google Drive
   disconnect: () => Promise<void>;
-  
-  // Sync local data to cloud
   syncToCloud: () => Promise<boolean>;
-  
-  // Bidirectional sync (pull from cloud if newer, then push local)
   syncBidirectional: () => Promise<boolean>;
-  
-  // Restore data from cloud
   restoreFromCloud: () => Promise<boolean>;
-  
-  // Check if remote data exists
   checkRemoteData: () => Promise<void>;
-  
-  // Clear error
   clearError: () => void;
-  
-  // Auto sync actions
   markPendingSync: () => void;
   clearPendingSync: () => void;
   setSyncStatus: (status: SyncStatusType) => void;
@@ -144,7 +109,6 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
         isLoading: false,
       });
       
-      // If connected, also check remote data
       if (status.connected) {
         get().checkRemoteData();
       }
@@ -165,7 +129,6 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
           userEmail: result.userEmail,
           isConnecting: false,
         });
-        // Check remote data after connecting
         get().checkRemoteData();
         return true;
       } else {
@@ -204,7 +167,6 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   syncToCloud: async () => {
     const state = get();
     
-    // Check connection status - if not connected, try to check status first
     if (!state.isConnected) {
       set({ syncError: 'Not connected to Google Drive' });
       return false;
@@ -260,7 +222,6 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
         });
         localStorage.removeItem(STORAGE_KEY_PENDING_SYNC);
         
-        // If we pulled data from cloud, reload the page to refresh
         if (result.pulledFromCloud) {
           console.log('[Sync] Pulled data from cloud, reloading...');
           window.location.reload();
@@ -303,7 +264,6 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
           lastSyncTime: result.timestamp,
           isSyncing: false,
         });
-        // Reload the page to refresh data
         window.location.reload();
         return true;
       } else {
@@ -343,7 +303,6 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
 
   markPendingSync: () => {
     set({ pendingSync: true, syncStatus: 'pending' });
-    // 持久化到 localStorage
     localStorage.setItem(STORAGE_KEY_PENDING_SYNC, 'true');
   },
 
@@ -367,7 +326,6 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   performAutoSync: async () => {
     const state = get();
     
-    // 检查是否可以同步
     if (!state.isConnected) {
       console.log('[AutoSync] Not connected to Google Drive');
       return false;
@@ -378,7 +336,6 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
       return false;
     }
     
-    // 检查 PRO 状态
     const { isProUser, timeTamperDetected } = useLicenseStore.getState();
     if (!isProUser) {
       console.log('[AutoSync] Not a PRO user');
@@ -393,7 +350,6 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     set({ isSyncing: true, syncStatus: 'syncing', syncError: null, lastSyncAttempt: Date.now() });
     
     try {
-      // 使用双向同步，确保多设备数据一致性
       const result = await invoke<BidirectionalSyncResult>('auto_sync_to_drive');
       
       if (result.success) {
@@ -407,7 +363,6 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
         });
         localStorage.removeItem(STORAGE_KEY_PENDING_SYNC);
         
-        // 如果从云端拉取了数据，刷新页面
         if (result.pulledFromCloud) {
           console.log('[AutoSync] Pulled data from cloud, reloading...');
           window.location.reload();

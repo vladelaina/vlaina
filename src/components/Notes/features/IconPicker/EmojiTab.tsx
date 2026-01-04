@@ -78,12 +78,10 @@ export function EmojiTab({
     }
   }, [currentIcon, getEmojiWithSkinTone, onIconChange, onPreview, setSkinTone]);
 
-  // 当前分类数据
   const currentCategory = useMemo(() => {
     return EMOJI_CATEGORIES.find(c => c.id === activeCategory) || EMOJI_CATEGORIES[0];
   }, [activeCategory]);
 
-  // 搜索结果
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return null;
     const query = searchQuery.toLowerCase();

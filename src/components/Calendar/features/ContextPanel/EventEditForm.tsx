@@ -16,8 +16,6 @@ import { ALL_COLORS, COLOR_HEX, type ItemColor } from '@/lib/colors';
 import { parseClockTime } from '@/lib/time';
 import { IconSelector, TaskIcon, ColorPicker } from '@/components/common';
 
-// ============ Editable Time Component ============
-
 interface EditableTimeProps {
   date: Date;
   onChange: (newDate: Date) => void;
@@ -33,7 +31,6 @@ function EditableTime({ date, onChange, use24Hour = true }: EditableTimeProps) {
     ? format(date, 'H:mm')
     : format(date, 'h:mm a').toUpperCase();
   
-  // 解析预览：显示用户输入被解析成什么，无效时显示当前时间
   const parsedPreview = (() => {
     const parsed = parseClockTime(inputValue);
     const previewDate = parsed 
@@ -46,7 +43,6 @@ function EditableTime({ date, onChange, use24Hour = true }: EditableTimeProps) {
   })();
   
   const handleStartEdit = () => {
-    // 根据用户设置显示对应格式，方便用户编辑
     setInputValue(use24Hour ? format(date, 'H:mm') : format(date, 'h:mma').toLowerCase());
     setIsEditing(true);
   };
@@ -58,7 +54,6 @@ function EditableTime({ date, onChange, use24Hour = true }: EditableTimeProps) {
     }
   }, [isEditing]);
   
-  // 实时预览：输入时立即更新事件
   const handleInputChange = useCallback((value: string) => {
     setInputValue(value);
     const parsed = parseClockTime(value);
@@ -111,15 +106,11 @@ function EditableTime({ date, onChange, use24Hour = true }: EditableTimeProps) {
   );
 }
 
-// ============ Types ============
-
 interface EventEditFormProps {
   event: CalendarEvent;
   mode?: 'embedded' | 'floating';
   position?: { x: number; y: number };
 }
-
-// ============ Component ============
 
 export function EventEditForm({ event, mode = 'embedded', position }: EventEditFormProps) {
   const { updateEvent, updateTaskIcon, closeEditingEvent, groups, use24Hour, deleteEvent } = useCalendarStore();
@@ -136,30 +127,23 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     if (!event.content.trim()) {
       deleteEvent(event.id);
     }
-    // 清除全局预览状态
     setPreviewIcon(null, null);
     setPreviewColor(null, null);
     closeEditingEvent();
   }, [event.id, event.content, deleteEvent, closeEditingEvent, setPreviewIcon, setPreviewColor]);
 
-  // 图标悬停预览回调 - 更新全局状态让 EventBlock 显示预览
   const handleIconHover = useCallback((icon: string | undefined | null) => {
     if (icon === null) {
-      // 鼠标离开，清除预览
       setPreviewIcon(null, null);
     } else {
-      // 鼠标悬停，设置预览
       setPreviewIcon(event.id, icon);
     }
   }, [event.id, setPreviewIcon]);
 
-  // 颜色悬停预览回调 - 更新全局状态让 EventBlock 显示预览
   const handleColorHover = useCallback((color: ItemColor | null) => {
     if (color === null) {
-      // 鼠标离开，清除预览
       setPreviewColor(null, null);
     } else {
-      // 鼠标悬停，设置预览
       setPreviewColor(event.id, color);
     }
   }, [event.id, setPreviewColor]);
@@ -191,7 +175,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showGroupPicker]);
 
-  // ============ Event Handlers ============
+  // Event handlers
 
   const handleContentChange = (newContent: string) => {
     setContent(newContent);
@@ -207,7 +191,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     setShowGroupPicker(false);
   };
 
-  // ============ Time Formatting ============
+  // Time formatting
 
   const startDate = new Date(event.startDate);
   const endDate = new Date(event.endDate);
@@ -221,7 +205,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     return `${durationMinutes}m`;
   };
 
-  // ============ Floating Mode Position Calculation ============
+  // Floating mode position calculation
 
   const getFloatingStyle = () => {
     if (mode !== 'floating' || !position) {
@@ -251,7 +235,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     return { top: `${top}px`, left: `${left}px` };
   };
 
-  // ============ Render ============
+  // Render
 
   const containerClass = mode === 'floating'
     ? 'fixed z-[100] w-[280px] bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden'

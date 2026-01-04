@@ -21,10 +21,6 @@ interface DetailModalHeaderProps {
   onDelete: () => void;
 }
 
-/**
- * Header section of DetailModal
- * Contains icon button and action menu capsule
- */
 export function DetailModalHeader({
   displayIcon: DisplayIcon,
   // isEditing, // Unused

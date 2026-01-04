@@ -1,8 +1,4 @@
-/**
- * NotesPage - Main notes view container
- * 
- * Modern block-editor style layout with sidebar and editor
- */
+// NotesPage - Main notes view container
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { 
@@ -14,7 +10,6 @@ import {
   IconFolder,
 } from '@tabler/icons-react';
 
-// Custom filled sparkles icon
 function SparklesFilledIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <svg 
@@ -53,7 +48,6 @@ export function NotesPage() {
     closeTab,
   } = useNotesStore();
   
-  // UI State from useUIStore
   const {
     notesSidebarCollapsed: sidebarCollapsed,
     notesSidebarWidth: sidebarWidth,
@@ -61,22 +55,18 @@ export function NotesPage() {
     notesShowAIPanel: showAIPanel,
   } = useUIStore();
   
-  // Local UI State
   const [isDragging, setIsDragging] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(0);
 
-  // Load file tree on mount
   useEffect(() => {
     loadFileTree();
   }, [loadFileTree]);
 
-  // Global keyboard shortcuts for tab switching (Ctrl+Tab / Ctrl+Shift+Tab) and close (Ctrl+W)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+Tab / Ctrl+Shift+Tab: 切换标签
       if (e.key === 'Tab' && e.ctrlKey && openTabs.length > 1) {
         e.preventDefault();
         const currentIndex = openTabs.findIndex(t => t.path === currentNote?.path);
@@ -84,17 +74,14 @@ export function NotesPage() {
         
         let nextIndex: number;
         if (e.shiftKey) {
-          // Ctrl+Shift+Tab: 切换到上一个标签
           nextIndex = currentIndex === 0 ? openTabs.length - 1 : currentIndex - 1;
         } else {
-          // Ctrl+Tab: 切换到下一个标签
           nextIndex = currentIndex === openTabs.length - 1 ? 0 : currentIndex + 1;
         }
         
         openNote(openTabs[nextIndex].path);
       }
       
-      // Ctrl+W: 关闭当前标签
       if (e.key === 'w' && e.ctrlKey && !e.shiftKey && !e.altKey && currentNote) {
         e.preventDefault();
         closeTab(currentNote.path);
@@ -105,7 +92,6 @@ export function NotesPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [openTabs, currentNote, openNote, closeTab]);
 
-  // Handle wiki link clicks
   useEffect(() => {
     const handleWikiLinkClick = async (e: CustomEvent<{ linkText: string }>) => {
       const { linkText } = e.detail;
@@ -143,7 +129,6 @@ export function NotesPage() {
     return () => window.removeEventListener('wiki-link-click', handleWikiLinkClick as unknown as EventListener);
   }, [rootFolder, openNote, createNoteWithContent]);
 
-  // Sidebar resize handlers
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -178,7 +163,7 @@ export function NotesPage() {
       "bg-[var(--neko-bg-primary)]",
       isDragging && "select-none cursor-col-resize"
     )}>
-      {/* Left Sidebar */}
+
       <aside 
         className={cn(
           "flex-shrink-0 flex flex-col overflow-hidden",
@@ -188,7 +173,6 @@ export function NotesPage() {
         style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
       >
 
-        {/* Quick Search */}
         <div className="px-2 pt-3 pb-2">
           <button
             onClick={() => setShowSearch(true)}
@@ -204,9 +188,7 @@ export function NotesPage() {
           </button>
         </div>
 
-        {/* Scrollable Content */}
         <div className="flex-1 overflow-auto neko-scrollbar">
-          {/* File Tree Section */}
           <div className="px-3 py-1.5 flex items-center justify-between">
             <span className="text-[11px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider">
               Workspace
@@ -240,10 +222,8 @@ export function NotesPage() {
             />
           </div>
 
-          {/* Divider */}
           <div className="mx-3 my-3 h-px bg-[var(--neko-divider)]" />
 
-          {/* Navigation Items */}
           <div className="px-2 space-y-0.5 pb-2">
             <NavItem icon={<IconFiles />} label="All docs" />
             <NavItem icon={<IconStar />} label="Favorites" />
@@ -252,12 +232,9 @@ export function NotesPage() {
         </div>
       </aside>
 
-      {/* Resize Handle - Hidden when sidebar collapsed, extends full window height */}
       {!sidebarCollapsed && (
         <>
-          {/* Spacer to maintain layout */}
           <div className="w-1 flex-shrink-0 bg-[var(--neko-sidebar-bg)]" />
-          {/* Actual resize handle with fixed positioning - wider hit area but thin visible line */}
           <div
             onMouseDown={handleDragStart}
             className={cn(
@@ -267,7 +244,6 @@ export function NotesPage() {
             )}
             style={{ left: sidebarWidth - 2 }}
           >
-            {/* Thin visible line */}
             <div 
               className={cn(
                 "w-0.5 h-full transition-colors",
@@ -280,9 +256,7 @@ export function NotesPage() {
       )}
 
 
-      {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-[var(--neko-bg-primary)]">
-        {/* Editor or Empty State */}
         {currentNote ? (
           <div className="flex-1 flex min-h-0">
             <div className="flex-1 min-w-0">
@@ -294,18 +268,15 @@ export function NotesPage() {
         )}
       </main>
 
-      {/* AI Panel - Outside main to extend full height */}
       {showAIPanel && (
         <AIPanelContent />
       )}
 
-      {/* Modals */}
       <NoteSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
     </div>
   );
 }
 
-/* Navigation Item Component */
 function NavItem({ icon, label, active = false, onClick }: { 
   icon: React.ReactNode; 
   label: string; 
@@ -330,7 +301,6 @@ function NavItem({ icon, label, active = false, onClick }: {
   );
 }
 
-/* Empty State Component */
 function EmptyState({ onCreateNote, onOpenSearch }: { onCreateNote: () => void; onOpenSearch: () => void }) {
   return (
     <div className="flex-1 flex items-center justify-center">
@@ -379,7 +349,6 @@ function EmptyState({ onCreateNote, onOpenSearch }: { onCreateNote: () => void; 
   );
 }
 
-/* AI Panel Content Component */
 function AIPanelContent() {
   const [showAddMenu, setShowAddMenu] = useState(false);
 
@@ -388,7 +357,6 @@ function AIPanelContent() {
       className="flex-shrink-0 border-l border-[var(--neko-border)] bg-[var(--neko-bg-primary)] flex flex-col"
       style={{ width: AI_PANEL_WIDTH }}
     >
-      {/* AI Panel Content - Chat Messages Area */}
       <div className="flex-1 overflow-auto neko-scrollbar px-4 pb-4">
         <div className="flex flex-col items-center justify-center h-full text-center">
           <div 
@@ -406,10 +374,8 @@ function AIPanelContent() {
         </div>
       </div>
 
-      {/* AI Panel Input */}
       <div className="p-3">
         <div className="rounded-xl border border-[var(--neko-border)] bg-[var(--neko-bg-secondary)] overflow-hidden relative">
-          {/* Input Area */}
           <textarea
             placeholder="What are your thoughts?"
             rows={3}
@@ -422,7 +388,6 @@ function AIPanelContent() {
             )}
             disabled
           />
-          {/* Bottom Actions */}
           <div className="flex items-center justify-between px-3 py-2">
             <div className="relative">
               <button 
@@ -434,7 +399,6 @@ function AIPanelContent() {
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
               </button>
-              {/* Add Menu Dropdown */}
               {showAddMenu && (
                 <div className="absolute bottom-full left-0 mb-2 w-56 bg-[var(--neko-bg-primary)] border border-[var(--neko-border)] rounded-lg shadow-lg py-1 z-50">
                   <button 
@@ -483,7 +447,6 @@ function AIPanelContent() {
             </div>
           </div>
         </div>
-        {/* Disclaimer */}
         <p className="text-xs text-[var(--neko-text-tertiary)] mt-2 text-center">
           ⓘ AI outputs can be misleading or wrong
         </p>

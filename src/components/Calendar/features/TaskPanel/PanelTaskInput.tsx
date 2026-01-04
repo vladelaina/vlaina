@@ -1,8 +1,5 @@
 /**
- * PanelTaskInput - 面板内的任务输入框
- * 
- * 简洁版的任务输入，适配右侧面板的紧凑空间
- * 右侧包含更多菜单（颜色过滤、隐藏选项等）
+ * PanelTaskInput - Task input for the panel
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -14,7 +11,6 @@ import { ALL_COLORS, SIMPLE_COLOR_STYLES, COLOR_HEX, RAINBOW_GRADIENT, type Item
 import type { TaskStatus } from '@/stores/uiSlice';
 import { ALL_STATUSES } from '@/stores/uiSlice';
 
-// 状态标签
 const statusLabels: Record<TaskStatus, string> = {
   todo: 'Todo',
   scheduled: 'Scheduled',
@@ -58,7 +54,6 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
     }
   };
 
-  // 自动调整高度
   useEffect(() => {
     const textarea = inputRef.current;
     if (textarea) {
@@ -67,7 +62,6 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
     }
   }, [content, compact]);
 
-  // 点击外部关闭菜单
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -84,7 +78,6 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 归档已完成
   const handleArchiveCompleted = async () => {
     if (!activeGroupId || activeGroupId === '__archive__') return;
     try {
@@ -95,7 +88,6 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
     }
   };
 
-  // 删除已完成
   const handleDeleteCompleted = () => {
     if (!activeGroupId || activeGroupId === '__archive__') return;
     deleteCompletedTasks(activeGroupId);

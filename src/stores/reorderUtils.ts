@@ -1,16 +1,8 @@
-/**
- * Task Reorder Utility Functions
- * 
- * Pure utility functions for task reordering operations.
- * Note: All persistence is handled by useUnifiedStore.
- */
+// Task Reorder Utility Functions
 
 import type { StoreTask } from './types';
 import { collectTaskAndDescendants, calculateActualTime } from './taskUtils';
 
-/**
- * Reorder tasks within the same group, potentially changing parent
- */
 export function reorderTasksInGroup(
   activeId: string,
   overId: string,
@@ -72,9 +64,6 @@ export function reorderTasksInGroup(
   return { success: true, newTasks: finalTasks };
 }
 
-/**
- * Reorder task across completion status (incomplete <-> completed)
- */
 export function crossStatusReorderTask(
   activeId: string,
   overId: string,
@@ -147,9 +136,6 @@ export function crossStatusReorderTask(
   return { success: true, newTasks };
 }
 
-/**
- * Move a task and its descendants to another group
- */
 export function moveTaskBetweenGroups(
   taskId: string,
   targetGroupId: string,

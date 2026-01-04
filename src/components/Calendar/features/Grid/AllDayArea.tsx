@@ -15,15 +15,11 @@ import type { CalendarDisplayItem } from '../../hooks/useCalendarEvents';
 import { EventContextMenu } from '../Event/EventContextMenu';
 import { getAllDayInlineStyles, getColorPriority } from '@/lib/colors';
 
-// ============ Constants ============
-
 const MAX_VISIBLE_ROWS = 3;
 const EVENT_HEIGHT = 22;
 const EVENT_GAP = 2;
 const MIN_AREA_HEIGHT = 28;
 const COLLAPSED_HEIGHT = 28; // Height when collapsed with chevron
-
-// ============ Types ============
 
 interface AllDayAreaProps {
   days: Date[];
@@ -40,8 +36,6 @@ interface LayoutedEvent {
   startCol: number;
   endCol: number;
 }
-
-// ============ Layout Algorithm ============
 
 function calculateAllDayLayout(
   events: CalendarDisplayItem[],
@@ -138,8 +132,6 @@ function calculateAllDayLayout(
     overflowByDay,
   };
 }
-
-// ============ Component ============
 
 export function AllDayArea({
   days,
@@ -332,7 +324,6 @@ export function AllDayArea({
               <span className="font-medium">{layoutedEvents.length}</span>
             </div>
           ) : (
-            // Single event: just show "全天" label
             <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
               全天
             </span>

@@ -1,16 +1,8 @@
-/**
- * Task Utility Functions
- * 
- * Pure utility functions for task operations.
- * Note: All persistence is handled by useUnifiedStore.
- */
+// Task Utility Functions
 
 import type { StoreTask } from './types';
 import { MS_PER_MINUTE } from '@/lib/time/constants';
 
-/**
- * Recursively collect a task and all its descendants
- */
 export function collectTaskAndDescendants(
   task: StoreTask,
   allTasks: StoreTask[]
@@ -23,10 +15,6 @@ export function collectTaskAndDescendants(
   return result;
 }
 
-/**
- * Calculate actual time spent from creation to completion
- * Returns undefined if task is being uncompleted
- */
 export function calculateActualTime(
   createdAt: number,
   isCompleting: boolean

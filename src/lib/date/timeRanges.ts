@@ -1,8 +1,4 @@
-/**
- * 时间范围计算函数
- * 
- * 提供基于时间视图的范围键生成和显示格式化功能。
- */
+// Time range calculation utilities
 
 import { MS_PER_WEEK } from '../time/constants';
 import type { TimeView } from './index';
@@ -14,9 +10,6 @@ import {
   getCurrentMonthKey,
 } from './dateKeys';
 
-/**
- * 根据时间戳和视图类型获取时间范围键
- */
 export function getTimeRangeKey(timestamp: number, timeView: TimeView): string {
   const date = new Date(timestamp);
   
@@ -35,14 +28,6 @@ export function getTimeRangeKey(timestamp: number, timeView: TimeView): string {
   }
 }
 
-/**
- * 格式化时间范围键为显示文本
- * - 今天 -> "Today"
- * - 昨天 -> "Yesterday"
- * - 本周 -> "This Week"
- * - 本月 -> "This Month"
- * - 其他 -> 原始格式或详细格式
- */
 export function formatTimeRangeDisplay(timeKey: string, timeView: TimeView): string {
   if (timeView === 'day') {
     const [year, month, day] = timeKey.split('-');
@@ -96,12 +81,6 @@ export function formatTimeRangeDisplay(timeKey: string, timeView: TimeView): str
   }
 }
 
-/**
- * 获取默认展开的日期集合
- * - day: 今天和昨天
- * - week: 本周
- * - month: 本月
- */
 export function getDefaultExpandedDates(timeView: TimeView): Set<string> {
   if (timeView === 'day') {
     return new Set([getTodayKey(), getYesterdayKey()]);

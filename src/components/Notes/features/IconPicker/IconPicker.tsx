@@ -1,13 +1,4 @@
-/**
- * IconPicker - Emoji and Icon picker with virtual scrolling
- * 
- * Refactored into smaller modules:
- * - constants.ts: Constants, types, and utilities
- * - VirtualEmojiGrid.tsx: Virtualized emoji grid components
- * - VirtualIconGrid.tsx: Virtualized icon grid component
- * - EmojiTab.tsx: Emoji tab with search and skin tone
- * - IconsTab.tsx: Icons tab with category navigation
- */
+/** IconPicker - Emoji and Icon picker with virtual scrolling */
 
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -77,7 +68,6 @@ export function IconPicker({
     onClose();
   }, [onRemove, onClose]);
 
-  // Click outside to close
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -94,7 +84,6 @@ export function IconPicker({
     };
   }, [onClose, onPreview]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -121,7 +110,6 @@ export function IconPicker({
         "w-[352px]"
       )}
     >
-      {/* Tab Header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-[var(--neko-border)]">
         <div className="flex items-center gap-4">
           <button
@@ -157,7 +145,6 @@ export function IconPicker({
         )}
       </div>
 
-      {/* Tab Content */}
       {activeTab === 'emoji' ? (
         <EmojiTab
           skinTone={skinTone}

@@ -15,8 +15,6 @@ import { useCalendarStore } from '@/stores/useCalendarStore';
 import { getColorHex, getColorPriority } from '@/lib/colors';
 import { EventEditForm } from './EventEditForm';
 
-// ============ Main Component ============
-
 export function ContextPanel() {
   const { tasks, groups } = useGroupStore();
   const { editingEventId, events } = useCalendarStore();
@@ -112,8 +110,6 @@ export function ContextPanel() {
     </div>
   );
 }
-
-// ============ Draggable Task Card ============
 
 function DraggableTaskCard({ task }: { task: any }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({

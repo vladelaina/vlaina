@@ -12,8 +12,6 @@ import {
   type EmojiItem,
 } from './constants';
 
-// ============ EmojiRow Component ============
-
 const EmojiRow = memo(function EmojiRow({ emojis }: { emojis: string[] }) {
   return (
     <div className="px-2 grid grid-cols-9 gap-0.5">
@@ -29,8 +27,6 @@ const EmojiRow = memo(function EmojiRow({ emojis }: { emojis: string[] }) {
     </div>
   );
 });
-
-// ============ VirtualEmojiGrid Component ============
 
 interface VirtualEmojiGridProps {
   emojis: EmojiItem[];
@@ -51,7 +47,6 @@ export function VirtualEmojiGrid({
 }: VirtualEmojiGridProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   
-  // 计算带皮肤色调的 emoji
   const emojisWithSkin = useMemo(() => {
     return emojis.map(emoji => {
       if (skinTone === 0 || !emoji.skins || emoji.skins.length <= skinTone) {
@@ -61,7 +56,6 @@ export function VirtualEmojiGrid({
     });
   }, [emojis, skinTone]);
 
-  // 最近使用的 emoji 带皮肤色调
   const recentWithSkin = useMemo(() => {
     return recentEmojis.map(emoji => {
       const item = EMOJI_MAP.get(emoji);
@@ -73,7 +67,6 @@ export function VirtualEmojiGrid({
     });
   }, [recentEmojis, skinTone]);
 
-  // 计算行数据
   const rows = useMemo(() => {
     const result: { type: 'title' | 'emojis'; content: string | string[] }[] = [];
     
@@ -184,8 +177,6 @@ export function VirtualEmojiGrid({
     </div>
   );
 }
-
-// ============ VirtualSearchResults Component ============
 
 interface VirtualSearchResultsProps {
   results: EmojiItem[];

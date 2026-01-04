@@ -1,8 +1,4 @@
-/**
- * Progress Store - Progress view data access layer
- * 
- * Provides progress-specific API on top of UnifiedStore
- */
+// Progress Store - Progress view data access layer
 
 import { useUnifiedStore } from './useUnifiedStore';
 import type { UnifiedProgress } from '@/lib/storage/unifiedStorage';
@@ -47,7 +43,6 @@ export interface CounterItem {
 
 export type ProgressOrCounter = ProgressItem | CounterItem;
 
-// Convert UnifiedProgress to ProgressOrCounter
 function toProgressOrCounter(item: UnifiedProgress): ProgressOrCounter {
   if (item.type === 'progress') {
     return {
@@ -143,7 +138,6 @@ export function useProgressStore() {
   };
 }
 
-// For direct state access
 useProgressStore.getState = () => {
   const store = useUnifiedStore.getState();
   return {

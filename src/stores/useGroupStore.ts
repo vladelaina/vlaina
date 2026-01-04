@@ -1,15 +1,9 @@
-/**
- * Group Store - Todo view data access layer
- * 
- * Core concept: This is just a view of UnifiedStore
- * All data operations are delegated to useUnifiedStore
- */
+// Group Store - Todo view data access layer
 
 import { useUnifiedStore } from './useUnifiedStore';
 import { useUIStore } from './uiSlice';
 import { DEFAULT_GROUP_ID } from '@/lib/config';
 
-// 从统一类型模块导入，保持向后兼容的 re-export
 import type { Task, Group, ItemColor } from './types';
 
 export type { Task, Group, ItemColor };
@@ -19,13 +13,11 @@ export function useGroupStore() {
   const store = useUnifiedStore();
 
   return {
-    // Data
     groups: store.data.groups as Group[],
     tasks: store.data.tasks as Task[],
     loaded: store.loaded,
     activeGroupId: store.activeGroupId,
 
-    // Group Actions
     setActiveGroup: (id: string | null) => store.setActiveGroup(id || DEFAULT_GROUP_ID),
     addGroup: store.addGroup,
     updateGroup: store.updateGroup,
@@ -33,7 +25,6 @@ export function useGroupStore() {
     togglePin: store.toggleGroupPin,
     reorderGroups: store.reorderGroups,
 
-    // Task Actions
     addTask: store.addTask,
     addSubTask: store.addSubTask,
     updateTask: store.updateTask,
@@ -50,12 +41,10 @@ export function useGroupStore() {
     moveTaskToGroup: store.moveTaskToGroup,
     archiveCompletedTasks: store.archiveCompletedTasks,
 
-    // Load
     loadData: store.load,
   };
 }
 
-// For direct state access
 useGroupStore.getState = () => {
   const store = useUnifiedStore.getState();
   return {

@@ -30,18 +30,6 @@ import {
   DEFAULT_GROUP_NAME,
 } from '@/lib/config';
 
-// ============================================================================
-// Types
-// ============================================================================
-
-/**
- * Unified item model
- * 
- * Core concept: There is only one type of "item", it can have time properties or not.
- * - Items with time properties appear in calendar view
- * - Items without time properties only appear in todo view
- * - Unified color system, consistent across views
- */
 export interface UnifiedTask {
   id: string;
   content: string;
@@ -67,8 +55,8 @@ export interface UnifiedTask {
   
   // Timer state
   timerState?: 'idle' | 'running' | 'paused';
-  timerStartedAt?: number;      // 本次计时开始的时间戳
-  timerAccumulated?: number;    // 累计的毫秒数（用于暂停恢复）
+  timerStartedAt?: number;
+  timerAccumulated?: number;
   
   // Icon (Phosphor icon name, shared with Progress module)
   icon?: string;
@@ -133,7 +121,7 @@ export interface UnifiedData {
     dayCount: number;
     hourHeight?: number;
     use24Hour?: boolean;
-    dayStartTime?: number; // 日开始时间，以分钟为单位 (0-1439)，默认 300 (5:00)
+    dayStartTime?: number;
   };
 }
 
@@ -142,10 +130,6 @@ interface DataFile {
   lastModified: number;
   data: UnifiedData;
 }
-
-// ============================================================================
-// Path Management
-// ============================================================================
 
 let basePath: string | null = null;
 
@@ -173,10 +157,6 @@ async function ensureDirectories(): Promise<void> {
   }
 }
 
-// ============================================================================
-// Default Data
-// ============================================================================
-
 function getDefaultData(): UnifiedData {
   return {
     groups: [{
@@ -195,10 +175,6 @@ function getDefaultData(): UnifiedData {
     },
   };
 }
-
-// ============================================================================
-// Load & Save
-// ============================================================================
 
 export async function loadUnifiedData(): Promise<UnifiedData> {
   try {
@@ -314,10 +290,6 @@ export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void>
     console.error('[UnifiedStorage] Failed to save:', error);
   }
 }
-
-// ============================================================================
-// Markdown Generation
-// ============================================================================
 
 function generateMarkdown(data: UnifiedData): string {
   const lines: string[] = [];
