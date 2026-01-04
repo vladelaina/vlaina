@@ -251,12 +251,12 @@ export function MarkdownEditor() {
 
       <div className="flex-1 overflow-auto neko-scrollbar">
         <div className="max-w-[800px] mx-auto w-full px-10">
-          <div className="pt-8 pb-1">
+          <div className="pt-6 pb-5">
             {displayIcon ? (
               <button
                 ref={iconButtonRef}
                 onClick={() => setShowIconPicker(true)}
-                className="h-12 hover:scale-110 transition-transform cursor-pointer flex items-center"
+                className="h-14 hover:scale-105 transition-transform cursor-pointer flex items-center"
               >
                 <NoteIcon icon={displayIcon} size={48} />
               </button>
