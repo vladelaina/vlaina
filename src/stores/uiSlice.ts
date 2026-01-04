@@ -27,6 +27,22 @@ interface UIStore {
   setAppViewMode: (mode: AppViewMode) => void;
   toggleAppViewMode: () => void;
 
+  // ============ Notes UI State ============
+  
+  // Notes sidebar
+  notesSidebarCollapsed: boolean;
+  notesSidebarWidth: number;
+  toggleNotesSidebar: () => void;
+  setNotesSidebarWidth: (width: number) => void;
+  
+  // Notes AI panel
+  notesShowAIPanel: boolean;
+  toggleNotesAIPanel: () => void;
+  
+  // Notes icon preview (for IconPicker hover)
+  notesPreviewIcon: { path: string; icon: string } | null;
+  setNotesPreviewIcon: (path: string | null, icon: string | null) => void;
+
   // Drawer state
   drawerOpen: boolean;
   setDrawerOpen: (open: boolean) => void;
@@ -145,6 +161,28 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   toggleAppViewMode: () => set((state) => ({ 
     appViewMode: state.appViewMode === 'calendar' ? 'notes' : 'calendar' 
   })),
+
+  // ============ Notes UI State ============
+  
+  // Notes sidebar
+  notesSidebarCollapsed: false,
+  notesSidebarWidth: 248,
+  toggleNotesSidebar: () => set((state) => ({ notesSidebarCollapsed: !state.notesSidebarCollapsed })),
+  setNotesSidebarWidth: (width) => set({ notesSidebarWidth: width }),
+  
+  // Notes AI panel
+  notesShowAIPanel: false,
+  toggleNotesAIPanel: () => set((state) => ({ notesShowAIPanel: !state.notesShowAIPanel })),
+  
+  // Notes icon preview
+  notesPreviewIcon: null,
+  setNotesPreviewIcon: (path, icon) => {
+    if (path && icon) {
+      set({ notesPreviewIcon: { path, icon } });
+    } else {
+      set({ notesPreviewIcon: null });
+    }
+  },
 
   // Drawer state
   drawerOpen: false,

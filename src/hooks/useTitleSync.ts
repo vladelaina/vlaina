@@ -1,113 +1,20 @@
 /**
- * Title Sync - Unified real-time title synchronization
+ * Title Sync Hooks - React hooks for display name and icon subscriptions
  * 
- * Single source of truth for managing display names across:
- * - Editor H1 heading
- * - Tab names  
- * - File tree display names
+ * This module provides hooks to subscribe to display names and icons from useNotesStore.
+ * The actual state management is handled by useNotesStore internally.
  * 
- * All displayNames operations should go through this module.
+ * For editor integration, use useNotesStore().syncDisplayName() directly.
  */
 
 import { useNotesStore } from '@/stores/useNotesStore';
+import { useUIStore } from '@/stores/uiSlice';
 
-// ============ Cache ============
-
-let lastSyncedTitle = '';
-let lastSyncedPath = '';
-
-// ============ Core Operations ============
-
-/**
- * Sync title from editor to tabs and file tree (real-time)
- */
-export function syncTitle(title: string, path: string): void {
-  if (title === lastSyncedTitle && path === lastSyncedPath) return;
-  
-  lastSyncedTitle = title;
-  lastSyncedPath = path;
-  
-  useNotesStore.setState(state => {
-    const currentTab = state.openTabs.find(t => t.path === path);
-    const currentDisplayName = state.displayNames.get(path);
-    
-    if (currentTab?.name === title && currentDisplayName === title) {
-      return {};
-    }
-    
-    const updatedTabs = currentTab?.name !== title
-      ? state.openTabs.map(tab => tab.path === path ? { ...tab, name: title } : tab)
-      : state.openTabs;
-      
-    const updatedDisplayNames = currentDisplayName !== title
-      ? new Map(state.displayNames).set(path, title)
-      : state.displayNames;
-    
-    return { openTabs: updatedTabs, displayNames: updatedDisplayNames };
-  });
-}
-
-/**
- * Set display name for a path (used when opening notes)
- */
-export function setDisplayName(path: string, name: string): void {
-  useNotesStore.setState(state => {
-    if (state.displayNames.get(path) === name) return {};
-    const updatedDisplayNames = new Map(state.displayNames);
-    updatedDisplayNames.set(path, name);
-    return { displayNames: updatedDisplayNames };
-  });
-}
-
-/**
- * Remove display name for a path (used when deleting notes)
- */
-export function removeDisplayName(path: string): void {
-  useNotesStore.setState(state => {
-    if (!state.displayNames.has(path)) return {};
-    const updatedDisplayNames = new Map(state.displayNames);
-    updatedDisplayNames.delete(path);
-    return { displayNames: updatedDisplayNames };
-  });
-}
-
-/**
- * Move display name from old path to new path (used when renaming/moving)
- */
-export function moveDisplayName(oldPath: string, newPath: string): void {
-  useNotesStore.setState(state => {
-    const displayName = state.displayNames.get(oldPath);
-    if (!displayName && !state.displayNames.has(oldPath)) return {};
-    
-    const updatedDisplayNames = new Map(state.displayNames);
-    updatedDisplayNames.delete(oldPath);
-    if (displayName) {
-      updatedDisplayNames.set(newPath, displayName);
-    }
-    return { displayNames: updatedDisplayNames };
-  });
-}
-
-/**
- * Reset sync cache (call when switching notes)
- */
-export function resetTitleSync(): void {
-  lastSyncedTitle = '';
-  lastSyncedPath = '';
-}
-
-// ============ Selectors & Hooks ============
-
-/**
- * Get display name for a note (from H1 title or file name)
- */
-export function getDisplayName(path: string): string {
-  const state = useNotesStore.getState();
-  return state.displayNames.get(path) || path.split('/').pop()?.replace('.md', '') || 'Untitled';
-}
+// ============ Hooks ============
 
 /**
  * Hook: Subscribe to display name for a specific note
+ * Returns the H1 title if available, otherwise the file name
  */
 export function useDisplayName(path: string | undefined): string {
   return useNotesStore(state => {
@@ -118,11 +25,58 @@ export function useDisplayName(path: string | undefined): string {
 
 /**
  * Hook: Subscribe to display icon for a specific note
+ * Returns preview icon if hovering in IconPicker, otherwise the actual icon
  */
 export function useDisplayIcon(path: string | undefined): string | undefined {
-  return useNotesStore(state => {
-    if (!path) return undefined;
-    if (state.previewIcon?.path === path) return state.previewIcon.icon;
-    return state.noteIcons.get(path);
-  });
+  const noteIcon = useNotesStore(state => path ? state.noteIcons.get(path) : undefined);
+  const previewIcon = useUIStore(state => state.notesPreviewIcon);
+  
+  if (!path) return undefined;
+  if (previewIcon?.path === path) return previewIcon.icon;
+  return noteIcon;
+}
+
+// ============ Legacy exports for backward compatibility ============
+// These are deprecated - use useNotesStore().syncDisplayName() instead
+
+/**
+ * @deprecated Use useNotesStore().syncDisplayName() instead
+ */
+export function syncTitle(title: string, path: string): void {
+  useNotesStore.getState().syncDisplayName(path, title);
+}
+
+/**
+ * @deprecated No longer needed - state is managed internally
+ */
+export function resetTitleSync(): void {
+  // No-op, kept for backward compatibility
+}
+
+/**
+ * @deprecated Use useNotesStore().syncDisplayName() instead
+ */
+export function setDisplayName(path: string, name: string): void {
+  useNotesStore.getState().syncDisplayName(path, name);
+}
+
+/**
+ * @deprecated Handled internally by useNotesStore
+ */
+export function removeDisplayName(_path: string): void {
+  // No-op, handled internally by useNotesStore
+}
+
+/**
+ * @deprecated Handled internally by useNotesStore
+ */
+export function moveDisplayName(_oldPath: string, _newPath: string): void {
+  // No-op, handled internally by useNotesStore
+}
+
+/**
+ * @deprecated Use useNotesStore().getDisplayName() instead
+ */
+export function getDisplayName(path: string): string {
+  return useNotesStore.getState().getDisplayName(path);
 }

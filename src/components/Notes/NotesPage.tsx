@@ -28,6 +28,7 @@ function SparklesFilledIcon({ className, style }: { className?: string; style?: 
   );
 }
 import { useNotesStore } from '@/stores/useNotesStore';
+import { useUIStore } from '@/stores/uiSlice';
 import { FileTree } from './features/FileTree';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
@@ -50,12 +51,15 @@ export function NotesPage() {
     openNote,
     openTabs,
     closeTab,
-    // UI State from store
-    sidebarCollapsed,
-    sidebarWidth,
-    setSidebarWidth,
-    showAIPanel,
   } = useNotesStore();
+  
+  // UI State from useUIStore
+  const {
+    notesSidebarCollapsed: sidebarCollapsed,
+    notesSidebarWidth: sidebarWidth,
+    setNotesSidebarWidth: setSidebarWidth,
+    notesShowAIPanel: showAIPanel,
+  } = useUIStore();
   
   // Local UI State
   const [isDragging, setIsDragging] = useState(false);

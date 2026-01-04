@@ -16,7 +16,8 @@ import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { IconDots, IconStar } from '@tabler/icons-react';
 import { IconHeartbeat } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { syncTitle, resetTitleSync, useDisplayIcon } from '@/hooks/useTitleSync';
+import { useUIStore } from '@/stores/uiSlice';
+import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
 import { IconPicker, NoteIcon } from '../IconPicker';
 
@@ -70,13 +71,13 @@ const titleSyncPlugin = $prose(() => {
             const titleText = firstNode.textContent.trim();
             // 排除空标题和 placeholder 文字
             if (titleText && titleText !== 'Title') {
-              syncTitle(titleText, path);
+              useNotesStore.getState().syncDisplayName(path, titleText);
               return;
             }
           }
           
           // 其他情况使用 Untitled
-          syncTitle('Untitled', path);
+          useNotesStore.getState().syncDisplayName(path, 'Untitled');
         }
       };
     }
@@ -124,7 +125,6 @@ function MilkdownEditorInner() {
         ctx.set(rootCtx, root);
         const content = currentNote?.content || '';
         ctx.set(defaultValueCtx, content);
-        resetTitleSync();
         ctx.get(listenerCtx)
           .markdownUpdated((_ctx, markdown) => {
             // 只有当内容完全为空时才添加空标题
@@ -168,7 +168,9 @@ export function MarkdownEditor() {
   const toggleStarred = useNotesStore(s => s.toggleStarred);
   const getNoteIcon = useNotesStore(s => s.getNoteIcon);
   const setNoteIcon = useNotesStore(s => s.setNoteIcon);
-  const setPreviewIcon = useNotesStore(s => s.setPreviewIcon);
+  
+  // UI state from useUIStore
+  const setNotesPreviewIcon = useUIStore(s => s.setNotesPreviewIcon);
   
   const displayIcon = useDisplayIcon(currentNote?.path);
   const starred = currentNote ? isStarred(currentNote.path) : false;
@@ -181,14 +183,14 @@ export function MarkdownEditor() {
   const handleIconSelect = (emoji: string) => {
     if (currentNote) {
       setNoteIcon(currentNote.path, emoji);
-      setPreviewIcon(currentNote.path, null);
+      setNotesPreviewIcon(null, null);
     }
   };
 
   const handleRemoveIcon = () => {
     if (currentNote) {
       setNoteIcon(currentNote.path, null);
-      setPreviewIcon(currentNote.path, null);
+      setNotesPreviewIcon(null, null);
     }
   };
   
@@ -204,7 +206,7 @@ export function MarkdownEditor() {
     if (icon === null) {
       // Delay clearing preview to avoid flicker when moving between icons
       clearPreviewTimerRef.current = setTimeout(() => {
-        setPreviewIcon(currentNote.path, null);
+        setNotesPreviewIcon(null, null);
       }, 80);
     } else {
       // Immediately show new preview
@@ -213,10 +215,10 @@ export function MarkdownEditor() {
       }
       previewRafRef.current = requestAnimationFrame(() => {
         previewRafRef.current = null;
-        setPreviewIcon(currentNote.path, icon);
+        setNotesPreviewIcon(currentNote.path, icon);
       });
     }
-  }, [currentNote, setPreviewIcon]);
+  }, [currentNote, setNotesPreviewIcon]);
   
   const handleIconPickerClose = () => {
     setShowIconPicker(false);
@@ -228,9 +230,7 @@ export function MarkdownEditor() {
       clearTimeout(clearPreviewTimerRef.current);
       clearPreviewTimerRef.current = null;
     }
-    if (currentNote) {
-      setPreviewIcon(currentNote.path, null);
-    }
+    setNotesPreviewIcon(null, null);
   };
 
   // Cleanup timers on unmount

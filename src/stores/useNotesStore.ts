@@ -1,10 +1,16 @@
 /**
  * Notes Store - State management for Markdown notes
  * 
+ * Architecture (aligned with Calendar/Unified pattern):
+ * - Data state: File tree, notes content, icons, starred, etc.
+ * - UI state: Delegated to useUIStore (sidebar, AI panel, preview icon)
+ * - Display names: Managed internally with syncDisplayName action
+ * 
  * Manages:
  * - File tree structure
  * - Current open note
  * - File operations (create, read, update, delete)
+ * - Display names (from H1 titles, for real-time UI updates)
  */
 
 import { create } from 'zustand';
@@ -18,7 +24,6 @@ import {
   exists,
 } from '@tauri-apps/plugin-fs';
 import { join, documentDir } from '@tauri-apps/api/path';
-import { setDisplayName, removeDisplayName, moveDisplayName, getDisplayName } from '@/hooks/useTitleSync';
 
 // ============ Types ============
 
@@ -41,7 +46,7 @@ export interface FolderNode {
 export type FileTreeNode = NoteFile | FolderNode;
 
 interface NotesState {
-  // State
+  // Data State
   rootFolder: FolderNode | null;
   currentNote: { path: string; content: string } | null;
   notesPath: string;
@@ -53,48 +58,52 @@ interface NotesState {
   noteContentsCache: Map<string, string>; // Cache for backlinks/search
   starredNotes: string[]; // Starred/bookmarked note paths
   noteIcons: Map<string, string>; // Note path -> emoji icon mapping
-  previewIcon: { path: string; icon: string } | null; // Preview icon for current note (used by IconPicker)
-  displayNames: Map<string, string>; // Note path -> display name (from H1 title, for real-time UI updates)
-  // UI State
-  sidebarCollapsed: boolean;
-  sidebarWidth: number;
-  showAIPanel: boolean;
+  displayNames: Map<string, string>; // Note path -> display name (from H1 title)
 }
 
 interface NotesActions {
-  // Actions
+  // File Tree Actions
   loadFileTree: () => Promise<void>;
+  toggleFolder: (path: string) => void;
+  
+  // Note CRUD Actions
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   saveNote: () => Promise<void>;
   createNote: (folderPath?: string) => Promise<string>;
   createNoteWithContent: (folderPath: string | undefined, name: string, content: string) => Promise<string>;
   deleteNote: (path: string) => Promise<void>;
   renameNote: (path: string, newName: string) => Promise<void>;
+  
+  // Folder Actions
   createFolder: (parentPath: string, name: string) => Promise<void>;
   deleteFolder: (path: string) => Promise<void>;
   moveItem: (sourcePath: string, targetFolderPath: string) => Promise<void>;
-  toggleFolder: (path: string) => void;
+  
+  // Content Actions
   updateContent: (content: string) => void;
   closeNote: () => void;
+  
+  // Tab Actions
   closeTab: (path: string) => Promise<void>;
   switchTab: (path: string) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
+  
+  // Search/Backlinks Actions
   scanAllNotes: () => Promise<void>;
   getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];
   getAllTags: () => { tag: string; count: number }[];
+  
+  // Starred Actions
   toggleStarred: (path: string) => void;
   isStarred: (path: string) => boolean;
+  
   // Icon Actions
   getNoteIcon: (path: string) => string | undefined;
   setNoteIcon: (path: string, emoji: string | null) => void;
-  setPreviewIcon: (path: string, icon: string | null) => void;
-  getDisplayIcon: (path: string) => string | undefined; // Returns preview icon if available, otherwise actual icon
-  // Display Name Actions
-  getDisplayName: (path: string) => string; // Returns display name (from H1 title) or file name
-  // UI Actions
-  toggleSidebar: () => void;
-  setSidebarWidth: (width: number) => void;
-  toggleAIPanel: () => void;
+  
+  // Display Name Actions (internal, called by editor plugin)
+  syncDisplayName: (path: string, title: string) => void;
+  getDisplayName: (path: string) => string;
 }
 
 type NotesStore = NotesState & NotesActions;
@@ -308,10 +317,64 @@ function sanitizeFileName(name: string): string {
   return sanitized || 'Untitled';
 }
 
+// ============ Display Name Helpers ============
+
+// Internal: Update display name for a path
+function updateDisplayName(
+  set: (fn: (state: NotesStore) => Partial<NotesStore>) => void,
+  path: string,
+  name: string
+): void {
+  set((state) => {
+    if (state.displayNames.get(path) === name) return {};
+    const updatedDisplayNames = new Map(state.displayNames);
+    updatedDisplayNames.set(path, name);
+    
+    // Also update tab name if open
+    const updatedTabs = state.openTabs.map(tab => 
+      tab.path === path ? { ...tab, name } : tab
+    );
+    
+    return { displayNames: updatedDisplayNames, openTabs: updatedTabs };
+  });
+}
+
+// Internal: Remove display name for a path
+function removeDisplayNameInternal(
+  set: (fn: (state: NotesStore) => Partial<NotesStore>) => void,
+  path: string
+): void {
+  set((state) => {
+    if (!state.displayNames.has(path)) return {};
+    const updatedDisplayNames = new Map(state.displayNames);
+    updatedDisplayNames.delete(path);
+    return { displayNames: updatedDisplayNames };
+  });
+}
+
+// Internal: Move display name from old path to new path
+function moveDisplayNameInternal(
+  set: (fn: (state: NotesStore) => Partial<NotesStore>) => void,
+  oldPath: string,
+  newPath: string
+): void {
+  set((state) => {
+    const displayName = state.displayNames.get(oldPath);
+    if (!displayName && !state.displayNames.has(oldPath)) return {};
+    
+    const updatedDisplayNames = new Map(state.displayNames);
+    updatedDisplayNames.delete(oldPath);
+    if (displayName) {
+      updatedDisplayNames.set(newPath, displayName);
+    }
+    return { displayNames: updatedDisplayNames };
+  });
+}
+
 // ============ Store ============
 
 export const useNotesStore = create<NotesStore>()((set, get) => ({
-  // Initial state
+  // Initial state (Data only, UI state moved to useUIStore)
   rootFolder: null,
   currentNote: null,
   notesPath: '',
@@ -323,12 +386,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   noteContentsCache: new Map(),
   starredNotes: loadStarredNotes(),
   noteIcons: loadNoteIcons(),
-  previewIcon: null,
   displayNames: new Map(),
-  // UI State
-  sidebarCollapsed: false,
-  sidebarWidth: 248,
-  showAIPanel: false,
 
   // Load file tree from disk
   loadFileTree: async () => {
@@ -403,8 +461,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
         }
       }
       
-      // 更新 displayNames (通过统一模块)
-      setDisplayName(path, tabName);
+      // 更新 displayNames (内部方法)
+      updateDisplayName(set, path, tabName);
       
       set({
         currentNote: { path, content },
@@ -479,9 +537,9 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
                 : tab
             );
             
-            // 更新显示名称 (通过统一模块)
-            moveDisplayName(currentNote.path, newPath);
-            setDisplayName(newPath, sanitizedTitle);
+            // 更新显示名称 (内部方法)
+            moveDisplayNameInternal(set, currentNote.path, newPath);
+            updateDisplayName(set, newPath, sanitizedTitle);
             
             // 更新文件树中的节点（局部更新，不重新加载）
             const currentRootFolder = get().rootFolder;
@@ -602,8 +660,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       // 从打开的标签中移除被删除的笔记
       const updatedTabs = openTabs.filter(t => t.path !== path);
       
-      // 清理 displayNames (通过统一模块)
-      removeDisplayName(path);
+      // 清理 displayNames (内部方法)
+      removeDisplayNameInternal(set, path);
       
       // Close if current note was deleted, switch to another tab
       if (currentNote?.path === path) {
@@ -654,8 +712,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       
       await rename(fullPath, newFullPath);
       
-      // 更新 displayNames (通过统一模块)
-      moveDisplayName(path, newPath);
+      // 更新 displayNames (内部方法)
+      moveDisplayNameInternal(set, path, newPath);
       
       // 更新 openTabs
       const updatedTabs = openTabs.map(tab => 
@@ -771,8 +829,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       
       await rename(sourceFullPath, targetFullPath);
       
-      // 更新 displayNames (通过统一模块)
-      moveDisplayName(sourcePath, newPath);
+      // 更新 displayNames (内部方法)
+      moveDisplayNameInternal(set, sourcePath, newPath);
       
       // 更新 openTabs
       const updatedTabs = openTabs.map(tab => 
@@ -854,8 +912,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
         const fullPath = await join(notesPath, path);
         await remove(fullPath);
         
-        // 清理 displayNames (通过统一模块)
-        removeDisplayName(path);
+        // 清理 displayNames (内部方法)
+        removeDisplayNameInternal(set, path);
         
         // 重新加载文件树
         await loadFileTree();
@@ -1098,37 +1156,14 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
     set({ noteIcons: updated });
   },
 
-  // Set preview icon (for hover preview in IconPicker)
-  setPreviewIcon: (path: string, icon: string | null) => {
-    if (icon) {
-      set({ previewIcon: { path, icon } });
-    } else {
-      set({ previewIcon: null });
-    }
-  },
-
-  // Get display icon (preview icon if available, otherwise actual icon)
-  getDisplayIcon: (path: string) => {
-    const { previewIcon, noteIcons } = get();
-    if (previewIcon && previewIcon.path === path) {
-      return previewIcon.icon;
-    }
-    return noteIcons.get(path);
+  // Sync display name from editor (called by titleSyncPlugin)
+  syncDisplayName: (path: string, title: string) => {
+    updateDisplayName(set, path, title);
   },
 
   // Get display name (from H1 title if available, otherwise file name)
-  getDisplayName,
-
-  // UI Actions
-  toggleSidebar: () => {
-    set(state => ({ sidebarCollapsed: !state.sidebarCollapsed }));
-  },
-
-  setSidebarWidth: (width: number) => {
-    set({ sidebarWidth: width });
-  },
-
-  toggleAIPanel: () => {
-    set(state => ({ showAIPanel: !state.showAIPanel }));
+  getDisplayName: (path: string) => {
+    const state = get();
+    return state.displayNames.get(path) || path.split('/').pop()?.replace('.md', '') || 'Untitled';
   },
 }));

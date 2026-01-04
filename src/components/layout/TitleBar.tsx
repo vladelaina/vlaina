@@ -206,18 +206,20 @@ interface TitleBarProps {
 }
 
 export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls }: TitleBarProps) {
-  const { appViewMode, toggleAppViewMode } = useUIStore();
-  const sidebarCollapsed = useNotesStore(s => s.sidebarCollapsed);
-  const sidebarWidth = useNotesStore(s => s.sidebarWidth);
-  const showAIPanel = useNotesStore(s => s.showAIPanel);
-  const toggleSidebar = useNotesStore(s => s.toggleSidebar);
-  const toggleAIPanel = useNotesStore(s => s.toggleAIPanel);
+  const { appViewMode, toggleAppViewMode, notesSidebarCollapsed, notesSidebarWidth, notesShowAIPanel, toggleNotesSidebar, toggleNotesAIPanel } = useUIStore();
   const currentNote = useNotesStore(s => s.currentNote);
   const openTabs = useNotesStore(s => s.openTabs);
   const closeTab = useNotesStore(s => s.closeTab);
   const openNote = useNotesStore(s => s.openNote);
   const createNote = useNotesStore(s => s.createNote);
   const reorderTabs = useNotesStore(s => s.reorderTabs);
+  
+  // Alias for cleaner code
+  const sidebarCollapsed = notesSidebarCollapsed;
+  const sidebarWidth = notesSidebarWidth;
+  const showAIPanel = notesShowAIPanel;
+  const toggleSidebar = toggleNotesSidebar;
+  const toggleAIPanel = toggleNotesAIPanel;
   
   const RESIZE_HANDLE_WIDTH = 4;
   
