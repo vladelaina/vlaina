@@ -77,12 +77,39 @@ const protectHeadingPlugin = $prose(() => {
         if (!firstNode || firstNode.type.name !== 'heading') return false;
         
         const firstNodeStart = 1;
+        
+        // Prevent backspace at the start of h1
         if (event.key === 'Backspace' && empty && from === firstNodeStart) {
           return true;
         }
         
         return false;
       }
+    },
+    appendTransaction(transactions, oldState, newState) {
+      const oldFirstNode = oldState.doc.firstChild;
+      const newFirstNode = newState.doc.firstChild;
+      
+      // Check if h1 heading was removed or changed to non-heading
+      const hadH1 = oldFirstNode && oldFirstNode.type.name === 'heading' && oldFirstNode.attrs.level === 1;
+      const hasH1 = newFirstNode && newFirstNode.type.name === 'heading' && newFirstNode.attrs.level === 1;
+      
+      if (hadH1 && !hasH1) {
+        // Restore an empty h1 heading and set cursor to it
+        const { tr } = newState;
+        const headingType = newState.schema.nodes.heading;
+        const emptyHeading = headingType.create({ level: 1 });
+        
+        // Insert empty h1 at the beginning
+        tr.insert(0, emptyHeading);
+        
+        // Set cursor to the beginning of the h1 (position 1)
+        tr.setSelection(newState.selection.constructor.near(tr.doc.resolve(1)));
+        
+        return tr;
+      }
+      
+      return null;
     }
   });
 });
