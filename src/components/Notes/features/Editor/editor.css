@@ -358,3 +358,980 @@
   border-radius: 0.5rem;
   margin-bottom: 1rem;
 }
+
+/* ============================================
+   Enhanced Markdown & LaTeX Support Styles
+   ============================================ */
+
+/* Math Block Styles */
+.math-block-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  margin: 1rem 0;
+  background-color: var(--neko-bg-secondary);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.math-block-wrapper:hover {
+  background-color: var(--neko-bg-tertiary);
+}
+
+.math-block-wrapper .katex-display {
+  margin: 0;
+}
+
+/* Math Inline Styles */
+.math-inline-wrapper {
+  display: inline;
+  cursor: pointer;
+  padding: 0 0.125rem;
+  border-radius: 0.25rem;
+  transition: background-color 0.15s;
+}
+
+.math-inline-wrapper:hover {
+  background-color: var(--neko-bg-tertiary);
+}
+
+/* Math Placeholder */
+.math-placeholder {
+  color: var(--neko-text-tertiary);
+  font-style: italic;
+}
+
+/* Math Error */
+.math-error {
+  color: #ef4444;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+  background-color: #fef2f2;
+  border-radius: 0.25rem;
+}
+
+.dark .math-error {
+  background-color: #450a0a;
+}
+
+/* Code Block Container */
+.code-block-container {
+  position: relative;
+  margin: 1rem 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background-color: #18181b;
+  border: 1px solid var(--neko-border);
+}
+
+.dark .code-block-container {
+  background-color: #09090b;
+}
+
+/* Code Block Toolbar */
+.code-block-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background-color: #27272a;
+  border-bottom: 1px solid #3f3f46;
+}
+
+.dark .code-block-toolbar {
+  background-color: #18181b;
+}
+
+.code-block-lang-select {
+  background-color: transparent;
+  color: #a1a1aa;
+  border: none;
+  font-size: 0.75rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.code-block-lang-select option {
+  background-color: #27272a;
+}
+
+.code-block-copy-btn,
+.code-block-wrap-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  color: #71717a;
+  background: transparent;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.code-block-copy-btn:hover,
+.code-block-wrap-btn:hover {
+  color: #e4e4e7;
+}
+
+/* Code Block Content */
+.code-block-content {
+  position: relative;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.code-block-content.wrap {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.code-block-content .shiki {
+  background: transparent !important;
+  margin: 0;
+  padding: 0;
+}
+
+.code-block-content .shiki code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+/* Code Block Line Numbers */
+.code-block-line-numbers {
+  position: absolute;
+  left: 0;
+  top: 1rem;
+  display: flex;
+  flex-direction: column;
+  padding-right: 1rem;
+  border-right: 1px solid #3f3f46;
+  user-select: none;
+}
+
+.code-block-line-numbers span {
+  color: #52525b;
+  font-size: 0.75rem;
+  line-height: 1.7;
+  text-align: right;
+  min-width: 2rem;
+  padding-right: 0.5rem;
+}
+
+.code-block-content:has(.code-block-line-numbers) .shiki {
+  padding-left: 3rem;
+}
+
+/* Code Block Editable (hidden) */
+.code-block-editable {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Slash Menu */
+.slash-menu {
+  position: fixed;
+  z-index: 100;
+  min-width: 280px;
+  max-width: 320px;
+  max-height: 360px;
+  overflow-y: auto;
+  background-color: var(--neko-bg-secondary);
+  border: 1px solid var(--neko-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.2);
+  padding: 0.5rem;
+}
+
+.slash-menu-group {
+  margin-bottom: 0.5rem;
+}
+
+.slash-menu-group:last-child {
+  margin-bottom: 0;
+}
+
+.slash-menu-group-title {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--neko-text-tertiary);
+  padding: 0.375rem 0.5rem;
+}
+
+.slash-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.slash-menu-item:hover,
+.slash-menu-item.selected {
+  background-color: var(--neko-bg-hover);
+}
+
+.slash-menu-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background-color: var(--neko-bg-tertiary);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.slash-menu-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.slash-menu-item-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--neko-text-primary);
+}
+
+.slash-menu-item-desc {
+  font-size: 0.75rem;
+  color: var(--neko-text-tertiary);
+}
+
+/* Callout Block */
+.callout {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  border-radius: 0.5rem;
+  border-left: 4px solid;
+}
+
+.callout-icon {
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.callout-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.callout-content > *:first-child {
+  margin-top: 0;
+}
+
+.callout-content > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Callout Colors */
+.callout-yellow {
+  background-color: #fefce8;
+  border-left-color: #eab308;
+}
+
+.dark .callout-yellow {
+  background-color: #422006;
+}
+
+.callout-blue {
+  background-color: #eff6ff;
+  border-left-color: #3b82f6;
+}
+
+.dark .callout-blue {
+  background-color: #172554;
+}
+
+.callout-green {
+  background-color: #f0fdf4;
+  border-left-color: #22c55e;
+}
+
+.dark .callout-green {
+  background-color: #052e16;
+}
+
+.callout-red {
+  background-color: #fef2f2;
+  border-left-color: #ef4444;
+}
+
+.dark .callout-red {
+  background-color: #450a0a;
+}
+
+.callout-purple {
+  background-color: #faf5ff;
+  border-left-color: #a855f7;
+}
+
+.dark .callout-purple {
+  background-color: #3b0764;
+}
+
+.callout-gray {
+  background-color: #f4f4f5;
+  border-left-color: #71717a;
+}
+
+.dark .callout-gray {
+  background-color: #27272a;
+}
+
+/* Table Context Menu */
+.table-context-menu {
+  position: fixed;
+  z-index: 100;
+  min-width: 180px;
+  background-color: var(--neko-bg-secondary);
+  border: 1px solid var(--neko-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.2);
+  padding: 0.375rem;
+}
+
+.table-menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  text-align: left;
+  color: var(--neko-text-primary);
+  background: transparent;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.table-menu-item:hover {
+  background-color: var(--neko-bg-hover);
+}
+
+.table-menu-item.danger {
+  color: #ef4444;
+}
+
+.table-menu-item.danger:hover {
+  background-color: #fef2f2;
+}
+
+.dark .table-menu-item.danger:hover {
+  background-color: #450a0a;
+}
+
+.table-menu-divider {
+  height: 1px;
+  background-color: var(--neko-border);
+  margin: 0.375rem 0;
+}
+
+/* Drag Handle */
+.drag-handle {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--neko-text-tertiary);
+  cursor: grab;
+  border-radius: 0.25rem;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.drag-handle:hover {
+  color: var(--neko-text-secondary);
+  background-color: var(--neko-bg-hover);
+}
+
+.drag-handle.dragging {
+  cursor: grabbing;
+  opacity: 0.5;
+}
+
+/* Drop Indicator */
+.drop-indicator {
+  position: fixed;
+  z-index: 100;
+  height: 3px;
+  background-color: var(--neko-accent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* Link Popover */
+.link-popover {
+  position: fixed;
+  z-index: 100;
+  background-color: var(--neko-bg-secondary);
+  border: 1px solid var(--neko-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.2);
+  padding: 0.75rem;
+  min-width: 280px;
+}
+
+.link-popover-input {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  background-color: var(--neko-bg-primary);
+  border: 1px solid var(--neko-border);
+  border-radius: 0.375rem;
+  color: var(--neko-text-primary);
+  outline: none;
+  margin-bottom: 0.5rem;
+}
+
+.link-popover-input:focus {
+  border-color: var(--neko-accent);
+}
+
+.link-popover-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.link-popover-btn {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.link-popover-btn-primary {
+  background-color: var(--neko-accent);
+  color: white;
+  border: none;
+}
+
+.link-popover-btn-secondary {
+  background-color: transparent;
+  color: var(--neko-text-secondary);
+  border: 1px solid var(--neko-border);
+}
+
+.link-popover-btn:hover {
+  opacity: 0.9;
+}
+
+
+/* Math Editor Popup */
+.math-editor-popup {
+  position: fixed;
+  z-index: 100;
+  min-width: 320px;
+  max-width: 480px;
+  background-color: var(--neko-bg-secondary);
+  border: 1px solid var(--neko-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.2);
+  overflow: hidden;
+}
+
+.math-editor-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--neko-border);
+}
+
+.math-editor-title {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--neko-text-secondary);
+}
+
+.math-editor-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 0.75rem 1rem;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.875rem;
+  color: var(--neko-text-primary);
+  background-color: var(--neko-bg-primary);
+  border: none;
+  border-bottom: 1px solid var(--neko-border);
+  resize: vertical;
+  outline: none;
+}
+
+.math-editor-textarea::placeholder {
+  color: var(--neko-text-tertiary);
+}
+
+.math-editor-preview {
+  min-height: 40px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--neko-bg-primary);
+  border-bottom: 1px solid var(--neko-border);
+}
+
+.math-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.math-editor-btn {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.math-editor-btn.cancel {
+  color: var(--neko-text-secondary);
+  background: transparent;
+  border: 1px solid var(--neko-border);
+}
+
+.math-editor-btn.cancel:hover {
+  background-color: var(--neko-bg-hover);
+}
+
+.math-editor-btn.save {
+  color: white;
+  background-color: var(--neko-accent);
+  border: none;
+}
+
+.math-editor-btn.save:hover {
+  opacity: 0.9;
+}
+
+/* ============================================
+   Extended Markdown Syntax Styles
+   ============================================ */
+
+/* Highlight ==text== */
+.milkdown mark.highlight,
+.milkdown .highlight {
+  background-color: #fef08a;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.125rem;
+}
+
+.dark .milkdown mark.highlight,
+.dark .milkdown .highlight {
+  background-color: #854d0e;
+  color: #fef9c3;
+}
+
+/* Superscript ^text^ */
+.milkdown sup.superscript,
+.milkdown .superscript {
+  font-size: 0.75em;
+  vertical-align: super;
+  line-height: 0;
+}
+
+/* Subscript ~text~ */
+.milkdown sub.subscript,
+.milkdown .subscript {
+  font-size: 0.75em;
+  vertical-align: sub;
+  line-height: 0;
+}
+
+/* Autolink */
+.milkdown .autolink {
+  color: var(--neko-accent);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--neko-accent);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.milkdown .autolink:hover {
+  border-bottom-style: solid;
+}
+
+/* ============================================
+   Footnote Styles
+   ============================================ */
+
+.milkdown .footnote-ref {
+  font-size: 0.75em;
+  vertical-align: super;
+  line-height: 0;
+}
+
+.milkdown .footnote-ref a {
+  color: var(--neko-accent);
+  text-decoration: none;
+  padding: 0 0.125rem;
+}
+
+.milkdown .footnote-ref a:hover {
+  text-decoration: underline;
+}
+
+.milkdown .footnote-def {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  background-color: var(--neko-bg-secondary);
+  border-radius: 0.375rem;
+  border-left: 3px solid var(--neko-accent);
+  font-size: 0.875rem;
+}
+
+.milkdown .footnote-def-label {
+  color: var(--neko-accent);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.milkdown .footnote-def-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.milkdown .footnote-def-content > *:first-child {
+  margin-top: 0;
+}
+
+.milkdown .footnote-def-content > *:last-child {
+  margin-bottom: 0;
+}
+
+/* ============================================
+   TOC (Table of Contents) Styles
+   ============================================ */
+
+.milkdown .toc-block {
+  padding: 1rem;
+  margin: 1rem 0;
+  background-color: var(--neko-bg-secondary);
+  border: 1px solid var(--neko-border);
+  border-radius: 0.5rem;
+}
+
+.milkdown .toc-title {
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--neko-text-primary);
+}
+
+.milkdown .toc-nav {
+  font-size: 0.875rem;
+}
+
+.milkdown .toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.milkdown .toc-item {
+  margin: 0.25rem 0;
+}
+
+.milkdown .toc-link {
+  color: var(--neko-text-secondary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.milkdown .toc-link:hover {
+  color: var(--neko-accent);
+}
+
+.milkdown .toc-level-1 { font-weight: 600; }
+.milkdown .toc-level-2 { font-weight: 500; }
+
+.milkdown .toc-empty {
+  color: var(--neko-text-tertiary);
+  font-style: italic;
+}
+
+/* ============================================
+   Mermaid Diagram Styles
+   ============================================ */
+
+.milkdown .mermaid-block {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  background-color: var(--neko-bg-secondary);
+  border: 1px solid var(--neko-border);
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+
+.milkdown .mermaid-placeholder {
+  color: var(--neko-text-tertiary);
+  font-style: italic;
+}
+
+.milkdown .mermaid-empty {
+  color: var(--neko-text-tertiary);
+  font-style: italic;
+}
+
+.milkdown .mermaid-error {
+  color: #ef4444;
+  font-size: 0.875rem;
+  padding: 0.5rem;
+  background-color: #fef2f2;
+  border-radius: 0.25rem;
+}
+
+.dark .milkdown .mermaid-error {
+  background-color: #450a0a;
+}
+
+/* ============================================
+   Enhanced Code Block Styles
+   ============================================ */
+
+.code-block-enhanced {
+  position: relative;
+  margin: 1rem 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background-color: #18181b;
+  border: 1px solid var(--neko-border);
+}
+
+.dark .code-block-enhanced {
+  background-color: #09090b;
+}
+
+.code-block-enhanced .code-block-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background-color: #27272a;
+  border-bottom: 1px solid #3f3f46;
+}
+
+.dark .code-block-enhanced .code-block-toolbar {
+  background-color: #18181b;
+}
+
+.code-block-enhanced .code-block-lang {
+  font-size: 0.75rem;
+  color: #a1a1aa;
+  text-transform: lowercase;
+}
+
+.code-block-enhanced .code-block-copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  color: #71717a;
+  background: transparent;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.code-block-enhanced .code-block-copy-btn:hover {
+  color: #e4e4e7;
+  background-color: #3f3f46;
+}
+
+.code-block-enhanced .code-block-copy-btn.copied {
+  color: #22c55e;
+}
+
+.code-block-enhanced .code-block-content {
+  display: flex;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.code-block-enhanced .code-block-line-numbers {
+  display: flex;
+  flex-direction: column;
+  padding-right: 1rem;
+  margin-right: 1rem;
+  border-right: 1px solid #3f3f46;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.code-block-enhanced .code-block-line-numbers span {
+  color: #52525b;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  line-height: 1.7;
+  text-align: right;
+  min-width: 1.5rem;
+}
+
+.code-block-enhanced .code-block-line-numbers span.highlighted {
+  color: #a1a1aa;
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.code-block-enhanced .code-block-code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.code-block-enhanced .code-block-code .shiki {
+  background: transparent !important;
+  margin: 0;
+  padding: 0;
+}
+
+.code-block-enhanced .code-block-code .shiki code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.code-block-enhanced .code-block-code .line.highlighted {
+  background-color: rgba(59, 130, 246, 0.15);
+  margin: 0 -1rem;
+  padding: 0 1rem;
+  display: block;
+}
+
+/* ============================================
+   Definition List Styles (for future use)
+   ============================================ */
+
+.milkdown dl {
+  margin: 1rem 0;
+}
+
+.milkdown dt {
+  font-weight: 600;
+  color: var(--neko-text-primary);
+  margin-top: 0.5rem;
+}
+
+.milkdown dd {
+  margin-left: 1.5rem;
+  color: var(--neko-text-secondary);
+}
+
+/* ============================================
+   Abbreviation Styles (for future use)
+   ============================================ */
+
+.milkdown abbr {
+  text-decoration: underline dotted;
+  cursor: help;
+}
+
+/* ============================================
+   Video Embed Styles
+   ============================================ */
+
+.milkdown .video-block {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  margin: 1rem 0;
+  background-color: var(--neko-bg-secondary);
+  border: 1px solid var(--neko-border);
+  border-radius: 0.5rem;
+}
+
+.milkdown .video-block iframe,
+.milkdown .video-block video {
+  max-width: 100%;
+  border-radius: 0.375rem;
+}
+
+.milkdown .video-placeholder {
+  color: var(--neko-text-tertiary);
+  font-style: italic;
+  padding: 2rem;
+}
+
+.milkdown .video-error {
+  color: #ef4444;
+  font-size: 0.875rem;
+  padding: 1rem;
+  background-color: #fef2f2;
+  border-radius: 0.25rem;
+}
+
+.dark .milkdown .video-error {
+  background-color: #450a0a;
+}
+
+/* ============================================
+   Abbreviation Styles
+   ============================================ */
+
+.milkdown abbr.abbr {
+  text-decoration: underline dotted;
+  text-decoration-color: var(--neko-accent);
+  cursor: help;
+}
+
+.milkdown abbr.abbr:hover {
+  text-decoration-style: solid;
+}
+
+/* ============================================
+   Definition List Styles
+   ============================================ */
+
+.milkdown dl.definition-list {
+  margin: 1rem 0;
+  padding: 0;
+}
+
+.milkdown dt.definition-term {
+  font-weight: 600;
+  color: var(--neko-text-primary);
+  margin-top: 0.75rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--neko-border);
+}
+
+.milkdown dt.definition-term:first-child {
+  margin-top: 0;
+}
+
+.milkdown dd.definition-desc {
+  margin-left: 1.5rem;
+  margin-top: 0.25rem;
+  color: var(--neko-text-secondary);
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--neko-accent-light);
+}
+
+.milkdown dd.definition-desc > *:first-child {
+  margin-top: 0;
+}
+
+.milkdown dd.definition-desc > *:last-child {
+  margin-bottom: 0;
+}

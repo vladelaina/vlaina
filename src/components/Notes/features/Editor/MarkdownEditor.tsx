@@ -17,8 +17,46 @@ import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
 import { IconPicker, NoteIcon } from '../IconPicker';
 
+// Custom plugins
+import { mathPlugin, mathClickPlugin } from './plugins/math';
+import { slashPlugin } from './plugins/slash';
+import { calloutPlugin } from './plugins/callout';
+import { tablePlugin } from './plugins/table';
+import { dragPlugin } from './plugins/drag';
+import { highlightPlugin } from './plugins/highlight';
+import { footnotePlugin } from './plugins/footnote';
+import { autolinkPlugin } from './plugins/autolink';
+import { tocPlugin } from './plugins/toc';
+import { mermaidPlugin } from './plugins/mermaid';
+import { codeEnhancePlugin } from './plugins/code';
+import { deflistPlugin } from './plugins/deflist';
+import { videoPlugin } from './plugins/video';
+import { abbrPlugin } from './plugins/abbr';
+import { wikiLinkPlugin } from './WikiLinkPlugin';
+
 // Editor styles
 import './editor.css';
+
+// Flatten plugin arrays for Milkdown
+const customPlugins = [
+  ...mathPlugin,
+  mathClickPlugin,
+  slashPlugin,
+  ...calloutPlugin,
+  tablePlugin,
+  dragPlugin,
+  // Extended markdown syntax
+  ...highlightPlugin,
+  ...footnotePlugin,
+  autolinkPlugin,
+  ...tocPlugin,
+  ...mermaidPlugin,
+  codeEnhancePlugin,
+  ...deflistPlugin,
+  ...videoPlugin,
+  abbrPlugin,
+  wikiLinkPlugin
+];
 
 const protectHeadingPluginKey = new PluginKey('protectHeading');
 
@@ -125,7 +163,8 @@ function MilkdownEditorInner() {
       .use(history)
       .use(listener)
       .use(protectHeadingPlugin)
-      .use(titleSyncPlugin),
+      .use(titleSyncPlugin)
+      .use(customPlugins),
     [currentNote?.path]
   );
 
