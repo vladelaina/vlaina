@@ -5,5 +5,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// 图标按钮的默认样式：淡色默认，hover 时深色，无背景
+// Icon button default styles: subtle color by default, darker on hover, no background
 export const iconButtonStyles = "text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-secondary)] transition-colors bg-transparent hover:bg-transparent";
+
+// Notes sidebar color constants
+export const NOTES_COLORS = {
+  sidebarBg: '#F9F8F7',
+  divider: '#EEEEEC',
+  dividerHover: '#E0DFDE',
+  activeItem: '#F1F0EF',
+} as const;

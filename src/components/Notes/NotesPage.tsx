@@ -28,7 +28,7 @@ import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
 import { IconButton } from '@/components/ui/icon-button';
 import './features/BlockEditor/styles.css';
-import { cn } from '@/lib/utils';
+import { cn, NOTES_COLORS } from '@/lib/utils';
 
 const SIDEBAR_MIN_WIDTH = 200;
 const SIDEBAR_MAX_WIDTH = 400;
@@ -167,10 +167,12 @@ export function NotesPage() {
       <aside 
         className={cn(
           "flex-shrink-0 flex flex-col overflow-hidden select-none",
-          "bg-[var(--neko-sidebar-bg)]",
           sidebarCollapsed && "w-0"
         )}
-        style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
+        style={{ 
+          width: sidebarCollapsed ? 0 : sidebarWidth,
+          backgroundColor: NOTES_COLORS.sidebarBg,
+        }}
       >
 
         <div className="px-2 pt-3 pb-2">
@@ -205,7 +207,7 @@ export function NotesPage() {
 
       {!sidebarCollapsed && (
         <>
-          <div className="w-1 flex-shrink-0 bg-[var(--neko-sidebar-bg)]" />
+          <div className="w-0.5 flex-shrink-0" style={{ backgroundColor: NOTES_COLORS.sidebarBg }} />
           <div
             onMouseDown={handleDragStart}
             className={cn(
@@ -216,11 +218,12 @@ export function NotesPage() {
             style={{ left: sidebarWidth - 2 }}
           >
             <div 
-              className={cn(
-                "w-0.5 h-full transition-colors",
-                "group-hover:bg-[var(--neko-accent)]",
-                isDragging && "bg-[var(--neko-accent)]"
-              )}
+              className="w-0.5 h-full transition-colors"
+              style={{ 
+                backgroundColor: isDragging ? NOTES_COLORS.dividerHover : NOTES_COLORS.divider,
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = NOTES_COLORS.dividerHover}
+              onMouseLeave={(e) => !isDragging && (e.currentTarget.style.backgroundColor = NOTES_COLORS.divider)}
             />
           </div>
         </>

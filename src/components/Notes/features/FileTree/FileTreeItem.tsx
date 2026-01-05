@@ -12,7 +12,7 @@ import {
 } from '@tabler/icons-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { useDisplayName, useDisplayIcon } from '@/hooks/useTitleSync';
-import { cn, iconButtonStyles } from '@/lib/utils';
+import { cn, iconButtonStyles, NOTES_COLORS } from '@/lib/utils';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import {
   Dialog,
@@ -149,14 +149,20 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
         onDrop={handleDrop}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-        style={{ paddingLeft }}
-        className={cn(
-          "group flex items-center gap-1 h-[30px] pr-2 rounded-md cursor-pointer transition-colors",
-          "hover:bg-[var(--neko-hover)]",
-          isActive && "bg-[var(--neko-accent-light)] text-[var(--neko-accent)]",
-          isDragOver && "bg-[var(--neko-accent-light)] ring-1 ring-[var(--neko-accent)]"
-        )}
+        className="flex items-center h-[30px] cursor-pointer"
       >
+        {/* Indent spacer - no background */}
+        <div style={{ width: paddingLeft }} className="flex-shrink-0" />
+        
+        {/* Content with background */}
+        <div
+          className={cn(
+            "group flex-1 flex items-center gap-1 h-full pr-2 rounded-md transition-colors",
+            "hover:bg-[var(--neko-hover)]",
+            isDragOver && "bg-[var(--neko-accent-light)] ring-1 ring-[var(--neko-accent)]"
+          )}
+          style={isActive ? { backgroundColor: NOTES_COLORS.activeItem } : undefined}
+        >
         {node.isFolder ? (
           <span className="w-4 h-4 flex items-center justify-center">
             <IconChevronRight 
@@ -172,21 +178,11 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
 
         <span className="w-4 h-4 flex items-center justify-center">
           {node.isFolder ? (
-            <IconFolder 
-              className={cn(
-                "w-4 h-4",
-                isActive ? "text-[var(--neko-accent)]" : "text-amber-500"
-              )} 
-            />
+            <IconFolder className="w-4 h-4 text-amber-500" />
           ) : noteIcon ? (
             <NoteIcon icon={noteIcon} size={16} />
           ) : (
-            <IconFileText 
-              className={cn(
-                "w-4 h-4",
-                isActive ? "text-[var(--neko-accent)]" : "text-[var(--neko-icon-secondary)]"
-              )} 
-            />
+            <IconFileText className="w-4 h-4 text-[var(--neko-icon-secondary)]" />
           )}
         </span>
 
@@ -210,10 +206,8 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
           />
         ) : (
           <span className={cn(
-            "flex-1 min-w-0 text-[13px] truncate",
-            isActive 
-              ? "text-[var(--neko-accent)] font-medium" 
-              : "text-[var(--neko-text-primary)]"
+            "flex-1 min-w-0 text-[13px] truncate text-[var(--neko-text-primary)]",
+            isActive && "font-medium"
           )}>
             {displayName}
           </span>
@@ -239,6 +233,7 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
         >
           <IconDots className="w-4 h-4" />
         </button>
+        </div>
       </div>
 
       {showMenu && createPortal(

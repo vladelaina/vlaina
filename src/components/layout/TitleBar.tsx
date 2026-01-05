@@ -15,7 +15,7 @@ import { TitleBarButton } from './TitleBarButton';
 import { useUIStore } from '@/stores/uiSlice';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
-import { cn } from '@/lib/utils';
+import { cn, NOTES_COLORS } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
 import { useShortcuts } from '@/hooks/useShortcuts';
@@ -274,7 +274,8 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) startDrag();
       }}
-      className="h-10 bg-[#F6F6F6] dark:bg-zinc-900 flex items-center select-none relative z-50"
+      className="h-10 dark:bg-zinc-900 flex items-center select-none relative z-50"
+      style={{ backgroundColor: NOTES_COLORS.sidebarBg }}
     >
       {/* Left sidebar area - matches sidebar width */}
       {appViewMode === 'notes' && !sidebarCollapsed && (
