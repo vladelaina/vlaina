@@ -8,4 +8,3 @@ export {
   toggleSuperscriptCommand,
   toggleSubscriptCommand
 } from './highlightPlugin';
-export type { HighlightMarkAttrs, SuperscriptMarkAttrs, SubscriptMarkAttrs } from './types';

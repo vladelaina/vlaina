@@ -5,4 +5,3 @@ export {
   definitionTermSchema,
   definitionDescSchema
 } from './deflistPlugin';
-export type { DefinitionListAttrs, DefinitionTermAttrs, DefinitionDescAttrs } from './types';
