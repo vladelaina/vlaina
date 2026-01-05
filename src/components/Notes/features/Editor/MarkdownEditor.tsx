@@ -296,10 +296,7 @@ export function MarkdownEditor() {
       <div className="flex-1 overflow-auto neko-scrollbar">
         <div className="max-w-[800px] mx-auto w-full px-10">
           <div 
-            className={cn(
-              "pt-6",
-              displayIcon ? "pb-5" : "pb-2"
-            )}
+            className="pt-6 pb-5"
             onMouseEnter={() => setIsHoveringHeader(true)}
             onMouseLeave={() => setIsHoveringHeader(false)}
           >
@@ -311,6 +308,19 @@ export function MarkdownEditor() {
               >
                 <NoteIcon icon={displayIcon} size={48} />
               </button>
+            ) : showIconPicker ? (
+              <div className="h-14 flex items-center">
+                <button
+                  ref={iconButtonRef}
+                  className={cn(
+                    "flex items-center gap-1.5 py-1 rounded-md text-sm",
+                    "text-zinc-400 dark:text-zinc-500"
+                  )}
+                >
+                  <IconHeartbeat className="size-4" />
+                  <span>Add icon</span>
+                </button>
+              </div>
             ) : (
               <button
                 ref={iconButtonRef}
