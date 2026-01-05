@@ -172,16 +172,6 @@ function MilkdownEditorInner() {
     [currentNote?.path]
   );
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const editor = document.querySelector('.milkdown .ProseMirror') as HTMLElement;
-      if (editor) {
-        editor.focus();
-      }
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [currentNote?.path]);
-
   return (
     <div className="milkdown-editor">
       <Milkdown />
