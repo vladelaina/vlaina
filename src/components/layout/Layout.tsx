@@ -176,9 +176,9 @@ export function Layout({ children, onOpenSettings, toolbar, content, leftPanel, 
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
       <TitleBar onOpenSettings={onOpenSettings} toolbar={toolbar} content={content} />
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-hidden">{children}</main>
     </div>
   );
 }

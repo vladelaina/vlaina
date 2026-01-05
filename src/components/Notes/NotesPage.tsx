@@ -159,7 +159,7 @@ export function NotesPage() {
 
   return (
     <div className={cn(
-      "h-full flex",
+      "h-full flex overflow-hidden",
       "bg-[var(--neko-bg-primary)]",
       isDragging && "select-none cursor-col-resize"
     )}>
@@ -339,15 +339,23 @@ function WorkspaceSection({
 }) {
   const [expanded, setExpanded] = useState(true);
   
+  const handleHeaderClick = (e: React.MouseEvent) => {
+    // 只有点击非按钮区域才切换展开状态
+    const target = e.target as HTMLElement;
+    if (!target.closest('button')) {
+      setExpanded(!expanded);
+    }
+  };
+  
   return (
     <div>
       {/* Header */}
       <div className="px-2 py-1">
-        <div className="group flex items-center justify-between px-2 py-1 rounded-md hover:bg-[var(--neko-hover)] transition-colors">
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="flex items-center gap-1.5"
-          >
+        <div 
+          onClick={handleHeaderClick}
+          className="group flex items-center justify-between px-2 py-1 rounded-md hover:bg-[var(--neko-hover)] transition-colors cursor-pointer"
+        >
+          <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider">
               Workspace
             </span>
@@ -357,7 +365,7 @@ function WorkspaceSection({
                 expanded ? "rotate-180" : "rotate-90"
               )} 
             />
-          </button>
+          </div>
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
             <IconButton
               icon={<IconPlus className="w-3.5 h-3.5" />}
