@@ -16,6 +16,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
 import { IconPicker, NoteIcon } from '../IconPicker';
+import { CustomScrollbar } from '@/components/ui/custom-scrollbar';
 
 // Custom plugins - unified import
 import {
@@ -293,7 +294,7 @@ export function MarkdownEditor() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto neko-scrollbar">
+      <CustomScrollbar className="flex-1">
         <div className="max-w-[800px] mx-auto w-full px-10">
           <div 
             className="pt-6 pb-5"
@@ -359,7 +360,7 @@ export function MarkdownEditor() {
         <MilkdownProvider key={currentNote?.path}>
           <MilkdownEditorInner />
         </MilkdownProvider>
-      </div>
+      </CustomScrollbar>
     </div>
   );
 }
