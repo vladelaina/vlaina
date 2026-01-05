@@ -272,7 +272,7 @@
 
 /* Cursor */
 .milkdown .ProseMirror {
-  caret-color: var(--neko-accent);
+  caret-color: #2C2C2B;
 }
 
 /* Wiki Links [[note]] */
