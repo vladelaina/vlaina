@@ -1,6 +1,7 @@
 // FileTreeItem - Individual file or folder item
 
 import { useState, useRef, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   IconChevronRight, 
   IconDots, 
@@ -11,7 +12,7 @@ import {
 } from '@tabler/icons-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { useDisplayName, useDisplayIcon } from '@/hooks/useTitleSync';
-import { cn } from '@/lib/utils';
+import { cn, iconButtonStyles } from '@/lib/utils';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import {
   Dialog,
@@ -42,11 +43,13 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
   const noteIcon = useDisplayIcon(node.isFolder ? undefined : node.path);
   
   const [showMenu, setShowMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(node.name);
   const [isDragOver, setIsDragOver] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const isActive = !node.isFolder && node.path === currentNotePath;
   const paddingLeft = 8 + depth * 16;
@@ -217,29 +220,38 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
         )}
 
         <button
+          ref={buttonRef}
           onClick={(e) => {
             e.stopPropagation();
+            if (!showMenu && buttonRef.current) {
+              const rect = buttonRef.current.getBoundingClientRect();
+              setMenuPosition({
+                top: rect.bottom + 4,
+                left: rect.right - 160,
+              });
+            }
             setShowMenu(!showMenu);
           }}
           className={cn(
-            "p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity",
-            "hover:bg-[var(--neko-bg-active)] text-[var(--neko-icon-secondary)]"
+            "p-0.5 opacity-0 group-hover:opacity-100 transition-opacity",
+            iconButtonStyles
           )}
         >
           <IconDots className="w-4 h-4" />
         </button>
       </div>
 
-      {showMenu && (
+      {showMenu && createPortal(
         <>
           <div 
-            className="fixed inset-0 z-40" 
+            className="fixed inset-0 z-[9998]" 
             onClick={() => setShowMenu(false)}
           />
           <div 
             ref={menuRef}
+            style={{ top: menuPosition.top, left: menuPosition.left }}
             className={cn(
-              "absolute right-1 top-full z-50 min-w-[160px] py-1.5 rounded-lg shadow-lg",
+              "fixed z-[9999] min-w-[160px] py-1.5 rounded-lg shadow-lg",
               "bg-[var(--neko-bg-primary)] border border-[var(--neko-border)]"
             )}
           >
@@ -270,7 +282,8 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
               danger 
             />
           </div>
-        </>
+        </>,
+        document.body
       )}
 
       {node.isFolder && node.expanded && node.children.length > 0 && (

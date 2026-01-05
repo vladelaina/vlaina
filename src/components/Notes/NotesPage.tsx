@@ -4,10 +4,9 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { 
   IconSearch, 
   IconPlus,
-  IconFiles,
-  IconStar,
-  IconTrash,
   IconFolder,
+  IconTriangleFilled,
+  IconStar,
 } from '@tabler/icons-react';
 
 function SparklesFilledIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
@@ -22,11 +21,12 @@ function SparklesFilledIcon({ className, style }: { className?: string; style?: 
     </svg>
   );
 }
-import { useNotesStore } from '@/stores/useNotesStore';
+import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { FileTree } from './features/FileTree';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
+import { IconButton } from '@/components/ui/icon-button';
 import './features/BlockEditor/styles.css';
 import { cn } from '@/lib/utils';
 
@@ -166,7 +166,7 @@ export function NotesPage() {
 
       <aside 
         className={cn(
-          "flex-shrink-0 flex flex-col overflow-hidden",
+          "flex-shrink-0 flex flex-col overflow-hidden select-none",
           "bg-[var(--neko-sidebar-bg)]",
           sidebarCollapsed && "w-0"
         )}
@@ -189,46 +189,17 @@ export function NotesPage() {
         </div>
 
         <div className="flex-1 overflow-auto neko-scrollbar">
-          <div className="px-3 py-1.5 flex items-center justify-between">
-            <span className="text-[11px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider">
-              Workspace
-            </span>
-            <div className="flex items-center gap-0.5">
-              <button
-                onClick={() => createNote()}
-                className="p-1 rounded hover:bg-[var(--neko-hover)] text-[var(--neko-icon-secondary)] transition-colors"
-                title="New Note"
-              >
-                <IconPlus className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => {
-                  const name = prompt('Folder name:');
-                  if (name?.trim()) createFolder('', name.trim());
-                }}
-                className="p-1 rounded hover:bg-[var(--neko-hover)] text-[var(--neko-icon-secondary)] transition-colors"
-                title="New Folder"
-              >
-                <IconFolder className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-          
-          <div className="px-1">
-            <FileTree 
-              rootFolder={rootFolder} 
-              isLoading={isLoading}
-              currentNotePath={currentNote?.path}
-            />
-          </div>
+          {/* Favorites Section */}
+          <FavoritesSection />
 
-          <div className="mx-3 my-3 h-px bg-[var(--neko-divider)]" />
-
-          <div className="px-2 space-y-0.5 pb-2">
-            <NavItem icon={<IconFiles />} label="All docs" />
-            <NavItem icon={<IconStar />} label="Favorites" />
-            <NavItem icon={<IconTrash />} label="Trash" />
-          </div>
+          {/* Workspace Section */}
+          <WorkspaceSection 
+            rootFolder={rootFolder}
+            isLoading={isLoading}
+            currentNotePath={currentNote?.path}
+            onCreateNote={() => createNote()}
+            onCreateFolder={(name) => createFolder('', name)}
+          />
         </div>
       </aside>
 
@@ -277,27 +248,158 @@ export function NotesPage() {
   );
 }
 
-function NavItem({ icon, label, active = false, onClick }: { 
-  icon: React.ReactNode; 
-  label: string; 
-  active?: boolean;
-  onClick?: () => void;
-}) {
+function FavoritesSection() {
+  const [expanded, setExpanded] = useState(true);
+  const { starredNotes, openNote, currentNote, getDisplayName, getNoteIcon } = useNotesStore();
+  
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors",
-        active 
-          ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)]" 
-          : "text-[var(--neko-text-secondary)] hover:bg-[var(--neko-hover)]"
-      )}
-    >
-      <span className="w-5 h-5 flex items-center justify-center text-[var(--neko-icon-primary)]">
-        {icon}
-      </span>
-      <span>{label}</span>
-    </button>
+    <div className="mb-2">
+      {/* Header */}
+      <div className="px-2 py-1">
+        <div 
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center justify-between px-2 py-1 rounded-md hover:bg-[var(--neko-hover)] transition-colors cursor-pointer"
+        >
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider">
+              Favorites
+            </span>
+            <IconTriangleFilled 
+              className={cn(
+                "w-1.5 h-1.5 text-[#CDCDCD] transition-transform",
+                expanded ? "rotate-180" : "rotate-90"
+              )} 
+            />
+          </div>
+        </div>
+      </div>
+      
+      {/* Content */}
+      <div 
+        className={cn(
+          "grid transition-[grid-template-rows] duration-200 ease-out",
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="px-1">
+            {starredNotes.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-8">
+                <div className="w-14 h-14 rounded-full bg-[var(--neko-bg-tertiary)] flex items-center justify-center">
+                  <IconStar className="w-6 h-6 text-[var(--neko-text-tertiary)]" />
+                </div>
+                <span className="text-[15px] text-[var(--neko-text-tertiary)]">No favorites</span>
+              </div>
+            ) : (
+              <div className="space-y-0.5">
+                {starredNotes.map((path) => {
+                  const displayName = getDisplayName(path);
+                  const icon = getNoteIcon(path);
+                  const isActive = currentNote?.path === path;
+                  
+                  return (
+                    <button
+                      key={path}
+                      onClick={() => openNote(path)}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-2 py-1 rounded-md text-[13px] transition-colors",
+                        isActive 
+                          ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)]" 
+                          : "text-[var(--neko-text-secondary)] hover:bg-[var(--neko-hover)]"
+                      )}
+                    >
+                      <span className="flex-shrink-0 text-base">
+                        {icon || '📄'}
+                      </span>
+                      <span className="truncate">{displayName}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WorkspaceSection({ 
+  rootFolder, 
+  isLoading, 
+  currentNotePath,
+  onCreateNote,
+  onCreateFolder
+}: { 
+  rootFolder: FolderNode | null;
+  isLoading: boolean;
+  currentNotePath?: string;
+  onCreateNote: () => void;
+  onCreateFolder: (name: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  
+  return (
+    <div>
+      {/* Header */}
+      <div className="px-2 py-1">
+        <div className="group flex items-center justify-between px-2 py-1 rounded-md hover:bg-[var(--neko-hover)] transition-colors">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-1.5"
+          >
+            <span className="text-[11px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider">
+              Workspace
+            </span>
+            <IconTriangleFilled 
+              className={cn(
+                "w-1.5 h-1.5 text-[#CDCDCD] transition-transform",
+                expanded ? "rotate-180" : "rotate-90"
+              )} 
+            />
+          </button>
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <IconButton
+              icon={<IconPlus className="w-3.5 h-3.5" />}
+              tooltip="New Doc"
+              onClick={() => {
+                if (!expanded) setExpanded(true);
+                onCreateNote();
+              }}
+            />
+            <IconButton
+              icon={<IconFolder className="w-3.5 h-3.5" />}
+              tooltip="New Folder"
+              onClick={() => {
+                const name = prompt('Folder name:');
+                if (name?.trim()) {
+                  if (!expanded) setExpanded(true);
+                  onCreateFolder(name.trim());
+                }
+              }}
+            />
+          </div>
+        </div>
+      </div>
+      
+      {/* Content */}
+      <div 
+        className={cn(
+          "grid transition-[grid-template-rows] duration-200 ease-out",
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="px-1">
+            <FileTree 
+              rootFolder={rootFolder} 
+              isLoading={isLoading}
+              currentNotePath={currentNotePath}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
