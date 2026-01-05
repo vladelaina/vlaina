@@ -13,6 +13,19 @@
   margin: 0 auto;
 }
 
+/* Heading hash decoration - show # marks when cursor is in heading */
+.milkdown .show-heading-hash::before {
+  content: attr(data-heading-hash);
+  color: #d4d4d8;
+  font-weight: normal;
+  user-select: none;
+  pointer-events: none;
+}
+
+.dark .milkdown .show-heading-hash::before {
+  color: #52525b;
+}
+
 /* Typography */
 .milkdown h1 {
   font-size: 2rem;

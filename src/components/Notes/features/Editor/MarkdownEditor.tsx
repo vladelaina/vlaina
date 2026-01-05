@@ -9,6 +9,7 @@ import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { IconDots, IconStar } from '@tabler/icons-react';
 import { IconHeartbeat } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -85,31 +86,52 @@ const protectHeadingPlugin = $prose(() => {
         
         return false;
       }
-    },
-    appendTransaction(transactions, oldState, newState) {
-      const oldFirstNode = oldState.doc.firstChild;
-      const newFirstNode = newState.doc.firstChild;
-      
-      // Check if h1 heading was removed or changed to non-heading
-      const hadH1 = oldFirstNode && oldFirstNode.type.name === 'heading' && oldFirstNode.attrs.level === 1;
-      const hasH1 = newFirstNode && newFirstNode.type.name === 'heading' && newFirstNode.attrs.level === 1;
-      
-      if (hadH1 && !hasH1) {
-        // Restore an empty h1 heading and set cursor to it
-        const { tr } = newState;
-        const headingType = newState.schema.nodes.heading;
-        const emptyHeading = headingType.create({ level: 1 });
+    }
+  });
+});
+
+// Plugin to show heading hash marks when cursor is in the heading (except first h1)
+const headingHashPluginKey = new PluginKey('headingHash');
+
+const headingHashPlugin = $prose(() => {
+  return new Plugin({
+    key: headingHashPluginKey,
+    props: {
+      decorations(state) {
+        const { doc, selection } = state;
+        const decorations: Decoration[] = [];
         
-        // Insert empty h1 at the beginning
-        tr.insert(0, emptyHeading);
+        // Find which heading the cursor is in
+        const $pos = selection.$from;
+        const parent = $pos.parent;
         
-        // Set cursor to the beginning of the h1 (position 1)
-        tr.setSelection(newState.selection.constructor.near(tr.doc.resolve(1)));
+        // Only proceed if cursor is in a heading
+        if (parent.type.name !== 'heading') {
+          return DecorationSet.empty;
+        }
         
-        return tr;
+        // Get the position of the heading node
+        const headingPos = $pos.before($pos.depth);
+        
+        // Check if this is the first h1 (document title) - skip it
+        const firstNode = doc.firstChild;
+        if (firstNode && headingPos === 0 && parent.attrs.level === 1) {
+          return DecorationSet.empty;
+        }
+        
+        const level = parent.attrs.level as number;
+        const hashes = '#'.repeat(level) + ' ';
+        
+        // Use node decoration to add ::before pseudo element via class
+        const nodeDecoration = Decoration.node(headingPos, headingPos + parent.nodeSize, {
+          class: `show-heading-hash heading-level-${level}`,
+          'data-heading-hash': hashes
+        });
+        
+        decorations.push(nodeDecoration);
+        
+        return DecorationSet.create(doc, decorations);
       }
-      
-      return null;
     }
   });
 });
@@ -194,6 +216,7 @@ function MilkdownEditorInner() {
       .use(history)
       .use(listener)
       .use(protectHeadingPlugin)
+      .use(headingHashPlugin)
       .use(titleSyncPlugin)
       .use(customPlugins),
     [currentNote?.path]
