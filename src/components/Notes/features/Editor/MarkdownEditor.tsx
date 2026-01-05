@@ -201,6 +201,7 @@ export function MarkdownEditor() {
   const starred = currentNote ? isStarred(currentNote.path) : false;
   const noteIcon = currentNote ? getNoteIcon(currentNote.path) : undefined;
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [isHoveringHeader, setIsHoveringHeader] = useState(false);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
   const previewRafRef = useRef<number | null>(null);
   const clearPreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -244,6 +245,7 @@ export function MarkdownEditor() {
   
   const handleIconPickerClose = () => {
     setShowIconPicker(false);
+    setIsHoveringHeader(false);
     if (previewRafRef.current !== null) {
       cancelAnimationFrame(previewRafRef.current);
       previewRafRef.current = null;
@@ -293,7 +295,14 @@ export function MarkdownEditor() {
 
       <div className="flex-1 overflow-auto neko-scrollbar">
         <div className="max-w-[800px] mx-auto w-full px-10">
-          <div className="pt-6 pb-5">
+          <div 
+            className={cn(
+              "pt-6",
+              displayIcon ? "pb-5" : "pb-2"
+            )}
+            onMouseEnter={() => setIsHoveringHeader(true)}
+            onMouseLeave={() => setIsHoveringHeader(false)}
+          >
             {displayIcon ? (
               <button
                 ref={iconButtonRef}
@@ -310,7 +319,8 @@ export function MarkdownEditor() {
                   "flex items-center gap-1.5 py-1 rounded-md text-sm",
                   "text-zinc-400 dark:text-zinc-500",
                   "hover:text-zinc-500 dark:hover:text-zinc-400",
-                  "transition-colors"
+                  "transition-all duration-150",
+                  isHoveringHeader ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
               >
                 <IconHeartbeat className="size-4" />

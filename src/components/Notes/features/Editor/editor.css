@@ -21,8 +21,6 @@
   margin-bottom: 1rem;
   line-height: 1.2;
   color: var(--neko-text-primary);
-  border-bottom: 1px solid var(--neko-divider);
-  padding-bottom: 0.5rem;
 }
 
 .milkdown h2 {
