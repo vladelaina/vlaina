@@ -21,7 +21,7 @@ export function CustomScrollbar({ children, className }: CustomScrollbarProps) {
   
   const dragStartY = useRef(0);
   const dragStartScrollTop = useRef(0);
-  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const updateThumb = useCallback(() => {
     const content = contentRef.current;

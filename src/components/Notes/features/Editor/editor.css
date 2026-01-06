@@ -13,17 +13,92 @@
   margin: 0 auto;
 }
 
-/* Heading hash decoration - show # marks when cursor is in heading */
-.milkdown .heading-hash-inline {
-  color: #d4d4d8;
+/* Heading hash marks - real editable text styled differently */
+.milkdown .heading-hash-text {
+  color: #a1a1aa;
   font-weight: normal;
-  user-select: none;
-  pointer-events: none;
-  display: inline;
+  cursor: text;
 }
 
-.dark .milkdown .heading-hash-inline {
+.dark .milkdown .heading-hash-text {
+  color: #71717a;
+}
+
+/* Heading hash marks - hover decoration (clickable) */
+.milkdown .heading-hash-hover {
+  color: #d4d4d8;
+  font-weight: normal;
+  cursor: pointer;
+  transition: color 0.15s;
+  user-select: none;
+}
+
+.milkdown .heading-hash-hover:hover {
+  color: var(--neko-accent);
+}
+
+.dark .milkdown .heading-hash-hover {
   color: #52525b;
+}
+
+.dark .milkdown .heading-hash-hover:hover {
+  color: var(--neko-accent);
+}
+
+/* Heading level selector menu (legacy) */
+.heading-level-menu {
+  background-color: var(--neko-bg-secondary, #fff);
+  border: 1px solid var(--neko-border, #e4e4e7);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.15);
+  padding: 0.25rem;
+  min-width: 160px;
+}
+
+.heading-level-item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  text-align: left;
+  color: var(--neko-text-primary, #18181b);
+  background: transparent;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.1s;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.heading-level-item:hover {
+  background-color: var(--neko-hover, #f4f4f5);
+}
+
+.heading-level-item.active {
+  background-color: var(--neko-accent-light, #eff6ff);
+  color: var(--neko-accent, #3b82f6);
+}
+
+.dark .heading-level-menu {
+  background-color: var(--neko-bg-secondary, #27272a);
+  border-color: var(--neko-border, #3f3f46);
+}
+
+.dark .heading-level-item {
+  color: var(--neko-text-primary, #fafafa);
+}
+
+.dark .heading-level-item:hover {
+  background-color: var(--neko-hover, #3f3f46);
+}
+
+/* Legacy styles */
+.milkdown .heading-node {
+  position: relative;
+}
+
+.milkdown .heading-content {
+  display: inline;
 }
 
 /* Typography */
@@ -241,7 +316,7 @@
   background-color: var(--neko-accent-light);
 }
 
-/* Placeholder - ProseMirror 内部会给 placeholder 元素设置 position: relative */
+/* Placeholder - ProseMirror sets position: relative on placeholder elements */
 .milkdown .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: var(--neko-text-tertiary);
@@ -255,7 +330,7 @@
   position: relative;
 }
 
-/* H1 Title placeholder - 当标题为空时显示 "Title" */
+/* H1 Title placeholder - Shows "Title" when heading is empty */
 .milkdown h1:first-child {
   position: relative;
 }

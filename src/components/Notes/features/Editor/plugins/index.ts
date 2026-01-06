@@ -1,6 +1,10 @@
 // Unified plugin exports for Milkdown editor
 // This file provides a single entry point for all editor plugins
 
+// Heading (editable hash marks)
+export { headingPlugin } from './heading';
+export type { HeadingAttrs, HeadingState } from './heading';
+
 // Math (LaTeX)
 export { mathPlugin, mathClickPlugin } from './math';
 

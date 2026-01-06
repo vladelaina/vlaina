@@ -8,19 +8,6 @@ import {
   IconTriangleFilled,
   IconStar,
 } from '@tabler/icons-react';
-
-function SparklesFilledIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
-  return (
-    <svg 
-      className={className} 
-      style={style}
-      viewBox="0 0 24 24" 
-      fill="currentColor"
-    >
-      <path d="M12 2L13.09 8.26L18 6L15.74 10.91L22 12L15.74 13.09L18 18L13.09 15.74L12 22L10.91 15.74L6 18L8.26 13.09L2 12L8.26 10.91L6 6L10.91 8.26L12 2Z" />
-    </svg>
-  );
-}
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { FileTree } from './features/FileTree';
@@ -462,20 +449,6 @@ function AIPanelContent() {
       style={{ width: AI_PANEL_WIDTH }}
     >
       <div className="flex-1 overflow-auto neko-scrollbar px-4 pb-4">
-        <div className="flex flex-col items-center justify-center h-full text-center">
-          <div 
-            className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
-            style={{ backgroundColor: 'rgba(30, 150, 235, 0.1)' }}
-          >
-            <SparklesFilledIcon className="w-8 h-8" style={{ color: '#1E96EB' }} />
-          </div>
-          <h3 className="text-lg font-medium text-[var(--neko-text-primary)] mb-2">
-            AI 助手
-          </h3>
-          <p className="text-sm text-[var(--neko-text-secondary)]">
-            即将推出...
-          </p>
-        </div>
       </div>
 
       <div className="p-3">
@@ -551,9 +524,7 @@ function AIPanelContent() {
             </div>
           </div>
         </div>
-        <p className="text-xs text-[var(--neko-text-tertiary)] mt-2 text-center">
-          ⓘ AI outputs can be misleading or wrong
-        </p>
+
       </div>
     </aside>
   );

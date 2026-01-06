@@ -9,7 +9,6 @@ import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
-import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { IconDots, IconStar } from '@tabler/icons-react';
 import { IconHeartbeat } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -21,6 +20,7 @@ import { CustomScrollbar } from '@/components/ui/custom-scrollbar';
 
 // Custom plugins - unified import
 import {
+  headingPlugin,
   mathPlugin,
   mathClickPlugin,
   slashPlugin,
@@ -44,6 +44,8 @@ import './editor.css';
 
 // Flatten plugin arrays for Milkdown
 const customPlugins = [
+  // Heading with editable hash marks
+  ...headingPlugin,
   ...mathPlugin,
   mathClickPlugin,
   slashPlugin,
@@ -62,83 +64,6 @@ const customPlugins = [
   abbrPlugin,
   wikiLinkPlugin
 ];
-
-const protectHeadingPluginKey = new PluginKey('protectHeading');
-
-const protectHeadingPlugin = $prose(() => {
-  return new Plugin({
-    key: protectHeadingPluginKey,
-    props: {
-      handleKeyDown(view, event) {
-        const { state } = view;
-        const { selection, doc } = state;
-        const { from, empty } = selection;
-        
-        const firstNode = doc.firstChild;
-        if (!firstNode || firstNode.type.name !== 'heading') return false;
-        
-        const firstNodeStart = 1;
-        
-        // Prevent backspace at the start of h1
-        if (event.key === 'Backspace' && empty && from === firstNodeStart) {
-          return true;
-        }
-        
-        return false;
-      }
-    }
-  });
-});
-
-// Plugin to show heading hash marks when cursor is in the heading (except first h1)
-// The hash marks are editable - user can move cursor to them and modify
-const headingHashPluginKey = new PluginKey('headingHash');
-
-const headingHashPlugin = $prose(() => {
-  return new Plugin({
-    key: headingHashPluginKey,
-    props: {
-      decorations(state) {
-        const { doc, selection } = state;
-        const decorations: Decoration[] = [];
-        
-        // Find which heading the cursor is in
-        const $pos = selection.$from;
-        const parent = $pos.parent;
-        
-        // Only proceed if cursor is in a heading
-        if (parent.type.name !== 'heading') {
-          return DecorationSet.empty;
-        }
-        
-        // Get the position of the heading node
-        const headingPos = $pos.before($pos.depth);
-        
-        // Check if this is the first h1 (document title) - skip it
-        const firstNode = doc.firstChild;
-        if (firstNode && headingPos === 0 && parent.attrs.level === 1) {
-          return DecorationSet.empty;
-        }
-        
-        const level = parent.attrs.level as number;
-        const hashes = '#'.repeat(level) + ' ';
-        
-        // Use widget decoration but make it inline and not affect cursor
-        const widget = Decoration.widget(headingPos + 1, () => {
-          const span = document.createElement('span');
-          span.textContent = hashes;
-          span.className = 'heading-hash-inline';
-          span.contentEditable = 'false';
-          return span;
-        }, { side: -1, key: `heading-hash-${headingPos}` });
-        
-        decorations.push(widget);
-        
-        return DecorationSet.create(doc, decorations);
-      }
-    }
-  });
-});
 
 const titleSyncPluginKey = new PluginKey('titleSync');
 
@@ -219,8 +144,6 @@ function MilkdownEditorInner() {
       .use(gfm)
       .use(history)
       .use(listener)
-      .use(protectHeadingPlugin)
-      .use(headingHashPlugin)
       .use(titleSyncPlugin)
       .use(customPlugins),
     [currentNote?.path]
