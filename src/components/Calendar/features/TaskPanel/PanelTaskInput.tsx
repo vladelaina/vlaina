@@ -96,7 +96,7 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
 
   return (
     <div className="flex items-start gap-1">
-      {/* 主输入区域 */}
+      {/* Main input area */}
       <div
         className={cn(
           'flex-1 flex items-start gap-2 px-2 py-1.5 rounded-md transition-all duration-200',
@@ -106,7 +106,7 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
             : 'border-transparent hover:border-zinc-200 dark:hover:border-zinc-800'
         )}
       >
-        {/* 颜色选择器 */}
+        {/* Color picker */}
         <div className="relative shrink-0 pt-1" ref={colorMenuRef}>
           <button
             onClick={() => setShowColorMenu(!showColorMenu)}
@@ -152,7 +152,7 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
           </AnimatePresence>
         </div>
         
-        {/* 输入框 */}
+        {/* Input field */}
         <textarea
           ref={inputRef}
           value={content}
@@ -170,7 +170,7 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
           )}
         />
 
-        {/* 提交按钮 */}
+        {/* Submit button */}
         <AnimatePresence mode="wait">
           {content.trim() && (
             <motion.button
@@ -186,7 +186,7 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
         </AnimatePresence>
       </div>
 
-      {/* 更多菜单按钮 */}
+      {/* More menu button */}
       <div className="relative shrink-0" ref={moreMenuRef}>
         <button
           onClick={() => setShowMoreMenu(!showMoreMenu)}
@@ -208,7 +208,7 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
               exit={{ opacity: 0, y: -4 }}
               className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50"
             >
-              {/* 颜色过滤 */}
+              {/* Color filter */}
               <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-700">
                 <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">Color Filter</div>
                 <div className="flex items-center gap-1.5">
@@ -247,7 +247,7 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
                 </div>
               </div>
 
-              {/* 状态过滤 */}
+              {/* Status filter */}
               <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-700">
                 <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">Status Filter</div>
                 <div className="flex items-center gap-1">

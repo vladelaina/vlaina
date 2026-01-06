@@ -325,7 +325,7 @@ export function AllDayArea({
             </div>
           ) : (
             <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
-              全天
+              All Day
             </span>
           )
         )}
@@ -417,7 +417,7 @@ export function AllDayArea({
         {isDropTarget && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span className="text-xs text-blue-500 dark:text-blue-400 font-medium bg-white/80 dark:bg-zinc-900/80 px-2 py-1 rounded">
-              释放以设为全天事件
+              Drop to set as all-day event
             </span>
           </div>
         )}

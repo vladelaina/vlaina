@@ -301,10 +301,10 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
         >
           <DialogHeader>
             <DialogTitle className="text-[var(--neko-text-primary)]">
-              删除{node.isFolder ? '文件夹' : '笔记'}
+              Delete {node.isFolder ? 'Folder' : 'Note'}
             </DialogTitle>
             <DialogDescription className="text-[var(--neko-text-secondary)]">
-              确定要删除 "{node.name}" 吗？{node.isFolder ? '文件夹内的所有内容都将被删除。' : ''}此操作无法撤销。
+              Are you sure you want to delete "{node.name}"?{node.isFolder ? ' All contents in the folder will be deleted.' : ''} This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
@@ -316,7 +316,7 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
                 "hover:bg-[var(--neko-hover)] border border-[var(--neko-border)]"
               )}
             >
-              取消
+              Cancel
             </button>
             <button
               onClick={handleDeleteConfirm}
@@ -325,7 +325,7 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
                 "bg-red-500 text-white hover:bg-red-600"
               )}
             >
-              删除
+              Delete
             </button>
           </DialogFooter>
         </DialogContent>

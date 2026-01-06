@@ -325,10 +325,10 @@ export function CalendarTaskPanel({
         isExpanded && "fixed inset-0 z-50"
       )}
     >
-      {/* 头部：Tab 切换 + 工具栏 */}
+      {/* Header: Tab switch + Toolbar */}
       <div className="flex-shrink-0 px-3 pt-3 pb-2">
         <div className="flex items-center justify-between gap-2">
-          {/* Tab 切换器 */}
+          {/* Tab switcher */}
           <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5">
             <button
               onClick={() => setPanelView('tasks')}
@@ -354,9 +354,9 @@ export function CalendarTaskPanel({
             </button>
           </div>
 
-          {/* 工具按钮 */}
+          {/* Tool buttons */}
           <div className="flex items-center gap-1">
-            {/* 搜索按钮 - 仅在 tasks 视图显示 */}
+            {/* Search button - only shown in tasks view */}
             {panelView === 'tasks' && (
               <button
                 onClick={() => setShowSearch(!showSearch)}
@@ -371,7 +371,7 @@ export function CalendarTaskPanel({
               </button>
             )}
 
-            {/* 放大/缩小按钮 */}
+            {/* Expand/Collapse button */}
             {onToggleExpand && (
               <button
                 onClick={onToggleExpand}
@@ -383,11 +383,11 @@ export function CalendarTaskPanel({
           </div>
         </div>
 
-        {/* Tasks 视图的分组选择器和搜索框 */}
+        {/* Tasks view group selector and search box */}
         {panelView === 'tasks' && (
           <>
             <div className="flex items-center gap-2 mt-2">
-              {/* 分组选择器 */}
+              {/* Group selector */}
               <div className="relative flex-1 min-w-0" ref={groupPickerRef}>
                 <button
                   onClick={() => setShowGroupPicker(!showGroupPicker)}
@@ -402,7 +402,7 @@ export function CalendarTaskPanel({
                   )} />
                 </button>
 
-                {/* 分组下拉菜单 */}
+                {/* Group dropdown menu */}
                 <AnimatePresence>
                   {showGroupPicker && (
                     <motion.div
@@ -433,7 +433,7 @@ export function CalendarTaskPanel({
                           )}
                         </button>
                       ))}
-                      {/* 归档入口 */}
+                      {/* Archive entry */}
                       <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
                       <button
                         onClick={() => {
@@ -456,7 +456,7 @@ export function CalendarTaskPanel({
               </div>
             </div>
 
-            {/* 搜索框 */}
+            {/* Search box */}
             <AnimatePresence>
               {showSearch && (
                 <motion.div
@@ -490,24 +490,24 @@ export function CalendarTaskPanel({
         )}
       </div>
 
-      {/* Progress 视图 */}
+      {/* Progress view */}
       {panelView === 'progress' && (
         <div className="flex-1 overflow-hidden">
           <ProgressContent compact />
         </div>
       )}
 
-      {/* Tasks 视图 */}
+      {/* Tasks view */}
       {panelView === 'tasks' && (
         <>
-          {/* 任务输入框 */}
+          {/* Task input */}
           {activeGroupId !== '__archive__' && (
             <div className="flex-shrink-0 px-3 pb-2">
               <PanelTaskInput compact={!isExpanded} />
             </div>
           )}
 
-      {/* 任务列表 */}
+      {/* Task list */}
       <div
         ref={scrollRef}
         className={cn(
@@ -529,12 +529,12 @@ export function CalendarTaskPanel({
           onDragOver={handleDragOver}
           onDragEnd={wrappedHandleDragEnd}
         >
-          {/* 使用统一的 SortableContext 让跨区域拖动时能正确让位 */}
+          {/* Use unified SortableContext for correct cross-region drag positioning */}
           <SortableContext 
             items={allSortableIds} 
             strategy={verticalListSortingStrategy}
           >
-            {/* 未完成任务 */}
+            {/* Incomplete tasks */}
             {incompleteTasks.length > 0 ? (
               <div className="space-y-2">
                 {incompleteTasks.map(task => renderTaskItem(task, 0))}
@@ -545,7 +545,7 @@ export function CalendarTaskPanel({
               </div>
             ) : null}
 
-            {/* 已分配任务分割线 */}
+            {/* Scheduled tasks divider */}
             {scheduledTasks.length > 0 && (
               <SortableDivider
                 id={SCHEDULED_DIVIDER_ID}
@@ -556,14 +556,14 @@ export function CalendarTaskPanel({
               />
             )}
 
-            {/* 已分配任务 */}
+            {/* Scheduled tasks */}
             {scheduledTasks.length > 0 && scheduledExpanded && (
               <div className="space-y-2">
                 {scheduledTasks.map(task => renderTaskItem(task, 0))}
               </div>
             )}
 
-            {/* 已完成任务分割线 */}
+            {/* Completed tasks divider */}
             {completedTasks.length > 0 && (
               <SortableDivider
                 id={COMPLETED_DIVIDER_ID}
@@ -605,7 +605,7 @@ export function CalendarTaskPanel({
               />
             )}
 
-            {/* 已完成任务 */}
+            {/* Completed tasks */}
             {completedTasks.length > 0 && completedExpanded && (
               <div className="space-y-2 opacity-60">
                 {completedTasks.map(task => renderTaskItem(task, 0))}
@@ -669,7 +669,7 @@ export function CalendarTaskPanel({
                 
                 return (
                   <div className="flex items-start gap-2 px-3 py-2 bg-white dark:bg-zinc-800 rounded-lg shadow-xl ring-1 ring-black/5 dark:ring-white/10 max-w-[240px]">
-                    {/* 颜色复选框 */}
+                    {/* Color checkbox */}
                     <div 
                       className={cn(
                         "flex-shrink-0 w-3.5 h-3.5 rounded-sm mt-0.5",
@@ -691,7 +691,7 @@ export function CalendarTaskPanel({
         </>
       )}
 
-      {/* 子任务弹窗 */}
+      {/* Subtask modal */}
       <AnimatePresence>
         {addingSubTaskFor && (
           <motion.div

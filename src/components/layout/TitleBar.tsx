@@ -384,7 +384,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                     </TooltipTrigger>
                     <TooltipContent side="bottom" sideOffset={2}>
                       <span className="flex items-center gap-1.5">
-                        新建标签页
+                        New Tab
                         <kbd className="px-1.5 py-0.5 text-[10px] font-medium rounded" style={{ backgroundColor: '#2B2B2B' }}>Ctrl</kbd>
                         <kbd className="px-1.5 py-0.5 text-[10px] font-medium rounded" style={{ backgroundColor: '#2B2B2B' }}>T</kbd>
                       </span>

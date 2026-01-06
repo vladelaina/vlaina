@@ -2,8 +2,8 @@
  * Property-based tests for AutoSyncManager
  * 
  * Feature: auto-sync
- * Property 1: PRO 用户自动同步触发
- * Property 5: 重试策略
+ * Property 1: PRO user auto-sync trigger
+ * Property 5: Retry strategy
  * Validates: Requirements 1.1, 1.3, 1.4, 1.5, 5.2, 5.3
  */
 
@@ -72,9 +72,9 @@ describe('AutoSyncManager', () => {
     resetAutoSyncManager();
   });
 
-  describe('Property 1: PRO 用户自动同步触发', () => {
+  describe('Property 1: PRO user auto-sync trigger', () => {
     /**
-     * Property 1.3: 防抖时间为 5 秒
+     * Property 1.3: Debounce time is 5 seconds
      * For any sequence of rapid data changes, only one sync should be triggered
      * after the debounce period
      */
@@ -121,7 +121,7 @@ describe('AutoSyncManager', () => {
     });
 
     /**
-     * Property 1.4: 冷却期为 30 秒
+     * Property 1.4: Cooldown period is 30 seconds
      * Two syncs should be at least 30 seconds apart
      */
     it('should enforce cooldown period between syncs', async () => {
@@ -206,9 +206,9 @@ describe('AutoSyncManager', () => {
     });
   });
 
-  describe('Property 5: 重试策略', () => {
+  describe('Property 5: Retry strategy', () => {
     /**
-     * Property 5.2: 重试间隔按指数退避
+     * Property 5.2: Retry intervals follow exponential backoff
      * Retry delays should follow: 30s, 60s, 120s, 300s, 300s
      */
     it('should use correct retry delays', () => {
@@ -220,7 +220,7 @@ describe('AutoSyncManager', () => {
     });
 
     /**
-     * Property 5.3: 最多重试 5 次
+     * Property 5.3: Maximum 5 retries
      * After 5 retries, should stop auto-retry
      */
     it('should stop retrying after max retries', () => {

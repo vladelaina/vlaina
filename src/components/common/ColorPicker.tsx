@@ -1,23 +1,23 @@
 /**
- * ColorPicker - 统一的颜色选择器组件
+ * ColorPicker - Unified color picker component
  * 
- * 用于 PanelTaskItem 和 EventEditForm 中的颜色选择
- * 支持悬停预览功能
+ * Used for color selection in PanelTaskItem and EventEditForm
+ * Supports hover preview functionality
  */
 
 import { cn } from '@/lib/utils';
 import { ALL_COLORS, COLOR_HEX, type ItemColor } from '@/lib/colors/index';
 
 interface ColorPickerProps {
-  /** 当前选中的颜色 */
+  /** Currently selected color */
   value?: ItemColor | string;
-  /** 颜色变更回调 */
+  /** Color change callback */
   onChange: (color: ItemColor) => void;
-  /** 鼠标悬停时的回调，用于实时预览。传入 null 表示鼠标离开 */
+  /** Hover callback for live preview. Pass null when mouse leaves */
   onHover?: (color: ItemColor | null) => void;
-  /** 按钮尺寸 class */
+  /** Button size class */
   sizeClass?: string;
-  /** 是否显示选中状态的 ring */
+  /** Whether to show ring for selected state */
   showRing?: boolean;
 }
 

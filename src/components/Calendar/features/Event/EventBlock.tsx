@@ -304,7 +304,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
             style={{ backgroundColor: colorStyles.accent }}
           />
 
-          {/* Timer fill layer - 扫描线效果（已完成不显示） */}
+          {/* Timer fill layer - scan line effect (hidden when completed) */}
           {isTimerActive && !isCompleted && (
             <div 
               className="absolute inset-0 transition-all duration-1000 ease-linear rounded-[4px]"
@@ -316,7 +316,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
             />
           )}
           
-          {/* 超时分界线 */}
+          {/* Overtime divider line */}
           {isOvertime && (
             <div 
               className="absolute left-0 right-0 border-t-2"

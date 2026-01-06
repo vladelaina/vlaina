@@ -79,7 +79,7 @@ function EditableTime({ date, onChange, use24Hour = true }: EditableTimeProps) {
   if (isEditing) {
     return (
       <div className="relative">
-        {/* 解析预览 */}
+        {/* Parse preview */}
         <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[10px] rounded whitespace-nowrap bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300">
           {parsedPreview.text}
         </div>
@@ -319,7 +319,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
           />
         </div>
 
-        {/* Icon picker row - 让图标网格自适应宽度 */}
+        {/* Icon picker row - let icon grid adapt to width */}
         <div className="mt-3 ml-7">
           <IconSelector 
             value={event.icon} 
@@ -374,7 +374,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
                 event.isAllDay ? "translate-x-4" : "translate-x-0.5"
               )} />
             </div>
-            <span>全天</span>
+            <span>All Day</span>
           </button>
         </div>
 

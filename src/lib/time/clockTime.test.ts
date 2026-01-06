@@ -7,171 +7,171 @@ import {
 } from './clockTime';
 
 describe('parseClockTime', () => {
-  describe('24小时制', () => {
-    it('解析 HH:MM 格式', () => {
+  describe('24-hour format', () => {
+    it('parses HH:MM format', () => {
       expect(parseClockTime('14:30')).toEqual({ hours: 14, minutes: 30 });
       expect(parseClockTime('09:05')).toEqual({ hours: 9, minutes: 5 });
       expect(parseClockTime('0:00')).toEqual({ hours: 0, minutes: 0 });
       expect(parseClockTime('23:59')).toEqual({ hours: 23, minutes: 59 });
     });
 
-    it('解析中文冒号', () => {
+    it('parses Chinese colon', () => {
       expect(parseClockTime('14：30')).toEqual({ hours: 14, minutes: 30 });
     });
 
-    it('解析 HHMM 格式', () => {
+    it('parses HHMM format', () => {
       expect(parseClockTime('1430')).toEqual({ hours: 14, minutes: 30 });
       expect(parseClockTime('0905')).toEqual({ hours: 9, minutes: 5 });
     });
 
-    it('解析 HMM 格式', () => {
+    it('parses HMM format', () => {
       expect(parseClockTime('930')).toEqual({ hours: 9, minutes: 30 });
     });
 
-    it('解析纯小时', () => {
+    it('parses hour only', () => {
       expect(parseClockTime('14')).toEqual({ hours: 14, minutes: 0 });
       expect(parseClockTime('9')).toEqual({ hours: 9, minutes: 0 });
     });
 
-    it('解析点号分隔', () => {
+    it('parses dot separator', () => {
       expect(parseClockTime('14.30')).toEqual({ hours: 14, minutes: 30 });
     });
 
-    it('解析横线分隔', () => {
+    it('parses dash separator', () => {
       expect(parseClockTime('14-30')).toEqual({ hours: 14, minutes: 30 });
     });
   });
 
-  describe('12小时制', () => {
-    it('解析 PM 时间', () => {
+  describe('12-hour format', () => {
+    it('parses PM time', () => {
       expect(parseClockTime('2:30pm')).toEqual({ hours: 14, minutes: 30 });
       expect(parseClockTime('2:30 PM')).toEqual({ hours: 14, minutes: 30 });
       expect(parseClockTime('12:00pm')).toEqual({ hours: 12, minutes: 0 });
     });
 
-    it('解析 AM 时间', () => {
+    it('parses AM time', () => {
       expect(parseClockTime('9:30am')).toEqual({ hours: 9, minutes: 30 });
       expect(parseClockTime('9:30 AM')).toEqual({ hours: 9, minutes: 30 });
       expect(parseClockTime('12:00am')).toEqual({ hours: 0, minutes: 0 });
     });
 
-    it('解析简单 PM/AM', () => {
+    it('parses simple PM/AM', () => {
       expect(parseClockTime('2pm')).toEqual({ hours: 14, minutes: 0 });
       expect(parseClockTime('9am')).toEqual({ hours: 9, minutes: 0 });
     });
 
-    it('解析带数字的 PM/AM', () => {
+    it('parses PM/AM with numbers', () => {
       expect(parseClockTime('230pm')).toEqual({ hours: 14, minutes: 30 });
     });
   });
 
-  describe('中文格式', () => {
-    it('解析下午时间', () => {
+  describe('Chinese format', () => {
+    it('parses afternoon time', () => {
       expect(parseClockTime('下午2:30')).toEqual({ hours: 14, minutes: 30 });
       expect(parseClockTime('下午2')).toEqual({ hours: 14, minutes: 0 });
     });
 
-    it('解析上午时间', () => {
+    it('parses morning time', () => {
       expect(parseClockTime('上午9:30')).toEqual({ hours: 9, minutes: 30 });
       expect(parseClockTime('上午9')).toEqual({ hours: 9, minutes: 0 });
     });
 
-    it('解析晚上时间', () => {
+    it('parses evening time', () => {
       expect(parseClockTime('晚上8:00')).toEqual({ hours: 20, minutes: 0 });
     });
 
-    it('解析凌晨时间', () => {
+    it('parses early morning time', () => {
       expect(parseClockTime('凌晨2:00')).toEqual({ hours: 2, minutes: 0 });
     });
   });
 
-  describe('无效输入', () => {
-    it('超出范围返回 null', () => {
+  describe('invalid input', () => {
+    it('out of range returns null', () => {
       expect(parseClockTime('25:00')).toBeNull();
       expect(parseClockTime('24:00')).toBeNull();
       expect(parseClockTime('12:60')).toBeNull();
     });
 
-    it('无效格式返回 null', () => {
+    it('invalid format returns null', () => {
       expect(parseClockTime('invalid')).toBeNull();
       expect(parseClockTime('abc')).toBeNull();
     });
 
-    it('空字符串返回 null', () => {
+    it('empty string returns null', () => {
       expect(parseClockTime('')).toBeNull();
     });
 
-    it('null/undefined 返回 null', () => {
+    it('null/undefined returns null', () => {
       expect(parseClockTime(null as unknown as string)).toBeNull();
       expect(parseClockTime(undefined as unknown as string)).toBeNull();
     });
   });
 
-  describe('边界条件', () => {
-    it('午夜', () => {
+  describe('boundary conditions', () => {
+    it('midnight', () => {
       expect(parseClockTime('0:00')).toEqual({ hours: 0, minutes: 0 });
       expect(parseClockTime('00:00')).toEqual({ hours: 0, minutes: 0 });
     });
 
-    it('中午', () => {
+    it('noon', () => {
       expect(parseClockTime('12:00')).toEqual({ hours: 12, minutes: 0 });
     });
 
-    it('最后一分钟', () => {
+    it('last minute', () => {
       expect(parseClockTime('23:59')).toEqual({ hours: 23, minutes: 59 });
     });
   });
 });
 
 describe('formatClockTime', () => {
-  describe('24小时制', () => {
-    it('格式化基本时间', () => {
+  describe('24-hour format', () => {
+    it('formats basic time', () => {
       expect(formatClockTime(870)).toBe('14:30');
       expect(formatClockTime(545)).toBe('9:05');
     });
 
-    it('格式化午夜', () => {
+    it('formats midnight', () => {
       expect(formatClockTime(0)).toBe('0:00');
     });
 
-    it('格式化中午', () => {
+    it('formats noon', () => {
       expect(formatClockTime(720)).toBe('12:00');
     });
 
-    it('格式化最后一分钟', () => {
+    it('formats last minute', () => {
       expect(formatClockTime(1439)).toBe('23:59');
     });
   });
 
-  describe('12小时制', () => {
-    it('格式化下午时间', () => {
+  describe('12-hour format', () => {
+    it('formats afternoon time', () => {
       expect(formatClockTime(870, false)).toBe('2:30 PM');
       expect(formatClockTime(720, false)).toBe('12:00 PM');
     });
 
-    it('格式化上午时间', () => {
+    it('formats morning time', () => {
       expect(formatClockTime(545, false)).toBe('9:05 AM');
     });
 
-    it('格式化午夜', () => {
+    it('formats midnight', () => {
       expect(formatClockTime(0, false)).toBe('12:00 AM');
     });
   });
 
-  describe('归一化', () => {
-    it('超出范围的值被归一化', () => {
+  describe('normalization', () => {
+    it('out of range values are normalized', () => {
       expect(formatClockTime(1440)).toBe('0:00'); // 24:00 -> 0:00
       expect(formatClockTime(1500)).toBe('1:00'); // 25:00 -> 1:00
     });
 
-    it('负值被归一化', () => {
+    it('negative values are normalized', () => {
       expect(formatClockTime(-60)).toBe('23:00'); // -1:00 -> 23:00
     });
   });
 });
 
 describe('clockTimeToMinutes', () => {
-  it('转换基本时间', () => {
+  it('converts basic time', () => {
     expect(clockTimeToMinutes({ hours: 14, minutes: 30 })).toBe(870);
     expect(clockTimeToMinutes({ hours: 0, minutes: 0 })).toBe(0);
     expect(clockTimeToMinutes({ hours: 23, minutes: 59 })).toBe(1439);
@@ -179,20 +179,20 @@ describe('clockTimeToMinutes', () => {
 });
 
 describe('minutesToClockTime', () => {
-  it('转换基本分钟数', () => {
+  it('converts basic minutes', () => {
     expect(minutesToClockTime(870)).toEqual({ hours: 14, minutes: 30 });
     expect(minutesToClockTime(0)).toEqual({ hours: 0, minutes: 0 });
     expect(minutesToClockTime(1439)).toEqual({ hours: 23, minutes: 59 });
   });
 
-  it('归一化超出范围的值', () => {
+  it('normalizes out of range values', () => {
     expect(minutesToClockTime(1440)).toEqual({ hours: 0, minutes: 0 });
     expect(minutesToClockTime(-60)).toEqual({ hours: 23, minutes: 0 });
   });
 });
 
-describe('往返一致性', () => {
-  it('24小时制往返', () => {
+describe('round-trip consistency', () => {
+  it('24-hour format round-trip', () => {
     for (let minutes = 0; minutes < 1440; minutes += 60) {
       const formatted = formatClockTime(minutes);
       const parsed = parseClockTime(formatted);
@@ -201,7 +201,7 @@ describe('往返一致性', () => {
     }
   });
 
-  it('12小时制往返', () => {
+  it('12-hour format round-trip', () => {
     const testMinutes = [0, 60, 720, 780, 1380];
     for (const minutes of testMinutes) {
       const formatted = formatClockTime(minutes, false);
@@ -211,7 +211,7 @@ describe('往返一致性', () => {
     }
   });
 
-  it('ClockTime 和分钟数互转', () => {
+  it('ClockTime and minutes conversion', () => {
     for (let minutes = 0; minutes < 1440; minutes += 30) {
       const clockTime = minutesToClockTime(minutes);
       const backToMinutes = clockTimeToMinutes(clockTime);

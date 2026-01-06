@@ -124,7 +124,7 @@ export function AboutTab() {
   };
 
   const handleDeactivate = async () => {
-    if (confirm('确定要解绑此设备吗？解绑后可在其他设备上使用此激活码。')) {
+    if (confirm('Are you sure you want to unbind this device? After unbinding, you can use this license key on other devices.')) {
       await deactivate();
     }
   };
@@ -138,7 +138,7 @@ export function AboutTab() {
   const formatActivatedDate = (timestamp: number | null) => {
     if (!timestamp) return '-';
     const date = new Date(timestamp * 1000);
-    return date.toLocaleDateString('zh-CN', {
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -146,9 +146,9 @@ export function AboutTab() {
   };
 
   const formatExpiryDate = (timestamp: number | null) => {
-    if (!timestamp) return '永久';
+    if (!timestamp) return 'Permanent';
     const date = new Date(timestamp * 1000);
-    return date.toLocaleDateString('zh-CN', {
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -297,10 +297,10 @@ export function AboutTab() {
                 </div>
                 <div>
                   <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                    系统时间异常
+                    System Time Anomaly
                   </div>
                   <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                    PRO 功能已暂停
+                    PRO features paused
                   </div>
                 </div>
               </div>
@@ -308,7 +308,7 @@ export function AboutTab() {
               <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
                 <IconAlertCircle className="size-4 flex-shrink-0 mt-0.5" />
                 <div className="text-xs">
-                  检测到系统时间异常，请校准系统时间以恢复 PRO 功能。时间恢复正常后将自动恢复。
+                  System time anomaly detected. Please calibrate your system time to restore PRO features. Features will be restored automatically once time is corrected.
                 </div>
               </div>
             </>
@@ -324,10 +324,10 @@ export function AboutTab() {
                     </div>
                     <div>
                       <div className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                        👑 Pro 试用即将结束：剩余 {getTrialHoursRemaining()} 小时
+                        👑 Pro trial ending soon: {getTrialHoursRemaining()} hours remaining
                       </div>
                       <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                        输入激活码以继续使用自动同步
+                        Enter license key to continue using auto-sync
                       </div>
                     </div>
                   </>
@@ -339,10 +339,10 @@ export function AboutTab() {
                     </div>
                     <div>
                       <div className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
-                        👑 Pro 试用中：剩余 {getTrialDaysRemaining()} 天
+                        👑 Pro trial: {getTrialDaysRemaining()} days remaining
                       </div>
                       <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                        输入激活码以继续使用
+                        Enter license key to continue
                       </div>
                     </div>
                   </>
@@ -369,10 +369,10 @@ export function AboutTab() {
                   {isActivating ? (
                     <>
                       <IconLoader2 className="size-4 animate-spin" />
-                      激活中...
+                      Activating...
                     </>
                   ) : (
-                    '激活'
+                    'Activate'
                   )}
                 </button>
               </div>
@@ -427,17 +427,17 @@ export function AboutTab() {
                 {isExpiringSoon() ? (
                   // Expiring soon warning (within 3 days)
                   <div className="text-red-600 dark:text-red-400">
-                    ⚠️ 会员即将过期 (剩余 {getExpiryDaysRemaining()} 天)
+                    ⚠️ Membership expiring soon ({getExpiryDaysRemaining()} days remaining)
                   </div>
                 ) : expiresAt ? (
                   // Normal subscription with expiry date
                   <div className="text-zinc-500 dark:text-zinc-400">
-                    有效期至：{formatExpiryDate(expiresAt)}
+                    Valid until: {formatExpiryDate(expiresAt)}
                   </div>
                 ) : (
                   // Permanent license (no expiry)
                   <div className="text-green-600 dark:text-green-400">
-                    永久有效
+                    Permanent
                   </div>
                 )}
               </div>
@@ -446,7 +446,7 @@ export function AboutTab() {
                 <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
                   <IconAlertCircle className="size-4 flex-shrink-0 mt-0.5" />
                   <div className="text-xs">
-                    宽限期至 {formatActivatedDate(gracePeriodEndsAt)}，请确保网络连接以完成验证
+                    Grace period until {formatActivatedDate(gracePeriodEndsAt)}, please ensure network connection to complete validation
                   </div>
                 </div>
               )}
@@ -460,10 +460,10 @@ export function AboutTab() {
                 </div>
                 <div>
                   <div className="text-sm font-medium text-red-600 dark:text-red-400">
-                    ⚠️ Pro 已过期 (自动同步暂停)
+                    ⚠️ Pro expired (auto-sync paused)
                   </div>
                   <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                    输入激活码以恢复自动同步
+                    Enter license key to restore auto-sync
                   </div>
                 </div>
               </div>
@@ -488,10 +488,10 @@ export function AboutTab() {
                   {isActivating ? (
                     <>
                       <IconLoader2 className="size-4 animate-spin" />
-                      激活中...
+                      Activating...
                     </>
                   ) : (
-                    '激活'
+                    'Activate'
                   )}
                 </button>
               </div>

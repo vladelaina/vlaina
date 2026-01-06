@@ -179,7 +179,7 @@ export function PanelTaskItem({
             : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
         )}
       >
-        {/* 折叠/展开图标 */}
+        {/* Collapse/Expand icon */}
         {hasChildren ? (
           <button
             onClick={onToggleCollapse}
@@ -195,7 +195,7 @@ export function PanelTaskItem({
           <div className="w-4" />
         )}
 
-        {/* 拖拽手柄 */}
+        {/* Drag handle */}
         <button
           {...attributes}
           {...listeners}
@@ -208,7 +208,7 @@ export function PanelTaskItem({
           <IconGripVertical className="h-3.5 w-3.5 text-zinc-400" />
         </button>
 
-        {/* 复选框 */}
+        {/* Checkbox */}
         <div className="mt-0.5 flex-shrink-0">
           <Checkbox
             checked={task.completed}
@@ -222,7 +222,7 @@ export function PanelTaskItem({
           />
         </div>
 
-        {/* 图标 */}
+        {/* Icon */}
         <div className="mt-0.5">
           <TaskIcon 
             itemId={task.id}
@@ -233,7 +233,7 @@ export function PanelTaskItem({
           />
         </div>
 
-        {/* 内容 */}
+        {/* Content */}
         <div className="flex-1 min-w-0">
           {isEditing ? (
             <textarea
@@ -264,7 +264,7 @@ export function PanelTaskItem({
             </div>
           )}
           
-          {/* 时间信息 */}
+          {/* Time info */}
           {!hideActualTime && (task.estimatedMinutes || task.actualMinutes) && (
             <div className="flex items-center gap-2 mt-0.5 text-[10px] text-zinc-400 dark:text-zinc-600">
               {task.estimatedMinutes && (
@@ -276,7 +276,7 @@ export function PanelTaskItem({
             </div>
           )}
           
-          {/* 已分配时间 */}
+          {/* Scheduled time */}
           {task.startDate && !task.isAllDay && (
             <div className="mt-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">
               {formatScheduledTime(task.startDate, task.endDate)}
@@ -284,7 +284,7 @@ export function PanelTaskItem({
           )}
         </div>
 
-        {/* 更多菜单 */}
+        {/* More menu */}
         <div className="relative flex-shrink-0" ref={menuRef}>
           <button
             onClick={() => setShowMenu(!showMenu)}
@@ -303,7 +303,7 @@ export function PanelTaskItem({
               className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* 颜色选择器 */}
+              {/* Color picker */}
               <div className="px-3 py-2">
                 <ColorPicker
                   value={task.color}
@@ -314,7 +314,7 @@ export function PanelTaskItem({
                 />
               </div>
               
-              {/* 图标选择器 */}
+              {/* Icon selector */}
               <IconSelector 
                 value={task.icon} 
                 onChange={(icon) => {
@@ -324,7 +324,7 @@ export function PanelTaskItem({
               />
               <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
               
-              {/* 预估时间 */}
+              {/* Estimated time */}
               <div className="px-3 py-2">
                 <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">Estimated Time</div>
                 <input
@@ -373,7 +373,7 @@ export function PanelTaskItem({
               </div>
               <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
               
-              {/* 添加子任务 */}
+              {/* Add subtask */}
               <button
                 onClick={() => {
                   if (canAddSubTask && onAddSubTask) {
@@ -395,7 +395,7 @@ export function PanelTaskItem({
               </button>
               <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
               
-              {/* 归档 - 仅已完成任务 */}
+              {/* Archive - only for completed tasks */}
               {task.completed && task.groupId !== '__archive__' && (
                 <button
                   onClick={() => setShowMenu(false)}
@@ -406,7 +406,7 @@ export function PanelTaskItem({
                 </button>
               )}
               
-              {/* 删除 */}
+              {/* Delete */}
               <button
                 onClick={() => {
                   onDelete(task.id);

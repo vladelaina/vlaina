@@ -2,8 +2,8 @@
  * Property-based tests for SyncButton
  * 
  * Feature: auto-sync
- * Property 2: 手动同步按钮可见性
- * Property 3: 同步状态视觉反馈
+ * Property 2: Manual sync button visibility
+ * Property 3: Sync status visual feedback
  * Validates: Requirements 2.1, 2.7, 2.8, 3.2
  */
 
@@ -59,7 +59,7 @@ describe('SyncButton', () => {
     mockLicenseStore.isProUser = false;
   });
 
-  describe('Property 2: 手动同步按钮可见性', () => {
+  describe('Property 2: Manual sync button visibility', () => {
     /**
      * Property 2.1, 2.7, 2.8: Button visibility based on user state
      * For any combination of (PRO/non-PRO) × (connected/not connected),
@@ -133,7 +133,7 @@ describe('SyncButton', () => {
     });
   });
 
-  describe('Property 3: 同步状态视觉反馈', () => {
+  describe('Property 3: Sync status visual feedback', () => {
     /**
      * Property 3.2: Visual states
      * For any sync status, the button should show appropriate visual feedback

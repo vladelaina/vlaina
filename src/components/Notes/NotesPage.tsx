@@ -330,7 +330,7 @@ function WorkspaceSection({
   const [expanded, setExpanded] = useState(true);
   
   const handleHeaderClick = (e: React.MouseEvent) => {
-    // 只有点击非按钮区域才切换展开状态
+    // Only toggle expand state when clicking non-button area
     const target = e.target as HTMLElement;
     if (!target.closest('button')) {
       setExpanded(!expanded);

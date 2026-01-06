@@ -1,7 +1,7 @@
 /**
  * Property-based tests for useSyncStore
  * 
- * Feature: auto-sync, Property 4: 同步状态转换
+ * Feature: auto-sync, Property 4: Sync state transitions
  * Validates: Requirements 4.4, 4.5, 4.6
  */
 
@@ -41,9 +41,9 @@ describe('useSyncStore', () => {
     localStorage.clear();
   });
 
-  describe('Property 4: 同步状态转换', () => {
+  describe('Property 4: Sync state transitions', () => {
     /**
-     * Property 4.4: 数据保存成功后 pendingSync 应为 true
+     * Property 4.4: pendingSync should be true after data save success
      * For any initial state, calling markPendingSync should set pendingSync to true
      */
     it('markPendingSync should always set pendingSync to true', () => {
@@ -69,7 +69,7 @@ describe('useSyncStore', () => {
     });
 
     /**
-     * Property 4.5: 同步成功后 pendingSync 应为 false 且 retryCount 重置为 0
+     * Property 4.5: pendingSync should be false and retryCount reset to 0 after sync success
      * For any retry count, calling clearPendingSync should reset state
      */
     it('clearPendingSync should reset pendingSync and syncStatus', () => {
@@ -100,7 +100,7 @@ describe('useSyncStore', () => {
     });
 
     /**
-     * Property 4.6: 同步失败后 retryCount 应增加
+     * Property 4.6: retryCount should increase after sync failure
      * For any initial retry count, incrementRetryCount should increase by 1
      */
     it('incrementRetryCount should increase count by 1', () => {

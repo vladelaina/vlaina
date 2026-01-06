@@ -1,22 +1,22 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 
-// Error code to Chinese message mapping
+// Error code to message mapping
 const ERROR_MESSAGES: Record<string, string> = {
-  DEVICE_LIMIT_REACHED: '设备数量已达上限，请先解绑其他设备',
-  INVALID_KEY: '激活码无效，请检查输入',
-  INVALID_FORMAT: '激活码格式不正确',
-  EXPIRED: '激活码已过期',
-  ALREADY_ACTIVATED: '此设备已激活',
-  NETWORK_ERROR: '网络连接失败，请检查网络后重试',
-  REVOKED: '激活码已被吊销',
+  DEVICE_LIMIT_REACHED: 'Device limit reached, please unbind other devices first',
+  INVALID_KEY: 'Invalid license key, please check your input',
+  INVALID_FORMAT: 'Invalid license key format',
+  EXPIRED: 'License key has expired',
+  ALREADY_ACTIVATED: 'This device is already activated',
+  NETWORK_ERROR: 'Network connection failed, please check your network and try again',
+  REVOKED: 'License key has been revoked',
 };
 
 function getErrorMessage(errorCode: string | null, fallback?: string): string {
   if (errorCode && ERROR_MESSAGES[errorCode]) {
     return ERROR_MESSAGES[errorCode];
   }
-  return fallback || '激活失败，请稍后重试';
+  return fallback || 'Activation failed, please try again later';
 }
 
 // Types matching Rust structs
@@ -150,7 +150,7 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
   // Activate license
   activate: async (licenseKey: string) => {
     if (!licenseKey.trim()) {
-      set({ error: '请输入激活码' });
+      set({ error: 'Please enter a license key' });
       return false;
     }
 
@@ -174,7 +174,7 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
       console.error('Activation failed:', err);
       const errorMsg = err instanceof Error && err.message.includes('network')
         ? ERROR_MESSAGES.NETWORK_ERROR
-        : '激活失败，请稍后重试';
+        : 'Activation failed, please try again later';
       set({ error: errorMsg, isActivating: false });
       return false;
     }
@@ -203,7 +203,7 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
     } catch (err) {
       console.error('Deactivation failed:', err);
       set({
-        error: '解绑失败，请稍后重试',
+        error: 'Unbind failed, please try again later',
         isDeactivating: false,
       });
       return false;

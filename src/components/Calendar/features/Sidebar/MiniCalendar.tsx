@@ -105,7 +105,7 @@ function ColorFilter() {
     <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
       <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">Color Filter</div>
       <div className="flex items-center justify-between gap-1.5">
-        {/* Color options - 按新顺序 */}
+        {/* Color options - in new order */}
         {ALL_COLORS.map(color => (
           <button
             key={color}

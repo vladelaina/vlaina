@@ -1,8 +1,8 @@
 /**
- * TaskIcon - 统一的任务/事件图标显示组件
+ * TaskIcon - Unified task/event icon display component
  * 
- * 用于 PanelTaskItem 和 EventEditForm 中显示图标
- * 支持预览状态（通过全局 UI store）
+ * Used for displaying icons in PanelTaskItem and EventEditForm
+ * Supports preview state (via global UI store)
  */
 
 import { cn } from '@/lib/utils';
@@ -10,15 +10,15 @@ import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
 import { useUIStore } from '@/stores/uiSlice';
 
 interface TaskIconProps {
-  /** 任务/事件 ID，用于匹配预览状态 */
+  /** Task/event ID, used to match preview state */
   itemId: string;
-  /** 当前图标名称 */
+  /** Current icon name */
   icon?: string;
-  /** 图标颜色 */
+  /** Icon color */
   color?: string;
-  /** 图标尺寸 class */
+  /** Icon size class */
   sizeClass?: string;
-  /** 是否启用预览（默认 true） */
+  /** Whether to enable preview (default true) */
   enablePreview?: boolean;
 }
 
