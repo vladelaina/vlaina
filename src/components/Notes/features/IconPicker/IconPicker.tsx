@@ -175,7 +175,6 @@ export function IconPicker({
           <button
             onClick={handleRandom}
             className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors pb-1"
-            title={activeTab === 'emoji' ? 'Random Emoji' : 'Random Icon'}
           >
             <IconArrowsShuffle2 size={16} />
           </button>

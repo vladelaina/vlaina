@@ -138,7 +138,6 @@ export function EmojiTab({
           <button
             onClick={() => setShowSkinTonePicker(!showSkinTonePicker)}
             className="w-7 h-7 flex items-center justify-center text-base opacity-60 hover:opacity-100 transition-opacity"
-            title="Skin tone"
           >
             {SKIN_TONES[skinTone].emoji}
           </button>
