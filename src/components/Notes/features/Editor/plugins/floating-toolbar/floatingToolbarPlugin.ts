@@ -1,4 +1,6 @@
 // Floating Toolbar Plugin - Core Plugin Logic
+// Optimized for performance - only updates when selection is non-empty
+
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import type { FloatingToolbarState, ToolbarMeta } from './types';
@@ -33,36 +35,31 @@ function createInitialState(): FloatingToolbarState {
 
 // Toolbar DOM element reference
 let toolbarElement: HTMLElement | null = null;
-let updateDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-const UPDATE_DEBOUNCE_MS = 16; // ~60fps
+let lastRenderState: string = '';
 
 // Create toolbar DOM structure
 function createToolbarElement(): HTMLElement {
   const toolbar = document.createElement('div');
-  toolbar.className = 'floating-toolbar';
+  toolbar.className = 'floating-toolbar hidden';
   toolbar.setAttribute('role', 'toolbar');
   toolbar.setAttribute('aria-label', 'Text formatting');
   return toolbar;
 }
 
-// Update toolbar visibility with animation
-function updateToolbarVisibility(
-  visible: boolean, 
-  position: { x: number; y: number }, 
-  placement: 'top' | 'bottom'
-) {
+// Update toolbar visibility
+function showToolbar(position: { x: number; y: number }, placement: 'top' | 'bottom') {
   if (!toolbarElement) return;
+  toolbarElement.style.left = `${position.x}px`;
+  toolbarElement.style.top = `${position.y}px`;
+  toolbarElement.style.transform = `translateX(-50%) translateY(${placement === 'top' ? '-100%' : '0'})`;
+  toolbarElement.classList.add('visible');
+  toolbarElement.classList.remove('hidden');
+}
 
-  if (visible) {
-    toolbarElement.style.left = `${position.x}px`;
-    toolbarElement.style.top = `${position.y}px`;
-    toolbarElement.style.transform = `translateX(-50%) translateY(${placement === 'top' ? '-100%' : '0'})`;
-    toolbarElement.classList.add('visible');
-    toolbarElement.classList.remove('hidden');
-  } else {
-    toolbarElement.classList.remove('visible');
-    toolbarElement.classList.add('hidden');
-  }
+function hideToolbar() {
+  if (!toolbarElement) return;
+  toolbarElement.classList.remove('visible');
+  toolbarElement.classList.add('hidden');
 }
 
 // Main plugin export
@@ -90,16 +87,18 @@ export const floatingToolbarPlugin = $prose(() => {
           }
         }
 
-        // Auto-update on selection change
-        if (tr.selectionSet || tr.docChanged) {
+        // Only update visibility on selection change
+        if (tr.selectionSet) {
           const { selection } = newState;
-          const { empty } = selection;
-
-          if (empty) {
-            return { ...prevState, isVisible: false, subMenu: null };
+          if (selection.empty) {
+            if (prevState.isVisible) {
+              return { ...prevState, isVisible: false, subMenu: null };
+            }
+          } else {
+            if (!prevState.isVisible) {
+              return { ...prevState, isVisible: true };
+            }
           }
-
-          return { ...prevState, isVisible: true };
         }
 
         return prevState;
@@ -107,19 +106,23 @@ export const floatingToolbarPlugin = $prose(() => {
     },
 
     view(editorView) {
-      // Create toolbar element
       toolbarElement = createToolbarElement();
       document.body.appendChild(toolbarElement);
 
       const updateToolbar = () => {
-        const state = floatingToolbarKey.getState(editorView.state);
-        if (!state) return;
-
         const { selection } = editorView.state;
-        const { empty } = selection;
+        
+        // Fast path: no selection = hide toolbar immediately
+        if (selection.empty) {
+          hideToolbar();
+          lastRenderState = '';
+          return;
+        }
 
-        if (empty || !state.isVisible) {
-          updateToolbarVisibility(false, { x: 0, y: 0 }, 'top');
+        const state = floatingToolbarKey.getState(editorView.state);
+        if (!state?.isVisible) {
+          hideToolbar();
+          lastRenderState = '';
           return;
         }
 
@@ -131,17 +134,30 @@ export const floatingToolbarPlugin = $prose(() => {
         const textColor = getTextColor(editorView);
         const bgColor = getBgColor(editorView);
 
-        // Update toolbar content
-        renderToolbarContent(toolbarElement!, editorView, {
-          ...state,
-          activeMarks,
+        // Create a cache key to avoid unnecessary re-renders
+        const cacheKey = [
+          Array.from(activeMarks).sort().join(','),
           currentBlockType,
-          linkUrl,
-          textColor,
-          bgColor,
-        });
+          linkUrl || '',
+          textColor || '',
+          bgColor || '',
+          state.subMenu || ''
+        ].join('|');
 
-        updateToolbarVisibility(true, { x, y }, placement);
+        // Only re-render if state changed
+        if (cacheKey !== lastRenderState) {
+          lastRenderState = cacheKey;
+          renderToolbarContent(toolbarElement!, editorView, {
+            ...state,
+            activeMarks,
+            currentBlockType,
+            linkUrl,
+            textColor,
+            bgColor,
+          });
+        }
+
+        showToolbar({ x, y }, placement);
       };
 
       // Handle click outside
@@ -173,30 +189,19 @@ export const floatingToolbarPlugin = $prose(() => {
         }
       };
 
-      // Debounced update for performance
-      const debouncedUpdate = () => {
-        if (updateDebounceTimer) {
-          clearTimeout(updateDebounceTimer);
-        }
-        updateDebounceTimer = setTimeout(updateToolbar, UPDATE_DEBOUNCE_MS);
-      };
-
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleKeyDown);
 
       return {
-        update: debouncedUpdate,
+        update: updateToolbar,
         destroy() {
-          if (updateDebounceTimer) {
-            clearTimeout(updateDebounceTimer);
-            updateDebounceTimer = null;
-          }
           document.removeEventListener('mousedown', handleClickOutside);
           document.removeEventListener('keydown', handleKeyDown);
           if (toolbarElement) {
             toolbarElement.remove();
             toolbarElement = null;
           }
+          lastRenderState = '';
         },
       };
     },

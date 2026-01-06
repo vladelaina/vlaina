@@ -74,6 +74,8 @@ const customPlugins = [
 const titleSyncPluginKey = new PluginKey('titleSync');
 
 const titleSyncPlugin = $prose(() => {
+  let lastTitle = '';
+  
   return new Plugin({
     key: titleSyncPluginKey,
     view() {
@@ -86,15 +88,19 @@ const titleSyncPlugin = $prose(() => {
           const path = useNotesStore.getState().currentNote?.path;
           if (!path) return;
           
+          let newTitle = 'Untitled';
           if (firstNode?.type.name === 'heading' && firstNode.attrs.level === 1) {
             const titleText = firstNode.textContent.trim();
             if (titleText && titleText !== 'Title') {
-              useNotesStore.getState().syncDisplayName(path, titleText);
-              return;
+              newTitle = titleText;
             }
           }
           
-          useNotesStore.getState().syncDisplayName(path, 'Untitled');
+          // Only sync if title actually changed
+          if (newTitle !== lastTitle) {
+            lastTitle = newTitle;
+            useNotesStore.getState().syncDisplayName(path, newTitle);
+          }
         }
       };
     }

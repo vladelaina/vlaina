@@ -49,7 +49,16 @@ export const wikiLinkPlugin = $prose(() => {
         return createWikiLinkDecorations(doc);
       },
       apply(tr, old) {
+        // Use mapping for incremental updates when possible
         if (tr.docChanged) {
+          // For small changes, try to map existing decorations
+          if (tr.steps.length <= 2) {
+            const mapped = old.map(tr.mapping, tr.doc);
+            // Only rebuild if mapping failed significantly
+            if (mapped.find().length > 0 || !tr.doc.textContent.includes('[[')) {
+              return mapped;
+            }
+          }
           return createWikiLinkDecorations(tr.doc);
         }
         return old;

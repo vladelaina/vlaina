@@ -207,6 +207,10 @@ export const codeEnhancePlugin = $prose(() => {
       },
       apply(tr, old) {
         if (tr.docChanged) {
+          // For small changes, use mapping to avoid full rebuild
+          if (tr.steps.length <= 2) {
+            return old.map(tr.mapping, tr.doc);
+          }
           return createCodeDecorations(tr.doc);
         }
         return old;

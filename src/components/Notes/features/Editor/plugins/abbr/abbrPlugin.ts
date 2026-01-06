@@ -122,6 +122,10 @@ export const abbrPlugin = $prose(() => {
       },
       apply(tr, old) {
         if (tr.docChanged) {
+          // For small changes, use mapping
+          if (tr.steps.length <= 2) {
+            return old.map(tr.mapping, tr.doc);
+          }
           return createAbbrDecorations(tr.doc);
         }
         return old;

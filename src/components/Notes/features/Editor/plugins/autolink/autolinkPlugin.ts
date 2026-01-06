@@ -113,7 +113,12 @@ export const autolinkPlugin = $prose(() => {
         return createAutolinkDecorations(doc);
       },
       apply(tr, old) {
+        // Use mapping for incremental updates
         if (tr.docChanged) {
+          // For small changes, map existing decorations
+          if (tr.steps.length <= 2) {
+            return old.map(tr.mapping, tr.doc);
+          }
           return createAutolinkDecorations(tr.doc);
         }
         return old;

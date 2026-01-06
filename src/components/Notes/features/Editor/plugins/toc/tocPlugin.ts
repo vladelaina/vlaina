@@ -58,6 +58,8 @@ function escapeHtml(text: string): string {
 
 // TOC view plugin - updates TOC content when document changes
 export const tocViewPlugin = $prose(() => {
+  let lastHeadingCount = -1;
+  
   return new Plugin({
     key: tocViewPluginKey,
     view() {
@@ -65,8 +67,20 @@ export const tocViewPlugin = $prose(() => {
         update(view) {
           const { doc } = view.state;
           
+          // Quick check: count headings to see if we need to update
+          let headingCount = 0;
+          doc.descendants((node: any) => {
+            if (node.type.name === 'heading') headingCount++;
+          });
+          
+          // Skip update if heading count hasn't changed
+          if (headingCount === lastHeadingCount) return;
+          lastHeadingCount = headingCount;
+          
           // Find all TOC blocks and update their content
           const tocElements = document.querySelectorAll('.toc-block');
+          if (tocElements.length === 0) return;
+          
           tocElements.forEach((el) => {
             const maxLevel = parseInt(el.getAttribute('data-max-level') || '6', 10);
             const headings = extractHeadings(doc, maxLevel);
