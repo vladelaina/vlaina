@@ -129,81 +129,6 @@
   color: #71717a;
 }
 
-/* Heading hash marks - clickable hover widget */
-.milkdown .heading-hash-hover {
-  color: #d4d4d8;
-  font-weight: normal;
-  cursor: pointer;
-  transition: color 0.15s;
-  user-select: none;
-}
-
-.milkdown .heading-hash-hover:hover {
-  color: var(--neko-accent);
-}
-
-.dark .milkdown .heading-hash-hover {
-  color: #52525b;
-}
-
-.dark .milkdown .heading-hash-hover:hover {
-  color: var(--neko-accent);
-}
-
-/* Active state (when menu is open) */
-.heading-hash-active {
-  color: var(--neko-accent) !important;
-  opacity: 1 !important;
-}
-
-/* Level Selection Menu */
-.heading-level-menu {
-  background-color: var(--neko-bg-secondary, #fff);
-  border: 1px solid var(--neko-border, #e4e4e7);
-  border-radius: 0.5rem;
-  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.15);
-  padding: 0.25rem;
-  min-width: 160px;
-  z-index: 1000;
-}
-
-.heading-level-item {
-  display: block;
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  text-align: left;
-  color: var(--neko-text-primary, #18181b);
-  background: transparent;
-  border: none;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  transition: background-color 0.1s;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-}
-
-.heading-level-item:hover {
-  background-color: var(--neko-hover, #f4f4f5);
-}
-
-.heading-level-item.active {
-  background-color: var(--neko-accent-light, #eff6ff);
-  color: var(--neko-accent, #3b82f6);
-}
-
-.dark .heading-level-menu {
-  background-color: var(--neko-bg-secondary, #27272a);
-  border-color: var(--neko-border, #3f3f46);
-}
-
-.dark .heading-level-item {
-  color: var(--neko-text-primary, #fafafa);
-}
-
-.dark .heading-level-item:hover {
-  background-color: var(--neko-hover, #3f3f46);
-}
-
 /* ============================================
    Standard Markdown Elements
    ============================================ */
@@ -518,3 +443,413 @@
   border-radius: 0.5rem; box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.2); padding: 0.5rem;
 }
 /* ... (Rest of component styles remain standard) ... */
+
+
+/* ============================================
+   Floating Toolbar Styles
+   ============================================ */
+
+.floating-toolbar {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(-100%) scale(0.95);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.floating-toolbar.visible {
+  pointer-events: auto;
+  opacity: 1;
+  transform: translateX(-50%) translateY(-100%) scale(1);
+}
+
+.floating-toolbar.hidden {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(-100%) scale(0.95);
+}
+
+.floating-toolbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.5rem;
+  background-color: var(--neko-bg-secondary, #ffffff);
+  border: 1px solid var(--neko-border, #e4e4e7);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.15), 0 4px 6px -2px rgb(0 0 0 / 0.05);
+}
+
+.dark .floating-toolbar-inner {
+  background-color: var(--neko-bg-secondary, #27272a);
+  border-color: var(--neko-border, #3f3f46);
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.4), 0 4px 6px -2px rgb(0 0 0 / 0.2);
+}
+
+.toolbar-arrow {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 12px;
+  background-color: var(--neko-bg-secondary, #ffffff);
+  border: 1px solid var(--neko-border, #e4e4e7);
+  border-top: none;
+  border-left: none;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.dark .toolbar-arrow {
+  background-color: var(--neko-bg-secondary, #27272a);
+  border-color: var(--neko-border, #3f3f46);
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+.toolbar-format-group {
+  gap: 0.0625rem;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 1.25rem;
+  background-color: var(--neko-border, #e4e4e7);
+  margin: 0 0.25rem;
+}
+
+.dark .toolbar-divider {
+  background-color: var(--neko-border, #3f3f46);
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0.25rem;
+  color: var(--neko-text-secondary, #71717a);
+  cursor: pointer;
+  transition: all 0.1s ease;
+  position: relative;
+}
+
+.toolbar-btn:hover {
+  background-color: var(--neko-hover, #f4f4f5);
+  color: var(--neko-text-primary, #18181b);
+}
+
+.dark .toolbar-btn:hover {
+  background-color: var(--neko-hover, #3f3f46);
+  color: var(--neko-text-primary, #fafafa);
+}
+
+.toolbar-btn:active {
+  transform: scale(0.95);
+}
+
+.toolbar-btn.active {
+  background-color: var(--neko-accent-light, #eff6ff);
+  color: var(--neko-accent, #3b82f6);
+}
+
+.dark .toolbar-btn.active {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: var(--neko-accent, #60a5fa);
+}
+
+.toolbar-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.toolbar-dropdown-btn {
+  width: auto;
+  padding: 0 0.5rem;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.block-type-label {
+  min-width: 2rem;
+  text-align: left;
+}
+
+.color-indicator {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 3px;
+  border-radius: 1px;
+}
+
+/* Sub-menus */
+.toolbar-submenu {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 0.5rem;
+  min-width: 200px;
+  background-color: var(--neko-bg-secondary, #ffffff);
+  border: 1px solid var(--neko-border, #e4e4e7);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.15);
+  padding: 0.25rem;
+  z-index: 10;
+}
+
+.dark .toolbar-submenu {
+  background-color: var(--neko-bg-secondary, #27272a);
+  border-color: var(--neko-border, #3f3f46);
+}
+
+/* Block type dropdown */
+.block-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: none;
+  border-radius: 0.25rem;
+  color: var(--neko-text-primary, #18181b);
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.block-dropdown-item:hover {
+  background-color: var(--neko-hover, #f4f4f5);
+}
+
+.dark .block-dropdown-item {
+  color: var(--neko-text-primary, #fafafa);
+}
+
+.dark .block-dropdown-item:hover {
+  background-color: var(--neko-hover, #3f3f46);
+}
+
+.block-dropdown-item.active {
+  background-color: var(--neko-accent-light, #eff6ff);
+  color: var(--neko-accent, #3b82f6);
+}
+
+.dark .block-dropdown-item.active {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: var(--neko-accent, #60a5fa);
+}
+
+.block-dropdown-item-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--neko-text-tertiary, #a1a1aa);
+}
+
+.block-dropdown-item-shortcut {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--neko-text-tertiary, #a1a1aa);
+}
+
+/* Link editor */
+.link-editor {
+  padding: 0.5rem;
+}
+
+.link-editor-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--neko-bg-tertiary, #f4f4f5);
+  border: 1px solid var(--neko-border, #e4e4e7);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--neko-text-primary, #18181b);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.link-editor-input:focus {
+  border-color: var(--neko-accent, #3b82f6);
+}
+
+.dark .link-editor-input {
+  background-color: var(--neko-bg-tertiary, #18181b);
+  border-color: var(--neko-border, #3f3f46);
+  color: var(--neko-text-primary, #fafafa);
+}
+
+.link-editor-error {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #ef4444;
+}
+
+.link-editor-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.link-editor-btn {
+  flex: 1;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.link-editor-btn-primary {
+  background-color: var(--neko-accent, #3b82f6);
+  border: none;
+  color: white;
+}
+
+.link-editor-btn-primary:hover {
+  background-color: var(--neko-accent-hover, #2563eb);
+}
+
+.link-editor-btn-secondary {
+  background: transparent;
+  border: 1px solid var(--neko-border, #e4e4e7);
+  color: var(--neko-text-secondary, #71717a);
+}
+
+.link-editor-btn-secondary:hover {
+  background-color: var(--neko-hover, #f4f4f5);
+}
+
+.dark .link-editor-btn-secondary {
+  border-color: var(--neko-border, #3f3f46);
+}
+
+.dark .link-editor-btn-secondary:hover {
+  background-color: var(--neko-hover, #3f3f46);
+}
+
+/* Color picker */
+.color-picker {
+  padding: 0.5rem;
+}
+
+.color-picker-section {
+  margin-bottom: 0.5rem;
+}
+
+.color-picker-section:last-child {
+  margin-bottom: 0;
+}
+
+.color-picker-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--neko-text-tertiary, #a1a1aa);
+  margin-bottom: 0.375rem;
+  padding-left: 0.25rem;
+}
+
+.color-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.25rem;
+}
+
+.color-picker-item {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.25rem;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.1s;
+  position: relative;
+}
+
+.color-picker-item:hover {
+  transform: scale(1.1);
+}
+
+.color-picker-item.active {
+  border-color: var(--neko-accent, #3b82f6);
+}
+
+.color-picker-item-default {
+  background: linear-gradient(135deg, #fff 45%, #ef4444 45%, #ef4444 55%, #fff 55%);
+  border: 1px solid var(--neko-border, #e4e4e7);
+}
+
+.dark .color-picker-item-default {
+  background: linear-gradient(135deg, #27272a 45%, #ef4444 45%, #ef4444 55%, #27272a 55%);
+  border-color: var(--neko-border, #3f3f46);
+}
+
+
+/* Link suggestions */
+.link-suggestions {
+  margin-top: 0.5rem;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.link-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--neko-text-primary, #18181b);
+  cursor: pointer;
+  border-radius: 0.25rem;
+  transition: background-color 0.1s;
+}
+
+.link-suggestion-item:hover {
+  background-color: var(--neko-hover, #f4f4f5);
+}
+
+.dark .link-suggestion-item {
+  color: var(--neko-text-primary, #fafafa);
+}
+
+.dark .link-suggestion-item:hover {
+  background-color: var(--neko-hover, #3f3f46);
+}
+
+.link-suggestion-icon {
+  font-size: 1rem;
+}
+
+/* Underline mark style */
+.milkdown u {
+  text-decoration: underline;
+}
+
+/* Text color and background color marks */
+.milkdown [data-text-color] {
+  /* Color is applied inline */
+}
+
+.milkdown [data-bg-color] {
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.125rem;
+}

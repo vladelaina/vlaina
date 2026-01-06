@@ -20,6 +20,8 @@ import { CustomScrollbar } from '@/components/ui/custom-scrollbar';
 
 // Custom plugins - unified import
 import {
+  floatingToolbarPlugin,
+  colorMarksPlugin,
   headingPlugin,
   mathPlugin,
   mathClickPlugin,
@@ -44,6 +46,10 @@ import './editor.css';
 
 // Flatten plugin arrays for Milkdown
 const customPlugins = [
+  // Floating toolbar for text selection
+  floatingToolbarPlugin,
+  // Color marks (text color, bg color, underline)
+  ...colorMarksPlugin,
   // Heading with editable hash marks
   ...headingPlugin,
   ...mathPlugin,

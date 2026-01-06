@@ -1,9 +1,12 @@
 // Unified plugin exports for Milkdown editor
 // This file provides a single entry point for all editor plugins
 
-// Heading (editable hash marks)
+// Floating Toolbar (selection-based formatting)
+export { floatingToolbarPlugin, floatingToolbarKey, colorMarksPlugin } from './floating-toolbar';
+export type { FloatingToolbarState, BlockType, SubMenuType } from './floating-toolbar';
+
+// Heading (protects first H1)
 export { headingPlugin } from './heading';
-export type { HeadingAttrs, HeadingState } from './heading';
 
 // Math (LaTeX)
 export { mathPlugin, mathClickPlugin } from './math';
