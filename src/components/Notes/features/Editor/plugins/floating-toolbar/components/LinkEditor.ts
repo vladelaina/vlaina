@@ -24,7 +24,7 @@ export function renderLinkEditor(
       <input 
         type="text" 
         class="link-editor-input" 
-        placeholder="输入链接地址或 [[笔记名称]]"
+        placeholder="输入链接地址"
         value="${escapeHtml(currentUrl)}"
         autocomplete="off"
         spellcheck="false"
@@ -40,33 +40,18 @@ export function renderLinkEditor(
           ${hasExistingLink ? '更新' : '添加'}
         </button>
       </div>
-      <div class="link-suggestions" style="display: none;"></div>
     </div>
   `;
   
   const input = editor.querySelector('.link-editor-input') as HTMLInputElement;
   const errorEl = editor.querySelector('.link-editor-error') as HTMLElement;
-  const suggestionsEl = editor.querySelector('.link-suggestions') as HTMLElement;
   
   // Focus input
   setTimeout(() => input.focus(), 0);
   
-  // Handle input changes
+  // Handle input changes - clear error on input
   input.addEventListener('input', () => {
-    const value = input.value.trim();
-    
-    // Clear error
     errorEl.style.display = 'none';
-    
-    // Check for wiki link pattern
-    if (value.startsWith('[[')) {
-      showWikiLinkSuggestions(suggestionsEl, value, view, (noteName) => {
-        input.value = `[[${noteName}]]`;
-        suggestionsEl.style.display = 'none';
-      });
-    } else {
-      suggestionsEl.style.display = 'none';
-    }
   });
   
   // Handle keyboard
@@ -118,45 +103,6 @@ export function renderLinkEditor(
   }
   
   container.appendChild(editor);
-}
-
-/**
- * Show wiki link suggestions
- */
-function showWikiLinkSuggestions(
-  container: HTMLElement,
-  query: string,
-  _view: EditorView,
-  onSelect: (noteName: string) => void
-): void {
-  // Extract search term from [[query
-  const searchTerm = query.replace(/^\[\[/, '').replace(/\]\]$/, '').toLowerCase();
-  
-  if (!searchTerm) {
-    container.style.display = 'none';
-    return;
-  }
-  
-  // TODO: Integrate with notes store to get actual note suggestions
-  // For now, show a placeholder
-  container.innerHTML = `
-    <div class="link-suggestion-item" data-note="${escapeHtml(searchTerm)}">
-      <span class="link-suggestion-icon">📝</span>
-      <span>创建 "${escapeHtml(searchTerm)}"</span>
-    </div>
-  `;
-  
-  container.style.display = 'block';
-  
-  // Handle suggestion click
-  container.querySelectorAll('[data-note]').forEach((item) => {
-    item.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const noteName = (item as HTMLElement).dataset.note || '';
-      onSelect(noteName);
-    });
-  });
 }
 
 /**

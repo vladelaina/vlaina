@@ -59,6 +59,7 @@ function escapeHtml(text: string): string {
 // TOC view plugin - updates TOC content when document changes
 export const tocViewPlugin = $prose(() => {
   let lastHeadingCount = -1;
+  let cachedTocElements: WeakMap<Document, NodeListOf<Element>> = new WeakMap();
   
   return new Plugin({
     key: tocViewPluginKey,
@@ -77,13 +78,25 @@ export const tocViewPlugin = $prose(() => {
           if (headingCount === lastHeadingCount) return;
           lastHeadingCount = headingCount;
           
-          // Find all TOC blocks and update their content
-          const tocElements = document.querySelectorAll('.toc-block');
+          // Use cached elements or query once
+          let tocElements = cachedTocElements.get(document);
+          if (!tocElements || tocElements.length === 0) {
+            tocElements = document.querySelectorAll('.toc-block');
+            if (tocElements.length > 0) {
+              cachedTocElements.set(document, tocElements);
+            }
+          }
+          
           if (tocElements.length === 0) return;
+          
+          // Pre-extract headings once for all TOC blocks
+          const allHeadings = extractHeadings(doc, 6);
           
           tocElements.forEach((el) => {
             const maxLevel = parseInt(el.getAttribute('data-max-level') || '6', 10);
-            const headings = extractHeadings(doc, maxLevel);
+            const headings = maxLevel < 6 
+              ? allHeadings.filter(h => h.level <= maxLevel)
+              : allHeadings;
             const contentEl = el.querySelector('.toc-content');
             if (contentEl) {
               contentEl.innerHTML = generateTocHtml(headings);

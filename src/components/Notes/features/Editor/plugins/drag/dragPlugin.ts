@@ -6,6 +6,13 @@ import type { DragHandleState } from './types';
 export const dragPluginKey = new PluginKey<DragHandleState>('dragHandle');
 
 export const dragPlugin = $prose(() => {
+  // Throttle state for mousemove - avoid excessive dispatches
+  let lastUpdateTime = 0;
+  let pendingUpdate: { visible: boolean; position?: { x: number; y: number }; nodePos?: number } | null = null;
+  let rafId: number | null = null;
+  
+  const THROTTLE_MS = 16; // ~60fps
+  
   return new Plugin({
     key: dragPluginKey,
     state: {
@@ -25,44 +32,59 @@ export const dragPlugin = $prose(() => {
     props: {
       handleDOMEvents: {
         mousemove(view, event) {
+          const now = performance.now();
+          
+          // Calculate new state without dispatching
           const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
           if (!pos) {
-            view.dispatch(view.state.tr.setMeta(dragPluginKey, { visible: false }));
-            return false;
+            pendingUpdate = { visible: false };
+          } else {
+            const $pos = view.state.doc.resolve(pos.pos);
+            let depth = $pos.depth;
+            while (depth > 1) depth--;
+            
+            if (depth < 1) {
+              pendingUpdate = { visible: false };
+            } else {
+              const nodePos = $pos.before(depth);
+              const node = view.state.doc.nodeAt(nodePos);
+              
+              if (!node || (node.type.name === 'heading' && node.attrs.level === 1)) {
+                pendingUpdate = { visible: false };
+              } else {
+                const coords = view.coordsAtPos(nodePos);
+                pendingUpdate = {
+                  visible: true,
+                  position: { x: coords.left - 24, y: coords.top },
+                  nodePos
+                };
+              }
+            }
           }
           
-          const $pos = view.state.doc.resolve(pos.pos);
-          
-          // Find the top-level block
-          let depth = $pos.depth;
-          while (depth > 1) depth--;
-          
-          if (depth < 1) {
-            view.dispatch(view.state.tr.setMeta(dragPluginKey, { visible: false }));
-            return false;
+          // Throttle dispatches using RAF
+          if (now - lastUpdateTime >= THROTTLE_MS && pendingUpdate) {
+            if (rafId !== null) {
+              cancelAnimationFrame(rafId);
+            }
+            rafId = requestAnimationFrame(() => {
+              if (pendingUpdate) {
+                view.dispatch(view.state.tr.setMeta(dragPluginKey, pendingUpdate));
+                lastUpdateTime = performance.now();
+                pendingUpdate = null;
+              }
+              rafId = null;
+            });
           }
-          
-          const nodePos = $pos.before(depth);
-          const node = view.state.doc.nodeAt(nodePos);
-          
-          if (!node || node.type.name === 'heading' && node.attrs.level === 1) {
-            view.dispatch(view.state.tr.setMeta(dragPluginKey, { visible: false }));
-            return false;
-          }
-
-          const coords = view.coordsAtPos(nodePos);
-          
-          view.dispatch(
-            view.state.tr.setMeta(dragPluginKey, {
-              visible: true,
-              position: { x: coords.left - 24, y: coords.top },
-              nodePos
-            })
-          );
           
           return false;
         },
         mouseleave(view) {
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+          }
+          pendingUpdate = null;
           view.dispatch(view.state.tr.setMeta(dragPluginKey, { visible: false }));
           return false;
         }
@@ -162,19 +184,14 @@ export const dragPlugin = $prose(() => {
           if (!node) return;
           
           let tr = state.tr;
-          
-          // Delete from original position
           tr = tr.delete(draggedNodePos, draggedNodePos + node.nodeSize);
           
-          // Adjust target position if needed
           let adjustedTarget = targetPos;
           if (targetPos > draggedNodePos) {
             adjustedTarget -= node.nodeSize;
           }
           
-          // Insert at new position
           tr = tr.insert(adjustedTarget, node);
-          
           editorView.dispatch(tr);
           
           if (dropIndicator) {
@@ -207,6 +224,9 @@ export const dragPlugin = $prose(() => {
           handleElement.style.top = `${state.position.y}px`;
         },
         destroy() {
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+          }
           if (handleElement) {
             handleElement.remove();
           }

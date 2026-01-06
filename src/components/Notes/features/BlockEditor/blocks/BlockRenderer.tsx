@@ -78,7 +78,6 @@ export function BlockRenderer({ block }: BlockRendererProps) {
     updateBlockProps,
     setSlashMenu,
     setDragHandle,
-    setLinkSuggest,
   } = useEditorContext();
 
   const blockRef = useRef<HTMLDivElement>(null);
@@ -140,21 +139,6 @@ export function BlockRenderer({ block }: BlockRendererProps) {
       return;
     }
 
-    // Check for wiki link trigger [[
-    const wikiLinkMatch = text.match(/\[\[([^\]]*)?$/);
-    if (wikiLinkMatch) {
-      const rect = target.getBoundingClientRect();
-      setLinkSuggest({
-        isOpen: true,
-        position: { x: rect.left, y: rect.bottom + 4 },
-        searchText: wikiLinkMatch[1] || '',
-        triggerBlockId: block.id,
-      });
-    } else {
-      // Close link suggest if open
-      setLinkSuggest(prev => prev.isOpen ? { ...prev, isOpen: false } : prev);
-    }
-
     // Check for slash command
     if (text.endsWith('/') || (text.includes('/') && !text.includes(' '))) {
       const slashIndex = text.lastIndexOf('/');
@@ -175,7 +159,7 @@ export function BlockRenderer({ block }: BlockRendererProps) {
     }
 
     handleInput(block.id, text);
-  }, [block.id, block.type, handleInput, handleBlockTypeChange, setSlashMenu, setLinkSuggest]);
+  }, [block.id, block.type, handleInput, handleBlockTypeChange, setSlashMenu]);
 
   // Handle key down
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {

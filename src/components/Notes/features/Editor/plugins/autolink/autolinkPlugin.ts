@@ -113,15 +113,36 @@ export const autolinkPlugin = $prose(() => {
         return createAutolinkDecorations(doc);
       },
       apply(tr, old) {
-        // Use mapping for incremental updates
-        if (tr.docChanged) {
-          // For small changes, map existing decorations
-          if (tr.steps.length <= 2) {
-            return old.map(tr.mapping, tr.doc);
-          }
-          return createAutolinkDecorations(tr.doc);
+        if (!tr.docChanged) {
+          return old;
         }
-        return old;
+        
+        // For small changes, try mapping first
+        if (tr.steps.length <= 2) {
+          const mapped = old.map(tr.mapping, tr.doc);
+          
+          // Check if the changed region contains URL-like patterns
+          // Only rebuild if we detect potential new URLs in changed text
+          let needsRebuild = false;
+          tr.steps.forEach((step: any) => {
+            if (step.slice?.content) {
+              step.slice.content.forEach((node: any) => {
+                if (node.isText && node.text) {
+                  const text = node.text;
+                  if (text.includes('http') || text.includes('www.') || text.includes('@')) {
+                    needsRebuild = true;
+                  }
+                }
+              });
+            }
+          });
+          
+          if (!needsRebuild) {
+            return mapped;
+          }
+        }
+        
+        return createAutolinkDecorations(tr.doc);
       }
     },
     props: {

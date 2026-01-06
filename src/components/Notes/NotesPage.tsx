@@ -28,7 +28,6 @@ export function NotesPage() {
     isLoading, 
     loadFileTree, 
     createNote,
-    createNoteWithContent,
     createFolder,
     openNote,
     openTabs,
@@ -78,43 +77,6 @@ export function NotesPage() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [openTabs, currentNote, openNote, closeTab]);
-
-  useEffect(() => {
-    const handleWikiLinkClick = async (e: CustomEvent<{ linkText: string }>) => {
-      const { linkText } = e.detail;
-      if (!linkText || !rootFolder) return;
-
-      const findNote = (nodes: typeof rootFolder.children): string | null => {
-        for (const node of nodes) {
-          if (node.isFolder) {
-            const found = findNote(node.children);
-            if (found) return found;
-          } else {
-            const noteName = node.name.toLowerCase();
-            if (noteName === linkText.toLowerCase() || 
-                noteName === linkText.toLowerCase() + '.md') {
-              return node.path;
-            }
-          }
-        }
-        return null;
-      };
-
-      const notePath = findNote(rootFolder.children);
-      
-      if (notePath) {
-        openNote(notePath);
-      } else {
-        const shouldCreate = confirm(`Note "${linkText}" doesn't exist. Create it?`);
-        if (shouldCreate) {
-          await createNoteWithContent(undefined, linkText, `# ${linkText}\n\n`);
-        }
-      }
-    };
-
-    window.addEventListener('wiki-link-click', handleWikiLinkClick as unknown as EventListener);
-    return () => window.removeEventListener('wiki-link-click', handleWikiLinkClick as unknown as EventListener);
-  }, [rootFolder, openNote, createNoteWithContent]);
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

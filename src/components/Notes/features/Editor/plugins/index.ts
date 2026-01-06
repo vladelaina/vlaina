@@ -31,7 +31,6 @@ export { codePlugin, codeEnhancePlugin } from './code';
 export { highlightPlugin } from './highlight';
 
 // Decorations (visual enhancements)
-export { wikiLinkPlugin } from './wikilink';
 export { autolinkPlugin } from './autolink';
 export { abbrPlugin } from './abbr';
 

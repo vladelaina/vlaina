@@ -7,7 +7,6 @@ import type { SlashMenuState } from './types';
 
 export const slashPluginKey = new PluginKey<SlashMenuState>('slashMenu');
 
-// Create slash menu state
 function createSlashState(): SlashMenuState {
   return {
     isOpen: false,
@@ -18,6 +17,10 @@ function createSlashState(): SlashMenuState {
 }
 
 export const slashPlugin = $prose((ctx) => {
+  // Cache for event delegation
+  let cachedFiltered: ReturnType<typeof filterSlashItems> = [];
+  let delegateHandler: ((e: Event) => void) | null = null;
+  
   return new Plugin({
     key: slashPluginKey,
     state: {
@@ -28,7 +31,6 @@ export const slashPlugin = $prose((ctx) => {
           return { ...state, ...meta };
         }
         
-        // Check if we should close the menu
         if (state.isOpen && tr.docChanged) {
           const { selection } = tr;
           const $pos = selection.$from;
@@ -65,7 +67,6 @@ export const slashPlugin = $prose((ctx) => {
       handleKeyDown(view, event) {
         const state = slashPluginKey.getState(view.state);
         if (!state?.isOpen) {
-          // Check for slash trigger
           if (event.key === '/') {
             const { selection } = view.state;
             const coords = view.coordsAtPos(selection.from);
@@ -110,8 +111,6 @@ export const slashPlugin = $prose((ctx) => {
             event.preventDefault();
             if (filtered.length > 0) {
               const item = filtered[state.selectedIndex];
-              
-              // Delete the slash and query
               const { selection } = view.state;
               const $pos = selection.$from;
               const textBefore = $pos.parent.textBetween(
@@ -129,7 +128,6 @@ export const slashPlugin = $prose((ctx) => {
                   .setMeta(slashPluginKey, createSlashState())
               );
               
-              // Execute the action
               item.action(ctx);
             }
             return true;
@@ -148,7 +146,6 @@ export const slashPlugin = $prose((ctx) => {
         const slashState = slashPluginKey.getState(state);
         if (!slashState?.isOpen) return DecorationSet.empty;
         
-        // Create a widget decoration for the menu
         const widget = Decoration.widget(
           state.selection.from,
           () => {
@@ -165,6 +162,46 @@ export const slashPlugin = $prose((ctx) => {
     },
     view(editorView) {
       let menuElement: HTMLElement | null = null;
+      let lastHtml = '';
+      
+      // Setup event delegation once
+      const setupDelegation = (menu: HTMLElement) => {
+        if (delegateHandler) return;
+        
+        delegateHandler = (e: Event) => {
+          const target = e.target as HTMLElement;
+          const item = target.closest('.slash-menu-item') as HTMLElement | null;
+          
+          if (item && cachedFiltered.length > 0) {
+            const index = parseInt(item.dataset.index || '0', 10);
+            const menuItem = cachedFiltered[index];
+            
+            if (menuItem) {
+              const { selection } = editorView.state;
+              const $pos = selection.$from;
+              const textBefore = $pos.parent.textBetween(
+                Math.max(0, $pos.parentOffset - 50),
+                $pos.parentOffset,
+                null,
+                '\ufffc'
+              );
+              const slashIndex = textBefore.lastIndexOf('/');
+              const deleteFrom = $pos.pos - (textBefore.length - slashIndex);
+              
+              editorView.dispatch(
+                editorView.state.tr
+                  .delete(deleteFrom, $pos.pos)
+                  .setMeta(slashPluginKey, createSlashState())
+              );
+              
+              menuItem.action(ctx);
+              editorView.focus();
+            }
+          }
+        };
+        
+        menu.addEventListener('click', delegateHandler);
+      };
       
       const updateMenu = () => {
         const state = slashPluginKey.getState(editorView.state);
@@ -173,16 +210,19 @@ export const slashPlugin = $prose((ctx) => {
           if (menuElement) {
             menuElement.remove();
             menuElement = null;
+            lastHtml = '';
           }
           return;
         }
         
         const filtered = filterSlashItems(state.query, slashMenuItems);
+        cachedFiltered = filtered;
         
         if (filtered.length === 0) {
           if (menuElement) {
             menuElement.remove();
             menuElement = null;
+            lastHtml = '';
           }
           return;
         }
@@ -191,12 +231,13 @@ export const slashPlugin = $prose((ctx) => {
           menuElement = document.createElement('div');
           menuElement.className = 'slash-menu';
           document.body.appendChild(menuElement);
+          setupDelegation(menuElement);
         }
         
         menuElement.style.left = `${state.position.x}px`;
         menuElement.style.top = `${state.position.y}px`;
         
-        // Group items
+        // Build HTML
         const groups = new Map<string, typeof filtered>();
         filtered.forEach(item => {
           const group = groups.get(item.group) || [];
@@ -208,8 +249,7 @@ export const slashPlugin = $prose((ctx) => {
         let globalIndex = 0;
         
         groups.forEach((items, groupName) => {
-          html += `<div class="slash-menu-group">
-            <div class="slash-menu-group-title">${groupName}</div>`;
+          html += `<div class="slash-menu-group"><div class="slash-menu-group-title">${groupName}</div>`;
           
           items.forEach(item => {
             const isSelected = globalIndex === state.selectedIndex;
@@ -226,37 +266,17 @@ export const slashPlugin = $prose((ctx) => {
           html += '</div>';
         });
         
-        menuElement.innerHTML = html;
-        
-        // Add click handlers
-        menuElement.querySelectorAll('.slash-menu-item').forEach((el, index) => {
-          el.addEventListener('click', () => {
-            const item = filtered[index];
-            
-            // Delete the slash and query
-            const { selection } = editorView.state;
-            const $pos = selection.$from;
-            const textBefore = $pos.parent.textBetween(
-              Math.max(0, $pos.parentOffset - 50),
-              $pos.parentOffset,
-              null,
-              '\ufffc'
-            );
-            const slashIndex = textBefore.lastIndexOf('/');
-            const deleteFrom = $pos.pos - (textBefore.length - slashIndex);
-            
-            editorView.dispatch(
-              editorView.state.tr
-                .delete(deleteFrom, $pos.pos)
-                .setMeta(slashPluginKey, createSlashState())
-            );
-            
-            item.action(ctx);
-            editorView.focus();
+        // Only update DOM if HTML changed
+        if (html !== lastHtml) {
+          menuElement.innerHTML = html;
+          lastHtml = html;
+        } else {
+          // Just update selected state
+          menuElement.querySelectorAll('.slash-menu-item').forEach((el, idx) => {
+            el.classList.toggle('selected', idx === state.selectedIndex);
           });
-        });
+        }
         
-        // Scroll selected item into view
         const selectedEl = menuElement.querySelector('.slash-menu-item.selected');
         selectedEl?.scrollIntoView({ block: 'nearest' });
       };
@@ -265,8 +285,15 @@ export const slashPlugin = $prose((ctx) => {
         update: updateMenu,
         destroy() {
           if (menuElement) {
+            if (delegateHandler) {
+              menuElement.removeEventListener('click', delegateHandler);
+              delegateHandler = null;
+            }
             menuElement.remove();
+            menuElement = null;
           }
+          lastHtml = '';
+          cachedFiltered = [];
         }
       };
     }

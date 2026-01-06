@@ -827,23 +827,6 @@
   color: var(--neko-accent);
 }
 
-/* Wiki Link Inline Style */
-.block-content .wiki-link {
-  color: var(--neko-accent);
-  text-decoration: none;
-  background: var(--neko-accent-light);
-  padding: 1px 4px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.block-content .wiki-link:hover {
-  background: var(--neko-accent);
-  color: white;
-}
-
-
 /* Keyboard Shortcuts Modal */
 .keyboard-shortcuts-overlay {
   position: fixed;

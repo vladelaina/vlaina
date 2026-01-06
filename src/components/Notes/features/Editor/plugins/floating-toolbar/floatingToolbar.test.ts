@@ -158,19 +158,6 @@ describe('Floating Toolbar Properties', () => {
       );
     });
 
-    it('should accept wiki link format', () => {
-      fc.assert(
-        fc.property(
-          fc.string({ minLength: 1, maxLength: 50 }).filter(s => !s.includes(']]') && !s.includes('[[')),
-          (noteName) => {
-            const wikiLink = `[[${noteName}]]`;
-            return isValidUrl(wikiLink) === true;
-          }
-        ),
-        { numRuns: 100 }
-      );
-    });
-
     it('should reject empty strings', () => {
       expect(isValidUrl('')).toBe(false);
       expect(isValidUrl('   ')).toBe(false);
@@ -183,8 +170,7 @@ describe('Floating Toolbar Properties', () => {
             !s.startsWith('http://') && 
             !s.startsWith('https://') && 
             !s.startsWith('mailto:') && 
-            !s.startsWith('/') &&
-            !s.startsWith('[[')
+            !s.startsWith('/')
           ),
           (invalidUrl) => {
             return isValidUrl(invalidUrl) === false;

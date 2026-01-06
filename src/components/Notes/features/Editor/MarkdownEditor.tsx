@@ -38,7 +38,6 @@ import {
   deflistPlugin,
   videoPlugin,
   abbrPlugin,
-  wikiLinkPlugin
 } from './plugins';
 
 // Editor styles
@@ -68,7 +67,6 @@ const customPlugins = [
   ...deflistPlugin,
   ...videoPlugin,
   abbrPlugin,
-  wikiLinkPlugin
 ];
 
 const titleSyncPluginKey = new PluginKey('titleSync');

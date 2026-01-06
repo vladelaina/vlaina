@@ -871,22 +871,40 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
 
     const cache = new Map<string, string>();
     
-    const scanFolder = async (nodes: FileTreeNode[]) => {
+    // Collect all file paths first
+    const filePaths: { path: string; fullPath: string }[] = [];
+    
+    const collectPaths = async (nodes: FileTreeNode[]) => {
       for (const node of nodes) {
         if (node.isFolder) {
-          await scanFolder(node.children);
+          await collectPaths(node.children);
         } else {
-          try {
-            const fullPath = await join(notesPath, node.path);
-            const content = await readTextFile(fullPath);
-            cache.set(node.path, content);
-          } catch {
-          }
+          const fullPath = await join(notesPath, node.path);
+          filePaths.push({ path: node.path, fullPath });
         }
       }
     };
-
-    await scanFolder(rootFolder.children);
+    
+    await collectPaths(rootFolder.children);
+    
+    // Read files in parallel batches for better performance
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
+      const batch = filePaths.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map(async ({ path, fullPath }) => {
+          const content = await readTextFile(fullPath);
+          return { path, content };
+        })
+      );
+      
+      results.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          cache.set(result.value.path, result.value.content);
+        }
+      });
+    }
+    
     set({ noteContentsCache: cache });
   },
 
@@ -894,6 +912,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
     const { noteContentsCache } = get();
     const results: { path: string; name: string; context: string }[] = [];
     const noteName = notePath.split('/').pop()?.replace('.md', '').toLowerCase() || '';
+    
+    // Pre-compile patterns once
     const patterns = [
       new RegExp(`\\[\\[${noteName}\\]\\]`, 'gi'),
       new RegExp(`\\[\\[${noteName}\\|[^\\]]+\\]\\]`, 'gi'),
@@ -902,10 +922,14 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
     noteContentsCache.forEach((content, path) => {
       if (path === notePath) return;
       
+      // Quick check before regex - skip if no [[ at all
+      if (!content.includes('[[')) return;
+      
       for (const pattern of patterns) {
-        const match = content.match(pattern);
+        pattern.lastIndex = 0; // Reset regex state
+        const match = pattern.exec(content);
         if (match) {
-          const index = content.search(pattern);
+          const index = match.index;
           const start = Math.max(0, index - 50);
           const end = Math.min(content.length, index + match[0].length + 50);
           let context = content.substring(start, end).replace(/\n/g, ' ').trim();

@@ -77,7 +77,6 @@ export function isValidUrl(input: string): boolean {
     /^https?:\/\/.+/i,  // http:// or https://
     /^mailto:.+/i,       // mailto:
     /^\/.+/,             // relative path starting with / followed by anything
-    /^\[\[.+\]\]$/,      // wiki link format [[...]]
   ];
   
   return validPatterns.some(pattern => pattern.test(trimmed));

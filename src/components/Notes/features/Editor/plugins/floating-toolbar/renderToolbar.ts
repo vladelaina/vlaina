@@ -78,14 +78,80 @@ function handleToolbarAction(view: EditorView, action: string, state: FloatingTo
   }
 }
 
+// Cache for event delegation - avoid re-binding
+let currentView: EditorView | null = null;
+let currentState: FloatingToolbarState | null = null;
+let delegateHandler: ((e: Event) => void) | null = null;
+
+/**
+ * Setup event delegation on toolbar element (called once)
+ */
+export function setupToolbarEventDelegation(
+  toolbarElement: HTMLElement,
+  view: EditorView,
+  state: FloatingToolbarState
+) {
+  // Update cached references
+  currentView = view;
+  currentState = state;
+  
+  // Only attach handler once
+  if (!delegateHandler) {
+    delegateHandler = (e: Event) => {
+      const target = e.target as HTMLElement;
+      const button = target.closest('[data-action]') as HTMLElement | null;
+      
+      if (button && currentView && currentState) {
+        e.preventDefault();
+        e.stopPropagation();
+        const action = button.dataset.action;
+        if (action) {
+          handleToolbarAction(currentView, action, currentState);
+        }
+      }
+    };
+    
+    toolbarElement.addEventListener('click', delegateHandler);
+  }
+}
+
+/**
+ * Update cached state for event delegation
+ */
+export function updateToolbarState(view: EditorView, state: FloatingToolbarState) {
+  currentView = view;
+  currentState = state;
+}
+
+/**
+ * Cleanup event delegation
+ */
+export function cleanupToolbarEventDelegation(toolbarElement: HTMLElement) {
+  if (delegateHandler) {
+    toolbarElement.removeEventListener('click', delegateHandler);
+    delegateHandler = null;
+  }
+  currentView = null;
+  currentState = null;
+}
+
 /**
  * Render toolbar content into the toolbar element
+ * Uses event delegation instead of per-button listeners
  */
 export function renderToolbarContent(
   toolbarElement: HTMLElement,
   view: EditorView, 
   state: FloatingToolbarState
 ) {
+  // Update state for event delegation
+  updateToolbarState(view, state);
+  
+  // Setup delegation if not already done
+  if (!delegateHandler) {
+    setupToolbarEventDelegation(toolbarElement, view, state);
+  }
+  
   toolbarElement.innerHTML = `
     <div class="floating-toolbar-inner">
       <div class="toolbar-group toolbar-format-group">
@@ -153,14 +219,4 @@ export function renderToolbarContent(
     </div>
     <div class="toolbar-arrow"></div>
   `;
-
-  // Add event listeners
-  toolbarElement.querySelectorAll('[data-action]').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const action = (btn as HTMLElement).dataset.action;
-      handleToolbarAction(view, action!, state);
-    });
-  });
 }
