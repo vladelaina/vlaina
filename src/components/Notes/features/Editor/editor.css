@@ -20,28 +20,19 @@
    Typography & Heading Logic
    ============================================ */
 
-/* 
-   Shared logic for real headings (h1-h6) and real-time previews (.heading-preview-N).
-   This ensures previews are 100% identical to the final result.
-*/
-
 /* Reset potential focus outlines during interactions */
 .milkdown, 
 .milkdown .ProseMirror,
 .milkdown-editor,
 .heading-hash-hover,
 .heading-level-menu,
-.heading-level-item,
-.milkdown [class*="heading-preview-"] {
+.heading-level-item {
   outline: none !important;
   box-shadow: none !important;
-  background: transparent !important;
-  border: none !important;
 }
 
 /* H1 */
-.milkdown h1, 
-.milkdown .heading-preview-1 {
+.milkdown h1 {
   font-size: 2rem !important;
   font-weight: 700 !important;
   margin-top: 0 !important;
@@ -51,8 +42,7 @@
 }
 
 /* H2 */
-.milkdown h2, 
-.milkdown .heading-preview-2 {
+.milkdown h2 {
   font-size: 1.5rem !important;
   font-weight: 600 !important;
   margin-top: 1.75rem !important;
@@ -62,8 +52,7 @@
 }
 
 /* H3 */
-.milkdown h3, 
-.milkdown .heading-preview-3 {
+.milkdown h3 {
   font-size: 1.25rem !important;
   font-weight: 600 !important;
   margin-top: 1.5rem !important;
@@ -73,8 +62,7 @@
 }
 
 /* H4 */
-.milkdown h4, 
-.milkdown .heading-preview-4 {
+.milkdown h4 {
   font-size: 1rem !important;
   font-weight: 600 !important;
   margin-top: 1rem !important;
@@ -84,8 +72,7 @@
 }
 
 /* H5 */
-.milkdown h5, 
-.milkdown .heading-preview-5 {
+.milkdown h5 {
   font-size: 0.875rem !important;
   font-weight: 600 !important;
   margin-top: 1rem !important;
@@ -97,8 +84,7 @@
 }
 
 /* H6 */
-.milkdown h6, 
-.milkdown .heading-preview-6 {
+.milkdown h6 {
   font-size: 0.85rem !important;
   font-weight: 600 !important;
   margin-top: 1rem !important;
@@ -460,7 +446,7 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.375rem 0.5rem;
-  background-color: var(--neko-bg-secondary, #ffffff);
+  background-color: #ffffff;
   border: 1px solid var(--neko-border, #e4e4e7);
   border-radius: 0.5rem;
   box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.15), 0 4px 6px -2px rgb(0 0 0 / 0.05);
@@ -470,25 +456,6 @@
   background-color: var(--neko-bg-secondary, #27272a);
   border-color: var(--neko-border, #3f3f46);
   box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.4), 0 4px 6px -2px rgb(0 0 0 / 0.2);
-}
-
-.toolbar-arrow {
-  position: absolute;
-  left: 50%;
-  bottom: -6px;
-  transform: translateX(-50%);
-  width: 12px;
-  height: 12px;
-  background-color: var(--neko-bg-secondary, #ffffff);
-  border: 1px solid var(--neko-border, #e4e4e7);
-  border-top: none;
-  border-left: none;
-  transform: translateX(-50%) rotate(45deg);
-}
-
-.dark .toolbar-arrow {
-  background-color: var(--neko-bg-secondary, #27272a);
-  border-color: var(--neko-border, #3f3f46);
 }
 
 .toolbar-group {
@@ -585,8 +552,7 @@
 .toolbar-submenu {
   position: absolute;
   top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 0;
   margin-top: 0.5rem;
   min-width: 200px;
   background-color: var(--neko-bg-secondary, #ffffff);
@@ -595,6 +561,14 @@
   box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.15);
   padding: 0.25rem;
   z-index: 10;
+}
+
+/* Dropdown opens above when not enough space below */
+.toolbar-submenu.dropdown-above {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
 }
 
 .dark .toolbar-submenu {

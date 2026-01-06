@@ -6,6 +6,7 @@ import type { FloatingToolbarState, BlockType } from './types';
 import { TOOLBAR_ACTIONS } from './types';
 import { floatingToolbarKey } from './floatingToolbarPlugin';
 import { toggleMark } from './commands';
+import { renderBlockDropdown } from './components/BlockDropdown';
 
 /**
  * Get block type label for display
@@ -208,8 +209,8 @@ export function renderToolbarContent(
         </button>
       </div>
       <div class="toolbar-divider"></div>
-      <div class="toolbar-group">
-        <button class="toolbar-btn toolbar-dropdown-btn" data-action="block" title="Block Type">
+      <div class="toolbar-group toolbar-block-group">
+        <button class="toolbar-btn toolbar-dropdown-btn ${state.subMenu === 'block' ? 'active' : ''}" data-action="block" title="Block Type">
           <span class="block-type-label">${getBlockTypeLabel(state.currentBlockType)}</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="6 9 12 15 18 9"></polyline>
@@ -217,6 +218,20 @@ export function renderToolbarContent(
         </button>
       </div>
     </div>
-    <div class="toolbar-arrow"></div>
   `;
+  
+  // Render block dropdown if subMenu is 'block'
+  if (state.subMenu === 'block') {
+    const blockGroup = toolbarElement.querySelector('.toolbar-block-group');
+    if (blockGroup) {
+      renderBlockDropdown(blockGroup as HTMLElement, view, state, () => {
+        view.dispatch(
+          view.state.tr.setMeta(floatingToolbarKey, {
+            type: TOOLBAR_ACTIONS.SET_SUB_MENU,
+            payload: { subMenu: null },
+          })
+        );
+      });
+    }
+  }
 }

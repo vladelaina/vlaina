@@ -18,6 +18,47 @@ import { toggleMark } from './commands';
 
 export const floatingToolbarKey = new PluginKey<FloatingToolbarState>('floatingToolbar');
 
+// Store the current block element for preview functionality
+let currentBlockElement: HTMLElement | null = null;
+
+/**
+ * Get the current block element (for preview in dropdown)
+ */
+export function getCurrentBlockElement(): HTMLElement | null {
+  return currentBlockElement;
+}
+
+/**
+ * Find and store the block element from selection
+ */
+function updateCurrentBlockElement(view: { state: { selection: { $from: any } }; domAtPos: (pos: number) => { node: Node } }): void {
+  try {
+    const { $from } = view.state.selection;
+    const domAtPos = view.domAtPos($from.pos);
+    let node = domAtPos.node as Node;
+    
+    if (node.nodeType === Node.TEXT_NODE) {
+      node = node.parentNode as Node;
+    }
+    
+    let el = node as HTMLElement;
+    while (el && el.parentElement) {
+      const tagName = el.tagName?.toUpperCase();
+      if (tagName === 'P' || (tagName && /^H[1-6]$/.test(tagName))) {
+        currentBlockElement = el;
+        return;
+      }
+      if (el.classList?.contains('milkdown') || el.classList?.contains('editor')) {
+        break;
+      }
+      el = el.parentElement;
+    }
+    currentBlockElement = null;
+  } catch {
+    currentBlockElement = null;
+  }
+}
+
 // Initial state factory
 function createInitialState(): FloatingToolbarState {
   return {
@@ -64,6 +105,10 @@ function hideToolbar() {
 
 // Main plugin export
 export const floatingToolbarPlugin = $prose(() => {
+  // Track mouse state to show toolbar only on mouseup
+  let isMouseDown = false;
+  let pendingShow = false;
+  
   return new Plugin<FloatingToolbarState>({
     key: floatingToolbarKey,
 
@@ -95,8 +140,13 @@ export const floatingToolbarPlugin = $prose(() => {
               return { ...prevState, isVisible: false, subMenu: null };
             }
           } else {
-            if (!prevState.isVisible) {
+            // Don't show immediately during mouse drag - wait for mouseup
+            if (!isMouseDown && !prevState.isVisible) {
               return { ...prevState, isVisible: true };
+            }
+            // Mark that we should show on mouseup
+            if (isMouseDown) {
+              pendingShow = true;
             }
           }
         }
@@ -108,6 +158,31 @@ export const floatingToolbarPlugin = $prose(() => {
     view(editorView) {
       toolbarElement = createToolbarElement();
       document.body.appendChild(toolbarElement);
+      
+      // Track mouse state
+      const handleMouseDown = () => {
+        isMouseDown = true;
+        pendingShow = false;
+      };
+      
+      const handleMouseUp = () => {
+        isMouseDown = false;
+        // Show toolbar if we have a pending selection
+        if (pendingShow) {
+          pendingShow = false;
+          const { selection } = editorView.state;
+          if (!selection.empty) {
+            editorView.dispatch(
+              editorView.state.tr.setMeta(floatingToolbarKey, {
+                type: TOOLBAR_ACTIONS.SHOW,
+              })
+            );
+          }
+        }
+      };
+      
+      document.addEventListener('mousedown', handleMouseDown);
+      document.addEventListener('mouseup', handleMouseUp);
 
       const updateToolbar = () => {
         const { selection } = editorView.state;
@@ -116,8 +191,12 @@ export const floatingToolbarPlugin = $prose(() => {
         if (selection.empty) {
           hideToolbar();
           lastRenderState = '';
+          currentBlockElement = null;
           return;
         }
+        
+        // Update the current block element reference for preview
+        updateCurrentBlockElement(editorView);
 
         const state = floatingToolbarKey.getState(editorView.state);
         if (!state?.isVisible) {
@@ -195,6 +274,8 @@ export const floatingToolbarPlugin = $prose(() => {
       return {
         update: updateToolbar,
         destroy() {
+          document.removeEventListener('mousedown', handleMouseDown);
+          document.removeEventListener('mouseup', handleMouseUp);
           document.removeEventListener('mousedown', handleClickOutside);
           document.removeEventListener('keydown', handleKeyDown);
           if (toolbarElement) {
@@ -202,6 +283,8 @@ export const floatingToolbarPlugin = $prose(() => {
             toolbarElement = null;
           }
           lastRenderState = '';
+          isMouseDown = false;
+          pendingShow = false;
         },
       };
     },
