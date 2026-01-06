@@ -14,15 +14,15 @@
 }
 
 /* Heading hash decoration - show # marks when cursor is in heading */
-.milkdown .show-heading-hash::before {
-  content: attr(data-heading-hash);
+.milkdown .heading-hash-inline {
   color: #d4d4d8;
   font-weight: normal;
   user-select: none;
   pointer-events: none;
+  display: inline;
 }
 
-.dark .milkdown .show-heading-hash::before {
+.dark .milkdown .heading-hash-inline {
   color: #52525b;
 }
 

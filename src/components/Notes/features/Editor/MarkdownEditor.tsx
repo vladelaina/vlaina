@@ -91,6 +91,7 @@ const protectHeadingPlugin = $prose(() => {
 });
 
 // Plugin to show heading hash marks when cursor is in the heading (except first h1)
+// The hash marks are editable - user can move cursor to them and modify
 const headingHashPluginKey = new PluginKey('headingHash');
 
 const headingHashPlugin = $prose(() => {
@@ -122,13 +123,16 @@ const headingHashPlugin = $prose(() => {
         const level = parent.attrs.level as number;
         const hashes = '#'.repeat(level) + ' ';
         
-        // Use node decoration to add ::before pseudo element via class
-        const nodeDecoration = Decoration.node(headingPos, headingPos + parent.nodeSize, {
-          class: `show-heading-hash heading-level-${level}`,
-          'data-heading-hash': hashes
-        });
+        // Use widget decoration but make it inline and not affect cursor
+        const widget = Decoration.widget(headingPos + 1, () => {
+          const span = document.createElement('span');
+          span.textContent = hashes;
+          span.className = 'heading-hash-inline';
+          span.contentEditable = 'false';
+          return span;
+        }, { side: -1, key: `heading-hash-${headingPos}` });
         
-        decorations.push(nodeDecoration);
+        decorations.push(widget);
         
         return DecorationSet.create(doc, decorations);
       }
