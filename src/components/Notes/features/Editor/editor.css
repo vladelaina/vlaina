@@ -252,7 +252,8 @@
 
 /* Selection */
 .milkdown ::selection {
-  background-color: var(--neko-accent-light);
+  background-color: #2783de;
+  color: white;
 }
 
 /* Placeholder */
@@ -520,7 +521,7 @@
 }
 
 .toolbar-btn.active {
-  color: var(--neko-text-primary);
+  color: #2783de;
 }
 
 .toolbar-btn svg {

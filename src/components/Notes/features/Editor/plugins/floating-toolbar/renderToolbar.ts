@@ -64,18 +64,18 @@ const ICONS = {
 
 // Format buttons configuration (first group)
 const FORMAT_BUTTONS: ToolbarButtonConfig[] = [
-  { action: 'bold', icon: ICONS.bold, tooltip: '加粗', shortcut: 'Ctrl+B', mark: 'strong' },
-  { action: 'italic', icon: ICONS.italic, tooltip: '斜体', shortcut: 'Ctrl+I', mark: 'emphasis' },
-  { action: 'underline', icon: ICONS.underline, tooltip: '下划线', shortcut: 'Ctrl+U', mark: 'underline' },
-  { action: 'strike', icon: ICONS.strike, tooltip: '删除线', shortcut: 'Ctrl+Shift+X', mark: 'strike_through' },
-  { action: 'code', icon: ICONS.code, tooltip: '标记为代码', shortcut: 'Ctrl+E', mark: 'inlineCode' },
-  { action: 'highlight', icon: ICONS.highlight, tooltip: '高亮', shortcut: 'Ctrl+H', mark: 'highlight' },
+  { action: 'bold', icon: ICONS.bold, tooltip: 'Bold', shortcut: 'Ctrl+B', mark: 'strong' },
+  { action: 'italic', icon: ICONS.italic, tooltip: 'Italic', shortcut: 'Ctrl+I', mark: 'emphasis' },
+  { action: 'underline', icon: ICONS.underline, tooltip: 'Underline', shortcut: 'Ctrl+U', mark: 'underline' },
+  { action: 'strike', icon: ICONS.strike, tooltip: 'Strikethrough', shortcut: 'Ctrl+Shift+X', mark: 'strike_through' },
+  { action: 'code', icon: ICONS.code, tooltip: 'Inline Code', shortcut: 'Ctrl+E', mark: 'inlineCode' },
+  { action: 'highlight', icon: ICONS.highlight, tooltip: 'Highlight', shortcut: 'Ctrl+H', mark: 'highlight' },
 ];
 
 // Extra buttons configuration (second group)
 const EXTRA_BUTTONS: ToolbarButtonConfig[] = [
-  { action: 'link', icon: ICONS.link, tooltip: '添加链接', shortcut: 'Ctrl+K' },
-  { action: 'color', icon: ICONS.color, tooltip: '文字颜色' },
+  { action: 'link', icon: ICONS.link, tooltip: 'Add Link', shortcut: 'Ctrl+K' },
+  { action: 'color', icon: ICONS.color, tooltip: 'Text Color' },
 ];
 
 // ============================================================================
@@ -236,6 +236,10 @@ let delegateHandler: ((e: Event) => void) | null = null;
 let hoverHandler: ((e: Event) => void) | null = null;
 let leaveHandler: ((e: Event) => void) | null = null;
 
+// Track which action was just clicked to prevent immediate reverse preview
+let justClickedAction: string | null = null;
+let justClickedTimer: ReturnType<typeof setTimeout> | null = null;
+
 export function setupToolbarEventDelegation(
   toolbarElement: HTMLElement,
   view: EditorView,
@@ -253,11 +257,24 @@ export function setupToolbarEventDelegation(
       if (button && currentView && currentState) {
         e.preventDefault();
         e.stopPropagation();
-        hideTooltip();
+        // Don't hide tooltip on click - keep it visible for better UX
         clearFormatPreview(currentView);
         
         const action = button.dataset.action;
         if (action) {
+          // Mark this action as just clicked - prevents immediate reverse preview
+          // Clear any existing timer
+          if (justClickedTimer) {
+            clearTimeout(justClickedTimer);
+          }
+          justClickedAction = action;
+          
+          // Set a cooldown timer - after 100ms, if mouse is still on button,
+          // the next mouseover (from re-render) will be ignored
+          justClickedTimer = setTimeout(() => {
+            // Keep justClickedAction set until mouse actually leaves
+          }, 100);
+          
           handleToolbarAction(currentView, action, currentState);
         }
       }
@@ -270,6 +287,12 @@ export function setupToolbarEventDelegation(
       
       if (button && currentView) {
         const action = button.dataset.action;
+        
+        // Skip all hover effects if this action was just clicked
+        if (action === justClickedAction) {
+          return;
+        }
+        
         if (action && hasFormatPreview(action)) {
           // Check if format is already active - if so, preview removal
           const isActive = button.classList.contains('active');
@@ -295,7 +318,16 @@ export function setupToolbarEventDelegation(
           return;
         }
         
+        // Clear just-clicked state when mouse leaves the button
         const action = button.dataset.action;
+        if (action === justClickedAction) {
+          justClickedAction = null;
+          if (justClickedTimer) {
+            clearTimeout(justClickedTimer);
+            justClickedTimer = null;
+          }
+        }
+        
         if (action && hasFormatPreview(action)) {
           clearFormatPreview(currentView);
         }
@@ -303,9 +335,19 @@ export function setupToolbarEventDelegation(
       }
     };
     
+    // Toolbar leave handler - clear justClickedAction when mouse leaves toolbar entirely
+    const toolbarLeaveHandler = () => {
+      justClickedAction = null;
+      if (justClickedTimer) {
+        clearTimeout(justClickedTimer);
+        justClickedTimer = null;
+      }
+    };
+    
     toolbarElement.addEventListener('click', delegateHandler);
     toolbarElement.addEventListener('mouseover', hoverHandler);
     toolbarElement.addEventListener('mouseout', leaveHandler);
+    toolbarElement.addEventListener('mouseleave', toolbarLeaveHandler);
   }
 }
 
@@ -361,7 +403,7 @@ export function renderToolbarContent(
   const blockButton = `
     <button class="toolbar-btn toolbar-dropdown-btn has-tooltip ${blockButtonActive}" 
             data-action="block" 
-            data-tooltip="文本类型">
+            data-tooltip="Text Type">
       ${renderBlockTypeContent(state.currentBlockType)}
       ${ICONS.chevronDown}
     </button>
