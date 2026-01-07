@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
+import { join } from '@tauri-apps/api/path';
 import { useVaultStore } from '@/stores/useVaultStore';
 
 interface CreateVaultModalProps {
@@ -14,12 +15,12 @@ interface CreateVaultModalProps {
 export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
   const { createVault, isLoading, error, clearError } = useVaultStore();
   const [name, setName] = useState('');
-  const [path, setPath] = useState('');
+  const [parentPath, setParentPath] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setName('');
-      setPath('');
+      setParentPath('');
       clearError();
     }
   }, [isOpen, clearError]);
@@ -28,23 +29,20 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
     const selected = await open({
       directory: true,
       multiple: false,
-      title: 'Select Location for New Vault',
+      title: 'Select Parent Folder for New Vault',
     });
     
     if (selected && typeof selected === 'string') {
-      setPath(selected);
-      // Auto-fill name from folder if empty
-      if (!name) {
-        const folderName = selected.replace(/\\/g, '/').split('/').pop() || '';
-        setName(folderName);
-      }
+      setParentPath(selected);
     }
   };
 
   const handleCreate = async () => {
-    if (!name.trim() || !path.trim()) return;
+    if (!name.trim() || !parentPath.trim()) return;
     
-    const success = await createVault(name.trim(), path.trim());
+    // Create vault folder inside the selected parent folder
+    const vaultPath = await join(parentPath.trim(), name.trim());
+    const success = await createVault(name.trim(), vaultPath);
     if (success) {
       onClose();
     }
@@ -53,14 +51,15 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
-    } else if (e.key === 'Enter' && name.trim() && path.trim()) {
+    } else if (e.key === 'Enter' && name.trim() && parentPath.trim()) {
       handleCreate();
     }
   };
 
   if (!isOpen) return null;
 
-  const canCreate = name.trim() && path.trim() && !isLoading;
+  const canCreate = name.trim() && parentPath.trim() && !isLoading;
+  const previewPath = parentPath && name ? `${parentPath.replace(/\\/g, '/')}/${name}` : '';
 
   return (
     <div className="vault-modal-overlay" onClick={onClose} onKeyDown={handleKeyDown}>
@@ -80,14 +79,13 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
         </div>
         
         <div className="vault-modal__field">
-          <label className="vault-modal__label">Location</label>
+          <label className="vault-modal__label">Parent Folder</label>
           <div className="vault-modal__path-input">
             <input
               type="text"
               className="vault-modal__input"
               placeholder="Select a folder..."
-              value={path}
-              onChange={(e) => setPath(e.target.value)}
+              value={parentPath}
               readOnly
             />
             <button 
@@ -98,6 +96,12 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
             </button>
           </div>
         </div>
+
+        {previewPath && (
+          <div className="vault-modal__preview">
+            Will create: <span className="vault-modal__preview-path">{previewPath}</span>
+          </div>
+        )}
 
         {error && (
           <div className="vault-modal__error">{error}</div>
