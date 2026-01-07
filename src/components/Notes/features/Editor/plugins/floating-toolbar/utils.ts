@@ -30,9 +30,9 @@ export const COLOR_PALETTE_DARK: ColorOption[] = [
 // Block type configurations
 export const BLOCK_TYPES: BlockTypeConfig[] = [
   { type: 'paragraph', label: '正文', icon: 'text' },
-  { type: 'heading1', label: '标题 1', icon: 'h1', shortcut: 'Ctrl+Alt+1' },
-  { type: 'heading2', label: '标题 2', icon: 'h2', shortcut: 'Ctrl+Alt+2' },
-  { type: 'heading3', label: '标题 3', icon: 'h3', shortcut: 'Ctrl+Alt+3' },
+  { type: 'heading1', label: '标题 1', icon: 'h1' },
+  { type: 'heading2', label: '标题 2', icon: 'h2' },
+  { type: 'heading3', label: '标题 3', icon: 'h3' },
   { type: 'heading4', label: '标题 4', icon: 'h4' },
   { type: 'heading5', label: '标题 5', icon: 'h5' },
   { type: 'heading6', label: '标题 6', icon: 'h6' },

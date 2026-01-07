@@ -10,11 +10,11 @@ import { renderBlockDropdown } from './components/BlockDropdown';
 import { applyFormatPreview, clearFormatPreview, hasFormatPreview } from './previewStyles';
 
 /**
- * Get block type label for display
+ * Get block type label for display (empty for paragraph since we use icon)
  */
 function getBlockTypeLabel(blockType: BlockType): string {
   const labels: Record<BlockType, string> = {
-    paragraph: 'Text',
+    paragraph: '', // Use icon instead
     heading1: 'H1',
     heading2: 'H2',
     heading3: 'H3',
@@ -27,7 +27,20 @@ function getBlockTypeLabel(blockType: BlockType): string {
     taskList: 'Task',
     codeBlock: 'Code',
   };
-  return labels[blockType] || 'Text';
+  return labels[blockType] || '';
+}
+
+/**
+ * Get block type icon SVG for toolbar button
+ */
+function getBlockTypeIcon(blockType: BlockType): string {
+  // T icon for paragraph/text
+  if (blockType === 'paragraph') {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M4 7V4h16v3M9 20h6M12 4v16"/>
+    </svg>`;
+  }
+  return '';
 }
 
 /**
@@ -262,7 +275,10 @@ export function renderToolbarContent(
       <div class="toolbar-divider"></div>
       <div class="toolbar-group toolbar-block-group">
         <button class="toolbar-btn toolbar-dropdown-btn ${state.subMenu === 'block' ? 'active' : ''}" data-action="block" title="Block Type">
-          <span class="block-type-label">${getBlockTypeLabel(state.currentBlockType)}</span>
+          ${state.currentBlockType === 'paragraph' 
+            ? getBlockTypeIcon('paragraph')
+            : `<span class="block-type-label">${getBlockTypeLabel(state.currentBlockType)}</span>`
+          }
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
