@@ -11,7 +11,7 @@ import type { NotesStore, FileTreeNode } from './types';
 import { buildFileTree, sortFileTree, updateFileNodePath, updateFolderExpanded, collectExpandedPaths, restoreExpandedState } from './fileTreeUtils';
 import { extractFirstH1, sanitizeFileName } from './noteUtils';
 import { updateDisplayName, removeDisplayName, moveDisplayName } from './displayNameUtils';
-import { loadRecentNotes, addToRecentNotes, loadStarredNotes, saveStarredNotes, loadNoteIconsFromFile, saveNoteIconsToFile, getNotesBasePath, ensureNotesFolder, setCurrentVaultPath as setVaultPath, getCurrentVaultPath as getVaultPath } from './storage';
+import { loadRecentNotes, addToRecentNotes, loadStarredNotes, saveStarredNotes, loadNoteIconsFromFile, saveNoteIconsToFile, getNotesBasePath, ensureNotesFolder, setCurrentVaultPath as setVaultPath, getCurrentVaultPath as getVaultPath, loadWorkspaceState, saveWorkspaceState } from './storage';
 
 // Re-export for external use
 export * from './types';
@@ -43,21 +43,49 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       await ensureNotesFolder(basePath);
       const children = await buildFileTree(basePath);
       const icons = await loadNoteIconsFromFile(basePath);
+      const workspace = await loadWorkspaceState(basePath);
+      
+      // Restore expanded folders from workspace state
+      let restoredChildren = children;
+      if (workspace?.expandedFolders?.length) {
+        const expandedSet = new Set(workspace.expandedFolders);
+        restoredChildren = restoreExpandedState(children, expandedSet);
+      }
+      
       set({
         notesPath: basePath,
-        rootFolder: { id: '', name: 'Notes', path: '', isFolder: true, children, expanded: true },
+        rootFolder: { id: '', name: 'Notes', path: '', isFolder: true, children: restoredChildren, expanded: true },
         noteIcons: icons,
         isLoading: false,
       });
+      
+      // Restore last opened note
+      if (workspace?.currentNotePath) {
+        // Delay to ensure state is set
+        setTimeout(() => {
+          get().openNote(workspace.currentNotePath!);
+        }, 0);
+      }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to load notes', isLoading: false });
     }
   },
 
   toggleFolder: (path: string) => {
-    const { rootFolder } = get();
+    const { rootFolder, notesPath } = get();
     if (!rootFolder) return;
-    set({ rootFolder: { ...rootFolder, children: updateFolderExpanded(rootFolder.children, path) } });
+    const updatedChildren = updateFolderExpanded(rootFolder.children, path);
+    set({ rootFolder: { ...rootFolder, children: updatedChildren } });
+    
+    // Save expanded state
+    if (notesPath) {
+      const expandedPaths = collectExpandedPaths(updatedChildren);
+      const { currentNote } = get();
+      saveWorkspaceState(notesPath, {
+        currentNotePath: currentNote?.path || null,
+        expandedFolders: Array.from(expandedPaths),
+      });
+    }
   },
 
   openNote: async (path: string, openInNewTab: boolean = false) => {
@@ -89,6 +117,16 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       
       updateDisplayName(set, path, tabName);
       set({ currentNote: { path, content }, isDirty: false, error: null, recentNotes: updatedRecent, openTabs: updatedTabs, isNewlyCreated: false });
+      
+      // Save workspace state
+      const { rootFolder } = get();
+      if (notesPath && rootFolder) {
+        const expandedPaths = collectExpandedPaths(rootFolder.children);
+        saveWorkspaceState(notesPath, {
+          currentNotePath: path,
+          expandedFolders: Array.from(expandedPaths),
+        });
+      }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to open note' });
     }

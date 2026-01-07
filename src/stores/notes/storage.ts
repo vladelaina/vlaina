@@ -8,6 +8,7 @@ import {
   MAX_RECENT_NOTES,
   NEKOTICK_CONFIG_FOLDER,
   ICONS_FILE,
+  WORKSPACE_FILE,
 } from './constants';
 
 // ============ localStorage utilities ============
@@ -109,4 +110,40 @@ export async function ensureNotesFolder(basePath: string): Promise<void> {
   if (!folderExists) {
     await mkdir(basePath, { recursive: true });
   }
+}
+
+
+// ============ Workspace state persistence ============
+
+export interface WorkspaceState {
+  currentNotePath: string | null;
+  expandedFolders: string[];
+}
+
+/**
+ * Load workspace state from .nekotick/workspace.json
+ */
+export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceState | null> {
+  try {
+    const wsPath = await join(vaultPath, NEKOTICK_CONFIG_FOLDER, WORKSPACE_FILE);
+    if (!await exists(wsPath)) return null;
+    const content = await readTextFile(wsPath);
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save workspace state to .nekotick/workspace.json
+ */
+export async function saveWorkspaceState(vaultPath: string, state: WorkspaceState): Promise<void> {
+  try {
+    const configPath = await join(vaultPath, NEKOTICK_CONFIG_FOLDER);
+    if (!await exists(configPath)) {
+      await mkdir(configPath, { recursive: true });
+    }
+    const wsPath = await join(configPath, WORKSPACE_FILE);
+    await writeTextFile(wsPath, JSON.stringify(state, null, 2));
+  } catch { /* ignore */ }
 }
