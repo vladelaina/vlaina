@@ -3,9 +3,64 @@
  */
 
 import { create } from 'zustand';
-import { exists, mkdir } from '@tauri-apps/plugin-fs';
+import { exists, mkdir, writeTextFile } from '@tauri-apps/plugin-fs';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { join } from '@tauri-apps/api/path';
 import { setCurrentVaultPath } from './useNotesStore';
+
+// .nekotick folder name (like Obsidian's .obsidian)
+const NEKOTICK_CONFIG_FOLDER = '.nekotick';
+
+// Default config files for a new vault
+const DEFAULT_VAULT_CONFIG = {
+  version: 1,
+  created: Date.now(),
+};
+
+const DEFAULT_WORKSPACE_STATE = {
+  lastOpenedFile: null,
+  sidebarCollapsed: false,
+};
+
+// Welcome note content
+const WELCOME_NOTE_CONTENT = `# 🎀 Ciallo～(∠・ω<)⌒★
+
+This is your new vault.
+`;
+
+/**
+ * Initialize .nekotick config folder in a vault
+ */
+async function initVaultConfig(vaultPath: string): Promise<void> {
+  const configPath = await join(vaultPath, NEKOTICK_CONFIG_FOLDER);
+  
+  // Check if config folder exists
+  const configExists = await exists(configPath);
+  if (configExists) return;
+  
+  // Create .nekotick folder
+  await mkdir(configPath, { recursive: true });
+  
+  // Create default config files
+  const configFilePath = await join(configPath, 'config.json');
+  await writeTextFile(configFilePath, JSON.stringify(DEFAULT_VAULT_CONFIG, null, 2));
+  
+  const workspacePath = await join(configPath, 'workspace.json');
+  await writeTextFile(workspacePath, JSON.stringify(DEFAULT_WORKSPACE_STATE, null, 2));
+}
+
+/**
+ * Create welcome note in a new vault
+ */
+async function createWelcomeNote(vaultPath: string): Promise<void> {
+  const welcomePath = await join(vaultPath, 'Welcome.md');
+  
+  // Only create if doesn't exist
+  const welcomeExists = await exists(welcomePath);
+  if (welcomeExists) return;
+  
+  await writeTextFile(welcomePath, WELCOME_NOTE_CONTENT);
+}
 
 export interface VaultInfo {
   id: string;
@@ -162,6 +217,9 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
         return false;
       }
       
+      // Ensure .nekotick config folder exists (for existing folders opened as vault)
+      await initVaultConfig(path);
+      
       const { recentVaults } = get();
       const vaultName = name || getVaultName(path);
       
@@ -219,6 +277,12 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
       if (!pathExists) {
         await mkdir(path, { recursive: true });
       }
+      
+      // Initialize .nekotick config folder
+      await initVaultConfig(path);
+      
+      // Create welcome note
+      await createWelcomeNote(path);
       
       // Open the vault
       return await get().openVault(path, name);
