@@ -10,7 +10,7 @@ import {
   rename,
   exists,
 } from '@tauri-apps/plugin-fs';
-import { join, documentDir } from '@tauri-apps/api/path';
+import { join } from '@tauri-apps/api/path';
 
 export interface NoteFile {
   id: string;
@@ -75,7 +75,6 @@ interface NotesActions {
 
 type NotesStore = NotesState & NotesActions;
 
-const DEFAULT_NOTES_FOLDER = 'NekoTick/notes';
 const RECENT_NOTES_KEY = 'nekotick-recent-notes';
 const STARRED_NOTES_KEY = 'nekotick-starred-notes';
 const MAX_RECENT_NOTES = 10;
@@ -151,13 +150,11 @@ function addToRecentNotes(path: string, current: string[]): string[] {
 }
 
 async function getNotesBasePath(): Promise<string> {
-  // Use dynamic vault path if set
-  if (currentVaultPath) {
-    return currentVaultPath;
+  // Must have a vault path set
+  if (!currentVaultPath) {
+    throw new Error('No vault selected');
   }
-  // Fallback to default path
-  const docDir = await documentDir();
-  return await join(docDir, DEFAULT_NOTES_FOLDER);
+  return currentVaultPath;
 }
 
 async function ensureNotesFolder(basePath: string): Promise<void> {

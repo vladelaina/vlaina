@@ -14,48 +14,50 @@
     "core:window:allow-toggle-maximize",
     "core:window:allow-close",
     "core:window:allow-set-always-on-top",
+    "core:window:allow-unminimize",
+    "core:window:allow-set-focus",
     "core:webview:allow-create-webview-window",
     "core:webview:allow-set-webview-position",
     "core:webview:allow-webview-close",
     "opener:default",
     {
       "identifier": "opener:allow-open-path",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }]
+      "allow": [{ "path": "**" }]
     },
     "dialog:default",
     "dialog:allow-open",
     "fs:default",
     {
       "identifier": "fs:allow-read-text-file",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "**" }]
+      "allow": [{ "path": "**" }]
     },
     {
       "identifier": "fs:allow-write-text-file",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "**" }]
+      "allow": [{ "path": "**" }]
     },
     {
       "identifier": "fs:allow-exists",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "$DOCUMENT/NekoTick" }, { "path": "**" }]
+      "allow": [{ "path": "**" }]
     },
     {
       "identifier": "fs:allow-create",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "**" }]
+      "allow": [{ "path": "**" }]
     },
     {
       "identifier": "fs:allow-mkdir",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "$DOCUMENT/NekoTick" }, { "path": "**" }]
+      "allow": [{ "path": "**" }]
     },
     {
       "identifier": "fs:allow-read-dir",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "**" }]
+      "allow": [{ "path": "**" }]
     },
     {
       "identifier": "fs:allow-remove",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "**" }]
+      "allow": [{ "path": "**" }]
     },
     {
       "identifier": "fs:allow-rename",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "**" }]
+      "allow": [{ "path": "**" }]
     }
   ]
 }
