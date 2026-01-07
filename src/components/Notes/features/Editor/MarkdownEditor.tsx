@@ -1,14 +1,14 @@
 // MarkdownEditor - WYSIWYG Markdown editor using Milkdown
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Editor, rootCtx, defaultValueCtx } from '@milkdown/kit/core';
+import { Editor, rootCtx, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { $prose } from '@milkdown/kit/utils';
-import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import { IconDots, IconStar } from '@tabler/icons-react';
 import { IconHeartbeat } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -106,8 +106,9 @@ const titleSyncPlugin = $prose(() => {
 });
 
 function MilkdownEditorInner() {
-  const { currentNote, updateContent, saveNote } = useNotesStore();
+  const { currentNote, updateContent, saveNote, isNewlyCreated } = useNotesStore();
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const hasAutoFocused = useRef(false);
 
   const debouncedSave = useCallback(() => {
     if (saveTimeoutRef.current) {
@@ -137,7 +138,7 @@ function MilkdownEditorInner() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [saveNote]);
 
-  useEditor((root) =>
+  const { get } = useEditor((root) =>
     Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, root);
@@ -158,6 +159,48 @@ function MilkdownEditorInner() {
       .use(customPlugins),
     [currentNote?.path]
   );
+
+  // Reset auto-focus flag when note changes
+  useEffect(() => {
+    hasAutoFocused.current = false;
+  }, [currentNote?.path]);
+
+  // Focus editor on title after creating new note (only once)
+  useEffect(() => {
+    if (!get || !isNewlyCreated || hasAutoFocused.current) return;
+    
+    // Mark as focused to prevent re-triggering
+    hasAutoFocused.current = true;
+    
+    // Small delay to ensure editor is ready
+    const timer = setTimeout(() => {
+      try {
+        const editor = get();
+        if (!editor) return;
+        
+        const view = editor.ctx.get(editorViewCtx);
+        if (!view) return;
+        
+        // Focus the editor
+        view.focus();
+        
+        // Move cursor to end of first line (title)
+        const { doc } = view.state;
+        const firstNode = doc.firstChild;
+        if (firstNode) {
+          const endOfTitle = firstNode.nodeSize - 1;
+          const tr = view.state.tr.setSelection(
+            TextSelection.near(doc.resolve(endOfTitle))
+          );
+          view.dispatch(tr);
+        }
+      } catch {
+        // Editor not ready yet, ignore
+      }
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [get, isNewlyCreated]);
 
   return (
     <div className="milkdown-editor">

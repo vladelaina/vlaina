@@ -23,7 +23,10 @@ const DEFAULT_WORKSPACE_STATE = {
 };
 
 // Welcome note content
-const WELCOME_NOTE_CONTENT = `# 🎀 Ciallo～(∠・ω<)⌒★
+const WELCOME_NOTE_NAME = 'Welcome';
+const WELCOME_NOTE_CONTENT = `# Welcome
+
+Ciallo～(∠・ω<)⌒★
 
 This is your new vault.
 `;
@@ -53,13 +56,20 @@ async function initVaultConfig(vaultPath: string): Promise<void> {
  * Create welcome note in a new vault
  */
 async function createWelcomeNote(vaultPath: string): Promise<void> {
-  const welcomePath = await join(vaultPath, 'Welcome.md');
+  const fileName = `${WELCOME_NOTE_NAME}.md`;
+  const welcomePath = await join(vaultPath, fileName);
   
   // Only create if doesn't exist
   const welcomeExists = await exists(welcomePath);
   if (welcomeExists) return;
   
   await writeTextFile(welcomePath, WELCOME_NOTE_CONTENT);
+  
+  // Set the ribbon icon for welcome note
+  const iconsPath = await join(vaultPath, NEKOTICK_CONFIG_FOLDER, 'icons.json');
+  const icons: Record<string, string> = {};
+  icons[fileName] = '🎀';
+  await writeTextFile(iconsPath, JSON.stringify(icons, null, 2));
 }
 
 export interface VaultInfo {
@@ -157,7 +167,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
   error: null,
 
   initialize: async () => {
-    const recentVaults = loadFromStorage<VaultInfo[]>(VAULTS_STORAGE_KEY, []);
+    const savedVaults = loadFromStorage<VaultInfo[]>(VAULTS_STORAGE_KEY, []);
     const currentVaultId = loadFromStorage<string | null>(CURRENT_VAULT_KEY, null);
     
     // Get current window label
@@ -167,11 +177,27 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     const urlParams = new URLSearchParams(window.location.search);
     const isNewWindow = urlParams.get('newWindow') === 'true';
     
+    // Filter out vaults that no longer exist
+    const existChecks = await Promise.all(
+      savedVaults.map(async (v) => ({ vault: v, exists: await exists(v.path) }))
+    );
+    const recentVaults = existChecks.filter(c => c.exists).map(c => c.vault);
+    
+    // Update storage if some vaults were removed
+    if (recentVaults.length !== savedVaults.length) {
+      saveToStorage(VAULTS_STORAGE_KEY, recentVaults);
+    }
+    
     let currentVault: VaultInfo | null = null;
     if (currentVaultId && !isNewWindow) {
       currentVault = recentVaults.find(v => v.id === currentVaultId) || null;
       if (currentVault) {
         windowVaultPath = currentVault.path;
+        // Set the vault path for notes store
+        setCurrentVaultPath(currentVault.path);
+      } else {
+        // Current vault was deleted, clear it
+        saveToStorage(CURRENT_VAULT_KEY, null);
       }
     }
     

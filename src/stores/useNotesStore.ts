@@ -43,6 +43,7 @@ interface NotesState {
   starredNotes: string[];
   noteIcons: Map<string, string>;
   displayNames: Map<string, string>;
+  isNewlyCreated: boolean; // Flag for newly created notes to auto-focus
 }
 
 interface NotesActions {
@@ -78,6 +79,8 @@ type NotesStore = NotesState & NotesActions;
 const RECENT_NOTES_KEY = 'nekotick-recent-notes';
 const STARRED_NOTES_KEY = 'nekotick-starred-notes';
 const MAX_RECENT_NOTES = 10;
+const NEKOTICK_CONFIG_FOLDER = '.nekotick';
+const ICONS_FILE = 'icons.json';
 
 // Dynamic vault path - set by useVaultStore
 let currentVaultPath: string | null = null;
@@ -114,25 +117,33 @@ function saveStarredNotes(paths: string[]): void {
   } catch { /* ignore */ }
 }
 
-const NOTE_ICONS_KEY = 'nekotick-note-icons';
-
-function loadNoteIcons(): Map<string, string> {
+// Load icons from .nekotick/icons.json
+async function loadNoteIconsFromFile(vaultPath: string): Promise<Map<string, string>> {
   try {
-    const saved = localStorage.getItem(NOTE_ICONS_KEY);
-    if (saved) {
-      const obj = JSON.parse(saved);
-      return new Map(Object.entries(obj));
-    }
-    return new Map();
+    const iconsPath = await join(vaultPath, NEKOTICK_CONFIG_FOLDER, ICONS_FILE);
+    const fileExists = await exists(iconsPath);
+    if (!fileExists) return new Map();
+    
+    const content = await readTextFile(iconsPath);
+    const obj = JSON.parse(content);
+    return new Map(Object.entries(obj));
   } catch {
     return new Map();
   }
 }
 
-function saveNoteIcons(icons: Map<string, string>): void {
+// Save icons to .nekotick/icons.json
+async function saveNoteIconsToFile(vaultPath: string, icons: Map<string, string>): Promise<void> {
   try {
+    const configPath = await join(vaultPath, NEKOTICK_CONFIG_FOLDER);
+    const configExists = await exists(configPath);
+    if (!configExists) {
+      await mkdir(configPath, { recursive: true });
+    }
+    
+    const iconsPath = await join(configPath, ICONS_FILE);
     const obj = Object.fromEntries(icons);
-    localStorage.setItem(NOTE_ICONS_KEY, JSON.stringify(obj));
+    await writeTextFile(iconsPath, JSON.stringify(obj, null, 2));
   } catch { /* ignore */ }
 }
 
@@ -343,8 +354,9 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   openTabs: [],
   noteContentsCache: new Map(),
   starredNotes: loadStarredNotes(),
-  noteIcons: loadNoteIcons(),
+  noteIcons: new Map(),
   displayNames: new Map(),
+  isNewlyCreated: false,
 
   loadFileTree: async () => {
     set({ isLoading: true, error: null });
@@ -354,6 +366,9 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       await ensureNotesFolder(basePath);
       
       const children = await buildFileTree(basePath);
+      
+      // Load icons from .nekotick/icons.json
+      const icons = await loadNoteIconsFromFile(basePath);
       
       set({
         notesPath: basePath,
@@ -365,6 +380,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
           children,
           expanded: true,
         },
+        noteIcons: icons,
         isLoading: false,
       });
     } catch (error) {
@@ -415,6 +431,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
         error: null,
         recentNotes: updatedRecent,
         openTabs: updatedTabs,
+        isNewlyCreated: false,
       });
     } catch (error) {
       set({ 
@@ -453,7 +470,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
               const updatedIcons = new Map(noteIcons);
               updatedIcons.delete(currentNote.path);
               updatedIcons.set(newPath, icon);
-              saveNoteIcons(updatedIcons);
+              saveNoteIconsToFile(notesPath, updatedIcons);
               set({ noteIcons: updatedIcons });
             }
             
@@ -553,6 +570,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
         isDirty: false,
         openTabs: updatedTabs,
         recentNotes: updatedRecent,
+        isNewlyCreated: true,
       });
       
       return relativePath;
@@ -1001,7 +1019,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   },
 
   setNoteIcon: (path: string, emoji: string | null) => {
-    const { noteIcons } = get();
+    const { noteIcons, notesPath } = get();
     const updated = new Map(noteIcons);
     
     if (emoji) {
@@ -1010,7 +1028,10 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       updated.delete(path);
     }
     
-    saveNoteIcons(updated);
+    // Save to .nekotick/icons.json
+    if (notesPath) {
+      saveNoteIconsToFile(notesPath, updated);
+    }
     set({ noteIcons: updated });
   },
 
