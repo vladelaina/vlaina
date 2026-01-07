@@ -1,0 +1,185 @@
+/**
+ * Vault Store - Multi-vault management
+ */
+
+import { create } from 'zustand';
+import { exists, mkdir } from '@tauri-apps/plugin-fs';
+import { setCurrentVaultPath } from './useNotesStore';
+
+export interface VaultInfo {
+  id: string;
+  name: string;
+  path: string;
+  lastOpened: number;
+}
+
+interface VaultState {
+  currentVault: VaultInfo | null;
+  recentVaults: VaultInfo[];
+  isLoading: boolean;
+  error: string | null;
+}
+
+interface VaultActions {
+  initialize: () => Promise<void>;
+  openVault: (path: string, name?: string) => Promise<boolean>;
+  createVault: (name: string, path: string) => Promise<boolean>;
+  removeFromRecent: (id: string) => void;
+  closeVault: () => void;
+  clearError: () => void;
+}
+
+type VaultStore = VaultState & VaultActions;
+
+const VAULTS_STORAGE_KEY = 'nekotick-vaults';
+const CURRENT_VAULT_KEY = 'nekotick-current-vault';
+const MAX_RECENT_VAULTS = 5;
+
+function generateId(): string {
+  return `vault_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function loadFromStorage<T>(key: string, defaultValue: T): T {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+function saveToStorage<T>(key: string, value: T): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore
+  }
+}
+
+function getVaultName(path: string): string {
+  const parts = path.replace(/\\/g, '/').split('/');
+  return parts[parts.length - 1] || 'Untitled';
+}
+
+export const useVaultStore = create<VaultStore>()((set, get) => ({
+  currentVault: null,
+  recentVaults: [],
+  isLoading: false,
+  error: null,
+
+  initialize: async () => {
+    const recentVaults = loadFromStorage<VaultInfo[]>(VAULTS_STORAGE_KEY, []);
+    const currentVaultId = loadFromStorage<string | null>(CURRENT_VAULT_KEY, null);
+    
+    let currentVault: VaultInfo | null = null;
+    if (currentVaultId) {
+      currentVault = recentVaults.find(v => v.id === currentVaultId) || null;
+    }
+    
+    set({ recentVaults, currentVault });
+  },
+
+  openVault: async (path: string, name?: string) => {
+    set({ isLoading: true, error: null });
+    
+    try {
+      // Verify path exists
+      const pathExists = await exists(path);
+      if (!pathExists) {
+        set({ error: 'Folder does not exist or cannot be accessed', isLoading: false });
+        return false;
+      }
+      
+      const { recentVaults } = get();
+      const vaultName = name || getVaultName(path);
+      
+      // Check if already in recent
+      let vault = recentVaults.find(v => v.path === path);
+      
+      if (vault) {
+        // Update lastOpened
+        vault = { ...vault, lastOpened: Date.now() };
+      } else {
+        // Create new entry
+        vault = {
+          id: generateId(),
+          name: vaultName,
+          path,
+          lastOpened: Date.now(),
+        };
+      }
+      
+      // Update recent list
+      const updatedRecent = [
+        vault,
+        ...recentVaults.filter(v => v.path !== path),
+      ].slice(0, MAX_RECENT_VAULTS);
+      
+      saveToStorage(VAULTS_STORAGE_KEY, updatedRecent);
+      saveToStorage(CURRENT_VAULT_KEY, vault.id);
+      
+      set({
+        currentVault: vault,
+        recentVaults: updatedRecent,
+        isLoading: false,
+      });
+      
+      // Update notes store path
+      setCurrentVaultPath(vault.path);
+      
+      return true;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to open vault',
+        isLoading: false,
+      });
+      return false;
+    }
+  },
+
+  createVault: async (name: string, path: string) => {
+    set({ isLoading: true, error: null });
+    
+    try {
+      // Create directory if not exists
+      const pathExists = await exists(path);
+      if (!pathExists) {
+        await mkdir(path, { recursive: true });
+      }
+      
+      // Open the vault
+      return await get().openVault(path, name);
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to create vault',
+        isLoading: false,
+      });
+      return false;
+    }
+  },
+
+  removeFromRecent: (id: string) => {
+    const { recentVaults, currentVault } = get();
+    const updatedRecent = recentVaults.filter(v => v.id !== id);
+    
+    saveToStorage(VAULTS_STORAGE_KEY, updatedRecent);
+    
+    // If removing current vault, clear it
+    if (currentVault?.id === id) {
+      saveToStorage(CURRENT_VAULT_KEY, null);
+      set({ currentVault: null, recentVaults: updatedRecent });
+    } else {
+      set({ recentVaults: updatedRecent });
+    }
+  },
+
+  closeVault: () => {
+    saveToStorage(CURRENT_VAULT_KEY, null);
+    setCurrentVaultPath(null);
+    set({ currentVault: null });
+  },
+
+  clearError: () => {
+    set({ error: null });
+  },
+}));

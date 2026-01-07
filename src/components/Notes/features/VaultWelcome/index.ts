@@ -1,0 +1,1 @@
+export { VaultWelcome } from './VaultWelcome';

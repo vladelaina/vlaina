@@ -80,6 +80,17 @@ const RECENT_NOTES_KEY = 'nekotick-recent-notes';
 const STARRED_NOTES_KEY = 'nekotick-starred-notes';
 const MAX_RECENT_NOTES = 10;
 
+// Dynamic vault path - set by useVaultStore
+let currentVaultPath: string | null = null;
+
+export function setCurrentVaultPath(path: string | null): void {
+  currentVaultPath = path;
+}
+
+export function getCurrentVaultPath(): string | null {
+  return currentVaultPath;
+}
+
 function loadRecentNotes(): string[] {
   try {
     const saved = localStorage.getItem(RECENT_NOTES_KEY);
@@ -140,6 +151,11 @@ function addToRecentNotes(path: string, current: string[]): string[] {
 }
 
 async function getNotesBasePath(): Promise<string> {
+  // Use dynamic vault path if set
+  if (currentVaultPath) {
+    return currentVaultPath;
+  }
+  // Fallback to default path
   const docDir = await documentDir();
   return await join(docDir, DEFAULT_NOTES_FOLDER);
 }

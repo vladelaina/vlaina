@@ -21,38 +21,40 @@
       "identifier": "opener:allow-open-path",
       "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }]
     },
+    "dialog:default",
+    "dialog:allow-open",
     "fs:default",
     {
       "identifier": "fs:allow-read-text-file",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }]
+      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "**" }]
     },
     {
       "identifier": "fs:allow-write-text-file",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }]
+      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "**" }]
     },
     {
       "identifier": "fs:allow-exists",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "$DOCUMENT/NekoTick" }]
+      "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "$DOCUMENT/NekoTick" }, { "path": "**" }]
     },
     {
       "identifier": "fs:allow-create",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }]
+      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "**" }]
     },
     {
       "identifier": "fs:allow-mkdir",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "$DOCUMENT/NekoTick" }]
+      "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "$DOCUMENT/NekoTick" }, { "path": "**" }]
     },
     {
       "identifier": "fs:allow-read-dir",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }]
+      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "**" }]
     },
     {
       "identifier": "fs:allow-remove",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }]
+      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "**" }]
     },
     {
       "identifier": "fs:allow-rename",
-      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }]
+      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/NekoTick/**" }, { "path": "**" }]
     }
   ]
 }

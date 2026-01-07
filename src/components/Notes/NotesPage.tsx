@@ -9,10 +9,12 @@ import {
   IconStar,
 } from '@tabler/icons-react';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
+import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { FileTree } from './features/FileTree';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
+import { VaultWelcome } from './features/VaultWelcome';
 import { IconButton } from '@/components/ui/icon-button';
 import './features/BlockEditor/styles.css';
 import { cn, NOTES_COLORS } from '@/lib/utils';
@@ -34,6 +36,8 @@ export function NotesPage() {
     closeTab,
   } = useNotesStore();
   
+  const { currentVault } = useVaultStore();
+  
   const {
     notesSidebarCollapsed: sidebarCollapsed,
     notesSidebarWidth: sidebarWidth,
@@ -47,9 +51,12 @@ export function NotesPage() {
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(0);
 
+  // Load file tree when vault changes
   useEffect(() => {
-    loadFileTree();
-  }, [loadFileTree]);
+    if (currentVault) {
+      loadFileTree();
+    }
+  }, [currentVault, loadFileTree]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -105,6 +112,15 @@ export function NotesPage() {
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging]);
+
+  // Show vault welcome if no vault selected
+  if (!currentVault) {
+    return (
+      <div className="h-full bg-[var(--neko-bg-primary)]">
+        <VaultWelcome />
+      </div>
+    );
+  }
 
   return (
     <div className={cn(
