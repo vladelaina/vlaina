@@ -165,7 +165,7 @@ export function NotesPage() {
             isLoading={isLoading}
             currentNotePath={currentNote?.path}
             onCreateNote={() => createNote()}
-            onCreateFolder={(name) => createFolder('', name)}
+            onCreateFolder={() => createFolder('')}
           />
         </div>
       </aside>
@@ -303,7 +303,7 @@ function WorkspaceSection({
   isLoading: boolean;
   currentNotePath?: string;
   onCreateNote: () => void;
-  onCreateFolder: (name: string) => void;
+  onCreateFolder: () => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const { currentVault } = useVaultStore();
@@ -351,11 +351,8 @@ function WorkspaceSection({
               icon={<IconFolder className="w-3.5 h-3.5" />}
               tooltip="New Folder"
               onClick={() => {
-                const name = prompt('Folder name:');
-                if (name?.trim()) {
-                  if (!expanded) setExpanded(true);
-                  onCreateFolder(name.trim());
-                }
+                if (!expanded) setExpanded(true);
+                onCreateFolder();
               }}
             />
           </div>

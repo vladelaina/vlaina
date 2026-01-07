@@ -1,0 +1,112 @@
+/** Notes Store - Storage utilities for localStorage and file-based storage */
+
+import { readTextFile, writeTextFile, mkdir, exists } from '@tauri-apps/plugin-fs';
+import { join } from '@tauri-apps/api/path';
+import { 
+  RECENT_NOTES_KEY, 
+  STARRED_NOTES_KEY, 
+  MAX_RECENT_NOTES,
+  NEKOTICK_CONFIG_FOLDER,
+  ICONS_FILE,
+} from './constants';
+
+// ============ localStorage utilities ============
+
+export function loadRecentNotes(): string[] {
+  try {
+    const saved = localStorage.getItem(RECENT_NOTES_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentNotes(paths: string[]): void {
+  try {
+    localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(paths));
+  } catch { /* ignore */ }
+}
+
+export function addToRecentNotes(path: string, current: string[]): string[] {
+  const filtered = current.filter(p => p !== path);
+  const updated = [path, ...filtered].slice(0, MAX_RECENT_NOTES);
+  saveRecentNotes(updated);
+  return updated;
+}
+
+export function loadStarredNotes(): string[] {
+  try {
+    const saved = localStorage.getItem(STARRED_NOTES_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStarredNotes(paths: string[]): void {
+  try {
+    localStorage.setItem(STARRED_NOTES_KEY, JSON.stringify(paths));
+  } catch { /* ignore */ }
+}
+
+// ============ File-based storage utilities ============
+
+/**
+ * Load icons from .nekotick/icons.json
+ */
+export async function loadNoteIconsFromFile(vaultPath: string): Promise<Map<string, string>> {
+  try {
+    const iconsPath = await join(vaultPath, NEKOTICK_CONFIG_FOLDER, ICONS_FILE);
+    const fileExists = await exists(iconsPath);
+    if (!fileExists) return new Map();
+    
+    const content = await readTextFile(iconsPath);
+    const obj = JSON.parse(content);
+    return new Map(Object.entries(obj));
+  } catch {
+    return new Map();
+  }
+}
+
+/**
+ * Save icons to .nekotick/icons.json
+ */
+export async function saveNoteIconsToFile(vaultPath: string, icons: Map<string, string>): Promise<void> {
+  try {
+    const configPath = await join(vaultPath, NEKOTICK_CONFIG_FOLDER);
+    const configExists = await exists(configPath);
+    if (!configExists) {
+      await mkdir(configPath, { recursive: true });
+    }
+    
+    const iconsPath = await join(configPath, ICONS_FILE);
+    const obj = Object.fromEntries(icons);
+    await writeTextFile(iconsPath, JSON.stringify(obj, null, 2));
+  } catch { /* ignore */ }
+}
+
+// ============ Vault path management ============
+
+let currentVaultPath: string | null = null;
+
+export function setCurrentVaultPath(path: string | null): void {
+  currentVaultPath = path;
+}
+
+export function getCurrentVaultPath(): string | null {
+  return currentVaultPath;
+}
+
+export async function getNotesBasePath(): Promise<string> {
+  if (!currentVaultPath) {
+    throw new Error('No vault selected');
+  }
+  return currentVaultPath;
+}
+
+export async function ensureNotesFolder(basePath: string): Promise<void> {
+  const folderExists = await exists(basePath);
+  if (!folderExists) {
+    await mkdir(basePath, { recursive: true });
+  }
+}

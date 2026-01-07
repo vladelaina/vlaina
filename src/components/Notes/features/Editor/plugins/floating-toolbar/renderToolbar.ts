@@ -235,6 +235,7 @@ let currentState: FloatingToolbarState | null = null;
 let delegateHandler: ((e: Event) => void) | null = null;
 let hoverHandler: ((e: Event) => void) | null = null;
 let leaveHandler: ((e: Event) => void) | null = null;
+let toolbarLeaveHandler: (() => void) | null = null;
 
 // Track which action was just clicked to prevent immediate reverse preview
 let justClickedAction: string | null = null;
@@ -336,7 +337,7 @@ export function setupToolbarEventDelegation(
     };
     
     // Toolbar leave handler - clear justClickedAction when mouse leaves toolbar entirely
-    const toolbarLeaveHandler = () => {
+    toolbarLeaveHandler = () => {
       justClickedAction = null;
       if (justClickedTimer) {
         clearTimeout(justClickedTimer);
@@ -369,6 +370,16 @@ export function cleanupToolbarEventDelegation(toolbarElement: HTMLElement) {
     toolbarElement.removeEventListener('mouseout', leaveHandler);
     leaveHandler = null;
   }
+  if (toolbarLeaveHandler) {
+    toolbarElement.removeEventListener('mouseleave', toolbarLeaveHandler);
+    toolbarLeaveHandler = null;
+  }
+  // Clear any pending timers
+  if (justClickedTimer) {
+    clearTimeout(justClickedTimer);
+    justClickedTimer = null;
+  }
+  justClickedAction = null;
   hideTooltip();
   if (tooltipElement) {
     tooltipElement.remove();

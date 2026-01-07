@@ -1,6 +1,6 @@
 // FileTreeItem - Individual file or folder item
 
-import { useState, useRef, memo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   IconChevronRight, 
@@ -29,17 +29,21 @@ interface FileTreeItemProps {
   currentNotePath?: string;
 }
 
-export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps) {
+export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps) {
   const openNote = useNotesStore(s => s.openNote);
   const toggleFolder = useNotesStore(s => s.toggleFolder);
   const deleteNote = useNotesStore(s => s.deleteNote);
   const deleteFolder = useNotesStore(s => s.deleteFolder);
   const renameNote = useNotesStore(s => s.renameNote);
+  const renameFolder = useNotesStore(s => s.renameFolder);
   const createNote = useNotesStore(s => s.createNote);
   const createFolder = useNotesStore(s => s.createFolder);
   const moveItem = useNotesStore(s => s.moveItem);
+  const newlyCreatedFolderPath = useNotesStore(s => s.newlyCreatedFolderPath);
+  const clearNewlyCreatedFolder = useNotesStore(s => s.clearNewlyCreatedFolder);
   
-  const displayName = useDisplayName(node.isFolder ? undefined : node.path) || node.name;
+  const noteDisplayName = useDisplayName(node.isFolder ? undefined : node.path);
+  const displayName = node.isFolder ? node.name : (noteDisplayName || node.name);
   const noteIcon = useDisplayIcon(node.isFolder ? undefined : node.path);
   
   const [showMenu, setShowMenu] = useState(false);
@@ -50,6 +54,22 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Sync renameValue when node.name changes
+  useEffect(() => {
+    if (!isRenaming) {
+      setRenameValue(node.name);
+    }
+  }, [node.name, isRenaming]);
+
+  // Auto-enter rename mode for newly created folders
+  useEffect(() => {
+    if (node.isFolder && node.path === newlyCreatedFolderPath) {
+      setIsRenaming(true);
+      setRenameValue(node.name);
+      clearNewlyCreatedFolder();
+    }
+  }, [node.isFolder, node.path, node.name, newlyCreatedFolderPath, clearNewlyCreatedFolder]);
 
   const isActive = !node.isFolder && node.path === currentNotePath;
   const paddingLeft = 8 + depth * 16;
@@ -87,8 +107,13 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
   };
 
   const handleRenameSubmit = async () => {
-    if (renameValue.trim() && renameValue !== node.name) {
-      await renameNote(node.path, renameValue.trim());
+    const trimmedValue = renameValue.trim();
+    if (trimmedValue && trimmedValue !== node.name) {
+      if (node.isFolder) {
+        await renameFolder(node.path, trimmedValue);
+      } else {
+        await renameNote(node.path, trimmedValue);
+      }
     }
     setIsRenaming(false);
   };
@@ -102,10 +127,7 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
 
   const handleNewFolderInFolder = async () => {
     if (node.isFolder) {
-      const name = prompt('Folder name:');
-      if (name?.trim()) {
-        await createFolder(node.path, name.trim());
-      }
+      await createFolder(node.path);
     }
     setShowMenu(false);
   };
@@ -332,7 +354,7 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
       </Dialog>
     </div>
   );
-});
+}
 
 function MenuItem({ 
   icon, 

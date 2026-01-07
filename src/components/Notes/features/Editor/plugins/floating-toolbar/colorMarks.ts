@@ -1,7 +1,8 @@
 // Color Marks for Floating Toolbar
 // Defines textColor and bgColor marks for the editor schema
 
-import { $mark } from '@milkdown/kit/utils';
+import { $mark, $remark, $inputRule } from '@milkdown/kit/utils';
+import { InputRule } from '@milkdown/kit/prose/inputrules';
 
 /**
  * Text Color Mark
@@ -121,6 +122,7 @@ export const bgColorMark = $mark('bgColor', () => ({
 /**
  * Underline Mark (if not already defined)
  * Standard underline formatting
+ * Uses ++text++ syntax in markdown (similar to ==highlight==)
  */
 export const underlineMark = $mark('underline', () => ({
   parseDOM: [
@@ -133,21 +135,114 @@ export const underlineMark = $mark('underline', () => ({
   ],
   toDOM: () => ['u', 0],
   parseMarkdown: {
-    match: () => false,
-    runner: () => {},
+    match: (node) => node.type === 'underline',
+    runner: (state, _node, markType) => {
+      state.openMark(markType);
+    },
   },
   toMarkdown: {
     match: (mark) => mark.type.name === 'underline',
     runner: (state, _mark, node) => {
-      // Underline is not standard markdown, use HTML <u> tag
-      state.addNode('html', undefined, `<u>${node.text || ''}</u>`);
+      // Use ++text++ syntax for underline (similar to ==highlight==)
+      state.addNode('text', undefined, `++${node.text || ''}++`);
     },
   },
 }));
 
-// Combined color marks plugin
+// Input rule: ++text++ -> underline
+export const underlineInputRule = $inputRule(() => {
+  return new InputRule(
+    /(?<!\+)\+\+([^+]+)\+\+$/,
+    (state, match, start, end) => {
+      const text = match[1];
+      if (!text) return null;
+      
+      const { tr, schema } = state;
+      const markType = schema.marks.underline;
+      if (!markType) return null;
+      
+      return tr
+        .delete(start, end)
+        .insertText(text)
+        .addMark(start, start + text.length, markType.create());
+    }
+  );
+});
+
+/**
+ * Remark plugin to parse ++underline++ syntax
+ * Transforms ++text++ into underline nodes in the AST
+ */
+interface MdastNode {
+  type: string;
+  value?: string;
+  children?: MdastNode[];
+}
+
+function remarkUnderline() {
+  const UNDERLINE_REGEX = /\+\+([^+]+)\+\+/g;
+  
+  function visitNode(node: MdastNode, parent?: MdastNode, index?: number): void {
+    if (node.children) {
+      for (let i = node.children.length - 1; i >= 0; i--) {
+        visitNode(node.children[i], node, i);
+      }
+    }
+    
+    if (node.type !== 'text' || !node.value || !parent || index === undefined) return;
+    
+    const value = node.value;
+    const matches: Array<{ start: number; end: number; content: string }> = [];
+    let match;
+    
+    UNDERLINE_REGEX.lastIndex = 0;
+    
+    while ((match = UNDERLINE_REGEX.exec(value)) !== null) {
+      matches.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        content: match[1],
+      });
+    }
+    
+    if (matches.length === 0) return;
+    
+    const newNodes: MdastNode[] = [];
+    let lastEnd = 0;
+    
+    for (const m of matches) {
+      if (m.start > lastEnd) {
+        newNodes.push({ type: 'text', value: value.slice(lastEnd, m.start) });
+      }
+      newNodes.push({
+        type: 'underline',
+        children: [{ type: 'text', value: m.content }],
+      });
+      lastEnd = m.end;
+    }
+    
+    if (lastEnd < value.length) {
+      newNodes.push({ type: 'text', value: value.slice(lastEnd) });
+    }
+    
+    if (parent.children) {
+      parent.children.splice(index, 1, ...newNodes);
+    }
+  }
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (tree: any) => {
+    visitNode(tree);
+  };
+}
+
+export const remarkUnderlinePlugin = $remark('remarkUnderline', () => remarkUnderline);
+
+// Combined color marks plugin - flatten for proper plugin registration
 export const colorMarksPlugin = [
   textColorMark,
   bgColorMark,
+  remarkUnderlinePlugin,
   underlineMark,
-];
+  underlineInputRule,
+].flat();
