@@ -118,6 +118,7 @@ export const floatingToolbarPlugin = $prose(() => {
         const meta = tr.getMeta(floatingToolbarKey) as ToolbarMeta | undefined;
 
         if (meta) {
+          console.log('[apply] meta received:', meta.type, 'tr.selectionSet:', tr.selectionSet);
           switch (meta.type) {
             case TOOLBAR_ACTIONS.SHOW:
               return { ...prevState, isVisible: true, ...meta.payload };
@@ -126,6 +127,7 @@ export const floatingToolbarPlugin = $prose(() => {
             case TOOLBAR_ACTIONS.UPDATE_POSITION:
               return { ...prevState, ...meta.payload };
             case TOOLBAR_ACTIONS.SET_SUB_MENU:
+              console.log('[apply] SET_SUB_MENU, payload:', meta.payload, 'prevState.isVisible:', prevState.isVisible);
               return { ...prevState, subMenu: meta.payload?.subMenu ?? null };
             default:
               return { ...prevState, ...meta.payload };
@@ -134,6 +136,7 @@ export const floatingToolbarPlugin = $prose(() => {
 
         // Only update visibility on selection change
         if (tr.selectionSet) {
+          console.log('[apply] selectionSet, selection.empty:', newState.selection.empty, 'prevState.isVisible:', prevState.isVisible);
           const { selection } = newState;
           if (selection.empty) {
             if (prevState.isVisible) {
@@ -199,6 +202,7 @@ export const floatingToolbarPlugin = $prose(() => {
         updateCurrentBlockElement(editorView);
 
         const state = floatingToolbarKey.getState(editorView.state);
+        console.log('[updateToolbar] state:', state?.isVisible, 'subMenu:', state?.subMenu);
         if (!state?.isVisible) {
           hideToolbar();
           lastRenderState = '';

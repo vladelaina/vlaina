@@ -425,20 +425,31 @@
   z-index: 1000;
   pointer-events: none;
   opacity: 0;
-  transform: translateX(-50%) translateY(-100%) scale(0.95);
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transform: translateX(-50%) translateY(-100%);
+  transform-origin: center bottom;
+  transition: opacity 0.2s ease;
+  will-change: opacity;
 }
 
 .floating-toolbar.visible {
   pointer-events: auto;
   opacity: 1;
-  transform: translateX(-50%) translateY(-100%) scale(1);
+  animation: toolbar-fade-in 0.2s ease forwards;
 }
 
 .floating-toolbar.hidden {
   pointer-events: none;
   opacity: 0;
-  transform: translateX(-50%) translateY(-100%) scale(0.95);
+  transition: opacity 0.12s ease;
+}
+
+@keyframes toolbar-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .floating-toolbar-inner {

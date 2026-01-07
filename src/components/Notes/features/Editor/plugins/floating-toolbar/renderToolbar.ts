@@ -69,10 +69,13 @@ function handleToolbarAction(view: EditorView, action: string, state: FloatingTo
       );
       break;
     case 'block':
+      console.log('[handleToolbarAction] block clicked, current subMenu:', state.subMenu);
+      const newSubMenu = state.subMenu === 'block' ? null : 'block';
+      console.log('[handleToolbarAction] setting subMenu to:', newSubMenu);
       view.dispatch(
         view.state.tr.setMeta(floatingToolbarKey, {
           type: TOOLBAR_ACTIONS.SET_SUB_MENU,
-          payload: { subMenu: state.subMenu === 'block' ? null : 'block' },
+          payload: { subMenu: newSubMenu },
         })
       );
       break;
@@ -120,6 +123,7 @@ export function setupToolbarEventDelegation(
  * Update cached state for event delegation
  */
 export function updateToolbarState(view: EditorView, state: FloatingToolbarState) {
+  console.log('[updateToolbarState] updating currentState, subMenu:', state.subMenu);
   currentView = view;
   currentState = state;
 }
