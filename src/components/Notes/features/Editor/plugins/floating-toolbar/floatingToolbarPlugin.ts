@@ -328,6 +328,10 @@ export const floatingToolbarPlugin = $prose(() => {
                 })
               );
               return true;
+            case 'h':
+              event.preventDefault();
+              toggleMark(view, 'highlight');
+              return true;
           }
         }
 

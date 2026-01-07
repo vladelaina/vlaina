@@ -25,8 +25,9 @@ export const highlightMark = $mark('highlight', () => ({
   },
   toMarkdown: {
     match: (mark) => mark.type.name === 'highlight',
-    runner: (state, mark) => {
-      state.withMark(mark, 'highlight');
+    runner: (state, _mark, node) => {
+      // Use == delimiters for highlight syntax
+      state.addNode('text', undefined, `==${node.text || ''}==`);
     }
   }
 }));
@@ -78,8 +79,9 @@ export const superscriptMark = $mark('superscript', () => ({
   },
   toMarkdown: {
     match: (mark) => mark.type.name === 'superscript',
-    runner: (state, mark) => {
-      state.withMark(mark, 'superscript');
+    runner: (state, _mark, node) => {
+      // Use HTML <sup> tag for superscript
+      state.addNode('html', undefined, `<sup>${node.text || ''}</sup>`);
     }
   }
 }));
@@ -131,8 +133,9 @@ export const subscriptMark = $mark('subscript', () => ({
   },
   toMarkdown: {
     match: (mark) => mark.type.name === 'subscript',
-    runner: (state, mark) => {
-      state.withMark(mark, 'subscript');
+    runner: (state, _mark, node) => {
+      // Use HTML <sub> tag for subscript
+      state.addNode('html', undefined, `<sub>${node.text || ''}</sub>`);
     }
   }
 }));

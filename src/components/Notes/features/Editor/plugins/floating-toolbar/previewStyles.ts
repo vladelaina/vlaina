@@ -10,10 +10,10 @@ export const FORMAT_PREVIEW_STYLES: Record<string, Record<string, string>> = {
   bold: { fontWeight: '600' },
   // .milkdown em
   italic: { fontStyle: 'italic' },
-  // .milkdown u
-  underline: { textDecoration: 'underline' },
-  // .milkdown del
-  strike: { textDecoration: 'line-through' },
+  // .milkdown u - use textDecorationLine to avoid conflicts
+  underline: { textDecorationLine: 'underline' },
+  // .milkdown del - use textDecorationLine to avoid conflicts
+  strike: { textDecorationLine: 'line-through' },
   // .milkdown code
   code: { 
     fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
@@ -161,14 +161,33 @@ function withDomObserverPaused<T>(view: EditorView, fn: () => T): T {
  */
 function getTextNodesInRange(range: Range): Text[] {
   const textNodes: Text[] = [];
+  
+  // Handle case where selection is within a single text node
+  if (range.startContainer.nodeType === Node.TEXT_NODE && 
+      range.startContainer === range.endContainer) {
+    textNodes.push(range.startContainer as Text);
+    return textNodes;
+  }
+  
+  // Get the common ancestor - handle text node case
+  let ancestor = range.commonAncestorContainer;
+  if (ancestor.nodeType === Node.TEXT_NODE) {
+    ancestor = ancestor.parentElement!;
+  }
+  
+  if (!ancestor) return textNodes;
+  
   const walker = document.createTreeWalker(
-    range.commonAncestorContainer,
+    ancestor,
     NodeFilter.SHOW_TEXT,
     {
       acceptNode: (node) => {
-        const nodeRange = document.createRange();
-        nodeRange.selectNode(node);
-        return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        // Check if this text node is within the selection range
+        if (!range.intersectsNode(node)) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        // Accept all text nodes including whitespace (they might be part of selection)
+        return NodeFilter.FILTER_ACCEPT;
       }
     }
   );
@@ -177,14 +196,80 @@ function getTextNodesInRange(range: Range): Text[] {
   while ((node = walker.nextNode())) {
     textNodes.push(node as Text);
   }
+  
   return textNodes;
 }
 
 /**
- * Apply format preview to selected text
+ * Find the closest inline element that should receive the style
+ * Returns the most specific inline element containing the text
  */
-export function applyFormatPreview(view: EditorView, action: string): void {
-  const styles = FORMAT_PREVIEW_STYLES[action];
+function getStyleTarget(textNode: Text): HTMLElement | null {
+  const parent = textNode.parentElement;
+  if (!parent) return null;
+  
+  // Skip editor root elements
+  if (parent.classList?.contains('milkdown') || 
+      parent.classList?.contains('ProseMirror') ||
+      parent.classList?.contains('editor')) {
+    return null;
+  }
+  
+  const tagName = parent.tagName?.toUpperCase();
+  
+  // For inline elements (span, strong, em, mark, code, etc.), use them directly
+  const inlineTags = ['SPAN', 'STRONG', 'EM', 'B', 'I', 'U', 'S', 'DEL', 'MARK', 'CODE', 'A', 'SUB', 'SUP'];
+  if (inlineTags.includes(tagName || '')) {
+    return parent;
+  }
+  
+  // For block elements (p, h1-h6, li, etc.), we still apply to them
+  // This is a limitation - we can't wrap partial text without modifying DOM
+  // But it's better than nothing for preview purposes
+  if (tagName === 'P' || tagName === 'DIV' || /^H[1-6]$/.test(tagName || '') ||
+      tagName === 'LI' || tagName === 'BLOCKQUOTE' || tagName === 'TD' || tagName === 'TH') {
+    return parent;
+  }
+  
+  // For other elements, try parent
+  return parent;
+}
+
+// Default/reset styles for removing format preview
+const FORMAT_RESET_STYLES: Record<string, Record<string, string>> = {
+  bold: { fontWeight: 'normal' },
+  italic: { fontStyle: 'normal' },
+  // For text-decoration, we need to handle it specially since multiple decorations can coexist
+  underline: { textDecorationLine: 'none' },
+  strike: { textDecorationLine: 'none' },
+  code: { 
+    fontFamily: 'inherit',
+    fontSize: 'inherit',
+    backgroundColor: 'transparent',
+    color: 'inherit',
+    padding: '0',
+    borderRadius: '0',
+  },
+  highlight: { 
+    backgroundColor: 'transparent',
+    padding: '0',
+    borderRadius: '0',
+  },
+};
+
+// All format style keys we might modify (for complete cleanup)
+const ALL_FORMAT_STYLE_KEYS = [
+  'fontWeight', 'fontStyle', 'textDecoration', 'textDecorationLine',
+  'fontFamily', 'fontSize', 'backgroundColor', 'color', 'padding', 'borderRadius'
+];
+
+/**
+ * Apply format preview to selected text
+ * @param isActive - If true, preview removing the format (for already active formats)
+ */
+export function applyFormatPreview(view: EditorView, action: string, isActive: boolean = false): void {
+  // Use reset styles if format is active (preview removal), otherwise use format styles
+  const styles = isActive ? FORMAT_RESET_STYLES[action] : FORMAT_PREVIEW_STYLES[action];
   if (!styles) return;
   
   clearFormatPreview(view);
@@ -201,36 +286,33 @@ export function applyFormatPreview(view: EditorView, action: string): void {
   withDomObserverPaused(view, () => {
     try {
       const textNodes = getTextNodesInRange(range);
-      const processedParents = new Set<HTMLElement>();
+      const processedElements = new Set<HTMLElement>();
       
       for (const textNode of textNodes) {
-        // Get the immediate parent of the text node
-        const parent = textNode.parentElement;
-        if (!parent || processedParents.has(parent)) continue;
+        // Get the appropriate element to style
+        const target = getStyleTarget(textNode);
+        if (!target || processedElements.has(target)) continue;
         
-        // Skip editor root elements
-        if (parent.classList?.contains('milkdown') || parent.classList?.contains('ProseMirror')) {
-          continue;
-        }
+        processedElements.add(target);
         
-        processedParents.add(parent);
-        
-        // Save original styles
+        // Save ALL format-related original styles (not just the ones we're changing)
+        // This ensures complete restoration
         const originalStyles: Record<string, string> = {};
-        Object.keys(styles).forEach(key => {
+        ALL_FORMAT_STYLE_KEYS.forEach(key => {
           const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-          originalStyles[key] = parent.style.getPropertyValue(cssKey);
+          originalStyles[key] = target.style.getPropertyValue(cssKey);
         });
         
-        formatPreviewNodes.push({ node: parent, originalStyles });
+        formatPreviewNodes.push({ node: target, originalStyles });
         
         // Apply preview styles with !important
         Object.entries(styles).forEach(([key, value]) => {
           const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-          parent.style.setProperty(cssKey, value, 'important');
+          target.style.setProperty(cssKey, value, 'important');
         });
       }
-    } catch {
+    } catch (e) {
+      console.warn('Format preview failed:', e);
       formatPreviewNodes = [];
     }
   });
@@ -247,12 +329,17 @@ export function clearFormatPreview(view: EditorView): void {
       for (const { node, originalStyles } of formatPreviewNodes) {
         if (!document.body.contains(node)) continue;
         
+        // First, remove all format-related styles we might have set
+        ALL_FORMAT_STYLE_KEYS.forEach(key => {
+          const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+          node.style.removeProperty(cssKey);
+        });
+        
+        // Then restore original styles
         Object.entries(originalStyles).forEach(([key, value]) => {
           const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
           if (value) {
             node.style.setProperty(cssKey, value);
-          } else {
-            node.style.removeProperty(cssKey);
           }
         });
       }

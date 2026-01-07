@@ -48,9 +48,10 @@ export const textColorMark = $mark('textColor', () => ({
   },
   toMarkdown: {
     match: (mark) => mark.type.name === 'textColor',
-    runner: (state, mark) => {
-      // Text color is not standard markdown, preserve as HTML
-      state.withMark(mark, 'textColor');
+    runner: (state, mark, node) => {
+      // Text color is not standard markdown, use HTML span
+      const color = mark.attrs.color as string;
+      state.addNode('html', undefined, `<span style="color: ${color}">${node.text || ''}</span>`);
     },
   },
 }));
@@ -109,9 +110,10 @@ export const bgColorMark = $mark('bgColor', () => ({
   },
   toMarkdown: {
     match: (mark) => mark.type.name === 'bgColor',
-    runner: (state, mark) => {
-      // Background color is not standard markdown, preserve as HTML
-      state.withMark(mark, 'bgColor');
+    runner: (state, mark, node) => {
+      // Background color is not standard markdown, use HTML mark
+      const color = mark.attrs.color as string;
+      state.addNode('html', undefined, `<mark style="background-color: ${color}">${node.text || ''}</mark>`);
     },
   },
 }));
@@ -136,8 +138,9 @@ export const underlineMark = $mark('underline', () => ({
   },
   toMarkdown: {
     match: (mark) => mark.type.name === 'underline',
-    runner: (state, mark) => {
-      state.withMark(mark, 'underline');
+    runner: (state, _mark, node) => {
+      // Underline is not standard markdown, use HTML <u> tag
+      state.addNode('html', undefined, `<u>${node.text || ''}</u>`);
     },
   },
 }));
