@@ -51,6 +51,24 @@ export function getCurrentBlockType(view: EditorView): BlockType {
 }
 
 /**
+ * Check if selection is inside the first H1 heading (document title)
+ */
+export function isSelectionInFirstH1(view: EditorView): boolean {
+  const { state } = view;
+  const { $from } = state.selection;
+  const parent = $from.parent;
+  
+  // Check if current block is H1
+  if (parent.type.name !== 'heading' || parent.attrs.level !== 1) {
+    return false;
+  }
+  
+  // Check if this is the first node in the document
+  const pos = $from.before($from.depth);
+  return pos === 0;
+}
+
+/**
  * Get link URL if selection contains a link
  */
 export function getLinkUrl(view: EditorView): string | null {

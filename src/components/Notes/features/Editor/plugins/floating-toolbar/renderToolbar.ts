@@ -135,10 +135,17 @@ export function setupToolbarEventDelegation(
     
     // Leave handler to clear preview
     leaveHandler = (e: Event) => {
+      const mouseEvent = e as MouseEvent;
       const target = e.target as HTMLElement;
       const button = target.closest('[data-action]') as HTMLElement | null;
       
       if (button && currentView) {
+        // Check if we're leaving to another element inside the same button
+        const relatedTarget = mouseEvent.relatedTarget as HTMLElement | null;
+        if (relatedTarget && button.contains(relatedTarget)) {
+          return; // Still inside the button, don't clear
+        }
+        
         const action = button.dataset.action;
         if (action && hasFormatPreview(action)) {
           clearFormatPreview(currentView);
@@ -147,8 +154,8 @@ export function setupToolbarEventDelegation(
     };
     
     toolbarElement.addEventListener('click', delegateHandler);
-    toolbarElement.addEventListener('mouseenter', hoverHandler, true);
-    toolbarElement.addEventListener('mouseleave', leaveHandler, true);
+    toolbarElement.addEventListener('mouseover', hoverHandler);
+    toolbarElement.addEventListener('mouseout', leaveHandler);
   }
 }
 
@@ -169,11 +176,11 @@ export function cleanupToolbarEventDelegation(toolbarElement: HTMLElement) {
     delegateHandler = null;
   }
   if (hoverHandler) {
-    toolbarElement.removeEventListener('mouseenter', hoverHandler, true);
+    toolbarElement.removeEventListener('mouseover', hoverHandler);
     hoverHandler = null;
   }
   if (leaveHandler) {
-    toolbarElement.removeEventListener('mouseleave', leaveHandler, true);
+    toolbarElement.removeEventListener('mouseout', leaveHandler);
     leaveHandler = null;
   }
   currentView = null;

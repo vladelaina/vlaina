@@ -4,7 +4,7 @@ import type { BlockType, FloatingToolbarState } from '../types';
 import { BLOCK_TYPES } from '../utils';
 import { convertBlockType } from '../commands';
 import { getCurrentBlockElement } from '../floatingToolbarPlugin';
-import { applyHeadingPreview, clearHeadingPreview } from '../previewStyles';
+import { applyBlockPreview, clearBlockPreview } from '../previewStyles';
 
 // Block type icons as SVG strings
 const BLOCK_ICONS: Record<string, string> = {
@@ -90,15 +90,21 @@ export function renderBlockDropdown(
     
     if (toolbarRect) {
       // Check if dropdown extends beyond viewport bottom
-      const spaceBelow = viewportHeight - toolbarRect.bottom;
-      const spaceAbove = toolbarRect.top;
-      const dropdownHeight = dropdownRect.height + 8; // 8px margin
+      const spaceBelow = viewportHeight - toolbarRect.bottom - 16; // 16px margin
+      const spaceAbove = toolbarRect.top - 16;
+      const dropdownHeight = dropdownRect.height;
       
       // If not enough space below but enough above, show above
-      if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
+      if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
         dropdown.classList.add('dropdown-above');
+        // Set max-height based on available space above
+        const maxHeight = Math.min(spaceAbove, dropdownHeight);
+        dropdown.style.maxHeight = `${maxHeight}px`;
       } else {
         dropdown.classList.remove('dropdown-above');
+        // Set max-height based on available space below
+        const maxHeight = Math.min(spaceBelow, dropdownHeight);
+        dropdown.style.maxHeight = `${maxHeight}px`;
       }
     }
   });
@@ -143,27 +149,23 @@ export function renderBlockDropdown(
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      clearHeadingPreview(view);
+      clearBlockPreview(view);
       const blockType = (btn as HTMLElement).dataset.blockType as BlockType;
       convertBlockType(view, blockType);
       onClose();
     });
     
-    // Preview on hover (for headings)
+    // Preview on hover for all block types
     btn.addEventListener('mouseenter', () => {
       const blockType = (btn as HTMLElement).dataset.blockType as BlockType;
-      clearHeadingPreview(view);
-      if (blockType.startsWith('heading')) {
-        const level = parseInt(blockType.replace('heading', ''));
-        const blockElement = findCurrentBlockElement();
-        if (blockElement) {
-          applyHeadingPreview(view, blockElement, level);
-        }
+      const blockElement = findCurrentBlockElement();
+      if (blockElement) {
+        applyBlockPreview(view, blockElement, blockType);
       }
     });
     
     btn.addEventListener('mouseleave', () => {
-      clearHeadingPreview(view);
+      clearBlockPreview(view);
     });
   });
 }

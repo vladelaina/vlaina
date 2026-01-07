@@ -11,7 +11,8 @@ import {
   getLinkUrl, 
   getTextColor, 
   getBgColor, 
-  calculatePosition 
+  calculatePosition,
+  isSelectionInFirstH1 
 } from './selectionHelpers';
 import { renderToolbarContent } from './renderToolbar';
 import { toggleMark } from './commands';
@@ -189,6 +190,14 @@ export const floatingToolbarPlugin = $prose(() => {
         
         // Fast path: no selection = hide toolbar immediately
         if (selection.empty) {
+          hideToolbar();
+          lastRenderState = '';
+          currentBlockElement = null;
+          return;
+        }
+        
+        // Don't show toolbar when selection is in the first H1 (document title)
+        if (isSelectionInFirstH1(editorView)) {
           hideToolbar();
           lastRenderState = '';
           currentBlockElement = null;

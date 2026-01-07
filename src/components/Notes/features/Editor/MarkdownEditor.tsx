@@ -14,7 +14,7 @@ import { IconHeartbeat } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
-import { cn } from '@/lib/utils';
+import { cn, iconButtonStyles } from '@/lib/utils';
 import { IconPicker, NoteIcon } from '../IconPicker';
 import { CustomScrollbar } from '@/components/ui/custom-scrollbar';
 
@@ -255,7 +255,7 @@ export function MarkdownEditor() {
             "p-1.5 transition-colors",
             starred 
               ? "text-yellow-500" 
-              : "text-zinc-200 dark:text-zinc-700 hover:text-yellow-500"
+              : `${iconButtonStyles} hover:text-yellow-500`
           )}
         >
           <IconStar className="size-4" fill={starred ? "currentColor" : "none"} />
@@ -264,7 +264,7 @@ export function MarkdownEditor() {
         <button
           className={cn(
             "p-1.5 transition-colors",
-            "text-zinc-200 dark:text-zinc-700 hover:text-zinc-500 dark:hover:text-zinc-400"
+            iconButtonStyles
           )}
         >
           <IconDots className="size-4" />
@@ -292,7 +292,7 @@ export function MarkdownEditor() {
                   ref={iconButtonRef}
                   className={cn(
                     "flex items-center gap-1.5 py-1 rounded-md text-sm",
-                    "text-zinc-400 dark:text-zinc-500"
+                    iconButtonStyles
                   )}
                 >
                   <IconHeartbeat className="size-4" />
@@ -305,8 +305,7 @@ export function MarkdownEditor() {
                 onClick={() => setShowIconPicker(true)}
                 className={cn(
                   "flex items-center gap-1.5 py-1 rounded-md text-sm",
-                  "text-zinc-400 dark:text-zinc-500",
-                  "hover:text-zinc-500 dark:hover:text-zinc-400",
+                  iconButtonStyles,
                   "transition-all duration-150",
                   isHoveringHeader ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}

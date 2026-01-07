@@ -2,37 +2,142 @@
 // Handles real-time preview for format and block type changes
 
 import type { EditorView } from '@milkdown/kit/prose/view';
+import type { BlockType } from './types';
 
-// Format preview styles mapping
+// Format preview styles mapping - matching editor.css exactly
 export const FORMAT_PREVIEW_STYLES: Record<string, Record<string, string>> = {
-  bold: { fontWeight: '700' },
+  // .milkdown strong
+  bold: { fontWeight: '600' },
+  // .milkdown em
   italic: { fontStyle: 'italic' },
+  // .milkdown u
   underline: { textDecoration: 'underline' },
+  // .milkdown del
   strike: { textDecoration: 'line-through' },
+  // .milkdown code
   code: { 
-    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-    backgroundColor: 'rgba(135, 131, 120, 0.15)',
-    fontSize: '85%'
+    fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontSize: '0.875em',
+    backgroundColor: 'var(--neko-bg-tertiary)',
+    color: '#be185d',
+    padding: '0.125rem 0.375rem',
+    borderRadius: '0.25rem',
   },
-  highlight: { backgroundColor: 'rgba(255, 212, 0, 0.4)' },
+  // .milkdown mark.highlight
+  highlight: { 
+    backgroundColor: '#fef08a',
+    padding: '0.125rem 0.25rem',
+    borderRadius: '0.125rem',
+  },
 };
 
-// Heading preview styles
-export const HEADING_PREVIEW_STYLES: Record<number, Record<string, string>> = {
-  1: { fontSize: '2rem', fontWeight: '700', lineHeight: '1.2' },
-  2: { fontSize: '1.5rem', fontWeight: '600', lineHeight: '1.3' },
-  3: { fontSize: '1.25rem', fontWeight: '600', lineHeight: '1.4' },
-  4: { fontSize: '1rem', fontWeight: '600', lineHeight: '1.5' },
-  5: { fontSize: '0.875rem', fontWeight: '600', lineHeight: '1.5', textTransform: 'uppercase' },
-  6: { fontSize: '0.85rem', fontWeight: '600', lineHeight: '1.5', textDecoration: 'underline' },
+// Block type preview styles - matching editor.css exactly
+export const BLOCK_PREVIEW_STYLES: Record<BlockType, Record<string, string>> = {
+  // Paragraph: .milkdown p
+  paragraph: { 
+    fontSize: '1rem', 
+    fontWeight: '400', 
+    lineHeight: '1.75',
+    fontStyle: 'normal',
+    textTransform: 'none',
+    textDecoration: 'none',
+    letterSpacing: 'normal',
+    borderLeft: 'none',
+    paddingLeft: '0',
+    padding: '0',
+    backgroundColor: 'transparent',
+  },
+  // H1: .milkdown h1
+  heading1: { 
+    fontSize: '2rem', 
+    fontWeight: '700', 
+    lineHeight: '1.2',
+    textTransform: 'none',
+    textDecoration: 'none',
+    letterSpacing: 'normal',
+  },
+  // H2: .milkdown h2
+  heading2: { 
+    fontSize: '1.5rem', 
+    fontWeight: '600', 
+    lineHeight: '1.3',
+    textTransform: 'none',
+    textDecoration: 'none',
+    letterSpacing: 'normal',
+  },
+  // H3: .milkdown h3
+  heading3: { 
+    fontSize: '1.25rem', 
+    fontWeight: '600', 
+    lineHeight: '1.4',
+    textTransform: 'none',
+    textDecoration: 'none',
+    letterSpacing: 'normal',
+  },
+  // H4: .milkdown h4
+  heading4: { 
+    fontSize: '1rem', 
+    fontWeight: '600', 
+    lineHeight: '1.5',
+    textTransform: 'none',
+    textDecoration: 'none',
+    letterSpacing: 'normal',
+  },
+  // H5: .milkdown h5
+  heading5: { 
+    fontSize: '0.875rem', 
+    fontWeight: '600', 
+    lineHeight: '1.5', 
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    textDecoration: 'none',
+  },
+  // H6: .milkdown h6
+  heading6: { 
+    fontSize: '0.85rem', 
+    fontWeight: '600', 
+    lineHeight: '1.5', 
+    textDecoration: 'underline',
+    textTransform: 'none',
+    letterSpacing: 'normal',
+  },
+  // Blockquote: .milkdown blockquote
+  blockquote: { 
+    fontStyle: 'italic', 
+    borderLeft: '4px solid var(--neko-accent)',
+    backgroundColor: 'var(--neko-accent-light)',
+    padding: '0.75rem 1rem',
+    borderRadius: '0 0.5rem 0.5rem 0',
+  },
+  // Lists use margin-left in CSS
+  bulletList: { marginLeft: '1.5rem' },
+  orderedList: { marginLeft: '1.5rem' },
+  taskList: { marginLeft: '0' },
+  // Code block: .milkdown pre
+  codeBlock: { 
+    fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    backgroundColor: '#18181b',
+    padding: '1rem 1.25rem',
+    borderRadius: '0.5rem',
+    fontSize: '0.875rem',
+    lineHeight: '1.7',
+  },
 };
 
 // Track format preview state
 let formatPreviewNodes: { node: HTMLElement; originalStyles: Record<string, string> }[] = [];
 
-// Track heading preview state
-let headingPreviewElement: HTMLElement | null = null;
-let headingOriginalStyles: Record<string, string> = {};
+// Track block preview state
+let blockPreviewElement: HTMLElement | null = null;
+let blockOriginalStyles: Record<string, string> = {};
+
+// All style keys we might modify for block preview
+const BLOCK_STYLE_KEYS = [
+  'fontSize', 'fontWeight', 'lineHeight', 'fontStyle', 'fontFamily',
+  'textTransform', 'textDecoration', 'letterSpacing',
+  'borderLeft', 'paddingLeft', 'padding', 'marginLeft',
+  'color', 'backgroundColor', 'borderRadius',
+];
 
 /**
  * Temporarily disable ProseMirror's DOM observer
@@ -99,15 +204,18 @@ export function applyFormatPreview(view: EditorView, action: string): void {
       const processedParents = new Set<HTMLElement>();
       
       for (const textNode of textNodes) {
+        // Get the immediate parent of the text node
         const parent = textNode.parentElement;
         if (!parent || processedParents.has(parent)) continue;
         
+        // Skip editor root elements
         if (parent.classList?.contains('milkdown') || parent.classList?.contains('ProseMirror')) {
           continue;
         }
         
         processedParents.add(parent);
         
+        // Save original styles
         const originalStyles: Record<string, string> = {};
         Object.keys(styles).forEach(key => {
           const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
@@ -116,6 +224,7 @@ export function applyFormatPreview(view: EditorView, action: string): void {
         
         formatPreviewNodes.push({ node: parent, originalStyles });
         
+        // Apply preview styles with !important
         Object.entries(styles).forEach(([key, value]) => {
           const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
           parent.style.setProperty(cssKey, value, 'important');
@@ -155,34 +264,35 @@ export function clearFormatPreview(view: EditorView): void {
 }
 
 /**
- * Apply heading preview to a block element
+ * Apply block type preview to a block element
  */
-export function applyHeadingPreview(view: EditorView, blockElement: HTMLElement, level: number): void {
-  const styles = HEADING_PREVIEW_STYLES[level];
+export function applyBlockPreview(view: EditorView, blockElement: HTMLElement, blockType: BlockType): void {
+  const styles = BLOCK_PREVIEW_STYLES[blockType];
   if (!styles || !blockElement) return;
   
   // Clear previous preview if on different element
-  if (headingPreviewElement && headingPreviewElement !== blockElement) {
-    clearHeadingPreview(view);
+  if (blockPreviewElement && blockPreviewElement !== blockElement) {
+    clearBlockPreview(view);
   }
   
   // Save original styles if not already saved
-  if (headingPreviewElement !== blockElement) {
-    headingPreviewElement = blockElement;
-    headingOriginalStyles = {
-      fontSize: blockElement.style.fontSize,
-      fontWeight: blockElement.style.fontWeight,
-      lineHeight: blockElement.style.lineHeight,
-      textTransform: blockElement.style.textTransform,
-      textDecoration: blockElement.style.textDecoration,
-    };
+  if (blockPreviewElement !== blockElement) {
+    blockPreviewElement = blockElement;
+    blockOriginalStyles = {};
+    BLOCK_STYLE_KEYS.forEach(key => {
+      const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+      blockOriginalStyles[key] = blockElement.style.getPropertyValue(cssKey);
+    });
   }
   
   withDomObserverPaused(view, () => {
-    // Reset and apply styles
-    blockElement.style.setProperty('text-transform', 'none', 'important');
-    blockElement.style.setProperty('text-decoration', 'none', 'important');
+    // Reset common styles first
+    BLOCK_STYLE_KEYS.forEach(key => {
+      const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+      blockElement.style.removeProperty(cssKey);
+    });
     
+    // Apply preview styles
     Object.entries(styles).forEach(([key, value]) => {
       const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
       blockElement.style.setProperty(cssKey, value, 'important');
@@ -191,35 +301,44 @@ export function applyHeadingPreview(view: EditorView, blockElement: HTMLElement,
 }
 
 /**
- * Clear heading preview
+ * Clear block preview
  */
-export function clearHeadingPreview(view: EditorView): void {
-  if (!headingPreviewElement || !document.body.contains(headingPreviewElement)) {
-    headingPreviewElement = null;
-    headingOriginalStyles = {};
+export function clearBlockPreview(view: EditorView): void {
+  if (!blockPreviewElement || !document.body.contains(blockPreviewElement)) {
+    blockPreviewElement = null;
+    blockOriginalStyles = {};
     return;
   }
   
   withDomObserverPaused(view, () => {
-    const el = headingPreviewElement!;
+    const el = blockPreviewElement!;
     
-    el.style.removeProperty('font-size');
-    el.style.removeProperty('font-weight');
-    el.style.removeProperty('line-height');
-    el.style.removeProperty('text-transform');
-    el.style.removeProperty('text-decoration');
+    // Remove all preview styles
+    BLOCK_STYLE_KEYS.forEach(key => {
+      const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+      el.style.removeProperty(cssKey);
+    });
     
-    // Restore original if any
-    if (headingOriginalStyles.fontSize) el.style.fontSize = headingOriginalStyles.fontSize;
-    if (headingOriginalStyles.fontWeight) el.style.fontWeight = headingOriginalStyles.fontWeight;
-    if (headingOriginalStyles.lineHeight) el.style.lineHeight = headingOriginalStyles.lineHeight;
-    if (headingOriginalStyles.textTransform) el.style.textTransform = headingOriginalStyles.textTransform;
-    if (headingOriginalStyles.textDecoration) el.style.textDecoration = headingOriginalStyles.textDecoration;
+    // Restore original styles
+    Object.entries(blockOriginalStyles).forEach(([key, value]) => {
+      if (value) {
+        const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+        el.style.setProperty(cssKey, value);
+      }
+    });
   });
   
-  headingPreviewElement = null;
-  headingOriginalStyles = {};
+  blockPreviewElement = null;
+  blockOriginalStyles = {};
 }
+
+// Legacy aliases for backward compatibility
+export const applyHeadingPreview = (view: EditorView, blockElement: HTMLElement, level: number) => {
+  const blockType = `heading${level}` as BlockType;
+  applyBlockPreview(view, blockElement, blockType);
+};
+
+export const clearHeadingPreview = clearBlockPreview;
 
 /**
  * Check if an action supports format preview
