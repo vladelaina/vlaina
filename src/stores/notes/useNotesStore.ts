@@ -11,7 +11,7 @@ import type { NotesStore, FileTreeNode } from './types';
 import { buildFileTree, sortFileTree, updateFileNodePath, updateFolderExpanded, collectExpandedPaths, restoreExpandedState } from './fileTreeUtils';
 import { extractFirstH1, sanitizeFileName } from './noteUtils';
 import { updateDisplayName, removeDisplayName, moveDisplayName } from './displayNameUtils';
-import { loadRecentNotes, addToRecentNotes, loadStarredNotes, saveStarredNotes, loadNoteIconsFromFile, saveNoteIconsToFile, getNotesBasePath, ensureNotesFolder, setCurrentVaultPath as setVaultPath, getCurrentVaultPath as getVaultPath, loadWorkspaceState, saveWorkspaceState } from './storage';
+import { loadRecentNotes, addToRecentNotes, loadNoteIconsFromFile, saveNoteIconsToFile, getNotesBasePath, ensureNotesFolder, setCurrentVaultPath as setVaultPath, getCurrentVaultPath as getVaultPath, loadWorkspaceState, saveWorkspaceState, loadFavoritesFromFile, saveFavoritesToFile } from './storage';
 
 // Re-export for external use
 export * from './types';
@@ -30,7 +30,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   recentNotes: loadRecentNotes(),
   openTabs: [],
   noteContentsCache: new Map(),
-  starredNotes: loadStarredNotes(),
+  starredNotes: [],
+  starredFolders: [],
   noteIcons: new Map(),
   displayNames: new Map(),
   isNewlyCreated: false,
@@ -44,6 +45,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       const children = await buildFileTree(basePath);
       const icons = await loadNoteIconsFromFile(basePath);
       const workspace = await loadWorkspaceState(basePath);
+      const favorites = await loadFavoritesFromFile(basePath);
       
       // Restore expanded folders from workspace state
       let restoredChildren = children;
@@ -56,14 +58,23 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
         notesPath: basePath,
         rootFolder: { id: '', name: 'Notes', path: '', isFolder: true, children: restoredChildren, expanded: true },
         noteIcons: icons,
+        starredNotes: favorites.notes,
+        starredFolders: favorites.folders,
         isLoading: false,
       });
       
-      // Restore last opened note
+      // Restore last opened note (with validation)
       if (workspace?.currentNotePath) {
-        // Delay to ensure state is set
-        setTimeout(() => {
-          get().openNote(workspace.currentNotePath!);
+        setTimeout(async () => {
+          try {
+            const fullPath = await join(basePath, workspace.currentNotePath!);
+            const fileExists = await exists(fullPath);
+            if (fileExists) {
+              get().openNote(workspace.currentNotePath!);
+            }
+          } catch {
+            // File no longer exists, ignore
+          }
         }, 0);
       }
     } catch (error) {
@@ -166,7 +177,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
             
             if (starredNotes.includes(currentNote.path)) {
               const updatedStarred = starredNotes.map(p => p === currentNote.path ? newPath : p);
-              saveStarredNotes(updatedStarred);
+              const { starredFolders } = get();
+              saveFavoritesToFile(notesPath, { notes: updatedStarred, folders: starredFolders });
               set({ starredNotes: updatedStarred });
             }
             
@@ -623,14 +635,24 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   },
 
   toggleStarred: (path: string) => {
-    const { starredNotes } = get();
+    const { starredNotes, starredFolders, notesPath } = get();
     const isCurrentlyStarred = starredNotes.includes(path);
     const updated = isCurrentlyStarred ? starredNotes.filter(p => p !== path) : [...starredNotes, path];
-    saveStarredNotes(updated);
     set({ starredNotes: updated });
+    if (notesPath) saveFavoritesToFile(notesPath, { notes: updated, folders: starredFolders });
+  },
+
+  toggleFolderStarred: (path: string) => {
+    const { starredNotes, starredFolders, notesPath } = get();
+    const isCurrentlyStarred = starredFolders.includes(path);
+    const updated = isCurrentlyStarred ? starredFolders.filter(p => p !== path) : [...starredFolders, path];
+    set({ starredFolders: updated });
+    if (notesPath) saveFavoritesToFile(notesPath, { notes: starredNotes, folders: updated });
   },
 
   isStarred: (path: string) => get().starredNotes.includes(path),
+
+  isFolderStarred: (path: string) => get().starredFolders.includes(path),
 
   getNoteIcon: (path: string) => get().noteIcons.get(path),
 

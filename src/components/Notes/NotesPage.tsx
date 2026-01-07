@@ -217,8 +217,25 @@ export function NotesPage() {
 }
 
 function FavoritesSection() {
-  const [expanded, setExpanded] = useState(true);
-  const { starredNotes, openNote, currentNote, getDisplayName, getNoteIcon } = useNotesStore();
+  const { 
+    starredNotes, 
+    starredFolders,
+    openNote, 
+    toggleFolder,
+    currentNote, 
+    getDisplayName, 
+    getNoteIcon 
+  } = useNotesStore();
+  
+  const hasFavorites = starredNotes.length > 0 || starredFolders.length > 0;
+  const [expanded, setExpanded] = useState(hasFavorites);
+  
+  // Auto-expand when favorites are added
+  useEffect(() => {
+    if (hasFavorites && !expanded) {
+      setExpanded(true);
+    }
+  }, [hasFavorites, expanded]);
   
   return (
     <div className="mb-2">
@@ -251,7 +268,7 @@ function FavoritesSection() {
       >
         <div className="overflow-hidden">
           <div className="px-1">
-            {starredNotes.length === 0 ? (
+            {!hasFavorites ? (
               <div className="flex flex-col items-center gap-3 py-8">
                 <div className="w-14 h-14 rounded-full bg-[var(--neko-bg-tertiary)] flex items-center justify-center">
                   <IconStar className="w-6 h-6 text-[var(--neko-text-tertiary)]" />
@@ -260,6 +277,26 @@ function FavoritesSection() {
               </div>
             ) : (
               <div className="space-y-0.5">
+                {/* Starred Folders */}
+                {starredFolders.map((path) => {
+                  const name = path.split('/').pop() || path;
+                  
+                  return (
+                    <button
+                      key={`folder-${path}`}
+                      onClick={() => toggleFolder(path)}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-2 py-1 rounded-md text-[13px] transition-colors",
+                        "text-[var(--neko-text-secondary)] hover:bg-[var(--neko-hover)]"
+                      )}
+                    >
+                      <IconFolder className="w-4 h-4 flex-shrink-0 text-[var(--neko-text-tertiary)]" />
+                      <span className="truncate">{name}</span>
+                    </button>
+                  );
+                })}
+                
+                {/* Starred Notes */}
                 {starredNotes.map((path) => {
                   const displayName = getDisplayName(path);
                   const icon = getNoteIcon(path);
@@ -267,7 +304,7 @@ function FavoritesSection() {
                   
                   return (
                     <button
-                      key={path}
+                      key={`note-${path}`}
                       onClick={() => openNote(path)}
                       className={cn(
                         "w-full flex items-center gap-2 px-2 py-1 rounded-md text-[13px] transition-colors",

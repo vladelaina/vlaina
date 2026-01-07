@@ -9,6 +9,8 @@ import {
   IconPencil,
   IconFileText,
   IconFolder,
+  IconStar,
+  IconStarFilled,
 } from '@tabler/icons-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { useDisplayName, useDisplayIcon } from '@/hooks/useTitleSync';
@@ -41,6 +43,12 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
   const moveItem = useNotesStore(s => s.moveItem);
   const newlyCreatedFolderPath = useNotesStore(s => s.newlyCreatedFolderPath);
   const clearNewlyCreatedFolder = useNotesStore(s => s.clearNewlyCreatedFolder);
+  const toggleStarred = useNotesStore(s => s.toggleStarred);
+  const toggleFolderStarred = useNotesStore(s => s.toggleFolderStarred);
+  const isStarred = useNotesStore(s => s.isStarred);
+  const isFolderStarred = useNotesStore(s => s.isFolderStarred);
+  
+  const isItemStarred = node.isFolder ? isFolderStarred(node.path) : isStarred(node.path);
   
   const noteDisplayName = useDisplayName(node.isFolder ? undefined : node.path);
   const displayName = node.isFolder ? node.name : (noteDisplayName || node.name);
@@ -128,6 +136,15 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
   const handleNewFolderInFolder = async () => {
     if (node.isFolder) {
       await createFolder(node.path);
+    }
+    setShowMenu(false);
+  };
+
+  const handleToggleStar = () => {
+    if (node.isFolder) {
+      toggleFolderStarred(node.path);
+    } else {
+      toggleStarred(node.path);
     }
     setShowMenu(false);
   };
@@ -291,6 +308,11 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
               icon={<IconPencil />} 
               label="Rename" 
               onClick={handleRename} 
+            />
+            <MenuItem 
+              icon={isItemStarred ? <IconStarFilled className="text-yellow-500" /> : <IconStar />} 
+              label={isItemStarred ? "Remove from Favorites" : "Add to Favorites"} 
+              onClick={handleToggleStar} 
             />
             <MenuItem 
               icon={<IconTrash />} 

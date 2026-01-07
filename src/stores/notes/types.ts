@@ -29,6 +29,7 @@ export interface NotesState {
   openTabs: { path: string; name: string; isDirty: boolean }[];
   noteContentsCache: Map<string, string>;
   starredNotes: string[];
+  starredFolders: string[];
   noteIcons: Map<string, string>;
   displayNames: Map<string, string>;
   isNewlyCreated: boolean;
@@ -58,7 +59,9 @@ export interface NotesActions {
   getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];
   getAllTags: () => { tag: string; count: number }[];
   toggleStarred: (path: string) => void;
+  toggleFolderStarred: (path: string) => void;
   isStarred: (path: string) => boolean;
+  isFolderStarred: (path: string) => boolean;
   getNoteIcon: (path: string) => string | undefined;
   setNoteIcon: (path: string, emoji: string | null) => void;
   syncDisplayName: (path: string, title: string) => void;

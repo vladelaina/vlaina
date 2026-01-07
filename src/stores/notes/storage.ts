@@ -4,11 +4,11 @@ import { readTextFile, writeTextFile, mkdir, exists } from '@tauri-apps/plugin-f
 import { join } from '@tauri-apps/api/path';
 import { 
   RECENT_NOTES_KEY, 
-  STARRED_NOTES_KEY, 
   MAX_RECENT_NOTES,
   NEKOTICK_CONFIG_FOLDER,
   ICONS_FILE,
   WORKSPACE_FILE,
+  FAVORITES_FILE,
 } from './constants';
 
 // ============ localStorage utilities ============
@@ -33,21 +33,6 @@ export function addToRecentNotes(path: string, current: string[]): string[] {
   const updated = [path, ...filtered].slice(0, MAX_RECENT_NOTES);
   saveRecentNotes(updated);
   return updated;
-}
-
-export function loadStarredNotes(): string[] {
-  try {
-    const saved = localStorage.getItem(STARRED_NOTES_KEY);
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveStarredNotes(paths: string[]): void {
-  try {
-    localStorage.setItem(STARRED_NOTES_KEY, JSON.stringify(paths));
-  } catch { /* ignore */ }
 }
 
 // ============ File-based storage utilities ============
@@ -145,5 +130,45 @@ export async function saveWorkspaceState(vaultPath: string, state: WorkspaceStat
     }
     const wsPath = await join(configPath, WORKSPACE_FILE);
     await writeTextFile(wsPath, JSON.stringify(state, null, 2));
+  } catch { /* ignore */ }
+}
+
+
+// ============ Favorites persistence ============
+
+export interface FavoritesData {
+  notes: string[];
+  folders: string[];
+}
+
+/**
+ * Load favorites from .nekotick/favorites.json
+ */
+export async function loadFavoritesFromFile(vaultPath: string): Promise<FavoritesData> {
+  try {
+    const favPath = await join(vaultPath, NEKOTICK_CONFIG_FOLDER, FAVORITES_FILE);
+    if (!await exists(favPath)) return { notes: [], folders: [] };
+    const content = await readTextFile(favPath);
+    const data = JSON.parse(content);
+    return {
+      notes: Array.isArray(data.notes) ? data.notes : [],
+      folders: Array.isArray(data.folders) ? data.folders : [],
+    };
+  } catch {
+    return { notes: [], folders: [] };
+  }
+}
+
+/**
+ * Save favorites to .nekotick/favorites.json
+ */
+export async function saveFavoritesToFile(vaultPath: string, favorites: FavoritesData): Promise<void> {
+  try {
+    const configPath = await join(vaultPath, NEKOTICK_CONFIG_FOLDER);
+    if (!await exists(configPath)) {
+      await mkdir(configPath, { recursive: true });
+    }
+    const favPath = await join(configPath, FAVORITES_FILE);
+    await writeTextFile(favPath, JSON.stringify(favorites, null, 2));
   } catch { /* ignore */ }
 }
