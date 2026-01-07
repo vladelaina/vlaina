@@ -161,6 +161,71 @@ async fn toggle_fullscreen(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+// Create a new application window (opens to welcome screen)
+#[tauri::command]
+async fn create_new_window(app: AppHandle) -> Result<(), String> {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    static WINDOW_COUNTER: AtomicU32 = AtomicU32::new(1);
+    
+    let window_id = WINDOW_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let window_label = format!("main-{}", window_id);
+    
+    // Use URL with query param to indicate new window should show welcome screen
+    let url = WebviewUrl::App("index.html?newWindow=true".into());
+    
+    // Calculate offset position based on window count (cascade effect)
+    let offset = (window_id as f64) * 30.0;
+    
+    // Get target position before creating window
+    let target_pos = if let Some(current_window) = app.get_webview_window("main") {
+        current_window.outer_position().ok().map(|pos| {
+            (pos.x as f64 + offset, pos.y as f64 + offset)
+        })
+    } else {
+        None
+    };
+    
+    // Create window hidden first, with position if available
+    let mut builder = WebviewWindowBuilder::new(
+        &app,
+        &window_label,
+        url,
+    )
+    .title("Nekotick")
+    .inner_size(900.0, 700.0)
+    .min_inner_size(400.0, 300.0)
+    .decorations(false)
+    .transparent(true)
+    .background_color(Color(0, 0, 0, 0))
+    .visible(false); // Start hidden
+    
+    // Set position in builder if we have it
+    if let Some((x, y)) = target_pos {
+        builder = builder.position(x, y);
+    } else {
+        builder = builder.center();
+    }
+    
+    let window = builder.build().map_err(|e| e.to_string())?;
+    
+    // Show window after it's positioned
+    window.show().map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+// Focus a window by label and bring it to front
+#[tauri::command]
+async fn focus_window(app: AppHandle, label: String) -> Result<bool, String> {
+    if let Some(window) = app.get_webview_window(&label) {
+        window.set_focus().map_err(|e| e.to_string())?;
+        window.unminimize().map_err(|e| e.to_string())?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -172,6 +237,8 @@ pub fn run() {
             update_drag_window_position,
             destroy_drag_window,
             toggle_fullscreen,
+            create_new_window,
+            focus_window,
             google_drive::commands::google_drive_auth,
             google_drive::commands::google_drive_disconnect,
             google_drive::commands::get_sync_status,

@@ -4,7 +4,8 @@ import { TitleBar } from './TitleBar';
 import { WindowControls } from './WindowControls';
 import { cn } from '@/lib/utils';
 
-const appWindow = getCurrentWindow();
+// Get window dynamically for multi-window support
+const getWindow = () => getCurrentWindow();
 
 const PANEL_CONFIG = {
   right: { default: 300, min: 48, storageKey: 'nekotick-right-panel-width' },
@@ -156,14 +157,14 @@ export function Layout({ children, onOpenSettings, toolbar, content, leftPanel, 
                 onMouseDown={(e) => {
                   // Allow dragging on the empty space, but not on buttons
                   if (e.target === e.currentTarget) {
-                    appWindow.startDragging();
+                    getWindow().startDragging();
                   }
                 }}
               >
                 {/* Drag region spacer */}
                 <div 
                   className="flex-1 h-full cursor-default"
-                  onMouseDown={() => appWindow.startDragging()}
+                  onMouseDown={() => getWindow().startDragging()}
                 />
                 <WindowControls />
               </div>

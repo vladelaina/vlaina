@@ -14,7 +14,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { FileTree } from './features/FileTree';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
-import { VaultWelcome } from './features/VaultWelcome';
+import { VaultWelcome } from '@/components/VaultWelcome';
 import { IconButton } from '@/components/ui/icon-button';
 import './features/BlockEditor/styles.css';
 import { cn, NOTES_COLORS } from '@/lib/utils';
@@ -203,7 +203,7 @@ export function NotesPage() {
             </div>
           </div>
         ) : (
-          <EmptyState onCreateNote={() => createNote()} onOpenSearch={() => setShowSearch(true)} />
+          <div className="flex-1" />
         )}
       </main>
 
@@ -373,45 +373,6 @@ function WorkspaceSection({
               currentNotePath={currentNotePath}
             />
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({ onCreateNote, onOpenSearch }: { onCreateNote: () => void; onOpenSearch: () => void }) {
-  return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center max-w-md px-8">
-        <h2 className="text-xl font-semibold text-[var(--neko-text-primary)] mb-2">
-          Start Writing
-        </h2>
-        <p className="text-[14px] text-[var(--neko-text-secondary)] mb-8 leading-relaxed">
-          Create a new note to capture your thoughts, or open an existing one from the sidebar.
-        </p>
-        <div className="flex flex-col gap-3">
-          <button
-            onClick={onCreateNote}
-            className={cn(
-              "flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg",
-              "bg-[var(--neko-accent)] hover:bg-[var(--neko-accent-hover)]",
-              "text-white text-[14px] font-medium transition-colors"
-            )}
-          >
-            <IconPlus className="w-4 h-4" />
-            New Note
-          </button>
-          <button
-            onClick={onOpenSearch}
-            className={cn(
-              "flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg",
-              "bg-[var(--neko-bg-tertiary)] hover:bg-[var(--neko-hover-filled)]",
-              "text-[var(--neko-text-primary)] text-[14px] font-medium transition-colors"
-            )}
-          >
-            <IconSearch className="w-4 h-4" />
-            Open Note
-          </button>
         </div>
       </div>
     </div>

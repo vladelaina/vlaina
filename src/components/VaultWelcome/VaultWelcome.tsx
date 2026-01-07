@@ -4,6 +4,8 @@
 
 import { useState, useEffect } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { cn } from '@/lib/utils';
 import { BrandHeader } from './components/BrandHeader';
@@ -14,7 +16,7 @@ import { CreateVaultModal } from './components/CreateVaultModal';
 import './VaultWelcome.css';
 
 export function VaultWelcome() {
-  const { initialize, recentVaults, openVault, isLoading } = useVaultStore();
+  const { initialize, recentVaults, openVault, checkVaultOpenInOtherWindow, isLoading } = useVaultStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -30,11 +32,23 @@ export function VaultWelcome() {
     });
     
     if (selected && typeof selected === 'string') {
-      await openVault(selected);
+      await handleOpenRecent(selected);
     }
   };
 
   const handleOpenRecent = async (path: string) => {
+    // Check if vault is already open in another window
+    const existingWindowLabel = await checkVaultOpenInOtherWindow(path);
+    
+    if (existingWindowLabel) {
+      // Vault is open in another window - focus that window and close this one
+      await invoke('focus_window', { label: existingWindowLabel });
+      // Close current window if it's a new/welcome window
+      getCurrentWindow().close();
+      return;
+    }
+    
+    // Vault not open elsewhere, open it in this window
     await openVault(path);
   };
 

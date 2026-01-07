@@ -1,4 +1,4 @@
-import React, { ReactNode, memo } from 'react';
+import React, { ReactNode, memo, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { 
   IconSettings, 
@@ -18,6 +18,7 @@ import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn, NOTES_COLORS } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
+import { useVaultStore } from '@/stores/useVaultStore';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import {
   DndContext,
@@ -35,8 +36,6 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-
-const appWindow = getCurrentWindow();
 
 interface TabContentProps {
   tab: { path: string; name: string; isDirty: boolean };
@@ -207,6 +206,7 @@ interface TitleBarProps {
 
 export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls }: TitleBarProps) {
   const { appViewMode, toggleAppViewMode, notesSidebarCollapsed, notesSidebarWidth, notesShowAIPanel, toggleNotesSidebar, toggleNotesAIPanel } = useUIStore();
+  const { currentVault } = useVaultStore();
   const currentNote = useNotesStore(s => s.currentNote);
   const openTabs = useNotesStore(s => s.openTabs);
   const closeTab = useNotesStore(s => s.closeTab);
@@ -221,6 +221,9 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
   const toggleSidebar = toggleNotesSidebar;
   const toggleAIPanel = toggleNotesAIPanel;
   
+  // Use white background when no vault is selected (welcome screen)
+  const titleBarBgColor = currentVault ? NOTES_COLORS.sidebarBg : 'var(--neko-bg-primary)';
+  
   const RESIZE_HANDLE_WIDTH = 4;
   
   const [activeTabId, setActiveTabId] = React.useState<string | null>(null);
@@ -232,9 +235,9 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
     })
   );
   
-  const startDrag = async () => {
-    await appWindow.startDragging();
-  };
+  const startDrag = useCallback(async () => {
+    await getCurrentWindow().startDragging();
+  }, []);
 
   // Handle new note creation
   const handleCreateNote = React.useCallback(() => {
@@ -275,182 +278,199 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
         if (e.target === e.currentTarget) startDrag();
       }}
       className="h-10 dark:bg-zinc-900 flex items-center select-none relative z-50"
-      style={{ backgroundColor: NOTES_COLORS.sidebarBg }}
+      style={{ backgroundColor: titleBarBgColor }}
     >
-      {/* Left sidebar area - matches sidebar width */}
-      {appViewMode === 'notes' && !sidebarCollapsed && (
-        <div 
-          className="h-full flex items-center flex-shrink-0 z-20"
-          style={{ width: sidebarWidth }}
-        >
-          <LeftButtons 
-            onToggleSidebar={toggleSidebar}
-            onOpenSettings={onOpenSettings}
-            onToggleViewMode={toggleAppViewMode}
-            viewModeIcon={IconCalendar}
-          />
-          
-          {/* Draggable area to fill remaining space in sidebar header */}
+      {/* Welcome screen - only show window controls */}
+      {appViewMode === 'notes' && !currentVault && (
+        <>
           <div 
             className="flex-1 h-full cursor-default"
             onMouseDown={startDrag}
           />
-        </div>
+          {!hideWindowControls && <WindowControls className="z-50" minimal />}
+        </>
       )}
 
-      {/* When sidebar is collapsed, show buttons normally */}
-      {appViewMode === 'notes' && sidebarCollapsed && (
-        <div className="flex items-center z-20">
-          <LeftButtons 
-            onToggleSidebar={toggleSidebar}
-            onOpenSettings={onOpenSettings}
-            onToggleViewMode={toggleAppViewMode}
-            viewModeIcon={IconCalendar}
+      {/* Normal notes view with vault */}
+      {appViewMode === 'notes' && currentVault && (
+        <>
+          {/* Left sidebar area - matches sidebar width */}
+          {!sidebarCollapsed && (
+            <div 
+              className="h-full flex items-center flex-shrink-0 z-20"
+              style={{ width: sidebarWidth }}
+            >
+              <LeftButtons 
+                onToggleSidebar={toggleSidebar}
+                onOpenSettings={onOpenSettings}
+                onToggleViewMode={toggleAppViewMode}
+                viewModeIcon={IconCalendar}
+              />
+              
+              {/* Draggable area to fill remaining space in sidebar header */}
+              <div 
+                className="flex-1 h-full cursor-default"
+                onMouseDown={startDrag}
+              />
+            </div>
+          )}
+
+          {/* When sidebar is collapsed, show buttons normally */}
+          {sidebarCollapsed && (
+            <div className="flex items-center z-20">
+              <LeftButtons 
+                onToggleSidebar={toggleSidebar}
+                onOpenSettings={onOpenSettings}
+                onToggleViewMode={toggleAppViewMode}
+                viewModeIcon={IconCalendar}
+              />
+            </div>
+          )}
+
+          {/* Resize handle spacer - only when sidebar is expanded */}
+          {!sidebarCollapsed && (
+            <div className="w-1 h-full flex-shrink-0" />
+          )}
+
+          {/* White background area for main content - creates the "cutout" effect */}
+          {!sidebarCollapsed && (
+            <div 
+              className="absolute top-0 bottom-0 right-0 bg-white dark:bg-zinc-800 rounded-tl-xl"
+              style={{ 
+                left: sidebarWidth + RESIZE_HANDLE_WIDTH,
+              }}
+            />
+          )}
+
+          {/* White background when sidebar is collapsed */}
+          {sidebarCollapsed && (
+            <div 
+              className="absolute top-0 bottom-0 left-0 right-0 bg-white dark:bg-zinc-800"
+            />
+          )}
+
+          {/* Note Tabs */}
+          <div 
+            className="flex-1 flex items-center z-20 overflow-hidden min-w-0 h-full"
+          >
+            {/* Tabs container */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={openTabs.map(tab => tab.path)}
+                strategy={horizontalListSortingStrategy}
+              >
+                <div className="flex items-center gap-1 px-2 h-full min-w-0 flex-shrink">
+                  {openTabs.map((tab) => (
+                    <SortableTab
+                      key={tab.path}
+                      tab={tab}
+                      isActive={currentNote?.path === tab.path}
+                      onClose={closeTab}
+                      onClick={openNote}
+                    />
+                  ))}
+                  
+                  {/* Add new tab button */}
+                  {openTabs.length > 0 && (
+                    <Tooltip delayDuration={500}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={handleCreateNote}
+                          className={cn(
+                            "flex-shrink-0 p-1.5 rounded-lg transition-colors",
+                            "text-zinc-300 dark:text-zinc-600",
+                            "hover:text-zinc-500 dark:hover:text-zinc-400"
+                          )}
+                        >
+                          <IconPlus className="w-4 h-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" sideOffset={2}>
+                        <span className="flex items-center gap-1.5">
+                          New Tab
+                          <kbd className="px-1.5 py-0.5 text-[10px] font-medium rounded" style={{ backgroundColor: '#2B2B2B' }}>Ctrl</kbd>
+                          <kbd className="px-1.5 py-0.5 text-[10px] font-medium rounded" style={{ backgroundColor: '#2B2B2B' }}>T</kbd>
+                        </span>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+              </SortableContext>
+              
+              <DragOverlay dropAnimation={null}>
+                {activeTab ? (
+                  <TabOverlay 
+                    tab={activeTab} 
+                    isActive={currentNote?.path === activeTab.path}
+                  />
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+            
+            {/* Draggable empty area - fills remaining space, outside DndContext */}
+            <div 
+              className="flex-1 h-full min-w-[20px] cursor-default"
+              onMouseDown={startDrag}
+            />
+          </div>
+
+          {/* AI Chat Toggle */}
+          <TitleBarButton 
+            icon={IconMessageCircle} 
+            onClick={toggleAIPanel}
+            isActive={showAIPanel}
+            className="w-9 px-0 z-20"
           />
-        </div>
+
+          {/* Window Controls */}
+          {!hideWindowControls && <WindowControls className="z-50" />}
+        </>
       )}
 
       {/* Calendar view buttons */}
       {appViewMode === 'calendar' && (
-        <div className="flex items-center z-20">
-          <TitleBarButton icon={IconSettings} onClick={onOpenSettings} />
-          <TitleBarButton icon={IconNote} onClick={toggleAppViewMode} />
-        </div>
-      )}
-
-      {/* Resize handle spacer - only when sidebar is expanded */}
-      {appViewMode === 'notes' && !sidebarCollapsed && (
-        <div className="w-1 h-full flex-shrink-0" />
-      )}
-
-      {/* White background area for main content - creates the "cutout" effect */}
-      {appViewMode === 'notes' && !sidebarCollapsed && (
-        <div 
-          className="absolute top-0 bottom-0 right-0 bg-white dark:bg-zinc-800 rounded-tl-xl"
-          style={{ 
-            left: sidebarWidth + RESIZE_HANDLE_WIDTH,
-          }}
-        />
-      )}
-
-      {/* White background when sidebar is collapsed */}
-      {appViewMode === 'notes' && sidebarCollapsed && (
-        <div 
-          className="absolute top-0 bottom-0 left-0 right-0 bg-white dark:bg-zinc-800"
-        />
-      )}
-
-      {/* Note Tabs (Notes view only) - in flex flow with other elements */}
-      {appViewMode === 'notes' && (
-        <div 
-          className="flex-1 flex items-center z-20 overflow-hidden min-w-0 h-full"
-        >
-          {/* Tabs container */}
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={openTabs.map(tab => tab.path)}
-              strategy={horizontalListSortingStrategy}
-            >
-              <div className="flex items-center gap-1 px-2 h-full min-w-0 flex-shrink">
-                {openTabs.map((tab) => (
-                  <SortableTab
-                    key={tab.path}
-                    tab={tab}
-                    isActive={currentNote?.path === tab.path}
-                    onClose={closeTab}
-                    onClick={openNote}
-                  />
-                ))}
-                
-                {/* Add new tab button */}
-                {openTabs.length > 0 && (
-                  <Tooltip delayDuration={500}>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={handleCreateNote}
-                        className={cn(
-                          "flex-shrink-0 p-1.5 rounded-lg transition-colors",
-                          "text-zinc-300 dark:text-zinc-600",
-                          "hover:text-zinc-500 dark:hover:text-zinc-400"
-                        )}
-                      >
-                        <IconPlus className="w-4 h-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" sideOffset={2}>
-                      <span className="flex items-center gap-1.5">
-                        New Tab
-                        <kbd className="px-1.5 py-0.5 text-[10px] font-medium rounded" style={{ backgroundColor: '#2B2B2B' }}>Ctrl</kbd>
-                        <kbd className="px-1.5 py-0.5 text-[10px] font-medium rounded" style={{ backgroundColor: '#2B2B2B' }}>T</kbd>
-                      </span>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-              </div>
-            </SortableContext>
-            
-            <DragOverlay dropAnimation={null}>
-              {activeTab ? (
-                <TabOverlay 
-                  tab={activeTab} 
-                  isActive={currentNote?.path === activeTab.path}
-                />
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-          
-          {/* Draggable empty area - fills remaining space, outside DndContext */}
-          <div 
-            className="flex-1 h-full min-w-[20px] cursor-default"
-            onMouseDown={startDrag}
-          />
-        </div>
-      )}
-
-      {/* Spacer - only when not in notes view */}
-      {appViewMode !== 'notes' && <div className="flex-1" />}
-
-      {/* Center Content Area - Absolutely positioned for true centering */}
-      {content && (
-        <div 
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget || (e.target as HTMLElement).hasAttribute('data-tauri-drag-region')) {
-              startDrag();
-            }
-          }}
-          className="absolute inset-0 flex items-center justify-center pointer-events-none"
-          data-tauri-drag-region
-        >
-          <div className="pointer-events-auto">
-            {content}
+        <>
+          <div className="flex items-center z-20">
+            <TitleBarButton icon={IconSettings} onClick={onOpenSettings} />
+            <TitleBarButton icon={IconNote} onClick={toggleAppViewMode} />
           </div>
-        </div>
-      )}
 
-      {/* Custom Toolbar (e.g., Calendar controls) */}
-      {toolbar && (
-        <div className="flex items-center h-full z-20 pr-3">
-          {toolbar}
-        </div>
-      )}
+          {/* Spacer */}
+          <div className="flex-1" />
 
-      {/* AI Chat Toggle (Notes view only) */}
-      {appViewMode === 'notes' && (
-        <TitleBarButton 
-          icon={IconMessageCircle} 
-          onClick={toggleAIPanel}
-          isActive={showAIPanel}
-          className="w-9 px-0 z-20"
-        />
-      )}
+          {/* Center Content Area - Absolutely positioned for true centering */}
+          {content && (
+            <div 
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget || (e.target as HTMLElement).hasAttribute('data-tauri-drag-region')) {
+                  startDrag();
+                }
+              }}
+              className="absolute inset-0 flex items-center justify-center pointer-events-none"
+              data-tauri-drag-region
+            >
+              <div className="pointer-events-auto">
+                {content}
+              </div>
+            </div>
+          )}
 
-      {/* Window Controls - only show when right panel is hidden */}
-      {!hideWindowControls && <WindowControls className="z-50" />}
+          {/* Custom Toolbar (e.g., Calendar controls) */}
+          {toolbar && (
+            <div className="flex items-center h-full z-20 pr-3">
+              {toolbar}
+            </div>
+          )}
+
+          {/* Window Controls */}
+          {!hideWindowControls && <WindowControls className="z-50" />}
+        </>
+      )}
     </div>
   );
 }

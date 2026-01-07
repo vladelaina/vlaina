@@ -9,7 +9,8 @@ import { DetailModalContent } from './DetailModalContent';
 import { DetailModalFooter } from './DetailModalFooter';
 import { SPRING_SNAPPY, SPRING_GENTLE, SLIDE_FROM_BOTTOM } from '@/lib/animations';
 
-const appWindow = getCurrentWindow();
+// Get window dynamically for multi-window support
+const getWindow = () => getCurrentWindow();
 
 interface DetailModalProps {
   item: ProgressOrCounter | null;
@@ -141,7 +142,7 @@ export function DetailModal({
             className="fixed top-0 inset-x-0 h-12 z-50 cursor-default"
             onMouseDown={(e) => {
               e.preventDefault();
-              appWindow.startDragging();
+              getWindow().startDragging();
             }}
           />
 

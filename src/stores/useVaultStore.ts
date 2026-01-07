@@ -4,6 +4,7 @@
 
 import { create } from 'zustand';
 import { exists, mkdir } from '@tauri-apps/plugin-fs';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { setCurrentVaultPath } from './useNotesStore';
 
 export interface VaultInfo {
@@ -27,6 +28,7 @@ interface VaultActions {
   removeFromRecent: (id: string) => void;
   closeVault: () => void;
   clearError: () => void;
+  checkVaultOpenInOtherWindow: (path: string) => Promise<string | null>;
 }
 
 type VaultStore = VaultState & VaultActions;
@@ -61,6 +63,38 @@ function getVaultName(path: string): string {
   return parts[parts.length - 1] || 'Untitled';
 }
 
+// Track which vault this window has open (window-specific)
+let windowVaultPath: string | null = null;
+let windowLabel: string | null = null;
+
+// BroadcastChannel for cross-window communication
+let vaultChannel: BroadcastChannel | null = null;
+let pendingQueries: Map<string, (label: string | null) => void> = new Map();
+
+function setupBroadcastChannel() {
+  if (vaultChannel) return;
+  
+  vaultChannel = new BroadcastChannel('nekotick-vault');
+  
+  vaultChannel.onmessage = (event) => {
+    const { type, requestId, vaultPath, responseLabel } = event.data;
+    
+    if (type === 'query' && windowVaultPath === vaultPath && windowLabel) {
+      // This window has the vault open, respond
+      vaultChannel?.postMessage({
+        type: 'response',
+        requestId,
+        responseLabel: windowLabel
+      });
+    } else if (type === 'response' && pendingQueries.has(requestId)) {
+      // Got a response to our query
+      const resolve = pendingQueries.get(requestId);
+      pendingQueries.delete(requestId);
+      resolve?.(responseLabel);
+    }
+  };
+}
+
 export const useVaultStore = create<VaultStore>()((set, get) => ({
   currentVault: null,
   recentVaults: [],
@@ -71,12 +105,50 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     const recentVaults = loadFromStorage<VaultInfo[]>(VAULTS_STORAGE_KEY, []);
     const currentVaultId = loadFromStorage<string | null>(CURRENT_VAULT_KEY, null);
     
+    // Get current window label
+    windowLabel = getCurrentWindow().label;
+    
+    // Check if this is a new window (should show welcome screen)
+    const urlParams = new URLSearchParams(window.location.search);
+    const isNewWindow = urlParams.get('newWindow') === 'true';
+    
     let currentVault: VaultInfo | null = null;
-    if (currentVaultId) {
+    if (currentVaultId && !isNewWindow) {
       currentVault = recentVaults.find(v => v.id === currentVaultId) || null;
+      if (currentVault) {
+        windowVaultPath = currentVault.path;
+      }
     }
     
+    // Setup cross-window communication
+    setupBroadcastChannel();
+    
     set({ recentVaults, currentVault });
+  },
+
+  // Check if a vault is already open in another window
+  checkVaultOpenInOtherWindow: async (path: string): Promise<string | null> => {
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    
+    return new Promise((resolve) => {
+      // Store the resolver
+      pendingQueries.set(requestId, resolve);
+      
+      // Send query via BroadcastChannel
+      vaultChannel?.postMessage({
+        type: 'query',
+        requestId,
+        vaultPath: path
+      });
+      
+      // Timeout after 150ms - if no response, vault is not open elsewhere
+      setTimeout(() => {
+        if (pendingQueries.has(requestId)) {
+          pendingQueries.delete(requestId);
+          resolve(null);
+        }
+      }, 150);
+    });
   },
 
   openVault: async (path: string, name?: string) => {
@@ -124,7 +196,8 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
         isLoading: false,
       });
       
-      // Update notes store path
+      // Update notes store path and track in this window
+      windowVaultPath = vault.path;
       setCurrentVaultPath(vault.path);
       
       return true;
@@ -175,6 +248,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
   closeVault: () => {
     saveToStorage(CURRENT_VAULT_KEY, null);
+    windowVaultPath = null;
     setCurrentVaultPath(null);
     set({ currentVault: null });
   },

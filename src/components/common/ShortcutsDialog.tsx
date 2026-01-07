@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IconX } from '@tabler/icons-react';
-import { useShortcutEditor } from '@/components/common/Settings/hooks/useShortcutEditor';
+import { useShortcutEditor } from '@/components/Settings/hooks/useShortcutEditor';
 
 interface ShortcutsDialogProps {
   open: boolean;

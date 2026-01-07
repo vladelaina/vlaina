@@ -8,7 +8,8 @@ import { useCreateForm } from './useCreateForm';
 import { PreviewSection } from './PreviewSection';
 import { CreateModalProps } from './types';
 
-const appWindow = getCurrentWindow();
+// Get window dynamically for multi-window support
+const getWindow = () => getCurrentWindow();
 
 export function CreateModal({
   open,
@@ -80,7 +81,7 @@ export function CreateModal({
             className="fixed top-0 inset-x-0 h-10 z-50 cursor-default"
             onMouseDown={(e) => {
               e.preventDefault();
-              appWindow.startDragging();
+              getWindow().startDragging();
             }}
           />
 
@@ -111,7 +112,7 @@ export function CreateModal({
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => {
                 if (e.target === e.currentTarget) {
-                    appWindow.startDragging();
+                    getWindow().startDragging();
                 }
               }}
             >

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { DndContext, useSensor, useSensors, PointerSensor, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
-import { SettingsModal } from '@/components/common/Settings';
+import { invoke } from '@tauri-apps/api/core';
+import { SettingsModal } from '@/components/Settings';
 import { CalendarPage, CalendarToolbar, CalendarTaskPanel } from '@/components/Calendar';
 import { CalendarHeaderControl } from '@/components/Calendar/features/Grid/CalendarHeaderControl';
 import { NotesPage } from '@/components/Notes/NotesPage';
@@ -32,6 +33,20 @@ function AppContent() {
   }), [toggleSettings]);
 
   useShortcuts({ handlers: shortcutHandlers });
+
+  // Ctrl+Shift+N: Open new window (registered once at app level)
+  useEffect(() => {
+    const handleNewWindow = async (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'N') {
+        e.preventDefault();
+        e.stopPropagation();
+        await invoke('create_new_window').catch(console.error);
+      }
+    };
+    
+    window.addEventListener('keydown', handleNewWindow);
+    return () => window.removeEventListener('keydown', handleNewWindow);
+  }, []);
 
   // Enable VIM-style keyboard navigation
   useVimShortcuts();
