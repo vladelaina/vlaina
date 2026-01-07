@@ -4,6 +4,7 @@ import type { BlockType, FloatingToolbarState } from '../types';
 import { BLOCK_TYPES } from '../utils';
 import { convertBlockType } from '../commands';
 import { getCurrentBlockElement } from '../floatingToolbarPlugin';
+import { applyHeadingPreview, clearHeadingPreview } from '../previewStyles';
 
 // Block type icons as SVG strings
 const BLOCK_ICONS: Record<string, string> = {
@@ -137,105 +138,12 @@ export function renderBlockDropdown(
     return null;
   };
   
-  // Preview styles for each heading level
-  const PREVIEW_STYLES: Record<number, Partial<CSSStyleDeclaration>> = {
-    1: { fontSize: '2rem', fontWeight: '700', lineHeight: '1.2' },
-    2: { fontSize: '1.5rem', fontWeight: '600', lineHeight: '1.3' },
-    3: { fontSize: '1.25rem', fontWeight: '600', lineHeight: '1.4' },
-    4: { fontSize: '1rem', fontWeight: '600', lineHeight: '1.5' },
-    5: { fontSize: '0.875rem', fontWeight: '600', lineHeight: '1.5', textTransform: 'uppercase' },
-    6: { fontSize: '0.85rem', fontWeight: '600', lineHeight: '1.5', textDecoration: 'underline' },
-  };
-  
-  // Track which element we're currently previewing on
-  let previewingElement: HTMLElement | null = null;
-  let originalStyles: Record<string, string> = {};
-  
-  // Helper to apply preview styles
-  const applyPreviewStyle = (level: number) => {
-    const blockNode = findCurrentBlockElement();
-    if (!blockNode) return;
-    
-    // Clear previous preview if on different element
-    if (previewingElement && previewingElement !== blockNode) {
-      clearPreview();
-    }
-    
-    // Save original styles if not already saved
-    if (previewingElement !== blockNode) {
-      previewingElement = blockNode;
-      originalStyles = {
-        fontSize: blockNode.style.fontSize,
-        fontWeight: blockNode.style.fontWeight,
-        lineHeight: blockNode.style.lineHeight,
-        textTransform: blockNode.style.textTransform,
-        textDecoration: blockNode.style.textDecoration,
-      };
-    }
-    
-    // Apply preview styles - use setProperty to bypass any observers
-    const styles = PREVIEW_STYLES[level];
-    if (styles) {
-      // Temporarily disable ProseMirror's DOM observer
-      const domObserver = (view as any).domObserver;
-      if (domObserver) {
-        domObserver.stop();
-      }
-      
-      // Reset and apply styles
-      blockNode.style.setProperty('text-transform', 'none', 'important');
-      blockNode.style.setProperty('text-decoration', 'none', 'important');
-      
-      if (styles.fontSize) blockNode.style.setProperty('font-size', styles.fontSize, 'important');
-      if (styles.fontWeight) blockNode.style.setProperty('font-weight', styles.fontWeight, 'important');
-      if (styles.lineHeight) blockNode.style.setProperty('line-height', styles.lineHeight, 'important');
-      if (styles.textTransform) blockNode.style.setProperty('text-transform', styles.textTransform, 'important');
-      if (styles.textDecoration) blockNode.style.setProperty('text-decoration', styles.textDecoration, 'important');
-      
-      // Re-enable DOM observer
-      if (domObserver) {
-        domObserver.start();
-      }
-    }
-  };
-  
-  // Helper to clear preview styles
-  const clearPreview = () => {
-    if (previewingElement && document.body.contains(previewingElement)) {
-      // Temporarily disable ProseMirror's DOM observer
-      const domObserver = (view as any).domObserver;
-      if (domObserver) {
-        domObserver.stop();
-      }
-      
-      previewingElement.style.removeProperty('font-size');
-      previewingElement.style.removeProperty('font-weight');
-      previewingElement.style.removeProperty('line-height');
-      previewingElement.style.removeProperty('text-transform');
-      previewingElement.style.removeProperty('text-decoration');
-      
-      // Restore original if any
-      if (originalStyles.fontSize) previewingElement.style.fontSize = originalStyles.fontSize;
-      if (originalStyles.fontWeight) previewingElement.style.fontWeight = originalStyles.fontWeight;
-      if (originalStyles.lineHeight) previewingElement.style.lineHeight = originalStyles.lineHeight;
-      if (originalStyles.textTransform) previewingElement.style.textTransform = originalStyles.textTransform;
-      if (originalStyles.textDecoration) previewingElement.style.textDecoration = originalStyles.textDecoration;
-      
-      // Re-enable DOM observer
-      if (domObserver) {
-        domObserver.start();
-      }
-    }
-    previewingElement = null;
-    originalStyles = {};
-  };
-  
   // Add event listeners
   dropdown.querySelectorAll('[data-block-type]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      clearPreview();
+      clearHeadingPreview(view);
       const blockType = (btn as HTMLElement).dataset.blockType as BlockType;
       convertBlockType(view, blockType);
       onClose();
@@ -244,15 +152,18 @@ export function renderBlockDropdown(
     // Preview on hover (for headings)
     btn.addEventListener('mouseenter', () => {
       const blockType = (btn as HTMLElement).dataset.blockType as BlockType;
-      clearPreview();
+      clearHeadingPreview(view);
       if (blockType.startsWith('heading')) {
         const level = parseInt(blockType.replace('heading', ''));
-        applyPreviewStyle(level);
+        const blockElement = findCurrentBlockElement();
+        if (blockElement) {
+          applyHeadingPreview(view, blockElement, level);
+        }
       }
     });
     
     btn.addEventListener('mouseleave', () => {
-      clearPreview();
+      clearHeadingPreview(view);
     });
   });
 }

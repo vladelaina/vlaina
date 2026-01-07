@@ -7,6 +7,7 @@ import { TOOLBAR_ACTIONS } from './types';
 import { floatingToolbarKey } from './floatingToolbarPlugin';
 import { toggleMark } from './commands';
 import { renderBlockDropdown } from './components/BlockDropdown';
+import { applyFormatPreview, clearFormatPreview, hasFormatPreview } from './previewStyles';
 
 /**
  * Get block type label for display
@@ -69,13 +70,10 @@ function handleToolbarAction(view: EditorView, action: string, state: FloatingTo
       );
       break;
     case 'block':
-      console.log('[handleToolbarAction] block clicked, current subMenu:', state.subMenu);
-      const newSubMenu = state.subMenu === 'block' ? null : 'block';
-      console.log('[handleToolbarAction] setting subMenu to:', newSubMenu);
       view.dispatch(
         view.state.tr.setMeta(floatingToolbarKey, {
           type: TOOLBAR_ACTIONS.SET_SUB_MENU,
-          payload: { subMenu: newSubMenu },
+          payload: { subMenu: state.subMenu === 'block' ? null : 'block' },
         })
       );
       break;
@@ -86,6 +84,8 @@ function handleToolbarAction(view: EditorView, action: string, state: FloatingTo
 let currentView: EditorView | null = null;
 let currentState: FloatingToolbarState | null = null;
 let delegateHandler: ((e: Event) => void) | null = null;
+let hoverHandler: ((e: Event) => void) | null = null;
+let leaveHandler: ((e: Event) => void) | null = null;
 
 /**
  * Setup event delegation on toolbar element (called once)
@@ -99,8 +99,9 @@ export function setupToolbarEventDelegation(
   currentView = view;
   currentState = state;
   
-  // Only attach handler once
+  // Only attach handlers once
   if (!delegateHandler) {
+    // Click handler
     delegateHandler = (e: Event) => {
       const target = e.target as HTMLElement;
       const button = target.closest('[data-action]') as HTMLElement | null;
@@ -108,6 +109,10 @@ export function setupToolbarEventDelegation(
       if (button && currentView && currentState) {
         e.preventDefault();
         e.stopPropagation();
+        
+        // Clear preview before applying action
+        clearFormatPreview(currentView);
+        
         const action = button.dataset.action;
         if (action) {
           handleToolbarAction(currentView, action, currentState);
@@ -115,7 +120,35 @@ export function setupToolbarEventDelegation(
       }
     };
     
+    // Hover handler for format preview
+    hoverHandler = (e: Event) => {
+      const target = e.target as HTMLElement;
+      const button = target.closest('[data-action]') as HTMLElement | null;
+      
+      if (button && currentView) {
+        const action = button.dataset.action;
+        if (action && hasFormatPreview(action)) {
+          applyFormatPreview(currentView, action);
+        }
+      }
+    };
+    
+    // Leave handler to clear preview
+    leaveHandler = (e: Event) => {
+      const target = e.target as HTMLElement;
+      const button = target.closest('[data-action]') as HTMLElement | null;
+      
+      if (button && currentView) {
+        const action = button.dataset.action;
+        if (action && hasFormatPreview(action)) {
+          clearFormatPreview(currentView);
+        }
+      }
+    };
+    
     toolbarElement.addEventListener('click', delegateHandler);
+    toolbarElement.addEventListener('mouseenter', hoverHandler, true);
+    toolbarElement.addEventListener('mouseleave', leaveHandler, true);
   }
 }
 
@@ -123,7 +156,6 @@ export function setupToolbarEventDelegation(
  * Update cached state for event delegation
  */
 export function updateToolbarState(view: EditorView, state: FloatingToolbarState) {
-  console.log('[updateToolbarState] updating currentState, subMenu:', state.subMenu);
   currentView = view;
   currentState = state;
 }
@@ -135,6 +167,14 @@ export function cleanupToolbarEventDelegation(toolbarElement: HTMLElement) {
   if (delegateHandler) {
     toolbarElement.removeEventListener('click', delegateHandler);
     delegateHandler = null;
+  }
+  if (hoverHandler) {
+    toolbarElement.removeEventListener('mouseenter', hoverHandler, true);
+    hoverHandler = null;
+  }
+  if (leaveHandler) {
+    toolbarElement.removeEventListener('mouseleave', leaveHandler, true);
+    leaveHandler = null;
   }
   currentView = null;
   currentState = null;
