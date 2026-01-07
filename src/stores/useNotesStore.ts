@@ -171,6 +171,9 @@ async function buildFileTree(basePath: string, relativePath: string = ''): Promi
   const nodes: FileTreeNode[] = [];
   
   for (const entry of entries) {
+    // Skip hidden folders (like .nekotick)
+    if (entry.name.startsWith('.')) continue;
+    
     const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
     
     if (entry.isDirectory) {

@@ -306,6 +306,10 @@ function WorkspaceSection({
   onCreateFolder: (name: string) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const { currentVault } = useVaultStore();
+  
+  // Get vault name from path
+  const vaultName = currentVault?.name || 'Workspace';
   
   const handleHeaderClick = (e: React.MouseEvent) => {
     // Only toggle expand state when clicking non-button area
@@ -324,8 +328,8 @@ function WorkspaceSection({
           className="group flex items-center justify-between px-2 py-1 rounded-md hover:bg-[var(--neko-hover)] transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider">
-              Workspace
+            <span className="text-[11px] font-medium text-[var(--neko-text-tertiary)] tracking-wider">
+              {vaultName}
             </span>
             <IconTriangleFilled 
               className={cn(
