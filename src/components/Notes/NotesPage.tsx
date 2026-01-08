@@ -1,8 +1,9 @@
 // NotesPage - Main notes view container
 
 import { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { IconSearch } from '@tabler/icons-react';
-import { useNotesStore } from '@/stores/useNotesStore';
+import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { MarkdownEditor } from './features/Editor';
@@ -27,6 +28,8 @@ export function NotesPage() {
     openNote,
     openTabs,
     closeTab,
+    loadFavorites,
+    loadNoteIcons,
   } = useNotesStore();
 
   const { currentVault } = useVaultStore();
@@ -40,12 +43,25 @@ export function NotesPage() {
 
   const [showSearch, setShowSearch] = useState(false);
 
-  // Load file tree when vault changes
+  // Unlock main window resizable when vault is present
   useEffect(() => {
-    if (currentVault) {
-      loadFileTree();
-    }
-  }, [currentVault, loadFileTree]);
+    if (!currentVault) return;
+    loadFavorites(currentVault.path);
+    loadNoteIcons(currentVault.path);
+    loadFileTree();
+
+    const unlockWindow = async () => {
+      try {
+        await invoke('set_window_resizable', { resizable: true });
+      } catch (e) {
+        console.error('Failed to unlock window:', e);
+      }
+    };
+
+    unlockWindow();
+  }, [currentVault, loadFavorites, loadNoteIcons, loadFileTree]);
+
+
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

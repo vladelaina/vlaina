@@ -228,6 +228,14 @@ async fn focus_window(app: AppHandle, label: String) -> Result<bool, String> {
     }
 }
 
+// Set window resizability (targets the invoking window)
+#[tauri::command]
+async fn set_window_resizable(window: tauri::WebviewWindow, resizable: bool) -> Result<(), String> {
+    window.set_resizable(resizable).map_err(|e| e.to_string())?;
+    window.set_maximizable(resizable).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -240,6 +248,7 @@ pub fn run() {
             destroy_drag_window,
             toggle_fullscreen,
             create_new_window,
+            set_window_resizable,
             focus_window,
             google_drive::commands::google_drive_auth,
             google_drive::commands::google_drive_disconnect,

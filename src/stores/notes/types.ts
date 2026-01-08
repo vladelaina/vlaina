@@ -58,6 +58,8 @@ export interface NotesActions {
   scanAllNotes: () => Promise<void>;
   getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];
   getAllTags: () => { tag: string; count: number }[];
+  loadFavorites: (vaultPath: string) => Promise<void>;
+  loadNoteIcons: (vaultPath: string) => Promise<void>;
   toggleStarred: (path: string) => void;
   toggleFolderStarred: (path: string) => void;
   isStarred: (path: string) => boolean;

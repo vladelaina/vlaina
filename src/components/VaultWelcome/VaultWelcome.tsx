@@ -34,9 +34,8 @@ export function VaultWelcome() {
     // 1. Enter Welcome Screen: Lock it down
     const lockWindow = async () => {
       try {
-        // Enforce a strict "card" size and disable resizing
-        await appWindow.setResizable(false);
-        await appWindow.setMaximizable(false);
+        // Enforce a strict "card" size and disable resizing using backend command
+        await invoke('set_window_resizable', { resizable: false });
 
         // Use 450x640 for the welcome screen (fits everything perfectly)
         // If user is already logged in (sync connected), we could shrink it,
@@ -58,12 +57,10 @@ export function VaultWelcome() {
     return () => {
       const unlockWindow = async () => {
         try {
-          // Re-enable resizing and maximizing for the main app
-          await appWindow.setResizable(true);
-          await appWindow.setMaximizable(true);
+          // Re-enable resizing and maximizing for the main app using backend command
+          await invoke('set_window_resizable', { resizable: true });
 
           // Restore to a productive workspace size (e.g., 1024x768 or previous state)
-          // We set a good default here.
           await appWindow.setSize(new LogicalSize(1024, 768));
           await appWindow.center();
         } catch (e) {

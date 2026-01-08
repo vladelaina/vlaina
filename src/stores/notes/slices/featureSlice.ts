@@ -2,7 +2,7 @@ import { StateCreator } from 'zustand';
 import { readTextFile } from '@tauri-apps/plugin-fs';
 import { join } from '@tauri-apps/api/path';
 import { NotesStore, FileTreeNode } from '../types';
-import { saveFavoritesToFile, saveNoteIconsToFile, loadRecentNotes } from '../storage';
+import { saveFavoritesToFile, saveNoteIconsToFile, loadRecentNotes, loadFavoritesFromFile, loadNoteIconsFromFile } from '../storage';
 
 export interface FeatureSlice {
     recentNotes: NotesStore['recentNotes'];
@@ -11,6 +11,8 @@ export interface FeatureSlice {
     starredFolders: NotesStore['starredFolders'];
     noteIcons: NotesStore['noteIcons'];
 
+    loadFavorites: (vaultPath: string) => Promise<void>;
+    loadNoteIcons: (vaultPath: string) => Promise<void>;
     scanAllNotes: () => Promise<void>;
     getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];
     getAllTags: () => { tag: string; count: number }[];
@@ -31,6 +33,16 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     starredNotes: [],
     starredFolders: [],
     noteIcons: new Map(),
+
+    loadFavorites: async (vaultPath: string) => {
+        const data = await loadFavoritesFromFile(vaultPath);
+        set({ starredNotes: data.notes, starredFolders: data.folders });
+    },
+
+    loadNoteIcons: async (vaultPath: string) => {
+        const icons = await loadNoteIconsFromFile(vaultPath);
+        set({ noteIcons: icons });
+    },
 
     scanAllNotes: async () => {
         const { notesPath, rootFolder } = get();
