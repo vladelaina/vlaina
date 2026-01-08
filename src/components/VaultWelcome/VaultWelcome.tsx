@@ -30,7 +30,7 @@ export function VaultWelcome() {
       multiple: false,
       title: 'Select Vault Folder',
     });
-    
+
     if (selected && typeof selected === 'string') {
       await handleOpenRecent(selected);
     }
@@ -39,7 +39,7 @@ export function VaultWelcome() {
   const handleOpenRecent = async (path: string) => {
     // Check if vault is already open in another window
     const existingWindowLabel = await checkVaultOpenInOtherWindow(path);
-    
+
     if (existingWindowLabel) {
       // Vault is open in another window - focus that window and close this one
       await invoke('focus_window', { label: existingWindowLabel });
@@ -47,7 +47,7 @@ export function VaultWelcome() {
       getCurrentWindow().close();
       return;
     }
-    
+
     // Vault not open elsewhere, open it in this window
     await openVault(path);
   };
@@ -60,7 +60,7 @@ export function VaultWelcome() {
     <div className={cn('vault-welcome', isLoading && 'vault-welcome--loading')}>
       <div className="vault-welcome__content">
         <BrandHeader />
-        
+
         <div className="vault-welcome__main">
           {recentVaults.length > 0 && (
             <RecentVaultsList
@@ -68,12 +68,14 @@ export function VaultWelcome() {
               onOpen={handleOpenRecent}
             />
           )}
-          
+
           <ActionButtons
             onCreateNew={() => setShowCreateModal(true)}
             onOpenLocal={handleOpenLocal}
           />
-          
+
+          <div className="vault-welcome__divider"><span>or</span></div>
+
           <CloudSyncSection />
         </div>
       </div>

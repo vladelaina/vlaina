@@ -64,8 +64,33 @@
 .vault-welcome__main {
   display: flex;
   flex-direction: column;
-  gap: 32px;
-  /* Increased breathing room */
+  gap: 24px;
+  /* Tighter structural gap */
+  width: 100%;
+}
+
+/* ... (skipping unchanged lines) ... */
+
+/* Premium Divider */
+.vault-welcome__divider {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: -10px 0 0 0;
+  /*  Pull up to counteract gap (24-10=14px visual space) */
+  opacity: 0.8;
+}
+
+/* ... (skipping unchanged lines) ... */
+
+/* Cloud Sync Section - Minimalist Footer */
+.vault-cloud {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  margin-top: 16px;
+  /* 24+16 = 40px visual space */
   width: 100%;
 }
 
@@ -335,20 +360,50 @@
   border-color: rgba(128, 128, 128, 0.15);
 }
 
+/* Premium Divider */
+.vault-welcome__divider {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: -10px 0 0 0;
+  /* Pull up to counteract gap (24-10=14px visual space) */
+  opacity: 0.8;
+}
+
+.vault-welcome__divider::before,
+.vault-welcome__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(128, 128, 128, 0.2), transparent);
+  /* Fading line */
+}
+
+.vault-welcome__divider span {
+  font-size: 13px;
+  color: var(--neko-text-tertiary);
+  padding: 0 16px;
+  font-weight: 500;
+  opacity: 0.5;
+  text-transform: lowercase;
+  font-style: italic;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  /* Elegant serif for 'or' */
+}
+
 /* Cloud Sync Section - Minimalist Footer */
 .vault-cloud {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
-  margin-top: 32px;
-  /* Push down */
+  gap: 16px;
+  margin-top: 24px;
+  /* Much tighter (was 48/64/16) - Visual balance */
   width: 100%;
 }
 
 .vault-cloud__divider {
   display: none;
-  /* Clean up interface, remove visual noise */
 }
 
 .vault-cloud__container {
@@ -363,13 +418,13 @@
 
 .vault-cloud__header {
   display: none;
-  /* Simplify */
 }
 
 .vault-cloud__providers {
   display: flex;
   justify-content: center;
-  gap: 16px;
+  gap: 24px;
+  /* Slightly wider for cleaner separation */
 }
 
 .vault-cloud__provider {
@@ -377,32 +432,101 @@
   align-items: center;
   justify-content: center;
   width: 44px;
+  /* Standardize size */
   height: 44px;
   border-radius: 50%;
-  /* Circle icons */
-  background: var(--neko-bg-secondary);
+  background: transparent !important;
+  /* Force transparent */
   border: none;
-  cursor: not-allowed;
-  color: var(--neko-text-tertiary);
-  transition: all 0.2s ease;
+  cursor: pointer;
+
+  /* Premium Transition */
+  opacity: 0.8;
+  /* Subtle default */
+  transform: scale(1);
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
+.vault-cloud__provider:hover {
+  background: transparent !important;
+  /* NO background on hover */
+  border-color: transparent;
+  opacity: 1;
+  /* Fully visible */
+  transform: scale(1.15) translateY(-2px);
+  /* Tasteful pop */
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+  /* Use drop-shadow for icon depth */
+}
+
+.vault-cloud__provider:active {
+  transform: scale(0.95);
+  opacity: 0.7;
+}
+
+/* Specific styling for Google */
 .vault-cloud__provider--google {
-  cursor: pointer;
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  /* Very subtle border for depth */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  /* color handled by Image */
 }
 
 .vault-cloud__provider--google:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  /* Handled by generic provider hover */
 }
 
-.vault-cloud__google-icon {
-  width: 20px;
-  height: 20px;
+/* Common Image Icon Style */
+.vault-cloud__icon-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Bouncy Apple feel */
+  pointer-events: none;
+
+  /* Smart Scaling System */
+  --base-scale: 1;
+  transform: scale(var(--base-scale));
+}
+
+/* GitHub Specifics */
+.vault-cloud__icon-img--github {
+  border-radius: 50%;
+}
+
+/* iCloud Specifics - Set higher base scale */
+.vault-cloud__icon-img--icloud {
+  --base-scale: 1.4;
+}
+
+/* Dark mode adjustment for GitHub */
+@media (prefers-color-scheme: dark) {
+  .vault-cloud__icon-img--github {
+    filter: invert(1);
+  }
+}
+
+/* Proportional Hover Effect: Always 1.15x the base size */
+.vault-cloud__provider:hover .vault-cloud__icon-img {
+  transform: scale(calc(var(--base-scale) * 1.15));
+}
+
+/* Original Brand Colors for other providers */
+.vault-cloud__provider--apple {
+  color: var(--neko-text-primary);
+  /* Authentic Black (or White in Dark Mode) */
+  opacity: 1;
+  /* Ensure full visibility */
+}
+
+.vault-cloud__provider--icloud {
+  color: #369CF0;
+  /* Official iCloud Blue */
+  opacity: 1;
+}
+
+.vault-cloud__provider--github {
+  color: var(--neko-text-primary);
+  /* GitHub Black */
+  opacity: 1;
 }
 
 /* Create Vault Modal - Glassy Overlay */
