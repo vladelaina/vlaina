@@ -1,1 +1,2 @@
-/* /index.html 200
+# SPA fallback - only for paths that don't match static files
+/*  /index.html  200
