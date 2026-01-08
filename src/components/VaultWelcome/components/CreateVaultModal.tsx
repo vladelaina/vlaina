@@ -27,9 +27,9 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
     }
   }, [isOpen, clearError]);
 
-  // Auto-scroll to end of path when it changes
+  // Auto-scroll to end of path when it changes (only if not manually editing)
   useEffect(() => {
-    if (pathInputRef.current) {
+    if (pathInputRef.current && document.activeElement !== pathInputRef.current) {
       pathInputRef.current.scrollLeft = pathInputRef.current.scrollWidth;
     }
   }, [parentPath, isOpen]);
@@ -43,6 +43,10 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
 
     if (selected && typeof selected === 'string') {
       setParentPath(selected);
+      // Focus the path input after selection so user can review or edit
+      requestAnimationFrame(() => {
+        pathInputRef.current?.focus();
+      });
     }
   };
 
@@ -82,6 +86,15 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
             placeholder="My Notes"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              // If Tab is pressed and path is empty, trigger browse immediately
+              if (e.key === 'Tab' && !e.shiftKey && !parentPath) {
+                e.preventDefault();
+                // Move focus to path input first to set correct origin for dialog return
+                pathInputRef.current?.focus();
+                handleBrowse();
+              }
+            }}
             autoFocus
           />
         </div>
@@ -95,8 +108,17 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
               className="vault-modal__input"
               placeholder="Select a folder..."
               value={parentPath}
+              onChange={(e) => setParentPath(e.target.value)}
+              onBlur={(e) => {
+                // Force scroll to end on blur so user sees the folder name
+                const target = e.target;
+                requestAnimationFrame(() => {
+                  target.scrollLeft = target.scrollWidth;
+                });
+              }}
               title={parentPath} // Show full path on hover
-              readOnly
+              onClick={() => !parentPath && handleBrowse()}
+              style={{ cursor: !parentPath ? 'pointer' : 'text' }}
             />
             <button
               className="vault-modal__browse-btn"

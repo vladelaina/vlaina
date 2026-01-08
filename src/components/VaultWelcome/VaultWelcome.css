@@ -294,8 +294,8 @@
 }
 
 .vault-item__remove:hover {
-  background: rgba(255, 59, 48, 0.1);
-  /* Red tint */
+  background: transparent;
+  /* Red tint removed */
   color: #ff3b30;
 }
 
@@ -621,10 +621,10 @@
 .vault-modal__input:focus {
   background: var(--neko-bg-primary);
   /* White on focus */
-  border-color: var(--neko-text-primary);
-  /* Black border on focus */
+  border-color: #1e96eb;
+  /* Blue border on focus */
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  /* Subtle lift */
+  /* Subtle lift, no glow */
   transform: translateY(-1px);
 }
 
@@ -684,8 +684,7 @@
   gap: 16px;
   margin-top: 12px;
   padding-top: 24px;
-  border-top: 1px solid rgba(128, 128, 128, 0.1);
-  /* Minimal divider */
+  /* Minimal divider removed */
 }
 
 .vault-modal__btn {
@@ -713,11 +712,9 @@
 }
 
 .vault-modal__btn--create {
-  background: var(--neko-text-primary);
-  /* Solid Black */
-  color: var(--neko-bg-primary);
-  /* White Text */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: #1e96eb;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(30, 150, 235, 0.25);
 }
 
 .vault-modal__btn--create:hover:not(:disabled) {
@@ -730,8 +727,8 @@
 }
 
 .vault-modal__btn--create:disabled {
-  background: var(--neko-bg-tertiary);
-  color: var(--neko-text-tertiary);
+  background: #94c3f3;
+  color: #ffffff;
   box-shadow: none;
   cursor: not-allowed;
   transform: none;
