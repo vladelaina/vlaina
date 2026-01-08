@@ -12,9 +12,8 @@
   overflow-y: auto;
   overflow-x: hidden;
   font-family: var(--font-sans);
-  font-size: var(--affine-font-base, 15px);
-  line-height: 1.5;
-  /* Apple standard for readability */
+  font-size: var(--neko-font-base, 15px);
+  line-height: calc(1em + 8px);
   color: var(--neko-text-primary);
   background: var(--neko-bg-primary);
 }
@@ -71,7 +70,7 @@
 
 /* Headings */
 .block-heading1 .block-content {
-  font-size: var(--affine-font-h-1, 28px);
+  font-size: var(--neko-font-h1, 28px);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: calc(1em + 8px);
@@ -80,7 +79,7 @@
 }
 
 .block-heading2 .block-content {
-  font-size: var(--affine-font-h-2, 24px);
+  font-size: var(--neko-font-h2, 24px);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: calc(1em + 10px);
@@ -89,7 +88,7 @@
 }
 
 .block-heading3 .block-content {
-  font-size: var(--affine-font-h-3, 20px);
+  font-size: var(--neko-font-h3, 20px);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: calc(1em + 8px);
@@ -98,7 +97,7 @@
 }
 
 .block-heading4 .block-content {
-  font-size: var(--affine-font-h-4, 18px);
+  font-size: var(--neko-font-h4, 18px);
   font-weight: 600;
   letter-spacing: -0.015em;
   line-height: calc(1em + 8px);
@@ -107,7 +106,7 @@
 }
 
 .block-heading5 .block-content {
-  font-size: var(--affine-font-h-5, 16px);
+  font-size: var(--neko-font-h5, 16px);
   font-weight: 600;
   letter-spacing: -0.015em;
   line-height: calc(1em + 8px);
@@ -116,7 +115,7 @@
 }
 
 .block-heading6 .block-content {
-  font-size: var(--affine-font-h-6, 14px);
+  font-size: var(--neko-font-h6, 14px);
   font-weight: 600;
   letter-spacing: -0.015em;
   line-height: calc(1em + 8px);

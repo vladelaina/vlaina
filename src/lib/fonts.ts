@@ -1,5 +1,5 @@
 /**
- * Font Family Constants (AFFiNE Style)
+ * Font Family Constants
  * Font configuration for UI and canvas/whiteboard
  */
 
@@ -62,7 +62,7 @@ export const CanvasFontList = [
 ] as const;
 
 /**
- * Font size constants (AFFiNE Style)
+ * Font size constants
  */
 export const FontSize = {
   Title: 36,

@@ -195,7 +195,6 @@ async fn create_new_window(app: AppHandle) -> Result<(), String> {
     .inner_size(720.0, 660.0)
     .min_inner_size(720.0, 540.0)
     .decorations(false)
-    .transparent(true)
     .background_color(Color(0, 0, 0, 0))
     .resizable(false) // Start locked (Welcome mode)
     .maximizable(false)
@@ -208,10 +207,10 @@ async fn create_new_window(app: AppHandle) -> Result<(), String> {
         builder = builder.center();
     }
     
-    let window = builder.build().map_err(|e| e.to_string())?;
+    let window = builder.build().map_err(|e: tauri::Error| e.to_string())?;
     
     // Show window after it's positioned
-    window.show().map_err(|e| e.to_string())?;
+    window.show().map_err(|e: tauri::Error| e.to_string())?;
     
     Ok(())
 }

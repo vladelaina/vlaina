@@ -73,7 +73,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================
-   Font Family Variables (AFFiNE Style)
+   Font Family Variables
    ============================================ */
 
 :root {
@@ -99,32 +99,32 @@
   --font-canvas-display: 'Bebas Neue', 'Orelega One', sans-serif;
   --font-canvas-modern: 'Poppins', 'Inter', var(--font-fallback);
   
-  /* AFFiNE Compatible Variables */
-  --affine-font-family: var(--font-sans);
-  --affine-font-serif-family: var(--font-serif);
-  --affine-font-mono-family: var(--font-mono);
-  --affine-font-number-family: var(--font-number);
-  --affine-font-code-family: var(--font-mono);
+  /* Font Family Variables */
+  --neko-font-family: var(--font-sans);
+  --neko-font-serif-family: var(--font-serif);
+  --neko-font-mono-family: var(--font-mono);
+  --neko-font-number-family: var(--font-number);
+  --neko-font-code-family: var(--font-mono);
   
-  /* Font Sizes (AFFiNE Style) */
-  --affine-font-title: 36px;
-  --affine-font-h1: 28px;
-  --affine-font-h2: 26px;
-  --affine-font-h3: 24px;
-  --affine-font-h4: 22px;
-  --affine-font-h5: 20px;
-  --affine-font-h6: 18px;
-  --affine-font-base: 15px;
-  --affine-font-sm: 14px;
-  --affine-font-xs: 12px;
-  --affine-line-height: calc(1em + 8px);
+  /* Font Sizes */
+  --neko-font-title: 36px;
+  --neko-font-h1: 28px;
+  --neko-font-h2: 26px;
+  --neko-font-h3: 24px;
+  --neko-font-h4: 22px;
+  --neko-font-h5: 20px;
+  --neko-font-h6: 18px;
+  --neko-font-base: 15px;
+  --neko-font-sm: 14px;
+  --neko-font-xs: 12px;
+  --neko-line-height: calc(1em + 8px);
 }
 
 /* Apply default font to body */
 body {
   font-family: var(--font-sans);
-  font-size: var(--affine-font-base);
-  line-height: var(--affine-line-height);
+  font-size: var(--neko-font-base);
+  line-height: var(--neko-line-height);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
