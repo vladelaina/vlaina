@@ -1,5 +1,5 @@
 /**
- * BrandHeader - Logo and app name with version
+ * BrandHeader - Logo and app name with version (horizontal layout, left aligned)
  */
 
 import { useState, useEffect } from 'react';
@@ -17,15 +17,20 @@ export function BrandHeader() {
 
   return (
     <div className="vault-brand">
-      <img 
-        src={logoSrc} 
-        alt="NekoTick" 
-        className="vault-brand__logo"
-      />
-      <h1 className="vault-brand__name">NekoTick</h1>
-      <p className="vault-brand__tagline">
-        {version ? `v${version}` : ''}
-      </p>
+      <div className="vault-brand__header">
+        <img 
+          src={logoSrc} 
+          alt="NekoTick" 
+          className="vault-brand__logo"
+        />
+        <div className="vault-brand__text">
+          <div className="vault-brand__title-row">
+            <h1 className="vault-brand__name">NekoTick</h1>
+            {version && <span className="vault-brand__version">v{version}</span>}
+          </div>
+          <p className="vault-brand__tagline">Your thoughts, organized.</p>
+        </div>
+      </div>
     </div>
   );
 }
