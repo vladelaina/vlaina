@@ -1,14 +1,9 @@
 /**
- * RecentVaultsList - Display recent vaults
+ * RecentVaultsList - Display recent vaults (IDEA style)
  */
 
-import { IconFolder, IconX } from '@tabler/icons-react';
+import { IconX } from '@tabler/icons-react';
 import { useVaultStore, type VaultInfo } from '@/stores/useVaultStore';
-
-interface RecentVaultsListProps {
-  vaults: VaultInfo[];
-  onOpen: (path: string) => void;
-}
 
 function formatPath(path: string): string {
   const normalized = path.replace(/\\/g, '/');
@@ -16,13 +11,18 @@ function formatPath(path: string): string {
     ? normalized.replace(/.*\/Users\/[^/]+/, '~')
     : normalized.replace(/^[A-Z]:/, '');
   
-  if (home.length > 40) {
+  if (home.length > 35) {
     const parts = home.split('/');
     if (parts.length > 3) {
       return `${parts[0]}/.../${parts.slice(-2).join('/')}`;
     }
   }
   return home;
+}
+
+interface RecentVaultsListProps {
+  vaults: VaultInfo[];
+  onOpen: (path: string) => void;
 }
 
 export function RecentVaultsList({ vaults, onOpen }: RecentVaultsListProps) {
@@ -44,19 +44,14 @@ export function RecentVaultsList({ vaults, onOpen }: RecentVaultsListProps) {
             onClick={() => onOpen(vault.path)}
             title={vault.path}
           >
-            <div className="vault-item__icon">
-              <IconFolder size={18} />
-            </div>
-            <div className="vault-item__info">
-              <p className="vault-item__name">{vault.name}</p>
-              <p className="vault-item__path">{formatPath(vault.path)}</p>
-            </div>
+            <span className="vault-item__name">{vault.name}</span>
+            <span className="vault-item__path">{formatPath(vault.path)}</span>
             <button
               className="vault-item__remove"
               onClick={(e) => handleRemove(e, vault.id)}
               title="Remove from list"
             >
-              <IconX size={14} />
+              <IconX size={12} />
             </button>
           </button>
         ))}

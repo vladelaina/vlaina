@@ -26,10 +26,10 @@
 /* Main container */
 .vault-welcome {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   min-height: 100%;
-  padding: 48px 24px;
+  padding: 60px 24px 48px;
   animation: vaultWelcomeFadeIn 0.4s ease-out;
 }
 
@@ -54,7 +54,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 40px;
+  margin-bottom: 24px;
   text-align: center;
 }
 
@@ -103,15 +103,15 @@
   gap: 4px;
 }
 
-/* Vault Item */
+/* Vault Item - IDEA style: name left, path right, single line */
 .vault-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
-  border-radius: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   background: transparent;
   border: none;
   width: 100%;
@@ -127,53 +127,37 @@
 
 .vault-item:hover {
   background: var(--neko-hover);
-  transform: translateX(4px);
 }
 
 .vault-item:active {
-  transform: translateX(2px);
-}
-
-.vault-item__icon {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--neko-bg-tertiary);
-  border-radius: 8px;
-  flex-shrink: 0;
-  color: var(--neko-text-secondary);
-}
-
-.vault-item__info {
-  flex: 1;
-  min-width: 0;
+  background: var(--neko-hover-filled);
 }
 
 .vault-item__name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--neko-text-primary);
-  margin: 0 0 2px 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-shrink: 0;
+  max-width: 45%;
 }
 
 .vault-item__path {
+  flex: 1;
   font-size: 12px;
   color: var(--neko-text-tertiary);
-  margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: right;
 }
 
 .vault-item__remove {
   opacity: 0;
-  padding: 6px;
-  border-radius: 6px;
+  padding: 4px;
+  border-radius: 4px;
   background: transparent;
   border: none;
   cursor: pointer;
