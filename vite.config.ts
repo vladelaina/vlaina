@@ -37,9 +37,9 @@ export default defineConfig(async () => ({
   },
   
   // Base path for GitHub Pages deployment
-  // Set to repository name for project pages (e.g., /nekotick/)
+  // Set to repository name for project pages (e.g., /NekoTick/)
   // Set to '/' for custom domain or user pages
-  base: process.env.GITHUB_PAGES ? '/nekotick/' : '/',
+  base: process.env.GITHUB_PAGES ? '/NekoTick/' : '/',
 
   // Build options
   build: {
