@@ -31,6 +31,7 @@
   min-height: 100%;
   padding: 60px 24px 48px;
   animation: vaultWelcomeFadeIn 0.4s ease-out;
+  user-select: none;
 }
 
 .vault-welcome--loading {
