@@ -74,8 +74,6 @@ export function VaultWelcome() {
             onOpenLocal={handleOpenLocal}
           />
 
-          <div className="vault-welcome__divider"><span>or</span></div>
-
           <CloudSyncSection />
         </div>
       </div>

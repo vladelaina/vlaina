@@ -27,7 +27,9 @@ export function CloudSyncSection() {
 
   return (
     <div className="vault-cloud">
-      <div className="vault-cloud__divider">or</div>
+      <div className="vault-welcome__divider">
+        <span>SYNC WITH CLOUD</span>
+      </div>
 
       <div className="vault-cloud__container">
         <div className="vault-cloud__header">
