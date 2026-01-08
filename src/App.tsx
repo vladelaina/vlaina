@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { DndContext, useSensor, useSensors, PointerSensor, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
-import { invoke } from '@tauri-apps/api/core';
+import { windowCommands } from '@/lib/tauri/invoke';
+import { isTauri } from '@/lib/storage/adapter';
 import { SettingsModal } from '@/components/Settings';
 import { CalendarPage, CalendarToolbar, CalendarTaskPanel } from '@/components/Calendar';
 import { CalendarHeaderControl } from '@/components/Calendar/features/Grid/CalendarHeaderControl';
@@ -40,7 +41,7 @@ function AppContent() {
       if (e.ctrlKey && e.shiftKey && e.key === 'N') {
         e.preventDefault();
         e.stopPropagation();
-        await invoke('create_new_window').catch(console.error);
+        await windowCommands.createNewWindow();
       }
     };
 
@@ -64,8 +65,9 @@ function AppContent() {
 
   // Window Unlocker: When we reach the main app, unlock the window!
   useEffect(() => {
+    if (!isTauri()) return;
+
     const unlockWindow = async () => {
-      // Lazy import to avoid top-level issues if in SSG (though not here)
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
       const { LogicalSize } = await import('@tauri-apps/api/dpi');
       const appWindow = getCurrentWindow();
@@ -77,7 +79,6 @@ function AppContent() {
       await appWindow.setMinSize(new LogicalSize(800, 600));
 
       // If coming from welcome screen (which is small), resize to workspace size
-      // We can check current size or just force it. Let's force it for consistency.
       const size = await appWindow.outerSize();
       if (size.width < 800) {
         await appWindow.setSize(new LogicalSize(1024, 768));

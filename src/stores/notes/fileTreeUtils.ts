@@ -1,15 +1,19 @@
-/** Notes Store - File tree utility functions */
+/**
+ * Notes Store - File tree utility functions
+ * 
+ * Cross-platform file tree operations using StorageAdapter
+ */
 
-import { readDir } from '@tauri-apps/plugin-fs';
-import { join } from '@tauri-apps/api/path';
+import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import type { FileTreeNode } from './types';
 
 /**
  * Build file tree from filesystem
  */
 export async function buildFileTree(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
-  const fullPath = relativePath ? await join(basePath, relativePath) : basePath;
-  const entries = await readDir(fullPath);
+  const storage = getStorageAdapter();
+  const fullPath = relativePath ? await joinPath(basePath, relativePath) : basePath;
+  const entries = await storage.listDir(fullPath);
 
   const nodes: FileTreeNode[] = [];
 
@@ -19,7 +23,11 @@ export async function buildFileTree(basePath: string, relativePath: string = '')
 
     const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
 
-    if (entry.isDirectory) {
+    // Check if entry is a directory (handle potential undefined values)
+    const isDir = entry.isDirectory === true;
+    const isFile = entry.isFile === true;
+    
+    if (isDir) {
       const children = await buildFileTree(basePath, entryPath);
       nodes.push({
         id: entryPath,
@@ -29,10 +37,10 @@ export async function buildFileTree(basePath: string, relativePath: string = '')
         children,
         expanded: false,
       });
-    } else if (entry.name.endsWith('.md')) {
+    } else if (isFile && entry.name.toLowerCase().endsWith('.md')) {
       nodes.push({
         id: entryPath,
-        name: entry.name.replace(/\.md$/, ''),
+        name: entry.name.replace(/\.md$/i, ''),
         path: entryPath,
         isFolder: false,
       });
@@ -76,19 +84,39 @@ export function updateFileNodePath(
 /**
  * Update a folder node and all its children to reflect a rename/move
  */
-export function updateFolderNode(nodes: FileTreeNode[], targetPath: string, newName: string, newPath: string): FileTreeNode[] {
+export function updateFolderNode(
+  nodes: FileTreeNode[],
+  targetPath: string,
+  newName: string,
+  newPath: string
+): FileTreeNode[] {
   return nodes.map(node => {
     if (node.path === targetPath && node.isFolder) {
-      const updateChildPaths = (children: FileTreeNode[], oldBasePath: string, newBasePath: string): FileTreeNode[] => {
+      const updateChildPaths = (
+        children: FileTreeNode[],
+        oldBasePath: string,
+        newBasePath: string
+      ): FileTreeNode[] => {
         return children.map(child => {
           const newChildPath = child.path.replace(oldBasePath, newBasePath);
           if (child.isFolder) {
-            return { ...child, id: newChildPath, path: newChildPath, children: updateChildPaths(child.children, oldBasePath, newBasePath) };
+            return {
+              ...child,
+              id: newChildPath,
+              path: newChildPath,
+              children: updateChildPaths(child.children, oldBasePath, newBasePath),
+            };
           }
           return { ...child, id: newChildPath, path: newChildPath };
         });
       };
-      return { ...node, id: newPath, name: newName, path: newPath, children: updateChildPaths(node.children, targetPath, newPath) };
+      return {
+        ...node,
+        id: newPath,
+        name: newName,
+        path: newPath,
+        children: updateChildPaths(node.children, targetPath, newPath),
+      };
     }
     if (node.isFolder) {
       return { ...node, children: updateFolderNode(node.children, targetPath, newName, newPath) };
@@ -96,7 +124,6 @@ export function updateFolderNode(nodes: FileTreeNode[], targetPath: string, newN
     return node;
   });
 }
-
 
 /**
  * Toggle folder expanded state
@@ -135,7 +162,10 @@ export function collectExpandedPaths(nodes: FileTreeNode[]): Set<string> {
 /**
  * Restore expanded state from saved paths
  */
-export function restoreExpandedState(nodes: FileTreeNode[], expandedPaths: Set<string>): FileTreeNode[] {
+export function restoreExpandedState(
+  nodes: FileTreeNode[],
+  expandedPaths: Set<string>
+): FileTreeNode[] {
   return nodes.map(node => {
     if (node.isFolder) {
       return {

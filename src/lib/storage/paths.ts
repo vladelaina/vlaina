@@ -1,16 +1,15 @@
 /**
  * Path Management for Storage Directories
  * 
- * Uses system-standard app data location:
- * - Windows: C:\Users\{user}\AppData\Roaming\NekoTick
- * - macOS:   ~/Library/Application Support/NekoTick
- * - Linux:   ~/.local/share/NekoTick
- * 
- * This follows platform conventions and keeps user's visible folders clean.
+ * Cross-platform path utilities using StorageAdapter:
+ * - Desktop (Tauri): Uses system app data directory
+ *   - Windows: C:\Users\{user}\AppData\Roaming\NekoTick
+ *   - macOS:   ~/Library/Application Support/NekoTick
+ *   - Linux:   ~/.local/share/NekoTick
+ * - Web: Uses virtual path /nekotick
  */
 
-import { mkdir, exists } from '@tauri-apps/plugin-fs';
-import { appDataDir } from '@tauri-apps/api/path';
+import { getStorageAdapter, joinPath } from './adapter';
 
 // Dynamic path management - initialized on first use
 let basePath: string | null = null;
@@ -21,12 +20,11 @@ let basePath: string | null = null;
  */
 export async function getBasePath(): Promise<string> {
   if (basePath === null) {
-    const appData = await appDataDir();
-    // appDataDir already returns the correct path for each platform
-    // It typically ends with the app name from tauri.conf.json
-    basePath = appData.endsWith('\\') || appData.endsWith('/') 
-      ? appData.slice(0, -1)  // Remove trailing slash
-      : appData;
+    const storage = getStorageAdapter();
+    const appData = await storage.getBasePath();
+    // Remove trailing slash
+    basePath =
+      appData.endsWith('\\') || appData.endsWith('/') ? appData.slice(0, -1) : appData;
   }
   return basePath;
 }
@@ -42,12 +40,11 @@ export async function getBasePath(): Promise<string> {
  */
 export async function getPaths() {
   const base = await getBasePath();
-  const sep = base.includes('\\') ? '\\' : '/';
   return {
     base,
-    metadata: `${base}${sep}.nekotick`,
-    dataJson: `${base}${sep}.nekotick${sep}data.json`,
-    markdown: `${base}${sep}nekotick.md`,
+    metadata: await joinPath(base, '.nekotick'),
+    dataJson: await joinPath(base, '.nekotick', 'data.json'),
+    markdown: await joinPath(base, 'nekotick.md'),
   };
 }
 
@@ -56,11 +53,12 @@ export async function getPaths() {
  */
 export async function ensureDirectories(): Promise<void> {
   try {
+    const storage = getStorageAdapter();
     const base = await getBasePath();
-    const sep = base.includes('\\') ? '\\' : '/';
-    const metadataDir = `${base}${sep}.nekotick`;
-    if (!(await exists(metadataDir))) {
-      await mkdir(metadataDir, { recursive: true });
+    const metadataDir = await joinPath(base, '.nekotick');
+    
+    if (!(await storage.exists(metadataDir))) {
+      await storage.mkdir(metadataDir, true);
     }
   } catch (error) {
     console.error('Failed to create directories:', error);

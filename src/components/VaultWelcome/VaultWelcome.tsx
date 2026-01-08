@@ -3,12 +3,11 @@
  */
 
 import { useState, useEffect } from 'react';
-import { open } from '@tauri-apps/plugin-dialog';
-import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { LogicalSize } from '@tauri-apps/api/dpi';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useSyncStore } from '@/stores/useSyncStore';
+import { openDialog, hasNativeDialogs } from '@/lib/storage/dialog';
+import { windowCommands, hasBackendCommands } from '@/lib/tauri/invoke';
+import { isTauri } from '@/lib/storage/adapter';
 import { cn } from '@/lib/utils';
 import { BrandHeader } from './components/BrandHeader';
 import { RecentVaultsList } from './components/RecentVaultsList';
@@ -18,7 +17,8 @@ import { CreateVaultModal } from './components/CreateVaultModal';
 import './VaultWelcome.css';
 
 export function VaultWelcome() {
-  const { initialize, recentVaults, openVault, checkVaultOpenInOtherWindow, isLoading } = useVaultStore();
+  const { initialize, recentVaults, openVault, checkVaultOpenInOtherWindow, isLoading } =
+    useVaultStore();
   const { isConnected: isSyncConnected } = useSyncStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -27,25 +27,25 @@ export function VaultWelcome() {
     initialize().then(() => setIsInitialized(true));
   }, [initialize]);
 
-  // Window Layout Management: Lock for Welcome, Open for App
+  // Window Layout Management: Lock for Welcome, Open for App (Tauri only)
   useEffect(() => {
-    const appWindow = getCurrentWindow();
+    if (!isTauri()) return;
 
     // 1. Enter Welcome Screen: Lock it down
     const lockWindow = async () => {
       try {
-        // Enforce a strict "card" size and disable resizing using backend command
-        await invoke('set_window_resizable', { resizable: false });
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const { LogicalSize } = await import('@tauri-apps/api/dpi');
+        const appWindow = getCurrentWindow();
 
-        // Use 450x640 for the welcome screen (fits everything perfectly)
-        // If user is already logged in (sync connected), we could shrink it,
-        // but keeping it consistent (640) prevents layout jumping if they logout.
-        // Let's stick to the 450x640 "Golden Ratio" card size for now.
+        // Enforce a strict "card" size and disable resizing
+        await windowCommands.setResizable(false);
+
         const width = 450;
         const height = isSyncConnected ? 520 : 640;
 
         await appWindow.setSize(new LogicalSize(width, height));
-        await appWindow.center(); // Center nicely on screen
+        await appWindow.center();
       } catch (e) {
         console.error('Failed to lock window:', e);
       }
@@ -57,10 +57,11 @@ export function VaultWelcome() {
     return () => {
       const unlockWindow = async () => {
         try {
-          // Re-enable resizing and maximizing for the main app using backend command
-          await invoke('set_window_resizable', { resizable: true });
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          const { LogicalSize } = await import('@tauri-apps/api/dpi');
+          const appWindow = getCurrentWindow();
 
-          // Restore to a productive workspace size (e.g., 1024x768 or previous state)
+          await windowCommands.setResizable(true);
           await appWindow.setSize(new LogicalSize(1024, 768));
           await appWindow.center();
         } catch (e) {
@@ -72,7 +73,13 @@ export function VaultWelcome() {
   }, [isSyncConnected]);
 
   const handleOpenLocal = async () => {
-    const selected = await open({
+    if (!hasNativeDialogs()) {
+      // On web, show create modal instead
+      setShowCreateModal(true);
+      return;
+    }
+
+    const selected = await openDialog({
       directory: true,
       multiple: false,
       title: 'Select Vault Folder',
@@ -84,15 +91,20 @@ export function VaultWelcome() {
   };
 
   const handleOpenRecent = async (path: string) => {
-    // Check if vault is already open in another window
-    const existingWindowLabel = await checkVaultOpenInOtherWindow(path);
+    // Check if vault is already open in another window (Tauri only)
+    if (hasBackendCommands()) {
+      const existingWindowLabel = await checkVaultOpenInOtherWindow(path);
 
-    if (existingWindowLabel) {
-      // Vault is open in another window - focus that window and close this one
-      await invoke('focus_window', { label: existingWindowLabel });
-      // Close current window if it's a new/welcome window
-      getCurrentWindow().close();
-      return;
+      if (existingWindowLabel) {
+        // Vault is open in another window - focus that window and close this one
+        await windowCommands.focusWindow(existingWindowLabel);
+        // Close current window
+        if (isTauri()) {
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          getCurrentWindow().close();
+        }
+        return;
+      }
     }
 
     // Vault not open elsewhere, open it in this window
@@ -110,10 +122,7 @@ export function VaultWelcome() {
 
         <div className="vault-welcome__main">
           {recentVaults.length > 0 && (
-            <RecentVaultsList
-              vaults={recentVaults}
-              onOpen={handleOpenRecent}
-            />
+            <RecentVaultsList vaults={recentVaults} onOpen={handleOpenRecent} />
           )}
 
           <ActionButtons
@@ -125,10 +134,7 @@ export function VaultWelcome() {
         </div>
       </div>
 
-      <CreateVaultModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-      />
+      <CreateVaultModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} />
     </div>
   );
 }

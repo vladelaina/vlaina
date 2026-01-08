@@ -1,11 +1,11 @@
 /**
  * Vault Store - Multi-vault management
+ * 
+ * Cross-platform vault management using StorageAdapter
  */
 
 import { create } from 'zustand';
-import { exists, mkdir, writeTextFile } from '@tauri-apps/plugin-fs';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { join } from '@tauri-apps/api/path';
+import { getStorageAdapter, joinPath, isTauri } from '@/lib/storage/adapter';
 import { setCurrentVaultPath } from './useNotesStore';
 
 // .nekotick folder name (like Obsidian's .obsidian)
@@ -35,41 +35,41 @@ This is your new vault.
  * Initialize .nekotick config folder in a vault
  */
 async function initVaultConfig(vaultPath: string): Promise<void> {
-  const configPath = await join(vaultPath, NEKOTICK_CONFIG_FOLDER);
-  
+  const storage = getStorageAdapter();
+  const configPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER);
+
   // Check if config folder exists
-  const configExists = await exists(configPath);
-  if (configExists) return;
-  
+  if (await storage.exists(configPath)) return;
+
   // Create .nekotick folder
-  await mkdir(configPath, { recursive: true });
-  
+  await storage.mkdir(configPath, true);
+
   // Create default config files
-  const configFilePath = await join(configPath, 'config.json');
-  await writeTextFile(configFilePath, JSON.stringify(DEFAULT_VAULT_CONFIG, null, 2));
-  
-  const workspacePath = await join(configPath, 'workspace.json');
-  await writeTextFile(workspacePath, JSON.stringify(DEFAULT_WORKSPACE_STATE, null, 2));
+  const configFilePath = await joinPath(configPath, 'config.json');
+  await storage.writeFile(configFilePath, JSON.stringify(DEFAULT_VAULT_CONFIG, null, 2));
+
+  const workspacePath = await joinPath(configPath, 'workspace.json');
+  await storage.writeFile(workspacePath, JSON.stringify(DEFAULT_WORKSPACE_STATE, null, 2));
 }
 
 /**
  * Create welcome note in a new vault
  */
 async function createWelcomeNote(vaultPath: string): Promise<void> {
+  const storage = getStorageAdapter();
   const fileName = `${WELCOME_NOTE_NAME}.md`;
-  const welcomePath = await join(vaultPath, fileName);
-  
+  const welcomePath = await joinPath(vaultPath, fileName);
+
   // Only create if doesn't exist
-  const welcomeExists = await exists(welcomePath);
-  if (welcomeExists) return;
-  
-  await writeTextFile(welcomePath, WELCOME_NOTE_CONTENT);
-  
+  if (await storage.exists(welcomePath)) return;
+
+  await storage.writeFile(welcomePath, WELCOME_NOTE_CONTENT);
+
   // Set the ribbon icon for welcome note
-  const iconsPath = await join(vaultPath, NEKOTICK_CONFIG_FOLDER, 'icons.json');
+  const iconsPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, 'icons.json');
   const icons: Record<string, string> = {};
   icons[fileName] = '🎀';
-  await writeTextFile(iconsPath, JSON.stringify(icons, null, 2));
+  await storage.writeFile(iconsPath, JSON.stringify(icons, null, 2));
 }
 
 export interface VaultInfo {
@@ -128,6 +128,21 @@ function getVaultName(path: string): string {
   return parts[parts.length - 1] || 'Untitled';
 }
 
+/**
+ * Check if a path is a native filesystem path (Windows/macOS/Linux absolute path)
+ * These paths are not valid in web environment
+ */
+function isNativeFilesystemPath(path: string): boolean {
+  // Windows absolute path (C:\, D:\, etc.)
+  if (/^[a-zA-Z]:[\\/]/.test(path)) return true;
+  // Home directory path
+  if (path.startsWith('~')) return true;
+  // Unix absolute path starting with / followed by typical system directories
+  // These are clearly native filesystem paths, not web virtual paths
+  if (/^\/(?:Users|home|var|etc|usr|opt|tmp|root|mnt|media|System|Library|Applications|Volumes)(?:\/|$)/i.test(path)) return true;
+  return false;
+}
+
 // Track which vault this window has open (window-specific)
 let windowVaultPath: string | null = null;
 let windowLabel: string | null = null;
@@ -138,18 +153,18 @@ let pendingQueries: Map<string, (label: string | null) => void> = new Map();
 
 function setupBroadcastChannel() {
   if (vaultChannel) return;
-  
+
   vaultChannel = new BroadcastChannel('nekotick-vault');
-  
+
   vaultChannel.onmessage = (event) => {
     const { type, requestId, vaultPath, responseLabel } = event.data;
-    
+
     if (type === 'query' && windowVaultPath === vaultPath && windowLabel) {
       // This window has the vault open, respond
       vaultChannel?.postMessage({
         type: 'response',
         requestId,
-        responseLabel: windowLabel
+        responseLabel: windowLabel,
       });
     } else if (type === 'response' && pendingQueries.has(requestId)) {
       // Got a response to our query
@@ -160,6 +175,20 @@ function setupBroadcastChannel() {
   };
 }
 
+/**
+ * Get current window label (Tauri only)
+ */
+async function getCurrentWindowLabel(): Promise<string | null> {
+  if (!isTauri()) return null;
+  
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    return getCurrentWindow().label;
+  } catch {
+    return null;
+  }
+}
+
 export const useVaultStore = create<VaultStore>()((set, get) => ({
   currentVault: null,
   recentVaults: [],
@@ -167,30 +196,39 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
   error: null,
 
   initialize: async () => {
+    const storage = getStorageAdapter();
     const savedVaults = loadFromStorage<VaultInfo[]>(VAULTS_STORAGE_KEY, []);
     const currentVaultId = loadFromStorage<string | null>(CURRENT_VAULT_KEY, null);
-    
-    // Get current window label
-    windowLabel = getCurrentWindow().label;
-    
+    const isWebPlatform = storage.platform === 'web';
+
+    // Get current window label (Tauri only)
+    windowLabel = await getCurrentWindowLabel();
+
     // Check if this is a new window (should show welcome screen)
     const urlParams = new URLSearchParams(window.location.search);
     const isNewWindow = urlParams.get('newWindow') === 'true';
-    
+
     // Filter out vaults that no longer exist
+    // On web platform, also filter out native filesystem paths (Windows/macOS/Linux absolute paths)
     const existChecks = await Promise.all(
-      savedVaults.map(async (v) => ({ vault: v, exists: await exists(v.path) }))
+      savedVaults.map(async (v) => {
+        // On web, reject native filesystem paths
+        if (isWebPlatform && isNativeFilesystemPath(v.path)) {
+          return { vault: v, exists: false };
+        }
+        return { vault: v, exists: await storage.exists(v.path) };
+      })
     );
-    const recentVaults = existChecks.filter(c => c.exists).map(c => c.vault);
-    
+    const recentVaults = existChecks.filter((c) => c.exists).map((c) => c.vault);
+
     // Update storage if some vaults were removed
     if (recentVaults.length !== savedVaults.length) {
       saveToStorage(VAULTS_STORAGE_KEY, recentVaults);
     }
-    
+
     let currentVault: VaultInfo | null = null;
     if (currentVaultId && !isNewWindow) {
-      currentVault = recentVaults.find(v => v.id === currentVaultId) || null;
+      currentVault = recentVaults.find((v) => v.id === currentVaultId) || null;
       if (currentVault) {
         windowVaultPath = currentVault.path;
         // Set the vault path for notes store
@@ -200,28 +238,28 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
         saveToStorage(CURRENT_VAULT_KEY, null);
       }
     }
-    
+
     // Setup cross-window communication
     setupBroadcastChannel();
-    
+
     set({ recentVaults, currentVault });
   },
 
   // Check if a vault is already open in another window
   checkVaultOpenInOtherWindow: async (path: string): Promise<string | null> => {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    
+
     return new Promise((resolve) => {
       // Store the resolver
       pendingQueries.set(requestId, resolve);
-      
+
       // Send query via BroadcastChannel
       vaultChannel?.postMessage({
         type: 'query',
         requestId,
-        vaultPath: path
+        vaultPath: path,
       });
-      
+
       // Timeout after 150ms - if no response, vault is not open elsewhere
       setTimeout(() => {
         if (pendingQueries.has(requestId)) {
@@ -234,24 +272,32 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
   openVault: async (path: string, name?: string) => {
     set({ isLoading: true, error: null });
-    
+
     try {
+      const storage = getStorageAdapter();
+      
+      // On web platform, reject native filesystem paths
+      if (storage.platform === 'web' && isNativeFilesystemPath(path)) {
+        set({ error: 'Invalid path for web platform', isLoading: false });
+        return false;
+      }
+      
       // Verify path exists
-      const pathExists = await exists(path);
+      const pathExists = await storage.exists(path);
       if (!pathExists) {
         set({ error: 'Folder does not exist or cannot be accessed', isLoading: false });
         return false;
       }
-      
+
       // Ensure .nekotick config folder exists (for existing folders opened as vault)
       await initVaultConfig(path);
-      
+
       const { recentVaults } = get();
       const vaultName = name || getVaultName(path);
-      
+
       // Check if already in recent
-      let vault = recentVaults.find(v => v.path === path);
-      
+      let vault = recentVaults.find((v) => v.path === path);
+
       if (vault) {
         // Update lastOpened
         vault = { ...vault, lastOpened: Date.now() };
@@ -264,26 +310,26 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
           lastOpened: Date.now(),
         };
       }
-      
+
       // Update recent list
-      const updatedRecent = [
-        vault,
-        ...recentVaults.filter(v => v.path !== path),
-      ].slice(0, MAX_RECENT_VAULTS);
-      
+      const updatedRecent = [vault, ...recentVaults.filter((v) => v.path !== path)].slice(
+        0,
+        MAX_RECENT_VAULTS
+      );
+
       saveToStorage(VAULTS_STORAGE_KEY, updatedRecent);
       saveToStorage(CURRENT_VAULT_KEY, vault.id);
-      
+
       set({
         currentVault: vault,
         recentVaults: updatedRecent,
         isLoading: false,
       });
-      
+
       // Update notes store path and track in this window
       windowVaultPath = vault.path;
       setCurrentVaultPath(vault.path);
-      
+
       return true;
     } catch (error) {
       set({
@@ -296,20 +342,22 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
   createVault: async (name: string, path: string) => {
     set({ isLoading: true, error: null });
-    
+
     try {
-      // Create directory if not exists
-      const pathExists = await exists(path);
-      if (!pathExists) {
-        await mkdir(path, { recursive: true });
-      }
+      const storage = getStorageAdapter();
       
+      // Create directory if not exists
+      const pathExists = await storage.exists(path);
+      if (!pathExists) {
+        await storage.mkdir(path, true);
+      }
+
       // Initialize .nekotick config folder
       await initVaultConfig(path);
-      
+
       // Create welcome note
       await createWelcomeNote(path);
-      
+
       // Open the vault
       return await get().openVault(path, name);
     } catch (error) {
@@ -323,10 +371,10 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
   removeFromRecent: (id: string) => {
     const { recentVaults, currentVault } = get();
-    const updatedRecent = recentVaults.filter(v => v.id !== id);
-    
+    const updatedRecent = recentVaults.filter((v) => v.id !== id);
+
     saveToStorage(VAULTS_STORAGE_KEY, updatedRecent);
-    
+
     // If removing current vault, clear it
     if (currentVault?.id === id) {
       saveToStorage(CURRENT_VAULT_KEY, null);

@@ -1,7 +1,7 @@
 // NotesPage - Main notes view container
 
 import { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { windowCommands } from '@/lib/tauri/invoke';
 import { IconSearch } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -52,7 +52,7 @@ export function NotesPage() {
 
     const unlockWindow = async () => {
       try {
-        await invoke('set_window_resizable', { resizable: true });
+        await windowCommands.setResizable(true);
       } catch (e) {
         console.error('Failed to unlock window:', e);
       }

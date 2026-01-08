@@ -1,44 +1,14 @@
-/** Sync Store - Google Drive sync state management */
+/**
+ * Sync Store - Google Drive sync state management
+ * 
+ * Cross-platform sync store that works on both Tauri and Web
+ * On Web, sync features are disabled but the store remains functional
+ */
 
 import { create } from 'zustand';
-import { invoke } from '@tauri-apps/api/core';
+import { syncCommands, hasBackendCommands } from '@/lib/tauri/invoke';
 import { useLicenseStore } from './useLicenseStore';
 import { STORAGE_KEY_PENDING_SYNC } from '@/lib/config';
-
-interface SyncStatus {
-  connected: boolean;
-  userEmail: string | null;
-  lastSyncTime: number | null;
-  hasRemoteData: boolean;
-  remoteModifiedTime: string | null;
-  folderId: string | null;
-}
-
-interface AuthResult {
-  success: boolean;
-  userEmail: string | null;
-  error: string | null;
-}
-
-interface SyncResult {
-  success: boolean;
-  timestamp: number | null;
-  error: string | null;
-}
-
-interface BidirectionalSyncResult {
-  success: boolean;
-  timestamp: number | null;
-  pulledFromCloud: boolean;
-  pushedToCloud: boolean;
-  error: string | null;
-}
-
-interface RemoteDataInfo {
-  exists: boolean;
-  modifiedTime: string | null;
-  fileId: string | null;
-}
 
 export type SyncStatusType = 'idle' | 'pending' | 'syncing' | 'success' | 'error';
 
@@ -56,6 +26,8 @@ interface SyncState {
   lastSyncAttempt: number | null;
   syncRetryCount: number;
   syncStatus: SyncStatusType;
+  /** Whether sync features are available on this platform */
+  isSyncAvailable: boolean;
 }
 
 interface SyncActions {
@@ -91,6 +63,7 @@ const initialState: SyncState = {
   lastSyncAttempt: null,
   syncRetryCount: 0,
   syncStatus: 'idle',
+  isSyncAvailable: hasBackendCommands(),
 };
 
 export const useSyncStore = create<SyncStore>((set, get) => ({
@@ -98,19 +71,27 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
 
   checkStatus: async () => {
     set({ isLoading: true });
+    
+    if (!hasBackendCommands()) {
+      set({ isLoading: false, isSyncAvailable: false });
+      return;
+    }
+
     try {
-      const status = await invoke<SyncStatus>('get_sync_status');
-      set({
-        isConnected: status.connected,
-        userEmail: status.userEmail,
-        lastSyncTime: status.lastSyncTime,
-        hasRemoteData: status.hasRemoteData,
-        remoteModifiedTime: status.remoteModifiedTime,
-        isLoading: false,
-      });
-      
-      if (status.connected) {
-        get().checkRemoteData();
+      const status = await syncCommands.getSyncStatus();
+      if (status) {
+        set({
+          isConnected: status.connected,
+          userEmail: status.userEmail,
+          lastSyncTime: status.lastSyncTime,
+          hasRemoteData: status.hasRemoteData,
+          remoteModifiedTime: status.remoteModifiedTime,
+          isLoading: false,
+        });
+
+        if (status.connected) {
+          get().checkRemoteData();
+        }
       }
     } catch (error) {
       console.error('Failed to check sync status:', error);
@@ -119,11 +100,16 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   },
 
   connect: async () => {
+    if (!hasBackendCommands()) {
+      set({ syncError: 'Sync is not available on this platform' });
+      return false;
+    }
+
     set({ isConnecting: true, syncError: null });
     try {
-      const result = await invoke<AuthResult>('google_drive_auth');
-      
-      if (result.success) {
+      const result = await syncCommands.googleDriveAuth();
+
+      if (result?.success) {
         set({
           isConnected: true,
           userEmail: result.userEmail,
@@ -133,7 +119,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
         return true;
       } else {
         set({
-          syncError: result.error || 'Authorization failed',
+          syncError: result?.error || 'Authorization failed',
           isConnecting: false,
         });
         return false;
@@ -149,8 +135,10 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   },
 
   disconnect: async () => {
+    if (!hasBackendCommands()) return;
+
     try {
-      await invoke('google_drive_disconnect');
+      await syncCommands.googleDriveDisconnect();
       set({
         isConnected: false,
         userEmail: null,
@@ -166,17 +154,22 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
 
   syncToCloud: async () => {
     const state = get();
-    
+
+    if (!hasBackendCommands()) {
+      set({ syncError: 'Sync is not available on this platform' });
+      return false;
+    }
+
     if (!state.isConnected) {
       set({ syncError: 'Not connected to Google Drive' });
       return false;
     }
-    
+
     set({ isSyncing: true, syncError: null });
     try {
-      const result = await invoke<SyncResult>('sync_to_drive');
-      
-      if (result.success) {
+      const result = await syncCommands.syncToDrive();
+
+      if (result?.success) {
         set({
           lastSyncTime: result.timestamp,
           isSyncing: false,
@@ -185,7 +178,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
         return true;
       } else {
         set({
-          syncError: result.error || 'Sync failed',
+          syncError: result?.error || 'Sync failed',
           isSyncing: false,
         });
         return false;
@@ -202,17 +195,22 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
 
   syncBidirectional: async () => {
     const state = get();
-    
+
+    if (!hasBackendCommands()) {
+      set({ syncError: 'Sync is not available on this platform' });
+      return false;
+    }
+
     if (!state.isConnected) {
       set({ syncError: 'Not connected to Google Drive' });
       return false;
     }
-    
+
     set({ isSyncing: true, syncStatus: 'syncing', syncError: null });
     try {
-      const result = await invoke<BidirectionalSyncResult>('sync_bidirectional');
-      
-      if (result.success) {
+      const result = await syncCommands.syncBidirectional();
+
+      if (result?.success) {
         set({
           lastSyncTime: result.timestamp,
           isSyncing: false,
@@ -221,16 +219,16 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
           syncStatus: 'idle',
         });
         localStorage.removeItem(STORAGE_KEY_PENDING_SYNC);
-        
+
         if (result.pulledFromCloud) {
           console.log('[Sync] Pulled data from cloud, reloading...');
           window.location.reload();
         }
-        
+
         return true;
       } else {
         set({
-          syncError: result.error || 'Sync failed',
+          syncError: result?.error || 'Sync failed',
           isSyncing: false,
           syncStatus: 'error',
         });
@@ -249,17 +247,22 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
 
   restoreFromCloud: async () => {
     const state = get();
-    
+
+    if (!hasBackendCommands()) {
+      set({ syncError: 'Restore is not available on this platform' });
+      return false;
+    }
+
     if (!state.isConnected) {
       set({ syncError: 'Not connected to Google Drive' });
       return false;
     }
-    
+
     set({ isSyncing: true, syncError: null });
     try {
-      const result = await invoke<SyncResult>('restore_from_drive');
-      
-      if (result.success) {
+      const result = await syncCommands.restoreFromDrive();
+
+      if (result?.success) {
         set({
           lastSyncTime: result.timestamp,
           isSyncing: false,
@@ -268,7 +271,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
         return true;
       } else {
         set({
-          syncError: result.error || 'Restore failed',
+          syncError: result?.error || 'Restore failed',
           isSyncing: false,
         });
         return false;
@@ -284,14 +287,16 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   },
 
   checkRemoteData: async () => {
-    if (!get().isConnected) return;
-    
+    if (!hasBackendCommands() || !get().isConnected) return;
+
     try {
-      const info = await invoke<RemoteDataInfo>('check_remote_data');
-      set({
-        hasRemoteData: info.exists,
-        remoteModifiedTime: info.modifiedTime,
-      });
+      const info = await syncCommands.checkRemoteData();
+      if (info) {
+        set({
+          hasRemoteData: info.exists,
+          remoteModifiedTime: info.modifiedTime,
+        });
+      }
     } catch (error) {
       console.error('Failed to check remote data:', error);
     }
@@ -325,34 +330,39 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
 
   performAutoSync: async () => {
     const state = get();
-    
+
+    if (!hasBackendCommands()) {
+      console.log('[AutoSync] Not available on this platform');
+      return false;
+    }
+
     if (!state.isConnected) {
       console.log('[AutoSync] Not connected to Google Drive');
       return false;
     }
-    
+
     if (state.isSyncing) {
       console.log('[AutoSync] Sync already in progress');
       return false;
     }
-    
+
     const { isProUser, timeTamperDetected } = useLicenseStore.getState();
     if (!isProUser) {
       console.log('[AutoSync] Not a PRO user');
       return false;
     }
-    
+
     if (timeTamperDetected) {
       console.log('[AutoSync] Time tamper detected');
       return false;
     }
-    
+
     set({ isSyncing: true, syncStatus: 'syncing', syncError: null, lastSyncAttempt: Date.now() });
-    
+
     try {
-      const result = await invoke<BidirectionalSyncResult>('auto_sync_to_drive');
-      
-      if (result.success) {
+      const result = await syncCommands.autoSyncToDrive();
+
+      if (result?.success) {
         set({
           lastSyncTime: result.timestamp,
           isSyncing: false,
@@ -362,7 +372,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
           syncRetryCount: 0,
         });
         localStorage.removeItem(STORAGE_KEY_PENDING_SYNC);
-        
+
         if (result.pulledFromCloud) {
           console.log('[AutoSync] Pulled data from cloud, reloading...');
           window.location.reload();
@@ -372,11 +382,11 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
         return true;
       } else {
         set({
-          syncError: result.error || 'Auto sync failed',
+          syncError: result?.error || 'Auto sync failed',
           isSyncing: false,
           syncStatus: 'error',
         });
-        console.error('[AutoSync] Sync failed:', result.error);
+        console.error('[AutoSync] Sync failed:', result?.error);
         return false;
       }
     } catch (error) {

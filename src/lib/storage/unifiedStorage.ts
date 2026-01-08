@@ -10,21 +10,17 @@
  * Storage structure:
  * - .nekotick/data.json: Data source (JSON format, read/write by program)
  * - nekotick.md: Human-readable Markdown view (write-only, for backup and viewing)
- *   - Items section: All tasks grouped by group, with time info inline
- *   - Progress section: Progress trackers
- *   - Archive section: Archived completed tasks
  */
 
-import { readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
-import { appDataDir } from '@tauri-apps/api/path';
+import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
 import { useSyncStore } from '@/stores/useSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
 import type { ItemColor } from '@/lib/colors';
 import type { TimeView } from '@/lib/date';
-import { 
-  DEFAULT_TIMEZONE, 
-  DEFAULT_VIEW_MODE, 
+import {
+  DEFAULT_TIMEZONE,
+  DEFAULT_VIEW_MODE,
   DEFAULT_DAY_COUNT,
   DEFAULT_GROUP_ID,
   DEFAULT_GROUP_NAME,
@@ -40,27 +36,27 @@ export interface UnifiedTask {
   groupId: string;
   parentId: string | null;
   collapsed: boolean;
-  
+
   // Unified color system - Apple style colors
   color: ItemColor;
-  
+
   // Time properties (with time = calendar event, without time = pure todo)
   startDate?: number;
   endDate?: number;
   isAllDay?: boolean;
-  
+
   // Time tracking
   estimatedMinutes?: number;
   actualMinutes?: number;
-  
+
   // Timer state
   timerState?: 'idle' | 'running' | 'paused';
   timerStartedAt?: number;
   timerAccumulated?: number;
-  
+
   // Icon (Phosphor icon name, shared with Progress module)
   icon?: string;
-  
+
   // Calendar related (optional)
   location?: string;
   description?: string;
@@ -73,8 +69,6 @@ export interface UnifiedGroup {
   createdAt: number;
   updatedAt?: number;
 }
-
-
 
 export interface UnifiedProgress {
   id: string;
@@ -135,36 +129,34 @@ let basePath: string | null = null;
 
 async function getBasePath(): Promise<string> {
   if (basePath === null) {
-    const appData = await appDataDir();
-    basePath = appData.endsWith('\\') || appData.endsWith('/') 
-      ? appData.slice(0, -1)
-      : appData;
+    const storage = getStorageAdapter();
+    const appData = await storage.getBasePath();
+    basePath =
+      appData.endsWith('\\') || appData.endsWith('/') ? appData.slice(0, -1) : appData;
   }
   return basePath;
 }
 
-function getSeparator(path: string): string {
-  return path.includes('\\') ? '\\' : '/';
-}
-
 async function ensureDirectories(): Promise<void> {
+  const storage = getStorageAdapter();
   const base = await getBasePath();
-  const sep = getSeparator(base);
-  const metadataDir = `${base}${sep}.nekotick`;
-  
-  if (!(await exists(metadataDir))) {
-    await mkdir(metadataDir, { recursive: true });
+  const metadataDir = await joinPath(base, '.nekotick');
+
+  if (!(await storage.exists(metadataDir))) {
+    await storage.mkdir(metadataDir, true);
   }
 }
 
 function getDefaultData(): UnifiedData {
   return {
-    groups: [{
-      id: DEFAULT_GROUP_ID,
-      name: DEFAULT_GROUP_NAME,
-      pinned: false,
-      createdAt: Date.now(),
-    }],
+    groups: [
+      {
+        id: DEFAULT_GROUP_ID,
+        name: DEFAULT_GROUP_NAME,
+        pinned: false,
+        createdAt: Date.now(),
+      },
+    ],
     tasks: [],
     progress: [],
     archive: [],
@@ -178,21 +170,21 @@ function getDefaultData(): UnifiedData {
 
 export async function loadUnifiedData(): Promise<UnifiedData> {
   try {
+    const storage = getStorageAdapter();
     await ensureDirectories();
     const base = await getBasePath();
-    const sep = getSeparator(base);
-    const jsonPath = `${base}${sep}.nekotick${sep}data.json`;
-    
-    if (await exists(jsonPath)) {
-      const content = await readTextFile(jsonPath);
+    const jsonPath = await joinPath(base, '.nekotick', 'data.json');
+
+    if (await storage.exists(jsonPath)) {
+      const content = await storage.readFile(jsonPath);
       const parsed = JSON.parse(content) as DataFile;
-      
+
       if (parsed.version === 2 && parsed.data) {
         console.log('[UnifiedStorage] Loaded data from JSON');
         return parsed.data;
       }
     }
-    
+
     console.log('[UnifiedStorage] No existing data, returning defaults');
     return getDefaultData();
   } catch (error) {
@@ -201,43 +193,42 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
   }
 }
 
-
 // Debounce save to avoid frequent writes
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 let pendingData: UnifiedData | null = null;
 
 export async function saveUnifiedData(data: UnifiedData): Promise<void> {
   pendingData = data;
-  
+
   if (saveTimeout) {
     clearTimeout(saveTimeout);
   }
-  
+
   saveTimeout = setTimeout(async () => {
     if (!pendingData) return;
-    
+
     try {
+      const storage = getStorageAdapter();
       await ensureDirectories();
       const base = await getBasePath();
-      const sep = getSeparator(base);
-      const jsonPath = `${base}${sep}.nekotick${sep}data.json`;
-      const mdPath = `${base}${sep}nekotick.md`;
-      
+      const jsonPath = await joinPath(base, '.nekotick', 'data.json');
+      const mdPath = await joinPath(base, 'nekotick.md');
+
       // Save JSON (source of truth)
       const dataFile: DataFile = {
         version: 2,
         lastModified: Date.now(),
         data: pendingData,
       };
-      await writeTextFile(jsonPath, JSON.stringify(dataFile, null, 2));
-      
+      await storage.writeFile(jsonPath, JSON.stringify(dataFile, null, 2));
+
       // Save MD (human-readable view)
       const markdown = generateMarkdown(pendingData);
-      await writeTextFile(mdPath, markdown);
-      
+      await storage.writeFile(mdPath, markdown);
+
       console.log('[UnifiedStorage] Saved data');
       pendingData = null;
-      
+
       // Trigger auto-sync for PRO users
       triggerAutoSyncIfEligible();
     } catch (error) {
@@ -252,7 +243,7 @@ export async function saveUnifiedData(data: UnifiedData): Promise<void> {
 function triggerAutoSyncIfEligible(): void {
   const syncState = useSyncStore.getState();
   const licenseState = useLicenseStore.getState();
-  
+
   // Only trigger for PRO users connected to Google Drive
   if (syncState.isConnected && licenseState.isProUser && !licenseState.timeTamperDetected) {
     const autoSyncManager = getAutoSyncManager();
@@ -267,24 +258,24 @@ export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void>
     saveTimeout = null;
   }
   pendingData = null;
-  
+
   try {
+    const storage = getStorageAdapter();
     await ensureDirectories();
     const base = await getBasePath();
-    const sep = getSeparator(base);
-    const jsonPath = `${base}${sep}.nekotick${sep}data.json`;
-    const mdPath = `${base}${sep}nekotick.md`;
-    
+    const jsonPath = await joinPath(base, '.nekotick', 'data.json');
+    const mdPath = await joinPath(base, 'nekotick.md');
+
     const dataFile: DataFile = {
       version: 2,
       lastModified: Date.now(),
       data,
     };
-    await writeTextFile(jsonPath, JSON.stringify(dataFile, null, 2));
-    
+    await storage.writeFile(jsonPath, JSON.stringify(dataFile, null, 2));
+
     const markdown = generateMarkdown(data);
-    await writeTextFile(mdPath, markdown);
-    
+    await storage.writeFile(mdPath, markdown);
+
     console.log('[UnifiedStorage] Saved data (immediate)');
   } catch (error) {
     console.error('[UnifiedStorage] Failed to save:', error);
@@ -293,41 +284,39 @@ export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void>
 
 function generateMarkdown(data: UnifiedData): string {
   const lines: string[] = [];
-  
+
   // Unified Items Section - Tasks and Calendar events are the same data
   lines.push('# Items');
   lines.push('');
-  
+
   for (const group of data.groups) {
-    const groupTasks = data.tasks.filter(t => t.groupId === group.id);
+    const groupTasks = data.tasks.filter((t) => t.groupId === group.id);
     if (groupTasks.length === 0 && group.id !== DEFAULT_GROUP_ID) continue;
-    
+
     lines.push(`## ${group.name}`);
     lines.push('');
-    
+
     // Render top-level tasks with time info inline
-    const topLevel = groupTasks
-      .filter(t => !t.parentId)
-      .sort((a, b) => a.order - b.order);
-    
+    const topLevel = groupTasks.filter((t) => !t.parentId).sort((a, b) => a.order - b.order);
+
     for (const task of topLevel) {
       renderTaskUnified(task, groupTasks, lines, '');
     }
-    
+
     if (topLevel.length > 0) lines.push('');
   }
-  
+
   // Progress Section
   lines.push('# Progress');
   lines.push('');
-  
-  const activeProgress = data.progress.filter(p => !p.archived);
-  const archivedProgress = data.progress.filter(p => p.archived);
-  
+
+  const activeProgress = data.progress.filter((p) => !p.archived);
+  const archivedProgress = data.progress.filter((p) => p.archived);
+
   for (const item of activeProgress) {
     const icon = item.icon || '○';
     const resetInfo = item.resetFrequency === 'daily' ? ' (↻)' : '';
-    
+
     if (item.type === 'progress') {
       const percent = item.total ? Math.round((item.current / item.total) * 100) : 0;
       lines.push(`## ${icon} ${item.title}${resetInfo}`);
@@ -338,7 +327,7 @@ function generateMarkdown(data: UnifiedData): string {
     }
     lines.push('');
   }
-  
+
   if (archivedProgress.length > 0) {
     lines.push('### Archived');
     for (const item of archivedProgress) {
@@ -347,12 +336,12 @@ function generateMarkdown(data: UnifiedData): string {
     }
     lines.push('');
   }
-  
+
   // Archive Section
   if (data.archive.length > 0) {
     lines.push('# Archive');
     lines.push('');
-    
+
     for (const section of data.archive) {
       const date = new Date(section.timestamp).toISOString().split('T')[0];
       lines.push(`## ${date}`);
@@ -362,7 +351,7 @@ function generateMarkdown(data: UnifiedData): string {
       lines.push('');
     }
   }
-  
+
   return lines.join('\n');
 }
 
@@ -371,10 +360,15 @@ function generateMarkdown(data: UnifiedData): string {
  * - Items with time show: `- [ ] 09:00-10:00 content [color]`
  * - Items without time show: `- [ ] content [color]`
  */
-function renderTaskUnified(task: UnifiedTask, allTasks: UnifiedTask[], lines: string[], indent: string): void {
+function renderTaskUnified(
+  task: UnifiedTask,
+  allTasks: UnifiedTask[],
+  lines: string[],
+  indent: string
+): void {
   const checkbox = task.completed ? '[x]' : '[ ]';
   const color = task.color && task.color !== 'default' ? ` [${task.color}]` : '';
-  
+
   // Build time string if task has time properties
   let timeStr = '';
   if (task.startDate !== undefined) {
@@ -387,14 +381,12 @@ function renderTaskUnified(task: UnifiedTask, allTasks: UnifiedTask[], lines: st
       timeStr = `[${dateStr} ${formatTime(start)}-${formatTime(end)}] `;
     }
   }
-  
+
   lines.push(`${indent}- ${checkbox} ${timeStr}${task.content}${color}`);
-  
+
   // Render children
-  const children = allTasks
-    .filter(t => t.parentId === task.id)
-    .sort((a, b) => a.order - b.order);
-  
+  const children = allTasks.filter((t) => t.parentId === task.id).sort((a, b) => a.order - b.order);
+
   for (const child of children) {
     renderTaskUnified(child, allTasks, lines, indent + '  ');
   }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { windowCommands } from '@/lib/tauri/invoke';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -47,7 +47,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.key === 'F11') {
         e.preventDefault();
-        await invoke('toggle_fullscreen').catch(console.error);
+        await windowCommands.toggleFullscreen();
         return;
       }
       
