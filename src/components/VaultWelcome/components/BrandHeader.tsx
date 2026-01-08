@@ -3,16 +3,23 @@
  */
 
 import { useState, useEffect } from 'react';
-import { getVersion } from '@tauri-apps/api/app';
+import { isTauri } from '@/lib/storage/adapter';
 
-// Use the 128x128 icon from tauri icons
-const logoSrc = '/src-tauri/icons/128x128.png';
+// Logo path - works in both Tauri and Web environments
+const logoSrc = '/logo.png';
 
 export function BrandHeader() {
   const [version, setVersion] = useState<string>('');
 
   useEffect(() => {
-    getVersion().then(setVersion).catch(() => setVersion(''));
+    if (isTauri()) {
+      import('@tauri-apps/api/app').then(({ getVersion }) => {
+        getVersion().then(setVersion).catch(() => setVersion(''));
+      });
+    } else {
+      // Web version - use package.json version or leave empty
+      setVersion('web');
+    }
   }, []);
 
   return (

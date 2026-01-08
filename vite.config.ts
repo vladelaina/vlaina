@@ -6,22 +6,19 @@ import fs from "fs";
 const host = process.env.TAURI_DEV_HOST;
 
 /**
- * Plugin to copy index.html to 404.html for GitHub Pages SPA support
+ * Plugin to copy index.html to 404.html for SPA support
  */
 function spaFallbackPlugin(): Plugin {
   return {
     name: 'spa-fallback',
     closeBundle() {
-      // Only run for GitHub Pages builds
-      if (process.env.GITHUB_PAGES) {
-        const distPath = path.resolve(__dirname, 'dist');
-        const indexPath = path.join(distPath, 'index.html');
-        const notFoundPath = path.join(distPath, '404.html');
-        
-        if (fs.existsSync(indexPath)) {
-          fs.copyFileSync(indexPath, notFoundPath);
-          console.log('Created 404.html for GitHub Pages SPA support');
-        }
+      const distPath = path.resolve(__dirname, 'dist');
+      const indexPath = path.join(distPath, 'index.html');
+      const notFoundPath = path.join(distPath, '404.html');
+      
+      if (fs.existsSync(indexPath)) {
+        fs.copyFileSync(indexPath, notFoundPath);
+        console.log('Created 404.html for SPA support');
       }
     },
   };
@@ -36,10 +33,8 @@ export default defineConfig(async () => ({
     },
   },
   
-  // Base path for GitHub Pages deployment
-  // Set to repository name for project pages (e.g., /NekoTick/)
-  // Set to '/' for custom domain or user pages
-  base: process.env.GITHUB_PAGES ? '/NekoTick/' : '/',
+  // Base path - always '/' for custom domain (app.nekotick.com)
+  base: '/',
 
   // Build options
   build: {

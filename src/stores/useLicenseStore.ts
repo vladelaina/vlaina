@@ -1,5 +1,14 @@
 import { create } from 'zustand';
-import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '@/lib/storage/adapter';
+
+// Helper to safely invoke Tauri commands
+async function tauriInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  if (!isTauri()) {
+    throw new Error('Tauri not available');
+  }
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke<T>(cmd, args);
+}
 
 // Error code to message mapping
 const ERROR_MESSAGES: Record<string, string> = {
@@ -105,8 +114,9 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
 
   // Ensure trial is initialized (called on app startup)
   ensureTrial: async () => {
+    if (!isTauri()) return; // Skip in web environment
     try {
-      await invoke('ensure_trial');
+      await tauriInvoke('ensure_trial');
     } catch (err) {
       console.error('Failed to ensure trial:', err);
     }
@@ -114,9 +124,20 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
 
   // Check current license status
   checkStatus: async () => {
+    if (!isTauri()) {
+      // In web environment, set default free user state
+      set({
+        isProUser: false,
+        isTrial: false,
+        trialEndsAt: null,
+        isLoading: false,
+      });
+      return;
+    }
+    
     set({ isLoading: true, error: null });
     try {
-      const status = await invoke<LicenseStatus>('get_license_status');
+      const status = await tauriInvoke<LicenseStatus>('get_license_status');
       set({
         isProUser: status.is_pro,
         isTrial: status.is_trial,
@@ -149,6 +170,11 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
 
   // Activate license
   activate: async (licenseKey: string) => {
+    if (!isTauri()) {
+      set({ error: 'License activation is only available in desktop app' });
+      return false;
+    }
+    
     if (!licenseKey.trim()) {
       set({ error: 'Please enter a license key' });
       return false;
@@ -156,7 +182,7 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
 
     set({ isActivating: true, error: null });
     try {
-      const result = await invoke<ActivationResult>('activate_license', {
+      const result = await tauriInvoke<ActivationResult>('activate_license', {
         licenseKey: licenseKey.trim(),
       });
 
@@ -182,9 +208,14 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
 
   // Deactivate license (unbind device)
   deactivate: async () => {
+    if (!isTauri()) {
+      set({ error: 'License deactivation is only available in desktop app' });
+      return false;
+    }
+    
     set({ isDeactivating: true, error: null });
     try {
-      await invoke('deactivate_license');
+      await tauriInvoke('deactivate_license');
       set({
         isProUser: false,
         isTrial: false,
@@ -212,9 +243,11 @@ export const useLicenseStore = create<LicenseStore>((set, get) => ({
 
   // Background silent validation
   validateBackground: async () => {
+    if (!isTauri()) return; // Skip in web environment
+    
     set({ isValidating: true });
     try {
-      const result = await invoke<ValidationResult>('validate_license_background');
+      const result = await tauriInvoke<ValidationResult>('validate_license_background');
       
       if (result.downgraded) {
         // License was invalidated

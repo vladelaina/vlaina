@@ -1,11 +1,11 @@
 // Sync Init Hook - Initialize sync status on app startup
 
 import { useEffect, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { useSyncStore } from '@/stores/useSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
 import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
 import { STORAGE_KEY_PENDING_SYNC } from '@/lib/config';
+import { isTauri } from '@/lib/storage/adapter';
 
 const TOKEN_CHECK_INTERVAL = 4 * 60 * 1000;
 
@@ -18,9 +18,11 @@ export function useSyncInit() {
 
   useEffect(() => {
     const init = async () => {
-      if (!hasMigratedRef.current) {
+      // Skip Tauri-specific operations in web environment
+      if (isTauri() && !hasMigratedRef.current) {
         hasMigratedRef.current = true;
         try {
+          const { invoke } = await import('@tauri-apps/api/core');
           const result = await invoke<string>('migrate_credentials');
           if (result === 'migrated') {
             console.log('[Sync] Credentials migrated from keyring to encrypted storage');
