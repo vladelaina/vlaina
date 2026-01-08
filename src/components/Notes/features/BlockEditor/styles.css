@@ -13,7 +13,8 @@
   overflow-x: hidden;
   font-family: var(--font-sans);
   font-size: var(--affine-font-base, 15px);
-  line-height: 1.6;
+  line-height: 1.5;
+  /* Apple standard for readability */
   color: var(--neko-text-primary);
   background: var(--neko-bg-primary);
 }
@@ -27,8 +28,10 @@
 /* Block Wrapper */
 .block-wrapper {
   position: relative;
-  margin: 4px 0;
-  padding: 2px 0;
+  margin: 1px 0;
+  /* Tighter layout - Apple Notes style */
+  padding: 1px 0;
+  /* Minimal padding for hover state */
   border-radius: 4px;
   transition: background-color 0.15s ease;
 }
@@ -45,7 +48,8 @@
 .block-content {
   position: relative;
   outline: none;
-  min-height: 1.6em;
+  min-height: 1.5em;
+  /* Match line-height */
   word-break: break-word;
   white-space: pre-wrap;
 }
@@ -61,7 +65,8 @@
 
 /* Paragraph */
 .block-paragraph .block-content {
-  padding: 3px 2px;
+  padding: 1px 2px;
+  /* Reduced vertical padding */
 }
 
 /* Headings */
