@@ -27,7 +27,7 @@ function AppContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const toggleSettings = useCallback(() => setSettingsOpen(prev => !prev), []);
-  
+
   const shortcutHandlers = useMemo(() => ({
     'open-settings': toggleSettings,
   }), [toggleSettings]);
@@ -43,7 +43,7 @@ function AppContent() {
         await invoke('create_new_window').catch(console.error);
       }
     };
-    
+
     window.addEventListener('keydown', handleNewWindow);
     return () => window.removeEventListener('keydown', handleNewWindow);
   }, []);
@@ -61,6 +61,31 @@ function AppContent() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Window Unlocker: When we reach the main app, unlock the window!
+  useEffect(() => {
+    const unlockWindow = async () => {
+      // Lazy import to avoid top-level issues if in SSG (though not here)
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const { LogicalSize } = await import('@tauri-apps/api/dpi');
+      const appWindow = getCurrentWindow();
+
+      await appWindow.setResizable(true);
+      await appWindow.setMaximizable(true);
+
+      // Optional: Enforce a minimum specific size for the app
+      await appWindow.setMinSize(new LogicalSize(800, 600));
+
+      // If coming from welcome screen (which is small), resize to workspace size
+      // We can check current size or just force it. Let's force it for consistency.
+      const size = await appWindow.outerSize();
+      if (size.width < 800) {
+        await appWindow.setSize(new LogicalSize(1024, 768));
+        await appWindow.center();
+      }
+    };
+    unlockWindow();
+  }, []);
 
   // DnD sensors for cross-panel dragging
   const sensors = useSensors(
@@ -92,7 +117,7 @@ function AppContent() {
     if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
       // Calculate day count based on view mode
       const numDays = viewMode === 'week' ? 7 : (dayCount || 1);
-      
+
       const relativeX = x - rect.left - GUTTER_WIDTH;
       if (relativeX < 0) return;
 
@@ -108,7 +133,7 @@ function AppContent() {
       const snapMinutes = getSnapMinutes(hourHeight);
       const snappedMinutes = Math.round(totalMinutes / snapMinutes) * snapMinutes;
 
-      const weekStart = viewMode === 'week' 
+      const weekStart = viewMode === 'week'
         ? startOfWeek(selectedDate, { weekStartsOn: 1 })
         : selectedDate;
       const dayDate = addDays(weekStart, dayIndex);
@@ -130,8 +155,8 @@ function AppContent() {
       {/* Conditional View Rendering */}
       {appViewMode === 'calendar' ? (
         /* Calendar Page */
-        <Layout 
-          onOpenSettings={() => setSettingsOpen(true)} 
+        <Layout
+          onOpenSettings={() => setSettingsOpen(true)}
           toolbar={<CalendarToolbar />}
           content={<CalendarHeaderControl />}
           rightPanel={<CalendarTaskPanel />}
@@ -141,7 +166,7 @@ function AppContent() {
         </Layout>
       ) : (
         /* Notes Page */
-        <Layout 
+        <Layout
           onOpenSettings={() => setSettingsOpen(true)}
         >
           <NotesPage />
@@ -159,7 +184,7 @@ function App() {
         e.preventDefault();
       }
     };
-    
+
     window.addEventListener('wheel', handleWheel, { passive: false });
     return () => window.removeEventListener('wheel', handleWheel);
   }, []);

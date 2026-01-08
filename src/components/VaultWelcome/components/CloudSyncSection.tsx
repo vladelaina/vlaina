@@ -4,7 +4,7 @@
  * Hidden when already connected
  */
 
-import { IconBrandGoogle, IconBrandApple, IconBrandOnedrive, IconBrandGithub } from '@tabler/icons-react';
+// Tabler icons removed
 import { useSyncStore } from '@/stores/useSyncStore';
 
 // Insignias

@@ -21,7 +21,10 @@
         "decorations": false,
         "transparent": true,
         "backgroundColor": "#00000000",
-        "zoomHotkeysEnabled": false
+        "zoomHotkeysEnabled": false,
+        "resizable": true,
+        "maximizable": true,
+        "fullscreen": false
       }
     ],
     "security": {

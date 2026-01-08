@@ -6,7 +6,9 @@ import { useState, useEffect } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { LogicalSize } from '@tauri-apps/api/dpi';
 import { useVaultStore } from '@/stores/useVaultStore';
+import { useSyncStore } from '@/stores/useSyncStore';
 import { cn } from '@/lib/utils';
 import { BrandHeader } from './components/BrandHeader';
 import { RecentVaultsList } from './components/RecentVaultsList';
@@ -17,12 +19,60 @@ import './VaultWelcome.css';
 
 export function VaultWelcome() {
   const { initialize, recentVaults, openVault, checkVaultOpenInOtherWindow, isLoading } = useVaultStore();
+  const { isConnected: isSyncConnected } = useSyncStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     initialize().then(() => setIsInitialized(true));
   }, [initialize]);
+
+  // Window Layout Management: Lock for Welcome, Open for App
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+
+    // 1. Enter Welcome Screen: Lock it down
+    const lockWindow = async () => {
+      try {
+        // Enforce a strict "card" size and disable resizing
+        await appWindow.setResizable(false);
+        await appWindow.setMaximizable(false);
+
+        // Use 450x640 for the welcome screen (fits everything perfectly)
+        // If user is already logged in (sync connected), we could shrink it,
+        // but keeping it consistent (640) prevents layout jumping if they logout.
+        // Let's stick to the 450x640 "Golden Ratio" card size for now.
+        const width = 450;
+        const height = isSyncConnected ? 520 : 640;
+
+        await appWindow.setSize(new LogicalSize(width, height));
+        await appWindow.center(); // Center nicely on screen
+      } catch (e) {
+        console.error('Failed to lock window:', e);
+      }
+    };
+
+    lockWindow();
+
+    // 2. Leave Welcome Screen (Cleanup): Unlock for Work Interface
+    return () => {
+      const unlockWindow = async () => {
+        try {
+          // Re-enable resizing and maximizing for the main app
+          await appWindow.setResizable(true);
+          await appWindow.setMaximizable(true);
+
+          // Restore to a productive workspace size (e.g., 1024x768 or previous state)
+          // We set a good default here.
+          await appWindow.setSize(new LogicalSize(1024, 768));
+          await appWindow.center();
+        } catch (e) {
+          console.error('Failed to unlock window:', e);
+        }
+      };
+      unlockWindow();
+    };
+  }, [isSyncConnected]);
 
   const handleOpenLocal = async () => {
     const selected = await open({

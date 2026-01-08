@@ -192,11 +192,13 @@ async fn create_new_window(app: AppHandle) -> Result<(), String> {
         url,
     )
     .title("Nekotick")
-    .inner_size(900.0, 700.0)
-    .min_inner_size(400.0, 300.0)
+    .inner_size(720.0, 660.0)
+    .min_inner_size(720.0, 540.0)
     .decorations(false)
     .transparent(true)
     .background_color(Color(0, 0, 0, 0))
+    .resizable(false) // Start locked (Welcome mode)
+    .maximizable(false)
     .visible(false); // Start hidden
     
     // Set position in builder if we have it
