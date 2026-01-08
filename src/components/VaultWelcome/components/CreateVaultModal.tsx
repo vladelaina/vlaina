@@ -31,7 +31,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
       multiple: false,
       title: 'Select Parent Folder for New Vault',
     });
-    
+
     if (selected && typeof selected === 'string') {
       setParentPath(selected);
     }
@@ -39,7 +39,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
 
   const handleCreate = async () => {
     if (!name.trim() || !parentPath.trim()) return;
-    
+
     // Create vault folder inside the selected parent folder
     const vaultPath = await join(parentPath.trim(), name.trim());
     const success = await createVault(name.trim(), vaultPath);
@@ -65,7 +65,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
     <div className="vault-modal-overlay" onClick={onClose} onKeyDown={handleKeyDown}>
       <div className="vault-modal" onClick={(e) => e.stopPropagation()}>
         <h2 className="vault-modal__title">Create New Vault</h2>
-        
+
         <div className="vault-modal__field">
           <label className="vault-modal__label">Vault Name</label>
           <input
@@ -77,7 +77,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
             autoFocus
           />
         </div>
-        
+
         <div className="vault-modal__field">
           <label className="vault-modal__label">Parent Folder</label>
           <div className="vault-modal__path-input">
@@ -88,7 +88,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
               value={parentPath}
               readOnly
             />
-            <button 
+            <button
               className="vault-modal__browse-btn"
               onClick={handleBrowse}
             >
@@ -106,20 +106,21 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
         {error && (
           <div className="vault-modal__error">{error}</div>
         )}
-        
+
         <div className="vault-modal__actions">
-          <button 
-            className="vault-modal__btn vault-modal__btn--cancel"
-            onClick={onClose}
-          >
-            Cancel
-          </button>
-          <button 
+          <button
             className="vault-modal__btn vault-modal__btn--create"
             onClick={handleCreate}
             disabled={!canCreate}
           >
-            {isLoading ? 'Creating...' : 'Create'}
+            {isLoading ? 'Creating...' : 'Create Vault'}
+          </button>
+
+          <button
+            className="vault-modal__btn vault-modal__btn--cancel"
+            onClick={onClose}
+          >
+            Cancel
           </button>
         </div>
       </div>

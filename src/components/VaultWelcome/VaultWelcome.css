@@ -529,15 +529,15 @@
   opacity: 1;
 }
 
-/* Create Vault Modal - Glassy Overlay */
+/* Create Vault Modal - Luxury Redesign */
 .vault-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  /* Slightly dark */
-  backdrop-filter: blur(12px);
-  /* Heavy blur for focus */
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.2);
+  /* Lighter, softer dimmer */
+  backdrop-filter: blur(8px);
+  /* Reduced blur for depth without murkiness */
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -547,31 +547,50 @@
 
 .vault-modal {
   width: 90%;
-  max-width: 440px;
+  max-width: 460px;
+  /* Slightly wider for breathing room */
   background: var(--neko-bg-primary);
-  border: none;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  /* Very subtle border */
   box-shadow:
-    0 24px 48px -12px rgba(0, 0, 0, 0.3),
-    0 0 1px rgba(0, 0, 0, 0.1);
-  border-radius: 24px;
-  /* Big smooth corners */
-  padding: 32px 40px;
-  animation: vaultWelcomeFadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    0 24px 48px -12px rgba(0, 0, 0, 0.15),
+    /* Soft diffuse shadow */
+    0 4px 12px -4px rgba(0, 0, 0, 0.08);
+  /* Tight anchor shadow */
+  border-radius: 28px;
+  /* Apple-style super-round corners */
+  padding: 40px;
+  /* Generous padding */
+  animation: vaultModalSlideUp 0.4s cubic-bezier(0.19, 1, 0.22, 1);
   display: flex;
   flex-direction: column;
 }
 
+@keyframes vaultModalSlideUp {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 .vault-modal__title {
-  font-size: 20px;
+  font-size: 22px;
+  /* Larger, more confident title */
   font-weight: 700;
   text-align: center;
-  margin: 0 0 32px 0;
+  margin: 0 0 36px 0;
   color: var(--neko-text-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
 }
 
 .vault-modal__field {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .vault-modal__label {
@@ -579,131 +598,158 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--neko-text-secondary);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   margin-left: 4px;
+  letter-spacing: 0.01em;
 }
 
 .vault-modal__input {
   width: 100%;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1px solid transparent;
-  background: var(--neko-bg-secondary);
+  padding: 14px 18px;
+  /* Plush, tall inputs */
+  border-radius: 14px;
+  border: 1px solid rgba(128, 128, 128, 0.1);
+  background: rgba(128, 128, 128, 0.03);
+  /* Very subtle off-white/gray */
   color: var(--neko-text-primary);
-  font-size: 15px;
+  font-size: 16px;
+  /* Larger text input */
   outline: none;
-  transition: all 0.2s ease;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .vault-modal__input:focus {
   background: var(--neko-bg-primary);
-  box-shadow: 0 0 0 2px var(--neko-text-primary);
-  /* Focus ring */
+  /* White on focus */
+  border-color: var(--neko-text-primary);
+  /* Black border on focus */
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  /* Subtle lift */
+  transform: translateY(-1px);
 }
 
 .vault-modal__input::placeholder {
   color: var(--neko-text-tertiary);
-  opacity: 0.7;
+  opacity: 0.6;
+  font-weight: 400;
 }
 
 .vault-modal__path-input {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 
 .vault-modal__path-input .vault-modal__input {
   flex: 1;
+  background: rgba(128, 128, 128, 0.03);
+  /* Consistently minimal */
 }
 
+/* Browse Button - Unified with Input height */
 .vault-modal__browse-btn {
-  padding: 0 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(128, 128, 128, 0.1);
+  padding: 0 18px;
   background: var(--neko-bg-secondary);
   color: var(--neko-text-primary);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 14px;
+  border: none;
   cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
+  transition: all 0.2s ease;
 }
 
 .vault-modal__browse-btn:hover {
-  background: var(--neko-bg-tertiary);
-  transform: translateY(-1px);
+  background: rgba(128, 128, 128, 0.15);
 }
 
 .vault-modal__preview {
   margin-top: -8px;
-  margin-bottom: 20px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: rgba(128, 128, 128, 0.05);
+  margin-bottom: 24px;
+  padding: 0 6px;
   font-size: 12px;
   color: var(--neko-text-tertiary);
-  text-align: center;
+  text-align: left;
+  /* Align with label */
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  opacity: 0.8;
 }
 
-.vault-modal__preview-path {
-  color: var(--neko-text-secondary);
-  font-family: ui-monospace, monospace;
-  word-break: break-all;
+.vault-modal__preview::before {
+  content: 'will be created at:';
+  opacity: 0.6;
 }
 
 .vault-modal__error {
-  margin-top: 0;
-  margin-bottom: 20px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: rgba(255, 59, 48, 0.1);
-  color: #ff3b30;
+  margin-bottom: 24px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #FFF2F2;
+  color: #FF3B30;
+  /* Apple Red */
   font-size: 13px;
+  font-weight: 500;
   text-align: center;
+  border: 1px solid rgba(255, 59, 48, 0.1);
+  animation: vaultItemFadeIn 0.3s ease;
 }
 
 .vault-modal__actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 16px;
   margin-top: 12px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(128, 128, 128, 0.1);
+  /* Minimal divider */
 }
 
 .vault-modal__btn {
-  padding: 0 24px;
-  border-radius: 999px;
-  height: 44px;
-  font-size: 14px;
+  padding: 0 28px;
+  border-radius: 99px;
+  height: 48px;
+  /* Tall, tactile buttons */
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
   border: none;
+  letter-spacing: -0.01em;
 }
 
 .vault-modal__btn--cancel {
   background: transparent;
-  color: var(--neko-text-tertiary);
+  color: var(--neko-text-secondary);
+  font-weight: 500;
 }
 
 .vault-modal__btn--cancel:hover {
-  color: var(--neko-text-primary);
   background: var(--neko-bg-secondary);
+  color: var(--neko-text-primary);
 }
 
 .vault-modal__btn--create {
   background: var(--neko-text-primary);
+  /* Solid Black */
   color: var(--neko-bg-primary);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  /* White Text */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .vault-modal__btn--create:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
+}
+
+.vault-modal__btn--create:active {
+  transform: scale(0.98);
 }
 
 .vault-modal__btn--create:disabled {
-  opacity: 0.3;
+  background: var(--neko-bg-tertiary);
+  color: var(--neko-text-tertiary);
+  box-shadow: none;
   cursor: not-allowed;
   transform: none;
-  box-shadow: none;
 }
