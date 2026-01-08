@@ -185,7 +185,7 @@
 
 /* Code */
 .milkdown code {
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.875em;
   background-color: var(--neko-bg-tertiary);
   color: #be185d;

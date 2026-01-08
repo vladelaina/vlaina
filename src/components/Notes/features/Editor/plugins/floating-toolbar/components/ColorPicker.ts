@@ -22,7 +22,7 @@ export function renderColorPicker(
   
   picker.innerHTML = `
     <div class="color-picker-section">
-      <div class="color-picker-label">文字颜色</div>
+      <div class="color-picker-label">Text Color</div>
       <div class="color-picker-grid" data-type="text">
         ${palette.map(color => `
           <button 
@@ -36,7 +36,7 @@ export function renderColorPicker(
       </div>
     </div>
     <div class="color-picker-section">
-      <div class="color-picker-label">背景高亮</div>
+      <div class="color-picker-label">Background</div>
       <div class="color-picker-grid" data-type="bg">
         ${palette.map(color => `
           <button 

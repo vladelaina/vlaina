@@ -16,7 +16,7 @@ export const FORMAT_PREVIEW_STYLES: Record<string, Record<string, string>> = {
   strike: { textDecorationLine: 'line-through' },
   // .milkdown code
   code: { 
-    fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontFamily: "var(--font-mono)",
     fontSize: '0.875em',
     backgroundColor: 'var(--neko-bg-tertiary)',
     color: '#be185d',
@@ -115,7 +115,7 @@ export const BLOCK_PREVIEW_STYLES: Record<BlockType, Record<string, string>> = {
   taskList: { marginLeft: '0' },
   // Code block: .milkdown pre
   codeBlock: { 
-    fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontFamily: "var(--font-mono)",
     backgroundColor: '#18181b',
     padding: '1rem 1.25rem',
     borderRadius: '0.5rem',

@@ -23,6 +23,48 @@ importers:
       '@emoji-mart/react':
         specifier: ^1.1.1
         version: 1.1.1(emoji-mart@5.6.0)(react@19.2.1)
+      '@fontsource/bebas-neue':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/ibm-plex-mono':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/inter':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/jetbrains-mono':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/kalam':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/lora':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/noto-serif':
+        specifier: ^5.2.9
+        version: 5.2.9
+      '@fontsource/orelega-one':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/poppins':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/roboto-mono':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/source-code-pro':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/source-sans-3':
+        specifier: ^5.2.9
+        version: 5.2.9
+      '@fontsource/source-serif-4':
+        specifier: ^5.2.9
+        version: 5.2.9
+      '@fontsource/space-mono':
+        specifier: ^5.2.9
+        version: 5.2.9
       '@milkdown/kit':
         specifier: ^7.17.3
         version: 7.17.3(@codemirror/language@6.12.1)(@codemirror/state@6.5.3)(@codemirror/view@6.39.8)(typescript@5.8.3)
@@ -681,6 +723,48 @@ packages:
 
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
+
+  '@fontsource/bebas-neue@5.2.7':
+    resolution: {integrity: sha512-DsmBrmq55d9BCU0mt4DT4RZDdH8vhWRKEUOfbuNB1EEjMuwbtFvM8N+3gIlkYSFbsb10P8Q19BV5OdpMu2h0fA==}
+
+  '@fontsource/ibm-plex-mono@5.2.7':
+    resolution: {integrity: sha512-MKAb8qV+CaiMQn2B0dIi1OV3565NYzp3WN5b4oT6LTkk+F0jR6j0ZN+5BKJiIhffDC3rtBULsYZE65+0018z9w==}
+
+  '@fontsource/inter@5.2.8':
+    resolution: {integrity: sha512-P6r5WnJoKiNVV+zvW2xM13gNdFhAEpQ9dQJHt3naLvfg+LkF2ldgSLiF4T41lf1SQCM9QmkqPTn4TH568IRagg==}
+
+  '@fontsource/jetbrains-mono@5.2.8':
+    resolution: {integrity: sha512-6w8/SG4kqvIMu7xd7wt6x3idn1Qux3p9N62s6G3rfldOUYHpWcc2FKrqf+Vo44jRvqWj2oAtTHrZXEP23oSKwQ==}
+
+  '@fontsource/kalam@5.2.8':
+    resolution: {integrity: sha512-9WDYPX1llS28xRjrqAoz3IOLeaBhCtL3HCtNanYnF1fthFPmSD5aESL6s7C1SJxAlxq/qzTlpIpw4S1W9+q3OA==}
+
+  '@fontsource/lora@5.2.8':
+    resolution: {integrity: sha512-AQlfsHw4TP1x/eb2IZ6VjQ70ctKa39m9JN9A4zlvDOeKYLrCs+GaYIEQ86Y6YfSPGHn01bErXkRcyktOW0LOPQ==}
+
+  '@fontsource/noto-serif@5.2.9':
+    resolution: {integrity: sha512-A2b7XBo0dSxxTZg95Ap/HLinXq1pEM8PzSvbBFtPMZM5/1BLKEU1dR+PBnLixvOdcC7mup+/NjmyLryQ1E9WeA==}
+
+  '@fontsource/orelega-one@5.2.7':
+    resolution: {integrity: sha512-jc+h6WkZa9WGEt+gxQnA05VFmirBy/oMAHUSUPTN3C5O7mSeRBLI6T1MXTu/+mwNorRHUzyaTaEyYQf4PePvHg==}
+
+  '@fontsource/poppins@5.2.7':
+    resolution: {integrity: sha512-6uQyPmseo4FgI97WIhA4yWRlNaoLk4vSDK/PyRwdqqZb5zAEuc+Kunt8JTMcsHYUEGYBtN15SNkMajMdqUSUmg==}
+
+  '@fontsource/roboto-mono@5.2.8':
+    resolution: {integrity: sha512-M0XPRcvkOKiTPooXwX7yJSNpuad3CPcQwsADBfnopz3apBs+VKI47pc42mlvAxJjNTRauu5rndSxHc8F52bR7Q==}
+
+  '@fontsource/source-code-pro@5.2.7':
+    resolution: {integrity: sha512-7papq9TH94KT+S5VSY8cU7tFmwuGkIe3qxXRMscuAXH6AjMU+KJI75f28FzgBVDrlMfA0jjlTV4/x5+H5o/5EQ==}
+
+  '@fontsource/source-sans-3@5.2.9':
+    resolution: {integrity: sha512-u3ymIq4rfmCCyB9MEw/sFR5lPVJ1yTNXmIMbUz+9kVCFIHvNtfzXOEBuvkg3Tk0zhmioPeJ28ZK5smZ7TurezQ==}
+
+  '@fontsource/source-serif-4@5.2.9':
+    resolution: {integrity: sha512-er/Pym9emsEVJNf947umJ4kXarXfsiN6CN7kTYinefKRaHLwiquiiHOZvKvxWgkV8JMCf3pV3g0NcsPFpVCH9w==}
+
+  '@fontsource/space-mono@5.2.9':
+    resolution: {integrity: sha512-b61faFOHEISQ/pD25G+cfGY9o/WW6lRv6hBQQfpWvEJ4y1V+S4gmth95EVyBE2VL3qDYHeVQ8nBzrplzdXTDDg==}
 
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -4063,6 +4147,34 @@ snapshots:
       tabbable: 6.3.0
 
   '@floating-ui/utils@0.2.10': {}
+
+  '@fontsource/bebas-neue@5.2.7': {}
+
+  '@fontsource/ibm-plex-mono@5.2.7': {}
+
+  '@fontsource/inter@5.2.8': {}
+
+  '@fontsource/jetbrains-mono@5.2.8': {}
+
+  '@fontsource/kalam@5.2.8': {}
+
+  '@fontsource/lora@5.2.8': {}
+
+  '@fontsource/noto-serif@5.2.9': {}
+
+  '@fontsource/orelega-one@5.2.7': {}
+
+  '@fontsource/poppins@5.2.7': {}
+
+  '@fontsource/roboto-mono@5.2.8': {}
+
+  '@fontsource/source-code-pro@5.2.7': {}
+
+  '@fontsource/source-sans-3@5.2.9': {}
+
+  '@fontsource/source-serif-4@5.2.9': {}
+
+  '@fontsource/space-mono@5.2.9': {}
 
   '@iconify/types@2.0.0': {}
 

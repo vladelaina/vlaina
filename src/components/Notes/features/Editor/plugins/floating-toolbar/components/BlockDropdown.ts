@@ -175,7 +175,7 @@ export function renderBlockDropdown(
  */
 export function getBlockTypeDisplayLabel(blockType: BlockType): string {
   const config = BLOCK_TYPES.find(b => b.type === blockType);
-  return config?.label || '正文';
+  return config?.label || 'Text';
 }
 
 /**

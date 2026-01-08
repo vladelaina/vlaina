@@ -24,7 +24,7 @@ export function renderLinkEditor(
       <input 
         type="text" 
         class="link-editor-input" 
-        placeholder="输入链接地址"
+        placeholder="Enter link URL"
         value="${escapeHtml(currentUrl)}"
         autocomplete="off"
         spellcheck="false"
@@ -33,11 +33,11 @@ export function renderLinkEditor(
       <div class="link-editor-actions">
         ${hasExistingLink ? `
           <button class="link-editor-btn link-editor-btn-secondary" data-action="remove">
-            移除链接
+            Remove
           </button>
         ` : ''}
         <button class="link-editor-btn link-editor-btn-primary" data-action="apply">
-          ${hasExistingLink ? '更新' : '添加'}
+          ${hasExistingLink ? 'Update' : 'Add'}
         </button>
       </div>
     </div>
@@ -93,7 +93,7 @@ export function renderLinkEditor(
     
     // Validate URL
     if (!isValidUrl(value)) {
-      errorEl.textContent = '请输入有效的链接地址';
+      errorEl.textContent = 'Please enter a valid URL';
       errorEl.style.display = 'block';
       return;
     }

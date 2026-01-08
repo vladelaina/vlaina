@@ -2,7 +2,133 @@
 @import "tw-animate-css";
 @import "katex/dist/katex.min.css";
 
+/* Local Font Imports (Fontsource) */
+@import "@fontsource/inter/300.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+
+@import "@fontsource/poppins/300.css";
+@import "@fontsource/poppins/400.css";
+@import "@fontsource/poppins/500.css";
+@import "@fontsource/poppins/600.css";
+@import "@fontsource/poppins/700.css";
+
+@import "@fontsource/lora/400.css";
+@import "@fontsource/lora/500.css";
+@import "@fontsource/lora/600.css";
+@import "@fontsource/lora/700.css";
+@import "@fontsource/lora/400-italic.css";
+
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/600.css";
+@import "@fontsource/jetbrains-mono/700.css";
+
+@import "@fontsource/source-code-pro/400.css";
+@import "@fontsource/source-code-pro/500.css";
+@import "@fontsource/source-code-pro/600.css";
+@import "@fontsource/source-code-pro/700.css";
+
+@import "@fontsource/kalam/300.css";
+@import "@fontsource/kalam/400.css";
+@import "@fontsource/kalam/700.css";
+
+@import "@fontsource/bebas-neue/400.css";
+
+/* Reserved fonts for future whiteboard/canvas features
+@import "@fontsource/source-sans-3/300.css";
+@import "@fontsource/source-sans-3/400.css";
+@import "@fontsource/source-sans-3/500.css";
+@import "@fontsource/source-sans-3/600.css";
+@import "@fontsource/source-sans-3/700.css";
+
+@import "@fontsource/source-serif-4/400.css";
+@import "@fontsource/source-serif-4/500.css";
+@import "@fontsource/source-serif-4/600.css";
+@import "@fontsource/source-serif-4/700.css";
+
+@import "@fontsource/noto-serif/400.css";
+@import "@fontsource/noto-serif/500.css";
+@import "@fontsource/noto-serif/600.css";
+@import "@fontsource/noto-serif/700.css";
+
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+@import "@fontsource/ibm-plex-mono/700.css";
+
+@import "@fontsource/roboto-mono/400.css";
+@import "@fontsource/roboto-mono/500.css";
+@import "@fontsource/roboto-mono/600.css";
+@import "@fontsource/roboto-mono/700.css";
+
+@import "@fontsource/space-mono/400.css";
+@import "@fontsource/space-mono/700.css";
+
+@import "@fontsource/orelega-one/400.css";
+*/
+
 @custom-variant dark (&:is(.dark *));
+
+/* ============================================
+   Font Family Variables (AFFiNE Style)
+   ============================================ */
+
+:root {
+  /* Basic fallback fonts */
+  --font-fallback: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Tahoma, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  
+  /* Main UI Font - Sans Serif */
+  --font-sans: 'Inter', 'Source Sans 3', 'Poppins', var(--font-fallback);
+  
+  /* Serif Font - For reading/documents */
+  --font-serif: 'Source Serif 4', 'Noto Serif', 'Lora', 'Cambria', Georgia, serif, var(--font-fallback);
+  
+  /* Monospace Font - For code */
+  --font-mono: 'JetBrains Mono', 'Source Code Pro', 'IBM Plex Mono', 'Roboto Mono', 'Space Mono', Consolas, Menlo, Monaco, monospace;
+  
+  /* Number Font - For numeric display */
+  --font-number: 'Roboto Mono', 'JetBrains Mono', var(--font-fallback);
+  
+  /* Canvas/Whiteboard Fonts */
+  --font-canvas-default: 'Inter', var(--font-fallback);
+  --font-canvas-handwriting: 'Kalam', cursive, var(--font-fallback);
+  --font-canvas-serif: 'Lora', 'Source Serif 4', Georgia, serif, var(--font-fallback);
+  --font-canvas-display: 'Bebas Neue', 'Orelega One', sans-serif;
+  --font-canvas-modern: 'Poppins', 'Inter', var(--font-fallback);
+  
+  /* AFFiNE Compatible Variables */
+  --affine-font-family: var(--font-sans);
+  --affine-font-serif-family: var(--font-serif);
+  --affine-font-mono-family: var(--font-mono);
+  --affine-font-number-family: var(--font-number);
+  --affine-font-code-family: var(--font-mono);
+  
+  /* Font Sizes (AFFiNE Style) */
+  --affine-font-title: 36px;
+  --affine-font-h1: 28px;
+  --affine-font-h2: 26px;
+  --affine-font-h3: 24px;
+  --affine-font-h4: 22px;
+  --affine-font-h5: 20px;
+  --affine-font-h6: 18px;
+  --affine-font-base: 15px;
+  --affine-font-sm: 14px;
+  --affine-font-xs: 12px;
+  --affine-line-height: calc(1em + 8px);
+}
+
+/* Apply default font to body */
+body {
+  font-family: var(--font-sans);
+  font-size: var(--affine-font-base);
+  line-height: var(--affine-line-height);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
 
 /* shadcn/ui Theme Variables */
 @theme inline {
@@ -41,6 +167,11 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* Font Family Theme */
+  --font-sans: 'Inter', 'Source Sans 3', 'Poppins', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --font-serif: 'Source Serif 4', 'Noto Serif', 'Lora', 'Cambria', Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'Source Code Pro', 'IBM Plex Mono', 'Roboto Mono', Consolas, monospace;
 }
 
 :root {

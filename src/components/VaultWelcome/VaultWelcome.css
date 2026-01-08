@@ -144,7 +144,7 @@
   color: var(--neko-text-primary);
   margin: 0;
   line-height: 1.1;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
 }
 
 /* .vault-brand__tagline removed */
@@ -387,7 +387,7 @@
   opacity: 0.6;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  font-family: var(--font-sans);
   /* Clean sans-serif for label */
 }
 
@@ -586,7 +586,7 @@
   margin: 0 0 36px 0;
   color: var(--neko-text-primary);
   letter-spacing: -0.015em;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+  font-family: var(--font-sans);
 }
 
 .vault-modal__field {

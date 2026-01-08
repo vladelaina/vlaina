@@ -189,6 +189,16 @@ function App() {
     return () => window.removeEventListener('wheel', handleWheel);
   }, []);
 
+  // Disable browser context menu (right-click menu)
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    return () => document.removeEventListener('contextmenu', handleContextMenu);
+  }, []);
+
   return (
     <ThemeProvider>
       <AppContent />
