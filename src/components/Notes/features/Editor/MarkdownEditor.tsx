@@ -73,19 +73,19 @@ const titleSyncPluginKey = new PluginKey('titleSync');
 
 const titleSyncPlugin = $prose(() => {
   let lastTitle = '';
-  
+
   return new Plugin({
     key: titleSyncPluginKey,
     view() {
       return {
         update(view, prevState) {
           if (prevState && prevState.doc.eq(view.state.doc)) return;
-          
+
           const { doc } = view.state;
           const firstNode = doc.firstChild;
           const path = useNotesStore.getState().currentNote?.path;
           if (!path) return;
-          
+
           let newTitle = 'Untitled';
           if (firstNode?.type.name === 'heading' && firstNode.attrs.level === 1) {
             const titleText = firstNode.textContent.trim();
@@ -93,7 +93,7 @@ const titleSyncPlugin = $prose(() => {
               newTitle = titleText;
             }
           }
-          
+
           // Only sync if title actually changed
           if (newTitle !== lastTitle) {
             lastTitle = newTitle;
@@ -144,8 +144,25 @@ function MilkdownEditorInner() {
         ctx.set(rootCtx, root);
         const content = currentNote?.content || '';
         ctx.set(defaultValueCtx, content);
+
+        // Track if this is the initial events
+        let isInitializing = true;
+
         ctx.get(listenerCtx)
           .markdownUpdated((_ctx, markdown) => {
+            // Safety Guard: Prevent overwriting content if editor initializes empty despite having data
+            // This handles the race condition where Milkdown might fire an empty update before full hydration
+            if (isInitializing) {
+              const contentWasSubstantial = content.length > 20;
+              const newContentIsTiny = markdown.trim().length < 5;
+
+              if (contentWasSubstantial && newContentIsTiny) {
+                console.warn('Prevented accidental note wipe on initialization');
+                return;
+              }
+              isInitializing = false;
+            }
+
             const finalContent = (!markdown.trim() || markdown.trim() === '') ? '# ' : markdown;
             updateContent(finalContent);
             debouncedSave();
@@ -157,7 +174,7 @@ function MilkdownEditorInner() {
       .use(listener)
       .use(titleSyncPlugin)
       .use(customPlugins),
-    [currentNote?.path]
+    [currentNote?.path] // Re-create editor when path changes
   );
 
   // Reset auto-focus flag when note changes
@@ -168,22 +185,22 @@ function MilkdownEditorInner() {
   // Focus editor on title after creating new note (only once)
   useEffect(() => {
     if (!get || !isNewlyCreated || hasAutoFocused.current) return;
-    
+
     // Mark as focused to prevent re-triggering
     hasAutoFocused.current = true;
-    
+
     // Small delay to ensure editor is ready
     const timer = setTimeout(() => {
       try {
         const editor = get();
         if (!editor) return;
-        
+
         const view = editor.ctx.get(editorViewCtx);
         if (!view) return;
-        
+
         // Focus the editor
         view.focus();
-        
+
         // Move cursor to end of first line (title)
         const { doc } = view.state;
         const firstNode = doc.firstChild;
@@ -198,7 +215,7 @@ function MilkdownEditorInner() {
         // Editor not ready yet, ignore
       }
     }, 100);
-    
+
     return () => clearTimeout(timer);
   }, [get, isNewlyCreated]);
 
@@ -215,9 +232,9 @@ export function MarkdownEditor() {
   const toggleStarred = useNotesStore(s => s.toggleStarred);
   const getNoteIcon = useNotesStore(s => s.getNoteIcon);
   const setNoteIcon = useNotesStore(s => s.setNoteIcon);
-  
+
   const setNotesPreviewIcon = useUIStore(s => s.setNotesPreviewIcon);
-  
+
   const displayIcon = useDisplayIcon(currentNote?.path);
   const starred = currentNote ? isStarred(currentNote.path) : false;
   const noteIcon = currentNote ? getNoteIcon(currentNote.path) : undefined;
@@ -226,7 +243,7 @@ export function MarkdownEditor() {
   const iconButtonRef = useRef<HTMLButtonElement>(null);
   const previewRafRef = useRef<number | null>(null);
   const clearPreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+
   const handleIconSelect = (emoji: string) => {
     if (currentNote) {
       setNoteIcon(currentNote.path, emoji);
@@ -240,15 +257,15 @@ export function MarkdownEditor() {
       setNotesPreviewIcon(null, null);
     }
   };
-  
+
   const handleIconPreview = useCallback((icon: string | null) => {
     if (!currentNote) return;
-    
+
     if (clearPreviewTimerRef.current) {
       clearTimeout(clearPreviewTimerRef.current);
       clearPreviewTimerRef.current = null;
     }
-    
+
     if (icon === null) {
       clearPreviewTimerRef.current = setTimeout(() => {
         setNotesPreviewIcon(null, null);
@@ -263,7 +280,7 @@ export function MarkdownEditor() {
       });
     }
   }, [currentNote, setNotesPreviewIcon]);
-  
+
   const handleIconPickerClose = () => {
     setShowIconPicker(false);
     setIsHoveringHeader(false);
@@ -288,7 +305,7 @@ export function MarkdownEditor() {
       }
     };
   }, []);
-  
+
   return (
     <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative">
       <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
@@ -296,14 +313,14 @@ export function MarkdownEditor() {
           onClick={() => currentNote && toggleStarred(currentNote.path)}
           className={cn(
             "p-1.5 transition-colors",
-            starred 
-              ? "text-yellow-500" 
+            starred
+              ? "text-yellow-500"
               : `${iconButtonStyles} hover:text-yellow-500`
           )}
         >
           <IconStar className="size-4" fill={starred ? "currentColor" : "none"} />
         </button>
-        
+
         <button
           className={cn(
             "p-1.5 transition-colors",
@@ -316,7 +333,7 @@ export function MarkdownEditor() {
 
       <CustomScrollbar className="flex-1">
         <div className="max-w-[800px] mx-auto w-full px-10">
-          <div 
+          <div
             className="pt-6 pb-5"
             onMouseEnter={() => setIsHoveringHeader(true)}
             onMouseLeave={() => setIsHoveringHeader(false)}
@@ -357,7 +374,7 @@ export function MarkdownEditor() {
                 <span>Add icon</span>
               </button>
             )}
-            
+
             {showIconPicker && (
               <div className="relative">
                 <div className="absolute top-2 left-0 z-50">
@@ -375,7 +392,7 @@ export function MarkdownEditor() {
             )}
           </div>
         </div>
-        
+
         <MilkdownProvider key={currentNote?.path}>
           <MilkdownEditorInner />
         </MilkdownProvider>

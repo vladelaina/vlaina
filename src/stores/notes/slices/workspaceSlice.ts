@@ -1,11 +1,11 @@
 
 import { StateCreator } from 'zustand';
-import { readTextFile, writeTextFile, rename, exists, remove } from '@tauri-apps/plugin-fs';
+import { readTextFile, rename, exists, remove } from '@tauri-apps/plugin-fs';
 import { join } from '@tauri-apps/api/path';
 import { NotesStore } from '../types';
 import { extractFirstH1, sanitizeFileName } from '../noteUtils';
 import { updateDisplayName, moveDisplayName, removeDisplayName } from '../displayNameUtils';
-import { addToRecentNotes, saveNoteIconsToFile, saveFavoritesToFile, saveWorkspaceState } from '../storage'; // Import storage helpers
+import { addToRecentNotes, saveNoteIconsToFile, saveFavoritesToFile, saveWorkspaceState, safeWriteTextFile } from '../storage'; // Import storage helpers
 import { updateFileNodePath, collectExpandedPaths, restoreExpandedState } from '../fileTreeUtils';
 
 export interface WorkspaceSlice {
@@ -97,7 +97,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
                 const oldFullPath = await join(notesPath, currentNote.path);
 
                 if (!newFileExists || newFullPath === oldFullPath) {
-                    await writeTextFile(oldFullPath, currentNote.content);
+                    await safeWriteTextFile(oldFullPath, currentNote.content);
 
                     if (newPath !== currentNote.path) {
                         await rename(oldFullPath, newFullPath);
@@ -134,7 +134,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
             }
 
             const fullPath = await join(notesPath, currentNote.path);
-            await writeTextFile(fullPath, currentNote.content);
+            await safeWriteTextFile(fullPath, currentNote.content);
             set({ isDirty: false });
         } catch (error) {
             set({ error: error instanceof Error ? error.message : 'Failed to save note' });
@@ -152,9 +152,10 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     closeTab: async (path: string) => {
         const { openTabs, currentNote, isDirty, saveNote, notesPath, loadFileTree, rootFolder, starredNotes, starredFolders } = get();
 
+        const { isNewlyCreated } = get();
         // Check if the note is empty and "untitled" (basic check) or just empty
-        // The original logic checked for specific content to delete empty notes
-        const isEmptyNote = currentNote?.path === path && (!currentNote.content.trim() || currentNote.content.trim() === '#' || currentNote.content.trim() === '# ');
+        // SAFETY: Only delete if it's explicitly a newly created note that hasn't been modified significantly
+        const isEmptyNote = isNewlyCreated && currentNote?.path === path && (!currentNote.content.trim() || currentNote.content.trim() === '#' || currentNote.content.trim() === '# ');
 
         if (isEmptyNote) {
             try {

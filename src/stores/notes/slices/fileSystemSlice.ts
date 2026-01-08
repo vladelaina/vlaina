@@ -1,6 +1,6 @@
 
 import { StateCreator } from 'zustand';
-import { writeTextFile, mkdir, remove, rename, exists } from '@tauri-apps/plugin-fs';
+import { mkdir, remove, rename, exists } from '@tauri-apps/plugin-fs';
 import { join } from '@tauri-apps/api/path';
 import { NotesStore } from '../types';
 import {
@@ -11,7 +11,7 @@ import {
     collectExpandedPaths,
     restoreExpandedState
 } from '../fileTreeUtils';
-import { getNotesBasePath, ensureNotesFolder, loadNoteIconsFromFile, loadWorkspaceState, loadFavoritesFromFile, saveWorkspaceState, saveFavoritesToFile } from '../storage';
+import { getNotesBasePath, ensureNotesFolder, loadNoteIconsFromFile, loadWorkspaceState, loadFavoritesFromFile, saveWorkspaceState, saveFavoritesToFile, safeWriteTextFile } from '../storage';
 import { moveDisplayName, removeDisplayName } from '../displayNameUtils';
 import { addToRecentNotes } from '../storage'; // Need this for createNote
 
@@ -127,7 +127,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
             }
 
             const defaultContent = '# ';
-            await writeTextFile(fullPath, defaultContent);
+            await safeWriteTextFile(fullPath, defaultContent);
             await loadFileTree();
 
             const currentRootFolder = get().rootFolder;
@@ -169,7 +169,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
                 if (!folderExists) await mkdir(folderFullPath, { recursive: true });
             }
 
-            await writeTextFile(fullPath, content);
+            await safeWriteTextFile(fullPath, content);
             await loadFileTree();
 
             const currentRootFolder = get().rootFolder;

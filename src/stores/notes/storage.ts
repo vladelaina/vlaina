@@ -1,15 +1,45 @@
 /** Notes Store - Storage utilities for localStorage and file-based storage */
 
-import { readTextFile, writeTextFile, mkdir, exists } from '@tauri-apps/plugin-fs';
+// Removed duplicate import
 import { join } from '@tauri-apps/api/path';
-import { 
-  RECENT_NOTES_KEY, 
+import {
+  RECENT_NOTES_KEY,
   MAX_RECENT_NOTES,
   NEKOTICK_CONFIG_FOLDER,
   ICONS_FILE,
   WORKSPACE_FILE,
   FAVORITES_FILE,
 } from './constants';
+
+// ============ File-based storage utilities ============
+import { readTextFile, writeTextFile, mkdir, exists, rename, remove } from '@tauri-apps/plugin-fs'; // Add rename/remove
+
+/**
+ * Atomic write helper: writes to temp file then renames to target.
+ * Prevents data corruption on crash or partial write.
+ */
+export async function safeWriteTextFile(path: string, content: string): Promise<void> {
+  const tempPath = `${path}.tmp`;
+  try {
+    await writeTextFile(tempPath, content);
+    // On Windows, rename might fail if target exists, but Tauri/Rust std::fs::rename usually handles replace.
+    // However, for maximum safety, we try rename first.
+    try {
+      await rename(tempPath, path);
+    } catch (e) {
+      // If rename fails (e.g. locked), try removing target then rename
+      // But removing target first is risky if rename fails after.
+      // Let's assume standard rename overwrite works for now as it's atomic-ish.
+      // If it throws, we might need a specific delete-then-rename flow but that breaks atomicity.
+      // Re-throwing to be safe.
+      throw e;
+    }
+  } catch (error) {
+    // Cleanup temp file if something went wrong
+    try { await remove(tempPath); } catch { }
+    throw error;
+  }
+}
 
 // ============ localStorage utilities ============
 
@@ -45,7 +75,7 @@ export async function loadNoteIconsFromFile(vaultPath: string): Promise<Map<stri
     const iconsPath = await join(vaultPath, NEKOTICK_CONFIG_FOLDER, ICONS_FILE);
     const fileExists = await exists(iconsPath);
     if (!fileExists) return new Map();
-    
+
     const content = await readTextFile(iconsPath);
     const obj = JSON.parse(content);
     return new Map(Object.entries(obj));
@@ -64,10 +94,10 @@ export async function saveNoteIconsToFile(vaultPath: string, icons: Map<string, 
     if (!configExists) {
       await mkdir(configPath, { recursive: true });
     }
-    
+
     const iconsPath = await join(configPath, ICONS_FILE);
     const obj = Object.fromEntries(icons);
-    await writeTextFile(iconsPath, JSON.stringify(obj, null, 2));
+    await safeWriteTextFile(iconsPath, JSON.stringify(obj, null, 2));
   } catch { /* ignore */ }
 }
 
@@ -129,7 +159,7 @@ export async function saveWorkspaceState(vaultPath: string, state: WorkspaceStat
       await mkdir(configPath, { recursive: true });
     }
     const wsPath = await join(configPath, WORKSPACE_FILE);
-    await writeTextFile(wsPath, JSON.stringify(state, null, 2));
+    await safeWriteTextFile(wsPath, JSON.stringify(state, null, 2));
   } catch { /* ignore */ }
 }
 
@@ -169,6 +199,6 @@ export async function saveFavoritesToFile(vaultPath: string, favorites: Favorite
       await mkdir(configPath, { recursive: true });
     }
     const favPath = await join(configPath, FAVORITES_FILE);
-    await writeTextFile(favPath, JSON.stringify(favorites, null, 2));
+    await safeWriteTextFile(favPath, JSON.stringify(favorites, null, 2));
   } catch { /* ignore */ }
 }
