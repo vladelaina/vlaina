@@ -10,15 +10,15 @@ import type { FileTreeNode } from './types';
 export async function buildFileTree(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
   const fullPath = relativePath ? await join(basePath, relativePath) : basePath;
   const entries = await readDir(fullPath);
-  
+
   const nodes: FileTreeNode[] = [];
-  
+
   for (const entry of entries) {
     // Skip hidden folders (like .nekotick)
     if (entry.name.startsWith('.')) continue;
-    
+
     const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
-    
+
     if (entry.isDirectory) {
       const children = await buildFileTree(basePath, entryPath);
       nodes.push({
@@ -38,7 +38,7 @@ export async function buildFileTree(basePath: string, relativePath: string = '')
       });
     }
   }
-  
+
   return sortFileTree(nodes);
 }
 
@@ -57,9 +57,9 @@ export function sortFileTree(nodes: FileTreeNode[]): FileTreeNode[] {
  * Update a file node's path in the tree
  */
 export function updateFileNodePath(
-  nodes: FileTreeNode[], 
-  oldPath: string, 
-  newPath: string, 
+  nodes: FileTreeNode[],
+  oldPath: string,
+  newPath: string,
   newName: string
 ): FileTreeNode[] {
   return nodes.map(node => {
@@ -72,6 +72,31 @@ export function updateFileNodePath(
     return node;
   });
 }
+
+/**
+ * Update a folder node and all its children to reflect a rename/move
+ */
+export function updateFolderNode(nodes: FileTreeNode[], targetPath: string, newName: string, newPath: string): FileTreeNode[] {
+  return nodes.map(node => {
+    if (node.path === targetPath && node.isFolder) {
+      const updateChildPaths = (children: FileTreeNode[], oldBasePath: string, newBasePath: string): FileTreeNode[] => {
+        return children.map(child => {
+          const newChildPath = child.path.replace(oldBasePath, newBasePath);
+          if (child.isFolder) {
+            return { ...child, id: newChildPath, path: newChildPath, children: updateChildPaths(child.children, oldBasePath, newBasePath) };
+          }
+          return { ...child, id: newChildPath, path: newChildPath };
+        });
+      };
+      return { ...node, id: newPath, name: newName, path: newPath, children: updateChildPaths(node.children, targetPath, newPath) };
+    }
+    if (node.isFolder) {
+      return { ...node, children: updateFolderNode(node.children, targetPath, newName, newPath) };
+    }
+    return node;
+  });
+}
+
 
 /**
  * Toggle folder expanded state
