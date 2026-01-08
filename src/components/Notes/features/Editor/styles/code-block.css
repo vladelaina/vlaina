@@ -1,0 +1,84 @@
+/**
+ * Enhanced Code Block Styles
+ */
+
+.code-block-enhanced {
+  position: relative;
+  margin: 1rem 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background-color: #18181b;
+  border: 1px solid var(--neko-border);
+}
+
+.dark .code-block-enhanced {
+  background-color: #09090b;
+}
+
+.code-block-enhanced .code-block-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background-color: #27272a;
+  border-bottom: 1px solid #3f3f46;
+}
+
+.dark .code-block-enhanced .code-block-toolbar {
+  background-color: #18181b;
+}
+
+.code-block-enhanced .code-block-lang {
+  font-size: 0.75rem;
+  color: #a1a1aa;
+  text-transform: lowercase;
+}
+
+.code-block-enhanced .code-block-copy-btn {
+  padding: 0.25rem;
+  color: #71717a;
+  background: transparent;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.code-block-enhanced .code-block-copy-btn:hover {
+  color: #e4e4e7;
+  background-color: #3f3f46;
+}
+
+.code-block-enhanced .code-block-content {
+  display: flex;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.code-block-enhanced .code-block-code .shiki {
+  background: transparent !important;
+  margin: 0;
+  padding: 0;
+}
+
+.code-block-enhanced .code-block-code .shiki code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+/* Slash Menu */
+.slash-menu {
+  position: fixed;
+  z-index: 100;
+  min-width: 280px;
+  max-height: 360px;
+  overflow-y: auto;
+  background-color: var(--neko-bg-secondary);
+  border: 1px solid var(--neko-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.2);
+  padding: 0.5rem;
+}

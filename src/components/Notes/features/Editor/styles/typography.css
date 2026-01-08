@@ -1,0 +1,151 @@
+/**
+ * Typography & Heading Styles
+ */
+
+/* H1 */
+.milkdown h1 {
+  font-size: 2rem !important;
+  font-weight: 700 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.625rem !important;
+  line-height: calc(1em + 8px) !important;
+  letter-spacing: -0.02em !important;
+  color: var(--neko-text-primary) !important;
+}
+
+/* H2 */
+.milkdown h2 {
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  margin-top: 0.875rem !important;
+  margin-bottom: 0.625rem !important;
+  line-height: calc(1em + 10px) !important;
+  letter-spacing: -0.02em !important;
+  color: var(--neko-text-primary) !important;
+}
+
+/* H3 */
+.milkdown h3 {
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.625rem !important;
+  line-height: calc(1em + 8px) !important;
+  letter-spacing: -0.02em !important;
+  color: var(--neko-text-primary) !important;
+}
+
+/* H4 */
+.milkdown h4 {
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.625rem !important;
+  line-height: calc(1em + 8px) !important;
+  letter-spacing: -0.015em !important;
+  color: var(--neko-text-primary) !important;
+}
+
+/* H5 */
+.milkdown h5 {
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.625rem !important;
+  line-height: calc(1em + 8px) !important;
+  letter-spacing: -0.015em !important;
+  color: var(--neko-text-secondary) !important;
+}
+
+/* H6 */
+.milkdown h6 {
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.625rem !important;
+  line-height: calc(1em + 8px) !important;
+  letter-spacing: -0.015em !important;
+  color: var(--neko-text-tertiary) !important;
+}
+
+/* Paragraph */
+.milkdown p {
+  margin-bottom: 0.5rem;
+  line-height: calc(1em + 8px);
+  color: var(--neko-text-primary);
+}
+
+/* Heading hash marks */
+.milkdown .heading-hash-text {
+  color: #a1a1aa;
+  font-weight: normal;
+  cursor: text;
+}
+
+.dark .milkdown .heading-hash-text {
+  color: #71717a;
+}
+
+/* H1 Placeholder */
+.milkdown h1:first-child {
+  position: relative;
+}
+
+.milkdown h1:first-child:empty::before,
+.milkdown h1:first-child:has(br:only-child)::before {
+  content: "Title";
+  color: #d4d4d8;
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  user-select: none;
+}
+
+.dark .milkdown h1:first-child:empty::before,
+.dark .milkdown h1:first-child:has(br:only-child)::before {
+  color: #52525b;
+}
+
+/* Placeholder */
+.milkdown .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--neko-text-tertiary);
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.milkdown .ProseMirror p.is-editor-empty:first-child {
+  position: relative;
+}
+
+/* Emphasis */
+.milkdown strong {
+  font-weight: 600;
+  color: var(--neko-text-primary);
+}
+
+.milkdown em {
+  font-style: italic;
+}
+
+.milkdown del {
+  text-decoration: line-through;
+  color: var(--neko-text-tertiary);
+}
+
+.milkdown u {
+  text-decoration: underline;
+}
+
+/* Text color and background color marks */
+.milkdown [data-text-color] {
+  /* Color is applied inline */
+}
+
+.milkdown [data-bg-color] {
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.125rem;
+}

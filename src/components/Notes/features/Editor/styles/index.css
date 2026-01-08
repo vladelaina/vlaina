@@ -1,0 +1,12 @@
+/**
+ * Milkdown Editor Styles
+ * 
+ * Modern block-editor styling for the WYSIWYG Markdown editor
+ */
+
+@import './core.css';
+@import './typography.css';
+@import './markdown.css';
+@import './extended.css';
+@import './code-block.css';
+@import './floating-toolbar.css';

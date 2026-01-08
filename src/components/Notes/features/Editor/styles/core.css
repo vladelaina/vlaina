@@ -1,0 +1,44 @@
+/**
+ * Editor Core Layout
+ */
+
+.milkdown {
+  padding: 0 2.5rem 2rem 2.5rem;
+  min-height: 100%;
+  outline: none;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Reset potential focus outlines during interactions */
+.milkdown,
+.milkdown .ProseMirror,
+.milkdown-editor,
+.heading-hash-hover,
+.heading-level-menu,
+.heading-level-item {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Editor container */
+.milkdown-editor {
+  background-color: var(--neko-bg-primary);
+  scroll-behavior: smooth;
+}
+
+/* Focus & Cursor */
+.milkdown .ProseMirror:focus {
+  outline: none;
+}
+
+.milkdown .ProseMirror {
+  caret-color: #2C2C2B;
+  line-height: calc(1em + 8px);
+}
+
+/* Selection */
+.milkdown ::selection {
+  background-color: #2783de;
+  color: white;
+}

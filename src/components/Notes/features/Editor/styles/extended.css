@@ -1,0 +1,175 @@
+/**
+ * Extended Markdown Syntax Styles
+ * Highlight, Scripts, Autolink, Footnotes, TOC, Mermaid
+ */
+
+/* Highlight */
+.milkdown mark.highlight,
+.milkdown .highlight {
+  background-color: #fef08a;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.125rem;
+}
+
+.dark .milkdown mark.highlight,
+.dark .milkdown .highlight {
+  background-color: #854d0e;
+  color: #fef9c3;
+}
+
+/* Scripts */
+.milkdown sup.superscript,
+.milkdown .superscript {
+  font-size: 0.75em;
+  vertical-align: super;
+  line-height: 0;
+}
+
+.milkdown sub.subscript,
+.milkdown .subscript {
+  font-size: 0.75em;
+  vertical-align: sub;
+  line-height: 0;
+}
+
+/* Autolink */
+.milkdown .autolink {
+  color: var(--neko-accent);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--neko-accent);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.milkdown .autolink:hover {
+  border-bottom-style: solid;
+}
+
+/* Footnotes */
+.milkdown .footnote-ref {
+  font-size: 0.75em;
+  vertical-align: super;
+  line-height: 0;
+}
+
+.milkdown .footnote-ref a {
+  color: var(--neko-accent);
+  text-decoration: none;
+  padding: 0 0.125rem;
+}
+
+.milkdown .footnote-ref a:hover {
+  text-decoration: underline;
+}
+
+.milkdown .footnote-def {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  background-color: var(--neko-bg-secondary);
+  border-radius: 0.375rem;
+  border-left: 3px solid var(--neko-accent);
+  font-size: 0.875rem;
+}
+
+.milkdown .footnote-def-label {
+  color: var(--neko-accent);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.milkdown .footnote-def-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.milkdown .footnote-def-content>*:first-child {
+  margin-top: 0;
+}
+
+.milkdown .footnote-def-content>*:last-child {
+  margin-bottom: 0;
+}
+
+/* TOC */
+.milkdown .toc-block {
+  padding: 1rem;
+  margin: 1rem 0;
+  background-color: var(--neko-bg-secondary);
+  border: 1px solid var(--neko-border);
+  border-radius: 0.5rem;
+}
+
+.milkdown .toc-title {
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--neko-text-primary);
+}
+
+.milkdown .toc-nav {
+  font-size: 0.875rem;
+}
+
+.milkdown .toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.milkdown .toc-item {
+  margin: 0.25rem 0;
+}
+
+.milkdown .toc-link {
+  color: var(--neko-text-secondary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.milkdown .toc-link:hover {
+  color: var(--neko-accent);
+}
+
+.milkdown .toc-level-1 {
+  font-weight: 600;
+}
+
+.milkdown .toc-level-2 {
+  font-weight: 500;
+}
+
+.milkdown .toc-empty {
+  color: var(--neko-text-tertiary);
+  font-style: italic;
+}
+
+/* Mermaid */
+.milkdown .mermaid-block {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  background-color: var(--neko-bg-secondary);
+  border: 1px solid var(--neko-border);
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+
+.milkdown .mermaid-placeholder,
+.milkdown .mermaid-empty {
+  color: var(--neko-text-tertiary);
+  font-style: italic;
+}
+
+.milkdown .mermaid-error {
+  color: #ef4444;
+  font-size: 0.875rem;
+  padding: 0.5rem;
+  background-color: #fef2f2;
+  border-radius: 0.25rem;
+}
+
+.dark .milkdown .mermaid-error {
+  background-color: #450a0a;
+}

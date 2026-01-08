@@ -4,7 +4,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType } from './types';
 
-// Format preview styles mapping - matching editor.css exactly
+// Format preview styles mapping - matching styles/typography.css
 export const FORMAT_PREVIEW_STYLES: Record<string, Record<string, string>> = {
   // .milkdown strong
   bold: { fontWeight: '600' },
@@ -31,7 +31,7 @@ export const FORMAT_PREVIEW_STYLES: Record<string, Record<string, string>> = {
   },
 };
 
-// Block type preview styles - matching editor.css exactly
+// Block type preview styles - matching styles/typography.css
 export const BLOCK_PREVIEW_STYLES: Record<BlockType, Record<string, string>> = {
   // Paragraph: .milkdown p
   paragraph: { 

@@ -41,7 +41,7 @@ import {
 } from './plugins';
 
 // Editor styles
-import './editor.css';
+import './styles/index.css';
 
 // Flatten plugin arrays for Milkdown
 const customPlugins = [
