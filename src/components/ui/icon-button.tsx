@@ -8,22 +8,20 @@ interface IconButtonProps {
   onClick: () => void;
   className?: string;
   side?: 'top' | 'right' | 'bottom' | 'left';
-  delayDuration?: number;
 }
 
-export function IconButton({ 
-  icon, 
-  tooltip, 
-  onClick, 
+export function IconButton({
+  icon,
+  tooltip,
+  onClick,
   className,
   side = 'bottom',
-  delayDuration = 500,
 }: IconButtonProps) {
   return (
-    <Tooltip delayDuration={delayDuration}>
+    <Tooltip>
       <TooltipTrigger asChild>
-        <button 
-          onClick={onClick} 
+        <button
+          onClick={onClick}
           className={cn("p-1", iconButtonStyles, className)}
         >
           {icon}

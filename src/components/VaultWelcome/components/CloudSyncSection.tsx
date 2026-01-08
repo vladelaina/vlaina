@@ -6,6 +6,11 @@
 
 // Tabler icons removed
 import { useSyncStore } from '@/stores/useSyncStore';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 // Insignias
 import googleDriveIcon from '@/assets/welcome-insignias/google_drive.png';
@@ -37,52 +42,76 @@ export function CloudSyncSection() {
         </div>
 
         <div className="vault-cloud__providers">
-          <button
-            className="vault-cloud__provider vault-cloud__provider--google"
-            title="Connect with Google Drive"
-            onClick={handleGoogleConnect}
-            disabled={isConnecting}
-          >
-            <img
-              src={googleDriveIcon}
-              alt="Google Drive"
-              className="vault-cloud__icon-img"
-            />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="vault-cloud__provider vault-cloud__provider--google"
+                onClick={handleGoogleConnect}
+                disabled={isConnecting}
+              >
+                <img
+                  src={googleDriveIcon}
+                  alt="Google Drive"
+                  className="vault-cloud__icon-img"
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8}>
+              <p>Connect with Google Drive</p>
+            </TooltipContent>
+          </Tooltip>
 
           {/* Replaced 'Apple' with 'iCloud' as primary Apple service */}
-          <button
-            className="vault-cloud__provider vault-cloud__provider--icloud"
-            title="Connect with iCloud"
-          >
-            <img
-              src={icloudIcon}
-              alt="iCloud"
-              className="vault-cloud__icon-img vault-cloud__icon-img--icloud"
-            />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="vault-cloud__provider vault-cloud__provider--icloud"
+              >
+                <img
+                  src={icloudIcon}
+                  alt="iCloud"
+                  className="vault-cloud__icon-img vault-cloud__icon-img--icloud"
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8}>
+              <p>Connect with iCloud</p>
+            </TooltipContent>
+          </Tooltip>
 
-          <button
-            className="vault-cloud__provider vault-cloud__provider--onedrive"
-            title="Connect with OneDrive"
-          >
-            <img
-              src={onedriveIcon}
-              alt="OneDrive"
-              className="vault-cloud__icon-img"
-            />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="vault-cloud__provider vault-cloud__provider--onedrive"
+              >
+                <img
+                  src={onedriveIcon}
+                  alt="OneDrive"
+                  className="vault-cloud__icon-img"
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8}>
+              <p>Connect with OneDrive</p>
+            </TooltipContent>
+          </Tooltip>
 
-          <button
-            className="vault-cloud__provider vault-cloud__provider--github"
-            title="Connect with GitHub"
-          >
-            <img
-              src={githubIcon}
-              alt="GitHub"
-              className="vault-cloud__icon-img vault-cloud__icon-img--github"
-            />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="vault-cloud__provider vault-cloud__provider--github"
+              >
+                <img
+                  src={githubIcon}
+                  alt="GitHub"
+                  className="vault-cloud__icon-img vault-cloud__icon-img--github"
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8}>
+              <p>Connect with GitHub</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </div>
