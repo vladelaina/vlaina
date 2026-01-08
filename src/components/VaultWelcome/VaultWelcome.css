@@ -542,7 +542,6 @@
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  animation: vaultWelcomeFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .vault-modal {
@@ -561,7 +560,8 @@
   /* Apple-style super-round corners */
   padding: 40px;
   /* Generous padding */
-  animation: vaultModalSlideUp 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  padding: 40px;
+  /* Generous padding */
   display: flex;
   flex-direction: column;
 }
