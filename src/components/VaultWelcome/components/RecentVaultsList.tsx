@@ -41,9 +41,17 @@ export function RecentVaultsList({ vaults, onOpen }: RecentVaultsListProps) {
         {vaults.map((vault) => (
           <Tooltip key={vault.id}>
             <TooltipTrigger asChild>
-              <button
+              <div
                 className="vault-item"
+                role="button"
+                tabIndex={0}
                 onClick={() => onOpen(vault.path)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onOpen(vault.path);
+                  }
+                }}
               >
                 <span className="vault-item__name">{vault.name}</span>
                 <span className="vault-item__path">{formatPath(vault.path)}</span>
@@ -53,7 +61,7 @@ export function RecentVaultsList({ vaults, onOpen }: RecentVaultsListProps) {
                 >
                   <IconX size={12} />
                 </button>
-              </button>
+              </div>
             </TooltipTrigger>
             <TooltipContent side="top" sideOffset={10} showArrow={false}>
               <p className="max-w-[300px] break-all">{vault.path}</p>
