@@ -1,16 +1,61 @@
-import { defineConfig } from "vite";
+import { defineConfig, Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import fs from "fs";
 
-// @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
+
+/**
+ * Plugin to copy index.html to 404.html for GitHub Pages SPA support
+ */
+function spaFallbackPlugin(): Plugin {
+  return {
+    name: 'spa-fallback',
+    closeBundle() {
+      // Only run for GitHub Pages builds
+      if (process.env.GITHUB_PAGES) {
+        const distPath = path.resolve(__dirname, 'dist');
+        const indexPath = path.join(distPath, 'index.html');
+        const notFoundPath = path.join(distPath, '404.html');
+        
+        if (fs.existsSync(indexPath)) {
+          fs.copyFileSync(indexPath, notFoundPath);
+          console.log('Created 404.html for GitHub Pages SPA support');
+        }
+      }
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react()],
+  plugins: [react(), spaFallbackPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  
+  // Base path for GitHub Pages deployment
+  // Set to repository name for project pages (e.g., /nekotick/)
+  // Set to '/' for custom domain or user pages
+  base: process.env.GITHUB_PAGES ? '/nekotick/' : '/',
+
+  // Build options
+  build: {
+    // Output directory
+    outDir: 'dist',
+    // Generate sourcemaps for debugging
+    sourcemap: false,
+    // Optimize chunk size
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'editor': ['@milkdown/kit', '@milkdown/react'],
+          'ui': ['framer-motion', '@radix-ui/react-dialog', '@radix-ui/react-popover'],
+        },
+      },
     },
   },
 

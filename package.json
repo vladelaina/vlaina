@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:web": "GITHUB_PAGES=true tsc && GITHUB_PAGES=true vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "dev:license-server": "node scripts/dev/mock-license-server.cjs"
