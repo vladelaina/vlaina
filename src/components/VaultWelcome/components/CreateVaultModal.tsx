@@ -1,8 +1,9 @@
+
 /**
  * CreateVaultModal - Modal for creating new vault
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { join } from '@tauri-apps/api/path';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -16,6 +17,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
   const { createVault, isLoading, error, clearError } = useVaultStore();
   const [name, setName] = useState('');
   const [parentPath, setParentPath] = useState('');
+  const pathInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -24,6 +26,13 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
       clearError();
     }
   }, [isOpen, clearError]);
+
+  // Auto-scroll to end of path when it changes
+  useEffect(() => {
+    if (pathInputRef.current) {
+      pathInputRef.current.scrollLeft = pathInputRef.current.scrollWidth;
+    }
+  }, [parentPath, isOpen]);
 
   const handleBrowse = async () => {
     const selected = await open({
@@ -59,7 +68,6 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
   if (!isOpen) return null;
 
   const canCreate = name.trim() && parentPath.trim() && !isLoading;
-  const previewPath = parentPath && name ? `${parentPath.replace(/\\/g, '/')}/${name}` : '';
 
   return (
     <div className="vault-modal-overlay" onClick={onClose} onKeyDown={handleKeyDown}>
@@ -82,10 +90,12 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
           <label className="vault-modal__label">Parent Folder</label>
           <div className="vault-modal__path-input">
             <input
+              ref={pathInputRef}
               type="text"
               className="vault-modal__input"
               placeholder="Select a folder..."
               value={parentPath}
+              title={parentPath} // Show full path on hover
               readOnly
             />
             <button
@@ -105,18 +115,18 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
 
         <div className="vault-modal__actions">
           <button
+            className="vault-modal__btn vault-modal__btn--cancel"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+
+          <button
             className="vault-modal__btn vault-modal__btn--create"
             onClick={handleCreate}
             disabled={!canCreate}
           >
             {isLoading ? 'Creating...' : 'Create Vault'}
-          </button>
-
-          <button
-            className="vault-modal__btn vault-modal__btn--cancel"
-            onClick={onClose}
-          >
-            Cancel
           </button>
         </div>
       </div>
