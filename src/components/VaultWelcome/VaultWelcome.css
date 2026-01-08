@@ -662,24 +662,7 @@
   background: rgba(128, 128, 128, 0.15);
 }
 
-.vault-modal__preview {
-  margin-top: -8px;
-  margin-bottom: 24px;
-  padding: 0 6px;
-  font-size: 12px;
-  color: var(--neko-text-tertiary);
-  text-align: left;
-  /* Align with label */
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  opacity: 0.8;
-}
-
-.vault-modal__preview::before {
-  content: 'will be created at:';
-  opacity: 0.6;
-}
+/* Preview styles removed */
 
 .vault-modal__error {
   margin-bottom: 24px;

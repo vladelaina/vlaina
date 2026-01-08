@@ -97,11 +97,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
           </div>
         </div>
 
-        {previewPath && (
-          <div className="vault-modal__preview">
-            Will create: <span className="vault-modal__preview-path">{previewPath}</span>
-          </div>
-        )}
+        {/* Path preview removed for cleaner UI */}
 
         {error && (
           <div className="vault-modal__error">{error}</div>
