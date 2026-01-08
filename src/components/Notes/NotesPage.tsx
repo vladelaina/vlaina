@@ -8,10 +8,11 @@ import {
   IconTriangleFilled,
   IconStar,
 } from '@tabler/icons-react';
-import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
+import { useNotesStore, type FolderNode, type FileTreeNode } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { FileTree } from './features/FileTree';
+import { FileTreeItem } from './features/FileTree/FileTreeItem';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
 import { VaultWelcome } from '@/components/VaultWelcome';
@@ -220,11 +221,8 @@ function FavoritesSection() {
   const { 
     starredNotes, 
     starredFolders,
-    openNote, 
-    toggleFolder,
+    rootFolder,
     currentNote, 
-    getDisplayName, 
-    getNoteIcon 
   } = useNotesStore();
   
   const hasFavorites = starredNotes.length > 0 || starredFolders.length > 0;
@@ -236,6 +234,33 @@ function FavoritesSection() {
       setExpanded(true);
     }
   }, [hasFavorites, expanded]);
+  
+  // Find node by path in file tree
+  const findNode = useCallback((path: string): FileTreeNode | null => {
+    if (!rootFolder) return null;
+    
+    const search = (nodes: FileTreeNode[]): FileTreeNode | null => {
+      for (const node of nodes) {
+        if (node.path === path) return node;
+        if (node.isFolder) {
+          const found = search(node.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    
+    return search(rootFolder.children);
+  }, [rootFolder]);
+  
+  // Get nodes for starred items
+  const starredFolderNodes = starredFolders
+    .map(path => findNode(path))
+    .filter((node): node is FileTreeNode => node !== null);
+  
+  const starredNoteNodes = starredNotes
+    .map(path => findNode(path))
+    .filter((node): node is FileTreeNode => node !== null);
   
   return (
     <div className="mb-2">
@@ -276,50 +301,26 @@ function FavoritesSection() {
                 <span className="text-[15px] text-[var(--neko-text-tertiary)]">No favorites</span>
               </div>
             ) : (
-              <div className="space-y-0.5">
+              <div>
                 {/* Starred Folders */}
-                {starredFolders.map((path) => {
-                  const name = path.split('/').pop() || path;
-                  
-                  return (
-                    <button
-                      key={`folder-${path}`}
-                      onClick={() => toggleFolder(path)}
-                      className={cn(
-                        "w-full flex items-center gap-2 px-2 py-1 rounded-md text-[13px] transition-colors",
-                        "text-[var(--neko-text-secondary)] hover:bg-[var(--neko-hover)]"
-                      )}
-                    >
-                      <IconFolder className="w-4 h-4 flex-shrink-0 text-[var(--neko-text-tertiary)]" />
-                      <span className="truncate">{name}</span>
-                    </button>
-                  );
-                })}
+                {starredFolderNodes.map((node) => (
+                  <FileTreeItem
+                    key={`folder-${node.path}`}
+                    node={node}
+                    depth={0}
+                    currentNotePath={currentNote?.path}
+                  />
+                ))}
                 
                 {/* Starred Notes */}
-                {starredNotes.map((path) => {
-                  const displayName = getDisplayName(path);
-                  const icon = getNoteIcon(path);
-                  const isActive = currentNote?.path === path;
-                  
-                  return (
-                    <button
-                      key={`note-${path}`}
-                      onClick={() => openNote(path)}
-                      className={cn(
-                        "w-full flex items-center gap-2 px-2 py-1 rounded-md text-[13px] transition-colors",
-                        isActive 
-                          ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)]" 
-                          : "text-[var(--neko-text-secondary)] hover:bg-[var(--neko-hover)]"
-                      )}
-                    >
-                      <span className="flex-shrink-0 text-base">
-                        {icon || '📄'}
-                      </span>
-                      <span className="truncate">{displayName}</span>
-                    </button>
-                  );
-                })}
+                {starredNoteNodes.map((node) => (
+                  <FileTreeItem
+                    key={`note-${node.path}`}
+                    node={node}
+                    depth={0}
+                    currentNotePath={currentNote?.path}
+                  />
+                ))}
               </div>
             )}
           </div>
