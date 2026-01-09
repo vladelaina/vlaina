@@ -190,8 +190,11 @@ function App() {
     return () => window.removeEventListener('wheel', handleWheel);
   }, []);
 
-  // Disable browser context menu (right-click menu)
+  // Disable browser context menu (right-click menu) - only in production
   useEffect(() => {
+    // Allow context menu in development for debugging
+    if (import.meta.env.DEV) return;
+
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
     };
