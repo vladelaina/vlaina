@@ -4,6 +4,7 @@
  * Modern block-editor style tab management
  */
 
+import { memo } from 'react';
 import { IconX, IconFileText } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { useDisplayName, useDisplayIcon } from '@/hooks/useTitleSync';
@@ -23,7 +24,7 @@ interface SingleTabProps {
   onTabMiddleClick: (path: string) => void;
 }
 
-function SingleTab({ tab, isActive, onTabClick, onTabClose, onTabMiddleClick }: SingleTabProps) {
+const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClose, onTabMiddleClick }: SingleTabProps) {
   const displayName = useDisplayName(tab.path);
   const icon = useDisplayIcon(tab.path);
 
@@ -91,7 +92,7 @@ function SingleTab({ tab, isActive, onTabClick, onTabClose, onTabMiddleClick }: 
       </button>
     </div>
   );
-}
+});
 
 interface NoteTabsProps {
   tabs: NoteTab[];
