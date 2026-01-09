@@ -99,3 +99,65 @@
 .milkdown .ProseMirror p.is-editor-empty:first-child {
   position: relative;
 }
+
+
+/* Heading Toggle Button */
+.milkdown h1,
+.milkdown h2,
+.milkdown h3,
+.milkdown h4,
+.milkdown h5,
+.milkdown h6 {
+  position: relative;
+}
+
+.heading-toggle-btn {
+  position: absolute;
+  left: -24px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background-color 0.15s;
+  border-radius: 4px;
+  color: var(--neko-text-tertiary);
+  user-select: none;
+}
+
+.heading-toggle-btn:hover {
+  color: var(--neko-text-secondary);
+}
+
+/* Show toggle button on heading hover */
+.milkdown h1:hover .heading-toggle-btn,
+.milkdown h2:hover .heading-toggle-btn,
+.milkdown h3:hover .heading-toggle-btn,
+.milkdown h4:hover .heading-toggle-btn,
+.milkdown h5:hover .heading-toggle-btn,
+.milkdown h6:hover .heading-toggle-btn {
+  opacity: 1;
+}
+
+/* Always show when collapsed */
+.heading-toggle-btn[data-collapsed="true"] {
+  opacity: 1 !important;
+}
+
+/* Rotate icon when collapsed */
+.heading-toggle-btn[data-collapsed="true"] svg {
+  transform: rotate(-90deg);
+}
+
+.heading-toggle-btn svg {
+  transition: transform 0.15s ease;
+}
+
+/* Hidden collapsed content */
+.heading-collapsed-content {
+  display: none !important;
+}
