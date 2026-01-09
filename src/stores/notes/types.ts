@@ -37,7 +37,7 @@ export interface NotesState {
 }
 
 export interface NotesActions {
-  loadFileTree: (silent?: boolean) => Promise<void>;
+  loadFileTree: () => Promise<void>;
   toggleFolder: (path: string) => void;
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   saveNote: () => Promise<void>;
