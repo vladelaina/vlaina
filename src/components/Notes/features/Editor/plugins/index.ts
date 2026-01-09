@@ -5,7 +5,7 @@
 export { floatingToolbarPlugin, floatingToolbarKey, colorMarksPlugin } from './floating-toolbar';
 export type { FloatingToolbarState, BlockType, SubMenuType } from './floating-toolbar';
 
-// Heading (protects first H1)
+// Heading plugins
 export { headingPlugin, collapsePlugin } from './heading';
 
 // Math (LaTeX)

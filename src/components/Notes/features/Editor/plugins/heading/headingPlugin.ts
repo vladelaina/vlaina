@@ -2,26 +2,42 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 
 // ============================================================================
-// Heading Plugin - Simplified
+// Heading Plugin
 // ============================================================================
-// Only protects the first H1 from deletion.
-// All heading formatting is now handled by the floating toolbar.
+// Handles special backspace behavior for first empty paragraph
 
 /**
- * Prevents deletion of the document title (First H1).
+ * Plugin to delete first empty paragraph on backspace
+ * When cursor is at position 1 in an empty first paragraph, delete it
  */
-const protectFirstH1Plugin = $prose(() => {
+const firstParagraphPlugin = $prose(() => {
     return new Plugin({
-        key: new PluginKey('protectFirstH1'),
+        key: new PluginKey('firstParagraph'),
         props: {
             handleKeyDown(view, event) {
+                if (event.key !== 'Backspace') return false;
+                
                 const { selection, doc } = view.state;
                 const { from, empty } = selection;
+                
+                // Only handle when cursor is at position 1 with empty selection
+                if (from !== 1 || !empty) return false;
+                
                 const firstNode = doc.firstChild;
-
-                if (!firstNode || firstNode.type.name !== 'heading') return false;
-                if (event.key === 'Backspace' && empty && from === 1) return true;
-
+                if (!firstNode) return false;
+                
+                // Check if first node is an empty paragraph
+                const isEmptyParagraph = 
+                    firstNode.type.name === 'paragraph' && 
+                    firstNode.content.size === 0;
+                
+                if (isEmptyParagraph && doc.childCount > 1) {
+                    // Delete the empty first paragraph
+                    const tr = view.state.tr.delete(0, firstNode.nodeSize);
+                    view.dispatch(tr);
+                    return true;
+                }
+                
                 return false;
             }
         }
@@ -29,5 +45,5 @@ const protectFirstH1Plugin = $prose(() => {
 });
 
 export const headingPlugin = [
-    protectFirstH1Plugin
+    firstParagraphPlugin
 ];
