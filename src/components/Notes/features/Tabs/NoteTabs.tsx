@@ -6,11 +6,91 @@
 
 import { IconX, IconFileText } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
+import { useDisplayName, useDisplayIcon } from '@/hooks/useTitleSync';
+import { NoteIcon } from '../IconPicker/NoteIcon';
 
 export interface NoteTab {
   path: string;
   name: string;
   isDirty: boolean;
+}
+
+interface SingleTabProps {
+  tab: NoteTab;
+  isActive: boolean;
+  onTabClick: (path: string) => void;
+  onTabClose: (path: string) => void;
+  onTabMiddleClick: (path: string) => void;
+}
+
+function SingleTab({ tab, isActive, onTabClick, onTabClose, onTabMiddleClick }: SingleTabProps) {
+  const displayName = useDisplayName(tab.path);
+  const icon = useDisplayIcon(tab.path);
+
+  return (
+    <div
+      onClick={() => onTabClick(tab.path)}
+      onMouseDown={(e) => {
+        if (e.button === 1) {
+          e.preventDefault();
+          onTabMiddleClick(tab.path);
+        }
+      }}
+      className={cn(
+        "group relative flex items-center gap-1.5 px-3 h-full cursor-pointer min-w-0 max-w-[180px]",
+        "border-r border-[var(--neko-border)] transition-colors",
+        isActive 
+          ? "bg-[var(--neko-bg-primary)]" 
+          : "bg-transparent hover:bg-[var(--neko-hover)]"
+      )}
+    >
+      {/* Active indicator */}
+      {isActive && (
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--neko-accent)]" />
+      )}
+      
+      {icon ? (
+        <span className="flex-shrink-0">
+          <NoteIcon icon={icon} size={14} />
+        </span>
+      ) : (
+        <IconFileText 
+          className={cn(
+            "w-3.5 h-3.5 flex-shrink-0",
+            isActive 
+              ? "text-[var(--neko-accent)]" 
+              : "text-[var(--neko-icon-secondary)]"
+          )} 
+        />
+      )}
+      
+      <span className={cn(
+        "text-[12px] truncate",
+        isActive 
+          ? "text-[var(--neko-text-primary)]" 
+          : "text-[var(--neko-text-secondary)]"
+      )}>
+        {displayName || tab.name}
+      </span>
+      
+      {tab.isDirty && (
+        <span className="w-1.5 h-1.5 rounded-full bg-[var(--neko-accent)] flex-shrink-0" />
+      )}
+      
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onTabClose(tab.path);
+        }}
+        className={cn(
+          "p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto",
+          "hover:bg-[var(--neko-hover-filled)] text-[var(--neko-icon-secondary)]"
+        )}
+      >
+        <IconX className="w-3 h-3" />
+      </button>
+    </div>
+  );
 }
 
 interface NoteTabsProps {
@@ -38,63 +118,14 @@ export function NoteTabs({
       )}
     >
       {tabs.map((tab) => (
-        <div
+        <SingleTab
           key={tab.path}
-          onClick={() => onTabClick(tab.path)}
-          onMouseDown={(e) => {
-            if (e.button === 1) {
-              e.preventDefault();
-              onTabMiddleClick(tab.path);
-            }
-          }}
-          className={cn(
-            "group relative flex items-center gap-1.5 px-3 h-full cursor-pointer min-w-0 max-w-[180px]",
-            "border-r border-[var(--neko-border)] transition-colors",
-            activeTabPath === tab.path 
-              ? "bg-[var(--neko-bg-primary)]" 
-              : "bg-transparent hover:bg-[var(--neko-hover)]"
-          )}
-        >
-          {/* Active indicator */}
-          {activeTabPath === tab.path && (
-            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--neko-accent)]" />
-          )}
-          
-          <IconFileText 
-            className={cn(
-              "w-3.5 h-3.5 flex-shrink-0",
-              activeTabPath === tab.path 
-                ? "text-[var(--neko-accent)]" 
-                : "text-[var(--neko-icon-secondary)]"
-            )} 
-          />
-          
-          <span className={cn(
-            "text-[12px] truncate",
-            activeTabPath === tab.path 
-              ? "text-[var(--neko-text-primary)]" 
-              : "text-[var(--neko-text-secondary)]"
-          )}>
-            {tab.name}
-          </span>
-          
-          {tab.isDirty && (
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--neko-accent)] flex-shrink-0" />
-          )}
-          
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onTabClose(tab.path);
-            }}
-            className={cn(
-              "p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto",
-              "hover:bg-[var(--neko-hover-filled)] text-[var(--neko-icon-secondary)]"
-            )}
-          >
-            <IconX className="w-3 h-3" />
-          </button>
-        </div>
+          tab={tab}
+          isActive={activeTabPath === tab.path}
+          onTabClick={onTabClick}
+          onTabClose={onTabClose}
+          onTabMiddleClick={onTabMiddleClick}
+        />
       ))}
     </div>
   );

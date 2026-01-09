@@ -10,6 +10,7 @@ import {
   sortFileTree,
   updateFolderExpanded,
   updateFolderNode,
+  updateFileNodePath,
   collectExpandedPaths,
   restoreExpandedState,
 } from '../fileTreeUtils';
@@ -21,6 +22,7 @@ import {
   loadFavoritesFromFile,
   saveWorkspaceState,
   saveFavoritesToFile,
+  saveNoteIconsToFile,
   safeWriteTextFile,
   addToRecentNotes,
 } from '../storage';
@@ -301,14 +303,13 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     const {
       notesPath,
       currentNote,
-      loadFileTree,
       rootFolder,
       openTabs,
       starredNotes,
       starredFolders,
+      noteIcons,
     } = get();
     const storage = getStorageAdapter();
-    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
 
     try {
       const fullPath = await joinPath(notesPath, path);
@@ -316,6 +317,10 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       const sanitizedName = sanitizeFileName(newName);
       const newFileName = sanitizedName.endsWith('.md') ? sanitizedName : `${sanitizedName}.md`;
       const newPath = dirPath ? `${dirPath}/${newFileName}` : newFileName;
+      
+      // Skip if path hasn't changed
+      if (newPath === path) return;
+      
       const newFullPath = await joinPath(notesPath, newPath);
 
       await storage.rename(fullPath, newFullPath);
@@ -330,25 +335,41 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         saveFavoritesToFile(notesPath, { notes: updatedStarred, folders: starredFolders });
       }
 
+      // Update note icons if exists and save to file
+      if (noteIcons.has(path)) {
+        const icon = noteIcons.get(path);
+        const updatedIcons = new Map(noteIcons);
+        updatedIcons.delete(path);
+        if (icon) updatedIcons.set(newPath, icon);
+        set({ noteIcons: updatedIcons });
+        // Save to config file
+        saveNoteIconsToFile(notesPath, updatedIcons);
+      }
+
       const updatedTabs = openTabs.map((tab) =>
-        tab.path === path ? { ...tab, path: newPath } : tab
+        tab.path === path ? { ...tab, path: newPath, name: sanitizedName } : tab
       );
+
+      // Update file tree directly without reloading
+      if (rootFolder) {
+        const updatedChildren = updateFileNodePath(
+          rootFolder.children,
+          path,
+          newPath,
+          sanitizedName
+        );
+        set({
+          rootFolder: {
+            ...rootFolder,
+            children: updatedChildren,
+          },
+        });
+      }
 
       if (currentNote?.path === path) {
         set({ currentNote: { ...currentNote, path: newPath }, openTabs: updatedTabs });
       } else {
         set({ openTabs: updatedTabs });
-      }
-
-      await loadFileTree();
-      const currentRootFolder = get().rootFolder;
-      if (currentRootFolder) {
-        set({
-          rootFolder: {
-            ...currentRootFolder,
-            children: restoreExpandedState(currentRootFolder.children, expandedPaths),
-          },
-        });
       }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to rename note' });

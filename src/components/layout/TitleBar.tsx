@@ -14,7 +14,7 @@ import { WindowControls } from './WindowControls';
 import { TitleBarButton } from './TitleBarButton';
 import { useUIStore } from '@/stores/uiSlice';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { useDisplayIcon } from '@/hooks/useTitleSync';
+import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { cn, NOTES_COLORS } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
@@ -41,9 +41,10 @@ interface TabContentProps {
   tab: { path: string; name: string; isDirty: boolean };
   isActive: boolean;
   icon?: string;
+  displayName?: string;
 }
 
-function TabContent({ tab, isActive, icon }: TabContentProps) {
+function TabContent({ tab, isActive, icon, displayName }: TabContentProps) {
   return (
     <>
       {icon ? (
@@ -67,7 +68,7 @@ function TabContent({ tab, isActive, icon }: TabContentProps) {
           ? "text-zinc-700 dark:text-zinc-200 font-medium" 
           : "text-zinc-500 dark:text-zinc-400"
       )}>
-        {tab.name}
+        {displayName || tab.name}
       </span>
       
       {tab.isDirty && (
@@ -86,6 +87,7 @@ interface SortableTabProps {
 
 const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick }: SortableTabProps) {
   const icon = useDisplayIcon(tab.path);
+  const displayName = useDisplayName(tab.path);
   const {
     attributes,
     listeners,
@@ -136,7 +138,7 @@ const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick 
         isDragging && "opacity-50 z-50"
       )}
     >
-      <TabContent tab={tab} isActive={isActive} icon={icon} />
+      <TabContent tab={tab} isActive={isActive} icon={icon} displayName={displayName} />
       
       <button
         onClick={(e) => {
@@ -164,6 +166,7 @@ interface TabOverlayProps {
 
 function TabOverlay({ tab, isActive }: TabOverlayProps) {
   const icon = useDisplayIcon(tab.path);
+  const displayName = useDisplayName(tab.path);
   return (
     <div
       className={cn(
@@ -174,7 +177,7 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
           : "bg-zinc-100 dark:bg-zinc-700"
       )}
     >
-      <TabContent tab={tab} isActive={isActive} icon={icon} />
+      <TabContent tab={tab} isActive={isActive} icon={icon} displayName={displayName} />
     </div>
   );
 }

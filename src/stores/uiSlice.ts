@@ -25,6 +25,9 @@ interface UIStore {
   
   notesPreviewIcon: { path: string; icon: string } | null;
   setNotesPreviewIcon: (path: string | null, icon: string | null) => void;
+  
+  notesPreviewTitle: { path: string; title: string } | null;
+  setNotesPreviewTitle: (path: string | null, title: string | null) => void;
 
   drawerOpen: boolean;
   setDrawerOpen: (open: boolean) => void;
@@ -139,6 +142,15 @@ export const useUIStore = create<UIStore>()((set, get) => ({
       set({ notesPreviewIcon: { path, icon } });
     } else {
       set({ notesPreviewIcon: null });
+    }
+  },
+  
+  notesPreviewTitle: null,
+  setNotesPreviewTitle: (path, title) => {
+    if (path && title) {
+      set({ notesPreviewTitle: { path, title } });
+    } else {
+      set({ notesPreviewTitle: null });
     }
   },
 
