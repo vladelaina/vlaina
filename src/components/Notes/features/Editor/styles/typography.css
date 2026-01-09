@@ -73,7 +73,7 @@
   color: var(--neko-text-primary);
 }
 
-/* Paragraph: 15px (AFFiNE base) */
+/* Paragraph: 15px */
 .milkdown p {
   font-size: 15px;
   line-height: calc(1em + 8px);
