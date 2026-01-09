@@ -265,11 +265,9 @@
 .milkdown .heading-collapse-btn {
   position: absolute;
   left: -1.5rem;
-  /* Tighter position */
-  top: 50%;
+  /* Center logic is now specific to heading levels below */
   transform: translateY(-50%);
   width: 1.25rem;
-  /* Keep hit area decent */
   height: 1.25rem;
   display: flex;
   align-items: center;
@@ -277,10 +275,32 @@
   opacity: 0;
   cursor: pointer;
   color: var(--neko-text-disabled);
-  /* Very subtle by default */
   transition: all 0.2s ease;
   border-radius: 4px;
   z-index: 10;
+}
+
+/* Vertical Alignment per Heading Level matching Line-Heights */
+/* H1 & H2 (LH 2.5rem): Center = 1.25rem */
+.milkdown h1 .heading-collapse-btn,
+.milkdown h2 .heading-collapse-btn {
+  top: 1.25rem;
+}
+
+/* H3 (LH 2.25rem): Center = 1.125rem */
+.milkdown h3 .heading-collapse-btn {
+  top: 1.125rem;
+}
+
+/* H4 (LH 2rem): Center = 1rem */
+.milkdown h4 .heading-collapse-btn {
+  top: 1rem;
+}
+
+/* H5 & H6 (LH 1.75rem): Center = 0.875rem */
+.milkdown h5 .heading-collapse-btn,
+.milkdown h6 .heading-collapse-btn {
+  top: 0.875rem;
 }
 
 /* Visibility: Show on Hover or when Collapsed */

@@ -1,22 +1,20 @@
 // MarkdownEditor - WYSIWYG Markdown editor using Milkdown
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Editor, rootCtx, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
-import { $prose } from '@milkdown/kit/utils';
-import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
-import { IconDots, IconStar } from '@tabler/icons-react';
-import { IconHeartbeat } from '@tabler/icons-react';
+import { IconDots, IconStar, IconHeartbeat } from '@tabler/icons-react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { IconPicker, NoteIcon } from '../IconPicker';
 import { CustomScrollbar } from '@/components/ui/custom-scrollbar';
+import { TitleInput } from './TitleInput';
 
 // Custom plugins - unified import
 import {
@@ -70,46 +68,16 @@ const customPlugins = [
   abbrPlugin,
 ];
 
-const titleSyncPluginKey = new PluginKey('titleSync');
-
-const titleSyncPlugin = $prose(() => {
-  let lastTitle = '';
-
-  return new Plugin({
-    key: titleSyncPluginKey,
-    view() {
-      return {
-        update(view, prevState) {
-          if (prevState && prevState.doc.eq(view.state.doc)) return;
-
-          const { doc } = view.state;
-          const firstNode = doc.firstChild;
-          const path = useNotesStore.getState().currentNote?.path;
-          if (!path) return;
-
-          let newTitle = 'Untitled';
-          if (firstNode?.type.name === 'heading' && firstNode.attrs.level === 1) {
-            const titleText = firstNode.textContent.trim();
-            if (titleText && titleText !== 'Title') {
-              newTitle = titleText;
-            }
-          }
-
-          // Only sync if title actually changed
-          if (newTitle !== lastTitle) {
-            lastTitle = newTitle;
-            useNotesStore.getState().syncDisplayName(path, newTitle);
-          }
-        }
-      };
-    }
-  });
-});
-
 function MilkdownEditorInner() {
   const { currentNote, updateContent, saveNote, isNewlyCreated } = useNotesStore();
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hasAutoFocused = useRef(false);
+
+  // Calculate initial content by stripping First H1 if it matches filename
+  // No longer stripping the First H1. User has full control.
+  const initialContent = useMemo(() => {
+    return currentNote?.content || '';
+  }, [currentNote?.path]);
 
   const debouncedSave = useCallback(() => {
     if (saveTimeoutRef.current) {
@@ -143,18 +111,16 @@ function MilkdownEditorInner() {
     Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, root);
-        const content = currentNote?.content || '';
-        ctx.set(defaultValueCtx, content);
+        ctx.set(defaultValueCtx, initialContent);
 
         // Track if this is the initial events
         let isInitializing = true;
 
         ctx.get(listenerCtx)
           .markdownUpdated((_ctx, markdown) => {
-            // Safety Guard: Prevent overwriting content if editor initializes empty despite having data
-            // This handles the race condition where Milkdown might fire an empty update before full hydration
             if (isInitializing) {
-              const contentWasSubstantial = content.length > 20;
+              // Safety guard logic remains same
+              const contentWasSubstantial = initialContent.length > 20;
               const newContentIsTiny = markdown.trim().length < 5;
 
               if (contentWasSubstantial && newContentIsTiny) {
@@ -164,8 +130,8 @@ function MilkdownEditorInner() {
               isInitializing = false;
             }
 
-            const finalContent = (!markdown.trim() || markdown.trim() === '') ? '# ' : markdown;
-            updateContent(finalContent);
+            // Save raw markdown directly (without re-adding title)
+            updateContent(markdown);
             debouncedSave();
           });
       })
@@ -173,8 +139,8 @@ function MilkdownEditorInner() {
       .use(gfm)
       .use(history)
       .use(listener)
-      .use(titleSyncPlugin)
-      .use(configureTheme) // Apply custom theme
+      // Removed titleSyncPlugin
+      .use(configureTheme)
       .use(customPlugins),
     [currentNote?.path] // Re-create editor when path changes
   );
@@ -184,7 +150,7 @@ function MilkdownEditorInner() {
     hasAutoFocused.current = false;
   }, [currentNote?.path]);
 
-  // Focus editor on title after creating new note (only once)
+  // Focus editor logic
   useEffect(() => {
     if (!get || !isNewlyCreated || hasAutoFocused.current) return;
 
@@ -202,17 +168,6 @@ function MilkdownEditorInner() {
 
         // Focus the editor
         view.focus();
-
-        // Move cursor to end of first line (title)
-        const { doc } = view.state;
-        const firstNode = doc.firstChild;
-        if (firstNode) {
-          const endOfTitle = firstNode.nodeSize - 1;
-          const tr = view.state.tr.setSelection(
-            TextSelection.near(doc.resolve(endOfTitle))
-          );
-          view.dispatch(tr);
-        }
       } catch {
         // Editor not ready yet, ignore
       }
@@ -308,6 +263,14 @@ export function MarkdownEditor() {
     };
   }, []);
 
+  // Calculate display name for Title Input
+  const noteName = useMemo(() => {
+    if (!currentNote) return '';
+    const pathParts = currentNote.path.split(/[\\/]/);
+    const fileName = pathParts[pathParts.length - 1] || 'Untitled';
+    return fileName.replace(/\.md$/, '');
+  }, [currentNote?.path]);
+
   return (
     <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative">
       <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
@@ -393,6 +356,17 @@ export function MarkdownEditor() {
               </div>
             )}
           </div>
+
+          {/* Title Input Component - Independent from Editor Content */}
+          {currentNote && (
+            <div className="mb-2">
+              <TitleInput
+                notePath={currentNote.path}
+                initialTitle={noteName}
+              />
+            </div>
+          )}
+
         </div>
 
         <MilkdownProvider key={currentNote?.path}>

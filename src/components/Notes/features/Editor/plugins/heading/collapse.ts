@@ -53,21 +53,22 @@ export const collapsePlugin = $prose(() => new Plugin({
             // Pass 1: Add Widgets to all headings
             doc.forEach((node, pos) => {
                 if (node.type.name === 'heading') {
+
+                    // Skip check for title (First H1) effectively removed
+                    // Old code: if (level === 1 && !titleFound) { titleFound = true; return; }
+
                     const isFolded = folded.has(pos);
 
                     // Widget (Triangle Icon)
                     const widget = Decoration.widget(pos + 1, (view) => {
                         const btn = document.createElement('div');
                         btn.className = `heading-collapse-btn ${isFolded ? 'collapsed' : ''}`;
-                        // Solid Triangle (Small) but Scalable via CSS/Font
-                        // Removed fixed width/height attributes, using CSS control.
-                        // ViewBox 24 24 allows for crisp rendering.
+                        // Solid Triangle (Small)
                         btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="8 5 19 12 8 19"></polygon></svg>`;
 
                         btn.onclick = (e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            // Get latest position from view to be safe
                             const tr = view.state.tr.setMeta(collapsePluginKey, { type: 'TOGGLE', pos });
                             view.dispatch(tr);
                         };
@@ -81,6 +82,7 @@ export const collapsePlugin = $prose(() => new Plugin({
                 }
             });
 
+            // Reset for Pass 2
             let activeFoldLevel = 999;
 
             // Pass 2: Calculate Visibility based on Folding
@@ -91,6 +93,7 @@ export const collapsePlugin = $prose(() => new Plugin({
                     const level = getHeadingLevel(node);
 
                     // 1. Check if this heading terminates the *current* active fold
+                    // (Matches logic: Fold ends when we meet a sibling or parent level)
                     if (activeFoldLevel !== 999 && level <= activeFoldLevel) {
                         activeFoldLevel = 999;
                     }

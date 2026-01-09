@@ -5,16 +5,14 @@
 import { StateCreator } from 'zustand';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { NotesStore } from '../types';
-import { extractFirstH1, sanitizeFileName } from '../noteUtils';
-import { updateDisplayName, moveDisplayName, removeDisplayName } from '../displayNameUtils';
+import { updateDisplayName, removeDisplayName } from '../displayNameUtils';
 import {
   addToRecentNotes,
-  saveNoteIconsToFile,
   saveFavoritesToFile,
   saveWorkspaceState,
   safeWriteTextFile,
 } from '../storage';
-import { updateFileNodePath, collectExpandedPaths, restoreExpandedState } from '../fileTreeUtils';
+import { collectExpandedPaths, restoreExpandedState } from '../fileTreeUtils';
 
 export interface WorkspaceSlice {
   currentNote: NotesStore['currentNote'];
@@ -54,8 +52,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       const storage = getStorageAdapter();
       const fullPath = await joinPath(notesPath, path);
       const content = await storage.readFile(fullPath);
-      const h1Title = extractFirstH1(content);
-      const tabName = h1Title || 'Untitled';
+
+      // Use filename as tab name (Title Separation)
+      const fileName = path.split('/').pop()?.replace('.md', '') || 'Untitled';
+      const tabName = fileName;
+
       const updatedRecent = addToRecentNotes(path, recentNotes);
       const existingTab = openTabs.find((t) => t.path === path);
 
@@ -99,84 +100,14 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   },
 
   saveNote: async () => {
-    const { currentNote, notesPath, openTabs, noteIcons, starredNotes } = get();
+    const { currentNote, notesPath } = get();
     if (!currentNote) return;
 
     try {
-      const storage = getStorageAdapter();
-      const h1Title = extractFirstH1(currentNote.content);
-      const currentFileName = currentNote.path.split('/').pop()?.replace('.md', '') || '';
-      const dirPath = currentNote.path.includes('/')
-        ? currentNote.path.substring(0, currentNote.path.lastIndexOf('/'))
-        : '';
-
-      if (h1Title && h1Title !== currentFileName) {
-        const sanitizedTitle = sanitizeFileName(h1Title);
-        const newFileName = `${sanitizedTitle}.md`;
-        const newPath = dirPath ? `${dirPath}/${newFileName}` : newFileName;
-        const newFullPath = await joinPath(notesPath, newPath);
-        const newFileExists = await storage.exists(newFullPath);
-        const oldFullPath = await joinPath(notesPath, currentNote.path);
-
-        if (!newFileExists || newFullPath === oldFullPath) {
-          await safeWriteTextFile(oldFullPath, currentNote.content);
-
-          if (newPath !== currentNote.path) {
-            await storage.rename(oldFullPath, newFullPath);
-
-            const icon = noteIcons.get(currentNote.path);
-            if (icon) {
-              const updatedIcons = new Map(noteIcons);
-              updatedIcons.delete(currentNote.path);
-              updatedIcons.set(newPath, icon);
-              saveNoteIconsToFile(notesPath, updatedIcons);
-              set({ noteIcons: updatedIcons });
-            }
-
-            if (starredNotes.includes(currentNote.path)) {
-              const updatedStarred = starredNotes.map((p) =>
-                p === currentNote.path ? newPath : p
-              );
-              const { starredFolders } = get();
-              saveFavoritesToFile(notesPath, { notes: updatedStarred, folders: starredFolders });
-              set({ starredNotes: updatedStarred });
-            }
-
-            const updatedTabs = openTabs.map((tab) =>
-              tab.path === currentNote.path
-                ? { ...tab, path: newPath, name: sanitizedTitle }
-                : tab
-            );
-            moveDisplayName(set, currentNote.path, newPath);
-            updateDisplayName(set, newPath, sanitizedTitle);
-
-            const currentRootFolder = get().rootFolder;
-            if (currentRootFolder) {
-              set({
-                rootFolder: {
-                  ...currentRootFolder,
-                  children: updateFileNodePath(
-                    currentRootFolder.children,
-                    currentNote.path,
-                    newPath,
-                    sanitizedTitle
-                  ),
-                },
-              });
-            }
-
-            set({
-              currentNote: { path: newPath, content: currentNote.content },
-              isDirty: false,
-              openTabs: updatedTabs,
-            });
-            return;
-          }
-        }
-      }
-
+      // Pure save logic - no renaming based on content
       const fullPath = await joinPath(notesPath, currentNote.path);
       await safeWriteTextFile(fullPath, currentNote.content);
+
       set({ isDirty: false });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save note' });

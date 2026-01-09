@@ -18,6 +18,7 @@ import { useSyncInit } from '@/hooks/useSyncInit';
 import { useLicenseInit } from '@/hooks/useLicenseInit';
 import { startOfWeek, addDays, startOfDay, addMinutes } from 'date-fns';
 import { CALENDAR_CONSTANTS, getSnapMinutes } from '@/components/Calendar/utils/timeUtils';
+import { useFileWatcher } from '@/hooks/useFileWatcher';
 
 const { GUTTER_WIDTH } = CALENDAR_CONSTANTS;
 
@@ -62,6 +63,9 @@ function AppContent() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Real-time File Watcher (Polls file system for changes)
+  useFileWatcher();
 
   // Window Unlocker: When we reach the main app, unlock the window!
   useEffect(() => {

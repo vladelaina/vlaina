@@ -21,6 +21,7 @@ import {
   loadFavoritesFromFile,
   saveWorkspaceState,
   saveFavoritesToFile,
+  saveNoteIconsToFile,
   safeWriteTextFile,
   addToRecentNotes,
 } from '../storage';
@@ -32,7 +33,7 @@ export interface FileSystemSlice {
   isNewlyCreated: NotesStore['isNewlyCreated'];
   newlyCreatedFolderPath: NotesStore['newlyCreatedFolderPath'];
 
-  loadFileTree: () => Promise<void>;
+  loadFileTree: (silent?: boolean) => Promise<void>;
   toggleFolder: (path: string) => void;
   createNote: (folderPath?: string) => Promise<string>;
   createNoteWithContent: (
@@ -58,12 +59,15 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   isNewlyCreated: false,
   newlyCreatedFolderPath: null,
 
-  loadFileTree: async () => {
-    set({ isLoading: true, error: null });
+  loadFileTree: async (silent = false) => {
+    if (!silent) {
+      set({ isLoading: true, error: null });
+    }
+
     try {
       const storage = getStorageAdapter();
       const basePath = await getNotesBasePath();
-      
+
       await ensureNotesFolder(basePath);
       const children = await buildFileTree(basePath);
       const icons = await loadNoteIconsFromFile(basePath);
@@ -75,6 +79,23 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       if (workspace?.expandedFolders?.length) {
         const expandedSet = new Set(workspace.expandedFolders);
         restoredChildren = restoreExpandedState(children, expandedSet);
+      }
+
+      // Check diff to avoid re-render loop if silent
+      if (silent) {
+        const currentRoot = get().rootFolder;
+        // Simple JSON stringify comparison for deep equality check
+        // This is acceptable for file trees of typical size (< 1000 nodes)
+        // If performance becomes issue, we can implement a specific diff function
+        if (currentRoot && JSON.stringify(currentRoot.children) === JSON.stringify(restoredChildren)) {
+          // No changes detected, skip update
+          // But we might need to update icons or favorites if those changed?
+          // For now, let's assume those change less often or we can check them too.
+          const currentIcons = get().noteIcons;
+          if (JSON.stringify(currentIcons) === JSON.stringify(icons)) {
+            return;
+          }
+        }
       }
 
       set({
@@ -94,7 +115,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       });
 
       // Restore last opened note
-      if (workspace?.currentNotePath) {
+      if (!silent && workspace?.currentNotePath) {
         setTimeout(async () => {
           try {
             const fullPath = await joinPath(basePath, workspace.currentNotePath!);
@@ -326,6 +347,17 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         saveFavoritesToFile(notesPath, { notes: updatedStarred, folders: starredFolders });
       }
 
+      // Migrate icon if exists
+      const { noteIcons } = get();
+      if (noteIcons.has(path)) {
+        const icon = noteIcons.get(path)!;
+        const updatedIcons = new Map(noteIcons);
+        updatedIcons.delete(path);
+        updatedIcons.set(newPath, icon);
+        set({ noteIcons: updatedIcons });
+        saveNoteIconsToFile(notesPath, updatedIcons);
+      }
+
       const updatedTabs = openTabs.map((tab) =>
         tab.path === path ? { ...tab, path: newPath } : tab
       );
@@ -383,6 +415,25 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
           notes: updatedStarredNotes,
           folders: updatedStarredFolders,
         });
+      }
+
+      // Migrate icons for all files in folder
+      const { noteIcons } = get();
+      let iconsChanged = false;
+      const updatedIcons = new Map(noteIcons);
+
+      for (const [key, icon] of noteIcons.entries()) {
+        if (key.startsWith(path + '/')) {
+          const newKey = key.replace(path, newPath);
+          updatedIcons.delete(key);
+          updatedIcons.set(newKey, icon);
+          iconsChanged = true;
+        }
+      }
+
+      if (iconsChanged) {
+        set({ noteIcons: updatedIcons });
+        saveNoteIconsToFile(notesPath, updatedIcons);
       }
 
       const updatedTabs = openTabs.map((tab) => {
@@ -544,6 +595,34 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
           notes: updatedStarredNotes,
           folders: updatedStarredFolders,
         });
+      }
+
+      // Migrate icons
+      const { noteIcons } = get();
+      let iconsChanged = false;
+      const updatedIcons = new Map(noteIcons);
+
+      // Handle single file move
+      if (updatedIcons.has(sourcePath)) {
+        const icon = updatedIcons.get(sourcePath)!;
+        updatedIcons.delete(sourcePath);
+        updatedIcons.set(newPath, icon);
+        iconsChanged = true;
+      }
+
+      // Handle folder move (prefix match)
+      for (const [key, icon] of noteIcons.entries()) {
+        if (key.startsWith(sourcePath + '/')) { // Only true if sourcePath is a folder
+          const newKey = key.replace(sourcePath, newPath);
+          updatedIcons.delete(key);
+          updatedIcons.set(newKey, icon);
+          iconsChanged = true;
+        }
+      }
+
+      if (iconsChanged) {
+        set({ noteIcons: updatedIcons });
+        saveNoteIconsToFile(notesPath, updatedIcons);
       }
 
       const updatedTabs = openTabs.map((tab) =>
