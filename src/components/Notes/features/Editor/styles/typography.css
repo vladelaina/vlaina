@@ -113,12 +113,7 @@
   margin-top: 0;
 }
 
-/* Heading hash text styling */
-.milkdown .heading-hash-text {
-  color: var(--neko-text-tertiary);
-  font-weight: normal;
-  opacity: 0.5;
-}
+
 
 /* Placeholder styles */
 .milkdown .ProseMirror p.is-editor-empty:first-child::before {

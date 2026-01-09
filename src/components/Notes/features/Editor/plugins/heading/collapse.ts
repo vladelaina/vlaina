@@ -59,14 +59,15 @@ export const collapsePlugin = $prose(() => new Plugin({
                     const widget = Decoration.widget(pos + 1, (view) => {
                         const btn = document.createElement('div');
                         btn.className = `heading-collapse-btn ${isFolded ? 'collapsed' : ''}`;
-                        btn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+                        // Solid Triangle (Small) but Scalable via CSS/Font
+                        // Removed fixed width/height attributes, using CSS control.
+                        // ViewBox 24 24 allows for crisp rendering.
+                        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="8 5 19 12 8 19"></polygon></svg>`;
 
                         btn.onclick = (e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             // Get latest position from view to be safe
-                            // Actually, 'pos' is from the *current* state render cycle, which is what we want.
-                            // ProseMirror handles mapping if decorations persist, but here we regenerate them.
                             const tr = view.state.tr.setMeta(collapsePluginKey, { type: 'TOGGLE', pos });
                             view.dispatch(tr);
                         };
@@ -90,12 +91,11 @@ export const collapsePlugin = $prose(() => new Plugin({
                     const level = getHeadingLevel(node);
 
                     // 1. Check if this heading terminates the *current* active fold
-                    // (Matches logic: Fold ends when we meet a sibling or parent level)
                     if (activeFoldLevel !== 999 && level <= activeFoldLevel) {
                         activeFoldLevel = 999;
                     }
 
-                    // 2. If we are still in a fold (e.g. H2 inside H1), this heading itself should be hidden
+                    // 2. If we are still in a fold, this heading itself should be hidden
                     if (activeFoldLevel !== 999) {
                         shouldHide = true;
                     }
@@ -105,8 +105,7 @@ export const collapsePlugin = $prose(() => new Plugin({
                         activeFoldLevel = level;
                     }
                 } else {
-                    // Non-heading node (Paragraphs, etc.)
-                    // If activeFoldLevel is set, hide this node
+                    // Non-heading node
                     if (activeFoldLevel !== 999) {
                         shouldHide = true;
                     }

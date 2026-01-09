@@ -155,8 +155,8 @@ export function EmojiTab({
                   onMouseLeave={() => handleSkinToneHover(null)}
                   className={cn(
                     "w-7 h-7 flex items-center justify-center text-lg transition-all",
-                    skinTone === st.tone 
-                      ? "opacity-100 scale-110" 
+                    skinTone === st.tone
+                      ? "opacity-100 scale-110"
                       : "opacity-60 hover:opacity-100 hover:scale-105"
                   )}
                 >

@@ -264,18 +264,20 @@
 /* Collapsible Headings */
 .milkdown .heading-collapse-btn {
   position: absolute;
-  left: -1.75rem;
-  /* Precise Affine positioning */
+  left: -1.5rem;
+  /* Tighter position */
   top: 50%;
   transform: translateY(-50%);
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.25rem;
+  /* Keep hit area decent */
+  height: 1.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   cursor: pointer;
-  color: var(--neko-text-tertiary);
+  color: var(--neko-text-disabled);
+  /* Very subtle by default */
   transition: all 0.2s ease;
   border-radius: 4px;
   z-index: 10;
@@ -293,13 +295,15 @@
 }
 
 .milkdown .heading-collapse-btn:hover {
-  background-color: var(--neko-bg-hover);
-  color: var(--neko-text-primary);
+  background-color: transparent;
+  color: var(--neko-text-secondary);
+  /* Darker on hover */
 }
 
 .milkdown .heading-collapse-btn svg {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 0.75rem;
+  /* ~12px - Small and subtle */
+  height: 0.75rem;
   transition: transform 0.2s ease;
 }
 

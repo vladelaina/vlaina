@@ -27,24 +27,24 @@ interface IconPickerProps {
   onIconChange?: (emoji: string) => void;
 }
 
-export function IconPicker({ 
-  onSelect, 
-  onPreview, 
-  onRemove, 
-  onClose, 
-  hasIcon = false, 
-  currentIcon, 
-  onIconChange 
+export function IconPicker({
+  onSelect,
+  onPreview,
+  onRemove,
+  onClose,
+  hasIcon = false,
+  currentIcon,
+  onIconChange
 }: IconPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<TabType>(loadActiveTab);
   const [recentIcons, setRecentIcons] = useState<string[]>(loadRecentIcons);
   const [skinTone, setSkinTone] = useState(loadSkinTone);
-  
+
   // Track the last randomly selected icon (to add to recent on close)
   const lastRandomIconRef = useRef<string | null>(null);
 
-  const recentEmojis = useMemo(() => 
+  const recentEmojis = useMemo(() =>
     recentIcons.filter(i => !i.startsWith('icon:')).slice(0, MAX_RECENT_EMOJIS),
     [recentIcons]
   );
@@ -76,7 +76,7 @@ export function IconPicker({
     onRemove?.();
     onClose();
   }, [onRemove, onClose]);
-  
+
   // Add random icon to recent when closing (if user kept it)
   const handleClose = useCallback(() => {
     if (lastRandomIconRef.current) {
@@ -140,12 +140,13 @@ export function IconPicker({
   }, [handleClose, onPreview, activeTab, handleTabChange]);
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className={cn(
         "absolute z-50 shadow-lg rounded-lg overflow-hidden",
         "border border-[var(--neko-border)] bg-white dark:bg-zinc-900",
-        "w-[352px]"
+        "w-[352px]",
+        "select-none"
       )}
     >
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-[var(--neko-border)]">
