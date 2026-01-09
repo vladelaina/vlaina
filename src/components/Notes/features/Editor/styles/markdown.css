@@ -1,0 +1,144 @@
+/**
+ * Markdown Element Styles
+ * Lists, Links, Blockquotes, Tables, etc.
+ */
+
+/* Links */
+.milkdown a {
+  color: var(--neko-accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.milkdown a:hover {
+  border-bottom-color: var(--neko-accent);
+}
+
+/* Blockquote */
+.milkdown blockquote {
+  line-height: 26px;
+  padding-left: 17px;
+  margin-top: 8px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  position: relative;
+  color: var(--neko-text-secondary);
+}
+
+.milkdown blockquote::before {
+  content: '';
+  width: 2px;
+  height: calc(100% - 20px);
+  position: absolute;
+  left: 0;
+  top: 10px;
+  background: var(--neko-text-tertiary);
+  border-radius: 18px;
+}
+
+/* Lists */
+.milkdown ul,
+.milkdown ol {
+  padding-left: 1.5rem;
+  margin: 8px 0;
+}
+
+.milkdown li {
+  margin: 4px 0;
+  line-height: calc(1em + 8px);
+}
+
+.milkdown ul > li {
+  list-style-type: disc;
+}
+
+.milkdown ol > li {
+  list-style-type: decimal;
+}
+
+.milkdown li > ul,
+.milkdown li > ol {
+  margin: 4px 0;
+}
+
+/* Task List */
+.milkdown ul.task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.milkdown .task-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.milkdown .task-list-item input[type="checkbox"] {
+  margin-top: 0.25rem;
+  cursor: pointer;
+}
+
+/* Horizontal Rule */
+.milkdown hr {
+  border: none;
+  border-top: 1px solid var(--neko-border);
+  margin: 1.5rem 0;
+}
+
+/* Inline Code */
+.milkdown code:not(pre code) {
+  font-size: calc(15px - 3px);
+  padding: 0 4px 2px;
+  background-color: var(--neko-bg-secondary);
+  border-radius: 4px;
+  font-family: var(--neko-font-mono-family);
+}
+
+/* Images */
+.milkdown img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+
+/* Tables */
+.milkdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 14px;
+}
+
+.milkdown th,
+.milkdown td {
+  border: 1px solid var(--neko-border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.milkdown th {
+  background-color: var(--neko-bg-secondary);
+  font-weight: 600;
+}
+
+.milkdown tr:hover {
+  background-color: var(--neko-bg-hover);
+}
+
+/* Strong & Emphasis */
+.milkdown strong {
+  font-weight: 600;
+}
+
+.milkdown em {
+  font-style: italic;
+}
+
+/* Strikethrough */
+.milkdown del,
+.milkdown s {
+  text-decoration: line-through;
+  color: var(--neko-text-secondary);
+}

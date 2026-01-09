@@ -1,110 +1,83 @@
 /**
  * Typography & Heading Styles
- * 
- * Re-implementing explicit styles for headings to ensure 1:1 Affine replication.
- * These styles map directly to the Tailwind classes defined in theme.ts but are applied
- * at the CSS level to guarantee they win over Preflight/Prose defaults.
+ * Base font: 15px, Line height: calc(1em + 8px)
  */
 
-/* H1: text-4xl font-extrabold tracking-tight */
+/* H1: 28px, font-weight 700 */
 .milkdown h1 {
-  font-size: 2.25rem;
-  /* text-4xl */
-  line-height: 2.5rem;
-  font-weight: 800;
-  /* font-extrabold */
-  letter-spacing: -0.025em;
-  /* tracking-tight */
-  margin-top: 2.5rem;
-  /* mt-10 */
-  margin-bottom: 1.5rem;
-  /* mb-6 */
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: calc(1em + 8px);
+  margin-top: 18px;
+  margin-bottom: 10px;
   color: var(--neko-text-primary);
-  scroll-margin-top: 5rem;
-  /* scroll-m-20 */
 }
 
 .milkdown h1:first-child {
   margin-top: 0;
 }
 
-@media (min-width: 1024px) {
-  .milkdown h1 {
-    font-size: 3rem;
-    /* lg:text-5xl */
-    line-height: 1;
-  }
-}
-
-/* H2: text-[2rem] (32px) */
+/* H2: 26px */
 .milkdown h2 {
-  font-size: 2rem;
-  line-height: 2.5rem;
+  font-size: 26px;
   font-weight: 600;
-  letter-spacing: -0.025em;
-  margin-top: 2rem;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+  line-height: calc(1em + 10px);
+  margin-top: 14px;
+  margin-bottom: 10px;
   color: var(--neko-text-primary);
-  scroll-margin-top: 5rem;
 }
 
-/* H3: text-[1.75rem] (28px) */
+/* H3: 24px */
 .milkdown h3 {
-  font-size: 1.75rem;
-  line-height: 2.25rem;
+  font-size: 24px;
   font-weight: 600;
-  letter-spacing: -0.025em;
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+  line-height: calc(1em + 8px);
+  margin-top: 12px;
+  margin-bottom: 10px;
   color: var(--neko-text-primary);
-  scroll-margin-top: 5rem;
 }
 
-/* H4: text-[1.5rem] (24px) */
+/* H4: 22px */
 .milkdown h4 {
-  font-size: 1.5rem;
-  line-height: 2rem;
+  font-size: 22px;
   font-weight: 600;
-  letter-spacing: -0.025em;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
+  letter-spacing: -0.015em;
+  line-height: calc(1em + 8px);
+  margin-top: 12px;
+  margin-bottom: 10px;
   color: var(--neko-text-primary);
-  scroll-margin-top: 5rem;
 }
 
-/* H5: text-[1.25rem] (20px) */
+/* H5: 20px */
 .milkdown h5 {
-  font-size: 1.25rem;
-  line-height: 1.75rem;
+  font-size: 20px;
   font-weight: 600;
-  letter-spacing: -0.025em;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
+  letter-spacing: -0.015em;
+  line-height: calc(1em + 8px);
+  margin-top: 12px;
+  margin-bottom: 10px;
   color: var(--neko-text-primary);
-  scroll-margin-top: 5rem;
 }
 
-/* H6: text-[1.125rem] (18px) */
+/* H6: 18px */
 .milkdown h6 {
-  font-size: 1.125rem;
-  line-height: 1.75rem;
+  font-size: 18px;
   font-weight: 600;
-  letter-spacing: -0.025em;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
+  letter-spacing: -0.015em;
+  line-height: calc(1em + 8px);
+  margin-top: 12px;
+  margin-bottom: 10px;
   color: var(--neko-text-primary);
-  scroll-margin-top: 5rem;
 }
 
-/* Paragraph: text-base leading-7 */
+/* Paragraph: 15px (AFFiNE base) */
 .milkdown p {
-  font-size: 1rem;
-  /* 16px */
-  line-height: 1.75rem;
-  /* leading-7 */
-  margin-top: 1.5rem;
-  /* [&:not(:first-child)]:mt-6 */
+  font-size: 15px;
+  line-height: calc(1em + 8px);
+  margin-top: 8px;
   margin-bottom: 0;
   color: var(--neko-text-primary);
 }
@@ -112,8 +85,6 @@
 .milkdown p:first-child {
   margin-top: 0;
 }
-
-
 
 /* Placeholder styles */
 .milkdown .ProseMirror p.is-editor-empty:first-child::before {
