@@ -139,7 +139,6 @@ function MilkdownEditorInner() {
       .use(gfm)
       .use(history)
       .use(listener)
-      // Removed titleSyncPlugin
       .use(configureTheme)
       .use(customPlugins),
     [currentNote?.path] // Re-create editor when path changes

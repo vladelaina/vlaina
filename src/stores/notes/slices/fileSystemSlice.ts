@@ -24,7 +24,8 @@ import {
   safeWriteTextFile,
   addToRecentNotes,
 } from '../storage';
-import { moveDisplayName, removeDisplayName } from '../displayNameUtils';
+import { moveDisplayName, removeDisplayName, updateDisplayName } from '../displayNameUtils';
+import { sanitizeFileName } from '../noteUtils';
 
 export interface FileSystemSlice {
   rootFolder: NotesStore['rootFolder'];
@@ -312,12 +313,15 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     try {
       const fullPath = await joinPath(notesPath, path);
       const dirPath = path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : '';
-      const newFileName = newName.endsWith('.md') ? newName : `${newName}.md`;
+      const sanitizedName = sanitizeFileName(newName);
+      const newFileName = sanitizedName.endsWith('.md') ? sanitizedName : `${sanitizedName}.md`;
       const newPath = dirPath ? `${dirPath}/${newFileName}` : newFileName;
       const newFullPath = await joinPath(notesPath, newPath);
 
       await storage.rename(fullPath, newFullPath);
       moveDisplayName(set, path, newPath);
+      // Update display name with new filename
+      updateDisplayName(set, newPath, sanitizedName.replace('.md', ''));
 
       // Update favorites if starred
       if (starredNotes.includes(path)) {
