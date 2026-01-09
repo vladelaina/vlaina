@@ -79,33 +79,33 @@
 :root {
   /* Basic fallback fonts */
   --font-fallback: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Tahoma, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  
+
   /* Main UI Font - Sans Serif */
   --font-sans: 'Inter', 'Source Sans 3', 'Poppins', var(--font-fallback);
-  
+
   /* Serif Font - For reading/documents */
   --font-serif: 'Source Serif 4', 'Noto Serif', 'Lora', 'Cambria', Georgia, serif, var(--font-fallback);
-  
+
   /* Monospace Font - For code */
   --font-mono: 'JetBrains Mono', 'Source Code Pro', 'IBM Plex Mono', 'Roboto Mono', 'Space Mono', Consolas, Menlo, Monaco, monospace;
-  
+
   /* Number Font - For numeric display */
   --font-number: 'Roboto Mono', 'JetBrains Mono', var(--font-fallback);
-  
+
   /* Canvas/Whiteboard Fonts */
   --font-canvas-default: 'Inter', var(--font-fallback);
   --font-canvas-handwriting: 'Kalam', cursive, var(--font-fallback);
   --font-canvas-serif: 'Lora', 'Source Serif 4', Georgia, serif, var(--font-fallback);
   --font-canvas-display: 'Bebas Neue', 'Orelega One', sans-serif;
   --font-canvas-modern: 'Poppins', 'Inter', var(--font-fallback);
-  
+
   /* Font Family Variables */
   --neko-font-family: var(--font-sans);
   --neko-font-serif-family: var(--font-serif);
   --neko-font-mono-family: var(--font-mono);
   --neko-font-number-family: var(--font-number);
   --neko-font-code-family: var(--font-mono);
-  
+
   /* Font Sizes */
   --neko-font-title: 36px;
   --neko-font-h1: 28px;
@@ -167,86 +167,87 @@ body {
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  
+
   /* Font Family Theme */
-  --font-sans: 'Inter', 'Source Sans 3', 'Poppins', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
   --font-serif: 'Source Serif 4', 'Noto Serif', 'Lora', 'Cambria', Georgia, serif;
-  --font-mono: 'JetBrains Mono', 'Source Code Pro', 'IBM Plex Mono', 'Roboto Mono', Consolas, monospace;
+  --font-mono: 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Monaco', 'Consolas', monospace;
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.96 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.94 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 0.5rem;
+  --background: #ffffff;
+  --foreground: #121212;
+  --card: #ffffff;
+  --card-foreground: #121212;
+  --popover: #ffffff;
+  --popover-foreground: #121212;
+  --primary: #1e96eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f5f7;
+  --secondary-foreground: #121212;
+  --muted: #f4f5f7;
+  --muted-foreground: #8e8e8e;
+  --accent: #f4f5f7;
+  --accent-foreground: #1e96eb;
+  --destructive: #eb5757;
+  --border: #e3e2e4;
+  --input: #e3e2e4;
+  --ring: #1e96eb;
+  --chart-1: #1e96eb;
+  --chart-2: #27ae60;
+  --chart-3: #f2994a;
+  --chart-4: #eb5757;
+  --chart-5: #9b51e0;
+  --sidebar: #fbfbfc;
+  --sidebar-foreground: #121212;
+  --sidebar-primary: #1e96eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f5f7;
+  --sidebar-accent-foreground: #1e96eb;
+  --sidebar-border: #e3e2e4;
+  --sidebar-ring: #1e96eb;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #101010;
+  --foreground: #eeeeee;
+  --card: #101010;
+  --card-foreground: #eeeeee;
+  --popover: #101010;
+  --popover-foreground: #eeeeee;
+  --primary: #1e96eb;
+  --primary-foreground: #ffffff;
+  --secondary: #2c2c2c;
+  --secondary-foreground: #eeeeee;
+  --muted: #2c2c2c;
+  --muted-foreground: #a0a0a0;
+  --accent: #2c2c2c;
+  --accent-foreground: #1e96eb;
+  --destructive: #eb5757;
+  --border: #333333;
+  --input: #333333;
+  --ring: #1e96eb;
+  --chart-1: #1e96eb;
+  --chart-2: #2ecc71;
+  --chart-3: #f2c94c;
+  --chart-4: #eb5757;
+  --chart-5: #bb6bd9;
+  --sidebar: #161616;
+  --sidebar-foreground: #eeeeee;
+  --sidebar-primary: #1e96eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2c2c2c;
+  --sidebar-accent-foreground: #1e96eb;
+  --sidebar-border: #333333;
+  --sidebar-ring: #1e96eb;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -257,6 +258,7 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
 .scrollbar-hidden::-webkit-scrollbar {
   display: none;
 }
@@ -268,65 +270,72 @@ body {
 :root {
   /* Light Theme Colors */
   --neko-bg-primary: #ffffff;
-  --neko-bg-secondary: #fafafa;
-  --neko-bg-tertiary: #f4f4f5;
+  --neko-bg-secondary: #fbfbfc;
+  --neko-bg-tertiary: #f4f5f7;
   --neko-bg-hover: rgba(0, 0, 0, 0.04);
   --neko-bg-active: rgba(0, 0, 0, 0.08);
-  
+
   --neko-text-primary: #121212;
-  --neko-text-secondary: #8e8d91;
+  --neko-text-secondary: #8e8e8e;
   --neko-text-tertiary: #b9b9bc;
   --neko-text-disabled: #c9c9ca;
-  
+
   --neko-border: #e3e2e4;
   --neko-divider: #e3e2e4;
-  
+
   --neko-accent: #1e96eb;
   --neko-accent-hover: #0c7fd9;
   --neko-accent-light: rgba(30, 150, 235, 0.1);
-  
-  --neko-icon-primary: #77757d;
-  --neko-icon-secondary: #8e8d91;
+
+  --neko-icon-primary: #8e8e8e;
+  --neko-icon-secondary: #b9b9bc;
   --neko-icon-active: #1e96eb;
-  
+
   --neko-hover: rgba(0, 0, 0, 0.04);
-  --neko-hover-filled: #f4f4f5;
-  
+  --neko-hover-filled: #f4f5f7;
+
   /* Sidebar */
   --neko-sidebar-width: 248px;
-  --neko-sidebar-bg: #F6F6F6;
+  --neko-sidebar-bg: #fbfbfc;
   --neko-header-height: 52px;
+
+  /* Typography */
+  --neko-font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --neko-font-mono-family: 'Roboto Mono', monospace;
+
+  --neko-font-base: 16px;
+  --neko-line-height: 1.6;
 }
 
 .dark {
   /* Dark Theme Colors */
-  --neko-bg-primary: #141414;
-  --neko-bg-secondary: #1e1e1e;
-  --neko-bg-tertiary: #252525;
+  --neko-bg-primary: #101010;
+  --neko-bg-secondary: #161616;
+  --neko-bg-tertiary: #2c2c2c;
   --neko-bg-hover: rgba(255, 255, 255, 0.06);
   --neko-bg-active: rgba(255, 255, 255, 0.1);
-  
-  --neko-text-primary: #e6e6e6;
-  --neko-text-secondary: #8e8d91;
+
+  --neko-text-primary: #eeeeee;
+  --neko-text-secondary: #a0a0a0;
   --neko-text-tertiary: #5d5d5f;
   --neko-text-disabled: #424242;
-  
-  --neko-border: #2d2d2d;
-  --neko-divider: #2d2d2d;
-  
-  --neko-accent: #4a9ef5;
+
+  --neko-border: #333333;
+  --neko-divider: #333333;
+
+  --neko-accent: #1e96eb;
   --neko-accent-hover: #5eabf7;
-  --neko-accent-light: rgba(74, 158, 245, 0.15);
-  
+  --neko-accent-light: rgba(30, 150, 235, 0.15);
+
   --neko-icon-primary: #a0a0a0;
   --neko-icon-secondary: #6b6b6b;
-  --neko-icon-active: #4a9ef5;
-  
+  --neko-icon-active: #1e96eb;
+
   --neko-hover: rgba(255, 255, 255, 0.06);
-  --neko-hover-filled: #252525;
-  
+  --neko-hover-filled: #2c2c2c;
+
   /* Sidebar */
-  --neko-sidebar-bg: #1a1a1a;
+  --neko-sidebar-bg: #161616;
 }
 
 /* ============================================
@@ -336,12 +345,15 @@ body {
 /* Hide native scrollbar completely and use custom overlay scrollbar */
 .neko-scrollbar {
   overflow: auto;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE/Edge */
 }
 
 .neko-scrollbar::-webkit-scrollbar {
-  display: none; /* Chrome/Safari/Opera */
+  display: none;
+  /* Chrome/Safari/Opera */
 }
 
 /* Custom scrollbar container */
@@ -350,18 +362,18 @@ body {
   overflow: hidden;
 }
 
-.neko-scrollbar-custom > .neko-scrollbar-content {
+.neko-scrollbar-custom>.neko-scrollbar-content {
   overflow: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
   height: 100%;
 }
 
-.neko-scrollbar-custom > .neko-scrollbar-content::-webkit-scrollbar {
+.neko-scrollbar-custom>.neko-scrollbar-content::-webkit-scrollbar {
   display: none;
 }
 
-.neko-scrollbar-custom > .neko-scrollbar-track {
+.neko-scrollbar-custom>.neko-scrollbar-track {
   position: absolute;
   right: 2px;
   top: 0;
@@ -371,11 +383,11 @@ body {
   transition: opacity 0.2s;
 }
 
-.neko-scrollbar-custom:hover > .neko-scrollbar-track {
+.neko-scrollbar-custom:hover>.neko-scrollbar-track {
   opacity: 1;
 }
 
-.neko-scrollbar-custom > .neko-scrollbar-track > .neko-scrollbar-thumb {
+.neko-scrollbar-custom>.neko-scrollbar-track>.neko-scrollbar-thumb {
   position: absolute;
   width: 100%;
   background-color: var(--neko-border);
@@ -383,7 +395,7 @@ body {
   transition: background-color 0.15s;
 }
 
-.neko-scrollbar-custom > .neko-scrollbar-track > .neko-scrollbar-thumb:hover {
+.neko-scrollbar-custom>.neko-scrollbar-track>.neko-scrollbar-thumb:hover {
   background-color: var(--neko-text-tertiary);
 }
 

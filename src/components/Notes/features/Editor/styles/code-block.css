@@ -7,12 +7,14 @@
   margin: 1rem 0;
   border-radius: 0.5rem;
   overflow: hidden;
-  background-color: #18181b;
+  background-color: #f7f9fb;
+  /* Light mode bg from theme.ts 1:1 */
   border: 1px solid var(--neko-border);
 }
 
 .dark .code-block-enhanced {
-  background-color: #09090b;
+  background-color: #161616;
+  /* Dark mode bg from theme.ts 1:1 */
 }
 
 .code-block-enhanced .code-block-toolbar {
@@ -20,33 +22,34 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  background-color: #27272a;
-  border-bottom: 1px solid #3f3f46;
+  background-color: #f0f2f5;
+  /* Slightly darker than block bg */
+  border-bottom: 1px solid var(--neko-border);
 }
 
 .dark .code-block-enhanced .code-block-toolbar {
-  background-color: #18181b;
+  background-color: #1c1c1e;
 }
 
 .code-block-enhanced .code-block-lang {
   font-size: 0.75rem;
-  color: #a1a1aa;
+  color: var(--neko-text-secondary);
   text-transform: lowercase;
 }
 
 .code-block-enhanced .code-block-copy-btn {
   padding: 0.25rem;
-  color: #71717a;
+  color: var(--neko-text-secondary);
   background: transparent;
   border: none;
   border-radius: 0.25rem;
   cursor: pointer;
-  transition: color 0.15s;
+  transition: all 0.15s;
 }
 
 .code-block-enhanced .code-block-copy-btn:hover {
-  color: #e4e4e7;
-  background-color: #3f3f46;
+  color: var(--neko-text-primary);
+  background-color: var(--neko-bg-hover);
 }
 
 .code-block-enhanced .code-block-content {
@@ -67,6 +70,7 @@
   padding: 0;
   font-size: 0.875rem;
   line-height: 1.7;
+  font-family: var(--neko-font-mono-family);
 }
 
 /* Slash Menu */
@@ -76,9 +80,14 @@
   min-width: 280px;
   max-height: 360px;
   overflow-y: auto;
-  background-color: var(--neko-bg-secondary);
+  background-color: var(--neko-bg-primary);
+  /* Fixed: Use theme var */
   border: 1px solid var(--neko-border);
   border-radius: 0.5rem;
-  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.2);
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1);
   padding: 0.5rem;
+}
+
+.dark .slash-menu {
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.5);
 }

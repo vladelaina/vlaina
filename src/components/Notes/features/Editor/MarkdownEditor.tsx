@@ -39,6 +39,7 @@ import {
   videoPlugin,
   abbrPlugin,
 } from './plugins';
+import { configureTheme } from './theme';
 
 // Editor styles
 import './styles/index.css';
@@ -173,6 +174,7 @@ function MilkdownEditorInner() {
       .use(history)
       .use(listener)
       .use(titleSyncPlugin)
+      .use(configureTheme) // Apply custom theme
       .use(customPlugins),
     [currentNote?.path] // Re-create editor when path changes
   );
@@ -334,7 +336,7 @@ export function MarkdownEditor() {
       <CustomScrollbar className="flex-1">
         <div className="max-w-[800px] mx-auto w-full px-10">
           <div
-            className="pt-6 pb-5"
+            className="pt-6 pb-1"
             onMouseEnter={() => setIsHoveringHeader(true)}
             onMouseLeave={() => setIsHoveringHeader(false)}
           >

@@ -1,116 +1,143 @@
 /**
  * Typography & Heading Styles
+ * 
+ * Re-implementing explicit styles for headings to ensure 1:1 Affine replication.
+ * These styles map directly to the Tailwind classes defined in theme.ts but are applied
+ * at the CSS level to guarantee they win over Preflight/Prose defaults.
  */
 
-/* H1 */
+/* H1: text-4xl font-extrabold tracking-tight */
 .milkdown h1 {
-  font-size: 2rem !important;
-  font-weight: 700 !important;
-  margin-top: 0 !important;
-  margin-bottom: 0.625rem !important;
-  line-height: calc(1em + 8px) !important;
-  letter-spacing: -0.02em !important;
-  color: var(--neko-text-primary) !important;
+  font-size: 2.25rem;
+  /* text-4xl */
+  line-height: 2.5rem;
+  font-weight: 800;
+  /* font-extrabold */
+  letter-spacing: -0.025em;
+  /* tracking-tight */
+  margin-top: 2.5rem;
+  /* mt-10 */
+  margin-bottom: 1.5rem;
+  /* mb-6 */
+  color: var(--neko-text-primary);
+  scroll-margin-top: 5rem;
+  /* scroll-m-20 */
 }
 
-/* H2 */
+.milkdown h1:first-child {
+  margin-top: 0;
+}
+
+@media (min-width: 1024px) {
+  .milkdown h1 {
+    font-size: 3rem;
+    /* lg:text-5xl */
+    line-height: 1;
+  }
+}
+
+/* H2: text-3xl font-semibold tracking-tight */
 .milkdown h2 {
-  font-size: 1.5rem !important;
-  font-weight: 600 !important;
-  margin-top: 0.875rem !important;
-  margin-bottom: 0.625rem !important;
-  line-height: calc(1em + 10px) !important;
-  letter-spacing: -0.02em !important;
-  color: var(--neko-text-primary) !important;
+  font-size: 1.875rem;
+  /* text-3xl */
+  line-height: 2.25rem;
+  font-weight: 600;
+  /* font-semibold */
+  letter-spacing: -0.025em;
+  /* tracking-tight */
+  margin-top: 2rem;
+  /* mt-8 */
+  margin-bottom: 1rem;
+  /* mb-4 */
+  padding-bottom: 0.5rem;
+  /* pb-2 */
+  color: var(--neko-text-primary);
+  scroll-margin-top: 5rem;
 }
 
-/* H3 */
+/* H3: text-2xl font-semibold tracking-tight */
 .milkdown h3 {
-  font-size: 1.25rem !important;
-  font-weight: 600 !important;
-  margin-top: 0.75rem !important;
-  margin-bottom: 0.625rem !important;
-  line-height: calc(1em + 8px) !important;
-  letter-spacing: -0.02em !important;
-  color: var(--neko-text-primary) !important;
+  font-size: 1.5rem;
+  /* text-2xl */
+  line-height: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin-top: 1.5rem;
+  /* mt-6 */
+  margin-bottom: 0.75rem;
+  /* mb-3 */
+  color: var(--neko-text-primary);
+  scroll-margin-top: 5rem;
 }
 
-/* H4 */
+/* H4: text-xl font-semibold tracking-tight */
 .milkdown h4 {
-  font-size: 1rem !important;
-  font-weight: 600 !important;
-  margin-top: 0.75rem !important;
-  margin-bottom: 0.625rem !important;
-  line-height: calc(1em + 8px) !important;
-  letter-spacing: -0.015em !important;
-  color: var(--neko-text-primary) !important;
-}
-
-/* H5 */
-.milkdown h5 {
-  font-size: 0.875rem !important;
-  font-weight: 600 !important;
-  margin-top: 0.75rem !important;
-  margin-bottom: 0.625rem !important;
-  line-height: calc(1em + 8px) !important;
-  letter-spacing: -0.015em !important;
-  color: var(--neko-text-secondary) !important;
-}
-
-/* H6 */
-.milkdown h6 {
-  font-size: 0.85rem !important;
-  font-weight: 600 !important;
-  margin-top: 0.75rem !important;
-  margin-bottom: 0.625rem !important;
-  line-height: calc(1em + 8px) !important;
-  letter-spacing: -0.015em !important;
-  color: var(--neko-text-tertiary) !important;
-}
-
-/* Paragraph */
-.milkdown p {
+  font-size: 1.25rem;
+  /* text-xl */
+  line-height: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin-top: 1rem;
+  /* mt-4 */
   margin-bottom: 0.5rem;
-  line-height: calc(1em + 8px);
+  /* mb-2 */
+  color: var(--neko-text-primary);
+  scroll-margin-top: 5rem;
+}
+
+/* H5: text-lg font-semibold tracking-tight */
+.milkdown h5 {
+  font-size: 1.125rem;
+  /* text-lg */
+  line-height: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: var(--neko-text-primary);
+  scroll-margin-top: 5rem;
+}
+
+/* H6: text-base font-semibold tracking-tight */
+.milkdown h6 {
+  font-size: 1rem;
+  /* text-base */
+  line-height: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: var(--neko-text-primary);
+  scroll-margin-top: 5rem;
+}
+
+/* Paragraph: text-base leading-7 */
+.milkdown p {
+  font-size: 1rem;
+  /* 16px */
+  line-height: 1.75rem;
+  /* leading-7 */
+  margin-top: 1.5rem;
+  /* [&:not(:first-child)]:mt-6 */
+  margin-bottom: 0;
   color: var(--neko-text-primary);
 }
 
-/* Heading hash marks */
+.milkdown p:first-child {
+  margin-top: 0;
+}
+
+/* Heading hash text styling */
 .milkdown .heading-hash-text {
-  color: #a1a1aa;
+  color: var(--neko-text-tertiary);
   font-weight: normal;
-  cursor: text;
+  opacity: 0.5;
 }
 
-.dark .milkdown .heading-hash-text {
-  color: #71717a;
-}
-
-/* H1 Placeholder */
-.milkdown h1:first-child {
-  position: relative;
-}
-
-.milkdown h1:first-child:empty::before,
-.milkdown h1:first-child:has(br:only-child)::before {
-  content: "Title";
-  color: #d4d4d8;
-  pointer-events: none;
-  position: absolute;
-  left: 0;
-  top: 0;
-  user-select: none;
-}
-
-.dark .milkdown h1:first-child:empty::before,
-.dark .milkdown h1:first-child:has(br:only-child)::before {
-  color: #52525b;
-}
-
-/* Placeholder */
+/* Placeholder styles */
 .milkdown .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  color: var(--neko-text-tertiary);
+  color: var(--neko-text-disabled);
   pointer-events: none;
   position: absolute;
   left: 0;
@@ -119,33 +146,4 @@
 
 .milkdown .ProseMirror p.is-editor-empty:first-child {
   position: relative;
-}
-
-/* Emphasis */
-.milkdown strong {
-  font-weight: 600;
-  color: var(--neko-text-primary);
-}
-
-.milkdown em {
-  font-style: italic;
-}
-
-.milkdown del {
-  text-decoration: line-through;
-  color: var(--neko-text-tertiary);
-}
-
-.milkdown u {
-  text-decoration: underline;
-}
-
-/* Text color and background color marks */
-.milkdown [data-text-color] {
-  /* Color is applied inline */
-}
-
-.milkdown [data-bg-color] {
-  padding: 0.125rem 0.25rem;
-  border-radius: 0.125rem;
 }
