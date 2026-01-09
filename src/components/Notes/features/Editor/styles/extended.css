@@ -195,27 +195,61 @@
   min-width: 0;
 }
 
-.milkdown .callout-content > *:first-child {
+.milkdown .callout-content>*:first-child {
   margin-top: 0;
 }
 
-.milkdown .callout-content > *:last-child {
+.milkdown .callout-content>*:last-child {
   margin-bottom: 0;
 }
 
-.milkdown .callout-yellow { background-color: rgba(251, 191, 36, 0.15); }
-.milkdown .callout-blue   { background-color: rgba(59, 130, 246, 0.15); }
-.milkdown .callout-green  { background-color: rgba(34, 197, 94, 0.15); }
-.milkdown .callout-red    { background-color: rgba(239, 68, 68, 0.15); }
-.milkdown .callout-purple { background-color: rgba(168, 85, 247, 0.15); }
-.milkdown .callout-gray   { background-color: rgba(107, 114, 128, 0.15); }
+.milkdown .callout-yellow {
+  background-color: rgba(251, 191, 36, 0.15);
+}
 
-.dark .milkdown .callout-yellow { background-color: rgba(251, 191, 36, 0.2); }
-.dark .milkdown .callout-blue   { background-color: rgba(59, 130, 246, 0.2); }
-.dark .milkdown .callout-green  { background-color: rgba(34, 197, 94, 0.2); }
-.dark .milkdown .callout-red    { background-color: rgba(239, 68, 68, 0.2); }
-.dark .milkdown .callout-purple { background-color: rgba(168, 85, 247, 0.2); }
-.dark .milkdown .callout-gray   { background-color: rgba(107, 114, 128, 0.2); }
+.milkdown .callout-blue {
+  background-color: rgba(59, 130, 246, 0.15);
+}
+
+.milkdown .callout-green {
+  background-color: rgba(34, 197, 94, 0.15);
+}
+
+.milkdown .callout-red {
+  background-color: rgba(239, 68, 68, 0.15);
+}
+
+.milkdown .callout-purple {
+  background-color: rgba(168, 85, 247, 0.15);
+}
+
+.milkdown .callout-gray {
+  background-color: rgba(107, 114, 128, 0.15);
+}
+
+.dark .milkdown .callout-yellow {
+  background-color: rgba(251, 191, 36, 0.2);
+}
+
+.dark .milkdown .callout-blue {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+.dark .milkdown .callout-green {
+  background-color: rgba(34, 197, 94, 0.2);
+}
+
+.dark .milkdown .callout-red {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+.dark .milkdown .callout-purple {
+  background-color: rgba(168, 85, 247, 0.2);
+}
+
+.dark .milkdown .callout-gray {
+  background-color: rgba(107, 114, 128, 0.2);
+}
 
 /* Math Block */
 .milkdown .math-block {
@@ -227,3 +261,70 @@
   margin: 1rem 0;
 }
 
+/* Collapsible Headings */
+.milkdown .heading-collapse-btn {
+  position: absolute;
+  left: -1.75rem;
+  /* Precise Affine positioning */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  cursor: pointer;
+  color: var(--neko-text-tertiary);
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  z-index: 10;
+}
+
+/* Visibility: Show on Hover or when Collapsed */
+.milkdown h1:hover .heading-collapse-btn,
+.milkdown h2:hover .heading-collapse-btn,
+.milkdown h3:hover .heading-collapse-btn,
+.milkdown h4:hover .heading-collapse-btn,
+.milkdown h5:hover .heading-collapse-btn,
+.milkdown h6:hover .heading-collapse-btn,
+.milkdown .heading-collapse-btn.collapsed {
+  opacity: 1;
+}
+
+.milkdown .heading-collapse-btn:hover {
+  background-color: var(--neko-bg-hover);
+  color: var(--neko-text-primary);
+}
+
+.milkdown .heading-collapse-btn svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  transition: transform 0.2s ease;
+}
+
+/* Logic: 
+   Default (Expanded): Points DOWN (Chevron Right rotated 90deg)
+   Collapsed: Points RIGHT (Chevron Right natural)
+*/
+.milkdown .heading-collapse-btn svg {
+  transform: rotate(90deg);
+}
+
+.milkdown .heading-collapse-btn.collapsed svg {
+  transform: rotate(0deg);
+}
+
+.milkdown .hidden-node {
+  display: none !important;
+}
+
+/* Ensure Heading is relative for absolute positioning of widget */
+.milkdown h1,
+.milkdown h2,
+.milkdown h3,
+.milkdown h4,
+.milkdown h5,
+.milkdown h6 {
+  position: relative;
+}

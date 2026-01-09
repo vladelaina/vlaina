@@ -13,11 +13,11 @@ export const themeClasses = {
     // Typography
     heading: {
         h1: 'scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl mb-6 mt-10 first:mt-0 text-[#121212] dark:text-[#eeeeee]',
-        h2: 'scroll-m-20 pb-2 text-3xl font-semibold tracking-tight transition-colors first:mt-0 mb-4 mt-8 text-[#121212] dark:text-[#eeeeee]',
-        h3: 'scroll-m-20 text-2xl font-semibold tracking-tight mb-3 mt-6 text-[#121212] dark:text-[#eeeeee]',
-        h4: 'scroll-m-20 text-xl font-semibold tracking-tight mb-2 mt-4 text-[#121212] dark:text-[#eeeeee]',
-        h5: 'scroll-m-20 text-lg font-semibold tracking-tight mb-2 mt-4 text-[#121212] dark:text-[#eeeeee]',
-        h6: 'scroll-m-20 text-base font-semibold tracking-tight mb-2 mt-4 text-[#121212] dark:text-[#eeeeee]',
+        h2: 'scroll-m-20 pb-2 text-[2rem] font-semibold tracking-tight transition-colors first:mt-0 mb-4 mt-8 text-[#121212] dark:text-[#eeeeee]',
+        h3: 'scroll-m-20 text-[1.75rem] font-semibold tracking-tight mb-3 mt-6 text-[#121212] dark:text-[#eeeeee]',
+        h4: 'scroll-m-20 text-[1.5rem] font-semibold tracking-tight mb-2 mt-4 text-[#121212] dark:text-[#eeeeee]',
+        h5: 'scroll-m-20 text-[1.25rem] font-semibold tracking-tight mb-2 mt-4 text-[#121212] dark:text-[#eeeeee]',
+        h6: 'scroll-m-20 text-[1.125rem] font-semibold tracking-tight mb-2 mt-4 text-[#121212] dark:text-[#eeeeee]',
     },
 
     paragraph: 'leading-7 [&:not(:first-child)]:mt-6 text-[#121212] dark:text-[#eeeeee] text-[16px]',
