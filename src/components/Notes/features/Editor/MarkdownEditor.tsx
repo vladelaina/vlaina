@@ -5,6 +5,7 @@ import { Editor, rootCtx, defaultValueCtx, editorViewCtx } from '@milkdown/kit/c
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
+import { clipboard } from '@milkdown/kit/plugin/clipboard';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { IconDots, IconStar, IconHeartbeat } from '@tabler/icons-react';
@@ -113,13 +114,16 @@ function MilkdownEditorInner() {
         ctx.set(rootCtx, root);
         ctx.set(defaultValueCtx, initialContent);
 
-        // Track if this is the initial events
-        let isInitializing = true;
+        // Track initialization period (first 500ms after editor creation)
+        const initTime = Date.now();
+        const INIT_PERIOD = 500;
 
         ctx.get(listenerCtx)
           .markdownUpdated((_ctx, markdown) => {
+            // Only apply safety guard during initialization period
+            const isInitializing = Date.now() - initTime < INIT_PERIOD;
+            
             if (isInitializing) {
-              // Safety guard logic remains same
               const contentWasSubstantial = initialContent.length > 20;
               const newContentIsTiny = markdown.trim().length < 5;
 
@@ -127,7 +131,6 @@ function MilkdownEditorInner() {
                 console.warn('Prevented accidental note wipe on initialization');
                 return;
               }
-              isInitializing = false;
             }
 
             // Save raw markdown directly (without re-adding title)
@@ -138,6 +141,7 @@ function MilkdownEditorInner() {
       .use(commonmark)
       .use(gfm)
       .use(history)
+      .use(clipboard)
       .use(listener)
       .use(configureTheme)
       .use(customPlugins),
@@ -149,9 +153,17 @@ function MilkdownEditorInner() {
     hasAutoFocused.current = false;
   }, [currentNote?.path]);
 
-  // Focus editor logic
+  // Check if content is empty or minimal (only has heading marker)
+  const isEmptyContent = useMemo(() => {
+    const content = initialContent.trim();
+    // Empty, just #, or # followed by space/nothing
+    return content.length === 0 || /^#\s*$/.test(content);
+  }, [initialContent]);
+
+  // Focus editor logic - auto focus for new or empty notes
   useEffect(() => {
-    if (!get || !isNewlyCreated || hasAutoFocused.current) return;
+    if (!get || hasAutoFocused.current) return;
+    if (!isNewlyCreated && !isEmptyContent) return;
 
     // Mark as focused to prevent re-triggering
     hasAutoFocused.current = true;
@@ -173,7 +185,7 @@ function MilkdownEditorInner() {
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [get, isNewlyCreated]);
+  }, [get, isNewlyCreated, isEmptyContent]);
 
   return (
     <div className="milkdown-editor">

@@ -140,7 +140,8 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       currentNote?.path === path &&
       (!currentNote.content.trim() ||
         currentNote.content.trim() === '#' ||
-        currentNote.content.trim() === '# ');
+        currentNote.content.trim() === '# ' ||
+        currentNote.content.trim().length === 0);
 
     if (isEmptyNote) {
       try {

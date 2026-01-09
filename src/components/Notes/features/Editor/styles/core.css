@@ -21,10 +21,18 @@
   box-shadow: none !important;
 }
 
-/* Editor container */
+/* Editor container - clickable area */
 .milkdown-editor {
   background-color: var(--neko-bg-primary);
   scroll-behavior: smooth;
+  min-height: calc(100vh - 200px);
+  cursor: text;
+}
+
+/* ProseMirror editor needs min-height to be clickable */
+.milkdown .ProseMirror {
+  min-height: calc(100vh - 250px);
+  padding-bottom: 50vh;
 }
 
 /* Focus & Cursor */

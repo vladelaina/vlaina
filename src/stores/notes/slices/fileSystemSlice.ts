@@ -159,7 +159,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         counter++;
       }
 
-      const defaultContent = '# ';
+      const defaultContent = '';
       await safeWriteTextFile(fullPath, defaultContent);
       await loadFileTree();
 
