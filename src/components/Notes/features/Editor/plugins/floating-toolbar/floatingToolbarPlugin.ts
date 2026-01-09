@@ -3,7 +3,7 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import type { FloatingToolbarState, ToolbarMeta } from './types';
 import { TOOLBAR_ACTIONS } from './types';
-import { getActiveMarks, getCurrentBlockType, getLinkUrl, getTextColor, getBgColor, calculatePosition, isSelectionInFirstH1 } from './selectionHelpers';
+import { getActiveMarks, getCurrentBlockType, getLinkUrl, getTextColor, getBgColor, calculatePosition } from './selectionHelpers';
 import { renderToolbarContent, cleanupToolbarEventDelegation } from './renderToolbar';
 import { toggleMark } from './commands';
 
@@ -113,7 +113,6 @@ export const floatingToolbarPlugin = $prose(() => {
       const updateToolbar = () => {
         const { selection } = editorView.state;
         if (selection.empty) { hideToolbar(); lastRenderState = ''; currentBlockElement = null; return; }
-        if (isSelectionInFirstH1(editorView)) { hideToolbar(); lastRenderState = ''; currentBlockElement = null; return; }
         updateCurrentBlockElement(editorView);
         const state = floatingToolbarKey.getState(editorView.state);
         if (!state?.isVisible) { hideToolbar(); lastRenderState = ''; return; }
