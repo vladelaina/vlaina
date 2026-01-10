@@ -2,29 +2,33 @@
  * Mock License API Server for Development
  * 
  * Usage:
- *   node scripts/dev/mock-license-server.js
+ *   node scripts/dev/mock-license-server.cjs
  * 
  * Or via npm script:
  *   pnpm dev:license-server
  * 
  * Test license key: NEKO-TEST-1234-5678
+ * Test GitHub user: testuser
  */
 
 const http = require('http');
 
 const PORT = 8787;
 
-// In-memory license database
+// In-memory license database (GitHub 账号绑定模式)
 const licenses = {
   'NEKO-TEST-1234-5678': {
-    devices: [],
-    maxDevices: 5,
-    activated_at: Math.floor(Date.now() / 1000)
+    github_username: 'testuser',
+    email: 'test@example.com',
+    expires_at: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
+    status: 'active'
   },
   'NEKO-DEMO-AAAA-BBBB': {
-    devices: [],
-    maxDevices: 5,
-    activated_at: Math.floor(Date.now() / 1000)
+    github_username: null, // 未绑定
+    email: null,
+    expires_at: null,
+    duration: 365 * 24 * 60 * 60 * 1000,
+    status: 'active'
   }
 };
 
@@ -51,47 +55,69 @@ const server = http.createServer((req, res) => {
   req.on('end', () => {
     try {
       const data = JSON.parse(body || '{}');
-      const { license_key, device_id } = data;
 
-      if (req.url === '/activate') {
-        const license = licenses[license_key];
+      // POST /check_pro - 检查 PRO 状态
+      if (req.url === '/check_pro') {
+        const { github_username } = data;
+        
+        // 查找绑定到该 GitHub 用户的激活码
+        const license = Object.values(licenses).find(
+          l => l.github_username?.toLowerCase() === github_username?.toLowerCase() && l.status === 'active'
+        );
+        
+        if (!license) {
+          log(req.method, req.url, 200, `user=${github_username} isPro=false`);
+          res.end(JSON.stringify({ success: true, isPro: false }));
+          return;
+        }
+        
+        // 检查是否过期
+        if (license.expires_at && license.expires_at < Date.now()) {
+          log(req.method, req.url, 200, `user=${github_username} isPro=false (expired)`);
+          res.end(JSON.stringify({ success: true, isPro: false, reason: 'EXPIRED' }));
+          return;
+        }
+        
+        const key = Object.keys(licenses).find(k => licenses[k] === license);
+        log(req.method, req.url, 200, `user=${github_username} isPro=true`);
+        res.end(JSON.stringify({ 
+          success: true, 
+          isPro: true, 
+          licenseKey: key,
+          expiresAt: license.expires_at 
+        }));
+      }
+      // POST /bind_license - 绑定激活码到 GitHub 账号
+      else if (req.url === '/bind_license') {
+        const { license_key, github_username } = data;
+        const license = licenses[license_key?.toUpperCase()];
         
         if (!license) {
           log(req.method, req.url, 400, 'INVALID_KEY');
           res.end(JSON.stringify({ success: false, error_code: 'INVALID_KEY' }));
           return;
         }
-
-        if (license.devices.length >= license.maxDevices && !license.devices.includes(device_id)) {
-          log(req.method, req.url, 400, 'DEVICE_LIMIT_REACHED');
-          res.end(JSON.stringify({ success: false, error_code: 'DEVICE_LIMIT_REACHED' }));
+        
+        if (license.status === 'revoked') {
+          log(req.method, req.url, 400, 'REVOKED');
+          res.end(JSON.stringify({ success: false, error_code: 'REVOKED' }));
           return;
         }
-
-        if (!license.devices.includes(device_id)) {
-          license.devices.push(device_id);
+        
+        if (license.github_username && license.github_username.toLowerCase() !== github_username?.toLowerCase()) {
+          log(req.method, req.url, 400, 'ALREADY_BOUND');
+          res.end(JSON.stringify({ success: false, error_code: 'ALREADY_BOUND' }));
+          return;
         }
-
-        log(req.method, req.url, 200, `device=${device_id.substring(0, 8)}...`);
-        res.end(JSON.stringify({ success: true, activated_at: license.activated_at }));
-      }
-      else if (req.url === '/deactivate') {
-        const license = licenses[license_key];
-        if (license) {
-          license.devices = license.devices.filter(d => d !== device_id);
+        
+        // 绑定
+        license.github_username = github_username?.toLowerCase();
+        if (license.duration && !license.expires_at) {
+          license.expires_at = Date.now() + license.duration;
         }
-        log(req.method, req.url, 200, `device=${device_id?.substring(0, 8)}...`);
-        res.end(JSON.stringify({ success: true }));
-      }
-      else if (req.url === '/validate') {
-        const license = licenses[license_key];
-        if (license && license.devices.includes(device_id)) {
-          log(req.method, req.url, 200, 'valid');
-          res.end(JSON.stringify({ success: true }));
-        } else {
-          log(req.method, req.url, 400, 'INVALID_KEY');
-          res.end(JSON.stringify({ success: false, error_code: 'INVALID_KEY' }));
-        }
+        
+        log(req.method, req.url, 200, `key=${license_key} -> ${github_username}`);
+        res.end(JSON.stringify({ success: true, expiresAt: license.expires_at }));
       }
       else {
         log(req.method, req.url, 404, 'Not found');
@@ -109,18 +135,17 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => {
   console.log('');
   console.log('='.repeat(50));
-  console.log('  Mock License API Server');
+  console.log('  Mock License API Server (GitHub Binding Mode)');
   console.log('='.repeat(50));
   console.log(`  Running on: http://localhost:${PORT}`);
   console.log('');
-  console.log('  Test license keys:');
-  console.log('    - NEKO-TEST-1234-5678');
-  console.log('    - NEKO-DEMO-AAAA-BBBB');
+  console.log('  Test data:');
+  console.log('    License: NEKO-TEST-1234-5678 -> testuser');
+  console.log('    License: NEKO-DEMO-AAAA-BBBB -> (unbound)');
   console.log('');
   console.log('  Endpoints:');
-  console.log('    POST /activate   - Activate license');
-  console.log('    POST /deactivate - Deactivate license');
-  console.log('    POST /validate   - Validate license');
+  console.log('    POST /check_pro    - Check PRO status by GitHub username');
+  console.log('    POST /bind_license - Bind license to GitHub account');
   console.log('='.repeat(50));
   console.log('');
 });

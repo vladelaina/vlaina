@@ -180,4 +180,32 @@ export const githubCommands = {
       },
     });
   },
+
+  async checkProStatus() {
+    return safeInvoke<{
+      isPro: boolean;
+      licenseKey: string | null;
+      expiresAt: number | null;
+    }>('check_pro_status', undefined, {
+      webFallback: {
+        isPro: false,
+        licenseKey: null,
+        expiresAt: null,
+      },
+    });
+  },
+
+  async bindLicenseKey(licenseKey: string) {
+    return safeInvoke<{
+      isPro: boolean;
+      licenseKey: string | null;
+      expiresAt: number | null;
+    }>('bind_license_key', { licenseKey }, {
+      webFallback: {
+        isPro: false,
+        licenseKey: null,
+        expiresAt: null,
+      },
+    });
+  },
 };

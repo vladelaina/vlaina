@@ -249,7 +249,9 @@ pub fn run() {
             github::commands::check_github_remote_data,
             github::commands::sync_to_github,
             github::commands::restore_from_github,
-            github::commands::sync_github_bidirectional
+            github::commands::sync_github_bidirectional,
+            github::commands::check_pro_status,
+            github::commands::bind_license_key
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

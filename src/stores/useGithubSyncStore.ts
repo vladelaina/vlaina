@@ -7,6 +7,7 @@
 
 import { create } from 'zustand';
 import { githubCommands, hasBackendCommands } from '@/lib/tauri/invoke';
+import { useLicenseStore } from '@/stores/useLicenseStore';
 
 export type GithubSyncStatusType = 'idle' | 'pending' | 'syncing' | 'success' | 'error';
 
@@ -80,6 +81,20 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         });
 
         if (status.connected) {
+          // Check PRO status when connected
+          try {
+            const proStatus = await githubCommands.checkProStatus();
+            if (proStatus) {
+              useLicenseStore.getState().setProStatus(
+                proStatus.isPro,
+                proStatus.licenseKey,
+                proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
+              );
+            }
+          } catch (e) {
+            console.error('Failed to check PRO status:', e);
+          }
+          
           get().checkRemoteData();
         }
       }
@@ -105,6 +120,21 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
           username: result.username,
           isConnecting: false,
         });
+        
+        // Check PRO status after connecting
+        try {
+          const proStatus = await githubCommands.checkProStatus();
+          if (proStatus) {
+            useLicenseStore.getState().setProStatus(
+              proStatus.isPro,
+              proStatus.licenseKey,
+              proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
+            );
+          }
+        } catch (e) {
+          console.error('Failed to check PRO status:', e);
+        }
+        
         get().checkRemoteData();
         return true;
       } else {
@@ -137,6 +167,9 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         remoteModifiedTime: null,
         syncError: null,
       });
+      
+      // Clear PRO status when disconnecting
+      useLicenseStore.getState().clearProStatus();
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       set({ syncError: errorMsg });

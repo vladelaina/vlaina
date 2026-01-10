@@ -2,42 +2,8 @@ import type { ShortcutConfig } from './types';
 import { DEFAULT_SHORTCUTS } from './config';
 
 const STORAGE_KEY = 'nekotick-shortcuts';
-const MIGRATION_KEY = 'nekotick-shortcuts-migration-v1';
-
-// Migrate old shortcuts that conflict with editor shortcuts
-function migrateShortcuts(): void {
-  if (localStorage.getItem(MIGRATION_KEY)) return;
-  
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const userShortcuts: ShortcutConfig[] = JSON.parse(stored);
-      // Remove old Ctrl+K binding for open-settings (now uses Ctrl+,)
-      const filtered = userShortcuts.filter(s => {
-        if (s.id === 'open-settings') {
-          const keys = s.keys?.map(k => k.toLowerCase()) || [];
-          // Remove if it was Ctrl+K
-          if (keys.includes('ctrl') && keys.includes('k') && keys.length === 2) {
-            return false;
-          }
-        }
-        return true;
-      });
-      if (filtered.length !== userShortcuts.length) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-      }
-    }
-  } catch (e) {
-    console.error('Failed to migrate shortcuts:', e);
-  }
-  
-  localStorage.setItem(MIGRATION_KEY, '1');
-}
 
 export function getShortcuts(): ShortcutConfig[] {
-  // Run migration on first access
-  migrateShortcuts();
-  
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {

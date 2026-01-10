@@ -60,6 +60,15 @@ pub struct GitHubBidirectionalSyncResult {
     pub error: Option<String>,
 }
 
+/// PRO status check result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProStatusResult {
+    pub is_pro: bool,
+    pub license_key: Option<String>,
+    pub expires_at: Option<i64>,
+}
+
 /// Remote data info
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -556,4 +565,82 @@ pub async fn sync_github_bidirectional(app: tauri::AppHandle) -> Result<GitHubBi
         pushed_to_cloud,
         error: None,
     })
+}
+
+
+/// Check PRO status from cloud API
+#[tauri::command]
+pub async fn check_pro_status(app: tauri::AppHandle) -> Result<ProStatusResult, String> {
+    let creds = load_github_credentials(&app)
+        .ok_or("Not connected to GitHub")?;
+
+    // Call cloud API to check PRO status
+    let client = reqwest::Client::new();
+    let response = client
+        .post("https://api.nekotick.com/check_pro")
+        .json(&serde_json::json!({
+            "github_username": creds.username
+        }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to check PRO status: {}", e))?;
+
+    if !response.status().is_success() {
+        return Ok(ProStatusResult {
+            is_pro: false,
+            license_key: None,
+            expires_at: None,
+        });
+    }
+
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    let is_pro = data.get("isPro").and_then(|v| v.as_bool()).unwrap_or(false);
+    let license_key = data.get("licenseKey").and_then(|v| v.as_str()).map(String::from);
+    let expires_at = data.get("expiresAt").and_then(|v| v.as_i64());
+
+    Ok(ProStatusResult {
+        is_pro,
+        license_key,
+        expires_at,
+    })
+}
+
+/// Bind license key to GitHub account
+#[tauri::command]
+pub async fn bind_license_key(app: tauri::AppHandle, license_key: String) -> Result<ProStatusResult, String> {
+    let creds = load_github_credentials(&app)
+        .ok_or("Not connected to GitHub")?;
+
+    // Call cloud API to bind license
+    let client = reqwest::Client::new();
+    let response = client
+        .post("https://api.nekotick.com/bind_license")
+        .json(&serde_json::json!({
+            "license_key": license_key,
+            "github_username": creds.username
+        }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to bind license: {}", e))?;
+
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    if data.get("success").and_then(|v| v.as_bool()).unwrap_or(false) {
+        let expires_at = data.get("expiresAt").and_then(|v| v.as_i64());
+        Ok(ProStatusResult {
+            is_pro: true,
+            license_key: Some(license_key),
+            expires_at,
+        })
+    } else {
+        let error_code = data.get("error_code").and_then(|v| v.as_str()).unwrap_or("UNKNOWN");
+        Err(format!("Bind failed: {}", error_code))
+    }
 }
