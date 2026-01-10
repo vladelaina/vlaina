@@ -6,6 +6,7 @@
 
 // Tabler icons removed
 import { useSyncStore } from '@/stores/useSyncStore';
+import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import {
   Tooltip,
   TooltipContent,
@@ -19,15 +20,20 @@ import onedriveIcon from '@/assets/welcome-insignias/onedrive.png';
 import githubIcon from '@/assets/welcome-insignias/github.png';
 
 export function CloudSyncSection() {
-  const { isConnected, connect, isConnecting } = useSyncStore();
+  const { isConnected: isGoogleConnected, connect: connectGoogle, isConnecting: isGoogleConnecting } = useSyncStore();
+  const { isConnected: isGithubConnected, connect: connectGithub, isConnecting: isGithubConnecting } = useGithubSyncStore();
 
-  // Don't show if already connected
-  if (isConnected) {
+  // Don't show if already connected to any provider
+  if (isGoogleConnected || isGithubConnected) {
     return null;
   }
 
   const handleGoogleConnect = async () => {
-    await connect();
+    await connectGoogle();
+  };
+
+  const handleGithubConnect = async () => {
+    await connectGithub();
   };
 
   return (
@@ -47,7 +53,7 @@ export function CloudSyncSection() {
               <button
                 className="vault-cloud__provider vault-cloud__provider--google"
                 onClick={handleGoogleConnect}
-                disabled={isConnecting}
+                disabled={isGoogleConnecting}
               >
                 <img
                   src={googleDriveIcon}
@@ -100,6 +106,8 @@ export function CloudSyncSection() {
             <TooltipTrigger asChild>
               <button
                 className="vault-cloud__provider vault-cloud__provider--github"
+                onClick={handleGithubConnect}
+                disabled={isGithubConnecting}
               >
                 <img
                   src={githubIcon}

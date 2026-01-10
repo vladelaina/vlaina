@@ -4,6 +4,9 @@ use tauri::window::Color;
 // Google Drive sync module
 pub mod google_drive;
 
+// GitHub sync module
+pub mod github;
+
 // License activation module
 pub mod license;
 
@@ -257,6 +260,13 @@ pub fn run() {
             google_drive::commands::sync_bidirectional,
             google_drive::commands::restore_from_drive,
             google_drive::commands::check_remote_data,
+            github::commands::github_auth,
+            github::commands::github_disconnect,
+            github::commands::get_github_sync_status,
+            github::commands::check_github_remote_data,
+            github::commands::sync_to_github,
+            github::commands::restore_from_github,
+            github::commands::sync_github_bidirectional,
             license::commands::get_device_id,
             license::commands::activate_license,
             license::commands::deactivate_license,

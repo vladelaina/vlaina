@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useSyncStore } from '@/stores/useSyncStore';
+import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
 import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
 import { STORAGE_KEY_PENDING_SYNC } from '@/lib/config';
@@ -11,6 +12,7 @@ const TOKEN_CHECK_INTERVAL = 4 * 60 * 1000;
 
 export function useSyncInit() {
   const checkStatus = useSyncStore((state) => state.checkStatus);
+  const checkGithubStatus = useGithubSyncStore((state) => state.checkStatus);
   const isConnected = useSyncStore((state) => state.isConnected);
   const pendingSync = useSyncStore((state) => state.pendingSync);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -32,7 +34,11 @@ export function useSyncInit() {
         }
       }
       
-      await checkStatus();
+      // Check both Google Drive and GitHub sync status
+      await Promise.all([
+        checkStatus(),
+        checkGithubStatus(),
+      ]);
       
       const savedPendingSync = localStorage.getItem(STORAGE_KEY_PENDING_SYNC);
       if (savedPendingSync === 'true') {
@@ -40,7 +46,7 @@ export function useSyncInit() {
       }
     };
     init();
-  }, [checkStatus]);
+  }, [checkStatus, checkGithubStatus]);
 
   useEffect(() => {
     if (intervalRef.current) {
