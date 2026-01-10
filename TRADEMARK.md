@@ -134,7 +134,7 @@ By using, forking, or distributing the NekoTick software, you acknowledge that y
 
 ## 9. Third-Party API Credentials Policy
 
-NekoTick includes API credentials for third-party cloud services (such as Google Drive, iCloud, etc.) to enable sync functionality. These credentials are subject to the following usage policy:
+NekoTick includes API credentials for third-party services (such as GitHub OAuth) to enable sync functionality. These credentials are subject to the following usage policy:
 
 ### 9.1 Personal Use
 If you are building NekoTick from source for **personal use only**, you **MAY** use the included API credentials.

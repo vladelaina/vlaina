@@ -464,25 +464,13 @@
   opacity: 0.7;
 }
 
-/* Specific styling for Google */
-.vault-cloud__provider--google {
-  /* color handled by Image */
-}
-
-.vault-cloud__provider--google:hover {
-  /* Handled by generic provider hover */
-}
-
 /* Common Image Icon Style */
 .vault-cloud__icon-img {
   width: 24px;
   height: 24px;
   object-fit: contain;
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  /* Bouncy Apple feel */
   pointer-events: none;
-
-  /* Smart Scaling System */
   --base-scale: 1;
   transform: scale(var(--base-scale));
 }
@@ -492,11 +480,6 @@
   border-radius: 50%;
 }
 
-/* iCloud Specifics - Set higher base scale */
-.vault-cloud__icon-img--icloud {
-  --base-scale: 1.4;
-}
-
 /* Dark mode adjustment for GitHub */
 @media (prefers-color-scheme: dark) {
   .vault-cloud__icon-img--github {
@@ -504,28 +487,13 @@
   }
 }
 
-/* Proportional Hover Effect: Always 1.15x the base size */
+/* Proportional Hover Effect */
 .vault-cloud__provider:hover .vault-cloud__icon-img {
   transform: scale(calc(var(--base-scale) * 1.15));
 }
 
-/* Original Brand Colors for other providers */
-.vault-cloud__provider--apple {
-  color: var(--neko-text-primary);
-  /* Authentic Black (or White in Dark Mode) */
-  opacity: 1;
-  /* Ensure full visibility */
-}
-
-.vault-cloud__provider--icloud {
-  color: #369CF0;
-  /* Official iCloud Blue */
-  opacity: 1;
-}
-
 .vault-cloud__provider--github {
   color: var(--neko-text-primary);
-  /* GitHub Black */
   opacity: 1;
 }
 
@@ -534,9 +502,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.2);
-  /* Lighter, softer dimmer */
   backdrop-filter: blur(8px);
-  /* Reduced blur for depth without murkiness */
   -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;

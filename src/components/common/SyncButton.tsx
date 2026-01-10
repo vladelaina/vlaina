@@ -11,12 +11,11 @@
 import { useState } from 'react';
 import { 
   IconCloud, 
-  IconCloudUpload, 
   IconCloudCheck, 
   IconCloudOff, 
   IconRefresh 
 } from '@tabler/icons-react';
-import { useSyncStore } from '@/stores/useSyncStore';
+import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
 import { cn } from '@/lib/utils';
 
@@ -29,10 +28,9 @@ export function SyncButton({ className }: SyncButtonProps) {
     isConnected, 
     isSyncing, 
     syncStatus, 
-    pendingSync,
     syncToCloud,
     syncError,
-  } = useSyncStore();
+  } = useGithubSyncStore();
   
   const { isProUser } = useLicenseStore();
   
@@ -40,7 +38,7 @@ export function SyncButton({ className }: SyncButtonProps) {
   const [animating, setAnimating] = useState(false);
 
   // Don't show for PRO users (they have auto-sync)
-  // Don't show if not connected to Google Drive
+  // Don't show if not connected to GitHub
   if (isProUser || !isConnected) {
     return null;
   }
@@ -66,15 +64,11 @@ export function SyncButton({ className }: SyncButtonProps) {
     if (syncStatus === 'error' || syncError) {
       return { text: 'Sync failed, click to retry', icon: <IconCloudOff className="size-4" /> };
     }
-    if (pendingSync) {
-      return { text: 'Pending changes to sync', icon: <IconCloudUpload className="size-4" /> };
-    }
     return { text: 'Synced', icon: <IconCloudCheck className="size-4" /> };
   };
 
   const statusInfo = getStatusInfo();
   const isError = syncStatus === 'error' || syncError;
-  const showPendingDot = pendingSync && !isSyncing && !animating && !isError;
 
   return (
     <div className="relative">
@@ -99,12 +93,7 @@ export function SyncButton({ className }: SyncButtonProps) {
         ) : isError ? (
           <IconCloudOff className="size-5" />
         ) : (
-          <IconCloud className="size-5" stroke={pendingSync ? 2 : 1.5} />
-        )}
-        
-        {/* Pending sync indicator dot */}
-        {showPendingDot && (
-          <span className="absolute top-0.5 right-0.5 size-2 bg-blue-500 rounded-full" />
+          <IconCloud className="size-5" stroke={1.5} />
         )}
         
         {/* Error indicator dot */}

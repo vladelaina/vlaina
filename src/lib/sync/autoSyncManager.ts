@@ -8,7 +8,7 @@
  * - Max 5 retries before stopping
  */
 
-import { useSyncStore } from '@/stores/useSyncStore';
+import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
 
 export interface AutoSyncConfig {
@@ -30,6 +30,7 @@ class AutoSyncManagerImpl {
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private lastSyncTime: number = 0;
+  private retryCount: number = 0;
 
   constructor(config: Partial<AutoSyncConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -52,7 +53,7 @@ class AutoSyncManagerImpl {
     }
 
     // Mark pending sync
-    useSyncStore.getState().markPendingSync();
+    useGithubSyncStore.getState().setSyncStatus('pending');
 
     // Set debounce timer
     this.debounceTimer = setTimeout(() => {
@@ -71,7 +72,8 @@ class AutoSyncManagerImpl {
     this.clearTimers();
 
     // Reset retry count for manual retry
-    useSyncStore.getState().resetRetryCount();
+    // Note: GitHub sync store doesn't have retry count, just clear error
+    useGithubSyncStore.getState().clearError();
 
     return this.executeSync();
   }
@@ -80,10 +82,10 @@ class AutoSyncManagerImpl {
    * Check if sync can be triggered
    */
   canSync(): boolean {
-    const syncState = useSyncStore.getState();
+    const syncState = useGithubSyncStore.getState();
     const licenseState = useLicenseStore.getState();
 
-    // Must be connected to Google Drive
+    // Must be connected to GitHub
     if (!syncState.isConnected) {
       return false;
     }
@@ -139,7 +141,7 @@ class AutoSyncManagerImpl {
 
     console.log('[AutoSync] Executing sync...');
     
-    const success = await useSyncStore.getState().performAutoSync();
+    const success = await useGithubSyncStore.getState().syncBidirectional();
     
     if (success) {
       this.lastSyncTime = Date.now();
@@ -156,17 +158,16 @@ class AutoSyncManagerImpl {
    * Schedule retry with exponential backoff
    */
   private scheduleRetry(): void {
-    const syncState = useSyncStore.getState();
-    const retryCount = syncState.syncRetryCount;
+    const retryCount = this.retryCount;
 
     if (retryCount >= this.config.maxRetries) {
       console.log('[AutoSync] Max retries reached, stopping auto-retry');
-      useSyncStore.getState().setSyncStatus('error');
+      useGithubSyncStore.getState().setSyncStatus('error');
       return;
     }
 
     // Increment retry count
-    useSyncStore.getState().incrementRetryCount();
+    this.retryCount++;
 
     // Get delay for this retry
     const delay = this.config.retryDelays[Math.min(retryCount, this.config.retryDelays.length - 1)];
@@ -182,7 +183,7 @@ class AutoSyncManagerImpl {
    * Reset retry count
    */
   resetRetryCount(): void {
-    useSyncStore.getState().resetRetryCount();
+    this.retryCount = 0;
   }
 
   /**

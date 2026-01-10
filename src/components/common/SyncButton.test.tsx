@@ -11,14 +11,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as fc from 'fast-check';
 import { render } from '@testing-library/react';
 import { SyncButton } from './SyncButton';
-import type { SyncStatusType } from '@/stores/useSyncStore';
+import type { GithubSyncStatusType } from '@/stores/useGithubSyncStore';
 
 // Mock stores with proper types
 interface MockSyncStore {
   isConnected: boolean;
   isSyncing: boolean;
-  syncStatus: SyncStatusType;
-  pendingSync: boolean;
+  syncStatus: GithubSyncStatusType;
   syncToCloud: ReturnType<typeof vi.fn>;
   syncError: string | null;
 }
@@ -31,7 +30,6 @@ const mockSyncStore: MockSyncStore = {
   isConnected: true,
   isSyncing: false,
   syncStatus: 'idle',
-  pendingSync: false,
   syncToCloud: vi.fn(),
   syncError: null,
 };
@@ -40,8 +38,8 @@ const mockLicenseStore: MockLicenseStore = {
   isProUser: false,
 };
 
-vi.mock('@/stores/useSyncStore', () => ({
-  useSyncStore: () => mockSyncStore,
+vi.mock('@/stores/useGithubSyncStore', () => ({
+  useGithubSyncStore: () => mockSyncStore,
 }));
 
 vi.mock('@/stores/useLicenseStore', () => ({
@@ -54,7 +52,6 @@ describe('SyncButton', () => {
     mockSyncStore.isConnected = true;
     mockSyncStore.isSyncing = false;
     mockSyncStore.syncStatus = 'idle';
-    mockSyncStore.pendingSync = false;
     mockSyncStore.syncError = null;
     mockLicenseStore.isProUser = false;
   });
@@ -65,7 +62,7 @@ describe('SyncButton', () => {
      * For any combination of (PRO/non-PRO) × (connected/not connected),
      * button should only be visible when: non-PRO AND connected
      */
-    it('should only be visible for non-PRO users connected to Google Drive', () => {
+    it('should only be visible for non-PRO users connected to GitHub', () => {
       fc.assert(
         fc.property(
           fc.boolean(), // isProUser
@@ -116,7 +113,7 @@ describe('SyncButton', () => {
     /**
      * Disconnected users should never see the button
      */
-    it('should never show when not connected to Google Drive', () => {
+    it('should never show when not connected to GitHub', () => {
       fc.assert(
         fc.property(
           fc.boolean(), // isProUser
@@ -138,17 +135,6 @@ describe('SyncButton', () => {
      * Property 3.2: Visual states
      * For any sync status, the button should show appropriate visual feedback
      */
-    it('should show pending indicator when pendingSync is true', () => {
-      mockSyncStore.pendingSync = true;
-      mockSyncStore.syncStatus = 'pending';
-
-      const { container } = render(<SyncButton />);
-      
-      // Should have a pending indicator dot
-      const dot = container.querySelector('.bg-blue-500');
-      expect(dot).not.toBeNull();
-    });
-
     it('should show error indicator when syncStatus is error', () => {
       mockSyncStore.syncStatus = 'error';
       mockSyncStore.syncError = 'Some error';
@@ -170,17 +156,14 @@ describe('SyncButton', () => {
       expect(spinningIcon).not.toBeNull();
     });
 
-    it('should show normal state when idle and no pending sync', () => {
+    it('should show normal state when idle', () => {
       mockSyncStore.syncStatus = 'idle';
-      mockSyncStore.pendingSync = false;
       mockSyncStore.syncError = null;
 
       const { container } = render(<SyncButton />);
       
       // Should not have any indicator dots
-      const blueDot = container.querySelector('.bg-blue-500');
       const redDot = container.querySelector('.bg-red-500');
-      expect(blueDot).toBeNull();
       expect(redDot).toBeNull();
     });
 
@@ -193,11 +176,9 @@ describe('SyncButton', () => {
       fc.assert(
         fc.property(
           fc.constantFrom(...statuses),
-          fc.boolean(), // pendingSync
           fc.boolean(), // isSyncing
-          (status, pendingSync, isSyncing) => {
+          (status, isSyncing) => {
             mockSyncStore.syncStatus = status;
-            mockSyncStore.pendingSync = pendingSync;
             mockSyncStore.isSyncing = isSyncing;
             mockSyncStore.syncError = status === 'error' ? 'Error' : null;
 

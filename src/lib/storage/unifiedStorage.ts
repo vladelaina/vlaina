@@ -14,7 +14,7 @@
 
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
-import { useSyncStore } from '@/stores/useSyncStore';
+import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
 import type { ItemColor } from '@/lib/colors';
 import type { TimeView } from '@/lib/date';
@@ -238,13 +238,13 @@ export async function saveUnifiedData(data: UnifiedData): Promise<void> {
 }
 
 /**
- * Trigger auto-sync if user is eligible (PRO + connected to Google Drive)
+ * Trigger auto-sync if user is eligible (PRO + connected to GitHub)
  */
 function triggerAutoSyncIfEligible(): void {
-  const syncState = useSyncStore.getState();
+  const syncState = useGithubSyncStore.getState();
   const licenseState = useLicenseStore.getState();
 
-  // Only trigger for PRO users connected to Google Drive
+  // Only trigger for PRO users connected to GitHub
   if (syncState.isConnected && licenseState.isProUser && !licenseState.timeTamperDetected) {
     const autoSyncManager = getAutoSyncManager();
     autoSyncManager.triggerSync();

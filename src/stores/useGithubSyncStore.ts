@@ -35,6 +35,7 @@ interface GithubSyncActions {
   restoreFromCloud: () => Promise<boolean>;
   checkRemoteData: () => Promise<void>;
   clearError: () => void;
+  setSyncStatus: (status: GithubSyncStatusType) => void;
 }
 
 type GithubSyncStore = GithubSyncState & GithubSyncActions;
@@ -299,5 +300,9 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
 
   clearError: () => {
     set({ syncError: null });
+  },
+
+  setSyncStatus: (status: GithubSyncStatusType) => {
+    set({ syncStatus: status });
   },
 }));

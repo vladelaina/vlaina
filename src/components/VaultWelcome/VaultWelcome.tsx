@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useVaultStore } from '@/stores/useVaultStore';
-import { useSyncStore } from '@/stores/useSyncStore';
+import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { openDialog, hasNativeDialogs } from '@/lib/storage/dialog';
 import { windowCommands, hasBackendCommands } from '@/lib/tauri/invoke';
 import { isTauri } from '@/lib/storage/adapter';
@@ -19,7 +19,7 @@ import './VaultWelcome.css';
 export function VaultWelcome() {
   const { initialize, recentVaults, openVault, checkVaultOpenInOtherWindow, isLoading } =
     useVaultStore();
-  const { isConnected: isSyncConnected } = useSyncStore();
+  const { isConnected: isSyncConnected } = useGithubSyncStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 

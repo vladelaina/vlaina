@@ -1,11 +1,8 @@
 /**
- * CloudSyncSection - Cloud sync providers
- * Google Drive is already implemented in Settings
+ * CloudSyncSection - GitHub cloud sync
  * Hidden when already connected
  */
 
-// Tabler icons removed
-import { useSyncStore } from '@/stores/useSyncStore';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import {
   Tooltip,
@@ -13,27 +10,18 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-// Insignias
-import googleDriveIcon from '@/assets/welcome-insignias/google_drive.png';
-import icloudIcon from '@/assets/welcome-insignias/icloud.png';
-import onedriveIcon from '@/assets/welcome-insignias/onedrive.png';
 import githubIcon from '@/assets/welcome-insignias/github.png';
 
 export function CloudSyncSection() {
-  const { isConnected: isGoogleConnected, connect: connectGoogle, isConnecting: isGoogleConnecting } = useSyncStore();
-  const { isConnected: isGithubConnected, connect: connectGithub, isConnecting: isGithubConnecting } = useGithubSyncStore();
+  const { isConnected, connect, isConnecting } = useGithubSyncStore();
 
-  // Don't show if already connected to any provider
-  if (isGoogleConnected || isGithubConnected) {
+  // Don't show if already connected
+  if (isConnected) {
     return null;
   }
 
-  const handleGoogleConnect = async () => {
-    await connectGoogle();
-  };
-
   const handleGithubConnect = async () => {
-    await connectGithub();
+    await connect();
   };
 
   return (
@@ -51,63 +39,9 @@ export function CloudSyncSection() {
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                className="vault-cloud__provider vault-cloud__provider--google"
-                onClick={handleGoogleConnect}
-                disabled={isGoogleConnecting}
-              >
-                <img
-                  src={googleDriveIcon}
-                  alt="Google Drive"
-                  className="vault-cloud__icon-img"
-                />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={8}>
-              <p>Connect with Google Drive</p>
-            </TooltipContent>
-          </Tooltip>
-
-          {/* Replaced 'Apple' with 'iCloud' as primary Apple service */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className="vault-cloud__provider vault-cloud__provider--icloud"
-              >
-                <img
-                  src={icloudIcon}
-                  alt="iCloud"
-                  className="vault-cloud__icon-img vault-cloud__icon-img--icloud"
-                />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={8}>
-              <p>Connect with iCloud</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className="vault-cloud__provider vault-cloud__provider--onedrive"
-              >
-                <img
-                  src={onedriveIcon}
-                  alt="OneDrive"
-                  className="vault-cloud__icon-img"
-                />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={8}>
-              <p>Connect with OneDrive</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
                 className="vault-cloud__provider vault-cloud__provider--github"
                 onClick={handleGithubConnect}
-                disabled={isGithubConnecting}
+                disabled={isConnecting}
               >
                 <img
                   src={githubIcon}

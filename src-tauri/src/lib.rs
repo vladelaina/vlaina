@@ -1,17 +1,11 @@
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, LogicalPosition};
 use tauri::window::Color;
 
-// Google Drive sync module
-pub mod google_drive;
-
 // GitHub sync module
 pub mod github;
 
 // License activation module
 pub mod license;
-
-// Encrypted credentials module
-pub mod credentials;
 
 // Create drag overlay window
 #[tauri::command]
@@ -252,14 +246,6 @@ pub fn run() {
             create_new_window,
             set_window_resizable,
             focus_window,
-            google_drive::commands::google_drive_auth,
-            google_drive::commands::google_drive_disconnect,
-            google_drive::commands::get_sync_status,
-            google_drive::commands::sync_to_drive,
-            google_drive::commands::auto_sync_to_drive,
-            google_drive::commands::sync_bidirectional,
-            google_drive::commands::restore_from_drive,
-            google_drive::commands::check_remote_data,
             github::commands::github_auth,
             github::commands::github_disconnect,
             github::commands::get_github_sync_status,
@@ -272,14 +258,7 @@ pub fn run() {
             license::commands::deactivate_license,
             license::commands::get_license_status,
             license::commands::validate_license_background,
-            license::commands::ensure_trial,
-            credentials::commands::get_credentials,
-            credentials::commands::store_credentials,
-            credentials::commands::update_credential_access_token,
-            credentials::commands::update_credential_folder_id,
-            credentials::commands::clear_credentials,
-            credentials::commands::migrate_credentials,
-            credentials::commands::has_credentials
+            license::commands::ensure_trial
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

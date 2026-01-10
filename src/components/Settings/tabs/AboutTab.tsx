@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { IconExternalLink, IconCloud, IconCloudOff, IconRefresh, IconDownload, IconLoader2, IconAlertCircle, IconCrown, IconUnlink, IconClock } from '@tabler/icons-react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
-import { useSyncStore } from '@/stores/useSyncStore';
+import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
 import { STORAGE_KEY_AUTO_UPDATE } from '@/lib/config';
 
@@ -18,7 +18,7 @@ export function AboutTab() {
 
   const {
     isConnected,
-    userEmail,
+    username,
     isSyncing,
     isConnecting,
     lastSyncTime,
@@ -31,7 +31,7 @@ export function AboutTab() {
     restoreFromCloud,
     clearError,
     checkStatus,
-  } = useSyncStore();
+  } = useGithubSyncStore();
 
   const {
     isProUser,
@@ -83,7 +83,7 @@ export function AboutTab() {
   };
 
   const handleDisconnect = async () => {
-    if (confirm('Are you sure you want to disconnect from Google Drive?')) {
+    if (confirm('Are you sure you want to disconnect from GitHub?')) {
       await disconnect();
     }
   };
@@ -178,11 +178,11 @@ export function AboutTab() {
               )}
               <div>
                 <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                  {isConnected ? 'Connected to Google Drive' : 'Not Connected'}
+                  {isConnected ? 'Connected to GitHub' : 'Not Connected'}
                 </div>
-                {isConnected && userEmail && (
+                {isConnected && username && (
                   <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {userEmail}
+                    @{username}
                   </div>
                 )}
               </div>
@@ -211,7 +211,7 @@ export function AboutTab() {
                 ) : (
                   <>
                     <IconCloud className="size-3.5" />
-                    Connect Google Drive
+                    Connect GitHub
                   </>
                 )}
               </button>
@@ -275,7 +275,7 @@ export function AboutTab() {
         </div>
         
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
-          Sync your data to Google Drive for backup and cross-device access
+          Sync your data to GitHub Gist for backup and cross-device access
         </p>
       </div>
 
