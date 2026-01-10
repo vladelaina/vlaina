@@ -11,7 +11,7 @@ export const iconButtonStyles = "text-[var(--neko-text-tertiary)] hover:text-[va
 // Notes sidebar color constants
 export const NOTES_COLORS = {
   sidebarBg: '#FAFAFA',
-  divider: '#EEEEEC',
+  divider: '#E3E2E4',
   dividerHover: '#E0DFDE',
   activeItem: '#F1F0EF',
 } as const;
