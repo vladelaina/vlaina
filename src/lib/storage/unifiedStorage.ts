@@ -245,7 +245,7 @@ function triggerAutoSyncIfEligible(): void {
   const licenseState = useLicenseStore.getState();
 
   // Only trigger for PRO users connected to GitHub
-  if (syncState.isConnected && licenseState.isProUser && !licenseState.timeTamperDetected) {
+  if (syncState.isConnected && licenseState.isProUser) {
     const autoSyncManager = getAutoSyncManager();
     autoSyncManager.triggerSync();
   }

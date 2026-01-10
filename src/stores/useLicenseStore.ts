@@ -1,341 +1,85 @@
 import { create } from 'zustand';
-import { isTauri } from '@/lib/storage/adapter';
+import { persist } from 'zustand/middleware';
 
-// Helper to safely invoke Tauri commands
-async function tauriInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  if (!isTauri()) {
-    throw new Error('Tauri not available');
-  }
-  const { invoke } = await import('@tauri-apps/api/core');
-  return invoke<T>(cmd, args);
-}
-
-// Error code to message mapping
-const ERROR_MESSAGES: Record<string, string> = {
-  DEVICE_LIMIT_REACHED: 'Device limit reached, please unbind other devices first',
-  INVALID_KEY: 'Invalid license key, please check your input',
-  INVALID_FORMAT: 'Invalid license key format',
-  EXPIRED: 'License key has expired',
-  ALREADY_ACTIVATED: 'This device is already activated',
-  NETWORK_ERROR: 'Network connection failed, please check your network and try again',
-  REVOKED: 'License key has been revoked',
-};
-
-function getErrorMessage(errorCode: string | null, fallback?: string): string {
-  if (errorCode && ERROR_MESSAGES[errorCode]) {
-    return ERROR_MESSAGES[errorCode];
-  }
-  return fallback || 'Activation failed, please try again later';
-}
-
-// Types matching Rust structs
-interface LicenseStatus {
-  is_pro: boolean;
-  is_trial: boolean;
-  trial_ends_at: number | null;
-  license_key: string | null;
-  activated_at: number | null;
-  expires_at: number | null;
-  last_validated_at: number | null;
-  needs_validation: boolean;
-  in_grace_period: boolean;
-  grace_period_ends_at: number | null;
-  time_tamper_detected: boolean;
-}
-
-interface ActivationResult {
-  success: boolean;
-  error_code: string | null;
-  error_message: string | null;
-}
-
-interface ValidationResult {
-  success: boolean;
-  downgraded: boolean;
-  in_grace_period: boolean;
-}
+/**
+ * Simplified license store
+ * 
+ * PRO status is now determined by the cloud API during GitHub sync.
+ * The license key is bound to the user's GitHub account (email), not device.
+ * All verification happens server-side at sync time.
+ */
 
 interface LicenseState {
-  // Status
+  // PRO status (set by cloud API during sync)
   isProUser: boolean;
-  isTrial: boolean;
-  trialEndsAt: number | null;
-  isLoading: boolean;
+  // License key (masked, for display only)
   licenseKey: string | null;
-  activatedAt: number | null;
+  // Expiry timestamp (seconds)
   expiresAt: number | null;
-  lastValidatedAt: number | null;
-  inGracePeriod: boolean;
-  gracePeriodEndsAt: number | null;
-  needsValidation: boolean;
-  timeTamperDetected: boolean;
-  
-  // UI state
-  error: string | null;
-  isActivating: boolean;
-  isDeactivating: boolean;
-  isValidating: boolean;
+  // Last check timestamp
+  lastCheckedAt: number | null;
 }
 
 interface LicenseActions {
-  // Actions
-  checkStatus: () => Promise<void>;
-  ensureTrial: () => Promise<void>;
-  activate: (licenseKey: string) => Promise<boolean>;
-  deactivate: () => Promise<boolean>;
-  validateBackground: () => Promise<void>;
-  clearError: () => void;
-  getTrialDaysRemaining: () => number | null;
-  getTrialHoursRemaining: () => number | null;
-  getTrialSecondsRemaining: () => number | null;
+  // Set PRO status (called by sync process)
+  setProStatus: (isPro: boolean, licenseKey?: string | null, expiresAt?: number | null) => void;
+  // Clear PRO status
+  clearProStatus: () => void;
+  // Get expiry days remaining
   getExpiryDaysRemaining: () => number | null;
 }
 
 type LicenseStore = LicenseState & LicenseActions;
 
-export const useLicenseStore = create<LicenseStore>((set, get) => ({
-  // Initial state
-  isProUser: false,
-  isTrial: false,
-  trialEndsAt: null,
-  isLoading: true,
-  licenseKey: null,
-  activatedAt: null,
-  expiresAt: null,
-  lastValidatedAt: null,
-  inGracePeriod: false,
-  gracePeriodEndsAt: null,
-  needsValidation: false,
-  timeTamperDetected: false,
-  error: null,
-  isActivating: false,
-  isDeactivating: false,
-  isValidating: false,
+export const useLicenseStore = create<LicenseStore>()(
+  persist(
+    (set, get) => ({
+      // Initial state
+      isProUser: false,
+      licenseKey: null,
+      expiresAt: null,
+      lastCheckedAt: null,
 
-  // Ensure trial is initialized (called on app startup)
-  ensureTrial: async () => {
-    if (!isTauri()) return; // Skip in web environment
-    try {
-      await tauriInvoke('ensure_trial');
-    } catch (err) {
-      console.error('Failed to ensure trial:', err);
-    }
-  },
+      // Set PRO status (called by sync process after cloud validation)
+      setProStatus: (isPro, licenseKey = null, expiresAt = null) => {
+        set({
+          isProUser: isPro,
+          licenseKey,
+          expiresAt,
+          lastCheckedAt: Math.floor(Date.now() / 1000),
+        });
+      },
 
-  // Check current license status
-  checkStatus: async () => {
-    if (!isTauri()) {
-      // In web environment, set default free user state
-      set({
-        isProUser: false,
-        isTrial: false,
-        trialEndsAt: null,
-        isLoading: false,
-      });
-      return;
-    }
-    
-    set({ isLoading: true, error: null });
-    try {
-      const status = await tauriInvoke<LicenseStatus>('get_license_status');
-      set({
-        isProUser: status.is_pro,
-        isTrial: status.is_trial,
-        trialEndsAt: status.trial_ends_at,
-        licenseKey: status.license_key,
-        activatedAt: status.activated_at,
-        expiresAt: status.expires_at,
-        lastValidatedAt: status.last_validated_at,
-        inGracePeriod: status.in_grace_period,
-        gracePeriodEndsAt: status.grace_period_ends_at,
-        needsValidation: status.needs_validation,
-        timeTamperDetected: status.time_tamper_detected,
-        isLoading: false,
-      });
-
-      // Trigger background validation if needed (only for licensed users, not trial)
-      if (status.needs_validation && status.is_pro && !status.is_trial) {
-        get().validateBackground();
-      }
-    } catch (err) {
-      console.error('Failed to check license status:', err);
-      set({
-        isProUser: false,
-        isTrial: false,
-        trialEndsAt: null,
-        isLoading: false,
-      });
-    }
-  },
-
-  // Activate license
-  activate: async (licenseKey: string) => {
-    if (!isTauri()) {
-      set({ error: 'License activation is only available in desktop app' });
-      return false;
-    }
-    
-    if (!licenseKey.trim()) {
-      set({ error: 'Please enter a license key' });
-      return false;
-    }
-
-    set({ isActivating: true, error: null });
-    try {
-      const result = await tauriInvoke<ActivationResult>('activate_license', {
-        licenseKey: licenseKey.trim(),
-      });
-
-      if (result.success) {
-        // Refresh status after activation
-        await get().checkStatus();
-        set({ isActivating: false });
-        return true;
-      } else {
-        const errorMsg = getErrorMessage(result.error_code, result.error_message || undefined);
-        set({ error: errorMsg, isActivating: false });
-        return false;
-      }
-    } catch (err) {
-      console.error('Activation failed:', err);
-      const errorMsg = err instanceof Error && err.message.includes('network')
-        ? ERROR_MESSAGES.NETWORK_ERROR
-        : 'Activation failed, please try again later';
-      set({ error: errorMsg, isActivating: false });
-      return false;
-    }
-  },
-
-  // Deactivate license (unbind device)
-  deactivate: async () => {
-    if (!isTauri()) {
-      set({ error: 'License deactivation is only available in desktop app' });
-      return false;
-    }
-    
-    set({ isDeactivating: true, error: null });
-    try {
-      await tauriInvoke('deactivate_license');
-      set({
-        isProUser: false,
-        isTrial: false,
-        trialEndsAt: null,
-        licenseKey: null,
-        activatedAt: null,
-        expiresAt: null,
-        lastValidatedAt: null,
-        inGracePeriod: false,
-        gracePeriodEndsAt: null,
-        needsValidation: false,
-        timeTamperDetected: false,
-        isDeactivating: false,
-      });
-      return true;
-    } catch (err) {
-      console.error('Deactivation failed:', err);
-      set({
-        error: 'Unbind failed, please try again later',
-        isDeactivating: false,
-      });
-      return false;
-    }
-  },
-
-  // Background silent validation
-  validateBackground: async () => {
-    if (!isTauri()) return; // Skip in web environment
-    
-    set({ isValidating: true });
-    try {
-      const result = await tauriInvoke<ValidationResult>('validate_license_background');
-      
-      if (result.downgraded) {
-        // License was invalidated
+      // Clear PRO status
+      clearProStatus: () => {
         set({
           isProUser: false,
-          isTrial: false,
-          trialEndsAt: null,
           licenseKey: null,
-          activatedAt: null,
           expiresAt: null,
-          lastValidatedAt: null,
-          inGracePeriod: false,
-          gracePeriodEndsAt: null,
-          needsValidation: false,
-          timeTamperDetected: false,
-          isValidating: false,
+          lastCheckedAt: null,
         });
-      } else if (result.success) {
-        // Validation successful, update state
-        // This also clears time tamper detection since we just validated
-        set({ 
-          needsValidation: false, 
-          inGracePeriod: false,
-          timeTamperDetected: false,
-          isProUser: true,
-          isValidating: false,
-        });
-      } else if (result.in_grace_period) {
-        // In grace period, update state
-        set({ inGracePeriod: true, needsValidation: false, isValidating: false });
-      } else {
-        // Validation failed but not downgraded (e.g., network error with time tamper)
-        set({ isValidating: false });
-      }
-    } catch (err) {
-      console.error('Background validation failed:', err);
-      set({ isValidating: false });
-      // Don't show error to user for background validation
+      },
+
+      // Get expiry days remaining
+      getExpiryDaysRemaining: () => {
+        const { expiresAt, isProUser } = get();
+        if (!isProUser || !expiresAt) return null;
+        
+        const now = Math.floor(Date.now() / 1000);
+        const remaining = expiresAt - now;
+        if (remaining <= 0) return 0;
+        
+        return Math.ceil(remaining / (24 * 60 * 60));
+      },
+    }),
+    {
+      name: 'nekotick-license',
+      partialize: (state) => ({
+        isProUser: state.isProUser,
+        licenseKey: state.licenseKey,
+        expiresAt: state.expiresAt,
+        lastCheckedAt: state.lastCheckedAt,
+      }),
     }
-  },
-
-  // Clear error message
-  clearError: () => set({ error: null }),
-
-  // Get trial days remaining
-  getTrialDaysRemaining: () => {
-    const { trialEndsAt, isTrial } = get();
-    if (!isTrial || !trialEndsAt) return null;
-    
-    const now = Math.floor(Date.now() / 1000);
-    const remaining = trialEndsAt - now;
-    if (remaining <= 0) return 0;
-    
-    return Math.ceil(remaining / (24 * 60 * 60));
-  },
-
-  // Get trial hours remaining
-  getTrialHoursRemaining: () => {
-    const { trialEndsAt, isTrial } = get();
-    if (!isTrial || !trialEndsAt) return null;
-    
-    const now = Math.floor(Date.now() / 1000);
-    const remaining = trialEndsAt - now;
-    if (remaining <= 0) return 0;
-    
-    return Math.ceil(remaining / (60 * 60));
-  },
-
-  // Get trial seconds remaining (for determining phase)
-  getTrialSecondsRemaining: () => {
-    const { trialEndsAt, isTrial } = get();
-    if (!isTrial || !trialEndsAt) return null;
-    
-    const now = Math.floor(Date.now() / 1000);
-    const remaining = trialEndsAt - now;
-    return remaining > 0 ? remaining : 0;
-  },
-
-  // Get expiry days remaining (for licensed users)
-  getExpiryDaysRemaining: () => {
-    const { expiresAt, isProUser, isTrial } = get();
-    // Only for licensed users (not trial)
-    if (!isProUser || isTrial || !expiresAt) return null;
-    
-    const now = Math.floor(Date.now() / 1000);
-    const remaining = expiresAt - now;
-    if (remaining <= 0) return 0;
-    
-    return Math.ceil(remaining / (24 * 60 * 60));
-  },
-}));
+  )
+);

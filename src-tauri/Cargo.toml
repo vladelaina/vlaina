@@ -36,16 +36,6 @@ chrono = { version = "0.4", features = ["serde"] }
 thiserror = "1"
 open = "5"
 
-# License activation dependencies
-machine-uid = "0.5"
-uuid = { version = "1.0", features = ["v4"] }
-hmac = "0.12"
-hex = "0.4"
-aes-gcm = "0.10"
-dirs = "5"
-regex = "1"
-
 [dev-dependencies]
-proptest = "1"
 tempfile = "3"
 

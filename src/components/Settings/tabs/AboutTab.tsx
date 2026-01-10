@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { IconExternalLink, IconCloud, IconCloudOff, IconRefresh, IconDownload, IconLoader2, IconAlertCircle, IconCrown, IconUnlink, IconClock } from '@tabler/icons-react';
+import { IconExternalLink, IconCloud, IconCloudOff, IconRefresh, IconDownload, IconLoader2, IconAlertCircle, IconCrown } from '@tabler/icons-react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
@@ -14,7 +14,6 @@ export function AboutTab() {
     const saved = localStorage.getItem(STORAGE_KEY_AUTO_UPDATE);
     return saved !== null ? JSON.parse(saved) : true;
   });
-  const [licenseInput, setLicenseInput] = useState('');
 
   const {
     isConnected,
@@ -35,41 +34,14 @@ export function AboutTab() {
 
   const {
     isProUser,
-    isTrial,
-    isLoading: isLicenseLoading,
     licenseKey,
     expiresAt,
-    inGracePeriod,
-    gracePeriodEndsAt,
-    timeTamperDetected,
-    error: licenseError,
-    isActivating,
-    isDeactivating,
-    checkStatus: checkLicenseStatus,
-    activate,
-    deactivate,
-    clearError: clearLicenseError,
-    getTrialDaysRemaining,
-    getTrialHoursRemaining,
-    getTrialSecondsRemaining,
     getExpiryDaysRemaining,
   } = useLicenseStore();
 
-  // Determine trial phase: 'normal' (>24h), 'urgent' (<=24h), 'expired' (0)
-  const getTrialPhase = () => {
-    if (!isTrial) return null;
-    const seconds = getTrialSecondsRemaining();
-    if (seconds === null || seconds <= 0) return 'expired';
-    if (seconds <= 24 * 60 * 60) return 'urgent'; // Last 24 hours
-    return 'normal';
-  };
-
-  const trialPhase = getTrialPhase();
-
   useEffect(() => {
     checkStatus();
-    checkLicenseStatus();
-  }, [checkStatus, checkLicenseStatus]);
+  }, [checkStatus]);
 
   const formatLastSync = (timestamp: number | null) => {
     if (!timestamp) return 'Never';
@@ -90,11 +62,7 @@ export function AboutTab() {
 
   const handleSync = async () => {
     clearError();
-    if (!isConnected) {
-      // This shouldn't happen as button is only shown when connected
-      // but handle it gracefully
-      return;
-    }
+    if (!isConnected) return;
     await syncToCloud();
   };
 
@@ -113,36 +81,6 @@ export function AboutTab() {
 
   const openGitHub = async () => {
     await openUrl('https://github.com/NekoTick/NekoTick');
-  };
-
-  const handleActivate = async () => {
-    clearLicenseError();
-    const success = await activate(licenseInput);
-    if (success) {
-      setLicenseInput('');
-    }
-  };
-
-  const handleDeactivate = async () => {
-    if (confirm('Are you sure you want to unbind this device? After unbinding, you can use this license key on other devices.')) {
-      await deactivate();
-    }
-  };
-
-  const handleLicenseKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !isActivating) {
-      handleActivate();
-    }
-  };
-
-  const formatActivatedDate = (timestamp: number | null) => {
-    if (!timestamp) return '-';
-    const date = new Date(timestamp * 1000);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
   };
 
   const formatExpiryDate = (timestamp: number | null) => {
@@ -284,230 +222,71 @@ export function AboutTab() {
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">PRO License</h2>
         
         <div className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 space-y-4">
-          {isLicenseLoading ? (
-            <div className="flex items-center justify-center py-4">
-              <IconLoader2 className="size-5 animate-spin text-zinc-400" />
-            </div>
-          ) : timeTamperDetected ? (
-            // Time tamper detected - show warning
+          {isProUser ? (
+            // PRO Activated
             <>
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900/30">
-                  <IconAlertCircle className="size-5 text-amber-500" />
+                  <IconCrown className="size-5 text-amber-500" />
                 </div>
                 <div>
                   <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                    System Time Anomaly
+                    👑 PRO Activated
                   </div>
-                  <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                    PRO features paused
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
-                <IconAlertCircle className="size-4 flex-shrink-0 mt-0.5" />
-                <div className="text-xs">
-                  System time anomaly detected. Please calibrate your system time to restore PRO features. Features will be restored automatically once time is corrected.
-                </div>
-              </div>
-            </>
-          ) : isTrial ? (
-            // Trial state - 3 phases based on remaining time
-            <>
-              <div className="flex items-center gap-3">
-                {trialPhase === 'urgent' ? (
-                  // Phase 2: Last 24 hours - orange warning
-                  <>
-                    <div className="p-2 rounded-full bg-orange-100 dark:bg-orange-900/30">
-                      <IconClock className="size-5 text-orange-500" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                        👑 Pro trial ending soon: {getTrialHoursRemaining()} hours remaining
-                      </div>
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                        Enter license key to continue using auto-sync
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  // Phase 1: Normal trial (>24h) - subtle gray/blue
-                  <>
-                    <div className="p-2 rounded-full bg-zinc-100 dark:bg-zinc-700">
-                      <IconClock className="size-5 text-zinc-500 dark:text-zinc-400" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
-                        👑 Pro trial: {getTrialDaysRemaining()} days remaining
-                      </div>
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                        Enter license key to continue
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="h-px bg-zinc-200 dark:bg-zinc-700" />
-
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={licenseInput}
-                  onChange={(e) => setLicenseInput(e.target.value.toUpperCase())}
-                  onKeyDown={handleLicenseKeyDown}
-                  placeholder="NEKO-XXXX-XXXX-XXXX"
-                  className="flex-1 px-3 py-2 text-sm bg-white dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500"
-                  disabled={isActivating}
-                />
-                <button
-                  onClick={handleActivate}
-                  disabled={isActivating || !licenseInput.trim()}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-zinc-800 dark:bg-zinc-600 hover:bg-zinc-700 dark:hover:bg-zinc-500 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isActivating ? (
-                    <>
-                      <IconLoader2 className="size-4 animate-spin" />
-                      Activating...
-                    </>
-                  ) : (
-                    'Activate'
-                  )}
-                </button>
-              </div>
-
-              {licenseError && (
-                <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
-                  <IconAlertCircle className="size-4 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs">{licenseError}</div>
-                </div>
-              )}
-            </>
-          ) : isProUser ? (
-            // Activated state
-            <>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900/30">
-                    <IconCrown className="size-5 text-amber-500" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                      👑 PRO Activated
-                    </div>
+                  {licenseKey && (
                     <div className="text-xs text-zinc-500 dark:text-zinc-400">
                       {licenseKey}
                     </div>
-                  </div>
-                </div>
-                
-                <button
-                  onClick={handleDeactivate}
-                  disabled={isDeactivating}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-colors disabled:opacity-50"
-                >
-                  {isDeactivating ? (
-                    <>
-                      <IconLoader2 className="size-3.5 animate-spin" />
-                      Unbinding...
-                    </>
-                  ) : (
-                    <>
-                      <IconUnlink className="size-3.5" />
-                      Unbind Device
-                    </>
                   )}
-                </button>
+                </div>
               </div>
 
               <div className="h-px bg-zinc-200 dark:bg-zinc-700" />
               
               <div className="text-sm">
                 {isExpiringSoon() ? (
-                  // Expiring soon warning (within 3 days)
                   <div className="text-red-600 dark:text-red-400">
                     ⚠️ Membership expiring soon ({getExpiryDaysRemaining()} days remaining)
                   </div>
                 ) : expiresAt ? (
-                  // Normal subscription with expiry date
                   <div className="text-zinc-500 dark:text-zinc-400">
                     Valid until: {formatExpiryDate(expiresAt)}
                   </div>
                 ) : (
-                  // Permanent license (no expiry)
                   <div className="text-green-600 dark:text-green-400">
                     Permanent
                   </div>
                 )}
               </div>
-
-              {inGracePeriod && (
-                <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
-                  <IconAlertCircle className="size-4 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs">
-                    Grace period until {formatActivatedDate(gracePeriodEndsAt)}, please ensure network connection to complete validation
-                  </div>
-                </div>
-              )}
             </>
           ) : (
-            // Phase 3: Not activated / Trial expired - show expired warning
+            // Not PRO - show info
             <>
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-red-100 dark:bg-red-900/30">
-                  <IconAlertCircle className="size-5 text-red-500" />
+                <div className="p-2 rounded-full bg-zinc-100 dark:bg-zinc-700">
+                  <IconCrown className="size-5 text-zinc-400" />
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-red-600 dark:text-red-400">
-                    ⚠️ Pro expired (auto-sync paused)
+                  <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    Free User
                   </div>
                   <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Enter license key to restore auto-sync
+                    Upgrade to PRO for automatic cloud sync
                   </div>
                 </div>
               </div>
 
               <div className="h-px bg-zinc-200 dark:bg-zinc-700" />
 
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={licenseInput}
-                  onChange={(e) => setLicenseInput(e.target.value.toUpperCase())}
-                  onKeyDown={handleLicenseKeyDown}
-                  placeholder="NEKO-XXXX-XXXX-XXXX"
-                  className="flex-1 px-3 py-2 text-sm bg-white dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500"
-                  disabled={isActivating}
-                />
-                <button
-                  onClick={handleActivate}
-                  disabled={isActivating || !licenseInput.trim()}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-zinc-800 dark:bg-zinc-600 hover:bg-zinc-700 dark:hover:bg-zinc-500 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isActivating ? (
-                    <>
-                      <IconLoader2 className="size-4 animate-spin" />
-                      Activating...
-                    </>
-                  ) : (
-                    'Activate'
-                  )}
-                </button>
+              <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                PRO license is bound to your GitHub account. Purchase a license key and connect your GitHub account to activate.
               </div>
-
-              {licenseError && (
-                <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
-                  <IconAlertCircle className="size-4 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs">{licenseError}</div>
-                </div>
-              )}
             </>
           )}
         </div>
         
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
-          PRO enables automatic cloud sync. Each license supports up to 5 devices.
+          PRO enables automatic cloud sync. License is bound to your GitHub account.
         </p>
       </div>
 

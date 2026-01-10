@@ -181,16 +181,3 @@ export const githubCommands = {
     });
   },
 };
-
-/**
- * License commands (Tauri only - requires backend)
- */
-export const licenseCommands = {
-  async ensureTrial() {
-    return safeInvoke('ensure_trial');
-  },
-
-  async deactivateLicense() {
-    return safeInvoke('deactivate_license');
-  },
-};

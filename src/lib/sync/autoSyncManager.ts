@@ -95,11 +95,6 @@ class AutoSyncManagerImpl {
       return false;
     }
 
-    // No time tampering
-    if (licenseState.timeTamperDetected) {
-      return false;
-    }
-
     // Not already syncing
     if (syncState.isSyncing) {
       return false;

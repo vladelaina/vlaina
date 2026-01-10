@@ -30,7 +30,6 @@ vi.mock('@/stores/useLicenseStore', () => ({
   useLicenseStore: {
     getState: vi.fn(() => ({
       isProUser: true,
-      timeTamperDetected: false,
     })),
   },
 }));
@@ -55,7 +54,6 @@ describe('AutoSyncManager', () => {
     
     mockLicenseStoreGetState.mockReturnValue({
       isProUser: true,
-      timeTamperDetected: false,
     });
   });
 
@@ -171,7 +169,6 @@ describe('AutoSyncManager', () => {
       });
       mockLicenseStoreGetState.mockReturnValue({
         isProUser: false,
-        timeTamperDetected: false,
       });
 
       const manager = getAutoSyncManager();
