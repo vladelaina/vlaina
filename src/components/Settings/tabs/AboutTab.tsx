@@ -61,9 +61,7 @@ export function AboutTab() {
   };
 
   const handleDisconnect = async () => {
-    if (confirm('Are you sure you want to disconnect from GitHub?')) {
-      await disconnect();
-    }
+    await disconnect();
   };
 
   const handleSync = async () => {
