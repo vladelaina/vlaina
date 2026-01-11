@@ -1,5 +1,6 @@
 import { defineConfig, Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { viteStaticCopy } from "vite-plugin-static-copy";
 import path from "path";
 import fs from "fs";
 
@@ -26,7 +27,19 @@ function spaFallbackPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react(), spaFallbackPlugin()],
+  plugins: [
+    react(),
+    spaFallbackPlugin(),
+    viteStaticCopy({
+      targets: [
+        // Copy fontsource font files
+        {
+          src: 'node_modules/@fontsource/*/files/*',
+          dest: 'assets/files'
+        }
+      ]
+    })
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
