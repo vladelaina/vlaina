@@ -10,6 +10,7 @@ import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
 import { VaultWelcome } from '@/components/VaultWelcome';
 import { FavoritesSection } from './features/Sidebar/FavoritesSection';
+import { GitHubSection } from './features/Sidebar/GitHubSection';
 import { WorkspaceSection } from './features/Sidebar/WorkspaceSection';
 import { useNotesSidebarResize } from '@/hooks/useSidebarResize';
 import './features/BlockEditor/styles.css';
@@ -135,6 +136,9 @@ export function NotesPage() {
         <div className="flex-1 overflow-auto neko-scrollbar">
           {/* Favorites Section */}
           <FavoritesSection />
+
+          {/* GitHub Section */}
+          <GitHubSection />
 
           {/* Workspace Section */}
           <WorkspaceSection

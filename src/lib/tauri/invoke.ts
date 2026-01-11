@@ -388,3 +388,133 @@ export function handleOAuthCallback(): { code: string; state: string } | null {
 
   return null;
 }
+
+// ==================== GitHub Repository Types ====================
+
+/** Repository info from GitHub API */
+export interface RepositoryInfo {
+  id: number;
+  name: string;
+  displayName: string;
+  fullName: string;
+  owner: string;
+  private: boolean;
+  htmlUrl: string;
+  defaultBranch: string;
+  updatedAt: string;
+  description: string | null;
+}
+
+/** Tree entry (file or directory) */
+export interface TreeEntry {
+  path: string;
+  name: string;
+  entryType: 'file' | 'dir';
+  sha: string;
+  size?: number;
+}
+
+/** File content from repository */
+export interface FileContent {
+  path: string;
+  content: string;
+  sha: string;
+  encoding: string;
+}
+
+/** Commit result after file update */
+export interface CommitResult {
+  sha: string;
+  message: string;
+  htmlUrl?: string;
+}
+
+// ==================== GitHub Repository Commands ====================
+
+/**
+ * GitHub Repository commands (Tauri only - requires backend)
+ * For browsing and managing nekotick-* repositories
+ */
+export const githubRepoCommands = {
+  /** List user's nekotick-* repositories */
+  async listRepos(): Promise<RepositoryInfo[]> {
+    const result = await safeInvoke<RepositoryInfo[]>('list_github_repos', undefined, {
+      webFallback: [],
+    });
+    return result || [];
+  },
+
+  /** Get repository directory contents (tree) */
+  async getRepoTree(owner: string, repo: string, path: string = ''): Promise<TreeEntry[]> {
+    const result = await safeInvoke<TreeEntry[]>('get_repo_tree', { owner, repo, path }, {
+      webFallback: [],
+    });
+    return result || [];
+  },
+
+  /** Get file content from repository */
+  async getFileContent(owner: string, repo: string, path: string): Promise<FileContent | null> {
+    const result = await safeInvoke<FileContent>('get_repo_file_content', { owner, repo, path }, {
+      webFallback: undefined,
+    });
+    return result || null;
+  },
+
+  /** Update or create a file in repository */
+  async updateFile(
+    owner: string,
+    repo: string,
+    path: string,
+    content: string,
+    sha: string | null,
+    message: string
+  ): Promise<CommitResult | null> {
+    const result = await safeInvoke<CommitResult>('update_repo_file', {
+      owner,
+      repo,
+      path,
+      content,
+      sha,
+      message,
+    }, {
+      webFallback: undefined,
+    });
+    return result || null;
+  },
+
+  /** Create a new repository with nekotick- prefix */
+  async createRepo(
+    name: string,
+    isPrivate: boolean,
+    description?: string
+  ): Promise<RepositoryInfo | null> {
+    const result = await safeInvoke<RepositoryInfo>('create_github_repo', {
+      name,
+      private: isPrivate,
+      description,
+    }, {
+      webFallback: undefined,
+    });
+    return result || null;
+  },
+
+  /** Delete a file from repository */
+  async deleteFile(
+    owner: string,
+    repo: string,
+    path: string,
+    sha: string,
+    message: string
+  ): Promise<CommitResult | null> {
+    const result = await safeInvoke<CommitResult>('delete_repo_file', {
+      owner,
+      repo,
+      path,
+      sha,
+      message,
+    }, {
+      webFallback: undefined,
+    });
+    return result || null;
+  },
+};
