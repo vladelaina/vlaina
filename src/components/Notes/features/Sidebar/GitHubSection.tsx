@@ -6,10 +6,11 @@
  */
 
 import { useEffect, useState } from 'react';
-import { ChevronDown, Plus, Loader2, Package, RefreshCw } from 'lucide-react';
+import { Plus, Loader2, Package, RefreshCw } from 'lucide-react';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { hasBackendCommands } from '@/lib/tauri/invoke';
+import { CollapsibleSection } from './CollapsibleSection';
 import { RepositoryItem } from './RepositoryItem';
 import { NewRepositoryDialog } from './NewRepositoryDialog';
 import { cn } from '@/lib/utils';
@@ -61,144 +62,117 @@ export function GitHubSection() {
 
   const hasRepos = repositories.length > 0;
 
-  return (
-    <div className="mb-2">
-      {/* Header */}
-      <div className="px-2 py-1">
-        <div
-          onClick={toggleSectionExpanded}
-          className="group flex items-center justify-between px-2 py-1 rounded-md hover:bg-[var(--neko-hover)] transition-colors cursor-pointer"
-        >
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-medium text-[var(--neko-text-tertiary)] tracking-wider">
-              GitHub
-            </span>
-            <ChevronDown
-              className={cn(
-                "w-3 h-3 text-[#CDCDCD] transition-transform",
-                sectionExpanded ? "" : "-rotate-90"
-              )}
-            />
-          </div>
-          {isConnected && (
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  loadRepositories();
-                }}
-                disabled={isLoadingRepos}
-                className="p-1 rounded hover:bg-[var(--neko-hover-filled)] text-[var(--neko-text-tertiary)] transition-colors disabled:opacity-50"
-                title="Refresh"
-              >
-                <RefreshCw className={cn("w-3.5 h-3.5", isLoadingRepos && "animate-spin")} />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowNewRepoDialog(true);
-                }}
-                className="p-1 rounded hover:bg-[var(--neko-hover-filled)] text-[var(--neko-text-tertiary)] transition-colors"
-                title="New Repository"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Content */}
-      <div
-        className={cn(
-          "grid transition-[grid-template-rows] duration-200 ease-out",
-          sectionExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-        )}
+  // Header actions (only when connected)
+  const headerActions = isConnected ? (
+    <>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          loadRepositories();
+        }}
+        disabled={isLoadingRepos}
+        className="p-1 rounded hover:bg-[var(--neko-hover-filled)] text-[var(--neko-text-tertiary)] transition-colors disabled:opacity-50"
+        title="Refresh"
       >
-        <div className="overflow-hidden">
-          <div className="px-1">
-            {!isConnected ? (
-              // Not connected state - only show the connect button
-              <div className="flex flex-col items-center py-3">
-                <button
-                  onClick={handleConnect}
-                  disabled={isConnecting || !hasBackendCommands()}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-lg",
-                    "bg-[#24292e] hover:bg-[#2f363d] text-white text-[13px] font-medium",
-                    "transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  )}
-                >
-                  {isConnecting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <GitHubIcon className="w-4 h-4" />
-                  )}
-                  {isConnecting ? 'Connecting...' : 'Connect GitHub'}
-                </button>
-                {!hasBackendCommands() && (
-                  <span className="text-[11px] text-[var(--neko-text-tertiary)] mt-2">
-                    Desktop app required
-                  </span>
-                )}
-              </div>
-            ) : isLoadingRepos && !hasRepos ? (
-              // Initial loading state (only when no repos yet)
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-5 h-5 animate-spin text-[var(--neko-text-tertiary)]" />
-              </div>
-            ) : !hasRepos ? (
-              // Empty state
-              <div className="flex flex-col items-center gap-3 py-8">
-                <div className="w-14 h-14 rounded-full bg-[var(--neko-bg-tertiary)] flex items-center justify-center">
-                  <Package className="w-6 h-6 text-[var(--neko-text-tertiary)]" />
-                </div>
-                <span className="text-[13px] text-[var(--neko-text-tertiary)]">
-                  No repositories
-                </span>
-                <button
-                  onClick={() => setShowNewRepoDialog(true)}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 rounded-md",
-                    "bg-[var(--neko-bg-tertiary)] hover:bg-[var(--neko-hover-filled)]",
-                    "text-[var(--neko-text-secondary)] text-[12px]",
-                    "transition-colors"
-                  )}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  New Repository
-                </button>
-              </div>
-            ) : (
-              // Repository list (show even when refreshing)
-              <div>
-                {repositories.map((repo) => (
-                  <RepositoryItem key={repo.id} repository={repo} isRefreshing={isLoadingRepos} />
-                ))}
-              </div>
-            )}
+        <RefreshCw className={cn("w-3.5 h-3.5", isLoadingRepos && "animate-spin")} />
+      </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowNewRepoDialog(true);
+        }}
+        className="p-1 rounded hover:bg-[var(--neko-hover-filled)] text-[var(--neko-text-tertiary)] transition-colors"
+        title="New Repository"
+      >
+        <Plus className="w-3.5 h-3.5" />
+      </button>
+    </>
+  ) : undefined;
 
-            {/* Error display */}
-            {error && (
-              <div className="mx-2 mb-2 p-2 rounded-md bg-red-500/10 border border-red-500/20">
-                <p className="text-[12px] text-red-400">{error}</p>
-                <button
-                  onClick={clearError}
-                  className="text-[11px] text-red-400/70 hover:text-red-400 mt-1"
-                >
-                  Dismiss
-                </button>
-              </div>
+  return (
+    <>
+      <CollapsibleSection
+        title="GitHub"
+        expanded={sectionExpanded}
+        onToggle={toggleSectionExpanded}
+        actions={headerActions}
+        className="mb-2"
+      >
+        {!isConnected ? (
+          <div className="flex flex-col items-center py-3">
+            <button
+              onClick={handleConnect}
+              disabled={isConnecting || !hasBackendCommands()}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg",
+                "bg-[#24292e] hover:bg-[#2f363d] text-white text-[13px] font-medium",
+                "transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              )}
+            >
+              {isConnecting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <GitHubIcon className="w-4 h-4" />
+              )}
+              {isConnecting ? 'Connecting...' : 'Connect GitHub'}
+            </button>
+            {!hasBackendCommands() && (
+              <span className="text-[11px] text-[var(--neko-text-tertiary)] mt-2">
+                Desktop app required
+              </span>
             )}
           </div>
-        </div>
-      </div>
+        ) : isLoadingRepos && !hasRepos ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-5 h-5 animate-spin text-[var(--neko-text-tertiary)]" />
+          </div>
+        ) : !hasRepos ? (
+          <div className="flex flex-col items-center gap-3 py-8">
+            <div className="w-14 h-14 rounded-full bg-[var(--neko-bg-tertiary)] flex items-center justify-center">
+              <Package className="w-6 h-6 text-[var(--neko-text-tertiary)]" />
+            </div>
+            <span className="text-[13px] text-[var(--neko-text-tertiary)]">
+              No repositories
+            </span>
+            <button
+              onClick={() => setShowNewRepoDialog(true)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-md",
+                "bg-[var(--neko-bg-tertiary)] hover:bg-[var(--neko-hover-filled)]",
+                "text-[var(--neko-text-secondary)] text-[12px]",
+                "transition-colors"
+              )}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              New Repository
+            </button>
+          </div>
+        ) : (
+          <div>
+            {repositories.map((repo) => (
+              <RepositoryItem key={repo.id} repository={repo} isRefreshing={isLoadingRepos} />
+            ))}
+          </div>
+        )}
 
-      {/* New Repository Dialog */}
+        {/* Error display */}
+        {error && (
+          <div className="mx-2 mb-2 p-2 rounded-md bg-red-500/10 border border-red-500/20">
+            <p className="text-[12px] text-red-400">{error}</p>
+            <button
+              onClick={clearError}
+              className="text-[11px] text-red-400/70 hover:text-red-400 mt-1"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+      </CollapsibleSection>
+
       <NewRepositoryDialog
         isOpen={showNewRepoDialog}
         onClose={() => setShowNewRepoDialog(false)}
       />
-    </div>
+    </>
   );
 }

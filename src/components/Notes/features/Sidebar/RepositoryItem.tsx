@@ -48,7 +48,6 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   const isExpanded = expandedRepos.has(repository.id);
   const status = syncStatus.get(repository.id) || 'not_cloned';
@@ -199,7 +198,6 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
             onClick={() => setShowMenu(false)}
           />
           <div 
-            ref={menuRef}
             style={{ top: menuPosition.top, left: menuPosition.left }}
             className={cn(
               "fixed z-[9999] min-w-[160px] py-1.5 rounded-lg shadow-lg",

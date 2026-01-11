@@ -1,11 +1,10 @@
-
 import { useState } from 'react';
-import { ChevronDown, Plus, Folder } from 'lucide-react';
+import { Plus, Folder } from 'lucide-react';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { IconButton } from '@/components/ui/icon-button';
-import { FileTree } from '../FileTree'; // Adjusted path
+import { FileTree } from '../FileTree';
+import { CollapsibleSection } from './CollapsibleSection';
 import { type FolderNode } from '@/stores/useNotesStore';
-import { cn } from '@/lib/utils';
 
 interface WorkspaceSectionProps {
     rootFolder: FolderNode | null;
@@ -25,74 +24,41 @@ export function WorkspaceSection({
     const [expanded, setExpanded] = useState(true);
     const { currentVault } = useVaultStore();
 
-    // Get vault name from path
     const vaultName = currentVault?.name || 'Workspace';
 
-    const handleHeaderClick = (e: React.MouseEvent) => {
-        // Only toggle expand state when clicking non-button area
-        const target = e.target as HTMLElement;
-        if (!target.closest('button')) {
-            setExpanded(!expanded);
-        }
-    };
+    const headerActions = (
+        <>
+            <IconButton
+                icon={<Plus className="w-3.5 h-3.5" />}
+                tooltip="New Doc"
+                onClick={() => {
+                    if (!expanded) setExpanded(true);
+                    onCreateNote();
+                }}
+            />
+            <IconButton
+                icon={<Folder className="w-3.5 h-3.5" />}
+                tooltip="New Folder"
+                onClick={() => {
+                    if (!expanded) setExpanded(true);
+                    onCreateFolder();
+                }}
+            />
+        </>
+    );
 
     return (
-        <div>
-            {/* Header */}
-            <div className="px-2 py-1">
-                <div
-                    onClick={handleHeaderClick}
-                    className="group flex items-center justify-between px-2 py-1 rounded-md hover:bg-[var(--neko-hover)] transition-colors cursor-pointer"
-                >
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-medium text-[var(--neko-text-tertiary)] tracking-wider">
-                            {vaultName}
-                        </span>
-                        <ChevronDown
-                            className={cn(
-                                "w-3 h-3 text-[#CDCDCD] transition-transform",
-                                expanded ? "" : "-rotate-90"
-                            )}
-                        />
-                    </div>
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <IconButton
-                            icon={<Plus className="w-3.5 h-3.5" />}
-                            tooltip="New Doc"
-                            onClick={() => {
-                                if (!expanded) setExpanded(true);
-                                onCreateNote();
-                            }}
-                        />
-                        <IconButton
-                            icon={<Folder className="w-3.5 h-3.5" />}
-                            tooltip="New Folder"
-                            onClick={() => {
-                                if (!expanded) setExpanded(true);
-                                onCreateFolder();
-                            }}
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* Content */}
-            <div
-                className={cn(
-                    "grid transition-[grid-template-rows] duration-200 ease-out",
-                    expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-                )}
-            >
-                <div className="overflow-hidden">
-                    <div className="px-1">
-                        <FileTree
-                            rootFolder={rootFolder}
-                            isLoading={isLoading}
-                            currentNotePath={currentNotePath}
-                        />
-                    </div>
-                </div>
-            </div>
-        </div>
+        <CollapsibleSection
+            title={vaultName}
+            expanded={expanded}
+            onToggle={() => setExpanded(!expanded)}
+            actions={headerActions}
+        >
+            <FileTree
+                rootFolder={rootFolder}
+                isLoading={isLoading}
+                currentNotePath={currentNotePath}
+            />
+        </CollapsibleSection>
     );
 }
