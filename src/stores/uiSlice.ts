@@ -26,6 +26,12 @@ interface UIStore {
   notesPreviewIcon: { path: string; icon: string } | null;
   setNotesPreviewIcon: (path: string | null, icon: string | null) => void;
   
+  notesPreviewIconColor: string | null;
+  setNotesPreviewIconColor: (color: string | null) => void;
+  
+  notesPreviewSkinTone: number | null;
+  setNotesPreviewSkinTone: (tone: number | null) => void;
+  
   notesPreviewTitle: { path: string; title: string } | null;
   setNotesPreviewTitle: (path: string | null, title: string | null) => void;
 
@@ -144,6 +150,12 @@ export const useUIStore = create<UIStore>()((set, get) => ({
       set({ notesPreviewIcon: null });
     }
   },
+  
+  notesPreviewIconColor: null,
+  setNotesPreviewIconColor: (color) => set({ notesPreviewIconColor: color }),
+  
+  notesPreviewSkinTone: null,
+  setNotesPreviewSkinTone: (tone) => set({ notesPreviewSkinTone: tone }),
   
   notesPreviewTitle: null,
   setNotesPreviewTitle: (path, title) => {

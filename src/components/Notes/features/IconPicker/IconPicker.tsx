@@ -12,6 +12,8 @@ import {
   loadActiveTab,
   saveActiveTab,
   addToRecentIcons,
+  loadIconColor,
+  ICON_COLORS,
   MAX_RECENT_EMOJIS,
   EMOJI_CATEGORIES,
 } from './constants';
@@ -24,7 +26,6 @@ interface IconPickerProps {
   onClose: () => void;
   hasIcon?: boolean;
   currentIcon?: string;
-  onIconChange?: (emoji: string) => void;
 }
 
 export function IconPicker({
@@ -34,12 +35,12 @@ export function IconPicker({
   onClose,
   hasIcon = false,
   currentIcon,
-  onIconChange
 }: IconPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<TabType>(loadActiveTab);
   const [recentIcons, setRecentIcons] = useState<string[]>(loadRecentIcons);
   const [skinTone, setSkinTone] = useState(loadSkinTone);
+  const [iconColor, setIconColor] = useState(loadIconColor);
   
   // Track active categories for random selection within current group
   const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('people');
@@ -106,12 +107,13 @@ export function IconPicker({
       const icons = currentCategory?.icons || [];
       if (icons.length > 0) {
         const randomIcon = icons[Math.floor(Math.random() * icons.length)];
-        const iconValue = `icon:${randomIcon.name}:${randomIcon.color}`;
+        const currentColor = ICON_COLORS[iconColor]?.color || ICON_COLORS[0].color;
+        const iconValue = `icon:${randomIcon.name}:${currentColor}`;
         lastRandomIconRef.current = iconValue;
         onSelect(iconValue);
       }
     }
-  }, [activeTab, activeEmojiCategory, activeIconCategory, onSelect]);
+  }, [activeTab, activeEmojiCategory, activeIconCategory, iconColor, onSelect]);
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -205,7 +207,6 @@ export function IconPicker({
           onSelect={handleEmojiSelect}
           onPreview={onPreview}
           currentIcon={currentIcon}
-          onIconChange={onIconChange}
           activeCategory={activeEmojiCategory}
           onCategoryChange={setActiveEmojiCategory}
         />
@@ -216,6 +217,9 @@ export function IconPicker({
           onPreview={onPreview}
           activeCategory={activeIconCategory}
           onCategoryChange={setActiveIconCategory}
+          iconColor={iconColor}
+          setIconColor={setIconColor}
+          currentIcon={currentIcon}
         />
       )}
     </div>

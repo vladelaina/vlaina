@@ -12,6 +12,7 @@ import {
   loadFavoritesFromFile,
   loadNoteIconsFromFile,
 } from '../storage';
+import { EMOJI_MAP } from '@/components/Notes/features/IconPicker/constants';
 
 export interface FeatureSlice {
   recentNotes: NotesStore['recentNotes'];
@@ -32,6 +33,8 @@ export interface FeatureSlice {
   isFolderStarred: (path: string) => boolean;
   getNoteIcon: (path: string) => string | undefined;
   setNoteIcon: (path: string, emoji: string | null) => void;
+  updateAllIconColors: (newColor: string) => void;
+  updateAllEmojiSkinTones: (newTone: number) => void;
 }
 
 export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> = (set, get) => ({
@@ -180,5 +183,66 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     else updated.delete(path);
     if (notesPath) saveNoteIconsToFile(notesPath, updated);
     set({ noteIcons: updated });
+  },
+
+  updateAllIconColors: (newColor: string) => {
+    const { noteIcons, notesPath } = get();
+    const updated = new Map<string, string>();
+    let hasChanges = false;
+
+    noteIcons.forEach((icon, path) => {
+      if (icon.startsWith('icon:')) {
+        // icon:name:color -> icon:name:newColor
+        const parts = icon.split(':');
+        const iconName = parts[1];
+        const newIcon = `icon:${iconName}:${newColor}`;
+        if (newIcon !== icon) {
+          updated.set(path, newIcon);
+          hasChanges = true;
+        } else {
+          updated.set(path, icon);
+        }
+      } else {
+        updated.set(path, icon);
+      }
+    });
+
+    if (hasChanges) {
+      if (notesPath) saveNoteIconsToFile(notesPath, updated);
+      set({ noteIcons: updated });
+    }
+  },
+
+  updateAllEmojiSkinTones: (newTone: number) => {
+    const { noteIcons, notesPath } = get();
+    const updated = new Map<string, string>();
+    let hasChanges = false;
+
+    noteIcons.forEach((icon, path) => {
+      // 跳过 icon 类型
+      if (icon.startsWith('icon:')) {
+        updated.set(path, icon);
+        return;
+      }
+
+      // 查找 emoji 并转换肤色
+      const item = EMOJI_MAP.get(icon);
+      if (item && item.skins && item.skins.length > newTone) {
+        const newEmoji = newTone === 0 ? item.native : (item.skins[newTone]?.native || item.native);
+        if (newEmoji !== icon) {
+          updated.set(path, newEmoji);
+          hasChanges = true;
+        } else {
+          updated.set(path, icon);
+        }
+      } else {
+        updated.set(path, icon);
+      }
+    });
+
+    if (hasChanges) {
+      if (notesPath) saveNoteIconsToFile(notesPath, updated);
+      set({ noteIcons: updated });
+    }
   },
 });

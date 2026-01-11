@@ -8,6 +8,7 @@ export type TabType = 'emoji' | 'icons';
 
 export const RECENT_ICONS_KEY = 'nekotick-recent-icons';
 export const SKIN_TONE_KEY = 'nekotick-emoji-skin-tone';
+export const ICON_COLOR_KEY = 'nekotick-icon-color';
 export const ACTIVE_TAB_KEY = 'nekotick-icon-picker-tab';
 export const MAX_RECENT_EMOJIS = 18;
 export const EMOJI_PER_ROW = 9;
@@ -16,6 +17,17 @@ export const ROW_GAP = 2;
 export const ICON_PER_ROW = 8;
 export const ICON_SIZE = 32;
 
+// Inline scrollbar styles for webkit (no arrow buttons)
+export const SCROLLBAR_CLASSNAME = `
+  [&::-webkit-scrollbar]:w-1.5
+  [&::-webkit-scrollbar-track]:bg-transparent
+  [&::-webkit-scrollbar-thumb]:bg-zinc-200
+  [&::-webkit-scrollbar-thumb]:rounded-full
+  [&::-webkit-scrollbar-thumb]:hover:bg-zinc-300
+  dark:[&::-webkit-scrollbar-thumb]:bg-zinc-700
+  dark:[&::-webkit-scrollbar-thumb]:hover:bg-zinc-600
+`;
+
 export const SKIN_TONES = [
   { tone: 0, emoji: '\u{1F44B}', label: 'Default' },
   { tone: 1, emoji: '\u{1F44B}\u{1F3FB}', label: 'Light' },
@@ -23,6 +35,17 @@ export const SKIN_TONES = [
   { tone: 3, emoji: '\u{1F44B}\u{1F3FD}', label: 'Medium' },
   { tone: 4, emoji: '\u{1F44B}\u{1F3FE}', label: 'Medium-Dark' },
   { tone: 5, emoji: '\u{1F44B}\u{1F3FF}', label: 'Dark' },
+];
+
+export const ICON_COLORS = [
+  { id: 0, color: '#f59e0b', label: 'Amber' },
+  { id: 1, color: '#ef4444', label: 'Red' },
+  { id: 2, color: '#f97316', label: 'Orange' },
+  { id: 3, color: '#22c55e', label: 'Green' },
+  { id: 4, color: '#3b82f6', label: 'Blue' },
+  { id: 5, color: '#8b5cf6', label: 'Purple' },
+  { id: 6, color: '#ec4899', label: 'Pink' },
+  { id: 7, color: '#71717a', label: 'Gray' },
 ];
 
 export const CATEGORY_NAMES: Record<string, string> = {
@@ -175,6 +198,21 @@ export function loadSkinTone(): number {
 export function saveSkinTone(tone: number): void {
   try {
     localStorage.setItem(SKIN_TONE_KEY, tone.toString());
+  } catch {}
+}
+
+export function loadIconColor(): number {
+  try {
+    const saved = localStorage.getItem(ICON_COLOR_KEY);
+    return saved ? parseInt(saved, 10) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function saveIconColor(colorId: number): void {
+  try {
+    localStorage.setItem(ICON_COLOR_KEY, colorId.toString());
   } catch {}
 }
 

@@ -9,6 +9,7 @@ import {
   EMOJI_SIZE, 
   ROW_GAP, 
   EMOJI_MAP,
+  SCROLLBAR_CLASSNAME,
   type EmojiItem,
 } from './constants';
 
@@ -70,7 +71,6 @@ export function VirtualEmojiGrid({
   const rows = useMemo(() => {
     const result: { type: 'title' | 'emojis'; content: string | string[] }[] = [];
     
-    // Recent section
     if (recentWithSkin.length > 0) {
       result.push({ type: 'title', content: 'Recent' });
       for (let i = 0; i < recentWithSkin.length; i += EMOJI_PER_ROW) {
@@ -78,7 +78,6 @@ export function VirtualEmojiGrid({
       }
     }
     
-    // Category section
     result.push({ type: 'title', content: categoryName });
     for (let i = 0; i < emojisWithSkin.length; i += EMOJI_PER_ROW) {
       result.push({ type: 'emojis', content: emojisWithSkin.slice(i, i + EMOJI_PER_ROW) });
@@ -94,9 +93,7 @@ export function VirtualEmojiGrid({
     overscan: 8,
   });
 
-  // Scroll to category title on mount or category change (skip Recent section, except for first category)
   useEffect(() => {
-    // First category (Smileys & People) should show Recent section
     if (categoryName === 'Smileys & People') {
       virtualizer.scrollToIndex(0, { align: 'start' });
     } else if (recentWithSkin.length > 0) {
@@ -136,7 +133,7 @@ export function VirtualEmojiGrid({
   return (
     <div
       ref={parentRef}
-      className="h-[280px] overflow-auto neko-scrollbar"
+      className={`h-[280px] overflow-auto ${SCROLLBAR_CLASSNAME}`}
       style={{ contain: 'strict', willChange: 'scroll-position' }}
       onClick={handleClick}
       onMouseOver={handleMouseOver}
@@ -254,7 +251,7 @@ export function VirtualSearchResults({
   return (
     <div
       ref={parentRef}
-      className="h-[280px] overflow-auto neko-scrollbar"
+      className={`h-[280px] overflow-auto ${SCROLLBAR_CLASSNAME}`}
       style={{ contain: 'strict', willChange: 'scroll-position' }}
       onClick={handleClick}
       onMouseOver={handleMouseOver}

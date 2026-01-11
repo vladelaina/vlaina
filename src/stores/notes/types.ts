@@ -68,6 +68,8 @@ export interface NotesActions {
   isFolderStarred: (path: string) => boolean;
   getNoteIcon: (path: string) => string | undefined;
   setNoteIcon: (path: string, emoji: string | null) => void;
+  updateAllIconColors: (newColor: string) => void;
+  updateAllEmojiSkinTones: (newTone: number) => void;
   syncDisplayName: (path: string, title: string) => void;
   getDisplayName: (path: string) => string;
 }

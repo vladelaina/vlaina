@@ -14,6 +14,8 @@ import {
   saveSkinTone,
   type EmojiItem,
 } from './constants';
+import { useNotesStore } from '@/stores/useNotesStore';
+import { useUIStore } from '@/stores/uiSlice';
 
 interface EmojiTabProps {
   skinTone: number;
@@ -22,7 +24,6 @@ interface EmojiTabProps {
   onSelect: (emoji: string) => void;
   onPreview?: (emoji: string | null) => void;
   currentIcon?: string;
-  onIconChange?: (emoji: string) => void;
   activeCategory: string;
   onCategoryChange: (categoryId: string) => void;
 }
@@ -34,7 +35,6 @@ export function EmojiTab({
   onSelect,
   onPreview,
   currentIcon,
-  onIconChange,
   activeCategory,
   onCategoryChange,
 }: EmojiTabProps) {
@@ -42,6 +42,9 @@ export function EmojiTab({
   const [searchQuery, setSearchQuery] = useState('');
   const [showSkinTonePicker, setShowSkinTonePicker] = useState(false);
   const [previewSkinTone, setPreviewSkinTone] = useState<number | null>(null);
+
+  const updateAllEmojiSkinTones = useNotesStore(s => s.updateAllEmojiSkinTones);
+  const setNotesPreviewSkinTone = useUIStore(s => s.setNotesPreviewSkinTone);
 
   const effectiveSkinTone = previewSkinTone !== null ? previewSkinTone : skinTone;
 
@@ -57,6 +60,7 @@ export function EmojiTab({
 
   const handleSkinToneHover = useCallback((tone: number | null) => {
     setPreviewSkinTone(tone);
+    setNotesPreviewSkinTone(tone);
     if (tone !== null && currentIcon && !currentIcon.startsWith('icon:')) {
       const previewEmoji = getEmojiWithSkinTone(currentIcon, tone);
       if (previewEmoji) {
@@ -65,21 +69,18 @@ export function EmojiTab({
     } else if (tone === null) {
       onPreview?.(null);
     }
-  }, [currentIcon, getEmojiWithSkinTone, onPreview]);
+  }, [currentIcon, getEmojiWithSkinTone, onPreview, setNotesPreviewSkinTone]);
 
   const handleSkinToneChange = useCallback((tone: number) => {
     setSkinTone(tone);
     saveSkinTone(tone);
     setShowSkinTonePicker(false);
     setPreviewSkinTone(null);
+    setNotesPreviewSkinTone(null);
     onPreview?.(null);
-    if (currentIcon && !currentIcon.startsWith('icon:')) {
-      const newEmoji = getEmojiWithSkinTone(currentIcon, tone);
-      if (newEmoji && newEmoji !== currentIcon) {
-        onIconChange?.(newEmoji);
-      }
-    }
-  }, [currentIcon, getEmojiWithSkinTone, onIconChange, onPreview, setSkinTone]);
+    // 更新所有笔记的 emoji 肤色
+    updateAllEmojiSkinTones(tone);
+  }, [setSkinTone, updateAllEmojiSkinTones, onPreview, setNotesPreviewSkinTone]);
 
   const currentCategory = useMemo(() => {
     return EMOJI_CATEGORIES.find(c => c.id === activeCategory) || EMOJI_CATEGORIES[0];

@@ -14,7 +14,6 @@ import { useUIStore } from '@/stores/uiSlice';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { IconPicker, NoteIcon } from '../IconPicker';
-import { CustomScrollbar } from '@/components/ui/custom-scrollbar';
 import { TitleInput } from './TitleInput';
 
 // Custom plugins - unified import
@@ -307,7 +306,7 @@ export function MarkdownEditor() {
         </button>
       </div>
 
-      <CustomScrollbar className="flex-1">
+      <div className="flex-1 overflow-auto neko-scrollbar">
         <div className="max-w-[800px] mx-auto w-full px-10">
           <div
             className="pt-6 pb-1"
@@ -361,7 +360,6 @@ export function MarkdownEditor() {
                     onClose={handleIconPickerClose}
                     hasIcon={!!noteIcon}
                     currentIcon={noteIcon}
-                    onIconChange={(emoji) => currentNote && setNoteIcon(currentNote.path, emoji)}
                   />
                 </div>
               </div>
@@ -383,7 +381,7 @@ export function MarkdownEditor() {
         <MilkdownProvider key={currentNote?.path}>
           <MilkdownEditorInner />
         </MilkdownProvider>
-      </CustomScrollbar>
+      </div>
     </div>
   );
 }
