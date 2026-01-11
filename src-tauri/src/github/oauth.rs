@@ -85,7 +85,7 @@ impl GitHubOAuthClient {
         url.query_pairs_mut()
             .append_pair("client_id", &self.client_id)
             .append_pair("redirect_uri", &redirect_uri)
-            .append_pair("scope", "gist")
+            .append_pair("scope", "repo gist read:user")
             .append_pair("state", state);
 
         url.to_string()

@@ -193,6 +193,7 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
     use std::sync::mpsc;
     use std::thread;
     use std::time::Duration;
+    use socket2::{Socket, Domain, Type, Protocol};
 
     // Load OAuth config
     let oauth_config = load_oauth_config()?;
@@ -203,9 +204,21 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
     // Generate state for CSRF protection
     let state = GitHubOAuthClient::generate_state();
 
-    // Bind to fixed port
-    let listener = TcpListener::bind(format!("127.0.0.1:{}", CALLBACK_PORT))
+    // Create socket with SO_REUSEADDR to allow quick rebind
+    let socket = Socket::new(Domain::IPV4, Type::STREAM, Some(Protocol::TCP))
+        .map_err(|e| format!("Failed to create socket: {}", e))?;
+    
+    socket.set_reuse_address(true)
+        .map_err(|e| format!("Failed to set SO_REUSEADDR: {}", e))?;
+    
+    let addr: std::net::SocketAddr = format!("127.0.0.1:{}", CALLBACK_PORT).parse().unwrap();
+    socket.bind(&addr.into())
         .map_err(|e| format!("Failed to bind to port {}: {}. Port may be in use.", CALLBACK_PORT, e))?;
+    
+    socket.listen(1)
+        .map_err(|e| format!("Failed to listen: {}", e))?;
+    
+    let listener: TcpListener = socket.into();
 
     // Build auth URL
     let oauth = GitHubOAuthClient::new(oauth_config.client_id.clone(), oauth_config.client_secret.clone());
