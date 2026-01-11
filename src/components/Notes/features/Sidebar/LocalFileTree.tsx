@@ -1,74 +1,76 @@
 /**
- * RemoteFileTree - Lazy-loading file tree for GitHub repositories
+ * LocalFileTree - File tree for locally cloned GitHub repositories
  * 
- * Uses the same visual style as local FileTreeItem for consistency.
+ * When a file is clicked, it switches the workspace to the repo's local path
+ * and opens the file using the standard notes store logic.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronRight, FileText, Folder, Loader2, Ellipsis, RefreshCw, ExternalLink } from 'lucide-react';
+import { ChevronRight, FileText, Folder, Ellipsis, ExternalLink } from 'lucide-react';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
-import { type TreeEntry } from '@/lib/tauri/invoke';
+import { useNotesStore } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles, NOTES_COLORS } from '@/lib/utils';
+import { readDir, type DirEntry } from '@tauri-apps/plugin-fs';
 
-interface RemoteFileTreeProps {
+interface LocalFileTreeProps {
   repoId: number;
   owner: string;
   repo: string;
-  path: string;
   depth: number;
+  subPath?: string;
 }
 
 const MAX_DEPTH = 10;
 
-export function RemoteFileTree({ repoId, owner, repo, path, depth }: RemoteFileTreeProps) {
-  const {
-    getTreeEntries,
-    loadDirectory,
-    loadingPaths,
-  } = useGithubReposStore();
-
+export function LocalFileTree({ repoId, owner, repo, depth, subPath = '' }: LocalFileTreeProps) {
+  const { getLocalPath, gitStatus } = useGithubReposStore();
+  const [entries, setEntries] = useState<DirEntry[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
-  const cacheKey = `${repoId}:${path}`;
-  const isLoading = loadingPaths.has(cacheKey);
-  const entries = getTreeEntries(repoId, path);
+  const localPath = getLocalPath(repoId);
+  const fullPath = subPath ? `${localPath}/${subPath}` : localPath;
+  const repoGitStatus = gitStatus.get(repoId) || [];
 
-  // Load directory on mount if not cached
+  // Load directory contents - no loading state since local reads are instant
   useEffect(() => {
-    if (!entries && !isLoading) {
-      loadDirectory(repoId, owner, repo, path);
-    }
-  }, [entries, isLoading, loadDirectory, repoId, owner, repo, path]);
+    if (!localPath) return;
 
-  const toggleFolder = useCallback((folderPath: string) => {
+    const loadEntries = async () => {
+      try {
+        const dirEntries = await readDir(fullPath || '');
+        // Filter out .git folder and sort (folders first, then alphabetically)
+        const filtered = dirEntries
+          .filter(e => e.name !== '.git')
+          .sort((a, b) => {
+            if (a.isDirectory && !b.isDirectory) return -1;
+            if (!a.isDirectory && b.isDirectory) return 1;
+            return a.name.localeCompare(b.name);
+          });
+        setEntries(filtered);
+      } catch (error) {
+        console.error('Failed to read directory:', error);
+        setEntries([]);
+      }
+    };
+
+    loadEntries();
+  }, [localPath, fullPath]);
+
+  const toggleFolder = useCallback((folderName: string) => {
     setExpandedFolders(prev => {
       const next = new Set(prev);
-      if (next.has(folderPath)) {
-        next.delete(folderPath);
+      if (next.has(folderName)) {
+        next.delete(folderName);
       } else {
-        next.add(folderPath);
+        next.add(folderName);
       }
       return next;
     });
   }, []);
 
-  // Loading state - same style as local FileTree
-  if (isLoading && !entries) {
-    return (
-      <div className="py-1">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="flex items-center gap-2 px-2 h-[30px]" style={{ paddingLeft: 8 + depth * 16 }}>
-            <div className="w-4 h-4 rounded bg-[var(--neko-bg-tertiary)] animate-pulse" />
-            <div className="flex-1 h-4 rounded bg-[var(--neko-bg-tertiary)] animate-pulse" />
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Empty state
-  if (!entries || entries.length === 0) {
+  // Empty state (only show if we have a path but no entries)
+  if (localPath && entries.length === 0) {
     return (
       <div className="px-3 py-4 text-center">
         <p className="text-[12px] text-[var(--neko-text-tertiary)]">
@@ -78,71 +80,87 @@ export function RemoteFileTree({ repoId, owner, repo, path, depth }: RemoteFileT
     );
   }
 
-  // Sort entries: folders first, then files, alphabetically
-  const sortedEntries = [...entries].sort((a, b) => {
-    if (a.entryType === 'dir' && b.entryType !== 'dir') return -1;
-    if (a.entryType !== 'dir' && b.entryType === 'dir') return 1;
-    return a.name.localeCompare(b.name);
-  });
-
   return (
-    <div className="py-1">
-      {sortedEntries.map((entry) => (
-        <RemoteFileTreeItem
-          key={entry.path}
-          entry={entry}
-          repoId={repoId}
-          owner={owner}
-          repo={repo}
-          depth={depth}
-          isExpanded={expandedFolders.has(entry.path)}
-          onToggle={() => toggleFolder(entry.path)}
-        />
-      ))}
+    <div>
+      {entries.map((entry) => {
+        const relativePath = subPath ? `${subPath}/${entry.name}` : entry.name;
+        const fileStatus = repoGitStatus.find(s => s.path === relativePath);
+        
+        return (
+          <LocalFileTreeItem
+            key={entry.name}
+            entry={entry}
+            repoId={repoId}
+            owner={owner}
+            repo={repo}
+            localRepoPath={localPath || ''}
+            relativePath={relativePath}
+            depth={depth}
+            isExpanded={expandedFolders.has(entry.name)}
+            onToggle={() => toggleFolder(entry.name)}
+            gitStatus={fileStatus?.status}
+          />
+        );
+      })}
     </div>
   );
 }
 
-interface RemoteFileTreeItemProps {
-  entry: TreeEntry;
+interface LocalFileTreeItemProps {
+  entry: DirEntry;
   repoId: number;
   owner: string;
   repo: string;
+  localRepoPath: string;
+  relativePath: string;
   depth: number;
   isExpanded: boolean;
   onToggle: () => void;
+  gitStatus?: string;
 }
 
-function RemoteFileTreeItem({
+function LocalFileTreeItem({
   entry,
   repoId,
   owner,
   repo,
+  localRepoPath,
+  relativePath,
   depth,
   isExpanded,
   onToggle,
-}: RemoteFileTreeItemProps) {
-  const isFolder = entry.entryType === 'dir';
-  const { currentRemoteFile, openRemoteFile, pendingChanges } = useGithubReposStore();
+  gitStatus,
+}: LocalFileTreeItemProps) {
+  const isFolder = entry.isDirectory;
+  const isMdFile = !isFolder && entry.name.endsWith('.md');
   
-  const isActive = currentRemoteFile?.repoId === repoId && 
-                   currentRemoteFile?.path === entry.path;
+  // Get current note path from notes store to highlight active file
+  const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const openNoteByAbsolutePath = useNotesStore(s => s.openNoteByAbsolutePath);
   
-  const isPending = pendingChanges.get(repoId)?.has(entry.path) || false;
+  // Check if this file is currently active
+  const fullFilePath = `${localRepoPath}/${relativePath}`.replace(/\\/g, '/');
+  const isActive = currentNotePath === fullFilePath || 
+                   currentNotePath?.replace(/\\/g, '/') === fullFilePath;
+  
   const paddingLeft = 8 + depth * 16;
 
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
-  const handleClick = useCallback(() => {
+  // Get display name (remove .md extension for md files)
+  const displayName = isMdFile ? entry.name.replace(/\.md$/, '') : entry.name;
+
+  const handleClick = useCallback(async () => {
     if (isFolder) {
       onToggle();
-    } else {
-      openRemoteFile(repoId, owner, repo, entry.path);
+    } else if (isMdFile) {
+      // Open the file using absolute path - doesn't affect local workspace
+      const absolutePath = `${localRepoPath}/${relativePath}`;
+      await openNoteByAbsolutePath(absolutePath);
     }
-  }, [isFolder, onToggle, openRemoteFile, repoId, owner, repo, entry.path]);
+  }, [isFolder, isMdFile, onToggle, localRepoPath, relativePath, openNoteByAbsolutePath]);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -157,9 +175,24 @@ function RemoteFileTreeItem({
   };
 
   const handleOpenInGitHub = () => {
-    const url = `https://github.com/${owner}/${repo}/blob/main/${entry.path}`;
+    const url = `https://github.com/${owner}/${repo}/blob/main/${relativePath}`;
     window.open(url, '_blank');
     setShowMenu(false);
+  };
+
+  // Get status indicator color
+  const getStatusColor = () => {
+    switch (gitStatus) {
+      case 'new':
+      case 'untracked':
+        return 'text-green-500';
+      case 'modified':
+        return 'text-orange-500';
+      case 'deleted':
+        return 'text-red-500';
+      default:
+        return '';
+    }
   };
 
   return (
@@ -199,21 +232,26 @@ function RemoteFileTreeItem({
             {isFolder ? (
               <Folder className="w-4 h-4 text-amber-500" />
             ) : (
-              <FileText className="w-4 h-4 text-[var(--neko-icon-secondary)]" />
+              <FileText className={cn("w-4 h-4 text-[var(--neko-icon-secondary)]", getStatusColor())} />
             )}
           </span>
 
-          {/* Name */}
+          {/* Name (without .md extension for md files) */}
           <span className={cn(
             "flex-1 min-w-0 text-[13px] truncate text-[var(--neko-text-primary)]",
-            isActive && "font-medium"
+            isActive && "font-medium",
+            gitStatus && getStatusColor()
           )}>
-            {entry.name}
+            {displayName}
           </span>
 
-          {/* Pending indicator */}
-          {isPending && (
-            <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
+          {/* Git status indicator */}
+          {gitStatus && (
+            <span className={cn("text-[10px] font-medium", getStatusColor())}>
+              {gitStatus === 'new' || gitStatus === 'untracked' ? 'U' : 
+               gitStatus === 'modified' ? 'M' : 
+               gitStatus === 'deleted' ? 'D' : ''}
+            </span>
           )}
 
           {/* Menu button */}
@@ -248,7 +286,6 @@ function RemoteFileTreeItem({
             onClick={() => setShowMenu(false)}
           />
           <div 
-            ref={menuRef}
             style={{ top: menuPosition.top, left: menuPosition.left }}
             className={cn(
               "fixed z-[9999] min-w-[160px] py-1.5 rounded-lg shadow-lg",
@@ -271,12 +308,12 @@ function RemoteFileTreeItem({
 
       {/* Nested tree for expanded folders */}
       {isFolder && isExpanded && depth < MAX_DEPTH && (
-        <RemoteFileTree
+        <LocalFileTree
           repoId={repoId}
           owner={owner}
           repo={repo}
-          path={entry.path}
           depth={depth + 1}
+          subPath={relativePath}
         />
       )}
     </div>

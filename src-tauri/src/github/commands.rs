@@ -164,6 +164,16 @@ fn delete_github_credentials(app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Get stored GitHub access token (public for use by other modules)
+pub fn get_stored_github_token(app: &tauri::AppHandle) -> Option<String> {
+    load_github_credentials(app).map(|c| c.access_token)
+}
+
+/// Get stored GitHub username (public for use by other modules)
+pub fn get_stored_github_username(app: &tauri::AppHandle) -> Option<String> {
+    load_github_credentials(app).map(|c| c.username)
+}
+
 /// Load GitHub sync metadata
 fn load_github_sync_meta(app: &tauri::AppHandle) -> GitHubSyncMeta {
     if let Ok(path) = get_github_sync_meta_path(app) {

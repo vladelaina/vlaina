@@ -258,7 +258,19 @@ pub fn run() {
             github::repo_commands::get_repo_file_content,
             github::repo_commands::update_repo_file,
             github::repo_commands::create_github_repo,
-            github::repo_commands::delete_repo_file
+            github::repo_commands::delete_repo_file,
+            // Git local operations
+            github::git_commands::clone_github_repo,
+            github::git_commands::is_repo_cloned,
+            github::git_commands::get_repo_local_path,
+            github::git_commands::pull_github_repo,
+            github::git_commands::push_github_repo,
+            github::git_commands::commit_repo_changes,
+            github::git_commands::get_repo_status,
+            github::git_commands::get_repo_log,
+            github::git_commands::get_file_diff,
+            github::git_commands::delete_local_repo,
+            github::git_commands::list_local_repos
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

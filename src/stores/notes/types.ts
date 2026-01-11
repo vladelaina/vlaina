@@ -40,6 +40,7 @@ export interface NotesActions {
   loadFileTree: () => Promise<void>;
   toggleFolder: (path: string) => void;
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
+  openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean) => Promise<void>;
   saveNote: () => Promise<void>;
   createNote: (folderPath?: string) => Promise<string>;
   createNoteWithContent: (folderPath: string | undefined, name: string, content: string) => Promise<string>;

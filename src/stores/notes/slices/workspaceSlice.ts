@@ -23,6 +23,7 @@ export interface WorkspaceSlice {
   displayNames: NotesStore['displayNames'];
 
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
+  openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean) => Promise<void>;
   saveNote: () => Promise<void>;
   updateContent: (content: string) => void;
   closeNote: () => void;
@@ -97,14 +98,59 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
   },
 
+  // Open a note using absolute path (for GitHub repos and external files)
+  openNoteByAbsolutePath: async (absolutePath: string, openInNewTab: boolean = false) => {
+    const { isDirty, saveNote, openTabs, currentNote } = get();
+    if (isDirty) await saveNote();
+
+    try {
+      const storage = getStorageAdapter();
+      const content = await storage.readFile(absolutePath);
+      
+      // Use the absolute path as the identifier
+      const fileName = absolutePath.split(/[/\\]/).pop()?.replace('.md', '') || 'Untitled';
+      const tabName = fileName;
+      const existingTab = openTabs.find((t) => t.path === absolutePath);
+
+      let updatedTabs = openTabs;
+      if (existingTab) {
+        updatedTabs = openTabs.map((t) => (t.path === absolutePath ? { ...t, name: tabName } : t));
+      } else if (openInNewTab || openTabs.length === 0) {
+        updatedTabs = [...openTabs, { path: absolutePath, name: tabName, isDirty: false }];
+      } else {
+        const currentTabIndex = openTabs.findIndex((t) => t.path === currentNote?.path);
+        if (currentTabIndex !== -1) {
+          updatedTabs = [...openTabs];
+          updatedTabs[currentTabIndex] = { path: absolutePath, name: tabName, isDirty: false };
+        } else {
+          updatedTabs = [...openTabs, { path: absolutePath, name: tabName, isDirty: false }];
+        }
+      }
+
+      updateDisplayName(set, absolutePath, tabName);
+      set({
+        currentNote: { path: absolutePath, content },
+        isDirty: false,
+        error: null,
+        openTabs: updatedTabs,
+        isNewlyCreated: false,
+      });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to open note' });
+    }
+  },
+
   saveNote: async () => {
     const { currentNote, notesPath } = get();
     if (!currentNote) return;
 
     try {
-      // Simply save the content without auto-renaming based on H1
-      // File renaming is handled by TitleInput component
-      const fullPath = await joinPath(notesPath, currentNote.path);
+      // Check if path is absolute (starts with drive letter on Windows or / on Unix)
+      const isAbsolutePath = /^[A-Za-z]:[\\/]/.test(currentNote.path) || currentNote.path.startsWith('/');
+      const fullPath = isAbsolutePath 
+        ? currentNote.path 
+        : await joinPath(notesPath, currentNote.path);
+      
       await safeWriteTextFile(fullPath, currentNote.content);
       set({ isDirty: false });
     } catch (error) {
@@ -133,9 +179,14 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       starredFolders,
     } = get();
 
+    // Helper to check if path is absolute
+    const isAbsolutePath = (p: string) => /^[A-Za-z]:[\\/]/.test(p) || p.startsWith('/');
+    const pathIsAbsolute = isAbsolutePath(path);
+
     const { isNewlyCreated } = get();
-    // Check if the note is empty and newly created
+    // Check if the note is empty and newly created (only for local workspace files)
     const isEmptyNote =
+      !pathIsAbsolute &&
       isNewlyCreated &&
       currentNote?.path === path &&
       (!currentNote.content.trim() ||
@@ -182,10 +233,15 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     if (currentNote?.path === path) {
       if (updatedTabs.length > 0) {
         const lastTab = updatedTabs[updatedTabs.length - 1];
-        get().openNote(lastTab.path);
+        // Use appropriate open method based on path type
+        if (isAbsolutePath(lastTab.path)) {
+          get().openNoteByAbsolutePath(lastTab.path);
+        } else {
+          get().openNote(lastTab.path);
+        }
       } else {
         set({ currentNote: null, isDirty: false });
-        // Clear workspace current note when no tabs
+        // Clear workspace current note when no tabs (only for local workspace)
         if (notesPath && rootFolder) {
           const expandedPaths = collectExpandedPaths(rootFolder.children);
           saveWorkspaceState(notesPath, {
@@ -197,7 +253,15 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
   },
 
-  switchTab: (path: string) => get().openNote(path),
+  switchTab: (path: string) => {
+    // Check if path is absolute (GitHub repo files use absolute paths)
+    const isAbsolutePath = /^[A-Za-z]:[\\/]/.test(path) || path.startsWith('/');
+    if (isAbsolutePath) {
+      get().openNoteByAbsolutePath(path);
+    } else {
+      get().openNote(path);
+    }
+  },
 
   reorderTabs: (fromIndex: number, toIndex: number) => {
     const { openTabs } = get();

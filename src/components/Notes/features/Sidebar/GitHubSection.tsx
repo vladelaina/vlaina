@@ -141,8 +141,8 @@ export function GitHubSection() {
                   </span>
                 )}
               </div>
-            ) : isLoadingRepos ? (
-              // Loading state
+            ) : isLoadingRepos && !hasRepos ? (
+              // Initial loading state (only when no repos yet)
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-[var(--neko-text-tertiary)]" />
               </div>
@@ -169,10 +169,10 @@ export function GitHubSection() {
                 </button>
               </div>
             ) : (
-              // Repository list
+              // Repository list (show even when refreshing)
               <div>
                 {repositories.map((repo) => (
-                  <RepositoryItem key={repo.id} repository={repo} />
+                  <RepositoryItem key={repo.id} repository={repo} isRefreshing={isLoadingRepos} />
                 ))}
               </div>
             )}

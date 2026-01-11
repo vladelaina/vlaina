@@ -2,31 +2,47 @@
  * RepositoryItem - Single repository item in the GitHub sidebar
  * 
  * Uses the same visual style as local FileTreeItem (folder) for consistency.
+ * Repositories are cloned locally for offline support.
  */
 
 import { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronRight, Folder, Ellipsis, RefreshCw, ExternalLink, Trash2, Upload, Download } from 'lucide-react';
+import { 
+  ChevronRight, 
+  Ellipsis, 
+  RefreshCw, 
+  ExternalLink, 
+  Trash2, 
+  Upload, 
+  Download,
+  Cloud,
+  CloudUpload,
+  CloudCog,
+  CloudAlert,
+  CloudOff,
+} from 'lucide-react';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { type RepositoryInfo } from '@/lib/tauri/invoke';
-import { RemoteFileTree } from './RemoteFileTree';
+import { LocalFileTree } from './LocalFileTree';
 import { cn, iconButtonStyles } from '@/lib/utils';
 
 interface RepositoryItemProps {
   repository: RepositoryInfo;
+  isRefreshing?: boolean;
 }
 
-export function RepositoryItem({ repository }: RepositoryItemProps) {
+export function RepositoryItem({ repository, isRefreshing = false }: RepositoryItemProps) {
   const {
     expandedRepos,
     toggleRepoExpanded,
     syncStatus,
-    loadingPaths,
+    cloningRepos,
     syncRepository,
     pullChanges,
     pushChanges,
     removeRepository,
-    hasPendingChanges,
+    hasChanges,
+    isCloned,
   } = useGithubReposStore();
 
   const [showMenu, setShowMenu] = useState(false);
@@ -35,10 +51,42 @@ export function RepositoryItem({ repository }: RepositoryItemProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isExpanded = expandedRepos.has(repository.id);
-  const status = syncStatus.get(repository.id) || 'synced';
-  const isLoading = loadingPaths.has(`${repository.id}:`);
-  const isSyncing = status === 'syncing';
-  const hasPending = hasPendingChanges(repository.id);
+  const status = syncStatus.get(repository.id) || 'not_cloned';
+  const isCloning = cloningRepos.has(repository.id);
+  const isSyncing = status === 'syncing' || isCloning;
+  const repoIsCloned = isCloned(repository.id);
+  const repoHasChanges = hasChanges(repository.id);
+
+  // Get cloud icon based on sync status (all amber-500 like folder icons)
+  const getCloudIcon = () => {
+    const iconClass = "w-4 h-4 text-amber-500";
+    
+    // Show sync icon when refreshing, cloning, or syncing
+    if (isRefreshing || isSyncing) {
+      return <CloudCog className={iconClass} />;
+    }
+    
+    // Not cloned yet
+    if (!repoIsCloned) {
+      return <CloudOff className={iconClass} />;
+    }
+    
+    // Has local changes to push
+    if (repoHasChanges) {
+      return <CloudUpload className={iconClass} />;
+    }
+    
+    switch (status) {
+      case 'synced':
+        return <Cloud className={iconClass} />;
+      case 'has_changes':
+        return <CloudUpload className={iconClass} />;
+      case 'error':
+        return <CloudAlert className={iconClass} />;
+      default:
+        return <Cloud className={iconClass} />;
+    }
+  };
 
   const handleClick = useCallback(() => {
     toggleRepoExpanded(repository.id);
@@ -109,25 +157,15 @@ export function RepositoryItem({ repository }: RepositoryItemProps) {
             />
           </span>
 
-          {/* Folder icon - same as local folders */}
+          {/* Cloud icon - shows sync status */}
           <span className="w-4 h-4 flex items-center justify-center">
-            <Folder className="w-4 h-4 text-amber-500" />
+            {getCloudIcon()}
           </span>
 
           {/* Repository name (without prefix) */}
           <span className="flex-1 min-w-0 text-[13px] truncate text-[var(--neko-text-primary)]">
             {repository.displayName}
           </span>
-
-          {/* Sync indicator */}
-          {(isSyncing || isLoading) && (
-            <RefreshCw className="w-3 h-3 text-[var(--neko-text-tertiary)] animate-spin flex-shrink-0" />
-          )}
-
-          {/* Pending changes indicator */}
-          {hasPending && !isSyncing && (
-            <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
-          )}
 
           {/* Menu button */}
           <button
@@ -172,19 +210,19 @@ export function RepositoryItem({ repository }: RepositoryItemProps) {
               icon={<RefreshCw />} 
               label="Sync Now" 
               onClick={handleSyncNow}
-              disabled={isSyncing}
+              disabled={isSyncing || !repoIsCloned}
             />
             <MenuItem 
               icon={<Download />} 
               label="Pull from Remote" 
               onClick={handlePull}
-              disabled={isSyncing}
+              disabled={isSyncing || !repoIsCloned}
             />
             <MenuItem 
               icon={<Upload />} 
               label="Push to Remote" 
               onClick={handlePush}
-              disabled={isSyncing || !hasPending}
+              disabled={isSyncing || !repoIsCloned || !repoHasChanges}
             />
             <div className="h-px bg-[var(--neko-divider)] my-1.5 mx-2" />
             <MenuItem 
@@ -204,15 +242,22 @@ export function RepositoryItem({ repository }: RepositoryItemProps) {
         document.body
       )}
 
-      {/* Expanded file tree */}
-      {isExpanded && (
-        <RemoteFileTree
+      {/* Expanded file tree - reads from local clone */}
+      {isExpanded && repoIsCloned && (
+        <LocalFileTree
           repoId={repository.id}
           owner={repository.owner}
           repo={repository.name}
-          path=""
           depth={1}
         />
+      )}
+      
+      {/* Cloning indicator */}
+      {isExpanded && !repoIsCloned && isCloning && (
+        <div className="flex items-center gap-2 px-4 py-3 text-[12px] text-[var(--neko-text-tertiary)]">
+          <CloudCog className="w-4 h-4 animate-pulse" />
+          Cloning repository...
+        </div>
       )}
     </div>
   );

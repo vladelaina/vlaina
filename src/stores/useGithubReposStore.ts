@@ -1,63 +1,55 @@
 /**
  * GitHub Repos Store - State management for GitHub repository browsing
  * 
- * Manages repository list, file tree cache, pending changes, and sync status
- * for the GitHub sidebar feature.
+ * Uses local git clone for offline support.
+ * Repositories are cloned to local storage and synced with remote.
  */
 
 import { create } from 'zustand';
 import { 
   githubRepoCommands, 
+  gitCommands,
   hasBackendCommands,
-  type RepositoryInfo, 
-  type TreeEntry, 
-  type FileContent 
+  type RepositoryInfo,
+  type FileStatus,
+  type CommitInfo,
 } from '@/lib/tauri/invoke';
 import { useGithubSyncStore } from './useGithubSyncStore';
 
 /** Sync status for a repository */
-export type SyncStatus = 'synced' | 'syncing' | 'has_updates' | 'error' | 'pending';
+export type SyncStatus = 'synced' | 'syncing' | 'has_changes' | 'error' | 'not_cloned';
 
-/** Currently open remote file */
-export interface RemoteFile {
-  repoId: number;
-  owner: string;
-  repo: string;
-  path: string;
-  content: string;
-  sha: string;
-  originalContent: string;
-}
+// Re-export types for convenience
+export type { FileStatus, CommitInfo };
 
 interface GithubReposState {
-  // Repository list
+  // Repository list (from GitHub API)
   repositories: RepositoryInfo[];
   isLoadingRepos: boolean;
   
   // Expanded state
   expandedRepos: Set<number>;
   
-  // File tree cache: repoId -> path -> TreeEntry[]
-  fileTreeCache: Map<number, Map<string, TreeEntry[]>>;
-  loadingPaths: Set<string>; // Format: `${repoId}:${path}`
+  // Local paths: repoId -> local path
+  localPaths: Map<number, string>;
   
-  // File content cache
-  fileContentCache: Map<string, FileContent>; // key: `${repoId}:${path}`
-  
-  // Pending changes: repoId -> Set<filePath>
-  pendingChanges: Map<number, Set<string>>;
+  // Clone status: repoId -> boolean
+  clonedRepos: Set<number>;
   
   // Sync status per repository
   syncStatus: Map<number, SyncStatus>;
   
-  // Currently open remote file
-  currentRemoteFile: RemoteFile | null;
+  // Git status per repository: repoId -> FileStatus[]
+  gitStatus: Map<number, FileStatus[]>;
   
   // Error state
   error: string | null;
   
   // Section expanded state
   sectionExpanded: boolean;
+  
+  // Loading states
+  cloningRepos: Set<number>;
 }
 
 interface GithubReposActions {
@@ -66,29 +58,29 @@ interface GithubReposActions {
   createRepository: (name: string, isPrivate: boolean, description?: string) => Promise<RepositoryInfo | null>;
   removeRepository: (repoId: number) => void;
   
-  // File tree operations
-  toggleRepoExpanded: (repoId: number) => void;
-  loadDirectory: (repoId: number, owner: string, repo: string, path: string) => Promise<void>;
-  getTreeEntries: (repoId: number, path: string) => TreeEntry[] | null;
+  // Clone operations
+  cloneRepository: (repoId: number) => Promise<boolean>;
+  isCloned: (repoId: number) => boolean;
+  getLocalPath: (repoId: number) => string | null;
   
-  // File operations
-  openRemoteFile: (repoId: number, owner: string, repo: string, path: string) => Promise<void>;
-  updateRemoteFileContent: (content: string) => void;
-  closeRemoteFile: () => void;
+  // Expand/collapse
+  toggleRepoExpanded: (repoId: number) => void;
   
   // Sync operations
-  pushChanges: (repoId: number) => Promise<boolean>;
-  pullChanges: (repoId: number) => Promise<void>;
   syncRepository: (repoId: number) => Promise<void>;
+  pullChanges: (repoId: number) => Promise<void>;
+  pushChanges: (repoId: number) => Promise<void>;
+  commitChanges: (repoId: number, message: string) => Promise<void>;
+  
+  // Git status
+  refreshGitStatus: (repoId: number) => Promise<void>;
+  getGitStatus: (repoId: number) => FileStatus[];
+  hasChanges: (repoId: number) => boolean;
   
   // State management
   setSyncStatus: (repoId: number, status: SyncStatus) => void;
   clearError: () => void;
   toggleSectionExpanded: () => void;
-  
-  // Helpers
-  hasPendingChanges: (repoId: number) => boolean;
-  getPendingFilesCount: (repoId: number) => number;
 }
 
 type GithubReposStore = GithubReposState & GithubReposActions;
@@ -97,21 +89,19 @@ const initialState: GithubReposState = {
   repositories: [],
   isLoadingRepos: false,
   expandedRepos: new Set(),
-  fileTreeCache: new Map(),
-  loadingPaths: new Set(),
-  fileContentCache: new Map(),
-  pendingChanges: new Map(),
+  localPaths: new Map(),
+  clonedRepos: new Set(),
   syncStatus: new Map(),
-  currentRemoteFile: null,
+  gitStatus: new Map(),
   error: null,
   sectionExpanded: true,
+  cloningRepos: new Set(),
 };
 
 export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
   ...initialState,
 
   loadRepositories: async () => {
-    // Check if connected to GitHub
     const { isConnected } = useGithubSyncStore.getState();
     if (!isConnected || !hasBackendCommands()) {
       set({ repositories: [], isLoadingRepos: false });
@@ -122,17 +112,50 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
     
     try {
       const repos = await githubRepoCommands.listRepos();
+      
+      // Check which repos are already cloned
+      const clonedRepos = new Set<number>();
+      const localPaths = new Map<number, string>();
+      const syncStatus = new Map<number, SyncStatus>();
+      const reposToClone: RepositoryInfo[] = [];
+      
+      for (const repo of repos) {
+        const isCloned = await gitCommands.isRepoCloned(repo.owner, repo.name);
+        if (isCloned) {
+          clonedRepos.add(repo.id);
+          const path = await gitCommands.getRepoLocalPath(repo.owner, repo.name);
+          if (path) {
+            localPaths.set(repo.id, path);
+          }
+          syncStatus.set(repo.id, 'synced');
+        } else {
+          syncStatus.set(repo.id, 'not_cloned');
+          reposToClone.push(repo);
+        }
+      }
+      
       set({ 
         repositories: repos, 
         isLoadingRepos: false,
+        clonedRepos,
+        localPaths,
+        syncStatus,
       });
       
-      // Initialize sync status for each repo
-      const syncStatus = new Map<number, SyncStatus>();
-      repos.forEach(repo => {
-        syncStatus.set(repo.id, 'synced');
-      });
-      set({ syncStatus });
+      // Auto-clone uncloned repos in background (don't await, let it run async)
+      if (reposToClone.length > 0) {
+        // Clone repos one by one in background
+        (async () => {
+          for (const repo of reposToClone) {
+            try {
+              await get().cloneRepository(repo.id);
+            } catch (e) {
+              // Silently fail for background clones
+              console.error(`Failed to auto-clone ${repo.name}:`, e);
+            }
+          }
+        })();
+      }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       set({ 
@@ -145,7 +168,7 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
 
   createRepository: async (name, isPrivate, description) => {
     if (!hasBackendCommands()) {
-      set({ error: 'Repository creation is not available on this platform' });
+      set({ error: 'Repository creation requires desktop app' });
       return null;
     }
 
@@ -154,7 +177,7 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
       if (repo) {
         set(state => ({
           repositories: [repo, ...state.repositories],
-          syncStatus: new Map(state.syncStatus).set(repo.id, 'synced'),
+          syncStatus: new Map(state.syncStatus).set(repo.id, 'not_cloned'),
         }));
       }
       return repo;
@@ -171,273 +194,120 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
       const expandedRepos = new Set(state.expandedRepos);
       expandedRepos.delete(repoId);
       
-      const fileTreeCache = new Map(state.fileTreeCache);
-      fileTreeCache.delete(repoId);
+      const clonedRepos = new Set(state.clonedRepos);
+      clonedRepos.delete(repoId);
       
-      const pendingChanges = new Map(state.pendingChanges);
-      pendingChanges.delete(repoId);
+      const localPaths = new Map(state.localPaths);
+      localPaths.delete(repoId);
       
       const syncStatus = new Map(state.syncStatus);
       syncStatus.delete(repoId);
       
-      return { repositories, expandedRepos, fileTreeCache, pendingChanges, syncStatus };
+      const gitStatus = new Map(state.gitStatus);
+      gitStatus.delete(repoId);
+      
+      return { repositories, expandedRepos, clonedRepos, localPaths, syncStatus, gitStatus };
     });
+  },
+
+  cloneRepository: async (repoId) => {
+    const repo = get().repositories.find(r => r.id === repoId);
+    if (!repo) return false;
+    
+    // Mark as cloning
+    set(state => ({
+      cloningRepos: new Set(state.cloningRepos).add(repoId),
+      syncStatus: new Map(state.syncStatus).set(repoId, 'syncing'),
+    }));
+    
+    try {
+      const localPath = await gitCommands.cloneRepo(repo.owner, repo.name);
+      
+      if (localPath) {
+        set(state => {
+          const clonedRepos = new Set(state.clonedRepos).add(repoId);
+          const localPaths = new Map(state.localPaths).set(repoId, localPath);
+          const cloningRepos = new Set(state.cloningRepos);
+          cloningRepos.delete(repoId);
+          const syncStatus = new Map(state.syncStatus).set(repoId, 'synced');
+          
+          return { clonedRepos, localPaths, cloningRepos, syncStatus };
+        });
+        return true;
+      }
+      return false;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      set(state => {
+        const cloningRepos = new Set(state.cloningRepos);
+        cloningRepos.delete(repoId);
+        const syncStatus = new Map(state.syncStatus).set(repoId, 'error');
+        return { error: errorMsg, cloningRepos, syncStatus };
+      });
+      return false;
+    }
+  },
+
+  isCloned: (repoId) => {
+    return get().clonedRepos.has(repoId);
+  },
+
+  getLocalPath: (repoId) => {
+    return get().localPaths.get(repoId) || null;
   },
 
   toggleRepoExpanded: (repoId) => {
-    set(state => {
-      const expandedRepos = new Set(state.expandedRepos);
-      if (expandedRepos.has(repoId)) {
-        expandedRepos.delete(repoId);
+    const state = get();
+    const expandedRepos = new Set(state.expandedRepos);
+    
+    if (expandedRepos.has(repoId)) {
+      expandedRepos.delete(repoId);
+      set({ expandedRepos });
+    } else {
+      // If not cloned, clone first
+      if (!state.clonedRepos.has(repoId)) {
+        get().cloneRepository(repoId).then(success => {
+          if (success) {
+            set(s => ({
+              expandedRepos: new Set(s.expandedRepos).add(repoId),
+            }));
+            // Refresh git status after clone
+            get().refreshGitStatus(repoId);
+          }
+        });
       } else {
         expandedRepos.add(repoId);
-        // Load root directory if not cached
-        const repo = state.repositories.find(r => r.id === repoId);
-        if (repo && !state.fileTreeCache.get(repoId)?.has('')) {
-          get().loadDirectory(repoId, repo.owner, repo.name, '');
-        }
+        set({ expandedRepos });
+        // Refresh git status when expanding
+        get().refreshGitStatus(repoId);
       }
-      return { expandedRepos };
-    });
-  },
-
-  loadDirectory: async (repoId, owner, repo, path) => {
-    const cacheKey = `${repoId}:${path}`;
-    
-    // Check cache first
-    const cached = get().fileTreeCache.get(repoId)?.get(path);
-    if (cached) return;
-    
-    // Check if already loading
-    if (get().loadingPaths.has(cacheKey)) return;
-    
-    set(state => ({
-      loadingPaths: new Set(state.loadingPaths).add(cacheKey),
-    }));
-
-    try {
-      const entries = await githubRepoCommands.getRepoTree(owner, repo, path);
-      
-      set(state => {
-        const fileTreeCache = new Map(state.fileTreeCache);
-        const repoCache = fileTreeCache.get(repoId) || new Map();
-        repoCache.set(path, entries);
-        fileTreeCache.set(repoId, repoCache);
-        
-        const loadingPaths = new Set(state.loadingPaths);
-        loadingPaths.delete(cacheKey);
-        
-        return { fileTreeCache, loadingPaths };
-      });
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      set(state => {
-        const loadingPaths = new Set(state.loadingPaths);
-        loadingPaths.delete(cacheKey);
-        return { loadingPaths, error: errorMsg };
-      });
     }
   },
 
-  getTreeEntries: (repoId, path) => {
-    return get().fileTreeCache.get(repoId)?.get(path) || null;
-  },
-
-  openRemoteFile: async (repoId, owner, repo, path) => {
-    const cacheKey = `${repoId}:${path}`;
-    
-    // Check cache first
-    const cached = get().fileContentCache.get(cacheKey);
-    if (cached) {
-      set({
-        currentRemoteFile: {
-          repoId,
-          owner,
-          repo,
-          path,
-          content: cached.content,
-          sha: cached.sha,
-          originalContent: cached.content,
-        },
-      });
-      return;
-    }
-
-    try {
-      const fileContent = await githubRepoCommands.getFileContent(owner, repo, path);
-      if (fileContent) {
-        // Cache the content
-        set(state => {
-          const fileContentCache = new Map(state.fileContentCache);
-          fileContentCache.set(cacheKey, fileContent);
-          return {
-            fileContentCache,
-            currentRemoteFile: {
-              repoId,
-              owner,
-              repo,
-              path,
-              content: fileContent.content,
-              sha: fileContent.sha,
-              originalContent: fileContent.content,
-            },
-          };
-        });
-      }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      set({ error: errorMsg });
-    }
-  },
-
-  updateRemoteFileContent: (content) => {
-    const { currentRemoteFile } = get();
-    if (!currentRemoteFile) return;
-
-    const isModified = content !== currentRemoteFile.originalContent;
-    
-    set(state => {
-      const pendingChanges = new Map(state.pendingChanges);
-      const repoChanges = pendingChanges.get(currentRemoteFile.repoId) || new Set();
-      
-      if (isModified) {
-        repoChanges.add(currentRemoteFile.path);
-      } else {
-        repoChanges.delete(currentRemoteFile.path);
-      }
-      
-      pendingChanges.set(currentRemoteFile.repoId, repoChanges);
-      
-      // Update sync status
-      const syncStatus = new Map(state.syncStatus);
-      if (repoChanges.size > 0) {
-        syncStatus.set(currentRemoteFile.repoId, 'pending');
-      } else {
-        syncStatus.set(currentRemoteFile.repoId, 'synced');
-      }
-      
-      return {
-        currentRemoteFile: { ...currentRemoteFile, content },
-        pendingChanges,
-        syncStatus,
-      };
-    });
-  },
-
-  closeRemoteFile: () => {
-    set({ currentRemoteFile: null });
-  },
-
-  pushChanges: async (repoId) => {
-    const state = get();
-    const repo = state.repositories.find(r => r.id === repoId);
-    const pendingFiles = state.pendingChanges.get(repoId);
-    
-    if (!repo || !pendingFiles || pendingFiles.size === 0) {
-      return false;
-    }
-
-    set(state => ({
-      syncStatus: new Map(state.syncStatus).set(repoId, 'syncing'),
-    }));
-
-    try {
-      // Push each pending file
-      for (const filePath of pendingFiles) {
-        const cacheKey = `${repoId}:${filePath}`;
-        const cached = state.fileContentCache.get(cacheKey);
-        
-        if (cached) {
-          // Get current content (might be modified)
-          let content = cached.content;
-          if (state.currentRemoteFile?.repoId === repoId && 
-              state.currentRemoteFile?.path === filePath) {
-            content = state.currentRemoteFile.content;
-          }
-          
-          const result = await githubRepoCommands.updateFile(
-            repo.owner,
-            repo.name,
-            filePath,
-            content,
-            cached.sha,
-            `Update ${filePath} via NekoTick`
-          );
-          
-          if (result) {
-            // Update cache with new SHA
-            set(state => {
-              const fileContentCache = new Map(state.fileContentCache);
-              fileContentCache.set(cacheKey, {
-                ...cached,
-                content,
-                sha: result.sha,
-              });
-              return { fileContentCache };
-            });
-          }
-        }
-      }
-
-      // Clear pending changes and update status
-      set(state => {
-        const pendingChanges = new Map(state.pendingChanges);
-        pendingChanges.set(repoId, new Set());
-        
-        const syncStatus = new Map(state.syncStatus);
-        syncStatus.set(repoId, 'synced');
-        
-        // Update current file if it was pushed
-        let currentRemoteFile = state.currentRemoteFile;
-        if (currentRemoteFile?.repoId === repoId) {
-          currentRemoteFile = {
-            ...currentRemoteFile,
-            originalContent: currentRemoteFile.content,
-          };
-        }
-        
-        return { pendingChanges, syncStatus, currentRemoteFile };
-      });
-
-      return true;
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      set(state => ({
-        error: errorMsg,
-        syncStatus: new Map(state.syncStatus).set(repoId, 'error'),
-      }));
-      return false;
-    }
-  },
-
-  pullChanges: async (repoId) => {
+  syncRepository: async (repoId) => {
     const repo = get().repositories.find(r => r.id === repoId);
     if (!repo) return;
-
+    
     set(state => ({
       syncStatus: new Map(state.syncStatus).set(repoId, 'syncing'),
     }));
-
+    
     try {
-      // Clear cache for this repo to force reload
-      set(state => {
-        const fileTreeCache = new Map(state.fileTreeCache);
-        fileTreeCache.delete(repoId);
-        
-        // Clear file content cache for this repo
-        const fileContentCache = new Map(state.fileContentCache);
-        for (const key of fileContentCache.keys()) {
-          if (key.startsWith(`${repoId}:`)) {
-            fileContentCache.delete(key);
-          }
-        }
-        
-        return { fileTreeCache, fileContentCache };
-      });
-
-      // Reload root directory
-      await get().loadDirectory(repoId, repo.owner, repo.name, '');
-
+      // First commit any local changes
+      const status = get().gitStatus.get(repoId) || [];
+      if (status.length > 0) {
+        await gitCommands.commitChanges(repo.owner, repo.name, 'Sync changes from NekoTick');
+      }
+      
+      // Pull remote changes
+      await gitCommands.pullRepo(repo.owner, repo.name);
+      
+      // Push local changes
+      await gitCommands.pushRepo(repo.owner, repo.name);
+      
+      // Refresh status
+      await get().refreshGitStatus(repoId);
+      
       set(state => ({
         syncStatus: new Map(state.syncStatus).set(repoId, 'synced'),
       }));
@@ -450,16 +320,106 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
     }
   },
 
-  syncRepository: async (repoId) => {
-    // First push any pending changes
-    const hasPending = get().hasPendingChanges(repoId);
-    if (hasPending) {
-      const pushSuccess = await get().pushChanges(repoId);
-      if (!pushSuccess) return;
-    }
+  pullChanges: async (repoId) => {
+    const repo = get().repositories.find(r => r.id === repoId);
+    if (!repo) return;
     
-    // Then pull latest changes
-    await get().pullChanges(repoId);
+    set(state => ({
+      syncStatus: new Map(state.syncStatus).set(repoId, 'syncing'),
+    }));
+    
+    try {
+      await gitCommands.pullRepo(repo.owner, repo.name);
+      await get().refreshGitStatus(repoId);
+      
+      set(state => ({
+        syncStatus: new Map(state.syncStatus).set(repoId, 'synced'),
+      }));
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      set(state => ({
+        error: errorMsg,
+        syncStatus: new Map(state.syncStatus).set(repoId, 'error'),
+      }));
+    }
+  },
+
+  pushChanges: async (repoId) => {
+    const repo = get().repositories.find(r => r.id === repoId);
+    if (!repo) return;
+    
+    set(state => ({
+      syncStatus: new Map(state.syncStatus).set(repoId, 'syncing'),
+    }));
+    
+    try {
+      // Commit first if there are changes
+      const status = get().gitStatus.get(repoId) || [];
+      if (status.length > 0) {
+        await gitCommands.commitChanges(repo.owner, repo.name, 'Update from NekoTick');
+      }
+      
+      await gitCommands.pushRepo(repo.owner, repo.name);
+      await get().refreshGitStatus(repoId);
+      
+      set(state => ({
+        syncStatus: new Map(state.syncStatus).set(repoId, 'synced'),
+      }));
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      set(state => ({
+        error: errorMsg,
+        syncStatus: new Map(state.syncStatus).set(repoId, 'error'),
+      }));
+    }
+  },
+
+  commitChanges: async (repoId, message) => {
+    const repo = get().repositories.find(r => r.id === repoId);
+    if (!repo) return;
+    
+    try {
+      await gitCommands.commitChanges(repo.owner, repo.name, message);
+      await get().refreshGitStatus(repoId);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      set({ error: errorMsg });
+    }
+  },
+
+  refreshGitStatus: async (repoId) => {
+    const repo = get().repositories.find(r => r.id === repoId);
+    if (!repo || !get().clonedRepos.has(repoId)) return;
+    
+    try {
+      const status = await gitCommands.getStatus(repo.owner, repo.name);
+      
+      set(state => {
+        const gitStatus = new Map(state.gitStatus).set(repoId, status);
+        const syncStatus = new Map(state.syncStatus);
+        
+        // Update sync status based on git status
+        if (status.length > 0) {
+          syncStatus.set(repoId, 'has_changes');
+        } else if (syncStatus.get(repoId) !== 'syncing') {
+          syncStatus.set(repoId, 'synced');
+        }
+        
+        return { gitStatus, syncStatus };
+      });
+    } catch (error) {
+      // Silently fail - status refresh is not critical
+      console.error('Failed to refresh git status:', error);
+    }
+  },
+
+  getGitStatus: (repoId) => {
+    return get().gitStatus.get(repoId) || [];
+  },
+
+  hasChanges: (repoId) => {
+    const status = get().gitStatus.get(repoId);
+    return status ? status.length > 0 : false;
   },
 
   setSyncStatus: (repoId, status) => {
@@ -475,42 +435,4 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
   toggleSectionExpanded: () => {
     set(state => ({ sectionExpanded: !state.sectionExpanded }));
   },
-
-  hasPendingChanges: (repoId) => {
-    const changes = get().pendingChanges.get(repoId);
-    return changes ? changes.size > 0 : false;
-  },
-
-  getPendingFilesCount: (repoId) => {
-    const changes = get().pendingChanges.get(repoId);
-    return changes ? changes.size : 0;
-  },
 }));
-
-// ==================== Helper Functions ====================
-
-/** Get display name by removing nekotick- prefix */
-export function getDisplayName(name: string): string {
-  const prefix = 'nekotick-';
-  if (name.startsWith(prefix)) {
-    return name.slice(prefix.length);
-  }
-  return name;
-}
-
-/** Filter repositories to only include nekotick- prefixed ones */
-export function filterNekotickRepos(repos: RepositoryInfo[]): RepositoryInfo[] {
-  return repos.filter(r => r.name.startsWith('nekotick-'));
-}
-
-/** Get sync status icon */
-export function getSyncStatusIcon(status: SyncStatus): string {
-  switch (status) {
-    case 'synced': return '✓';
-    case 'syncing': return '↻';
-    case 'has_updates': return '●';
-    case 'error': return '⚠';
-    case 'pending': return '○';
-    default: return '';
-  }
-}

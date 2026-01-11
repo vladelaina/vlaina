@@ -518,3 +518,114 @@ export const githubRepoCommands = {
     return result || null;
   },
 };
+
+// ==================== Git Local Operations ====================
+
+/** File status in local repository */
+export interface FileStatus {
+  path: string;
+  status: 'new' | 'modified' | 'deleted' | 'renamed' | 'untracked';
+}
+
+/** Commit info from git log */
+export interface CommitInfo {
+  id: string;
+  shortId: string;
+  message: string;
+  authorName: string;
+  authorEmail: string;
+  timestamp: number;
+}
+
+/**
+ * Git local operations (Tauri only - requires backend)
+ * For cloning, pulling, pushing, and managing local repositories
+ */
+export const gitCommands = {
+  /** Clone a repository to local storage */
+  async cloneRepo(owner: string, repo: string): Promise<string | null> {
+    const result = await safeInvoke<string>('clone_github_repo', { owner, repo }, {
+      webFallback: undefined,
+    });
+    return result || null;
+  },
+
+  /** Check if a repository is cloned locally */
+  async isRepoCloned(owner: string, repo: string): Promise<boolean> {
+    const result = await safeInvoke<boolean>('is_repo_cloned', { owner, repo }, {
+      webFallback: false,
+    });
+    return result || false;
+  },
+
+  /** Get the local path of a cloned repository */
+  async getRepoLocalPath(owner: string, repo: string): Promise<string | null> {
+    const result = await safeInvoke<string>('get_repo_local_path', { owner, repo }, {
+      webFallback: undefined,
+    });
+    return result || null;
+  },
+
+  /** Pull latest changes from remote */
+  async pullRepo(owner: string, repo: string): Promise<void> {
+    await safeInvoke('pull_github_repo', { owner, repo });
+  },
+
+  /** Push local changes to remote */
+  async pushRepo(owner: string, repo: string): Promise<void> {
+    await safeInvoke('push_github_repo', { owner, repo });
+  },
+
+  /** Commit all changes */
+  async commitChanges(
+    owner: string,
+    repo: string,
+    message: string
+  ): Promise<string | null> {
+    const result = await safeInvoke<string>('commit_repo_changes', {
+      owner,
+      repo,
+      message,
+    }, {
+      webFallback: undefined,
+    });
+    return result || null;
+  },
+
+  /** Get repository status (changed files) */
+  async getStatus(owner: string, repo: string): Promise<FileStatus[]> {
+    const result = await safeInvoke<FileStatus[]>('get_repo_status', { owner, repo }, {
+      webFallback: [],
+    });
+    return result || [];
+  },
+
+  /** Get commit history */
+  async getLog(owner: string, repo: string, limit?: number): Promise<CommitInfo[]> {
+    const result = await safeInvoke<CommitInfo[]>('get_repo_log', { owner, repo, limit }, {
+      webFallback: [],
+    });
+    return result || [];
+  },
+
+  /** Get diff for a file */
+  async getFileDiff(owner: string, repo: string, filePath: string): Promise<string> {
+    const result = await safeInvoke<string>('get_file_diff', { owner, repo, filePath }, {
+      webFallback: '',
+    });
+    return result || '';
+  },
+
+  /** Delete a local repository */
+  async deleteLocalRepo(owner: string, repo: string): Promise<void> {
+    await safeInvoke('delete_local_repo', { owner, repo });
+  },
+
+  /** List all locally cloned repositories */
+  async listLocalRepos(): Promise<Array<[string, string]>> {
+    const result = await safeInvoke<Array<[string, string]>>('list_local_repos', undefined, {
+      webFallback: [],
+    });
+    return result || [];
+  },
+};

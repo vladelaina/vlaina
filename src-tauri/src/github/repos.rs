@@ -93,12 +93,14 @@ struct ContentsResponse {
 
 /// GitHub API response for commit
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 struct CommitResponse {
     content: Option<ContentInfo>,
     commit: CommitInfo,
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 struct ContentInfo {
     sha: String,
 }
