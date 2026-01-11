@@ -5,7 +5,7 @@
  */
 
 import { memo } from 'react';
-import { IconX, IconFileText } from '@tabler/icons-react';
+import { X, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDisplayName, useDisplayIcon } from '@/hooks/useTitleSync';
 import { NoteIcon } from '../IconPicker/NoteIcon';
@@ -55,7 +55,7 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
           <NoteIcon icon={icon} size={14} />
         </span>
       ) : (
-        <IconFileText 
+        <FileText 
           className={cn(
             "w-3.5 h-3.5 flex-shrink-0",
             isActive 
@@ -88,7 +88,7 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
           "hover:bg-[var(--neko-hover-filled)] text-[var(--neko-icon-secondary)]"
         )}
       >
-        <IconX className="w-3 h-3" />
+        <X className="w-3 h-3" />
       </button>
     </div>
   );

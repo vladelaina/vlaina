@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { IconChevronDown, IconChevronLeft, IconChevronRight, IconCheck, IconSearch, IconLayoutSidebar } from '@tabler/icons-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Check, Search, PanelLeft } from 'lucide-react';
 import { useCalendarStore, type TimeView } from '@/stores/useCalendarStore';
 import { addDays, addMonths } from 'date-fns';
 import { SyncButton } from '@/components/common';
@@ -197,7 +197,7 @@ export function ViewSwitcher() {
         className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
         title="Search"
       >
-        <IconSearch className="size-5" />
+        <Search className="size-5" />
       </button>
 
       {/* View Mode Dropdown */}
@@ -208,7 +208,7 @@ export function ViewSwitcher() {
           className="flex items-center gap-1 px-2 py-1 text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors"
         >
           <span>{getDisplayLabel()}</span>
-          <IconChevronDown 
+          <ChevronDown 
             className={`size-3 text-zinc-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} 
           />
         </button>
@@ -234,7 +234,7 @@ export function ViewSwitcher() {
                 <span className="flex items-center gap-3">
                   <span className="w-4 flex justify-center">
                     {viewMode === mode && (!dayCount || dayCount === 1 || mode !== 'day') && (
-                      <IconCheck className="size-4" />
+                      <Check className="size-4" />
                     )}
                   </span>
                   <span className="text-base">{VIEW_MODE_LABELS[mode]}</span>
@@ -255,12 +255,12 @@ export function ViewSwitcher() {
               <span className="flex items-center gap-3">
                 <span className="w-4 flex justify-center">
                   {viewMode === 'day' && dayCount && dayCount > 1 && (
-                    <IconCheck className="size-4" />
+                    <Check className="size-4" />
                   )}
                 </span>
                 <span className="text-base">Days</span>
               </span>
-              <IconChevronRight className="size-4 text-zinc-500" />
+              <ChevronRight className="size-4 text-zinc-500" />
             </button>
             
             {/* Divider */}
@@ -271,7 +271,7 @@ export function ViewSwitcher() {
                 <span className="w-4" />
                 <span className="text-base">View Settings</span>
               </span>
-              <IconChevronRight className="size-4 text-zinc-500" />
+              <ChevronRight className="size-4 text-zinc-500" />
             </button>
           </div>,
           document.body
@@ -334,7 +334,7 @@ export function ViewSwitcher() {
           <div className="relative bg-white dark:bg-zinc-100 rounded-xl shadow-2xl w-80 overflow-hidden">
             {/* Search Input */}
             <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-200">
-              <IconSearch className="size-4 text-zinc-400" />
+              <Search className="size-4 text-zinc-400" />
               <input
                 ref={customInputRef}
                 type="text"
@@ -388,13 +388,13 @@ export function ViewSwitcher() {
           onClick={() => handleNavigate('prev')}
           className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md text-zinc-500 transition-colors"
         >
-          <IconChevronLeft className="size-4" />
+          <ChevronLeft className="size-4" />
         </button>
         <button
           onClick={() => handleNavigate('next')}
           className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md text-zinc-500 transition-colors"
         >
-          <IconChevronRight className="size-4" />
+          <ChevronRight className="size-4" />
         </button>
       </div>
 
@@ -408,7 +408,7 @@ export function ViewSwitcher() {
         }`}
         title={showContextPanel ? 'Hide sidebar' : 'Show sidebar'}
       >
-        <IconLayoutSidebar className={`size-5 ${showContextPanel ? '' : 'opacity-50'}`} style={{ transform: 'scaleX(-1)' }} />
+        <PanelLeft className={`size-5 ${showContextPanel ? '' : 'opacity-50'}`} style={{ transform: 'scaleX(-1)' }} />
       </button>
     </div>
   );

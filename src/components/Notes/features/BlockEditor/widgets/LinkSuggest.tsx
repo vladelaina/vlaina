@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { IconFile, IconFilePlus } from '@tabler/icons-react';
+import { File, FilePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface LinkSuggestNote {
@@ -117,7 +117,7 @@ export function LinkSuggest({
           onClick={() => onSelect(note)}
           onMouseEnter={() => setSelectedIndex(index)}
         >
-          <IconFile size={16} className="link-suggest-icon" />
+          <File size={16} className="link-suggest-icon" />
           <span className="link-suggest-title">{note.title}</span>
           {note.path && <span className="link-suggest-path">{note.path}</span>}
         </button>
@@ -134,7 +134,7 @@ export function LinkSuggest({
             onClick={() => onCreate(searchText)}
             onMouseEnter={() => setSelectedIndex(filteredNotes.length)}
           >
-            <IconFilePlus size={16} className="link-suggest-icon" />
+            <FilePlus size={16} className="link-suggest-icon" />
             <span className="link-suggest-title">Create "{searchText}"</span>
           </button>
         </>

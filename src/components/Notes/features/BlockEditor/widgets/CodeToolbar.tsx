@@ -3,7 +3,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { IconCopy, IconCheck, IconChevronDown } from '@tabler/icons-react';
+import { Copy, Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Common programming languages
@@ -94,7 +94,7 @@ export function CodeToolbar({ language, code, onLanguageChange }: CodeToolbarPro
           onClick={() => setShowLanguageMenu(!showLanguageMenu)}
         >
           <span>{currentLanguage}</span>
-          <IconChevronDown size={14} />
+          <ChevronDown size={14} />
         </button>
 
         {showLanguageMenu && (
@@ -142,7 +142,7 @@ export function CodeToolbar({ language, code, onLanguageChange }: CodeToolbarPro
         onClick={handleCopy}
         title={copied ? 'Copied!' : 'Copy code'}
       >
-        {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+        {copied ? <Check size={14} /> : <Copy size={14} />}
       </button>
     </div>
   );

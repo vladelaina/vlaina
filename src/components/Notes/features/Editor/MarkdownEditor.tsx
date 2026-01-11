@@ -8,7 +8,7 @@ import { history } from '@milkdown/kit/plugin/history';
 import { clipboard } from '@milkdown/kit/plugin/clipboard';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
-import { IconDots, IconStar, IconHeartbeat } from '@tabler/icons-react';
+import { Ellipsis, Star, HeartPulse } from 'lucide-react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
@@ -294,7 +294,7 @@ export function MarkdownEditor() {
               : `${iconButtonStyles} hover:text-yellow-500`
           )}
         >
-          <IconStar className="size-4" fill={starred ? "currentColor" : "none"} />
+          <Star className="size-4" fill={starred ? "currentColor" : "none"} />
         </button>
 
         <button
@@ -303,7 +303,7 @@ export function MarkdownEditor() {
             iconButtonStyles
           )}
         >
-          <IconDots className="size-4" />
+          <Ellipsis className="size-4" />
         </button>
       </div>
 
@@ -331,7 +331,7 @@ export function MarkdownEditor() {
                     iconButtonStyles
                   )}
                 >
-                  <IconHeartbeat className="size-4" />
+                  <HeartPulse className="size-4" />
                   <span>Add icon</span>
                 </button>
               </div>
@@ -346,7 +346,7 @@ export function MarkdownEditor() {
                   isHoveringHeader ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
               >
-                <IconHeartbeat className="size-4" />
+                <HeartPulse className="size-4" />
                 <span>Add icon</span>
               </button>
             )}

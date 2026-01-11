@@ -8,9 +8,9 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  IconArrowsMaximize, IconArrowsMinimize, IconChevronDown, IconCheck,
-  IconArchive, IconSearch, IconX
-} from '@tabler/icons-react';
+  Maximize2, Minimize2, ChevronDown, Check,
+  Archive, Search, X
+} from 'lucide-react';
 import { DndContext, DragOverlay, DragMoveEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
@@ -367,7 +367,7 @@ export function CalendarTaskPanel({
                     : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                 )}
               >
-                <IconSearch className="size-4" />
+                <Search className="size-4" />
               </button>
             )}
 
@@ -377,7 +377,7 @@ export function CalendarTaskPanel({
                 onClick={onToggleExpand}
                 className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
               >
-                {isExpanded ? <IconArrowsMinimize className="size-4" /> : <IconArrowsMaximize className="size-4" />}
+                {isExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
               </button>
             )}
           </div>
@@ -396,7 +396,7 @@ export function CalendarTaskPanel({
                   <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 truncate">
                     {currentGroup?.name || 'Inbox'}
                   </span>
-                  <IconChevronDown className={cn(
+                  <ChevronDown className={cn(
                     "size-3.5 text-zinc-400 transition-transform flex-shrink-0",
                     showGroupPicker && "rotate-180"
                   )} />
@@ -429,7 +429,7 @@ export function CalendarTaskPanel({
                           {group.pinned && <span className="text-[10px]">📌</span>}
                           <span className="truncate">{group.name}</span>
                           {group.id === activeGroupId && (
-                            <IconCheck className="size-3.5 ml-auto flex-shrink-0" />
+                            <Check className="size-3.5 ml-auto flex-shrink-0" />
                           )}
                         </button>
                       ))}
@@ -447,7 +447,7 @@ export function CalendarTaskPanel({
                             : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                         )}
                       >
-                        <IconArchive className="size-3.5" />
+                        <Archive className="size-3.5" />
                         <span>Archive</span>
                       </button>
                     </motion.div>
@@ -479,7 +479,7 @@ export function CalendarTaskPanel({
                         onClick={() => setSearchQuery('')}
                         className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
                       >
-                        <IconX className="size-3.5" />
+                        <X className="size-3.5" />
                       </button>
                     )}
                   </div>

@@ -4,7 +4,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IconPlus, IconDots, IconCheck } from '@tabler/icons-react';
+import { Plus, Ellipsis, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
 import { ALL_COLORS, SIMPLE_COLOR_STYLES, COLOR_HEX, RAINBOW_GRADIENT, type ItemColor } from '@/lib/colors';
@@ -180,7 +180,7 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
               onClick={handleSubmit}
               className="shrink-0 p-1 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:opacity-90 transition-opacity mt-0.5"
             >
-              <IconPlus className="h-3 w-3" />
+              <Plus className="h-3 w-3" />
             </motion.button>
           )}
         </AnimatePresence>
@@ -197,7 +197,7 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
               : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
           )}
         >
-          <IconDots className="size-4" />
+          <Ellipsis className="size-4" />
         </button>
 
         <AnimatePresence>
@@ -295,7 +295,7 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
                 className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-between"
               >
                 <span>Hide Completed</span>
-                {hideCompleted && <IconCheck className="size-4 text-blue-500" />}
+                {hideCompleted && <Check className="size-4 text-blue-500" />}
               </button>
 
               <button
@@ -306,7 +306,7 @@ export function PanelTaskInput({ compact = false }: PanelTaskInputProps) {
                 className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-between"
               >
                 <span>Hide Time Info</span>
-                {hideActualTime && <IconCheck className="size-4 text-blue-500" />}
+                {hideActualTime && <Check className="size-4 text-blue-500" />}
               </button>
 
               {activeGroupId !== '__archive__' && (

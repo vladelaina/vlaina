@@ -104,9 +104,6 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
-      '@tabler/icons-react':
-        specifier: ^3.36.0
-        version: 3.36.0(react@19.2.1)
       '@tanstack/react-virtual':
         specifier: ^3.13.14
         version: 3.13.14(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -1418,14 +1415,6 @@ packages:
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
-
-  '@tabler/icons-react@3.36.0':
-    resolution: {integrity: sha512-sSZ00bEjTdTTskVFykq294RJq+9cFatwy4uYa78HcYBCXU1kSD1DIp5yoFsQXmybkIOKCjp18OnhAYk553UIfQ==}
-    peerDependencies:
-      react: '>= 16'
-
-  '@tabler/icons@3.36.0':
-    resolution: {integrity: sha512-z9OfTEG6QbaQWM9KBOxxUdpgvMUn0atageXyiaSc2gmYm51ORO8Ua7eUcjlks+Dc0YMK4rrodAFdK9SfjJ4ZcA==}
 
   '@tailwindcss/node@4.1.17':
     resolution: {integrity: sha512-csIkHIgLb3JisEFQ0vxr2Y57GUNYh447C8xzwj89U/8fdW8LhProdxvnVH6U8M2Y73QKiTIH+LWbK3V2BBZsAg==}
@@ -5023,13 +5012,6 @@ snapshots:
   '@shikijs/vscode-textmate@10.0.2': {}
 
   '@standard-schema/spec@1.1.0': {}
-
-  '@tabler/icons-react@3.36.0(react@19.2.1)':
-    dependencies:
-      '@tabler/icons': 3.36.0
-      react: 19.2.1
-
-  '@tabler/icons@3.36.0': {}
 
   '@tailwindcss/node@4.1.17':
     dependencies:

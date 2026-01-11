@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
-import { IconSearch } from '@tabler/icons-react';
+import { Search } from 'lucide-react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
@@ -127,7 +127,7 @@ export function NotesPage() {
               "transition-colors"
             )}
           >
-            <IconSearch className="w-4 h-4" />
+            <Search className="w-4 h-4" />
             <span className="flex-1 text-left">Search</span>
           </button>
         </div>

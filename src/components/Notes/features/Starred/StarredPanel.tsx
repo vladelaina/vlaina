@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import { IconStarFilled, IconChevronRight, IconFileText } from '@tabler/icons-react';
+import { Star, ChevronRight, FileText } from 'lucide-react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 
@@ -28,10 +28,10 @@ export function StarredPanel({ onNoteClick }: StarredPanelProps) {
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full px-3 py-2 flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider hover:bg-zinc-50 dark:hover:bg-zinc-800"
       >
-        <IconChevronRight 
+        <ChevronRight 
           className={cn("size-3 transition-transform", isExpanded && "rotate-90")} 
         />
-        <IconStarFilled className="size-3.5 text-yellow-500" />
+        <Star className="size-3.5 text-yellow-500" fill="currentColor" />
         Starred
         {starredNotes.length > 0 && (
           <span className="ml-auto text-zinc-400 dark:text-zinc-600 font-normal">
@@ -62,7 +62,7 @@ export function StarredPanel({ onNoteClick }: StarredPanelProps) {
                     onClick={() => onNoteClick(path)}
                     className="flex-1 px-3 py-1 flex items-center gap-2 text-left"
                   >
-                    <IconFileText className="size-4 text-zinc-400" />
+                    <FileText className="size-4 text-zinc-400" />
                     <span className="text-sm text-zinc-700 dark:text-zinc-300 truncate">
                       {getNoteName(path)}
                     </span>
@@ -72,7 +72,7 @@ export function StarredPanel({ onNoteClick }: StarredPanelProps) {
                     className="p-1 mr-2 opacity-0 group-hover:opacity-100 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-all"
                     title="Unstar"
                   >
-                    <IconStarFilled className="size-3.5 text-yellow-500" />
+                    <Star className="size-3.5 text-yellow-500" fill="currentColor" />
                   </button>
                 </div>
               ))}

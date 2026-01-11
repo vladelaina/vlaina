@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { IconHash, IconChevronRight, IconRefresh } from '@tabler/icons-react';
+import { Hash, ChevronRight, RefreshCw } from 'lucide-react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 
@@ -57,10 +57,10 @@ export function TagsPanel({ onTagClick }: TagsPanelProps) {
           onClick={() => setIsExpanded(!isExpanded)}
           className="flex items-center gap-2 hover:text-zinc-700 dark:hover:text-zinc-300"
         >
-          <IconChevronRight 
+          <ChevronRight 
             className={cn("size-3 transition-transform", isExpanded && "rotate-90")} 
           />
-          <IconHash className="size-3.5" />
+          <Hash className="size-3.5" />
           Tags
         </button>
         {tagCounts.length > 0 && (
@@ -73,7 +73,7 @@ export function TagsPanel({ onTagClick }: TagsPanelProps) {
           className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
           title="Refresh tags"
         >
-          <IconRefresh className="size-3" />
+          <RefreshCw className="size-3" />
         </button>
       </div>
       

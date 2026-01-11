@@ -8,34 +8,34 @@ import { useEditorStore } from '../EditorStore';
 import type { BlockType, SlashCommand } from '../types';
 import { cn } from '@/lib/utils';
 import {
-  IconTextSize,
-  IconH1,
-  IconH2,
-  IconH3,
-  IconList,
-  IconListNumbers,
-  IconSquareCheck,
-  IconQuote,
-  IconCode,
-  IconMinus,
-  IconInfoCircle,
-} from '@tabler/icons-react';
+  Type,
+  Heading1,
+  Heading2,
+  Heading3,
+  List,
+  ListOrdered,
+  SquareCheck,
+  Quote,
+  Code,
+  Minus,
+  Info,
+} from 'lucide-react';
 
 // Command definitions
 const SLASH_COMMANDS: Omit<SlashCommand, 'action'>[] = [
   // Basic
-  { id: 'text', label: 'Text', icon: <IconTextSize size={18} />, category: 'basic', keywords: ['paragraph', 'plain'] },
-  { id: 'h1', label: 'Heading 1', icon: <IconH1 size={18} />, category: 'basic', shortcut: '#', keywords: ['title', 'large'] },
-  { id: 'h2', label: 'Heading 2', icon: <IconH2 size={18} />, category: 'basic', shortcut: '##', keywords: ['subtitle'] },
-  { id: 'h3', label: 'Heading 3', icon: <IconH3 size={18} />, category: 'basic', shortcut: '###', keywords: ['section'] },
-  { id: 'bullet', label: 'Bullet List', icon: <IconList size={18} />, category: 'basic', shortcut: '-', keywords: ['unordered', 'ul'] },
-  { id: 'numbered', label: 'Numbered List', icon: <IconListNumbers size={18} />, category: 'basic', shortcut: '1.', keywords: ['ordered', 'ol'] },
-  { id: 'todo', label: 'To-do List', icon: <IconSquareCheck size={18} />, category: 'basic', shortcut: '[]', keywords: ['checkbox', 'task'] },
-  { id: 'quote', label: 'Quote', icon: <IconQuote size={18} />, category: 'basic', shortcut: '>', keywords: ['blockquote'] },
-  { id: 'divider', label: 'Divider', icon: <IconMinus size={18} />, category: 'basic', shortcut: '---', keywords: ['hr', 'line'] },
-  { id: 'code', label: 'Code Block', icon: <IconCode size={18} />, category: 'basic', shortcut: '```', keywords: ['pre', 'snippet'] },
+  { id: 'text', label: 'Text', icon: <Type size={18} />, category: 'basic', keywords: ['paragraph', 'plain'] },
+  { id: 'h1', label: 'Heading 1', icon: <Heading1 size={18} />, category: 'basic', shortcut: '#', keywords: ['title', 'large'] },
+  { id: 'h2', label: 'Heading 2', icon: <Heading2 size={18} />, category: 'basic', shortcut: '##', keywords: ['subtitle'] },
+  { id: 'h3', label: 'Heading 3', icon: <Heading3 size={18} />, category: 'basic', shortcut: '###', keywords: ['section'] },
+  { id: 'bullet', label: 'Bullet List', icon: <List size={18} />, category: 'basic', shortcut: '-', keywords: ['unordered', 'ul'] },
+  { id: 'numbered', label: 'Numbered List', icon: <ListOrdered size={18} />, category: 'basic', shortcut: '1.', keywords: ['ordered', 'ol'] },
+  { id: 'todo', label: 'To-do List', icon: <SquareCheck size={18} />, category: 'basic', shortcut: '[]', keywords: ['checkbox', 'task'] },
+  { id: 'quote', label: 'Quote', icon: <Quote size={18} />, category: 'basic', shortcut: '>', keywords: ['blockquote'] },
+  { id: 'divider', label: 'Divider', icon: <Minus size={18} />, category: 'basic', shortcut: '---', keywords: ['hr', 'line'] },
+  { id: 'code', label: 'Code Block', icon: <Code size={18} />, category: 'basic', shortcut: '```', keywords: ['pre', 'snippet'] },
   // Advanced
-  { id: 'callout', label: 'Callout', icon: <IconInfoCircle size={18} />, category: 'advanced', keywords: ['note', 'warning', 'tip'] },
+  { id: 'callout', label: 'Callout', icon: <Info size={18} />, category: 'advanced', keywords: ['note', 'warning', 'tip'] },
 ];
 
 const COMMAND_TO_BLOCK_TYPE: Record<string, BlockType> = {

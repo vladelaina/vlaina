@@ -1,16 +1,16 @@
 import { motion } from 'framer-motion';
 import {
-  IconDots,
-  IconBan,
-  IconX,
-  IconTrash,
-  IconArchive,
-  IconRefresh,
-} from '@tabler/icons-react';
-import type { Icon as TablerIcon } from '@tabler/icons-react';
+  Ellipsis,
+  Ban,
+  X,
+  Trash2,
+  Archive,
+  RefreshCw,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 interface DetailModalHeaderProps {
-  displayIcon: TablerIcon | null;
+  displayIcon: LucideIcon | null;
   isEditing: boolean;
   showMenu: boolean;
   isArchived: boolean;
@@ -53,7 +53,7 @@ export function DetailModalHeader({
             className="size-5 text-zinc-600 dark:text-zinc-300 group-hover:scale-110 transition-transform duration-300"
           />
         ) : (
-          <IconBan
+          <Ban
             className="size-5 text-zinc-300 dark:text-zinc-600 group-hover:scale-110 transition-transform duration-300"
           />
         )}
@@ -101,7 +101,7 @@ export function DetailModalHeader({
                       }}
                       transition={{ duration: 0.15 }}
                     >
-                      <IconDots className="size-6" />
+                      <Ellipsis className="size-6" />
                     </motion.button>
                      {/* State B: The Panel (Actions) */}
                     <motion.div
@@ -125,7 +125,7 @@ export function DetailModalHeader({
                         className="p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
                         title="Archive"
                       >
-                        <IconArchive className="size-5" />
+                        <Archive className="size-5" />
                       </button>
         
                       {/* Reset */}
@@ -134,7 +134,7 @@ export function DetailModalHeader({
                         className="p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
                         title="Reset"
                       >
-                        <IconRefresh className="size-5" />
+                        <RefreshCw className="size-5" />
                       </button>
         
                       <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700/50 mx-1" />
@@ -145,7 +145,7 @@ export function DetailModalHeader({
                         className="p-2 rounded-full text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:text-zinc-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
                         title="Delete"
                       >
-                        <IconTrash className="size-5" />
+                        <Trash2 className="size-5" />
                       </button>
         
                       <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700/50 mx-1" />
@@ -155,7 +155,7 @@ export function DetailModalHeader({
                         onClick={() => onMenuToggle(false)}
                         className="p-2 rounded-full text-zinc-300 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                       >
-                        <IconX className="size-4" />
+                        <X className="size-4" />
                       </button>
                     </motion.div>
                   </motion.div>

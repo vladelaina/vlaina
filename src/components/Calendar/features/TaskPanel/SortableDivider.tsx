@@ -4,7 +4,7 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { IconChevronDown, IconDotsVertical } from '@tabler/icons-react';
+import { ChevronDown, MoreVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SortableDividerProps {
@@ -54,7 +54,7 @@ export function SortableDivider({
         onClick={onToggleExpand}
         className="flex items-center gap-2 group hover:opacity-80 transition-opacity"
       >
-        <IconChevronDown className={cn(
+        <ChevronDown className={cn(
           "size-3.5 text-zinc-400 transition-transform",
           !expanded && "-rotate-90"
         )} />
@@ -79,7 +79,7 @@ export function SortableDivider({
                 : "text-zinc-300 hover:text-zinc-400 dark:text-zinc-600 dark:hover:text-zinc-500"
             )}
           >
-            <IconDotsVertical className="size-3.5" />
+            <MoreVertical className="size-3.5" />
           </button>
           {showMenu && menuContent}
         </div>

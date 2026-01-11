@@ -2,7 +2,7 @@
  * NoteIcon - Renders either an emoji or a custom icon
  */
 
-import { IconFileText } from '@tabler/icons-react';
+import { FileText } from 'lucide-react';
 import { ICON_LIST } from './icons';
 
 const ICON_MAP = Object.fromEntries(
@@ -20,7 +20,7 @@ export function NoteIcon({ icon, size = 16, className }: NoteIconProps) {
     const parts = icon.split(':');
     const iconName = parts[1];
     const color = parts[2] || '#6b7280';
-    const IconComponent = ICON_MAP[iconName] || IconFileText;
+    const IconComponent = ICON_MAP[iconName] || FileText;
     
     return (
       <span

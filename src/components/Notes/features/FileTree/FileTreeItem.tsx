@@ -3,15 +3,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  IconChevronRight, 
-  IconDots, 
-  IconTrash, 
-  IconPencil,
-  IconFileText,
-  IconFolder,
-  IconStar,
-  IconStarFilled,
-} from '@tabler/icons-react';
+  ChevronRight, 
+  Ellipsis, 
+  Trash2, 
+  Pencil,
+  FileText,
+  Folder,
+  Star,
+} from 'lucide-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { useDisplayName, useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn, iconButtonStyles, NOTES_COLORS } from '@/lib/utils';
@@ -204,7 +203,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
         >
         {node.isFolder ? (
           <span className="w-4 h-4 flex items-center justify-center">
-            <IconChevronRight 
+            <ChevronRight 
               className={cn(
                 "w-3 h-3 text-[var(--neko-icon-secondary)] transition-transform duration-150",
                 node.expanded && "rotate-90"
@@ -217,11 +216,11 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
 
         <span className="w-4 h-4 flex items-center justify-center">
           {node.isFolder ? (
-            <IconFolder className="w-4 h-4 text-amber-500" />
+            <Folder className="w-4 h-4 text-amber-500" />
           ) : noteIcon ? (
             <NoteIcon icon={noteIcon} size={16} />
           ) : (
-            <IconFileText className="w-4 h-4 text-[var(--neko-icon-secondary)]" />
+            <FileText className="w-4 h-4 text-[var(--neko-icon-secondary)]" />
           )}
         </span>
 
@@ -270,7 +269,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
             iconButtonStyles
           )}
         >
-          <IconDots className="w-4 h-4" />
+          <Ellipsis className="w-4 h-4" />
         </button>
         </div>
       </div>
@@ -292,12 +291,12 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
             {node.isFolder && (
               <>
                 <MenuItem 
-                  icon={<IconFileText />} 
+                  icon={<FileText />} 
                   label="New Note" 
                   onClick={handleNewNoteInFolder} 
                 />
                 <MenuItem 
-                  icon={<IconFolder />} 
+                  icon={<Folder />} 
                   label="New Folder" 
                   onClick={handleNewFolderInFolder} 
                 />
@@ -305,17 +304,17 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
               </>
             )}
             <MenuItem 
-              icon={<IconPencil />} 
+              icon={<Pencil />} 
               label="Rename" 
               onClick={handleRename} 
             />
             <MenuItem 
-              icon={isItemStarred ? <IconStarFilled className="text-yellow-500" /> : <IconStar />} 
+              icon={isItemStarred ? <Star className="text-yellow-500" fill="currentColor" /> : <Star />} 
               label={isItemStarred ? "Remove from Favorites" : "Add to Favorites"} 
               onClick={handleToggleStar} 
             />
             <MenuItem 
-              icon={<IconTrash />} 
+              icon={<Trash2 />} 
               label="Delete" 
               onClick={handleDeleteClick}
               danger 

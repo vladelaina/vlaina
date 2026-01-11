@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { IconChevronLeft, IconCircleOff } from '@tabler/icons-react';
+import { ChevronLeft, CircleOff } from 'lucide-react';
 import { ICON_CATEGORIES_FULL } from './icons';
 
 interface IconGridViewProps {
@@ -19,7 +19,7 @@ export const IconGridView = memo(function IconGridView({ value, onChange, onCanc
               className="p-2 -ml-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               title="Back"
             >
-              <IconChevronLeft className="size-5" stroke={2.5} />
+              <ChevronLeft className="size-5" strokeWidth={2.5} />
             </button>
         )}
       </div>
@@ -54,9 +54,9 @@ export const IconGridView = memo(function IconGridView({ value, onChange, onCanc
                             `}
                             title="No Icon"
                         >
-                            <IconCircleOff 
+                            <CircleOff 
                               className={`transition-transform duration-300 ${!value ? 'size-6 opacity-100' : 'size-6 opacity-40 group-hover:opacity-100'}`}
-                              stroke={!value ? 2.5 : 1.5}
+                              strokeWidth={!value ? 2.5 : 1.5}
                             />
                         </button>
                     )}
@@ -78,7 +78,7 @@ export const IconGridView = memo(function IconGridView({ value, onChange, onCanc
                         >
                             <Icon 
                               className="size-7 transition-transform duration-300" 
-                              stroke={isSelected ? 2 : 1.5}
+                              strokeWidth={isSelected ? 2 : 1.5}
                             />
                         </button>
                         );

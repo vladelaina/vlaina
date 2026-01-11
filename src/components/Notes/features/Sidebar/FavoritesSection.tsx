@@ -1,6 +1,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
-import { IconTriangleFilled, IconStar } from '@tabler/icons-react';
+import { ChevronDown, Star } from 'lucide-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { FileTreeItem } from '../FileTree/FileTreeItem'; // Adjusted path
 import { cn } from '@/lib/utils';
@@ -62,10 +62,10 @@ export function FavoritesSection() {
                         <span className="text-[11px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider">
                             Favorites
                         </span>
-                        <IconTriangleFilled
+                        <ChevronDown
                             className={cn(
-                                "w-1.5 h-1.5 text-[#CDCDCD] transition-transform",
-                                expanded ? "rotate-180" : "rotate-90"
+                                "w-3 h-3 text-[#CDCDCD] transition-transform",
+                                expanded ? "" : "-rotate-90"
                             )}
                         />
                     </div>
@@ -84,7 +84,7 @@ export function FavoritesSection() {
                         {!hasFavorites ? (
                             <div className="flex flex-col items-center gap-3 py-8">
                                 <div className="w-14 h-14 rounded-full bg-[var(--neko-bg-tertiary)] flex items-center justify-center">
-                                    <IconStar className="w-6 h-6 text-[var(--neko-text-tertiary)]" />
+                                    <Star className="w-6 h-6 text-[var(--neko-text-tertiary)]" />
                                 </div>
                                 <span className="text-[15px] text-[var(--neko-text-tertiary)]">No favorites</span>
                             </div>

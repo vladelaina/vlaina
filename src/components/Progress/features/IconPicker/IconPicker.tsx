@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IconSparkles } from '@tabler/icons-react';
+import { Sparkles } from 'lucide-react';
 import { IconGridView } from './IconGridView';
 import { getIconByName } from './utils';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -37,10 +37,10 @@ export function IconPicker({ value, onChange }: IconPickerProps) {
       >
         {SelectedIcon ? (
           <div className="text-zinc-900 dark:text-zinc-100">
-             <SelectedIcon className="size-6" stroke={1.5} />
+             <SelectedIcon className="size-6" strokeWidth={1.5} />
           </div>
         ) : (
-          <IconSparkles className="size-6 text-zinc-400 dark:text-zinc-500 opacity-80" stroke={1.5} />
+          <Sparkles className="size-6 text-zinc-400 dark:text-zinc-500 opacity-80" strokeWidth={1.5} />
         )}
         
         {open && (

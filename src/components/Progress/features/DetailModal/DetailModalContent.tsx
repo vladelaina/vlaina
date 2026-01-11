@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { IconPlus, IconMinus } from '@tabler/icons-react';
+import { Plus, Minus } from 'lucide-react';
 import type { ProgressOrCounter, ProgressItem, CounterItem } from '@/stores/useProgressStore';
 import { MetadataSection } from './MetadataSection';
 import type { FocusTarget } from './useDetailModal';
@@ -228,7 +228,7 @@ function QuickUpdateButton({
   onClick,
 }: QuickUpdateButtonProps) {
   const isLeft = direction === 'decrement';
-  const Icon = isLeft ? IconMinus : IconPlus;
+  const Icon = isLeft ? Minus : Plus;
 
   return (
     <AnimatePresence>

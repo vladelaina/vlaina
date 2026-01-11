@@ -6,12 +6,12 @@ import React, { useState, useCallback } from 'react';
 import { useEditorContext } from '../EditorContext';
 import { useEditorStore } from '../EditorStore';
 import {
-  IconGripVertical,
-  IconCopy,
-  IconTrash,
-  IconArrowUp,
-  IconArrowDown,
-} from '@tabler/icons-react';
+  GripVertical,
+  Copy,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+} from 'lucide-react';
 
 export function DragHandle() {
   const { dragHandle, setDragHandle } = useEditorContext();
@@ -71,7 +71,7 @@ export function DragHandle() {
         onDragStart={handleDragStart}
         onClick={handleClick}
       >
-        <IconGripVertical size={16} />
+        <GripVertical size={16} />
       </div>
 
       {showMenu && (
@@ -83,20 +83,20 @@ export function DragHandle() {
           }}
         >
           <button className="drag-handle-menu-item" onClick={handleDuplicate}>
-            <IconCopy size={14} />
+            <Copy size={14} />
             <span>Duplicate</span>
           </button>
           <button className="drag-handle-menu-item" onClick={handleMoveUp}>
-            <IconArrowUp size={14} />
+            <ArrowUp size={14} />
             <span>Move up</span>
           </button>
           <button className="drag-handle-menu-item" onClick={handleMoveDown}>
-            <IconArrowDown size={14} />
+            <ArrowDown size={14} />
             <span>Move down</span>
           </button>
           <div className="drag-handle-menu-divider" />
           <button className="drag-handle-menu-item danger" onClick={handleDelete}>
-            <IconTrash size={14} />
+            <Trash2 size={14} />
             <span>Delete</span>
           </button>
         </div>

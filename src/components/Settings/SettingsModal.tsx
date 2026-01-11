@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { IconX } from '@tabler/icons-react';
+import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { useModalBehavior } from './hooks/useModalBehavior';
@@ -118,7 +118,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     onClick={onClose}
                     className="p-1 rounded-md text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                   >
-                    <IconX className="size-4" />
+                    <X className="size-4" />
                   </button>
                 </div>
 

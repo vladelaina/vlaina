@@ -2,7 +2,7 @@
  * RecentVaultsList - Display recent vaults (IDEA style)
  */
 
-import { IconX } from '@tabler/icons-react';
+import { X } from 'lucide-react';
 import { useVaultStore, type VaultInfo } from '@/stores/useVaultStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -59,7 +59,7 @@ export function RecentVaultsList({ vaults, onOpen }: RecentVaultsListProps) {
                   className="vault-item__remove"
                   onClick={(e) => handleRemove(e, vault.id)}
                 >
-                  <IconX size={12} />
+                  <X size={12} />
                 </button>
               </div>
             </TooltipTrigger>

@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { IconTriangleFilled, IconPlus, IconFolder } from '@tabler/icons-react';
+import { ChevronDown, Plus, Folder } from 'lucide-react';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { IconButton } from '@/components/ui/icon-button';
 import { FileTree } from '../FileTree'; // Adjusted path
@@ -48,16 +48,16 @@ export function WorkspaceSection({
                         <span className="text-[11px] font-medium text-[var(--neko-text-tertiary)] tracking-wider">
                             {vaultName}
                         </span>
-                        <IconTriangleFilled
+                        <ChevronDown
                             className={cn(
-                                "w-1.5 h-1.5 text-[#CDCDCD] transition-transform",
-                                expanded ? "rotate-180" : "rotate-90"
+                                "w-3 h-3 text-[#CDCDCD] transition-transform",
+                                expanded ? "" : "-rotate-90"
                             )}
                         />
                     </div>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <IconButton
-                            icon={<IconPlus className="w-3.5 h-3.5" />}
+                            icon={<Plus className="w-3.5 h-3.5" />}
                             tooltip="New Doc"
                             onClick={() => {
                                 if (!expanded) setExpanded(true);
@@ -65,7 +65,7 @@ export function WorkspaceSection({
                             }}
                         />
                         <IconButton
-                            icon={<IconFolder className="w-3.5 h-3.5" />}
+                            icon={<Folder className="w-3.5 h-3.5" />}
                             tooltip="New Folder"
                             onClick={() => {
                                 if (!expanded) setExpanded(true);

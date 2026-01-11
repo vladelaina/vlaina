@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import { IconFileText, IconX } from '@tabler/icons-react';
+import { FileText, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface NoteTemplate {
@@ -151,7 +151,7 @@ export function TemplateSelector({
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
           <div className="flex items-center gap-2">
-            <IconFileText className="size-5 text-purple-500" />
+            <FileText className="size-5 text-purple-500" />
             <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
               Choose a Template
             </h2>
@@ -160,7 +160,7 @@ export function TemplateSelector({
             onClick={onClose}
             className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded"
           >
-            <IconX className="size-4 text-zinc-400" />
+            <X className="size-4 text-zinc-400" />
           </button>
         </div>
 
@@ -180,7 +180,7 @@ export function TemplateSelector({
               )}
             >
               <div className="flex items-center gap-2 mb-2">
-                <IconFileText 
+                <FileText 
                   className={cn(
                     "size-5",
                     selectedId === template.id 

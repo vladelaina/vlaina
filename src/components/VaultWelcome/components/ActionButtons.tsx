@@ -2,7 +2,7 @@
  * ActionButtons - Create and Open vault buttons
  */
 
-import { IconPlus, IconFolderOpen } from '@tabler/icons-react';
+import { Plus, FolderOpen } from 'lucide-react';
 
 interface ActionButtonsProps {
   onCreateNew: () => void;
@@ -16,14 +16,14 @@ export function ActionButtons({ onCreateNew, onOpenLocal }: ActionButtonsProps) 
         className="vault-action-btn vault-action-btn--primary"
         onClick={onCreateNew}
       >
-        <IconPlus size={18} />
+        <Plus size={18} />
         Create New
       </button>
       <button 
         className="vault-action-btn vault-action-btn--secondary"
         onClick={onOpenLocal}
       >
-        <IconFolderOpen size={18} />
+        <FolderOpen size={18} />
         Open Local
       </button>
     </div>

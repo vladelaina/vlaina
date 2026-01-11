@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { IconMinus, IconSquare, IconX, IconPin } from '@tabler/icons-react';
+import { Minus, Square, X, Pin } from 'lucide-react';
 import { iconButtonStyles } from '@/lib/utils';
 
 interface WindowControlsProps {
@@ -28,7 +28,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
           onClick={togglePin}
           className={`h-full w-12 flex items-center justify-center transition-colors ${iconButtonStyles}`}
         >
-          <IconPin className={`size-4 transition-all duration-200 ${isPinned ? 'rotate-0' : 'rotate-45'}`} />
+          <Pin className={`size-4 transition-all duration-200 ${isPinned ? 'rotate-0' : 'rotate-45'}`} />
         </button>
       )}
 
@@ -36,7 +36,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
         onClick={() => getWindow().minimize()}
         className={`h-full w-12 flex items-center justify-center transition-colors ${iconButtonStyles}`}
       >
-        <IconMinus className="size-4" />
+        <Minus className="size-4" />
       </button>
 
       {!minimal && (
@@ -44,7 +44,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
           onClick={() => getWindow().toggleMaximize()}
           className={`h-full w-12 flex items-center justify-center transition-colors ${iconButtonStyles}`}
         >
-          <IconSquare className="size-3.5" />
+          <Square className="size-3.5" />
         </button>
       )}
 
@@ -52,7 +52,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
         onClick={() => getWindow().close()}
         className="h-full w-12 flex items-center justify-center hover:bg-red-500 transition-colors group"
       >
-        <IconX className="size-4 text-[var(--neko-text-tertiary)] group-hover:text-white" />
+        <X className="size-4 text-[var(--neko-text-tertiary)] group-hover:text-white" />
       </button>
     </div>
   );

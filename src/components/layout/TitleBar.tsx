@@ -1,15 +1,15 @@
 import React, { ReactNode, memo, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { 
-  IconSettings, 
-  IconLayoutSidebarLeftCollapse,
-  IconMessageCircle,
-  IconFileText,
-  IconX,
-  IconPlus,
-  IconNote,
-  IconCalendar,
-} from '@tabler/icons-react';
+  Settings, 
+  PanelLeftClose,
+  MessageCircle,
+  FileText,
+  X,
+  Plus,
+  StickyNote,
+  Calendar,
+} from 'lucide-react';
 import { WindowControls } from './WindowControls';
 import { TitleBarButton } from './TitleBarButton';
 import { useUIStore } from '@/stores/uiSlice';
@@ -52,7 +52,7 @@ function TabContent({ tab, isActive, icon, displayName }: TabContentProps) {
           <NoteIcon icon={icon} size={16} />
         </span>
       ) : (
-        <IconFileText 
+        <FileText 
           className={cn(
             "w-4 h-4 flex-shrink-0 pointer-events-none",
             isActive 
@@ -153,7 +153,7 @@ const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick 
           "hover:text-zinc-500 dark:hover:text-zinc-400"
         )}
       >
-        <IconX className="w-3.5 h-3.5" />
+        <X className="w-3.5 h-3.5" />
       </button>
     </div>
   );
@@ -186,14 +186,14 @@ interface LeftButtonsProps {
   onToggleSidebar: () => void;
   onOpenSettings?: () => void;
   onToggleViewMode: () => void;
-  viewModeIcon: typeof IconCalendar;
+  viewModeIcon: typeof Calendar;
 }
 
 function LeftButtons({ onToggleSidebar, onOpenSettings, onToggleViewMode, viewModeIcon }: LeftButtonsProps) {
   return (
     <>
-      <TitleBarButton icon={IconLayoutSidebarLeftCollapse} onClick={onToggleSidebar} className="w-9 px-0" />
-      <TitleBarButton icon={IconSettings} onClick={onOpenSettings} />
+      <TitleBarButton icon={PanelLeftClose} onClick={onToggleSidebar} className="w-9 px-0" />
+      <TitleBarButton icon={Settings} onClick={onOpenSettings} />
       <TitleBarButton icon={viewModeIcon} onClick={onToggleViewMode} />
     </>
   );
@@ -307,7 +307,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                 onToggleSidebar={toggleSidebar}
                 onOpenSettings={onOpenSettings}
                 onToggleViewMode={toggleAppViewMode}
-                viewModeIcon={IconCalendar}
+                viewModeIcon={Calendar}
               />
               
               {/* Draggable area to fill remaining space in sidebar header */}
@@ -325,7 +325,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                 onToggleSidebar={toggleSidebar}
                 onOpenSettings={onOpenSettings}
                 onToggleViewMode={toggleAppViewMode}
-                viewModeIcon={IconCalendar}
+                viewModeIcon={Calendar}
               />
             </div>
           )}
@@ -390,7 +390,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                             "hover:text-zinc-500 dark:hover:text-zinc-400"
                           )}
                         >
-                          <IconPlus className="w-4 h-4" />
+                        <Plus className="w-4 h-4" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" sideOffset={2}>
@@ -424,7 +424,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
 
           {/* AI Chat Toggle */}
           <TitleBarButton 
-            icon={IconMessageCircle} 
+            icon={MessageCircle} 
             onClick={toggleAIPanel}
             isActive={showAIPanel}
             className="w-9 px-0 z-20"
@@ -439,8 +439,8 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
       {appViewMode === 'calendar' && (
         <>
           <div className="flex items-center z-20">
-            <TitleBarButton icon={IconSettings} onClick={onOpenSettings} />
-            <TitleBarButton icon={IconNote} onClick={toggleAppViewMode} />
+            <TitleBarButton icon={Settings} onClick={onOpenSettings} />
+            <TitleBarButton icon={StickyNote} onClick={toggleAppViewMode} />
           </div>
 
           {/* Spacer */}

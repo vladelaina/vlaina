@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { IconFileText, IconPlus } from '@tabler/icons-react';
+import { FileText, Plus } from 'lucide-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 
@@ -136,7 +136,7 @@ export function LinkSuggest({
                   : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
               )}
             >
-              <IconFileText className="size-4 text-zinc-400 flex-shrink-0" />
+              <FileText className="size-4 text-zinc-400 flex-shrink-0" />
               <span className="truncate">{name}</span>
             </button>
           ))}
@@ -151,7 +151,7 @@ export function LinkSuggest({
                   : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
               )}
             >
-              <IconPlus className="size-4 text-green-500 flex-shrink-0" />
+              <Plus className="size-4 text-green-500 flex-shrink-0" />
               <span>Create "{query.trim()}"</span>
             </button>
           )}

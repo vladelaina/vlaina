@@ -10,15 +10,15 @@ import { deltaToText, getDeltaLength, getBlockTypeFromPrefix } from '../utils';
 import { cn } from '@/lib/utils';
 import { CodeToolbar } from '../widgets/CodeToolbar';
 import {
-  IconH1,
-  IconH2,
-  IconH3,
-  IconH4,
-  IconH5,
-  IconH6,
-  IconSquare,
-  IconSquareCheck,
-} from '@tabler/icons-react';
+  Heading1,
+  Heading2,
+  Heading3,
+  Heading4,
+  Heading5,
+  Heading6,
+  Square,
+  SquareCheck,
+} from 'lucide-react';
 
 interface BlockRendererProps {
   block: Block;
@@ -240,26 +240,26 @@ export function BlockRenderer({ block }: BlockRendererProps) {
   const getBlockIcon = () => {
     switch (block.type) {
       case 'heading1':
-        return <IconH1 className="block-icon heading-icon" />;
+        return <Heading1 className="block-icon heading-icon" />;
       case 'heading2':
-        return <IconH2 className="block-icon heading-icon" />;
+        return <Heading2 className="block-icon heading-icon" />;
       case 'heading3':
-        return <IconH3 className="block-icon heading-icon" />;
+        return <Heading3 className="block-icon heading-icon" />;
       case 'heading4':
-        return <IconH4 className="block-icon heading-icon" />;
+        return <Heading4 className="block-icon heading-icon" />;
       case 'heading5':
-        return <IconH5 className="block-icon heading-icon" />;
+        return <Heading5 className="block-icon heading-icon" />;
       case 'heading6':
-        return <IconH6 className="block-icon heading-icon" />;
+        return <Heading6 className="block-icon heading-icon" />;
       case 'bulletList':
         return <span className="block-icon list-marker">•</span>;
       case 'numberedList':
         return <span className="block-icon list-marker">1.</span>;
       case 'todoList':
         return block.props.checked ? (
-          <IconSquareCheck className="block-icon todo-icon checked" />
+          <SquareCheck className="block-icon todo-icon checked" />
         ) : (
-          <IconSquare className="block-icon todo-icon" />
+          <Square className="block-icon todo-icon" />
         );
       case 'quote':
         return null; // Quote uses border styling

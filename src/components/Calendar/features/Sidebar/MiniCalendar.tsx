@@ -1,5 +1,5 @@
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
-import { IconChevronUp, IconChevronDown } from '@tabler/icons-react';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useState } from 'react';
@@ -41,13 +41,13 @@ export function MiniCalendar() {
               onClick={prevMonth}
               className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
             >
-              <IconChevronUp className="size-4" strokeWidth={2.5} />
+              <ChevronUp className="size-4" strokeWidth={2.5} />
             </button>
             <button 
               onClick={nextMonth}
               className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
             >
-              <IconChevronDown className="size-4" strokeWidth={2.5} />
+              <ChevronDown className="size-4" strokeWidth={2.5} />
             </button>
           </div>
         </div>

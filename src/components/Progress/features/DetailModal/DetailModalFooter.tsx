@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { IconCheck } from '@tabler/icons-react';
+import { Check } from 'lucide-react';
 import type { ProgressOrCounter } from '@/stores/useProgressStore';
 import { HistoryWaveform } from '../HistoryWaveform';
 import { SPRING_SNAPPY } from '@/lib/animations';
@@ -39,7 +39,7 @@ export function DetailModalFooter({
               cursor-pointer z-50 mb-4
             "
           >
-            <IconCheck className="size-8" />
+            <Check className="size-8" />
           </motion.button>
         ) : (
           <motion.div

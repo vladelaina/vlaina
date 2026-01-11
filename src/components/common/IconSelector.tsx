@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { IconBan, IconX } from '@tabler/icons-react';
+import { Ban, X } from 'lucide-react';
 import { ICON_CATEGORIES_FULL } from '@/components/Progress/features/IconPicker/icons';
 import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
 
@@ -62,7 +62,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
         title="Change icon"
       >
         {CurrentIcon ? (
-          <CurrentIcon className="size-3.5" stroke={1.5} />
+          <CurrentIcon className="size-3.5" strokeWidth={1.5} />
         ) : (
           <span className="size-3.5 text-zinc-400 dark:text-zinc-500">✦</span>
         )}
@@ -85,7 +85,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
           `}
           title="Clear icon"
         >
-          <IconBan className="size-3.5" stroke={1.5} />
+          <Ban className="size-3.5" strokeWidth={1.5} />
         </button>
         
         {QUICK_ICONS.slice(0, 6).map((name) => {
@@ -104,7 +104,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
                 }
               `}
             >
-              <Icon className="size-3.5" stroke={value === name ? 2 : 1.5} />
+              <Icon className="size-3.5" strokeWidth={value === name ? 2 : 1.5} />
             </button>
           );
         })}
@@ -120,7 +120,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
             }
           `}
         >
-          {showAll ? <IconX className="size-3" /> : '···'}
+        {showAll ? <X className="size-3" /> : '···'}
         </button>
       </div>
       
@@ -152,7 +152,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
                       `}
                       title={name}
                     >
-                      <Icon className="size-5" stroke={value === name ? 2 : 1.5} />
+                      <Icon className="size-5" strokeWidth={value === name ? 2 : 1.5} />
                     </button>
                   );
                 })}
@@ -182,7 +182,7 @@ export function IconSelector({ value, onChange, onHover, closeOnSelect = true, c
                       `}
                       title={name}
                     >
-                      <Icon className="size-5" stroke={value === name ? 2 : 1.5} />
+                      <Icon className="size-5" strokeWidth={value === name ? 2 : 1.5} />
                     </button>
                   ))}
                 </div>

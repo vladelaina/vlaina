@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { IconRefresh, IconTrash } from '@tabler/icons-react';
+import { RefreshCw, Trash2 } from 'lucide-react';
 import { getIconByName } from '../IconPicker';
 import { ItemCardProps } from './types';
 
@@ -121,7 +121,7 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
               `}
               title="Restore to active list"
             >
-              <IconRefresh className={compact ? 'size-4' : 'size-5'} />
+              <RefreshCw className={compact ? 'size-4' : 'size-5'} />
             </button>
 
             {/* Delete - The Final Release */}
@@ -140,7 +140,7 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
               `}
               title="Delete permanently"
             >
-              <IconTrash className={compact ? 'size-4' : 'size-5'} />
+              <Trash2 className={compact ? 'size-4' : 'size-5'} />
             </button>
          </div>
       </motion.div>

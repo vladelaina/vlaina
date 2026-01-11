@@ -8,14 +8,14 @@ import { useEditorStore } from '../EditorStore';
 import type { InlineFormat } from '../types';
 import { cn } from '@/lib/utils';
 import {
-  IconBold,
-  IconItalic,
-  IconUnderline,
-  IconStrikethrough,
-  IconCode,
-  IconLink,
-  IconX,
-} from '@tabler/icons-react';
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Code,
+  Link,
+  X,
+} from 'lucide-react';
 
 interface ToolbarButton {
   id: InlineFormat;
@@ -25,12 +25,12 @@ interface ToolbarButton {
 }
 
 const TOOLBAR_BUTTONS: ToolbarButton[] = [
-  { id: 'bold', icon: <IconBold size={16} />, label: 'Bold', shortcut: 'Ctrl+B' },
-  { id: 'italic', icon: <IconItalic size={16} />, label: 'Italic', shortcut: 'Ctrl+I' },
-  { id: 'underline', icon: <IconUnderline size={16} />, label: 'Underline', shortcut: 'Ctrl+U' },
-  { id: 'strikethrough', icon: <IconStrikethrough size={16} />, label: 'Strikethrough', shortcut: 'Ctrl+Shift+S' },
-  { id: 'code', icon: <IconCode size={16} />, label: 'Code', shortcut: 'Ctrl+E' },
-  { id: 'link', icon: <IconLink size={16} />, label: 'Link', shortcut: 'Ctrl+K' },
+  { id: 'bold', icon: <Bold size={16} />, label: 'Bold', shortcut: 'Ctrl+B' },
+  { id: 'italic', icon: <Italic size={16} />, label: 'Italic', shortcut: 'Ctrl+I' },
+  { id: 'underline', icon: <Underline size={16} />, label: 'Underline', shortcut: 'Ctrl+U' },
+  { id: 'strikethrough', icon: <Strikethrough size={16} />, label: 'Strikethrough', shortcut: 'Ctrl+Shift+S' },
+  { id: 'code', icon: <Code size={16} />, label: 'Code', shortcut: 'Ctrl+E' },
+  { id: 'link', icon: <Link size={16} />, label: 'Link', shortcut: 'Ctrl+K' },
 ];
 
 export function InlineToolbar() {
@@ -161,7 +161,7 @@ export function InlineToolbar() {
             onClick={handleLinkSubmit}
             disabled={!linkUrl.trim()}
           >
-            <IconLink size={14} />
+            <Link size={14} />
           </button>
           <button
             className="link-cancel"
@@ -170,7 +170,7 @@ export function InlineToolbar() {
               setLinkUrl('');
             }}
           >
-            <IconX size={14} />
+            <X size={14} />
           </button>
         </div>
       ) : (

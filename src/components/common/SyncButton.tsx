@@ -10,11 +10,11 @@
 
 import { useState } from 'react';
 import { 
-  IconCloud, 
-  IconCloudCheck, 
-  IconCloudOff, 
-  IconRefresh 
-} from '@tabler/icons-react';
+  Cloud, 
+  CloudCheck, 
+  CloudOff, 
+  RefreshCw 
+} from 'lucide-react';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
 import { cn } from '@/lib/utils';
@@ -59,12 +59,12 @@ export function SyncButton({ className }: SyncButtonProps) {
   // Get status info for tooltip
   const getStatusInfo = (): { text: string; icon: React.ReactNode } => {
     if (isSyncing || animating) {
-      return { text: 'Syncing...', icon: <IconRefresh className="size-4 animate-spin" /> };
+      return { text: 'Syncing...', icon: <RefreshCw className="size-4 animate-spin" /> };
     }
     if (syncStatus === 'error' || syncError) {
-      return { text: 'Sync failed, click to retry', icon: <IconCloudOff className="size-4" /> };
+      return { text: 'Sync failed, click to retry', icon: <CloudOff className="size-4" /> };
     }
-    return { text: 'Synced', icon: <IconCloudCheck className="size-4" /> };
+    return { text: 'Synced', icon: <CloudCheck className="size-4" /> };
   };
 
   const statusInfo = getStatusInfo();
@@ -89,11 +89,11 @@ export function SyncButton({ className }: SyncButtonProps) {
       >
         {/* Main icon */}
         {isSyncing || animating ? (
-          <IconRefresh className="size-5 animate-spin" />
+          <RefreshCw className="size-5 animate-spin" />
         ) : isError ? (
-          <IconCloudOff className="size-5" />
+          <CloudOff className="size-5" />
         ) : (
-          <IconCloud className="size-5" stroke={1.5} />
+          <Cloud className="size-5" strokeWidth={1.5} />
         )}
         
         {/* Error indicator dot */}

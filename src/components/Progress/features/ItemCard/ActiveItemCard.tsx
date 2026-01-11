@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion'; // Removed AnimatePresence
-import { IconPlus, IconMinus, IconRefresh } from '@tabler/icons-react';
+import { Plus, Minus, RefreshCw } from 'lucide-react';
 import { getIconByName } from '../IconPicker';
 import { ItemCardProps } from './types';
 import { ProgressBar, CounterEffects, Ripple, DebrisField } from './VisualEffects';
@@ -159,7 +159,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
                     </span>
                     <div className={`flex items-center gap-1.5 ${compact ? 'text-[9px]' : 'text-[10px]'} font-bold uppercase tracking-[0.2em] overflow-hidden text-zinc-400 dark:text-zinc-500`}>
                       {item.resetFrequency === 'daily' && (
-                          <IconRefresh className={compact ? 'size-2.5 opacity-70' : 'size-3 opacity-70'} />
+                          <RefreshCw className={compact ? 'size-2.5 opacity-70' : 'size-3 opacity-70'} />
                       )}
                       <span>
                         {item.todayCount > 0 ? `Today ${item.todayCount}` : "Tap to Start"}
@@ -199,7 +199,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
           </div>
 
           <KineticAction 
-            icon={IconMinus}
+            icon={Minus}
             step={Math.abs(item.step)}
             direction="left"
             isActive={hoverZone === 'left'}
@@ -230,7 +230,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
           />
 
           <KineticAction 
-            icon={IconPlus}
+            icon={Plus}
             step={Math.abs(item.step)}
             direction="right"
             isActive={hoverZone === 'right'}

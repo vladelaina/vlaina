@@ -1,7 +1,7 @@
 /** IconPicker - Emoji and Icon picker with virtual scrolling */
 
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import { IconArrowsShuffle2 } from '@tabler/icons-react';
+import { Shuffle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EmojiTab } from './EmojiTab';
 import { IconsTab } from './IconsTab';
@@ -177,7 +177,7 @@ export function IconPicker({
             onClick={handleRandom}
             className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors pb-1"
           >
-            <IconArrowsShuffle2 size={16} />
+            <Shuffle size={16} />
           </button>
         </div>
         {hasIcon && onRemove && (

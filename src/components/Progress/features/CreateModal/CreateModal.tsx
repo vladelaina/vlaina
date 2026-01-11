@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { IconCheck } from '@tabler/icons-react';
+import { Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getIconByName } from '../IconPicker';
@@ -286,7 +286,7 @@ export function CreateModal({
                    >
                      <span className="relative z-10 flex items-center gap-2">
                        Begin Journey
-                       <IconCheck className="size-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+                       <Check className="size-4 opacity-50 group-hover:opacity-100 transition-opacity" />
                      </span>
                      
                      <div className="absolute inset-0 rounded-full bg-zinc-900 dark:bg-zinc-100 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300" />

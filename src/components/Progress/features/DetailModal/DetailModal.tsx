@@ -267,7 +267,7 @@ function LiquidBackground({ fillHeight, DisplayIcon }: LiquidBackgroundProps) {
       {DisplayIcon && (
         <div className="absolute inset-0 flex items-center justify-center opacity-[0.04] dark:opacity-[0.06] pointer-events-none scale-125 mix-blend-multiply dark:mix-blend-overlay">
           <DisplayIcon
-            stroke={2}
+            strokeWidth={2}
             className="size-80 text-zinc-900 dark:text-zinc-100"
           />
         </div>

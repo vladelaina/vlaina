@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { IconFolder, IconRotate } from '@tabler/icons-react';
+import { Folder, RotateCw } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
@@ -128,7 +128,7 @@ export function AppearanceTab() {
                 onClick={() => {/* TODO: Open theme folder */}}
                 className="p-1.5 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
               >
-                <IconFolder className="size-4" />
+                <Folder className="size-4" />
               </button>
               <select className={selectClassName} style={selectStyle}>
                 <option value="default">Default</option>
@@ -158,7 +158,7 @@ export function AppearanceTab() {
                   className="p-1 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
                   title="Reset to default"
                 >
-                  <IconRotate className="size-3.5" />
+                  <RotateCw className="size-3.5" />
                 </button>
               )}
               <div className="relative">

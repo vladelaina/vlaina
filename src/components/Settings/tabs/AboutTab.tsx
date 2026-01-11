@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { IconExternalLink, IconCloud, IconCloudOff, IconRefresh, IconDownload, IconLoader2, IconAlertCircle, IconCrown, IconKey } from '@tabler/icons-react';
+import { ExternalLink, Cloud, CloudOff, RefreshCw, Download, Loader2, CircleAlert, Crown, KeyRound } from 'lucide-react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
@@ -189,9 +189,9 @@ export function AboutTab() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {isConnected ? (
-                <IconCloud className="size-5 text-green-500" />
+                <Cloud className="size-5 text-green-500" />
               ) : (
-                <IconCloudOff className="size-5 text-zinc-400" />
+                <CloudOff className="size-5 text-zinc-400" />
               )}
               <div>
                 <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
@@ -206,7 +206,7 @@ export function AboutTab() {
             </div>
             
             {isLoading ? (
-              <IconLoader2 className="size-4 animate-spin text-zinc-400" />
+              <Loader2 className="size-4 animate-spin text-zinc-400" />
             ) : isConnected ? (
               <button
                 onClick={handleDisconnect}
@@ -222,12 +222,12 @@ export function AboutTab() {
               >
                 {isConnecting ? (
                   <>
-                    <IconLoader2 className="size-3.5 animate-spin" />
+                    <Loader2 className="size-3.5 animate-spin" />
                     Connecting...
                   </>
                 ) : (
                   <>
-                    <IconCloud className="size-3.5" />
+                    <Cloud className="size-3.5" />
                     Connect GitHub
                   </>
                 )}
@@ -255,7 +255,7 @@ export function AboutTab() {
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 rounded-md transition-colors disabled:opacity-50"
                       title="Restore from cloud backup"
                     >
-                      <IconDownload className="size-3.5" />
+                      <Download className="size-3.5" />
                       Restore
                     </button>
                   )}
@@ -267,12 +267,12 @@ export function AboutTab() {
                   >
                     {isSyncing ? (
                       <>
-                        <IconLoader2 className="size-3.5 animate-spin" />
+                        <Loader2 className="size-3.5 animate-spin" />
                         Syncing...
                       </>
                     ) : (
                       <>
-                        <IconRefresh className="size-3.5" />
+                        <RefreshCw className="size-3.5" />
                         Sync Now
                       </>
                     )}
@@ -285,7 +285,7 @@ export function AboutTab() {
           {/* Error Message */}
           {syncError && (
             <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
-              <IconAlertCircle className="size-4 flex-shrink-0 mt-0.5" />
+              <CircleAlert className="size-4 flex-shrink-0 mt-0.5" />
               <div className="text-xs">{syncError}</div>
             </div>
           )}
@@ -306,7 +306,7 @@ export function AboutTab() {
             <>
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900/30">
-                  <IconCrown className="size-5 text-amber-500" />
+                  <Crown className="size-5 text-amber-500" />
                 </div>
                 <div>
                   <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
@@ -343,7 +343,7 @@ export function AboutTab() {
             <>
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-full bg-zinc-100 dark:bg-zinc-700">
-                  <IconCrown className="size-5 text-zinc-400" />
+                  <Crown className="size-5 text-zinc-400" />
                 </div>
                 <div>
                   <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
@@ -365,7 +365,7 @@ export function AboutTab() {
                 
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <IconKey className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-400" />
+                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-400" />
                     <input
                       type="text"
                       value={licenseInput}
@@ -382,7 +382,7 @@ export function AboutTab() {
                   >
                     {isActivating ? (
                       <>
-                        <IconLoader2 className="size-4 animate-spin" />
+                        <Loader2 className="size-4 animate-spin" />
                         Activating...
                       </>
                     ) : (
@@ -394,7 +394,7 @@ export function AboutTab() {
                 {/* Error Message */}
                 {activateError && (
                   <div className="flex items-start gap-2 p-2 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
-                    <IconAlertCircle className="size-4 flex-shrink-0 mt-0.5" />
+                    <CircleAlert className="size-4 flex-shrink-0 mt-0.5" />
                     <div className="text-xs">{activateError}</div>
                   </div>
                 )}
@@ -498,7 +498,7 @@ export function AboutTab() {
               onClick={openGitHub}
               className={`${settingsButtonClassName} flex items-center gap-1.5`}
             >
-              <IconExternalLink className="size-3.5" />
+              <ExternalLink className="size-3.5" />
               Open
             </button>
           </div>
@@ -519,7 +519,7 @@ export function AboutTab() {
               onClick={() => openUrl('https://discord.gg/TtUzNPqNJw')}
               className={`${settingsButtonClassName} flex items-center gap-1.5`}
             >
-              <IconExternalLink className="size-3.5" />
+              <ExternalLink className="size-3.5" />
               Join
             </button>
           </div>
