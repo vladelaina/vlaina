@@ -23,6 +23,8 @@ interface EmojiTabProps {
   onPreview?: (emoji: string | null) => void;
   currentIcon?: string;
   onIconChange?: (emoji: string) => void;
+  activeCategory: string;
+  onCategoryChange: (categoryId: string) => void;
 }
 
 export function EmojiTab({
@@ -33,11 +35,12 @@ export function EmojiTab({
   onPreview,
   currentIcon,
   onIconChange,
+  activeCategory,
+  onCategoryChange,
 }: EmojiTabProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSkinTonePicker, setShowSkinTonePicker] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<string>('people');
   const [previewSkinTone, setPreviewSkinTone] = useState<number | null>(null);
 
   const effectiveSkinTone = previewSkinTone !== null ? previewSkinTone : skinTone;
@@ -191,7 +194,7 @@ export function EmojiTab({
           {EMOJI_CATEGORIES.map((category) => (
             <button
               key={category.id}
-              onClick={() => setActiveCategory(category.id)}
+              onClick={() => onCategoryChange(category.id)}
               className={cn(
                 "w-8 h-8 flex items-center justify-center rounded-md text-lg transition-colors",
                 activeCategory === category.id

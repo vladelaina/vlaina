@@ -15,7 +15,7 @@ import {
   MAX_RECENT_EMOJIS,
   EMOJI_CATEGORIES,
 } from './constants';
-import { ICON_LIST } from './icons';
+import { ICON_CATEGORIES } from './icons';
 
 interface IconPickerProps {
   onSelect: (emoji: string) => void;
@@ -40,6 +40,10 @@ export function IconPicker({
   const [activeTab, setActiveTab] = useState<TabType>(loadActiveTab);
   const [recentIcons, setRecentIcons] = useState<string[]>(loadRecentIcons);
   const [skinTone, setSkinTone] = useState(loadSkinTone);
+  
+  // Track active categories for random selection within current group
+  const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('people');
+  const [activeIconCategory, setActiveIconCategory] = useState<string>('common');
 
   // Track the last randomly selected icon (to add to recent on close)
   const lastRandomIconRef = useRef<string | null>(null);
@@ -87,24 +91,27 @@ export function IconPicker({
     onClose();
   }, [recentIcons, onClose]);
 
-  // Random selection based on current tab (don't close picker, don't add to recent yet)
+  // Random selection within current category only
   const handleRandom = useCallback(() => {
     if (activeTab === 'emoji') {
-      const allEmojis = EMOJI_CATEGORIES.flatMap(cat => cat.emojis);
-      if (allEmojis.length > 0) {
-        const randomEmoji = allEmojis[Math.floor(Math.random() * allEmojis.length)];
+      const currentCategory = EMOJI_CATEGORIES.find(c => c.id === activeEmojiCategory);
+      const emojis = currentCategory?.emojis || [];
+      if (emojis.length > 0) {
+        const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
         lastRandomIconRef.current = randomEmoji.native;
         onSelect(randomEmoji.native);
       }
     } else {
-      if (ICON_LIST.length > 0) {
-        const randomIcon = ICON_LIST[Math.floor(Math.random() * ICON_LIST.length)];
+      const currentCategory = ICON_CATEGORIES.find(c => c.id === activeIconCategory);
+      const icons = currentCategory?.icons || [];
+      if (icons.length > 0) {
+        const randomIcon = icons[Math.floor(Math.random() * icons.length)];
         const iconValue = `icon:${randomIcon.name}:${randomIcon.color}`;
         lastRandomIconRef.current = iconValue;
         onSelect(iconValue);
       }
     }
-  }, [activeTab, onSelect]);
+  }, [activeTab, activeEmojiCategory, activeIconCategory, onSelect]);
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -199,12 +206,16 @@ export function IconPicker({
           onPreview={onPreview}
           currentIcon={currentIcon}
           onIconChange={onIconChange}
+          activeCategory={activeEmojiCategory}
+          onCategoryChange={setActiveEmojiCategory}
         />
       ) : (
         <IconsTab
           recentIcons={recentIcons}
           onSelect={handleIconSelect}
           onPreview={onPreview}
+          activeCategory={activeIconCategory}
+          onCategoryChange={setActiveIconCategory}
         />
       )}
     </div>

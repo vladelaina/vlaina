@@ -2,7 +2,7 @@
  * IconsTab - Icon picker tab with category navigation
  */
 
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { VirtualIconGrid } from './VirtualIconGrid';
 import { ICON_CATEGORIES } from './icons';
@@ -11,27 +11,25 @@ interface IconsTabProps {
   recentIcons: string[];
   onSelect: (iconName: string, color: string) => void;
   onPreview?: (icon: string | null) => void;
+  activeCategory: string;
+  onCategoryChange: (categoryId: string) => void;
 }
 
 export function IconsTab({
   recentIcons,
   onSelect,
   onPreview,
+  activeCategory,
+  onCategoryChange,
 }: IconsTabProps) {
-  const [activeIconCategory, setActiveIconCategory] = useState<string>('common');
-
   const recentIconsList = useMemo(() => 
     recentIcons.filter(i => i.startsWith('icon:')), 
     [recentIcons]
   );
 
   const currentIconCategory = useMemo(() => {
-    return ICON_CATEGORIES.find(c => c.id === activeIconCategory) || ICON_CATEGORIES[0];
-  }, [activeIconCategory]);
-
-  const handleIconCategoryChange = useCallback((categoryId: string) => {
-    setActiveIconCategory(categoryId);
-  }, []);
+    return ICON_CATEGORIES.find(c => c.id === activeCategory) || ICON_CATEGORIES[0];
+  }, [activeCategory]);
 
   const handlePreview = useCallback((icon: string | null) => {
     onPreview?.(icon);
@@ -54,10 +52,10 @@ export function IconsTab({
           return (
             <button
               key={category.id}
-              onClick={() => handleIconCategoryChange(category.id)}
+              onClick={() => onCategoryChange(category.id)}
               className={cn(
                 "w-8 h-8 flex items-center justify-center rounded-md text-lg transition-colors",
-                activeIconCategory === category.id
+                activeCategory === category.id
                   ? "bg-zinc-200 dark:bg-zinc-700"
                   : "hover:bg-zinc-200 dark:hover:bg-zinc-700"
               )}
