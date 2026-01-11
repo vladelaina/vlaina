@@ -94,7 +94,7 @@ const initialState: GithubReposState = {
   syncStatus: new Map(),
   gitStatus: new Map(),
   error: null,
-  sectionExpanded: true,
+  sectionExpanded: false, // Default collapsed, will expand when connected
   cloningRepos: new Set(),
 };
 

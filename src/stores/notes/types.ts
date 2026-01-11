@@ -30,6 +30,7 @@ export interface NotesState {
   noteContentsCache: Map<string, string>;
   starredNotes: string[];
   starredFolders: string[];
+  favoritesLoaded: boolean;
   noteIcons: Map<string, string>;
   displayNames: Map<string, string>;
   isNewlyCreated: boolean;

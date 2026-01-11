@@ -41,6 +41,13 @@ export function GitHubSection() {
 
   const [showNewRepoDialog, setShowNewRepoDialog] = useState(false);
 
+  // Auto-expand when connected
+  useEffect(() => {
+    if (isConnected && !sectionExpanded) {
+      toggleSectionExpanded();
+    }
+  }, [isConnected]);
+
   // Load repositories when connected
   useEffect(() => {
     if (isConnected && hasBackendCommands()) {
@@ -111,14 +118,8 @@ export function GitHubSection() {
         <div className="overflow-hidden">
           <div className="px-1">
             {!isConnected ? (
-              // Not connected state
-              <div className="flex flex-col items-center gap-3 py-8">
-                <div className="w-14 h-14 rounded-full bg-[var(--neko-bg-tertiary)] flex items-center justify-center">
-                  <GitHubIcon className="w-6 h-6 text-[var(--neko-text-tertiary)]" />
-                </div>
-                <span className="text-[13px] text-[var(--neko-text-tertiary)]">
-                  Connect to GitHub
-                </span>
+              // Not connected state - only show the connect button
+              <div className="flex flex-col items-center py-3">
                 <button
                   onClick={handleConnect}
                   disabled={isConnecting || !hasBackendCommands()}
@@ -136,7 +137,7 @@ export function GitHubSection() {
                   {isConnecting ? 'Connecting...' : 'Connect GitHub'}
                 </button>
                 {!hasBackendCommands() && (
-                  <span className="text-[11px] text-[var(--neko-text-tertiary)]">
+                  <span className="text-[11px] text-[var(--neko-text-tertiary)] mt-2">
                     Desktop app required
                   </span>
                 )}

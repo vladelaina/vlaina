@@ -18,6 +18,7 @@ export interface FeatureSlice {
   noteContentsCache: NotesStore['noteContentsCache'];
   starredNotes: NotesStore['starredNotes'];
   starredFolders: NotesStore['starredFolders'];
+  favoritesLoaded: NotesStore['favoritesLoaded'];
   noteIcons: NotesStore['noteIcons'];
 
   loadFavorites: (vaultPath: string) => Promise<void>;
@@ -38,11 +39,12 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
   noteContentsCache: new Map(),
   starredNotes: [],
   starredFolders: [],
+  favoritesLoaded: false,
   noteIcons: new Map(),
 
   loadFavorites: async (vaultPath: string) => {
     const data = await loadFavoritesFromFile(vaultPath);
-    set({ starredNotes: data.notes, starredFolders: data.folders });
+    set({ starredNotes: data.notes, starredFolders: data.folders, favoritesLoaded: true });
   },
 
   loadNoteIcons: async (vaultPath: string) => {

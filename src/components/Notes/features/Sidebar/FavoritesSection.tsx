@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ChevronDown, Star } from 'lucide-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { FileTreeItem } from '../FileTree/FileTreeItem'; // Adjusted path
@@ -11,17 +11,19 @@ export function FavoritesSection() {
         starredFolders,
         rootFolder,
         currentNote,
+        favoritesLoaded,
     } = useNotesStore();
 
-    const hasFavorites = starredNotes.length > 0 || starredFolders.length > 0;
-    const [expanded, setExpanded] = useState(hasFavorites);
+    const hasFavoritePaths = starredNotes.length > 0 || starredFolders.length > 0;
+    // 默认收起，有收藏时才展开
+    const [expanded, setExpanded] = useState(false);
 
-    // Auto-expand when favorites are added
+    // 当收藏加载完成且有收藏时，自动展开
     useEffect(() => {
-        if (hasFavorites && !expanded) {
+        if (favoritesLoaded && hasFavoritePaths) {
             setExpanded(true);
         }
-    }, [hasFavorites, expanded]);
+    }, [favoritesLoaded, hasFavoritePaths]);
 
     // Find node by path in file tree
     const findNode = useCallback((path: string): FileTreeNode | null => {
@@ -49,6 +51,13 @@ export function FavoritesSection() {
     const starredNoteNodes = starredNotes
         .map(path => findNode(path))
         .filter((node): node is FileTreeNode => node !== null);
+
+    // Check if we actually have resolved nodes to display
+    const hasResolvedFavorites = starredFolderNodes.length > 0 || starredNoteNodes.length > 0;
+    
+    // Don't show empty state until favorites have been loaded
+    // This prevents the flash of empty state on initial load
+    const showEmptyState = favoritesLoaded && !hasFavoritePaths;
 
     return (
         <div className="mb-2">
@@ -81,14 +90,16 @@ export function FavoritesSection() {
             >
                 <div className="overflow-hidden">
                     <div className="px-1">
-                        {!hasFavorites ? (
+                        {showEmptyState ? (
+                            // Empty state - no favorites at all
                             <div className="flex flex-col items-center gap-3 py-8">
                                 <div className="w-14 h-14 rounded-full bg-[var(--neko-bg-tertiary)] flex items-center justify-center">
                                     <Star className="w-6 h-6 text-[var(--neko-text-tertiary)]" />
                                 </div>
                                 <span className="text-[15px] text-[var(--neko-text-tertiary)]">No favorites</span>
                             </div>
-                        ) : (
+                        ) : hasResolvedFavorites ? (
+                            // Show favorites
                             <div>
                                 {/* Starred Folders */}
                                 {starredFolderNodes.map((node) => (
@@ -110,7 +121,7 @@ export function FavoritesSection() {
                                     />
                                 ))}
                             </div>
-                        )}
+                        ) : null}
                     </div>
                 </div>
             </div>
