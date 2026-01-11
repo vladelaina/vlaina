@@ -11,13 +11,35 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::Manager;
 
-// GitHub OAuth credentials
-const GITHUB_CLIENT_ID: &str = "Ov23liSDfPnZnD9pSiaF";
-const GITHUB_CLIENT_SECRET: &str = "9cd29446f66bab74dae9165f876b742c990eab69";
-
 const DATA_FILE_NAME: &str = "data.json";
 const NEKOTICK_FOLDER: &str = ".nekotick";
 const GITHUB_CREDS_FILE: &str = "github_credentials.json";
+
+/// GitHub OAuth config
+#[derive(Debug, Clone, Deserialize)]
+struct GitHubOAuthConfig {
+    client_id: String,
+    client_secret: String,
+}
+
+/// Load GitHub OAuth config from file or environment variables
+fn load_oauth_config() -> Result<GitHubOAuthConfig, String> {
+    // First try environment variables (for CI/CD)
+    if let (Ok(client_id), Ok(client_secret)) = (
+        std::env::var("GITHUB_OAUTH_CLIENT_ID"),
+        std::env::var("GITHUB_OAUTH_CLIENT_SECRET"),
+    ) {
+        return Ok(GitHubOAuthConfig { client_id, client_secret });
+    }
+
+    // Then try config file (for local development)
+    let config_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("github_oauth.json");
+    let content = fs::read_to_string(&config_path)
+        .map_err(|e| format!("Failed to read github_oauth.json: {}. Create it from github_oauth.example.json", e))?;
+    
+    serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse github_oauth.json: {}", e))
+}
 
 /// GitHub sync status returned to frontend
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -172,6 +194,9 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
     use std::thread;
     use std::time::Duration;
 
+    // Load OAuth config
+    let oauth_config = load_oauth_config()?;
+
     // Use fixed port for GitHub OAuth (must match OAuth App callback URL)
     const CALLBACK_PORT: u16 = 8914;
 
@@ -183,7 +208,7 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
         .map_err(|e| format!("Failed to bind to port {}: {}. Port may be in use.", CALLBACK_PORT, e))?;
 
     // Build auth URL
-    let oauth = GitHubOAuthClient::new(GITHUB_CLIENT_ID.to_string(), GITHUB_CLIENT_SECRET.to_string());
+    let oauth = GitHubOAuthClient::new(oauth_config.client_id.clone(), oauth_config.client_secret.clone());
     let auth_url = oauth.build_auth_url(&state, CALLBACK_PORT);
 
     // Create channel to receive the auth code
@@ -236,7 +261,6 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
     };
 
     // Exchange code for tokens
-    let oauth = GitHubOAuthClient::new(GITHUB_CLIENT_ID.to_string(), GITHUB_CLIENT_SECRET.to_string());
     let tokens = match oauth.exchange_code(&code, CALLBACK_PORT).await {
         Ok(t) => t,
         Err(e) => {

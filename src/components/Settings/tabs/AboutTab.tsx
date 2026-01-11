@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { IconExternalLink, IconCloud, IconCloudOff, IconRefresh, IconDownload, IconLoader2, IconAlertCircle, IconCrown } from '@tabler/icons-react';
+import { IconExternalLink, IconCloud, IconCloudOff, IconRefresh, IconDownload, IconLoader2, IconAlertCircle, IconCrown, IconKey } from '@tabler/icons-react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useLicenseStore } from '@/stores/useLicenseStore';
+import { githubCommands } from '@/lib/tauri/invoke';
 import { STORAGE_KEY_AUTO_UPDATE } from '@/lib/config';
 
 /**
@@ -38,6 +39,11 @@ export function AboutTab() {
     expiresAt,
     getExpiryDaysRemaining,
   } = useLicenseStore();
+
+  // License key input state
+  const [licenseInput, setLicenseInput] = useState('');
+  const [isActivating, setIsActivating] = useState(false);
+  const [activateError, setActivateError] = useState<string | null>(null);
 
   useEffect(() => {
     checkStatus();
@@ -97,6 +103,81 @@ export function AboutTab() {
   const isExpiringSoon = () => {
     const daysRemaining = getExpiryDaysRemaining();
     return daysRemaining !== null && daysRemaining <= 3 && daysRemaining > 0;
+  };
+
+  // Format license key input (auto-add dashes)
+  const formatLicenseInput = (value: string) => {
+    // Remove all non-alphanumeric characters
+    const clean = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    
+    // Add NEKO- prefix if not present
+    let formatted = clean;
+    if (!clean.startsWith('NEKO')) {
+      formatted = 'NEKO' + clean;
+    }
+    
+    // Split into parts and join with dashes
+    const parts = [];
+    if (formatted.length > 0) parts.push(formatted.slice(0, 4)); // NEKO
+    if (formatted.length > 4) parts.push(formatted.slice(4, 8));
+    if (formatted.length > 8) parts.push(formatted.slice(8, 12));
+    if (formatted.length > 12) parts.push(formatted.slice(12, 16));
+    
+    return parts.join('-');
+  };
+
+  const handleLicenseInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatLicenseInput(e.target.value);
+    // Limit to NEKO-XXXX-XXXX-XXXX format (19 chars)
+    setLicenseInput(formatted.slice(0, 19));
+    setActivateError(null);
+  };
+
+  const handleActivateLicense = async () => {
+    if (!isConnected) {
+      setActivateError('Please connect to GitHub first');
+      return;
+    }
+
+    const key = licenseInput.trim().toUpperCase();
+    if (!/^NEKO-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(key)) {
+      setActivateError('Invalid license key format');
+      return;
+    }
+
+    setIsActivating(true);
+    setActivateError(null);
+
+    try {
+      const result = await githubCommands.bindLicenseKey(key);
+      if (result?.isPro) {
+        // Update license store
+        useLicenseStore.getState().setProStatus(
+          true,
+          result.licenseKey,
+          result.expiresAt ? Math.floor(result.expiresAt / 1000) : null
+        );
+        setLicenseInput('');
+      } else {
+        setActivateError('Failed to activate license');
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      // Parse error code from message
+      if (errorMsg.includes('INVALID_KEY')) {
+        setActivateError('Invalid license key');
+      } else if (errorMsg.includes('ALREADY_BOUND')) {
+        setActivateError('This license is already bound to another account');
+      } else if (errorMsg.includes('REVOKED')) {
+        setActivateError('This license has been revoked');
+      } else if (errorMsg.includes('EXPIRED')) {
+        setActivateError('This license has expired');
+      } else {
+        setActivateError(errorMsg);
+      }
+    } finally {
+      setIsActivating(false);
+    }
   };
 
   return (
@@ -260,7 +341,7 @@ export function AboutTab() {
               </div>
             </>
           ) : (
-            // Not PRO - show info
+            // Not PRO - show activation form
             <>
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-full bg-zinc-100 dark:bg-zinc-700">
@@ -278,8 +359,54 @@ export function AboutTab() {
 
               <div className="h-px bg-zinc-200 dark:bg-zinc-700" />
 
-              <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                PRO license is bound to your GitHub account. Purchase a license key and connect your GitHub account to activate.
+              {/* License Key Input */}
+              <div className="space-y-3">
+                <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Enter your license key to activate PRO:
+                </div>
+                
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <IconKey className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-400" />
+                    <input
+                      type="text"
+                      value={licenseInput}
+                      onChange={handleLicenseInputChange}
+                      placeholder="NEKO-XXXX-XXXX-XXXX"
+                      disabled={!isConnected || isActivating}
+                      className="w-full pl-9 pr-3 py-2 text-sm font-mono bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                  <button
+                    onClick={handleActivateLicense}
+                    disabled={!isConnected || isActivating || licenseInput.length < 19}
+                    className="px-4 py-2 text-sm font-medium text-white bg-zinc-800 dark:bg-zinc-600 hover:bg-zinc-700 dark:hover:bg-zinc-500 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {isActivating ? (
+                      <>
+                        <IconLoader2 className="size-4 animate-spin" />
+                        Activating...
+                      </>
+                    ) : (
+                      'Activate'
+                    )}
+                  </button>
+                </div>
+
+                {/* Error Message */}
+                {activateError && (
+                  <div className="flex items-start gap-2 p-2 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
+                    <IconAlertCircle className="size-4 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs">{activateError}</div>
+                  </div>
+                )}
+
+                {/* Connect GitHub hint */}
+                {!isConnected && (
+                  <div className="text-xs text-amber-600 dark:text-amber-400">
+                    ⚠️ Please connect to GitHub first to activate your license
+                  </div>
+                )}
               </div>
             </>
           )}
