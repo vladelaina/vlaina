@@ -26,8 +26,8 @@ struct GitHubOAuthConfig {
 fn load_oauth_config() -> Result<GitHubOAuthConfig, String> {
     // First try environment variables (for CI/CD)
     if let (Ok(client_id), Ok(client_secret)) = (
-        std::env::var("OAUTH_CLIENT_ID"),
-        std::env::var("OAUTH_CLIENT_SECRET"),
+        std::env::var("DESKTOP_CLIENT_ID"),
+        std::env::var("DESKTOP_CLIENT_SECRET"),
     ) {
         return Ok(GitHubOAuthConfig { client_id, client_secret });
     }

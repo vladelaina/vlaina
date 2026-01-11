@@ -59,8 +59,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
-          OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
+          DESKTOP_CLIENT_ID: ${{ secrets.DESKTOP_CLIENT_ID }}
+          DESKTOP_CLIENT_SECRET: ${{ secrets.DESKTOP_CLIENT_SECRET }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Nekotick ${{ github.ref_name }}'

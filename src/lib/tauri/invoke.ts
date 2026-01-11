@@ -209,3 +209,182 @@ export const githubCommands = {
     });
   },
 };
+
+
+// ==================== Web OAuth ====================
+
+const API_BASE = 'https://api.nekotick.com';
+const WEB_GITHUB_CREDS_KEY = 'nekotick_github_creds';
+
+interface WebGithubCredentials {
+  accessToken: string;
+  username: string;
+  avatarUrl?: string;
+  gistId?: string;
+  lastSyncTime?: number;
+}
+
+/** Get stored web credentials */
+function getWebGithubCredentials(): WebGithubCredentials | null {
+  try {
+    const stored = localStorage.getItem(WEB_GITHUB_CREDS_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Save web credentials */
+function saveWebGithubCredentials(creds: WebGithubCredentials): void {
+  localStorage.setItem(WEB_GITHUB_CREDS_KEY, JSON.stringify(creds));
+}
+
+/** Clear web credentials */
+function clearWebGithubCredentials(): void {
+  localStorage.removeItem(WEB_GITHUB_CREDS_KEY);
+}
+
+/**
+ * Web-specific GitHub OAuth commands
+ */
+export const webGithubCommands = {
+  /** Start OAuth flow - opens GitHub auth in popup/redirect */
+  async startAuth(): Promise<{ authUrl: string; state: string } | null> {
+    try {
+      const res = await fetch(`${API_BASE}/auth/github`);
+      if (!res.ok) return null;
+      return res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  /** Exchange auth code for token and user info */
+  async exchangeCode(code: string): Promise<{
+    success: boolean;
+    username?: string;
+    accessToken?: string;
+    avatarUrl?: string;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch(`${API_BASE}/auth/github/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (data.success && data.accessToken) {
+        saveWebGithubCredentials({
+          accessToken: data.accessToken,
+          username: data.username,
+          avatarUrl: data.avatarUrl,
+        });
+      }
+      return data;
+    } catch (e) {
+      return { success: false, error: String(e) };
+    }
+  },
+
+  /** Check if connected on web */
+  getStatus(): { connected: boolean; username: string | null; gistId: string | null; lastSyncTime: number | null } {
+    const creds = getWebGithubCredentials();
+    return {
+      connected: !!creds,
+      username: creds?.username || null,
+      gistId: creds?.gistId || null,
+      lastSyncTime: creds?.lastSyncTime || null,
+    };
+  },
+
+  /** Disconnect on web */
+  disconnect(): void {
+    clearWebGithubCredentials();
+  },
+
+  /** Check PRO status using stored credentials */
+  async checkProStatus(): Promise<{ isPro: boolean; licenseKey: string | null; expiresAt: number | null }> {
+    const creds = getWebGithubCredentials();
+    if (!creds) return { isPro: false, licenseKey: null, expiresAt: null };
+
+    try {
+      const res = await fetch(`${API_BASE}/check_pro`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ github_username: creds.username }),
+      });
+      const data = await res.json();
+      return {
+        isPro: data.isPro || false,
+        licenseKey: data.licenseKey || null,
+        expiresAt: data.expiresAt || null,
+      };
+    } catch {
+      return { isPro: false, licenseKey: null, expiresAt: null };
+    }
+  },
+
+  /** Bind license key */
+  async bindLicenseKey(licenseKey: string): Promise<{ success: boolean; expiresAt?: number; error?: string }> {
+    const creds = getWebGithubCredentials();
+    if (!creds) return { success: false, error: 'Not connected' };
+
+    try {
+      const res = await fetch(`${API_BASE}/bind_license`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ license_key: licenseKey, github_username: creds.username }),
+      });
+      return res.json();
+    } catch (e) {
+      return { success: false, error: String(e) };
+    }
+  },
+
+  /** Get access token for Gist API calls */
+  getAccessToken(): string | null {
+    return getWebGithubCredentials()?.accessToken || null;
+  },
+
+  /** Update gist ID after sync */
+  updateGistId(gistId: string): void {
+    const creds = getWebGithubCredentials();
+    if (creds) {
+      creds.gistId = gistId;
+      saveWebGithubCredentials(creds);
+    }
+  },
+
+  /** Update last sync time */
+  updateLastSyncTime(timestamp: number): void {
+    const creds = getWebGithubCredentials();
+    if (creds) {
+      creds.lastSyncTime = timestamp;
+      saveWebGithubCredentials(creds);
+    }
+  },
+};
+
+/** Check for OAuth callback params in URL (call on app init) */
+export function handleOAuthCallback(): { code: string; state: string } | null {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('auth_code');
+  const state = params.get('auth_state');
+  const error = params.get('auth_error');
+
+  if (error) {
+    console.error('[OAuth] Auth error:', error);
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname);
+    return null;
+  }
+
+  if (code) {
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname);
+    return { code, state: state || '' };
+  }
+
+  return null;
+}
