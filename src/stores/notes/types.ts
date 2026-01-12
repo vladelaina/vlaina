@@ -98,8 +98,6 @@ export interface NotesActions {
   loadAssets: (vaultPath: string) => Promise<void>;
   uploadAsset: (file: File) => Promise<UploadResult>;
   deleteAsset: (filename: string) => Promise<void>;
-  getUnusedAssets: () => Promise<string[]>;
-  cleanUnusedAssets: () => Promise<number>;
   cleanupAssetTempFiles: () => Promise<void>;
   getAssetList: () => AssetEntry[];
 }

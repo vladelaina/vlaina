@@ -30,7 +30,6 @@ export { writeAssetAtomic, cleanupTempFiles, isTempFile, getTempPath, getFinalPa
 // Asset Logic (pure functions)
 export {
   sortAssetsByDate,
-  findUnusedAssets
 } from './assetLogic';
 
 // Path Utils

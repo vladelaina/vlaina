@@ -23,8 +23,6 @@ export interface AssetSlice {
   loadAssets: (vaultPath: string) => Promise<void>;
   uploadAsset: (file: File) => Promise<UploadResult>;
   deleteAsset: (filename: string) => Promise<void>;
-  getUnusedAssets: () => Promise<string[]>;
-  cleanUnusedAssets: () => Promise<number>;
   cleanupAssetTempFiles: () => Promise<void>;
   getAssetList: () => AssetEntry[];
 }
@@ -66,10 +64,10 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
         assets.push({
           filename: entry.name,
-          hash: '', // Not used in simplified version
-          size: 0,  // Could get from stat if needed
+          hash: '',
+          size: 0,
           mimeType,
-          uploadedAt: new Date().toISOString(), // Approximate
+          uploadedAt: new Date().toISOString(),
         });
       }
 
@@ -165,44 +163,6 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     } catch (error) {
       console.error('Failed to delete asset:', error);
     }
-  },
-
-  getUnusedAssets: async (): Promise<string[]> => {
-    const { assetList, noteContentsCache, rootFolder } = get();
-    
-    if (assetList.length === 0) {
-      return [];
-    }
-
-    // If cache is empty, scan notes first
-    let cache = noteContentsCache;
-    if (cache.size === 0 && rootFolder) {
-      await get().scanAllNotes();
-      cache = get().noteContentsCache;
-    }
-
-    // Combine all note contents
-    const allContent = Array.from(cache.values()).join('\n');
-
-    // Find unused assets (check by filename)
-    const unused: string[] = [];
-    for (const asset of assetList) {
-      if (!allContent.includes(asset.filename)) {
-        unused.push(asset.filename);
-      }
-    }
-
-    return unused;
-  },
-
-  cleanUnusedAssets: async (): Promise<number> => {
-    const unused = await get().getUnusedAssets();
-    
-    for (const filename of unused) {
-      await get().deleteAsset(filename);
-    }
-
-    return unused.length;
   },
 
   cleanupAssetTempFiles: async () => {
