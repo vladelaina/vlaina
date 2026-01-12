@@ -34,7 +34,7 @@ export function NotesPage({ onOpenSettings }: NotesPageProps) {
     openTabs,
     closeTab,
     loadFavorites,
-    loadNoteIcons,
+    loadMetadata,
   } = useNotesStore();
 
   const { currentVault } = useVaultStore();
@@ -54,7 +54,7 @@ export function NotesPage({ onOpenSettings }: NotesPageProps) {
   useEffect(() => {
     if (!currentVault) return;
     loadFavorites(currentVault.path);
-    loadNoteIcons(currentVault.path);
+    loadMetadata(currentVault.path);
     loadFileTree();
 
     const unlockWindow = async () => {
@@ -66,7 +66,7 @@ export function NotesPage({ onOpenSettings }: NotesPageProps) {
     };
 
     unlockWindow();
-  }, [currentVault, loadFavorites, loadNoteIcons, loadFileTree]);
+  }, [currentVault, loadFavorites, loadMetadata, loadFileTree]);
 
 
 
