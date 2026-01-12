@@ -7,10 +7,13 @@ import {
     Monitor,
     User,
     ChevronDown,
+    Calendar,
+    StickyNote,
 } from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
 import { useLicenseStore } from "@/stores/useLicenseStore";
+import { useUIStore } from "@/stores/uiSlice";
 import { cn } from "@/lib/utils";
 
 interface WorkspaceSwitcherProps {
@@ -26,13 +29,11 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
         connect,
     } = useGithubSyncStore();
     const { isProUser } = useLicenseStore();
+    const { appViewMode, toggleAppViewMode } = useUIStore();
     const [isOpen, setIsOpen] = React.useState(false);
 
     // Fallback data
     const displayName = githubUsername || "NekoTick";
-    const displayEmail = isGithubConnected
-        ? `${displayName}@nekotick.com` // Mock email for now since we don't store it publicly
-        : "Local User";
 
     // Use logo for logged out state, valid avatar url for logged in, or undefined (render initial)
     const displayAvatar = isGithubConnected
@@ -51,6 +52,11 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
 
     const handleOpenSettings = () => {
         onOpenSettings?.();
+        setIsOpen(false);
+    };
+
+    const handleToggleView = () => {
+        toggleAppViewMode();
         setIsOpen(false);
     };
 
@@ -99,16 +105,8 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                     sideOffset={8}
                     align="start"
                 >
-                    {/* Header Section: Current Account Info */}
-                    <div className="flex flex-col gap-1 p-2 mb-1">
-                        <div className="flex items-center justify-between text-[11px] text-[var(--neko-text-tertiary)] px-1">
-                            <span>{displayEmail}</span>
-                            <span className="w-1 h-1 rounded-full bg-green-500 shadow-[0_0_4px_2px_rgba(34,197,94,0.2)]" />
-                        </div>
-                    </div>
-
                     {/* Active Workspace Card */}
-                    <div className="mx-1 mb-2 p-3 bg-[var(--neko-bg-secondary)] rounded-lg flex items-center justify-between group cursor-default">
+                    <div className="mx-1 mt-1 mb-2 p-3 bg-[var(--neko-bg-secondary)] rounded-lg flex items-center justify-between group cursor-default">
                         <div className="flex items-center gap-3">
                             <div className="relative">
                                 <img
@@ -158,6 +156,27 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                         >
                             <User className="w-4 h-4 text-[var(--neko-text-tertiary)]" />
                             Invite members
+                        </button>
+
+                        <button
+                            onClick={handleToggleView}
+                            className={cn(
+                                "flex items-center gap-2.5 px-3 py-1.5 rounded-md w-full text-left",
+                                "text-[13px] text-[var(--neko-text-primary)]",
+                                "hover:bg-[var(--neko-hover)] transition-colors"
+                            )}
+                        >
+                            {appViewMode === 'calendar' ? (
+                                <>
+                                    <StickyNote className="w-4 h-4 text-[var(--neko-text-tertiary)]" />
+                                    Switch to Notes
+                                </>
+                            ) : (
+                                <>
+                                    <Calendar className="w-4 h-4 text-[var(--neko-text-tertiary)]" />
+                                    Switch to Calendar
+                                </>
+                            )}
                         </button>
                     </div>
 

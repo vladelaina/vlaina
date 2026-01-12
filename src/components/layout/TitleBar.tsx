@@ -2,21 +2,23 @@ import React, { ReactNode, memo, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
   Settings,
-  PanelLeft,
+  ChevronsLeft,
+  ChevronsRight,
+  Menu,
   MessageCircle,
   FileText,
   X,
   Plus,
   StickyNote,
-
 } from 'lucide-react';
+
 import { WindowControls } from './WindowControls';
 import { TitleBarButton } from './TitleBarButton';
 import { useUIStore } from '@/stores/uiSlice';
 import { useNotesStore } from '@/stores/useNotesStore';
 
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
-import { cn, NOTES_COLORS } from '@/lib/utils';
+import { cn, NOTES_COLORS, iconButtonStyles } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -194,7 +196,7 @@ interface TitleBarProps {
 }
 
 export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls }: TitleBarProps) {
-  const { appViewMode, toggleAppViewMode, notesSidebarCollapsed, notesSidebarWidth, notesShowAIPanel, toggleNotesSidebar, toggleNotesAIPanel } = useUIStore();
+  const { appViewMode, toggleAppViewMode, notesSidebarCollapsed, notesSidebarWidth, notesShowAIPanel, toggleNotesSidebar, toggleNotesAIPanel, sidebarHeaderHovered, setSidebarHeaderHovered } = useUIStore();
   const { currentVault } = useVaultStore();
 
   const currentNote = useNotesStore(s => s.currentNote);
@@ -287,23 +289,25 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           {/* Left sidebar area - matches sidebar width */}
           {!sidebarCollapsed && (
             <div
-              className="h-full flex items-center justify-between flex-shrink-0 z-20 px-3"
+              className="h-full flex items-center justify-between flex-shrink-0 z-20 px-3 group"
               style={{ width: sidebarWidth }}
+              onMouseEnter={() => setSidebarHeaderHovered(true)}
+              onMouseLeave={() => setSidebarHeaderHovered(false)}
             >
               {/* User info with dropdown */}
               <WorkspaceSwitcher onOpenSettings={onOpenSettings} />
-              {/* Collapse button */}
+              {/* Collapse button - hidden by default, visible on header hover or divider hover */}
               <button
                 onClick={toggleSidebar}
                 className={cn(
                   "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0",
-                  "text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-secondary)]",
-                  "hover:bg-[var(--neko-hover)]",
-                  "transition-colors"
+                  iconButtonStyles,
+                  sidebarHeaderHovered ? "opacity-100" : "opacity-0",
+                  "transition-opacity"
                 )}
                 title="Collapse sidebar"
               >
-                <PanelLeft className="w-4 h-4" />
+                <ChevronsLeft className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -311,7 +315,19 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           {/* When sidebar is collapsed, show expand button */}
           {sidebarCollapsed && (
             <div className="flex items-center z-20">
-              <TitleBarButton icon={PanelLeft} onClick={toggleSidebar} className="w-9 px-0" />
+              <button
+                onClick={toggleSidebar}
+                className={cn(
+                  "flex items-center justify-center w-9 h-full",
+                  iconButtonStyles,
+                  "group"
+                )}
+                title="Expand sidebar"
+              >
+                {/* Default: Menu (Hamburger), Hover: ChevronsRight (>>) */}
+                <Menu className="w-4 h-4 group-hover:hidden" />
+                <ChevronsRight className="w-4 h-4 hidden group-hover:block" />
+              </button>
             </div>
           )}
 
@@ -418,47 +434,50 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           {/* Window Controls */}
           {!hideWindowControls && <WindowControls className="z-50" />}
         </>
-      )}
+      )
+      }
 
       {/* Calendar view buttons */}
-      {appViewMode === 'calendar' && (
-        <>
-          <div className="flex items-center z-20">
-            <TitleBarButton icon={Settings} onClick={onOpenSettings} />
-            <TitleBarButton icon={StickyNote} onClick={toggleAppViewMode} />
-          </div>
+      {
+        appViewMode === 'calendar' && (
+          <>
+            <div className="flex items-center z-20">
+              <TitleBarButton icon={Settings} onClick={onOpenSettings} />
+              <TitleBarButton icon={StickyNote} onClick={toggleAppViewMode} />
+            </div>
 
-          {/* Spacer */}
-          <div className="flex-1" />
+            {/* Spacer */}
+            <div className="flex-1" />
 
-          {/* Center Content Area - Absolutely positioned for true centering */}
-          {content && (
-            <div
-              onMouseDown={(e) => {
-                if (e.target === e.currentTarget || (e.target as HTMLElement).hasAttribute('data-tauri-drag-region')) {
-                  startDrag();
-                }
-              }}
-              className="absolute inset-0 flex items-center justify-center pointer-events-none"
-              data-tauri-drag-region
-            >
-              <div className="pointer-events-auto">
-                {content}
+            {/* Center Content Area - Absolutely positioned for true centering */}
+            {content && (
+              <div
+                onMouseDown={(e) => {
+                  if (e.target === e.currentTarget || (e.target as HTMLElement).hasAttribute('data-tauri-drag-region')) {
+                    startDrag();
+                  }
+                }}
+                className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                data-tauri-drag-region
+              >
+                <div className="pointer-events-auto">
+                  {content}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Custom Toolbar (e.g., Calendar controls) */}
-          {toolbar && (
-            <div className="flex items-center h-full z-20 pr-3">
-              {toolbar}
-            </div>
-          )}
+            {/* Custom Toolbar (e.g., Calendar controls) */}
+            {toolbar && (
+              <div className="flex items-center h-full z-20 pr-3">
+                {toolbar}
+              </div>
+            )}
 
-          {/* Window Controls */}
-          {!hideWindowControls && <WindowControls className="z-50" />}
-        </>
-      )}
-    </div>
+            {/* Window Controls */}
+            {!hideWindowControls && <WindowControls className="z-50" />}
+          </>
+        )
+      }
+    </div >
   );
 }

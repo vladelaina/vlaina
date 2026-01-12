@@ -19,19 +19,21 @@ interface UIStore {
   notesSidebarWidth: number;
   toggleNotesSidebar: () => void;
   setNotesSidebarWidth: (width: number) => void;
-  
+  sidebarHeaderHovered: boolean;
+  setSidebarHeaderHovered: (hovered: boolean) => void;
+
   notesShowAIPanel: boolean;
   toggleNotesAIPanel: () => void;
-  
+
   notesPreviewIcon: { path: string; icon: string } | null;
   setNotesPreviewIcon: (path: string | null, icon: string | null) => void;
-  
+
   notesPreviewIconColor: string | null;
   setNotesPreviewIconColor: (color: string | null) => void;
-  
+
   notesPreviewSkinTone: number | null;
   setNotesPreviewSkinTone: (tone: number | null) => void;
-  
+
   notesPreviewTitle: { path: string; title: string } | null;
   setNotesPreviewTitle: (path: string | null, title: string | null) => void;
 
@@ -56,7 +58,7 @@ interface UIStore {
   setSelectedStatuses: (statuses: TaskStatus[]) => void;
   toggleStatus: (status: TaskStatus) => void;
   toggleAllStatuses: () => void;
-  
+
   archiveTimeView: TimeView;
   archiveDayRange: number | 'all';
   archiveWeekRange: number | 'all';
@@ -64,34 +66,34 @@ interface UIStore {
   setArchiveTimeView: (view: TimeView) => void;
   setArchiveRange: (view: TimeView, range: number | 'all') => void;
   getArchiveMaxDays: () => number | null;
-  
+
   draggingTaskId: string | null;
   setDraggingTaskId: (id: string | null) => void;
-  
+
   draggingToCalendarTaskId: string | null;
   setDraggingToCalendarTaskId: (id: string | null) => void;
-  
+
   showSidebar: boolean;
   toggleSidebar: () => void;
-  
+
   showContextPanel: boolean;
   toggleContextPanel: () => void;
-  
+
   selectedDate: Date;
   setSelectedDate: (date: Date) => void;
-  
+
   editingEventId: string | null;
   editingEventPosition: { x: number; y: number } | null;
   setEditingEventId: (id: string | null, position?: { x: number; y: number }) => void;
   closeEditingEvent: () => void;
-  
+
   selectedEventId: string | null;
   setSelectedEventId: (id: string | null) => void;
-  
+
   previewIconEventId: string | null;
   previewIcon: string | undefined | null;
   setPreviewIcon: (eventId: string | null, icon: string | undefined | null) => void;
-  
+
   previewColorEventId: string | null;
   previewColor: ItemColor | null;
   setPreviewColor: (eventId: string | null, color: ItemColor | null) => void;
@@ -130,18 +132,20 @@ function saveStatusFilter(statuses: TaskStatus[]): void {
 export const useUIStore = create<UIStore>()((set, get) => ({
   appViewMode: 'notes' as AppViewMode,
   setAppViewMode: (mode) => set({ appViewMode: mode }),
-  toggleAppViewMode: () => set((state) => ({ 
-    appViewMode: state.appViewMode === 'calendar' ? 'notes' : 'calendar' 
+  toggleAppViewMode: () => set((state) => ({
+    appViewMode: state.appViewMode === 'calendar' ? 'notes' : 'calendar'
   })),
 
   notesSidebarCollapsed: false,
   notesSidebarWidth: 248,
   toggleNotesSidebar: () => set((state) => ({ notesSidebarCollapsed: !state.notesSidebarCollapsed })),
   setNotesSidebarWidth: (width) => set({ notesSidebarWidth: width }),
-  
+  sidebarHeaderHovered: false,
+  setSidebarHeaderHovered: (hovered) => set({ sidebarHeaderHovered: hovered }),
+
   notesShowAIPanel: false,
   toggleNotesAIPanel: () => set((state) => ({ notesShowAIPanel: !state.notesShowAIPanel })),
-  
+
   notesPreviewIcon: null,
   setNotesPreviewIcon: (path, icon) => {
     if (path && icon) {
@@ -150,13 +154,13 @@ export const useUIStore = create<UIStore>()((set, get) => ({
       set({ notesPreviewIcon: null });
     }
   },
-  
+
   notesPreviewIconColor: null,
   setNotesPreviewIconColor: (color) => set({ notesPreviewIconColor: color }),
-  
+
   notesPreviewSkinTone: null,
   setNotesPreviewSkinTone: (tone) => set({ notesPreviewSkinTone: tone }),
-  
+
   notesPreviewTitle: null,
   setNotesPreviewTitle: (path, title) => {
     if (path && title) {
@@ -169,15 +173,15 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   drawerOpen: false,
   setDrawerOpen: (open) => set({ drawerOpen: open }),
   toggleDrawer: () => set((state) => ({ drawerOpen: !state.drawerOpen })),
-  
+
   hideCompleted: false,
   hideActualTime: false,
   setHideCompleted: (hide) => set({ hideCompleted: hide }),
   setHideActualTime: (hide) => set({ hideActualTime: hide }),
-  
+
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),
-  
+
   selectedColors: loadColorFilter(),
 
   setSelectedColors: (colors) => {
@@ -229,24 +233,24 @@ export const useUIStore = create<UIStore>()((set, get) => ({
       return { selectedStatuses: newStatuses };
     });
   },
-  
+
   archiveTimeView: 'day',
   archiveDayRange: 7,
   archiveWeekRange: 4,
   archiveMonthRange: 3,
-  
+
   setArchiveTimeView: (view) => set({ archiveTimeView: view }),
-  
+
   setArchiveRange: (view, range) => {
     if (view === 'day') set({ archiveDayRange: range });
     else if (view === 'week') set({ archiveWeekRange: range });
     else set({ archiveMonthRange: range });
   },
-  
+
   getArchiveMaxDays: (): number | null => {
     const state = get();
     const { archiveTimeView, archiveDayRange, archiveWeekRange, archiveMonthRange } = state;
-    
+
     if (archiveTimeView === 'day') {
       return archiveDayRange === 'all' ? null : archiveDayRange as number;
     } else if (archiveTimeView === 'week') {
@@ -255,47 +259,47 @@ export const useUIStore = create<UIStore>()((set, get) => ({
       return archiveMonthRange === 'all' ? null : (archiveMonthRange as number) * 30;
     }
   },
-  
+
   draggingTaskId: null,
   setDraggingTaskId: (id) => set({ draggingTaskId: id }),
-  
+
   draggingToCalendarTaskId: null,
   setDraggingToCalendarTaskId: (id) => set({ draggingToCalendarTaskId: id }),
-  
+
   showSidebar: true,
   toggleSidebar: () => set((state) => ({ showSidebar: !state.showSidebar })),
-  
+
   showContextPanel: true,
   toggleContextPanel: () => set((state) => ({ showContextPanel: !state.showContextPanel })),
-  
+
   selectedDate: new Date(),
   setSelectedDate: (date) => set({ selectedDate: date }),
-  
+
   editingEventId: null,
   editingEventPosition: null,
-  setEditingEventId: (id, position) => set({ 
-    editingEventId: id, 
-    editingEventPosition: position || null 
+  setEditingEventId: (id, position) => set({
+    editingEventId: id,
+    editingEventPosition: position || null
   }),
-  closeEditingEvent: () => set({ 
-    editingEventId: null, 
-    editingEventPosition: null 
+  closeEditingEvent: () => set({
+    editingEventId: null,
+    editingEventPosition: null
   }),
-  
+
   selectedEventId: null,
   setSelectedEventId: (id) => set({ selectedEventId: id }),
-  
+
   previewIconEventId: null,
   previewIcon: null,
-  setPreviewIcon: (eventId, icon) => set({ 
-    previewIconEventId: eventId, 
-    previewIcon: icon 
+  setPreviewIcon: (eventId, icon) => set({
+    previewIconEventId: eventId,
+    previewIcon: icon
   }),
-  
+
   previewColorEventId: null,
   previewColor: null,
-  setPreviewColor: (eventId, color) => set({ 
-    previewColorEventId: eventId, 
-    previewColor: color 
+  setPreviewColor: (eventId, color) => set({
+    previewColorEventId: eventId,
+    previewColor: color
   }),
 }));

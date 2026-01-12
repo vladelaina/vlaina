@@ -93,27 +93,27 @@ export interface EmojiCategory {
 function buildEmojiCategories(): EmojiCategory[] {
   const emojiData = data as any;
   const categories: EmojiCategory[] = [];
-  
+
   for (const cat of emojiData.categories) {
     if (cat.id === 'frequent') continue;
-    
+
     const emojis: EmojiItem[] = [];
     const seenNative = new Set<string>();
-    
+
     for (const emojiId of cat.emojis) {
       const emoji = emojiData.emojis[emojiId];
       if (emoji && emoji.skins && emoji.skins[0]) {
         const native = emoji.skins[0].native;
-        
+
         if (cat.id === 'flags' && !ALLOWED_FLAGS.has(native)) {
           continue;
         }
-        
+
         if (seenNative.has(native)) {
           continue;
         }
         seenNative.add(native);
-        
+
         emojis.push({
           id: emojiId,
           native,
@@ -123,14 +123,14 @@ function buildEmojiCategories(): EmojiCategory[] {
         });
       }
     }
-    
+
     categories.push({
       id: cat.id,
       name: CATEGORY_NAMES[cat.id] || cat.id,
       emojis,
     });
   }
-  
+
   return categories;
 }
 
@@ -167,7 +167,7 @@ export function loadRecentIcons(): string[] {
 export function saveRecentIcons(icons: string[]): void {
   try {
     localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(icons));
-  } catch {}
+  } catch { }
 }
 
 export function addToRecentIcons(icon: string, current: string[]): string[] {
@@ -178,7 +178,7 @@ export function addToRecentIcons(icon: string, current: string[]): string[] {
     }
     return i;
   };
-  
+
   const iconName = getIconName(icon);
   const filtered = current.filter(i => {
     if (icon.startsWith('icon:') && i.startsWith('icon:')) {
@@ -188,7 +188,7 @@ export function addToRecentIcons(icon: string, current: string[]): string[] {
     // emoji 或不同类型时，完整比较
     return i !== icon;
   });
-  
+
   if (icon.startsWith('icon:')) {
     const icons = filtered.filter(i => i.startsWith('icon:'));
     const emojis = filtered.filter(i => !i.startsWith('icon:'));
@@ -216,7 +216,7 @@ export function loadSkinTone(): number {
 export function saveSkinTone(tone: number): void {
   try {
     localStorage.setItem(SKIN_TONE_KEY, tone.toString());
-  } catch {}
+  } catch { }
 }
 
 export function loadIconColor(): number {
@@ -231,7 +231,7 @@ export function loadIconColor(): number {
 export function saveIconColor(colorId: number): void {
   try {
     localStorage.setItem(ICON_COLOR_KEY, colorId.toString());
-  } catch {}
+  } catch { }
 }
 
 export function loadActiveTab(): TabType {
@@ -246,5 +246,23 @@ export function loadActiveTab(): TabType {
 export function saveActiveTab(tab: TabType): void {
   try {
     localStorage.setItem(ACTIVE_TAB_KEY, tab);
-  } catch {}
+  } catch { }
+}
+
+export function getRandomEmoji(skinTone: number = 0): string {
+  if (EMOJI_CATEGORIES.length === 0) return '📝';
+  // Exclude last 3 categories (Objects, Symbols, Flags) as requested
+  const availableCategories = EMOJI_CATEGORIES.slice(0, -3);
+  const categories = availableCategories.length > 0 ? availableCategories : EMOJI_CATEGORIES;
+
+  const category = categories[Math.floor(Math.random() * categories.length)];
+  if (category.emojis.length === 0) return '📝';
+  const emoji = category.emojis[Math.floor(Math.random() * category.emojis.length)];
+
+  // Respect skin tone if available
+  if (emoji.skins && emoji.skins.length > skinTone && skinTone > 0) {
+    return emoji.skins[skinTone].native;
+  }
+
+  return emoji.native;
 }

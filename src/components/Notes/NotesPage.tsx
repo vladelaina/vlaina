@@ -43,6 +43,7 @@ export function NotesPage({ onOpenSettings }: NotesPageProps) {
     notesSidebarCollapsed: sidebarCollapsed,
     notesShowAIPanel: showAIPanel,
     toggleAppViewMode,
+    setSidebarHeaderHovered,
   } = useUIStore();
 
   const { sidebarWidth, isDragging, handleDragStart } = useNotesSidebarResize();
@@ -155,35 +156,7 @@ export function NotesPage({ onOpenSettings }: NotesPageProps) {
           />
         </div>
 
-        {/* Bottom buttons */}
-        <div className="flex-shrink-0 px-2 py-2 border-t border-[var(--neko-border)]">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={toggleAppViewMode}
-              className={cn(
-                "flex items-center justify-center w-8 h-8 rounded-md",
-                "text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)]",
-                "hover:bg-[var(--neko-hover)]",
-                "transition-colors"
-              )}
-              title="Switch to Calendar"
-            >
-              <Calendar className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onOpenSettings}
-              className={cn(
-                "flex items-center justify-center w-8 h-8 rounded-md",
-                "text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)]",
-                "hover:bg-[var(--neko-hover)]",
-                "transition-colors"
-              )}
-              title="Settings"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+
       </aside>
 
       {!sidebarCollapsed && (
@@ -191,6 +164,8 @@ export function NotesPage({ onOpenSettings }: NotesPageProps) {
           <div className="w-0.5 flex-shrink-0" style={{ backgroundColor: NOTES_COLORS.sidebarBg }} />
           <div
             onMouseDown={handleDragStart}
+            onMouseEnter={() => setSidebarHeaderHovered(true)}
+            onMouseLeave={() => setSidebarHeaderHovered(false)}
             className={cn(
               "w-2 cursor-col-resize group",
               "fixed top-0 bottom-0 z-[100]",

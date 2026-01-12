@@ -14,6 +14,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { IconPicker, NoteIcon } from '../IconPicker';
+import { getRandomEmoji, loadRecentIcons, addToRecentIcons, loadSkinTone } from '../IconPicker/constants';
 import { TitleInput } from './TitleInput';
 
 // Custom plugins - unified import
@@ -121,7 +122,7 @@ function MilkdownEditorInner() {
           .markdownUpdated((_ctx, markdown) => {
             // Only apply safety guard during initialization period
             const isInitializing = Date.now() - initTime < INIT_PERIOD;
-            
+
             if (isInitializing) {
               const contentWasSubstantial = initialContent.length > 20;
               const newContentIsTiny = markdown.trim().length < 5;
@@ -337,7 +338,17 @@ export function MarkdownEditor() {
             ) : (
               <button
                 ref={iconButtonRef}
-                onClick={() => setShowIconPicker(true)}
+                onClick={() => {
+                  if (!noteIcon) {
+                    const currentSkinTone = loadSkinTone();
+                    const randomEmoji = getRandomEmoji(currentSkinTone);
+                    handleIconSelect(randomEmoji);
+                    // Add to recent icons so it appears in the picker's recent list
+                    const currentRecent = loadRecentIcons();
+                    addToRecentIcons(randomEmoji, currentRecent);
+                  }
+                  setShowIconPicker(true);
+                }}
                 className={cn(
                   "flex items-center gap-1.5 py-1 rounded-md text-sm",
                   iconButtonStyles,
