@@ -18,7 +18,7 @@ export function CoverPicker({ isOpen, onClose, onSelect, vaultPath }: CoverPicke
   const [isLoadingUnused, setIsLoadingUnused] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<number | null>(null);
   
-  const { getAssetList, loadAssetIndex, getUnusedAssets, cleanUnusedAssets } = useNotesStore();
+  const { getAssetList, loadAssets, getUnusedAssets, cleanUnusedAssets } = useNotesStore();
   
   const assets = getAssetList();
   const hasAssets = assets.length > 0;
@@ -26,9 +26,9 @@ export function CoverPicker({ isOpen, onClose, onSelect, vaultPath }: CoverPicke
   // Load assets when opened
   useEffect(() => {
     if (isOpen && vaultPath) {
-      loadAssetIndex(vaultPath);
+      loadAssets(vaultPath);
     }
-  }, [isOpen, vaultPath, loadAssetIndex]);
+  }, [isOpen, vaultPath, loadAssets]);
 
   // Switch to library tab after upload
   const handleUploadComplete = useCallback((assetPath: string) => {
@@ -67,14 +67,14 @@ export function CoverPicker({ isOpen, onClose, onSelect, vaultPath }: CoverPicke
       setCleanupResult(count);
       setShowCleanupConfirm(false);
       setUnusedAssets([]);
-      // Reload asset index to refresh the list
+      // Reload assets to refresh the list
       if (vaultPath) {
-        await loadAssetIndex(vaultPath);
+        await loadAssets(vaultPath);
       }
     } catch (error) {
       console.error('Failed to clean unused assets:', error);
     }
-  }, [cleanUnusedAssets, vaultPath, loadAssetIndex]);
+  }, [cleanUnusedAssets, vaultPath, loadAssets]);
 
   // Handle escape key
   useEffect(() => {

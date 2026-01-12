@@ -50,14 +50,14 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
   const [showSearch, setShowSearch] = useState(false);
 
   // Load assets and cleanup temp files when vault is present
-  const { loadAssetIndex, cleanupAssetTempFiles } = useNotesStore();
+  const { loadAssets, cleanupAssetTempFiles } = useNotesStore();
 
   // Unlock main window resizable when vault is present
   useEffect(() => {
     if (!currentVault) return;
     loadFavorites(currentVault.path);
     loadMetadata(currentVault.path);
-    loadAssetIndex(currentVault.path);
+    loadAssets(currentVault.path);
     loadFileTree();
 
     // Cleanup orphaned temp files on startup
@@ -72,7 +72,7 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
     };
 
     unlockWindow();
-  }, [currentVault, loadFavorites, loadMetadata, loadAssetIndex, loadFileTree, cleanupAssetTempFiles]);
+  }, [currentVault, loadFavorites, loadMetadata, loadAssets, loadFileTree, cleanupAssetTempFiles]);
 
 
 

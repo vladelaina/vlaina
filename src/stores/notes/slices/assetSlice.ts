@@ -1,33 +1,26 @@
 /**
  * Asset Slice - Asset library management for notes
+ * Simplified: directly scans directory instead of maintaining index file
  */
 
 import { StateCreator } from 'zustand';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { NotesStore } from '../types';
 import { getNotesBasePath } from '../storage';
-import { 
-  AssetIndex, 
-  AssetEntry, 
-  UploadResult, 
-  createEmptyIndex 
-} from '@/lib/assets/types';
-import { computeFileHash } from '@/lib/assets/hashService';
+import { AssetEntry, UploadResult } from '@/lib/assets/types';
 import { processFilename, getMimeType } from '@/lib/assets/filenameService';
 import { writeAssetAtomic, cleanupTempFiles } from '@/lib/assets/atomicWrite';
 
 const ASSETS_DIR = '.nekotick/assets/covers';
-const STORE_DIR = '.nekotick/store';
-const INDEX_FILE = 'covers.json';
 
 export interface AssetSlice {
   // State
-  assetIndex: AssetIndex | null;
+  assetList: AssetEntry[];
   isLoadingAssets: boolean;
   uploadProgress: number | null;
 
   // Actions
-  loadAssetIndex: (vaultPath: string) => Promise<void>;
+  loadAssets: (vaultPath: string) => Promise<void>;
   uploadAsset: (file: File) => Promise<UploadResult>;
   deleteAsset: (filename: string) => Promise<void>;
   getUnusedAssets: () => Promise<string[]>;
@@ -37,116 +30,79 @@ export interface AssetSlice {
 }
 
 export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (set, get) => ({
-  assetIndex: null,
+  assetList: [],
   isLoadingAssets: false,
   uploadProgress: null,
 
-  loadAssetIndex: async (vaultPath: string) => {
+  loadAssets: async (vaultPath: string) => {
     set({ isLoadingAssets: true });
     const storage = getStorageAdapter();
 
     try {
       const assetsDir = await joinPath(vaultPath, ASSETS_DIR);
-      const storeDir = await joinPath(vaultPath, STORE_DIR);
-      const indexPath = await joinPath(storeDir, INDEX_FILE);
 
-      // Ensure directories exist
+      // Ensure directory exists
       if (!await storage.exists(assetsDir)) {
         await storage.mkdir(assetsDir, true);
-      }
-      if (!await storage.exists(storeDir)) {
-        await storage.mkdir(storeDir, true);
+        set({ assetList: [], isLoadingAssets: false });
+        return;
       }
 
-      // Load or create index
-      let index: AssetIndex;
-      if (await storage.exists(indexPath)) {
-        try {
-          const content = await storage.readFile(indexPath);
-          index = JSON.parse(content);
-          
-          // Validate index structure
-          if (!index.version || !index.assets || !index.hashMap) {
-            throw new Error('Invalid index structure');
-          }
-        } catch (e) {
-          console.warn('Asset index corrupted, rebuilding...', e);
-          // Backup corrupted file
-          try {
-            const backupPath = await joinPath(storeDir, 'covers.json.bak');
-            const content = await storage.readFile(indexPath);
-            await storage.writeFile(backupPath, content);
-          } catch {
-            // Ignore backup errors
-          }
-          // Rebuild index
-          index = await rebuildIndex(assetsDir);
+      // Scan directory
+      const entries = await storage.listDir(assetsDir);
+      const assets: AssetEntry[] = [];
+
+      for (const entry of entries) {
+        // Skip directories and temp files
+        if (entry.isDirectory || entry.name.endsWith('.tmp')) {
+          continue;
         }
-      } else {
-        index = createEmptyIndex();
-        await storage.writeFile(indexPath, JSON.stringify(index, null, 2));
+
+        // Check if it's an image file
+        const mimeType = getMimeType(entry.name);
+        if (!mimeType.startsWith('image/')) {
+          continue;
+        }
+
+        assets.push({
+          filename: entry.name,
+          hash: '', // Not used in simplified version
+          size: 0,  // Could get from stat if needed
+          mimeType,
+          uploadedAt: new Date().toISOString(), // Approximate
+        });
       }
 
-      set({ assetIndex: index, isLoadingAssets: false });
+      // Sort by filename (which includes timestamp for our uploads)
+      assets.sort((a, b) => b.filename.localeCompare(a.filename));
+
+      set({ assetList: assets, isLoadingAssets: false });
     } catch (error) {
-      console.error('Failed to load asset index:', error);
-      set({ assetIndex: createEmptyIndex(), isLoadingAssets: false });
+      console.error('Failed to load assets:', error);
+      set({ assetList: [], isLoadingAssets: false });
     }
   },
 
   uploadAsset: async (file: File): Promise<UploadResult> => {
-    const { assetIndex, notesPath } = get();
+    const { notesPath, assetList } = get();
     const storage = getStorageAdapter();
 
     try {
       const vaultPath = notesPath || await getNotesBasePath();
       const assetsDir = await joinPath(vaultPath, ASSETS_DIR);
-      const storeDir = await joinPath(vaultPath, STORE_DIR);
-      const indexPath = await joinPath(storeDir, INDEX_FILE);
 
-      // Ensure directories exist
+      // Ensure directory exists
       if (!await storage.exists(assetsDir)) {
         await storage.mkdir(assetsDir, true);
       }
-      if (!await storage.exists(storeDir)) {
-        await storage.mkdir(storeDir, true);
-      }
 
-      // Load index if not loaded
-      let index = assetIndex;
-      if (!index) {
-        await get().loadAssetIndex(vaultPath);
-        index = get().assetIndex;
-      }
-      if (!index) {
-        index = createEmptyIndex();
-      }
+      set({ uploadProgress: 20 });
 
-      set({ uploadProgress: 10 });
-
-      // Compute hash
-      const hash = await computeFileHash(file);
-      set({ uploadProgress: 40 });
-
-      // Check for duplicate
-      if (index.hashMap[hash]) {
-        const existingFilename = index.hashMap[hash];
-        set({ uploadProgress: null });
-        return {
-          success: true,
-          path: existingFilename,  // Return only filename
-          isDuplicate: true,
-          existingFilename,
-        };
-      }
-
-      set({ uploadProgress: 50 });
-
-      // Process filename
-      const existingNames = new Set(Object.keys(index.assets));
+      // Process filename (generates timestamp-based name)
+      const existingNames = new Set(assetList.map(a => a.filename));
       const filename = processFilename(file.name, existingNames);
 
-      set({ uploadProgress: 60 });
+      set({ uploadProgress: 50 });
 
       // Write file atomically
       const buffer = await file.arrayBuffer();
@@ -156,30 +112,26 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
       await writeAssetAtomic(filePath, data);
       set({ uploadProgress: 80 });
 
-      // Update index
-      const entry: AssetEntry = {
+      // Update local state
+      const newEntry: AssetEntry = {
         filename,
-        hash,
+        hash: '',
         size: file.size,
         mimeType: getMimeType(filename),
         uploadedAt: new Date().toISOString(),
       };
 
-      const updatedIndex: AssetIndex = {
-        ...index,
-        assets: { ...index.assets, [filename]: entry },
-        hashMap: { ...index.hashMap, [hash]: filename },
-      };
-
-      await storage.writeFile(indexPath, JSON.stringify(updatedIndex, null, 2));
-      set({ assetIndex: updatedIndex, uploadProgress: 100 });
+      set({ 
+        assetList: [newEntry, ...assetList],
+        uploadProgress: 100 
+      });
 
       // Clear progress after a short delay
       setTimeout(() => set({ uploadProgress: null }), 500);
 
       return {
         success: true,
-        path: filename,  // Return only filename
+        path: filename,
         isDuplicate: false,
       };
     } catch (error) {
@@ -195,48 +147,30 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
   },
 
   deleteAsset: async (filename: string) => {
-    const { assetIndex, notesPath } = get();
+    const { notesPath, assetList } = get();
     const storage = getStorageAdapter();
-
-    if (!assetIndex) return;
 
     try {
       const vaultPath = notesPath || await getNotesBasePath();
       const assetsDir = await joinPath(vaultPath, ASSETS_DIR);
-      const storeDir = await joinPath(vaultPath, STORE_DIR);
-      const indexPath = await joinPath(storeDir, INDEX_FILE);
       const filePath = await joinPath(assetsDir, filename);
-
-      // Get entry to find hash
-      const entry = assetIndex.assets[filename];
-      if (!entry) return;
 
       // Delete file
       if (await storage.exists(filePath)) {
         await storage.deleteFile(filePath);
       }
 
-      // Update index
-      const { [filename]: _, ...remainingAssets } = assetIndex.assets;
-      const { [entry.hash]: __, ...remainingHashMap } = assetIndex.hashMap;
-
-      const updatedIndex: AssetIndex = {
-        ...assetIndex,
-        assets: remainingAssets,
-        hashMap: remainingHashMap,
-      };
-
-      await storage.writeFile(indexPath, JSON.stringify(updatedIndex, null, 2));
-      set({ assetIndex: updatedIndex });
+      // Update local state
+      set({ assetList: assetList.filter(a => a.filename !== filename) });
     } catch (error) {
       console.error('Failed to delete asset:', error);
     }
   },
 
   getUnusedAssets: async (): Promise<string[]> => {
-    const { assetIndex, noteContentsCache, rootFolder } = get();
+    const { assetList, noteContentsCache, rootFolder } = get();
     
-    if (!assetIndex || Object.keys(assetIndex.assets).length === 0) {
+    if (assetList.length === 0) {
       return [];
     }
 
@@ -250,11 +184,11 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     // Combine all note contents
     const allContent = Array.from(cache.values()).join('\n');
 
-    // Find unused assets (check by filename only)
+    // Find unused assets (check by filename)
     const unused: string[] = [];
-    for (const filename of Object.keys(assetIndex.assets)) {
-      if (!allContent.includes(filename)) {
-        unused.push(filename);
+    for (const asset of assetList) {
+      if (!allContent.includes(asset.filename)) {
+        unused.push(asset.filename);
       }
     }
 
@@ -280,58 +214,6 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
   },
 
   getAssetList: (): AssetEntry[] => {
-    const { assetIndex } = get();
-    if (!assetIndex) return [];
-
-    // Return sorted by uploadedAt descending (newest first)
-    return Object.values(assetIndex.assets)
-      .sort((a, b) => 
-        new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-      );
+    return get().assetList;
   },
 });
-
-/**
- * Rebuild index by scanning assets directory
- */
-async function rebuildIndex(assetsDir: string): Promise<AssetIndex> {
-  const storage = getStorageAdapter();
-  const index = createEmptyIndex();
-
-  try {
-    const entries = await storage.listDir(assetsDir);
-
-    for (const entry of entries) {
-      // Skip index file and temp files
-      if (entry.name === INDEX_FILE || entry.name.endsWith('.tmp')) {
-        continue;
-      }
-
-      try {
-        const filePath = `${assetsDir}/${entry.name}`;
-        const content = await storage.readBinaryFile(filePath);
-        // Create a copy to ensure proper ArrayBuffer type for Blob
-        const copy = new Uint8Array(content);
-        const blob = new Blob([copy]);
-        const hash = await computeFileHash(new File([blob], entry.name));
-
-        const assetEntry: AssetEntry = {
-          filename: entry.name,
-          hash,
-          size: content.length,
-          mimeType: getMimeType(entry.name),
-          uploadedAt: new Date().toISOString(),
-        };
-
-        index.assets[entry.name] = assetEntry;
-        index.hashMap[hash] = entry.name;
-      } catch {
-        // Skip files that can't be read
-      }
-    }
-  } catch {
-    // Directory might be empty or inaccessible
-  }
-
-  return index;
-}

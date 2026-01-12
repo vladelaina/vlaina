@@ -127,7 +127,7 @@ function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete }: Asset
 }
 
 export function AssetGrid({ onSelect, vaultPath }: AssetGridProps) {
-  const { getAssetList, deleteAsset, loadAssetIndex } = useNotesStore();
+  const { getAssetList, deleteAsset, loadAssets } = useNotesStore();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   
   const assets = getAssetList();
@@ -135,9 +135,9 @@ export function AssetGrid({ onSelect, vaultPath }: AssetGridProps) {
   // Load assets on mount
   useEffect(() => {
     if (vaultPath) {
-      loadAssetIndex(vaultPath);
+      loadAssets(vaultPath);
     }
-  }, [vaultPath, loadAssetIndex]);
+  }, [vaultPath, loadAssets]);
 
   const handleSelect = useCallback((filename: string) => {
     // Return only filename, not full path

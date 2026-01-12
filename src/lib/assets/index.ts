@@ -2,7 +2,6 @@
  * Asset Library - Centralized asset management
  * 
  * This module provides:
- * - Content-based deduplication via SHA-256 hashing
  * - Safe filename handling with sanitization and conflict resolution
  * - Atomic file writes for crash safety
  * - Cross-platform path handling
@@ -10,10 +9,9 @@
  */
 
 // Types
-export type { AssetEntry, AssetIndex, UploadResult } from './types';
-export { createEmptyIndex } from './types';
+export type { AssetEntry, UploadResult } from './types';
 
-// Hash Service
+// Hash Service (kept for potential future use)
 export { computeFileHash, computeQuickHash, computeBufferHash, isLargeFile } from './hashService';
 
 // Filename Service
@@ -31,11 +29,6 @@ export { writeAssetAtomic, cleanupTempFiles, isTempFile, getTempPath, getFinalPa
 
 // Asset Logic (pure functions)
 export {
-  isDuplicateHash,
-  getExistingFilename,
-  addAssetToIndex,
-  removeAssetFromIndex,
-  isIndexConsistent,
   sortAssetsByDate,
   findUnusedAssets
 } from './assetLogic';

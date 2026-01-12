@@ -1,6 +1,6 @@
 /** Notes Store - Type definitions */
 
-import { AssetIndex, AssetEntry, UploadResult } from '@/lib/assets/types';
+import { AssetEntry, UploadResult } from '@/lib/assets/types';
 
 export interface NoteFile {
   id: string;
@@ -50,7 +50,7 @@ export interface NotesState {
   isNewlyCreated: boolean;
   newlyCreatedFolderPath: string | null;
   // Asset library state
-  assetIndex: AssetIndex | null;
+  assetList: AssetEntry[];
   isLoadingAssets: boolean;
   uploadProgress: number | null;
 }
@@ -95,7 +95,7 @@ export interface NotesActions {
   getNoteCover: (path: string) => { cover?: string; coverY?: number };
   setNoteCover: (path: string, cover: string | null, coverY?: number) => void;
   // Asset library actions
-  loadAssetIndex: (vaultPath: string) => Promise<void>;
+  loadAssets: (vaultPath: string) => Promise<void>;
   uploadAsset: (file: File) => Promise<UploadResult>;
   deleteAsset: (filename: string) => Promise<void>;
   getUnusedAssets: () => Promise<string[]>;
