@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect, MouseEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Image, X, MoveVertical, Upload } from 'lucide-react';
+import { Image, X, Upload } from 'lucide-react';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { getStorageAdapter } from '@/lib/storage/adapter';
 
 interface CoverImageProps {
     url: string | null;

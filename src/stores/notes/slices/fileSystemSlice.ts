@@ -605,8 +605,8 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       // confirm vault path
       const vaultPath = notesPath || await getNotesBasePath();
 
-      // Ensure .nekotick directory exists
-      const assetsDir = await joinPath(vaultPath, '.nekotick');
+      // Ensure .nekotick/assets directory exists
+      const assetsDir = await joinPath(vaultPath, '.nekotick', 'assets');
       if (!await storage.exists(assetsDir)) {
         await storage.mkdir(assetsDir, true);
       }
@@ -628,7 +628,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       await storage.writeBinaryFile(fullPath, uint8Array);
 
       // Return relative path (standardized with forward slashes for markdown compatibility)
-      return `.nekotick/${fileName}`;
+      return `.nekotick/assets/${fileName}`;
 
     } catch (error) {
       console.error('Failed to upload asset:', error);

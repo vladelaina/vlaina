@@ -17,7 +17,6 @@ import { IconPicker, NoteIcon } from '../IconPicker';
 import { getRandomEmoji, loadRecentIcons, addToRecentIcons, loadSkinTone } from '../IconPicker/constants';
 import { TitleInput } from './TitleInput';
 import { CoverImage } from './CoverImage';
-import { parseFrontmatter, updateFrontmatter, Frontmatter } from '@/lib/frontmatter';
 import { getCurrentVaultPath } from '@/stores/notes/storage';
 
 // Custom plugins - unified import
@@ -215,43 +214,23 @@ export function MarkdownEditor() {
   const previewRafRef = useRef<number | null>(null);
   const clearPreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Store actions for updating frontmatter
-  const updateContent = useNotesStore(s => s.updateContent);
-  const saveNote = useNotesStore(s => s.saveNote);
+  // Cover metadata actions
+  const getNoteCover = useNotesStore(s => s.getNoteCover);
+  const setNoteCover = useNotesStore(s => s.setNoteCover);
 
-  // Cover Image State
-  const [coverUrl, setCoverUrl] = useState<string | null>(null);
-  const [coverY, setCoverY] = useState<number>(50);
+  // Cover Image State (derived from centralized metadata)
   const [vaultPath, setVaultPath] = useState<string>('');
+
+  // Get cover from centralized metadata
+  const coverData = currentNote ? getNoteCover(currentNote.path) : {};
+  const coverUrl = coverData.cover || null;
+  const coverY = coverData.coverY ?? 50;
 
   // Get Vault Path
   useEffect(() => {
     const path = getCurrentVaultPath();
     if (path) setVaultPath(path);
   }, []);
-
-  // Parse Frontmatter when content changes
-  useEffect(() => {
-    if (!currentNote?.content) return;
-
-    if (currentNote.content.startsWith('---')) {
-      const { data } = parseFrontmatter(currentNote.content);
-      if (typeof data.cover === 'string') {
-        setCoverUrl(data.cover);
-      } else {
-        setCoverUrl(null);
-      }
-
-      if (typeof data.coverY === 'number') {
-        setCoverY(data.coverY);
-      } else {
-        setCoverY(50);
-      }
-    } else {
-      setCoverUrl(null);
-      setCoverY(50);
-    }
-  }, [currentNote?.path, currentNote?.content]);
 
   const handleCoverUpload = async (file: File) => {
     if (!currentNote?.path) return;
@@ -261,40 +240,14 @@ export function MarkdownEditor() {
     const assetPath = await uploadNoteAsset(currentNote.path, file);
 
     if (assetPath) {
-      // 2. Update Frontmatter
-      const newContent = updateFrontmatter(currentNote.content || '', {
-        cover: assetPath,
-        coverY: 50
-      });
-
-      // 3. Save
-      updateContent(newContent);
-      saveNote();
-
-      // Optimistic upate
-      setCoverUrl(assetPath);
-      setCoverY(50);
+      // 2. Update centralized metadata
+      setNoteCover(currentNote.path, assetPath, 50);
     }
   };
 
   const handleCoverUpdate = (url: string | null, y: number) => {
     if (!currentNote?.path) return;
-
-    const updates: Partial<Frontmatter> = {};
-    if (url === null) {
-      updates.cover = undefined;
-      updates.coverY = undefined;
-    } else {
-      updates.cover = url;
-      updates.coverY = y;
-    }
-
-    const newContent = updateFrontmatter(currentNote.content || '', updates);
-    updateContent(newContent);
-    saveNote();
-
-    setCoverUrl(url);
-    setCoverY(y);
+    setNoteCover(currentNote.path, url, y);
   };
 
   const handleIconSelect = (emoji: string) => {

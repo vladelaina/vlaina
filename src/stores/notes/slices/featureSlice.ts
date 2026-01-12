@@ -10,7 +10,10 @@ import {
   saveNoteIconsToFile,
   loadRecentNotes,
   loadFavoritesFromFile,
-  loadNoteIconsFromFile,
+  loadNoteMetadata,
+  saveNoteMetadata,
+  setNoteEntry,
+  MetadataFile,
 } from '../storage';
 import { EMOJI_MAP } from '@/components/Notes/features/IconPicker/constants';
 
@@ -21,6 +24,7 @@ export interface FeatureSlice {
   starredFolders: NotesStore['starredFolders'];
   favoritesLoaded: NotesStore['favoritesLoaded'];
   noteIcons: NotesStore['noteIcons'];
+  noteMetadata: MetadataFile | null;
 
   loadFavorites: (vaultPath: string) => Promise<void>;
   loadNoteIcons: (vaultPath: string) => Promise<void>;
@@ -35,6 +39,8 @@ export interface FeatureSlice {
   setNoteIcon: (path: string, emoji: string | null) => void;
   updateAllIconColors: (newColor: string) => void;
   updateAllEmojiSkinTones: (newTone: number) => void;
+  getNoteCover: (path: string) => { cover?: string; coverY?: number };
+  setNoteCover: (path: string, cover: string | null, coverY?: number) => void;
 }
 
 export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> = (set, get) => ({
@@ -44,6 +50,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
   starredFolders: [],
   favoritesLoaded: false,
   noteIcons: new Map(),
+  noteMetadata: null,
 
   loadFavorites: async (vaultPath: string) => {
     const data = await loadFavoritesFromFile(vaultPath);
@@ -51,8 +58,13 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
   },
 
   loadNoteIcons: async (vaultPath: string) => {
-    const icons = await loadNoteIconsFromFile(vaultPath);
-    set({ noteIcons: icons });
+    // Load from new unified metadata system
+    const metadata = await loadNoteMetadata(vaultPath);
+    const icons = new Map<string, string>();
+    Object.entries(metadata.notes).forEach(([path, entry]) => {
+      if (entry.icon) icons.set(path, entry.icon);
+    });
+    set({ noteIcons: icons, noteMetadata: metadata });
   },
 
   scanAllNotes: async () => {
@@ -244,5 +256,26 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       if (notesPath) saveNoteIconsToFile(notesPath, updated);
       set({ noteIcons: updated });
     }
+  },
+
+  getNoteCover: (path: string) => {
+    const { noteMetadata } = get();
+    if (!noteMetadata) return {};
+    const entry = noteMetadata.notes[path];
+    if (!entry) return {};
+    return { cover: entry.cover, coverY: entry.coverY };
+  },
+
+  setNoteCover: (path: string, cover: string | null, coverY?: number) => {
+    const { noteMetadata, notesPath } = get();
+    if (!noteMetadata || !notesPath) return;
+
+    const updates = cover
+      ? { cover, coverY: coverY ?? 50 }
+      : { cover: undefined, coverY: undefined };
+
+    const updated = setNoteEntry(noteMetadata, path, updates);
+    set({ noteMetadata: updated });
+    saveNoteMetadata(notesPath, updated);
   },
 });

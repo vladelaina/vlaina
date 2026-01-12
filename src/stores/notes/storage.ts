@@ -10,6 +10,7 @@ import {
   RECENT_NOTES_KEY,
   MAX_RECENT_NOTES,
   NEKOTICK_CONFIG_FOLDER,
+  METADATA_FILE,
   ICONS_FILE,
   WORKSPACE_FILE,
   FAVORITES_FILE,
@@ -47,7 +48,7 @@ export function addToRecentNotes(path: string, current: string[]): string[] {
  */
 export async function safeWriteTextFile(path: string, content: string): Promise<void> {
   const storage = getStorageAdapter();
-  
+
   // On web, atomic write is handled internally by IndexedDB transactions
   // On Tauri, TauriAdapter.writeFile already implements atomic write
   await storage.writeFile(path, content);
@@ -60,7 +61,7 @@ export async function loadNoteIconsFromFile(vaultPath: string): Promise<Map<stri
   try {
     const storage = getStorageAdapter();
     const iconsPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, ICONS_FILE);
-    
+
     if (!(await storage.exists(iconsPath))) {
       return new Map();
     }
@@ -75,21 +76,132 @@ export async function loadNoteIconsFromFile(vaultPath: string): Promise<Map<stri
 
 /**
  * Save icons to .nekotick/icons.json
+ * @deprecated Use saveNoteMetadata instead
  */
 export async function saveNoteIconsToFile(vaultPath: string, icons: Map<string, string>): Promise<void> {
+  // Now redirects to new metadata system
+  const metadata = await loadNoteMetadata(vaultPath);
+  icons.forEach((icon, path) => {
+    const existing = metadata.notes[path] || {};
+    metadata.notes[path] = { ...existing, icon };
+  });
+  await saveNoteMetadata(vaultPath, metadata);
+}
+
+// ============ Unified Metadata System ============
+
+export interface NoteMetadataEntry {
+  icon?: string;
+  cover?: string;
+  coverY?: number;
+}
+
+export interface MetadataFile {
+  version: number;
+  notes: Record<string, NoteMetadataEntry>;
+}
+
+const CURRENT_METADATA_VERSION = 1;
+
+/**
+ * Load unified metadata from .nekotick/metadata.json
+ * Includes automatic migration from legacy icons.json
+ */
+export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile> {
+  try {
+    const storage = getStorageAdapter();
+    const metadataPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, METADATA_FILE);
+
+    // Check if new metadata.json exists
+    if (await storage.exists(metadataPath)) {
+      const content = await storage.readFile(metadataPath);
+      const data = JSON.parse(content) as MetadataFile;
+      return data;
+    }
+
+    // Migration: check for legacy icons.json
+    const legacyIconsPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, ICONS_FILE);
+    if (await storage.exists(legacyIconsPath)) {
+      const content = await storage.readFile(legacyIconsPath);
+      const legacyIcons = JSON.parse(content) as Record<string, string>;
+
+      // Convert legacy format to new format
+      const notes: Record<string, NoteMetadataEntry> = {};
+      Object.entries(legacyIcons).forEach(([path, icon]) => {
+        notes[path] = { icon };
+      });
+
+      const migrated: MetadataFile = {
+        version: CURRENT_METADATA_VERSION,
+        notes,
+      };
+
+      // Save migrated data
+      await saveNoteMetadata(vaultPath, migrated);
+      return migrated;
+    }
+
+    // No existing data
+    return { version: CURRENT_METADATA_VERSION, notes: {} };
+  } catch {
+    return { version: CURRENT_METADATA_VERSION, notes: {} };
+  }
+}
+
+/**
+ * Save unified metadata to .nekotick/metadata.json
+ */
+export async function saveNoteMetadata(vaultPath: string, metadata: MetadataFile): Promise<void> {
   try {
     const storage = getStorageAdapter();
     const configPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER);
-    
+
     if (!(await storage.exists(configPath))) {
       await storage.mkdir(configPath, true);
     }
 
-    const iconsPath = await joinPath(configPath, ICONS_FILE);
-    const obj = Object.fromEntries(icons);
-    await safeWriteTextFile(iconsPath, JSON.stringify(obj, null, 2));
+    const metadataPath = await joinPath(configPath, METADATA_FILE);
+    await safeWriteTextFile(metadataPath, JSON.stringify(metadata, null, 2));
   } catch { /* ignore */ }
 }
+
+/**
+ * Helper: Get metadata for a specific note
+ */
+export function getNoteEntry(metadata: MetadataFile, path: string): NoteMetadataEntry {
+  return metadata.notes[path] || {};
+}
+
+/**
+ * Helper: Update metadata for a specific note
+ */
+export function setNoteEntry(
+  metadata: MetadataFile,
+  path: string,
+  updates: Partial<NoteMetadataEntry>
+): MetadataFile {
+  const existing = metadata.notes[path] || {};
+  const updated = { ...existing, ...updates };
+
+  // Clean up undefined/null values
+  if (updated.icon === null || updated.icon === undefined) delete updated.icon;
+  if (updated.cover === null || updated.cover === undefined) {
+    delete updated.cover;
+    delete updated.coverY;
+  }
+
+  // Remove entry if empty
+  if (Object.keys(updated).length === 0) {
+    const { [path]: _, ...rest } = metadata.notes;
+    return { ...metadata, notes: rest };
+  }
+
+  return {
+    ...metadata,
+    notes: { ...metadata.notes, [path]: updated },
+  };
+}
+
 
 // ============ Vault path management ============
 
@@ -112,7 +224,7 @@ export async function getNotesBasePath(): Promise<string> {
 
 export async function ensureNotesFolder(basePath: string): Promise<void> {
   const storage = getStorageAdapter();
-  
+
   if (!(await storage.exists(basePath))) {
     await storage.mkdir(basePath, true);
   }
@@ -132,11 +244,11 @@ export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceSt
   try {
     const storage = getStorageAdapter();
     const wsPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, WORKSPACE_FILE);
-    
+
     if (!(await storage.exists(wsPath))) {
       return null;
     }
-    
+
     const content = await storage.readFile(wsPath);
     return JSON.parse(content);
   } catch {
@@ -151,11 +263,11 @@ export async function saveWorkspaceState(vaultPath: string, state: WorkspaceStat
   try {
     const storage = getStorageAdapter();
     const configPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER);
-    
+
     if (!(await storage.exists(configPath))) {
       await storage.mkdir(configPath, true);
     }
-    
+
     const wsPath = await joinPath(configPath, WORKSPACE_FILE);
     await safeWriteTextFile(wsPath, JSON.stringify(state, null, 2));
   } catch { /* ignore */ }
@@ -175,11 +287,11 @@ export async function loadFavoritesFromFile(vaultPath: string): Promise<Favorite
   try {
     const storage = getStorageAdapter();
     const favPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, FAVORITES_FILE);
-    
+
     if (!(await storage.exists(favPath))) {
       return { notes: [], folders: [] };
     }
-    
+
     const content = await storage.readFile(favPath);
     const data = JSON.parse(content);
     return {
@@ -198,11 +310,11 @@ export async function saveFavoritesToFile(vaultPath: string, favorites: Favorite
   try {
     const storage = getStorageAdapter();
     const configPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER);
-    
+
     if (!(await storage.exists(configPath))) {
       await storage.mkdir(configPath, true);
     }
-    
+
     const favPath = await joinPath(configPath, FAVORITES_FILE);
     await safeWriteTextFile(favPath, JSON.stringify(favorites, null, 2));
   } catch { /* ignore */ }

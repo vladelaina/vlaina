@@ -32,6 +32,7 @@ export interface NotesState {
   starredFolders: string[];
   favoritesLoaded: boolean;
   noteIcons: Map<string, string>;
+  noteMetadata: import('./storage').MetadataFile | null;
   displayNames: Map<string, string>;
   isNewlyCreated: boolean;
   newlyCreatedFolderPath: string | null;
@@ -73,6 +74,9 @@ export interface NotesActions {
   syncDisplayName: (path: string, title: string) => void;
   getDisplayName: (path: string) => string;
   uploadNoteAsset: (notePath: string, file: File) => Promise<string | null>;
+  // Cover metadata
+  getNoteCover: (path: string) => { cover?: string; coverY?: number };
+  setNoteCover: (path: string, cover: string | null, coverY?: number) => void;
 }
 
 export type NotesStore = NotesState & NotesActions;
