@@ -3,18 +3,18 @@ import {
     Settings,
     LogOut,
     Check,
-    Plus,
     Monitor,
-    User,
     ChevronDown,
     Calendar,
     StickyNote,
+    Globe,
 } from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
 import { useLicenseStore } from "@/stores/useLicenseStore";
 import { useUIStore } from "@/stores/uiSlice";
 import { cn } from "@/lib/utils";
+import { isTauri } from "@/lib/storage/adapter";
 
 interface WorkspaceSwitcherProps {
     onOpenSettings?: () => void;
@@ -59,6 +59,21 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
         toggleAppViewMode();
         setIsOpen(false);
     };
+
+    const handleOpenAppLink = async () => {
+        const isDesktop = isTauri();
+        const url = isDesktop ? "https://app.nekotick.com" : "https://nekotick.com";
+        
+        if (isDesktop) {
+            const { openUrl } = await import('@tauri-apps/plugin-opener');
+            await openUrl(url);
+        } else {
+            window.open(url, "_blank");
+        }
+        setIsOpen(false);
+    };
+
+    const isDesktop = isTauri();
 
     return (
         <Popover.Root open={isOpen} onOpenChange={setIsOpen}>
@@ -125,7 +140,7 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                                     {displayName}
                                 </span>
                                 <span className="text-[11px] text-[var(--neko-text-secondary)]">
-                                    {isProUser ? "Pro Plan" : "Free Plan"} · 1 member
+                                    {isProUser ? "Pro Plan" : "Free Plan"}
                                 </span>
                             </div>
                         </div>
@@ -134,30 +149,6 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
 
                     {/* Menu Items */}
                     <div className="flex flex-col gap-0.5 px-0.5">
-                        <button
-                            onClick={handleOpenSettings}
-                            className={cn(
-                                "flex items-center gap-2.5 px-3 py-1.5 rounded-md w-full text-left",
-                                "text-[13px] text-[var(--neko-text-primary)]",
-                                "hover:bg-[var(--neko-hover)] transition-colors"
-                            )}
-                        >
-                            <Settings className="w-4 h-4 text-[var(--neko-text-tertiary)]" />
-                            Settings
-                        </button>
-
-                        {/* Mock "Invite members" for premium feel */}
-                        <button
-                            className={cn(
-                                "flex items-center gap-2.5 px-3 py-1.5 rounded-md w-full text-left",
-                                "text-[13px] text-[var(--neko-text-primary)]",
-                                "hover:bg-[var(--neko-hover)] transition-colors opacity-80"
-                            )}
-                        >
-                            <User className="w-4 h-4 text-[var(--neko-text-tertiary)]" />
-                            Invite members
-                        </button>
-
                         <button
                             onClick={handleToggleView}
                             className={cn(
@@ -178,41 +169,17 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                                 </>
                             )}
                         </button>
-                    </div>
 
-                    <div className="h-[1px] bg-[var(--neko-border)] my-1.5 mx-2" />
-
-                    {/* "Switch Account" Section Placeholder */}
-                    <div className="flex flex-col gap-0.5 px-0.5">
                         <button
+                            onClick={handleOpenSettings}
                             className={cn(
-                                "flex items-center justify-between px-3 py-1.5 rounded-md w-full text-left",
+                                "flex items-center gap-2.5 px-3 py-1.5 rounded-md w-full text-left",
                                 "text-[13px] text-[var(--neko-text-primary)]",
-                                "hover:bg-[var(--neko-hover)] transition-colors opacity-70 cursor-not-allowed"
+                                "hover:bg-[var(--neko-hover)] transition-colors"
                             )}
-                            disabled
                         >
-                            <div className="flex items-center gap-2.5">
-                                <div className="w-4 h-4 rounded-full border border-[var(--neko-text-tertiary)] border-dashed flex items-center justify-center">
-                                    <Plus className="w-2.5 h-2.5 text-[var(--neko-text-tertiary)]" />
-                                </div>
-                                Create work account
-                            </div>
-                        </button>
-                        <button
-                            className={cn(
-                                "flex items-center justify-between px-3 py-1.5 rounded-md w-full text-left",
-                                "text-[13px] text-[var(--neko-text-primary)]",
-                                "hover:bg-[var(--neko-hover)] transition-colors opacity-70 cursor-not-allowed"
-                            )}
-                            disabled
-                        >
-                            <div className="flex items-center gap-2.5">
-                                <div className="w-4 h-4 rounded-full border border-[var(--neko-text-tertiary)] border-dashed flex items-center justify-center">
-                                    <Plus className="w-2.5 h-2.5 text-[var(--neko-text-tertiary)]" />
-                                </div>
-                                Add another account
-                            </div>
+                            <Settings className="w-4 h-4 text-[var(--neko-text-tertiary)]" />
+                            Settings
                         </button>
                     </div>
 
@@ -241,8 +208,8 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                                     "hover:bg-[var(--neko-hover)] transition-colors"
                                 )}
                             >
-                                <LogOut className="w-4 h-4 text-[var(--neko-text-tertiary)]" />
-                                Log in
+                                <LogOut className="w-4 h-4 text-[var(--neko-text-tertiary)] rotate-180" />
+                                Connect GitHub
                             </button>
                         )}
                     </div>
@@ -252,14 +219,24 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                     {/* Footer App Link */}
                     <div className="px-0.5 pb-0.5">
                         <button
+                            onClick={handleOpenAppLink}
                             className={cn(
                                 "flex items-center gap-2.5 px-3 py-1.5 rounded-md w-full text-left",
                                 "text-[13px] text-[var(--neko-text-primary)]",
                                 "hover:bg-[var(--neko-hover)] transition-colors"
                             )}
                         >
-                            <Monitor className="w-4 h-4 text-[var(--neko-text-tertiary)]" />
-                            Get Windows app
+                            {isDesktop ? (
+                                <>
+                                    <Globe className="w-4 h-4 text-[var(--neko-text-tertiary)]" />
+                                    Open Web App
+                                </>
+                            ) : (
+                                <>
+                                    <Monitor className="w-4 h-4 text-[var(--neko-text-tertiary)]" />
+                                    Get Desktop App
+                                </>
+                            )}
                         </button>
                     </div>
                 </Popover.Content>
