@@ -15,14 +15,18 @@ export interface IconCategory {
 
 export const DEFAULT_ICON_COLOR = '#f59e0b';
 
-// Helper: create IconItem array from icon names, filter out non-existent icons
+// Helper: create IconItem array from icon names, filter out non-existent icons and duplicates
 export function createIconItems(iconNames: string[]): IconItem[] {
+  const seen = new Set<string>();
   return iconNames
     .map(name => {
       const icon = (LucideIcons as any)[name];
       if (!icon) return null;
+      const lowerName = name.toLowerCase();
+      if (seen.has(lowerName)) return null;
+      seen.add(lowerName);
       return {
-        name: name.toLowerCase(),
+        name: lowerName,
         icon,
         color: DEFAULT_ICON_COLOR,
       };

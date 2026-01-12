@@ -2,7 +2,7 @@
  * VirtualEmojiGrid - Virtualized emoji grid with recent section
  */
 
-import { useRef, useEffect, useMemo, useCallback, memo } from 'react';
+import { useRef, useEffect, useMemo, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { 
   EMOJI_PER_ROW, 
@@ -62,6 +62,12 @@ export function VirtualEmojiGrid({
 }: VirtualEmojiGridProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   
+  // 使用 ref 存储回调
+  const onPreviewRef = useRef(onPreview);
+  const onSelectRef = useRef(onSelect);
+  onPreviewRef.current = onPreview;
+  onSelectRef.current = onSelect;
+  
   const emojisWithSkin = useMemo(() => {
     return emojis.map(emoji => {
       if (skinTone === 0 || !emoji.skins || emoji.skins.length <= skinTone) {
@@ -100,11 +106,15 @@ export function VirtualEmojiGrid({
     return result;
   }, [emojisWithSkin, recentWithSkin, categoryName]);
 
+  const rowSizeGetter = useMemo(() => {
+    return (index: number) => rows[index].type === 'title' ? 28 : EMOJI_SIZE + ROW_GAP;
+  }, [rows]);
+
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: (index) => rows[index].type === 'title' ? 28 : EMOJI_SIZE + ROW_GAP,
-    overscan: 8,
+    estimateSize: rowSizeGetter,
+    overscan: 5,
   });
 
   useEffect(() => {
@@ -120,38 +130,52 @@ export function VirtualEmojiGrid({
 
   const lastPreviewRef = useRef<string | null>(null);
 
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    const button = target.closest('[data-emoji]') as HTMLElement;
-    if (button) {
-      const emoji = button.dataset.emoji;
-      if (emoji) onSelect(emoji);
-    }
-  }, [onSelect]);
+  // 使用原生事件处理
+  useEffect(() => {
+    const container = parentRef.current;
+    if (!container) return;
 
-  const handleMouseOver = useCallback((e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    const button = target.closest('[data-emoji]') as HTMLElement;
-    const emoji = button?.dataset.emoji || null;
-    if (emoji !== lastPreviewRef.current) {
-      lastPreviewRef.current = emoji;
-      onPreview?.(emoji);
-    }
-  }, [onPreview]);
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const button = target.closest('[data-emoji]') as HTMLElement;
+      const emoji = button?.dataset.emoji || null;
+      if (emoji !== lastPreviewRef.current) {
+        lastPreviewRef.current = emoji;
+        onPreviewRef.current?.(emoji);
+      }
+    };
 
-  const handleMouseLeave = useCallback(() => {
-    lastPreviewRef.current = null;
-    onPreview?.(null);
-  }, [onPreview]);
+    const handleMouseLeave = () => {
+      if (lastPreviewRef.current !== null) {
+        lastPreviewRef.current = null;
+        onPreviewRef.current?.(null);
+      }
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const button = target.closest('[data-emoji]') as HTMLElement;
+      if (button?.dataset.emoji) {
+        onSelectRef.current(button.dataset.emoji);
+      }
+    };
+
+    container.addEventListener('mouseover', handleMouseOver);
+    container.addEventListener('mouseleave', handleMouseLeave);
+    container.addEventListener('click', handleClick);
+
+    return () => {
+      container.removeEventListener('mouseover', handleMouseOver);
+      container.removeEventListener('mouseleave', handleMouseLeave);
+      container.removeEventListener('click', handleClick);
+    };
+  }, []);
 
   return (
     <div
       ref={parentRef}
       className={`h-[280px] overflow-auto ${SCROLLBAR_CLASSNAME}`}
       style={{ contain: 'strict', willChange: 'scroll-position' }}
-      onClick={handleClick}
-      onMouseOver={handleMouseOver}
-      onMouseLeave={handleMouseLeave}
     >
       <div
         style={{
@@ -203,6 +227,13 @@ export function VirtualSearchResults({
   onPreview,
 }: VirtualSearchResultsProps) {
   const parentRef = useRef<HTMLDivElement>(null);
+  const lastPreviewRef = useRef<string | null>(null);
+
+  // 使用 ref 存储回调
+  const onPreviewRef = useRef(onPreview);
+  const onSelectRef = useRef(onSelect);
+  onPreviewRef.current = onPreview;
+  onSelectRef.current = onSelect;
 
   const emojisWithSkin = useMemo(() => {
     return results.map(emoji => {
@@ -222,37 +253,57 @@ export function VirtualSearchResults({
     return result;
   }, [emojisWithSkin, results.length]);
 
+  const rowSizeGetter = useMemo(() => {
+    return (index: number) => rows[index].type === 'title' ? 28 : EMOJI_SIZE + ROW_GAP;
+  }, [rows]);
+
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: (index) => rows[index].type === 'title' ? 28 : EMOJI_SIZE + ROW_GAP,
-    overscan: 8,
+    estimateSize: rowSizeGetter,
+    overscan: 5,
   });
 
-  const lastPreviewRef = useRef<string | null>(null);
+  // 使用原生事件处理
+  useEffect(() => {
+    const container = parentRef.current;
+    if (!container) return;
 
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    const button = target.closest('[data-emoji]') as HTMLElement;
-    if (button?.dataset.emoji) {
-      onSelect(button.dataset.emoji);
-    }
-  }, [onSelect]);
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const button = target.closest('[data-emoji]') as HTMLElement;
+      const emoji = button?.dataset.emoji || null;
+      if (emoji !== lastPreviewRef.current) {
+        lastPreviewRef.current = emoji;
+        onPreviewRef.current?.(emoji);
+      }
+    };
 
-  const handleMouseOver = useCallback((e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    const button = target.closest('[data-emoji]') as HTMLElement;
-    const emoji = button?.dataset.emoji || null;
-    if (emoji !== lastPreviewRef.current) {
-      lastPreviewRef.current = emoji;
-      onPreview?.(emoji);
-    }
-  }, [onPreview]);
+    const handleMouseLeave = () => {
+      if (lastPreviewRef.current !== null) {
+        lastPreviewRef.current = null;
+        onPreviewRef.current?.(null);
+      }
+    };
 
-  const handleMouseLeave = useCallback(() => {
-    lastPreviewRef.current = null;
-    onPreview?.(null);
-  }, [onPreview]);
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const button = target.closest('[data-emoji]') as HTMLElement;
+      if (button?.dataset.emoji) {
+        onSelectRef.current(button.dataset.emoji);
+      }
+    };
+
+    container.addEventListener('mouseover', handleMouseOver);
+    container.addEventListener('mouseleave', handleMouseLeave);
+    container.addEventListener('click', handleClick);
+
+    return () => {
+      container.removeEventListener('mouseover', handleMouseOver);
+      container.removeEventListener('mouseleave', handleMouseLeave);
+      container.removeEventListener('click', handleClick);
+    };
+  }, []);
 
   if (results.length === 0) {
     return (
@@ -267,9 +318,6 @@ export function VirtualSearchResults({
       ref={parentRef}
       className={`h-[280px] overflow-auto ${SCROLLBAR_CLASSNAME}`}
       style={{ contain: 'strict', willChange: 'scroll-position' }}
-      onClick={handleClick}
-      onMouseOver={handleMouseOver}
-      onMouseLeave={handleMouseLeave}
     >
       <div
         style={{

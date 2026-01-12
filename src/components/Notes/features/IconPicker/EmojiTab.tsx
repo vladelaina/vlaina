@@ -51,6 +51,9 @@ export function EmojiTab({
   // 使用 ref 存储 onPreview，避免回调变化导致子组件重渲染
   const onPreviewRef = useRef(onPreview);
   onPreviewRef.current = onPreview;
+  
+  const currentIconRef = useRef(currentIcon);
+  currentIconRef.current = currentIcon;
 
   const getEmojiWithSkinTone = useCallback((emoji: string, tone: number): string | null => {
     if (!emoji || emoji.startsWith('icon:')) return null;
@@ -65,15 +68,18 @@ export function EmojiTab({
   const handleSkinToneHover = useCallback((tone: number | null) => {
     setPreviewSkinTone(tone);
     setNotesPreviewSkinTone(tone);
-    if (tone !== null && currentIcon && !currentIcon.startsWith('icon:')) {
-      const previewEmoji = getEmojiWithSkinTone(currentIcon, tone);
-      if (previewEmoji) {
-        onPreview?.(previewEmoji);
+    if (tone !== null) {
+      const icon = currentIconRef.current;
+      if (icon && !icon.startsWith('icon:')) {
+        const previewEmoji = getEmojiWithSkinTone(icon, tone);
+        if (previewEmoji) {
+          onPreviewRef.current?.(previewEmoji);
+        }
       }
-    } else if (tone === null) {
-      onPreview?.(null);
+    } else {
+      onPreviewRef.current?.(null);
     }
-  }, [currentIcon, getEmojiWithSkinTone, onPreview, setNotesPreviewSkinTone]);
+  }, [getEmojiWithSkinTone, setNotesPreviewSkinTone]);
 
   const handleSkinToneChange = useCallback((tone: number) => {
     setSkinTone(tone);

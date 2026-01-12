@@ -44,9 +44,12 @@ export function IconsTab({
   const effectiveColor = previewColor !== null ? previewColor : iconColor;
   const currentColor = ICON_COLORS[effectiveColor]?.color || ICON_COLORS[0].color;
 
-  // 使用 ref 存储 onPreview，避免回调变化导致子组件重渲染
+  // 使用 ref 存储回调，避免依赖变化
   const onPreviewRef = useRef(onPreview);
   onPreviewRef.current = onPreview;
+  
+  const currentIconRef = useRef(currentIcon);
+  currentIconRef.current = currentIcon;
 
   const recentIconsList = useMemo(() => 
     recentIcons.filter(i => i.startsWith('icon:')), 
@@ -75,31 +78,24 @@ export function IconsTab({
     onPreviewRef.current?.(icon);
   }, []);
 
-  // 获取当前图标的名称（如果是 icon 类型）
-  const getIconWithColor = useCallback((icon: string | undefined, color: string): string | null => {
-    if (!icon || !icon.startsWith('icon:')) return null;
-    const parts = icon.split(':');
-    const iconName = parts[1];
-    return `icon:${iconName}:${color}`;
-  }, []);
-
+  // 颜色悬停处理 - 最小化依赖，确保即时响应
   const handleColorHover = useCallback((colorId: number | null) => {
     setPreviewColor(colorId);
     if (colorId !== null) {
       const color = ICON_COLORS[colorId]?.color || ICON_COLORS[0].color;
       setNotesPreviewIconColor(color);
       // 同时预览当前笔记的图标
-      if (currentIcon && currentIcon.startsWith('icon:')) {
-        const previewIcon = getIconWithColor(currentIcon, color);
-        if (previewIcon) {
-          onPreview?.(previewIcon);
-        }
+      const icon = currentIconRef.current;
+      if (icon && icon.startsWith('icon:')) {
+        const parts = icon.split(':');
+        const iconName = parts[1];
+        onPreviewRef.current?.(`icon:${iconName}:${color}`);
       }
     } else {
       setNotesPreviewIconColor(null);
-      onPreview?.(null);
+      onPreviewRef.current?.(null);
     }
-  }, [currentIcon, getIconWithColor, onPreview, setNotesPreviewIconColor]);
+  }, [setNotesPreviewIconColor]);
 
   const handleColorChange = useCallback((colorId: number) => {
     setIconColor(colorId);
@@ -161,7 +157,7 @@ export function IconsTab({
                   onMouseEnter={() => handleColorHover(ic.id)}
                   onMouseLeave={() => handleColorHover(null)}
                   className={cn(
-                    "w-7 h-7 flex items-center justify-center transition-all",
+                    "w-7 h-7 flex items-center justify-center transition-[opacity,transform]",
                     iconColor === ic.id
                       ? "opacity-100 scale-110"
                       : "opacity-60 hover:opacity-100 hover:scale-105"

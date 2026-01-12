@@ -16,4 +16,10 @@ export const ICON_CATEGORIES: IconCategory[] = [
   commonIcons, statusIcons, devIcons, userIcons, docIcons, mediaIcons, natureIcons, placeIcons,
 ];
 
-export const ICON_LIST = ICON_CATEGORIES.flatMap(cat => cat.icons);
+// Deduplicate icons by name (keep first occurrence)
+const seen = new Set<string>();
+export const ICON_LIST = ICON_CATEGORIES.flatMap(cat => cat.icons).filter(icon => {
+  if (seen.has(icon.name)) return false;
+  seen.add(icon.name);
+  return true;
+});

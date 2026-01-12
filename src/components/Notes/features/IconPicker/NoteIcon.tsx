@@ -3,15 +3,10 @@
  * Performance optimized: uses memo and shallow comparison
  */
 
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { FileText } from 'lucide-react';
 import { useUIStore } from '@/stores/uiSlice';
-import { ICON_LIST } from './icons';
-import { EMOJI_MAP } from './constants';
-
-const ICON_MAP = Object.fromEntries(
-  ICON_LIST.map(item => [item.name, item.icon])
-) as Record<string, React.ComponentType<{ size?: number; style?: React.CSSProperties }>>;
+import { ICON_MAP as ICON_ITEM_MAP, EMOJI_MAP } from './constants';
 
 interface NoteIconProps {
   icon: string;
@@ -19,46 +14,61 @@ interface NoteIconProps {
   className?: string;
 }
 
-// 内部渲染组件，不订阅 store
-const IconRenderer = memo(function IconRenderer({ 
-  icon, 
+// Icon 渲染组件
+const IconIconRenderer = memo(function IconIconRenderer({ 
+  iconName,
+  originalColor,
   size, 
   className,
   previewColor,
-  previewTone,
-}: NoteIconProps & { previewColor: string | null; previewTone: number | null }) {
-  if (icon.startsWith('icon:')) {
-    const parts = icon.split(':');
-    const iconName = parts[1];
-    const originalColor = parts[2] || '#6b7280';
-    const color = previewColor || originalColor;
-    const IconComponent = ICON_MAP[iconName] || FileText;
-    
-    return (
-      <span
-        className={className}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: size,
-          height: size,
-          lineHeight: 1,
-        }}
-      >
-        <IconComponent size={size} style={{ color }} />
-      </span>
-    );
-  }
+}: {
+  iconName: string;
+  originalColor: string;
+  size?: number;
+  className?: string;
+  previewColor: string | null;
+}) {
+  const color = previewColor || originalColor;
+  const iconItem = ICON_ITEM_MAP.get(iconName);
+  const IconComponent = iconItem?.icon || FileText;
   
-  // Emoji - 支持肤色预览
-  let displayEmoji = icon;
-  if (previewTone !== null) {
-    const item = EMOJI_MAP.get(icon);
+  return (
+    <span
+      className={className}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: size,
+        height: size,
+        lineHeight: 1,
+      }}
+    >
+      <IconComponent size={size} style={{ color }} />
+    </span>
+  );
+});
+
+// Emoji 渲染组件
+const EmojiIconRenderer = memo(function EmojiIconRenderer({ 
+  emoji,
+  size, 
+  className,
+  previewTone,
+}: {
+  emoji: string;
+  size?: number;
+  className?: string;
+  previewTone: number | null;
+}) {
+  const displayEmoji = useMemo(() => {
+    if (previewTone === null) return emoji;
+    const item = EMOJI_MAP.get(emoji);
     if (item && item.skins && item.skins.length > previewTone) {
-      displayEmoji = previewTone === 0 ? item.native : (item.skins[previewTone]?.native || item.native);
+      return previewTone === 0 ? item.native : (item.skins[previewTone]?.native || item.native);
     }
-  }
+    return emoji;
+  }, [emoji, previewTone]);
   
   return (
     <span 
@@ -80,12 +90,27 @@ export function NoteIcon({ icon, size = 16, className }: NoteIconProps) {
   const previewIconColor = useUIStore(s => s.notesPreviewIconColor);
   const previewSkinTone = useUIStore(s => s.notesPreviewSkinTone);
 
+  if (icon.startsWith('icon:')) {
+    const parts = icon.split(':');
+    const iconName = parts[1];
+    const originalColor = parts[2] || '#6b7280';
+    
+    return (
+      <IconIconRenderer 
+        iconName={iconName}
+        originalColor={originalColor}
+        size={size} 
+        className={className}
+        previewColor={previewIconColor}
+      />
+    );
+  }
+
   return (
-    <IconRenderer 
-      icon={icon} 
+    <EmojiIconRenderer 
+      emoji={icon}
       size={size} 
       className={className}
-      previewColor={previewIconColor}
       previewTone={previewSkinTone}
     />
   );
