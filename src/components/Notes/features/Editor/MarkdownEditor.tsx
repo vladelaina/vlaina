@@ -349,13 +349,17 @@ export function MarkdownEditor() {
           vaultPath={vaultPath}
         />
 
-        <div className="max-w-[720px] w-full px-6 sm:px-12 shrink-0 z-10">
+        <div className={cn(
+          "max-w-[720px] w-full px-6 sm:px-12 shrink-0 z-10",
+          // Pull content up to overlap with cover (Notion-style)
+          coverUrl && "mt-[-40px]"
+        )}>
           <div
             className={cn(
               "pb-4 transition-all duration-300",
-              // If cover exists, reduce top padding to pull title up. 
+              // If cover exists, minimal top padding since icon overlaps cover
               // If no cover (Aurora), keep it airy.
-              coverUrl ? "pt-12" : "pt-24"
+              coverUrl ? "pt-0" : "pt-24"
             )}
             onMouseEnter={() => setIsHoveringHeader(true)}
             onMouseLeave={() => setIsHoveringHeader(false)}
