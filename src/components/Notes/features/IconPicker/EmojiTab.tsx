@@ -2,7 +2,7 @@
  * EmojiTab - Emoji picker tab with search and skin tone support
  */
 
-import { useRef, useMemo, useCallback, useState } from 'react';
+import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VirtualEmojiGrid, VirtualSearchResults } from './VirtualEmojiGrid';
@@ -39,6 +39,7 @@ export function EmojiTab({
   onCategoryChange,
 }: EmojiTabProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const skinTonePickerRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSkinTonePicker, setShowSkinTonePicker] = useState(false);
   const [previewSkinTone, setPreviewSkinTone] = useState<number | null>(null);
@@ -48,44 +49,72 @@ export function EmojiTab({
 
   const effectiveSkinTone = previewSkinTone !== null ? previewSkinTone : skinTone;
 
-  // 使用 ref 存储 onPreview，避免回调变化导致子组件重渲染
+  // 使用 ref 存储回调和状态，避免依赖变化
   const onPreviewRef = useRef(onPreview);
   onPreviewRef.current = onPreview;
   
   const currentIconRef = useRef(currentIcon);
   currentIconRef.current = currentIcon;
+  
+  const setNotesPreviewSkinToneRef = useRef(setNotesPreviewSkinTone);
+  setNotesPreviewSkinToneRef.current = setNotesPreviewSkinTone;
 
-  const getEmojiWithSkinTone = useCallback((emoji: string, tone: number): string | null => {
-    if (!emoji || emoji.startsWith('icon:')) return null;
-    const item = EMOJI_MAP.get(emoji);
-    if (!item) return emoji;
-    if (tone === 0 || !item.skins || item.skins.length <= tone) {
-      return item.native;
-    }
-    return item.skins[tone]?.native || item.native;
-  }, []);
+  // 用于追踪上次预览的肤色，避免重复更新
+  const lastPreviewToneRef = useRef<number | null>(null);
 
-  const handleSkinToneHover = useCallback((tone: number | null) => {
-    setPreviewSkinTone(tone);
-    setNotesPreviewSkinTone(tone);
-    if (tone !== null) {
-      const icon = currentIconRef.current;
-      if (icon && !icon.startsWith('icon:')) {
-        const previewEmoji = getEmojiWithSkinTone(icon, tone);
-        if (previewEmoji) {
-          onPreviewRef.current?.(previewEmoji);
+  // 使用原生事件处理肤色悬停，绕过 React 合成事件系统
+  useEffect(() => {
+    const container = skinTonePickerRef.current;
+    if (!container || !showSkinTonePicker) return;
+
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const button = target.closest('[data-tone]') as HTMLElement;
+      if (button?.dataset.tone) {
+        const tone = parseInt(button.dataset.tone, 10);
+        if (tone !== lastPreviewToneRef.current) {
+          lastPreviewToneRef.current = tone;
+          setPreviewSkinTone(tone);
+          setNotesPreviewSkinToneRef.current(tone);
+          // 同时预览当前笔记的 emoji
+          const icon = currentIconRef.current;
+          if (icon && !icon.startsWith('icon:')) {
+            const item = EMOJI_MAP.get(icon);
+            if (item) {
+              const previewEmoji = tone === 0 || !item.skins || item.skins.length <= tone
+                ? item.native
+                : (item.skins[tone]?.native || item.native);
+              onPreviewRef.current?.(previewEmoji);
+            }
+          }
         }
       }
-    } else {
-      onPreviewRef.current?.(null);
-    }
-  }, [getEmojiWithSkinTone, setNotesPreviewSkinTone]);
+    };
+
+    const handleMouseLeave = () => {
+      if (lastPreviewToneRef.current !== null) {
+        lastPreviewToneRef.current = null;
+        setPreviewSkinTone(null);
+        setNotesPreviewSkinToneRef.current(null);
+        onPreviewRef.current?.(null);
+      }
+    };
+
+    container.addEventListener('mouseover', handleMouseOver);
+    container.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      container.removeEventListener('mouseover', handleMouseOver);
+      container.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [showSkinTonePicker]);
 
   const handleSkinToneChange = useCallback((tone: number) => {
     setSkinTone(tone);
     saveSkinTone(tone);
     setShowSkinTonePicker(false);
     setPreviewSkinTone(null);
+    lastPreviewToneRef.current = null;
     setNotesPreviewSkinTone(null);
     onPreview?.(null);
     // 更新所有笔记的 emoji 肤色
@@ -157,23 +186,20 @@ export function EmojiTab({
             {SKIN_TONES[skinTone].emoji}
           </button>
           {showSkinTonePicker && (
-            <div className={cn(
-              "absolute right-0 top-full mt-1 p-2 rounded-lg shadow-lg z-10",
-              "bg-white dark:bg-zinc-800 border border-[var(--neko-border)]",
-              "flex gap-1"
-            )}>
+            <div 
+              ref={skinTonePickerRef}
+              className={cn(
+                "absolute right-0 top-full mt-1 p-2 rounded-lg shadow-lg z-10",
+                "bg-white dark:bg-zinc-800 border border-[var(--neko-border)]",
+                "flex gap-1"
+              )}
+            >
               {SKIN_TONES.map((st) => (
                 <button
                   key={st.tone}
+                  data-tone={st.tone}
                   onClick={() => handleSkinToneChange(st.tone)}
-                  onMouseEnter={() => handleSkinToneHover(st.tone)}
-                  onMouseLeave={() => handleSkinToneHover(null)}
-                  className={cn(
-                    "w-7 h-7 flex items-center justify-center text-lg transition-all",
-                    skinTone === st.tone
-                      ? "opacity-100 scale-110"
-                      : "opacity-60 hover:opacity-100 hover:scale-105"
-                  )}
+                  className="w-7 h-7 flex items-center justify-center text-lg"
                 >
                   {st.emoji}
                 </button>

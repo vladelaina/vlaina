@@ -2,7 +2,7 @@
  * IconsTab - Icon picker tab with search, color picker and category navigation
  */
 
-import { useRef, useMemo, useCallback, useState } from 'react';
+import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import { Search, X, Candy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VirtualIconGrid, VirtualIconSearchResults } from './VirtualIconGrid';
@@ -34,6 +34,7 @@ export function IconsTab({
   currentIcon,
 }: IconsTabProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [previewColor, setPreviewColor] = useState<number | null>(null);
@@ -44,12 +45,21 @@ export function IconsTab({
   const effectiveColor = previewColor !== null ? previewColor : iconColor;
   const currentColor = ICON_COLORS[effectiveColor]?.color || ICON_COLORS[0].color;
 
-  // 使用 ref 存储回调，避免依赖变化
+  // 使用 ref 存储回调和状态，避免依赖变化
   const onPreviewRef = useRef(onPreview);
   onPreviewRef.current = onPreview;
   
   const currentIconRef = useRef(currentIcon);
   currentIconRef.current = currentIcon;
+  
+  const iconColorRef = useRef(iconColor);
+  iconColorRef.current = iconColor;
+  
+  const setNotesPreviewIconColorRef = useRef(setNotesPreviewIconColor);
+  setNotesPreviewIconColorRef.current = setNotesPreviewIconColor;
+
+  // 用于追踪上次预览的颜色，避免重复更新
+  const lastPreviewColorRef = useRef<number | null>(null);
 
   const recentIconsList = useMemo(() => 
     recentIcons.filter(i => i.startsWith('icon:')), 
@@ -78,30 +88,56 @@ export function IconsTab({
     onPreviewRef.current?.(icon);
   }, []);
 
-  // 颜色悬停处理 - 最小化依赖，确保即时响应
-  const handleColorHover = useCallback((colorId: number | null) => {
-    setPreviewColor(colorId);
-    if (colorId !== null) {
-      const color = ICON_COLORS[colorId]?.color || ICON_COLORS[0].color;
-      setNotesPreviewIconColor(color);
-      // 同时预览当前笔记的图标
-      const icon = currentIconRef.current;
-      if (icon && icon.startsWith('icon:')) {
-        const parts = icon.split(':');
-        const iconName = parts[1];
-        onPreviewRef.current?.(`icon:${iconName}:${color}`);
+  // 使用原生事件处理颜色悬停，绕过 React 合成事件系统
+  useEffect(() => {
+    const container = colorPickerRef.current;
+    if (!container || !showColorPicker) return;
+
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const button = target.closest('[data-color-id]') as HTMLElement;
+      if (button?.dataset.colorId) {
+        const colorId = parseInt(button.dataset.colorId, 10);
+        if (colorId !== lastPreviewColorRef.current) {
+          lastPreviewColorRef.current = colorId;
+          setPreviewColor(colorId);
+          const color = ICON_COLORS[colorId]?.color || ICON_COLORS[0].color;
+          setNotesPreviewIconColorRef.current(color);
+          // 同时预览当前笔记的图标
+          const icon = currentIconRef.current;
+          if (icon && icon.startsWith('icon:')) {
+            const parts = icon.split(':');
+            const iconName = parts[1];
+            onPreviewRef.current?.(`icon:${iconName}:${color}`);
+          }
+        }
       }
-    } else {
-      setNotesPreviewIconColor(null);
-      onPreviewRef.current?.(null);
-    }
-  }, [setNotesPreviewIconColor]);
+    };
+
+    const handleMouseLeave = () => {
+      if (lastPreviewColorRef.current !== null) {
+        lastPreviewColorRef.current = null;
+        setPreviewColor(null);
+        setNotesPreviewIconColorRef.current(null);
+        onPreviewRef.current?.(null);
+      }
+    };
+
+    container.addEventListener('mouseover', handleMouseOver);
+    container.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      container.removeEventListener('mouseover', handleMouseOver);
+      container.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [showColorPicker]);
 
   const handleColorChange = useCallback((colorId: number) => {
     setIconColor(colorId);
     saveIconColor(colorId);
     setShowColorPicker(false);
     setPreviewColor(null);
+    lastPreviewColorRef.current = null;
     setNotesPreviewIconColor(null);
     onPreview?.(null);
     // 更新所有笔记的 icon 颜色
@@ -145,23 +181,20 @@ export function IconsTab({
             <Candy size={18} style={{ color: ICON_COLORS[iconColor]?.color || ICON_COLORS[0].color }} />
           </button>
           {showColorPicker && (
-            <div className={cn(
-              "absolute right-0 top-full mt-1 p-2 rounded-lg shadow-lg z-10",
-              "bg-white dark:bg-zinc-800 border border-[var(--neko-border)]",
-              "flex gap-1"
-            )}>
+            <div 
+              ref={colorPickerRef}
+              className={cn(
+                "absolute right-0 top-full mt-1 p-2 rounded-lg shadow-lg z-10",
+                "bg-white dark:bg-zinc-800 border border-[var(--neko-border)]",
+                "flex gap-1"
+              )}
+            >
               {ICON_COLORS.map((ic) => (
                 <button
                   key={ic.id}
+                  data-color-id={ic.id}
                   onClick={() => handleColorChange(ic.id)}
-                  onMouseEnter={() => handleColorHover(ic.id)}
-                  onMouseLeave={() => handleColorHover(null)}
-                  className={cn(
-                    "w-7 h-7 flex items-center justify-center transition-[opacity,transform]",
-                    iconColor === ic.id
-                      ? "opacity-100 scale-110"
-                      : "opacity-60 hover:opacity-100 hover:scale-105"
-                  )}
+                  className="w-7 h-7 flex items-center justify-center"
                 >
                   <Candy size={18} style={{ color: ic.color }} />
                 </button>

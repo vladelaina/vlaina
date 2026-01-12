@@ -46,6 +46,7 @@ export const ICON_COLORS = [
   { id: 5, color: '#8b5cf6', label: 'Purple' },
   { id: 6, color: '#ec4899', label: 'Pink' },
   { id: 7, color: '#71717a', label: 'Gray' },
+  { id: 8, color: '#18181b', label: 'Black' },
 ];
 
 export const CATEGORY_NAMES: Record<string, string> = {
