@@ -188,7 +188,7 @@ function MilkdownEditorInner() {
   }, [get, isNewlyCreated, isEmptyContent]);
 
   return (
-    <div className="milkdown-editor">
+    <div className="milkdown-editor w-full max-w-[720px] shrink-0">
       <Milkdown />
     </div>
   );
@@ -307,10 +307,10 @@ export function MarkdownEditor() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto neko-scrollbar">
-        <div className="max-w-[800px] mx-auto w-full px-10">
+      <div className="flex-1 overflow-auto neko-scrollbar flex flex-col items-center">
+        <div className="max-w-[720px] w-full px-6 sm:px-12 shrink-0">
           <div
-            className="pt-6 pb-1"
+            className="pt-12 sm:pt-32 pb-4"
             onMouseEnter={() => setIsHoveringHeader(true)}
             onMouseLeave={() => setIsHoveringHeader(false)}
           >
@@ -379,7 +379,7 @@ export function MarkdownEditor() {
 
           {/* Title Input Component - Independent from Editor Content */}
           {currentNote && (
-            <div className="mb-2">
+            <div className="mb-4">
               <TitleInput
                 notePath={currentNote.path}
                 initialTitle={noteName}

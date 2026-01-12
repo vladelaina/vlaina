@@ -8,7 +8,7 @@ import type { Ctx } from '@milkdown/kit/ctx';
 
 // Class mappings for 1:1 visual replication
 export const themeClasses = {
-    root: 'prose max-w-none focus:outline-none min-h-[50vh] px-2 pb-4 pt-0',
+    root: 'prose max-w-[720px] mx-auto focus:outline-none min-h-[50vh] px-6 sm:px-12 pb-32 pt-0',
 
     // Typography
     heading: {
