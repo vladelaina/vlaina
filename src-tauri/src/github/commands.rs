@@ -13,6 +13,7 @@ use tauri::Manager;
 
 const DATA_FILE_NAME: &str = "data.json";
 const NEKOTICK_FOLDER: &str = ".nekotick";
+const STORE_FOLDER: &str = "store";
 const GITHUB_CREDS_FILE: &str = "github_credentials.json";
 
 /// GitHub OAuth config
@@ -129,6 +130,7 @@ fn get_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 fn get_github_creds_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let mut path = get_data_dir(app)?;
     path.push(NEKOTICK_FOLDER);
+    path.push(STORE_FOLDER);
     path.push(GITHUB_CREDS_FILE);
     Ok(path)
 }
@@ -137,6 +139,7 @@ fn get_github_creds_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 fn get_github_sync_meta_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let mut path = get_data_dir(app)?;
     path.push(NEKOTICK_FOLDER);
+    path.push(STORE_FOLDER);
     path.push("github_sync_meta.json");
     Ok(path)
 }
@@ -420,7 +423,7 @@ pub async fn sync_to_github(app: tauri::AppHandle) -> Result<GitHubSyncResult, S
         .ok_or("Not connected to GitHub")?;
 
     let base_path = get_data_dir(&app)?;
-    let data_json_path = base_path.join(NEKOTICK_FOLDER).join(DATA_FILE_NAME);
+    let data_json_path = base_path.join(NEKOTICK_FOLDER).join(STORE_FOLDER).join(DATA_FILE_NAME);
 
     if !data_json_path.exists() {
         return Ok(GitHubSyncResult {
@@ -480,11 +483,11 @@ pub async fn restore_from_github(app: tauri::AppHandle) -> Result<GitHubSyncResu
 
     // Ensure local directory exists
     let base_path = get_data_dir(&app)?;
-    let nekotick_dir = base_path.join(NEKOTICK_FOLDER);
-    fs::create_dir_all(&nekotick_dir).map_err(|e| e.to_string())?;
+    let store_dir = base_path.join(NEKOTICK_FOLDER).join(STORE_FOLDER);
+    fs::create_dir_all(&store_dir).map_err(|e| e.to_string())?;
 
-    let data_json_path = nekotick_dir.join(DATA_FILE_NAME);
-    let backup_path = nekotick_dir.join(format!("{}.backup", DATA_FILE_NAME));
+    let data_json_path = store_dir.join(DATA_FILE_NAME);
+    let backup_path = store_dir.join(format!("{}.backup", DATA_FILE_NAME));
 
     // Backup existing local data
     if data_json_path.exists() {
@@ -522,7 +525,7 @@ pub async fn sync_github_bidirectional(app: tauri::AppHandle) -> Result<GitHubBi
         .ok_or("Not connected to GitHub")?;
 
     let base_path = get_data_dir(&app)?;
-    let data_json_path = base_path.join(NEKOTICK_FOLDER).join(DATA_FILE_NAME);
+    let data_json_path = base_path.join(NEKOTICK_FOLDER).join(STORE_FOLDER).join(DATA_FILE_NAME);
 
     let gist_client = GistClient::new(creds.access_token.clone());
 
@@ -568,12 +571,12 @@ pub async fn sync_github_bidirectional(app: tauri::AppHandle) -> Result<GitHubBi
                 .map_err(|e| e.to_string())?;
 
             // Ensure local directory exists
-            let nekotick_dir = base_path.join(NEKOTICK_FOLDER);
-            fs::create_dir_all(&nekotick_dir).map_err(|e| e.to_string())?;
+            let store_dir = base_path.join(NEKOTICK_FOLDER).join(STORE_FOLDER);
+            fs::create_dir_all(&store_dir).map_err(|e| e.to_string())?;
 
             // Backup existing local data
             if data_json_path.exists() {
-                let backup_path = nekotick_dir.join(format!("{}.backup", DATA_FILE_NAME));
+                let backup_path = store_dir.join(format!("{}.backup", DATA_FILE_NAME));
                 let _ = fs::copy(&data_json_path, &backup_path);
             }
 

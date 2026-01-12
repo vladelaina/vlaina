@@ -45,8 +45,7 @@ export {
   toStoragePath,
   toOSPath,
   isRelativePath,
-  isValidAssetPath,
-  getAssetFilename,
+  isValidAssetFilename,
   buildAssetPath
 } from './pathUtils';
 

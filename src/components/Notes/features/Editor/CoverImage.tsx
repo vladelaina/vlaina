@@ -59,12 +59,11 @@ export function CoverImage({
                     return;
                 }
 
-                // It's a relative path like .nekotick/assets/covers/cover.jpg
-                // We need the full absolute path to load as blob
-                // Construct absolute path: vaultPath + / + url
+                // url is just the filename (e.g., "photo.jpg")
+                // Build full path: vaultPath/.nekotick/assets/covers/filename
                 const separator = vaultPath.includes('\\') ? '\\' : '/';
-                const cleanUrl = url.replace(/\//g, separator);
-                const fullPath = `${vaultPath}${separator}${cleanUrl}`;
+                const assetsDir = `.nekotick${separator}assets${separator}covers`;
+                const fullPath = `${vaultPath}${separator}${assetsDir}${separator}${url}`;
 
                 const blobUrl = await loadImageAsBlob(fullPath);
                 setResolvedSrc(blobUrl);

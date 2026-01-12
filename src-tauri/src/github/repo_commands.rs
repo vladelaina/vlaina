@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use tauri::Manager;
 
 const NEKOTICK_FOLDER: &str = ".nekotick";
+const STORE_FOLDER: &str = "store";
 const GITHUB_CREDS_FILE: &str = "github_credentials.json";
 
 /// Stored GitHub credentials (same as in commands.rs)
@@ -65,6 +66,7 @@ fn get_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 fn get_github_creds_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let mut path = get_data_dir(app)?;
     path.push(NEKOTICK_FOLDER);
+    path.push(STORE_FOLDER);
     path.push(GITHUB_CREDS_FILE);
     Ok(path)
 }

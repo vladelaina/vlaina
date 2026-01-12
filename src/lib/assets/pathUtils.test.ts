@@ -13,8 +13,7 @@ import {
   toStoragePath,
   toOSPath,
   isRelativePath,
-  isValidAssetPath,
-  getAssetFilename,
+  isValidAssetFilename,
   buildAssetPath,
 } from './pathUtils';
 
@@ -95,26 +94,22 @@ describe('pathUtils', () => {
       });
     });
 
-    describe('isValidAssetPath', () => {
-      it('returns true for valid asset paths', () => {
-        expect(isValidAssetPath('.nekotick/assets/covers/photo.jpg')).toBe(true);
-        expect(isValidAssetPath('.nekotick/assets/covers/subfolder/image.png')).toBe(true);
-        expect(isValidAssetPath('.nekotick\\assets\\covers\\photo.jpg')).toBe(true);
+    describe('isValidAssetFilename', () => {
+      it('returns true for valid filenames', () => {
+        expect(isValidAssetFilename('photo.jpg')).toBe(true);
+        expect(isValidAssetFilename('image.png')).toBe(true);
+        expect(isValidAssetFilename('my-cover_2024.webp')).toBe(true);
       });
 
-      it('returns false for invalid paths', () => {
-        expect(isValidAssetPath('/absolute/path.jpg')).toBe(false);
-        expect(isValidAssetPath('C:\\absolute\\path.jpg')).toBe(false);
-        expect(isValidAssetPath('other/folder/file.jpg')).toBe(false);
-        expect(isValidAssetPath('.nekotick/other/file.jpg')).toBe(false);
+      it('returns false for paths with separators', () => {
+        expect(isValidAssetFilename('folder/photo.jpg')).toBe(false);
+        expect(isValidAssetFilename('folder\\photo.jpg')).toBe(false);
+        expect(isValidAssetFilename('.nekotick/assets/covers/photo.jpg')).toBe(false);
       });
-    });
 
-    describe('getAssetFilename', () => {
-      it('extracts filename from path', () => {
-        expect(getAssetFilename('.nekotick/assets/covers/photo.jpg')).toBe('photo.jpg');
-        expect(getAssetFilename('.nekotick\\assets\\covers\\image.png')).toBe('image.png');
-        expect(getAssetFilename('photo.jpg')).toBe('photo.jpg');
+      it('returns false for filenames without extension', () => {
+        expect(isValidAssetFilename('photo')).toBe(false);
+        expect(isValidAssetFilename('noextension')).toBe(false);
       });
     });
 
@@ -124,13 +119,13 @@ describe('pathUtils', () => {
         expect(buildAssetPath('image.png')).toBe('.nekotick/assets/covers/image.png');
       });
 
-      it('result is always valid asset path', () => {
+      it('result always starts with correct prefix', () => {
         fc.assert(
           fc.property(
-            fc.stringMatching(/^[a-zA-Z0-9._-]+$/),
+            fc.stringMatching(/^[a-zA-Z0-9._-]+\.[a-zA-Z]+$/),
             (filename) => {
               const path = buildAssetPath(filename);
-              expect(isValidAssetPath(path)).toBe(true);
+              expect(path).toBe(`.nekotick/assets/covers/${filename}`);
             }
           ),
           { numRuns: 100 }

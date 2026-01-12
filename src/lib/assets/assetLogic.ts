@@ -88,18 +88,16 @@ export function sortAssetsByDate(assets: AssetEntry[]): AssetEntry[] {
 }
 
 /**
- * Find unused assets by checking if their paths appear in content
+ * Find unused assets by checking if their filenames appear in content
  */
 export function findUnusedAssets(
   index: AssetIndex,
-  allContent: string,
-  assetsDir: string = '.nekotick/assets/covers'
+  allContent: string
 ): string[] {
   const unused: string[] = [];
   
   for (const filename of Object.keys(index.assets)) {
-    const assetPath = `${assetsDir}/${filename}`;
-    if (!allContent.includes(assetPath)) {
+    if (!allContent.includes(filename)) {
       unused.push(filename);
     }
   }

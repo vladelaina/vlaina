@@ -10,6 +10,7 @@ import { setCurrentVaultPath } from './useNotesStore';
 
 // .nekotick folder name (like Obsidian's .obsidian)
 const NEKOTICK_CONFIG_FOLDER = '.nekotick';
+const STORE_FOLDER = 'store';
 
 // Default config files for a new vault
 const DEFAULT_VAULT_CONFIG = {
@@ -36,19 +37,19 @@ This is your new vault.
  */
 async function initVaultConfig(vaultPath: string): Promise<void> {
   const storage = getStorageAdapter();
-  const configPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER);
+  const storePath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, STORE_FOLDER);
 
-  // Check if config folder exists
-  if (await storage.exists(configPath)) return;
+  // Check if store folder exists
+  if (await storage.exists(storePath)) return;
 
-  // Create .nekotick folder
-  await storage.mkdir(configPath, true);
+  // Create .nekotick/store folder
+  await storage.mkdir(storePath, true);
 
-  // Create default config files
-  const configFilePath = await joinPath(configPath, 'config.json');
+  // Create default config files in store folder
+  const configFilePath = await joinPath(storePath, 'config.json');
   await storage.writeFile(configFilePath, JSON.stringify(DEFAULT_VAULT_CONFIG, null, 2));
 
-  const workspacePath = await joinPath(configPath, 'workspace.json');
+  const workspacePath = await joinPath(storePath, 'workspace.json');
   await storage.writeFile(workspacePath, JSON.stringify(DEFAULT_WORKSPACE_STATE, null, 2));
 }
 
@@ -65,11 +66,15 @@ async function createWelcomeNote(vaultPath: string): Promise<void> {
 
   await storage.writeFile(welcomePath, WELCOME_NOTE_CONTENT);
 
-  // Set the ribbon icon for welcome note
-  const iconsPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, 'icons.json');
-  const icons: Record<string, string> = {};
-  icons[fileName] = '🎀';
-  await storage.writeFile(iconsPath, JSON.stringify(icons, null, 2));
+  // Set the ribbon icon for welcome note in metadata.json
+  const metadataPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, STORE_FOLDER, 'metadata.json');
+  const metadata = {
+    version: 1,
+    notes: {
+      [fileName]: { icon: '🎀' }
+    }
+  };
+  await storage.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
 }
 
 export interface VaultInfo {

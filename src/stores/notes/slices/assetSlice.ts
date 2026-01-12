@@ -17,7 +17,7 @@ import { processFilename, getMimeType } from '@/lib/assets/filenameService';
 import { writeAssetAtomic, cleanupTempFiles } from '@/lib/assets/atomicWrite';
 
 const ASSETS_DIR = '.nekotick/assets/covers';
-const NEKOTICK_DIR = '.nekotick';
+const STORE_DIR = '.nekotick/store';
 const INDEX_FILE = 'covers.json';
 
 export interface AssetSlice {
@@ -47,12 +47,15 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
     try {
       const assetsDir = await joinPath(vaultPath, ASSETS_DIR);
-      const nekotickDir = await joinPath(vaultPath, NEKOTICK_DIR);
-      const indexPath = await joinPath(nekotickDir, INDEX_FILE);
+      const storeDir = await joinPath(vaultPath, STORE_DIR);
+      const indexPath = await joinPath(storeDir, INDEX_FILE);
 
-      // Ensure assets directory exists
+      // Ensure directories exist
       if (!await storage.exists(assetsDir)) {
         await storage.mkdir(assetsDir, true);
+      }
+      if (!await storage.exists(storeDir)) {
+        await storage.mkdir(storeDir, true);
       }
 
       // Load or create index
@@ -70,7 +73,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
           console.warn('Asset index corrupted, rebuilding...', e);
           // Backup corrupted file
           try {
-            const backupPath = await joinPath(nekotickDir, 'covers.json.bak');
+            const backupPath = await joinPath(storeDir, 'covers.json.bak');
             const content = await storage.readFile(indexPath);
             await storage.writeFile(backupPath, content);
           } catch {
@@ -98,12 +101,15 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     try {
       const vaultPath = notesPath || await getNotesBasePath();
       const assetsDir = await joinPath(vaultPath, ASSETS_DIR);
-      const nekotickDir = await joinPath(vaultPath, NEKOTICK_DIR);
-      const indexPath = await joinPath(nekotickDir, INDEX_FILE);
+      const storeDir = await joinPath(vaultPath, STORE_DIR);
+      const indexPath = await joinPath(storeDir, INDEX_FILE);
 
-      // Ensure directory exists
+      // Ensure directories exist
       if (!await storage.exists(assetsDir)) {
         await storage.mkdir(assetsDir, true);
+      }
+      if (!await storage.exists(storeDir)) {
+        await storage.mkdir(storeDir, true);
       }
 
       // Load index if not loaded
@@ -128,7 +134,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
         set({ uploadProgress: null });
         return {
           success: true,
-          path: `${ASSETS_DIR}/${existingFilename}`,
+          path: existingFilename,  // Return only filename
           isDuplicate: true,
           existingFilename,
         };
@@ -173,7 +179,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
       return {
         success: true,
-        path: `${ASSETS_DIR}/${filename}`,
+        path: filename,  // Return only filename
         isDuplicate: false,
       };
     } catch (error) {
@@ -197,8 +203,8 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     try {
       const vaultPath = notesPath || await getNotesBasePath();
       const assetsDir = await joinPath(vaultPath, ASSETS_DIR);
-      const nekotickDir = await joinPath(vaultPath, NEKOTICK_DIR);
-      const indexPath = await joinPath(nekotickDir, INDEX_FILE);
+      const storeDir = await joinPath(vaultPath, STORE_DIR);
+      const indexPath = await joinPath(storeDir, INDEX_FILE);
       const filePath = await joinPath(assetsDir, filename);
 
       // Get entry to find hash
@@ -244,11 +250,10 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     // Combine all note contents
     const allContent = Array.from(cache.values()).join('\n');
 
-    // Find unused assets
+    // Find unused assets (check by filename only)
     const unused: string[] = [];
     for (const filename of Object.keys(assetIndex.assets)) {
-      const assetPath = `${ASSETS_DIR}/${filename}`;
-      if (!allContent.includes(assetPath)) {
+      if (!allContent.includes(filename)) {
         unused.push(filename);
       }
     }

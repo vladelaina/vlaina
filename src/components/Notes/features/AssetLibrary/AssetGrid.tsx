@@ -140,8 +140,8 @@ export function AssetGrid({ onSelect, vaultPath }: AssetGridProps) {
   }, [vaultPath, loadAssetIndex]);
 
   const handleSelect = useCallback((filename: string) => {
-    const assetPath = `${ASSETS_DIR}/${filename}`;
-    onSelect(assetPath);
+    // Return only filename, not full path
+    onSelect(filename);
   }, [onSelect]);
 
   const handleDeleteClick = useCallback((filename: string) => {

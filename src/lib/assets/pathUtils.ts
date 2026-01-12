@@ -46,29 +46,23 @@ export function isRelativePath(path: string): boolean {
 }
 
 /**
- * Validate asset path format
- * Must be relative and start with .nekotick/assets/covers/
+ * Validate asset filename format
+ * Must be a simple filename without path separators
  */
-export function isValidAssetPath(path: string): boolean {
-  if (!isRelativePath(path)) {
+export function isValidAssetFilename(filename: string): boolean {
+  // No path separators allowed
+  if (filename.includes('/') || filename.includes('\\')) {
     return false;
   }
-  
-  const normalized = toStoragePath(path);
-  return normalized.startsWith('.nekotick/assets/covers/');
+  // Must have an extension
+  if (!filename.includes('.')) {
+    return false;
+  }
+  return true;
 }
 
 /**
- * Extract filename from asset path
- */
-export function getAssetFilename(path: string): string {
-  const normalized = toStoragePath(path);
-  const parts = normalized.split('/');
-  return parts[parts.length - 1];
-}
-
-/**
- * Build asset path from filename
+ * Build full asset path from filename
  */
 export function buildAssetPath(filename: string): string {
   return `.nekotick/assets/covers/${filename}`;

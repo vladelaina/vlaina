@@ -8,7 +8,7 @@
  * - Calendar and todo are just different views of the same data
  * 
  * Storage structure:
- * - .nekotick/data.json: Data source (JSON format, read/write by program)
+ * - .nekotick/store/data.json: Data source (JSON format, read/write by program)
  * - nekotick.md: Human-readable Markdown view (write-only, for backup and viewing)
  */
 
@@ -140,10 +140,10 @@ async function getBasePath(): Promise<string> {
 async function ensureDirectories(): Promise<void> {
   const storage = getStorageAdapter();
   const base = await getBasePath();
-  const metadataDir = await joinPath(base, '.nekotick');
+  const storeDir = await joinPath(base, '.nekotick', 'store');
 
-  if (!(await storage.exists(metadataDir))) {
-    await storage.mkdir(metadataDir, true);
+  if (!(await storage.exists(storeDir))) {
+    await storage.mkdir(storeDir, true);
   }
 }
 
@@ -173,7 +173,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     const storage = getStorageAdapter();
     await ensureDirectories();
     const base = await getBasePath();
-    const jsonPath = await joinPath(base, '.nekotick', 'data.json');
+    const jsonPath = await joinPath(base, '.nekotick', 'store', 'data.json');
 
     if (await storage.exists(jsonPath)) {
       const content = await storage.readFile(jsonPath);
@@ -211,7 +211,7 @@ export async function saveUnifiedData(data: UnifiedData): Promise<void> {
       const storage = getStorageAdapter();
       await ensureDirectories();
       const base = await getBasePath();
-      const jsonPath = await joinPath(base, '.nekotick', 'data.json');
+      const jsonPath = await joinPath(base, '.nekotick', 'store', 'data.json');
       const mdPath = await joinPath(base, 'nekotick.md');
 
       // Save JSON (source of truth)
@@ -263,7 +263,7 @@ export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void>
     const storage = getStorageAdapter();
     await ensureDirectories();
     const base = await getBasePath();
-    const jsonPath = await joinPath(base, '.nekotick', 'data.json');
+    const jsonPath = await joinPath(base, '.nekotick', 'store', 'data.json');
     const mdPath = await joinPath(base, 'nekotick.md');
 
     const dataFile: DataFile = {

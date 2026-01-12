@@ -35,7 +35,10 @@ export async function getBasePath(): Promise<string> {
  * Structure (Unified Single-File Architecture):
  *   NekoTick/
  *   ├── .nekotick/           <- Hidden metadata
- *   │   └── data.json        <- Source of truth (all app data)
+ *   │   ├── assets/          <- Binary assets (images)
+ *   │   │   └── covers/
+ *   │   └── store/           <- JSON data files
+ *   │       └── data.json    <- Source of truth (all app data)
  *   └── nekotick.md          <- Human-readable backup
  */
 export async function getPaths() {
@@ -43,7 +46,8 @@ export async function getPaths() {
   return {
     base,
     metadata: await joinPath(base, '.nekotick'),
-    dataJson: await joinPath(base, '.nekotick', 'data.json'),
+    store: await joinPath(base, '.nekotick', 'store'),
+    dataJson: await joinPath(base, '.nekotick', 'store', 'data.json'),
     markdown: await joinPath(base, 'nekotick.md'),
   };
 }
@@ -55,10 +59,10 @@ export async function ensureDirectories(): Promise<void> {
   try {
     const storage = getStorageAdapter();
     const base = await getBasePath();
-    const metadataDir = await joinPath(base, '.nekotick');
+    const storeDir = await joinPath(base, '.nekotick', 'store');
     
-    if (!(await storage.exists(metadataDir))) {
-      await storage.mkdir(metadataDir, true);
+    if (!(await storage.exists(storeDir))) {
+      await storage.mkdir(storeDir, true);
     }
   } catch (error) {
     console.error('Failed to create directories:', error);

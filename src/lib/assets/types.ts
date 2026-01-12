@@ -17,7 +17,7 @@ export interface AssetEntry {
   uploadedAt: string;
 }
 
-/** Asset index stored in .nekotick/covers.json */
+/** Asset index stored in .nekotick/store/covers.json */
 export interface AssetIndex {
   /** Schema version for future migrations */
   version: 1;
@@ -31,7 +31,7 @@ export interface AssetIndex {
 export interface UploadResult {
   /** Whether the upload succeeded */
   success: boolean;
-  /** Relative path to the asset (e.g., ".nekotick/assets/covers/photo.jpg") */
+  /** Asset filename (e.g., "photo.jpg") */
   path: string | null;
   /** Whether this was a duplicate (reused existing file) */
   isDuplicate: boolean;

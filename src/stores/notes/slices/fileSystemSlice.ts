@@ -628,8 +628,8 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       // Write binary file
       await storage.writeBinaryFile(fullPath, uint8Array);
 
-      // Return relative path (standardized with forward slashes for markdown compatibility)
-      return `.nekotick/assets/covers/${fileName}`;
+      // Return only filename
+      return fileName;
 
     } catch (error) {
       console.error('Failed to upload asset:', error);

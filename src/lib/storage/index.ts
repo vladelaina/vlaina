@@ -4,7 +4,7 @@
  * Core concept: There is only one type of "item" (UnifiedTask)
  * 
  * Storage locations:
- * - .nekotick/data.json (data source)
+ * - .nekotick/store/data.json (data source)
  * - nekotick.md (human-readable backup)
  */
 

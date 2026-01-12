@@ -210,9 +210,9 @@ describe('assetLogic', () => {
             const filenames = Object.keys(index.assets);
             if (filenames.length === 0) return true;
             
-            // Create content that references only some assets
+            // Create content that references only some assets (by filename)
             const referenced = filenames.slice(0, Math.floor(filenames.length / 2));
-            const content = referenced.map(f => `.nekotick/assets/covers/${f}`).join('\n');
+            const content = referenced.join('\n');
             
             const unused = findUnusedAssets(index, content);
             
@@ -246,7 +246,7 @@ describe('assetLogic', () => {
       expect(unused).toContain('photo.jpg');
     });
 
-    it('returns empty when all assets are referenced', () => {
+    it('returns empty when all assets are referenced by filename', () => {
       const index = createEmptyIndex();
       index.assets['photo.jpg'] = {
         filename: 'photo.jpg',
@@ -257,7 +257,7 @@ describe('assetLogic', () => {
       };
       index.hashMap['1234567890abcdef'] = 'photo.jpg';
       
-      const content = 'Some text with .nekotick/assets/covers/photo.jpg reference';
+      const content = 'cover: photo.jpg';
       const unused = findUnusedAssets(index, content);
       expect(unused).toHaveLength(0);
     });
