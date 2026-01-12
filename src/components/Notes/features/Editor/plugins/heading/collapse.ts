@@ -18,10 +18,10 @@ function createToggleButton(pos: number, isCollapsed: boolean, hasContent: boole
   button.setAttribute('data-has-content', String(hasContent));
   button.setAttribute('contenteditable', 'false');
   
-  // Triangle icon (solid triangle pointing down)
+  // Triangle icon (toggle down)
   button.innerHTML = `
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-      <path d="M4 6l4 4 4-4z"/>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M13.15 15.132a.757.757 0 0 1-1.3 0L8.602 9.605c-.29-.491.072-1.105.65-1.105h6.497c.577 0 .938.614.65 1.105z"/>
     </svg>
   `;
   

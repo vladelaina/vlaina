@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronRight, FileText, Folder, Ellipsis, ExternalLink } from 'lucide-react';
+import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, Ellipsis, ExternalLink } from 'lucide-react';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles, NOTES_COLORS } from '@/lib/utils';
@@ -213,28 +213,31 @@ function LocalFileTreeItem({
           )}
           style={isActive ? { backgroundColor: NOTES_COLORS.activeItem } : undefined}
         >
-          {/* Chevron for folders */}
+          {/* Icon - folder shows chevron on hover */}
           {isFolder ? (
-            <span className="w-4 h-4 flex items-center justify-center">
-              <ChevronRight 
-                className={cn(
-                  "w-3 h-3 text-[var(--neko-icon-secondary)] transition-transform duration-150",
-                  isExpanded && "rotate-90"
-                )} 
-              />
+            <span className="w-4 h-4 flex items-center justify-center relative">
+              {/* Folder icon - hidden on hover */}
+              <span className="group-hover:hidden">
+                {isExpanded ? (
+                  <FolderOpen className="w-4 h-4 text-amber-500" />
+                ) : (
+                  <Folder className="w-4 h-4 text-amber-500" />
+                )}
+              </span>
+              {/* Chevron icon - shown on hover */}
+              <span className="hidden group-hover:block text-amber-500">
+                {isExpanded ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+              </span>
             </span>
           ) : (
-            <span className="w-4" />
-          )}
-
-          {/* Icon */}
-          <span className="w-4 h-4 flex items-center justify-center">
-            {isFolder ? (
-              <Folder className="w-4 h-4 text-amber-500" />
-            ) : (
+            <span className="w-4 h-4 flex items-center justify-center">
               <FileText className={cn("w-4 h-4 text-[var(--neko-icon-secondary)]", getStatusColor())} />
-            )}
-          </span>
+            </span>
+          )}
 
           {/* Name (without .md extension for md files) */}
           <span className={cn(

@@ -5,7 +5,7 @@
  * for sidebar sections like Favorites, GitHub, and Workspace.
  */
 
-import { ChevronDown } from 'lucide-react';
+import { ToggleIcon } from '@/components/common/ToggleIcon';
 import { cn } from '@/lib/utils';
 
 interface CollapsibleSectionProps {
@@ -43,16 +43,11 @@ export function CollapsibleSection({
           onClick={handleHeaderClick}
           className="group flex items-center justify-between px-2 py-1 rounded-md hover:bg-[var(--neko-hover)] transition-colors cursor-pointer"
         >
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <span className="text-[11px] font-medium text-[var(--neko-text-tertiary)] tracking-wider">
               {title}
             </span>
-            <ChevronDown
-              className={cn(
-                "w-3 h-3 text-[#CDCDCD] transition-transform",
-                expanded ? "" : "-rotate-90"
-              )}
-            />
+            <ToggleIcon expanded={expanded} size={14} className="text-[#CDCDCD]" />
           </div>
           {actions && (
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">

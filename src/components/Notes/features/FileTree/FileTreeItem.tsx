@@ -3,12 +3,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  ChevronRight, 
+  ChevronRight,
+  ChevronDown,
   Ellipsis, 
   Trash2, 
   Pencil,
   FileText,
   Folder,
+  FolderOpen,
   Star,
 } from 'lucide-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
@@ -202,27 +204,33 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
           style={isActive ? { backgroundColor: NOTES_COLORS.activeItem } : undefined}
         >
         {node.isFolder ? (
-          <span className="w-4 h-4 flex items-center justify-center">
-            <ChevronRight 
-              className={cn(
-                "w-3 h-3 text-[var(--neko-icon-secondary)] transition-transform duration-150",
-                node.expanded && "rotate-90"
-              )} 
-            />
+          <span className="w-4 h-4 flex items-center justify-center relative">
+            {/* Folder icon - hidden on hover */}
+            <span className="group-hover:hidden">
+              {node.expanded ? (
+                <FolderOpen className="w-4 h-4 text-amber-500" />
+              ) : (
+                <Folder className="w-4 h-4 text-amber-500" />
+              )}
+            </span>
+            {/* Chevron icon - shown on hover */}
+            <span className="hidden group-hover:block text-amber-500">
+              {node.expanded ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+            </span>
           </span>
         ) : (
-          <span className="w-4" />
+          <span className="w-4 h-4 flex items-center justify-center">
+            {noteIcon ? (
+              <NoteIcon icon={noteIcon} size={16} />
+            ) : (
+              <FileText className="w-4 h-4 text-[var(--neko-icon-secondary)]" />
+            )}
+          </span>
         )}
-
-        <span className="w-4 h-4 flex items-center justify-center">
-          {node.isFolder ? (
-            <Folder className="w-4 h-4 text-amber-500" />
-          ) : noteIcon ? (
-            <NoteIcon icon={noteIcon} size={16} />
-          ) : (
-            <FileText className="w-4 h-4 text-[var(--neko-icon-secondary)]" />
-          )}
-        </span>
 
         {isRenaming ? (
           <input

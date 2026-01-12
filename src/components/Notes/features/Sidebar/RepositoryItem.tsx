@@ -8,7 +8,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  ChevronRight, 
   Ellipsis, 
   RefreshCw, 
   ExternalLink, 
@@ -21,6 +20,7 @@ import {
   CloudAlert,
   CloudOff,
 } from 'lucide-react';
+import { ToggleIcon } from '@/components/common/ToggleIcon';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { type RepositoryInfo } from '@/lib/tauri/invoke';
 import { LocalFileTree } from './LocalFileTree';
@@ -148,11 +148,10 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
         >
           {/* Chevron */}
           <span className="w-4 h-4 flex items-center justify-center">
-            <ChevronRight 
-              className={cn(
-                "w-3 h-3 text-[var(--neko-icon-secondary)] transition-transform duration-150",
-                isExpanded && "rotate-90"
-              )} 
+            <ToggleIcon 
+              expanded={isExpanded}
+              size={14}
+              className="text-[var(--neko-icon-secondary)]"
             />
           </span>
 
