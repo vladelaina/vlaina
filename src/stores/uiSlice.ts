@@ -22,9 +22,6 @@ interface UIStore {
   sidebarHeaderHovered: boolean;
   setSidebarHeaderHovered: (hovered: boolean) => void;
 
-  notesShowAIPanel: boolean;
-  toggleNotesAIPanel: () => void;
-
   notesPreviewIcon: { path: string; icon: string } | null;
   setNotesPreviewIcon: (path: string | null, icon: string | null) => void;
 
@@ -142,9 +139,6 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   setNotesSidebarWidth: (width) => set({ notesSidebarWidth: width }),
   sidebarHeaderHovered: false,
   setSidebarHeaderHovered: (hovered) => set({ sidebarHeaderHovered: hovered }),
-
-  notesShowAIPanel: false,
-  toggleNotesAIPanel: () => set((state) => ({ notesShowAIPanel: !state.notesShowAIPanel })),
 
   notesPreviewIcon: null,
   setNotesPreviewIcon: (path, icon) => {

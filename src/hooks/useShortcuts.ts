@@ -18,11 +18,10 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
   const undoLastAction = useUnifiedStore(state => state.undo);
   const { toggleDrawer } = useUIStore();
   const { createNote, currentNote } = useNotesStore();
-  const { appViewMode, toggleNotesSidebar, toggleNotesAIPanel } = useAppUIStore();
+  const { appViewMode, toggleNotesSidebar } = useAppUIStore();
 
   const builtinHandlers = useMemo<Record<string, ShortcutHandler>>(() => ({
     toggleSidebar: toggleNotesSidebar,
-    toggleAIPanel: toggleNotesAIPanel,
     newTab: () => {
       const folderPath = currentNote?.path 
         ? currentNote.path.substring(0, currentNote.path.lastIndexOf('/')) || undefined
@@ -36,7 +35,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       }
     },
     openArchive: () => setActiveGroup('__archive__'),
-  }), [toggleNotesSidebar, toggleNotesAIPanel, createNote, currentNote?.path, toggleDrawer, activeGroupId, archiveCompletedTasks, setActiveGroup]);
+  }), [toggleNotesSidebar, createNote, currentNote?.path, toggleDrawer, activeGroupId, archiveCompletedTasks, setActiveGroup]);
 
   const handlers = useMemo(() => ({
     ...builtinHandlers,

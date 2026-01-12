@@ -1,7 +1,5 @@
 import { useState, useRef, useEffect, MouseEvent } from 'react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Image, X, Upload } from 'lucide-react';
 import { CoverPicker } from '../AssetLibrary';
 import { loadImageAsBlob } from '@/lib/assets/imageLoader';
 
@@ -31,8 +29,6 @@ export function CoverImage({
     const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
     const [showPicker, setShowPicker] = useState(false);
     const [coverHeight, setCoverHeight] = useState(height ?? DEFAULT_HEIGHT);
-    const [isResizing, setIsResizing] = useState(false);
-    const [isRepositioning, setIsRepositioning] = useState(false);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
@@ -41,6 +37,8 @@ export function CoverImage({
     const startYRef = useRef<number>(0);
     const startPosRef = useRef<number>(0);
     const currentYRef = useRef<number>(positionY);
+    const hasDraggedRef = useRef<boolean>(false);
+    const DRAG_THRESHOLD = 5; // pixels to distinguish click from drag
     
     // For height resizing
     const startHeightRef = useRef<number>(0);
@@ -96,23 +94,32 @@ export function CoverImage({
         resolve();
     }, [url, vaultPath]);
 
-    // Image position dragging
+    // Image position dragging (click = open picker, drag = reposition)
     const handleImageMouseDown = (e: MouseEvent) => {
-        if (readOnly || !url) return;
+        if (readOnly) return;
         e.preventDefault();
 
-        setIsRepositioning(true);
+        hasDraggedRef.current = false;
         startYRef.current = e.clientY;
         startPosRef.current = currentYRef.current;
 
         document.addEventListener('mousemove', handleImageMouseMove);
         document.addEventListener('mouseup', handleImageMouseUp);
-        document.body.style.cursor = 'move';
     };
 
     const handleImageMouseMove = (e: globalThis.MouseEvent) => {
         if (!containerRef.current || !imgRef.current) return;
         e.preventDefault();
+
+        const deltaY = e.clientY - startYRef.current;
+        
+        // Mark as dragged if moved beyond threshold
+        if (Math.abs(deltaY) > DRAG_THRESHOLD) {
+            hasDraggedRef.current = true;
+            document.body.style.cursor = 'move';
+        }
+
+        if (!hasDraggedRef.current) return;
 
         const containerHeight = containerRef.current.clientHeight;
         const imgHeight = imgRef.current.naturalHeight * (imgRef.current.clientWidth / imgRef.current.naturalWidth);
@@ -120,7 +127,6 @@ export function CoverImage({
 
         if (scrollableRange <= 0) return;
 
-        const deltaY = e.clientY - startYRef.current;
         const deltaPercentage = (deltaY / scrollableRange) * 100;
 
         let newY = startPosRef.current - deltaPercentage;
@@ -134,15 +140,19 @@ export function CoverImage({
     };
 
     const handleImageMouseUp = () => {
-        setIsRepositioning(false);
-
         document.removeEventListener('mousemove', handleImageMouseMove);
         document.removeEventListener('mouseup', handleImageMouseUp);
         document.body.style.cursor = '';
 
-        const newY = currentYRef.current;
-        setDragY(newY);
-        onUpdate(url, newY, coverHeight);
+        if (hasDraggedRef.current) {
+            // Was a drag - save new position
+            const newY = currentYRef.current;
+            setDragY(newY);
+            onUpdate(url, newY, coverHeight);
+        } else {
+            // Was a click - open picker
+            setShowPicker(true);
+        }
     };
 
     // Height resizing
@@ -151,7 +161,6 @@ export function CoverImage({
         e.preventDefault();
         e.stopPropagation();
 
-        setIsResizing(true);
         startResizeYRef.current = e.clientY;
         startHeightRef.current = coverHeight;
 
@@ -171,8 +180,6 @@ export function CoverImage({
     };
 
     const handleResizeMouseUp = () => {
-        setIsResizing(false);
-
         document.removeEventListener('mousemove', handleResizeMouseMove);
         document.removeEventListener('mouseup', handleResizeMouseUp);
 
@@ -185,31 +192,26 @@ export function CoverImage({
         setShowPicker(false);
     };
 
+    const handleCoverRemove = () => {
+        onUpdate(null, 50);
+    };
+
     // Default Atmospheric Header (Aurora) if no URL
     if (!url && !localPreview) {
         return (
             <>
-                <div className="group relative h-[120px] w-full shrink-0">
+                <div
+                    className={cn(
+                        "relative h-[120px] w-full shrink-0",
+                        !readOnly && "cursor-pointer"
+                    )}
+                    onClick={() => !readOnly && setShowPicker(true)}
+                >
                     {/* Aurora Atmosphere (Legacy/Default) */}
                     <div className="absolute inset-0 pointer-events-none z-0 opacity-60 dark:opacity-40 select-none overflow-hidden">
                         <div className="absolute top-[-40%] left-[-10%] w-[70%] h-[150%] rounded-full bg-[var(--neko-accent)] opacity-[0.08] blur-[80px]" />
                         <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[120%] rounded-full bg-purple-500 opacity-[0.05] blur-[80px]" />
                     </div>
-
-                    {/* Add Cover Button (Shows on Hover) */}
-                    {!readOnly && (
-                        <div className="absolute bottom-4 right-12 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setShowPicker(true)}
-                                className="text-xs text-muted-foreground hover:bg-black/5 hover:text-foreground h-7"
-                            >
-                                <Image className="w-3.5 h-3.5 mr-1.5" />
-                                Add cover
-                            </Button>
-                        </div>
-                    )}
                 </div>
 
                 <CoverPicker
@@ -229,7 +231,7 @@ export function CoverImage({
     return (
         <>
             <div
-                className="group relative w-full bg-muted/20 shrink-0 select-none overflow-hidden"
+                className="relative w-full bg-muted/20 shrink-0 select-none overflow-hidden"
                 style={{ height: coverHeight }}
                 ref={containerRef}
             >
@@ -240,38 +242,12 @@ export function CoverImage({
                         alt="Cover"
                         className={cn(
                             "absolute inset-0 w-full h-full object-cover",
-                            !readOnly && "cursor-move"
+                            !readOnly && "cursor-pointer"
                         )}
                         style={{ objectPosition: `50% ${displayY}%` }}
                         draggable={false}
                         onMouseDown={handleImageMouseDown}
                     />
-                )}
-
-                {/* Controls Overlay */}
-                {!readOnly && (
-                    <div className={cn(
-                        "absolute bottom-4 right-12 transition-opacity duration-200 z-20 flex gap-2",
-                        (isResizing || isRepositioning) ? "opacity-0" : "opacity-0 group-hover:opacity-100"
-                    )}>
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            className="h-7 text-xs bg-white/50 backdrop-blur-md hover:bg-white/80 dark:bg-black/50 dark:hover:bg-black/70 shadow-sm border border-black/5"
-                            onClick={() => setShowPicker(true)}
-                        >
-                            <Upload className="w-3.5 h-3.5 mr-1.5" /> Change
-                        </Button>
-
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            className="h-7 w-7 p-0 bg-white/50 backdrop-blur-md hover:bg-white/80 dark:bg-black/50 dark:hover:bg-black/70 shadow-sm border border-black/5 text-muted-foreground hover:text-red-500"
-                            onClick={() => onUpdate(null, 50)}
-                        >
-                            <X className="w-3.5 h-3.5" />
-                        </Button>
-                    </div>
                 )}
 
                 {/* Bottom edge resize handle */}
@@ -287,6 +263,7 @@ export function CoverImage({
                 isOpen={showPicker}
                 onClose={() => setShowPicker(false)}
                 onSelect={handleCoverSelect}
+                onRemove={url ? handleCoverRemove : undefined}
                 vaultPath={vaultPath}
             />
         </>

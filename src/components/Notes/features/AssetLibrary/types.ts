@@ -6,6 +6,7 @@ export interface CoverPickerProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (assetPath: string) => void;
+  onRemove?: () => void;
   vaultPath: string;
 }
 

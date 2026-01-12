@@ -5,7 +5,6 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Menu,
-  MessageCircle,
   FileText,
   X,
   Plus,
@@ -196,7 +195,7 @@ interface TitleBarProps {
 }
 
 export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls }: TitleBarProps) {
-  const { appViewMode, toggleAppViewMode, notesSidebarCollapsed, notesSidebarWidth, notesShowAIPanel, toggleNotesSidebar, toggleNotesAIPanel, sidebarHeaderHovered, setSidebarHeaderHovered } = useUIStore();
+  const { appViewMode, toggleAppViewMode, notesSidebarCollapsed, notesSidebarWidth, toggleNotesSidebar, sidebarHeaderHovered, setSidebarHeaderHovered } = useUIStore();
   const { currentVault } = useVaultStore();
 
   const currentNote = useNotesStore(s => s.currentNote);
@@ -209,9 +208,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
   // Alias for cleaner code
   const sidebarCollapsed = notesSidebarCollapsed;
   const sidebarWidth = notesSidebarWidth;
-  const showAIPanel = notesShowAIPanel;
   const toggleSidebar = toggleNotesSidebar;
-  const toggleAIPanel = toggleNotesAIPanel;
 
   // Use white background when no vault is selected (welcome screen)
   const titleBarBgColor = currentVault ? NOTES_COLORS.sidebarBg : 'var(--neko-bg-primary)';
@@ -422,14 +419,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
               onMouseDown={startDrag}
             />
           </div>
-
-          {/* AI Chat Toggle */}
-          <TitleBarButton
-            icon={MessageCircle}
-            onClick={toggleAIPanel}
-            isActive={showAIPanel}
-            className="w-9 px-0 z-20"
-          />
 
           {/* Window Controls */}
           {!hideWindowControls && <WindowControls className="z-50" />}

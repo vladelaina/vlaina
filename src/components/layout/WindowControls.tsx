@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Minus, Square, X, Pin } from 'lucide-react';
+import { Minus, Square, X } from 'lucide-react';
 import { iconButtonStyles } from '@/lib/utils';
 
 interface WindowControlsProps {
@@ -10,28 +9,11 @@ interface WindowControlsProps {
 }
 
 export function WindowControls({ className, minimal }: WindowControlsProps) {
-  const [isPinned, setIsPinned] = useState(false);
-
   // Get current window dynamically for each action (supports multiple windows)
   const getWindow = () => getCurrentWindow();
 
-  const togglePin = async () => {
-    const newPinned = !isPinned;
-    await getWindow().setAlwaysOnTop(newPinned);
-    setIsPinned(newPinned);
-  };
-
   return (
     <div className={`flex shrink-0 h-10 ${className || ''}`}>
-      {!minimal && (
-        <button
-          onClick={togglePin}
-          className={`h-full w-12 flex items-center justify-center transition-colors ${iconButtonStyles}`}
-        >
-          <Pin className={`size-4 transition-all duration-200 ${isPinned ? 'rotate-0' : 'rotate-45'}`} />
-        </button>
-      )}
-
       <button
         onClick={() => getWindow().minimize()}
         className={`h-full w-12 flex items-center justify-center transition-colors ${iconButtonStyles}`}

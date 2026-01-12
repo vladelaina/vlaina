@@ -2,19 +2,21 @@
  * CoverPicker - Modal for selecting or uploading cover images
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
-import { X, Image, Upload } from 'lucide-react';
+import { X, Image, Upload, Trash2 } from 'lucide-react';
 import { AssetGrid } from './AssetGrid';
 import { UploadZone } from './UploadZone';
 import { EmptyState } from './EmptyState';
 import { CoverPickerProps, CoverPickerTab } from './types';
 
-export function CoverPicker({ isOpen, onClose, onSelect, vaultPath }: CoverPickerProps) {
+export function CoverPicker({ isOpen, onClose, onSelect, onRemove, vaultPath }: CoverPickerProps) {
   const [activeTab, setActiveTab] = useState<CoverPickerTab>('library');
+  const [isUploading, setIsUploading] = useState(false);
   
-  const { getAssetList, loadAssets } = useNotesStore();
+  const { getAssetList, loadAssets, uploadAsset } = useNotesStore();
+  const uploadingRef = useRef(false);
   
   const assets = getAssetList();
   const hasAssets = assets.length > 0;
@@ -41,7 +43,7 @@ export function CoverPicker({ isOpen, onClose, onSelect, vaultPath }: CoverPicke
     setActiveTab('upload');
   }, []);
 
-  // Handle escape key
+  // Handle escape key and paste
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -49,11 +51,44 @@ export function CoverPicker({ isOpen, onClose, onSelect, vaultPath }: CoverPicke
       }
     };
 
+    const handlePaste = async (e: ClipboardEvent) => {
+      if (uploadingRef.current) return;
+      
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            uploadingRef.current = true;
+            setIsUploading(true);
+            
+            const result = await uploadAsset(file);
+            
+            uploadingRef.current = false;
+            setIsUploading(false);
+            
+            if (result.success && result.path) {
+              onSelect(result.path);
+              onClose();
+            }
+          }
+          break;
+        }
+      }
+    };
+
     if (isOpen) {
       document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
+      document.addEventListener('paste', handlePaste);
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+        document.removeEventListener('paste', handlePaste);
+      };
     }
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, uploadAsset, onSelect]);
 
   if (!isOpen) return null;
 
@@ -71,12 +106,26 @@ export function CoverPicker({ isOpen, onClose, onSelect, vaultPath }: CoverPicke
           <h2 className="text-[var(--neko-text-primary)] font-medium">
             Choose Cover
           </h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-md hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            {onRemove && (
+              <button
+                onClick={() => {
+                  onRemove();
+                  onClose();
+                }}
+                className="p-1.5 rounded-md hover:bg-red-500/10 text-[var(--neko-text-tertiary)] hover:text-red-500 transition-colors"
+                title="Remove cover"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1 rounded-md hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -128,6 +177,14 @@ export function CoverPicker({ isOpen, onClose, onSelect, vaultPath }: CoverPicke
               <UploadZone 
                 onUploadComplete={handleUploadComplete}
               />
+              <p className="mt-2 text-xs text-center text-[var(--neko-text-tertiary)]">
+                Or paste an image with {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+V
+              </p>
+              {isUploading && (
+                <p className="mt-2 text-sm text-center text-[var(--neko-accent)]">
+                  Uploading...
+                </p>
+              )}
             </div>
           )}
         </div>

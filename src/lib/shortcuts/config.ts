@@ -3,7 +3,6 @@ import type { ShortcutConfig } from './types';
 export const DEFAULT_SHORTCUTS: ShortcutConfig[] = [
   // Notes view
   { id: 'toggleSidebar', keys: ['Ctrl', 'Shift', 'B'], description: 'Toggle sidebar', scope: 'notes' },
-  { id: 'toggleAIPanel', keys: ['Ctrl', 'L'], description: 'Toggle AI panel', scope: 'notes' },
   { id: 'newTab', keys: ['Ctrl', 'T'], description: 'New tab', scope: 'notes' },
   
   // Global
