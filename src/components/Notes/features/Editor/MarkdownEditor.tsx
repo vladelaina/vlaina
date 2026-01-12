@@ -225,6 +225,7 @@ export function MarkdownEditor() {
   const coverData = currentNote ? getNoteCover(currentNote.path) : {};
   const coverUrl = coverData.cover || null;
   const coverY = coverData.coverY ?? 50;
+  const coverH = coverData.coverH;
 
   // Get Vault Path
   useEffect(() => {
@@ -232,9 +233,9 @@ export function MarkdownEditor() {
     if (path) setVaultPath(path);
   }, []);
 
-  const handleCoverUpdate = (url: string | null, y: number) => {
+  const handleCoverUpdate = (url: string | null, y: number, h?: number) => {
     if (!currentNote?.path) return;
-    setNoteCover(currentNote.path, url, y);
+    setNoteCover(currentNote.path, url, y, h);
   };
 
   const handleIconSelect = (emoji: string) => {
@@ -345,6 +346,7 @@ export function MarkdownEditor() {
         <CoverImage
           url={coverUrl}
           positionY={coverY}
+          height={coverH}
           onUpdate={handleCoverUpdate}
           vaultPath={vaultPath}
         />

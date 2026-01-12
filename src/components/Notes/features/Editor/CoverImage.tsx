@@ -8,14 +8,20 @@ import { loadImageAsBlob } from '@/lib/assets/imageLoader';
 interface CoverImageProps {
     url: string | null;
     positionY: number;
+    height?: number;
     readOnly?: boolean;
-    onUpdate: (url: string | null, positionY: number) => void;
+    onUpdate: (url: string | null, positionY: number, height?: number) => void;
     vaultPath: string;
 }
+
+const MIN_HEIGHT = 120;
+const MAX_HEIGHT = 400;
+const DEFAULT_HEIGHT = 200;
 
 export function CoverImage({
     url,
     positionY,
+    height,
     readOnly = false,
     onUpdate,
     vaultPath,
@@ -24,19 +30,36 @@ export function CoverImage({
     const [localPreview, setLocalPreview] = useState<string | null>(null);
     const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
     const [showPicker, setShowPicker] = useState(false);
+    const [coverHeight, setCoverHeight] = useState(height ?? DEFAULT_HEIGHT);
+    const [isResizing, setIsResizing] = useState(false);
+    const [isRepositioning, setIsRepositioning] = useState(false);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
+    
+    // For image position dragging
     const startYRef = useRef<number>(0);
     const startPosRef = useRef<number>(0);
     const currentYRef = useRef<number>(positionY);
-    const isDraggingRef = useRef<boolean>(false);
+    
+    // For height resizing
+    const startHeightRef = useRef<number>(0);
+    const startResizeYRef = useRef<number>(0);
+    const currentHeightRef = useRef<number>(height ?? DEFAULT_HEIGHT);
 
     // Sync state with props
     useEffect(() => {
         currentYRef.current = positionY;
         setDragY(positionY);
     }, [positionY]);
+
+    // Sync height with props
+    useEffect(() => {
+        if (height !== undefined) {
+            setCoverHeight(height);
+            currentHeightRef.current = height;
+        }
+    }, [height]);
 
     // Clear local preview when url changes
     useEffect(() => {
@@ -59,8 +82,6 @@ export function CoverImage({
                     return;
                 }
 
-                // url is just the filename (e.g., "photo.jpg")
-                // Build full path: vaultPath/.nekotick/assets/covers/filename
                 const separator = vaultPath.includes('\\') ? '\\' : '/';
                 const assetsDir = `.nekotick${separator}assets${separator}covers`;
                 const fullPath = `${vaultPath}${separator}${assetsDir}${separator}${url}`;
@@ -75,22 +96,22 @@ export function CoverImage({
         resolve();
     }, [url, vaultPath]);
 
-    const handleMouseDown = (e: MouseEvent) => {
+    // Image position dragging
+    const handleImageMouseDown = (e: MouseEvent) => {
         if (readOnly || !url) return;
         e.preventDefault();
 
-        isDraggingRef.current = true;
+        setIsRepositioning(true);
         startYRef.current = e.clientY;
         startPosRef.current = currentYRef.current;
 
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-
+        document.addEventListener('mousemove', handleImageMouseMove);
+        document.addEventListener('mouseup', handleImageMouseUp);
         document.body.style.cursor = 'move';
     };
 
-    const handleMouseMove = (e: globalThis.MouseEvent) => {
-        if (!containerRef.current || !imgRef.current || !isDraggingRef.current) return;
+    const handleImageMouseMove = (e: globalThis.MouseEvent) => {
+        if (!containerRef.current || !imgRef.current) return;
         e.preventDefault();
 
         const containerHeight = containerRef.current.clientHeight;
@@ -112,21 +133,55 @@ export function CoverImage({
         }
     };
 
-    const handleMouseUp = () => {
-        if (!isDraggingRef.current) return;
-        isDraggingRef.current = false;
+    const handleImageMouseUp = () => {
+        setIsRepositioning(false);
 
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('mousemove', handleImageMouseMove);
+        document.removeEventListener('mouseup', handleImageMouseUp);
         document.body.style.cursor = '';
 
         const newY = currentYRef.current;
         setDragY(newY);
-        onUpdate(url, newY);
+        onUpdate(url, newY, coverHeight);
+    };
+
+    // Height resizing
+    const handleResizeMouseDown = (e: MouseEvent) => {
+        if (readOnly || !url) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        setIsResizing(true);
+        startResizeYRef.current = e.clientY;
+        startHeightRef.current = coverHeight;
+
+        document.addEventListener('mousemove', handleResizeMouseMove);
+        document.addEventListener('mouseup', handleResizeMouseUp);
+    };
+
+    const handleResizeMouseMove = (e: globalThis.MouseEvent) => {
+        e.preventDefault();
+
+        const deltaY = e.clientY - startResizeYRef.current;
+        let newHeight = startHeightRef.current + deltaY;
+        newHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, newHeight));
+
+        currentHeightRef.current = newHeight;
+        setCoverHeight(newHeight);
+    };
+
+    const handleResizeMouseUp = () => {
+        setIsResizing(false);
+
+        document.removeEventListener('mousemove', handleResizeMouseMove);
+        document.removeEventListener('mouseup', handleResizeMouseUp);
+
+        // Save the new height using ref (avoids stale closure)
+        onUpdate(url, dragY, currentHeightRef.current);
     };
 
     const handleCoverSelect = (assetPath: string) => {
-        onUpdate(assetPath, 50);
+        onUpdate(assetPath, 50, DEFAULT_HEIGHT);
         setShowPicker(false);
     };
 
@@ -174,7 +229,8 @@ export function CoverImage({
     return (
         <>
             <div
-                className="group relative w-full h-[30vh] min-h-[160px] bg-muted/20 shrink-0 select-none overflow-hidden"
+                className="group relative w-full bg-muted/20 shrink-0 select-none overflow-hidden"
+                style={{ height: coverHeight }}
                 ref={containerRef}
             >
                 {activeSrc && (
@@ -183,17 +239,21 @@ export function CoverImage({
                         src={activeSrc}
                         alt="Cover"
                         className={cn(
-                            "absolute inset-0 w-full h-full object-cover transition-all duration-100",
-                            !readOnly ? "cursor-move" : ""
+                            "absolute inset-0 w-full h-full object-cover",
+                            !readOnly && "cursor-move"
                         )}
                         style={{ objectPosition: `50% ${displayY}%` }}
-                        onMouseDown={handleMouseDown}
+                        draggable={false}
+                        onMouseDown={handleImageMouseDown}
                     />
                 )}
 
                 {/* Controls Overlay */}
                 {!readOnly && (
-                    <div className="absolute bottom-4 right-12 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20 flex gap-2">
+                    <div className={cn(
+                        "absolute bottom-4 right-12 transition-opacity duration-200 z-20 flex gap-2",
+                        (isResizing || isRepositioning) ? "opacity-0" : "opacity-0 group-hover:opacity-100"
+                    )}>
                         <Button
                             variant="secondary"
                             size="sm"
@@ -212,6 +272,14 @@ export function CoverImage({
                             <X className="w-3.5 h-3.5" />
                         </Button>
                     </div>
+                )}
+
+                {/* Bottom edge resize handle */}
+                {!readOnly && (
+                    <div
+                        className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-30"
+                        onMouseDown={handleResizeMouseDown}
+                    />
                 )}
             </div>
 

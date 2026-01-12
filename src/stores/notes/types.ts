@@ -25,6 +25,7 @@ export interface NoteMetadataEntry {
   icon?: string;
   cover?: string;
   coverY?: number;
+  coverH?: number;
 }
 
 export interface MetadataFile {
@@ -92,8 +93,8 @@ export interface NotesActions {
   getDisplayName: (path: string) => string;
   uploadNoteAsset: (notePath: string, file: File) => Promise<string | null>;
   // Cover metadata
-  getNoteCover: (path: string) => { cover?: string; coverY?: number };
-  setNoteCover: (path: string, cover: string | null, coverY?: number) => void;
+  getNoteCover: (path: string) => { cover?: string; coverY?: number; coverH?: number };
+  setNoteCover: (path: string, cover: string | null, coverY?: number, coverH?: number) => void;
   // Asset library actions
   loadAssets: (vaultPath: string) => Promise<void>;
   uploadAsset: (file: File) => Promise<UploadResult>;
