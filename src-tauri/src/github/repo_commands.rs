@@ -16,6 +16,8 @@ const GITHUB_CREDS_FILE: &str = "github_credentials.json";
 struct GitHubCredentials {
     access_token: String,
     username: String,
+    #[serde(default)]
+    avatar_url: Option<String>,
     gist_id: Option<String>,
 }
 

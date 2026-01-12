@@ -123,7 +123,7 @@ export function NotesPage({ onOpenSettings }: NotesPageProps) {
         }}
       >
 
-        <div className="px-2 pt-3 pb-2">
+        <div className="px-2 pt-2 pb-2">
           <button
             onClick={() => setShowSearch(true)}
             className={cn(

@@ -87,6 +87,7 @@ export const githubCommands = {
     return safeInvoke<{
       connected: boolean;
       username: string | null;
+      avatarUrl: string | null;
       gistId: string | null;
       lastSyncTime: number | null;
       hasRemoteData: boolean;
@@ -95,6 +96,7 @@ export const githubCommands = {
       webFallback: {
         connected: false,
         username: null,
+        avatarUrl: null,
         gistId: null,
         lastSyncTime: null,
         hasRemoteData: false,

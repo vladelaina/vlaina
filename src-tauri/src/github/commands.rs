@@ -47,6 +47,7 @@ fn load_oauth_config() -> Result<GitHubOAuthConfig, String> {
 pub struct GitHubSyncStatus {
     pub connected: bool,
     pub username: Option<String>,
+    pub avatar_url: Option<String>,
     pub gist_id: Option<String>,
     pub last_sync_time: Option<i64>,
     pub has_remote_data: bool,
@@ -105,6 +106,8 @@ pub struct GitHubRemoteDataInfo {
 struct GitHubCredentials {
     access_token: String,
     username: String,
+    #[serde(default)]
+    avatar_url: Option<String>,
     gist_id: Option<String>,
 }
 
@@ -315,6 +318,7 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
     let creds = GitHubCredentials {
         access_token: tokens.access_token,
         username: user_info.login.clone(),
+        avatar_url: user_info.avatar_url.clone(),
         gist_id: existing_gist.map(|g| g.id),
     };
 
@@ -350,6 +354,7 @@ pub async fn get_github_sync_status(app: tauri::AppHandle) -> Result<GitHubSyncS
             Ok(GitHubSyncStatus {
                 connected: true,
                 username: Some(creds.username),
+                avatar_url: creds.avatar_url,
                 gist_id: creds.gist_id,
                 last_sync_time: sync_meta.last_sync_time,
                 has_remote_data: has_remote,
@@ -359,6 +364,7 @@ pub async fn get_github_sync_status(app: tauri::AppHandle) -> Result<GitHubSyncS
         None => Ok(GitHubSyncStatus {
             connected: false,
             username: None,
+            avatar_url: None,
             gist_id: None,
             last_sync_time: None,
             has_remote_data: false,

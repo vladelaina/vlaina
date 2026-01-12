@@ -14,6 +14,7 @@ export type GithubSyncStatusType = 'idle' | 'pending' | 'syncing' | 'success' | 
 interface GithubSyncState {
   isConnected: boolean;
   username: string | null;
+  avatarUrl: string | null;
   gistId: string | null;
   isSyncing: boolean;
   isConnecting: boolean;
@@ -46,6 +47,7 @@ type GithubSyncStore = GithubSyncState & GithubSyncActions;
 const initialState: GithubSyncState = {
   isConnected: false,
   username: null,
+  avatarUrl: null,
   gistId: null,
   isSyncing: false,
   isConnecting: false,
@@ -73,6 +75,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
           set({
             isConnected: status.connected,
             username: status.username,
+            avatarUrl: status.avatarUrl,
             gistId: status.gistId,
             lastSyncTime: status.lastSyncTime,
             hasRemoteData: status.hasRemoteData,
