@@ -48,6 +48,10 @@ export function EmojiTab({
 
   const effectiveSkinTone = previewSkinTone !== null ? previewSkinTone : skinTone;
 
+  // 使用 ref 存储 onPreview，避免回调变化导致子组件重渲染
+  const onPreviewRef = useRef(onPreview);
+  onPreviewRef.current = onPreview;
+
   const getEmojiWithSkinTone = useCallback((emoji: string, tone: number): string | null => {
     if (!emoji || emoji.startsWith('icon:')) return null;
     const item = EMOJI_MAP.get(emoji);
@@ -106,9 +110,10 @@ export function EmojiTab({
     return results;
   }, [searchQuery]);
 
+  // 稳定的 handlePreview 回调
   const handlePreview = useCallback((emoji: string | null) => {
-    onPreview?.(emoji);
-  }, [onPreview]);
+    onPreviewRef.current?.(emoji);
+  }, []);
 
   return (
     <div>

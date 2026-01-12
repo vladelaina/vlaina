@@ -44,6 +44,10 @@ export function IconsTab({
   const effectiveColor = previewColor !== null ? previewColor : iconColor;
   const currentColor = ICON_COLORS[effectiveColor]?.color || ICON_COLORS[0].color;
 
+  // 使用 ref 存储 onPreview，避免回调变化导致子组件重渲染
+  const onPreviewRef = useRef(onPreview);
+  onPreviewRef.current = onPreview;
+
   const recentIconsList = useMemo(() => 
     recentIcons.filter(i => i.startsWith('icon:')), 
     [recentIcons]
@@ -66,9 +70,10 @@ export function IconsTab({
     return results;
   }, [searchQuery]);
 
+  // 稳定的 handlePreview 回调
   const handlePreview = useCallback((icon: string | null) => {
-    onPreview?.(icon);
-  }, [onPreview]);
+    onPreviewRef.current?.(icon);
+  }, []);
 
   // 获取当前图标的名称（如果是 icon 类型）
   const getIconWithColor = useCallback((icon: string | undefined, color: string): string | null => {

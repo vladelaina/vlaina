@@ -13,21 +13,35 @@ import {
   type EmojiItem,
 } from './constants';
 
-const EmojiRow = memo(function EmojiRow({ emojis }: { emojis: string[] }) {
-  return (
-    <div className="px-2 grid grid-cols-9 gap-0.5">
-      {emojis.map((emoji, i) => (
-        <button
-          key={i}
-          data-emoji={emoji}
-          className="w-full aspect-square flex items-center justify-center rounded-md text-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
-        >
-          {emoji}
-        </button>
-      ))}
-    </div>
-  );
-});
+interface EmojiRowProps {
+  emojis: string[];
+}
+
+const EmojiRow = memo(
+  function EmojiRow({ emojis }: EmojiRowProps) {
+    return (
+      <div className="px-2 grid grid-cols-9 gap-0.5">
+        {emojis.map((emoji, i) => (
+          <button
+            key={i}
+            data-emoji={emoji}
+            className="w-full aspect-square flex items-center justify-center rounded-md text-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+    );
+  },
+  (prev, next) => {
+    // 比较 emojis 数组内容
+    if (prev.emojis.length !== next.emojis.length) return false;
+    for (let i = 0; i < prev.emojis.length; i++) {
+      if (prev.emojis[i] !== next.emojis[i]) return false;
+    }
+    return true;
+  }
+);
 
 interface VirtualEmojiGridProps {
   emojis: EmojiItem[];

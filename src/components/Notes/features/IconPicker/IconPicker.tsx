@@ -59,22 +59,26 @@ export function IconPicker({
     saveActiveTab(tab);
   }, []);
 
+  // 使用 ref 存储最新的 recentIcons，避免回调依赖变化
+  const recentIconsRef = useRef(recentIcons);
+  recentIconsRef.current = recentIcons;
+
   const handleEmojiSelect = useCallback((emoji: string) => {
-    lastRandomIconRef.current = null; // Clear random tracking
-    const updated = addToRecentIcons(emoji, recentIcons);
+    lastRandomIconRef.current = null;
+    const updated = addToRecentIcons(emoji, recentIconsRef.current);
     setRecentIcons(updated);
     onSelect(emoji);
     onClose();
-  }, [recentIcons, onSelect, onClose]);
+  }, [onSelect, onClose]);
 
   const handleIconSelect = useCallback((iconName: string, color: string) => {
-    lastRandomIconRef.current = null; // Clear random tracking
+    lastRandomIconRef.current = null;
     const iconValue = `icon:${iconName}:${color}`;
-    const updated = addToRecentIcons(iconValue, recentIcons);
+    const updated = addToRecentIcons(iconValue, recentIconsRef.current);
     setRecentIcons(updated);
     onSelect(iconValue);
     onClose();
-  }, [recentIcons, onSelect, onClose]);
+  }, [onSelect, onClose]);
 
   const handleRemove = useCallback(() => {
     lastRandomIconRef.current = null;
@@ -85,12 +89,12 @@ export function IconPicker({
   // Add random icon to recent when closing (if user kept it)
   const handleClose = useCallback(() => {
     if (lastRandomIconRef.current) {
-      const updated = addToRecentIcons(lastRandomIconRef.current, recentIcons);
+      const updated = addToRecentIcons(lastRandomIconRef.current, recentIconsRef.current);
       setRecentIcons(updated);
       lastRandomIconRef.current = null;
     }
     onClose();
-  }, [recentIcons, onClose]);
+  }, [onClose]);
 
   // Random selection within current category only
   const handleRandom = useCallback(() => {

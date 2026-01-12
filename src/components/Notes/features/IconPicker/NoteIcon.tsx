@@ -1,7 +1,9 @@
 ﻿/**
  * NoteIcon - Renders either an emoji or a custom icon
+ * Performance optimized: uses memo and shallow comparison
  */
 
+import { memo } from 'react';
 import { FileText } from 'lucide-react';
 import { useUIStore } from '@/stores/uiSlice';
 import { ICON_LIST } from './icons';
@@ -17,16 +19,19 @@ interface NoteIconProps {
   className?: string;
 }
 
-export function NoteIcon({ icon, size = 16, className }: NoteIconProps) {
-  const previewIconColor = useUIStore(s => s.notesPreviewIconColor);
-  const previewSkinTone = useUIStore(s => s.notesPreviewSkinTone);
-
+// 内部渲染组件，不订阅 store
+const IconRenderer = memo(function IconRenderer({ 
+  icon, 
+  size, 
+  className,
+  previewColor,
+  previewTone,
+}: NoteIconProps & { previewColor: string | null; previewTone: number | null }) {
   if (icon.startsWith('icon:')) {
     const parts = icon.split(':');
     const iconName = parts[1];
     const originalColor = parts[2] || '#6b7280';
-    // 如果有预览颜色，使用预览颜色
-    const color = previewIconColor || originalColor;
+    const color = previewColor || originalColor;
     const IconComponent = ICON_MAP[iconName] || FileText;
     
     return (
@@ -48,10 +53,10 @@ export function NoteIcon({ icon, size = 16, className }: NoteIconProps) {
   
   // Emoji - 支持肤色预览
   let displayEmoji = icon;
-  if (previewSkinTone !== null) {
+  if (previewTone !== null) {
     const item = EMOJI_MAP.get(icon);
-    if (item && item.skins && item.skins.length > previewSkinTone) {
-      displayEmoji = previewSkinTone === 0 ? item.native : (item.skins[previewSkinTone]?.native || item.native);
+    if (item && item.skins && item.skins.length > previewTone) {
+      displayEmoji = previewTone === 0 ? item.native : (item.skins[previewTone]?.native || item.native);
     }
   }
   
@@ -67,5 +72,21 @@ export function NoteIcon({ icon, size = 16, className }: NoteIconProps) {
     >
       {displayEmoji}
     </span>
+  );
+});
+
+// 外层组件订阅 store，只在预览状态变化时重渲染
+export function NoteIcon({ icon, size = 16, className }: NoteIconProps) {
+  const previewIconColor = useUIStore(s => s.notesPreviewIconColor);
+  const previewSkinTone = useUIStore(s => s.notesPreviewSkinTone);
+
+  return (
+    <IconRenderer 
+      icon={icon} 
+      size={size} 
+      className={className}
+      previewColor={previewIconColor}
+      previewTone={previewSkinTone}
+    />
   );
 }

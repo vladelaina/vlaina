@@ -7,25 +7,42 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { ICON_PER_ROW, ICON_SIZE, ROW_GAP, ICON_MAP, SCROLLBAR_CLASSNAME } from './constants';
 import type { IconItem } from './icons';
 
-const IconRow = memo(function IconRow({ items, color }: { items: IconItem[]; color: string }) {
-  return (
-    <div className="px-2 grid grid-cols-8 gap-1">
-      {items.map((item) => {
-        const IconComponent = item.icon;
-        return (
-          <button
-            key={item.name}
-            data-icon={item.name}
-            data-color={color}
-            className="w-full aspect-square flex items-center justify-center rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          >
-            <IconComponent size={20} style={{ color }} />
-          </button>
-        );
-      })}
-    </div>
-  );
-});
+interface IconRowProps {
+  items: IconItem[];
+  color: string;
+}
+
+const IconRow = memo(
+  function IconRow({ items, color }: IconRowProps) {
+    return (
+      <div className="px-2 grid grid-cols-8 gap-1">
+        {items.map((item) => {
+          const IconComponent = item.icon;
+          return (
+            <button
+              key={item.name}
+              data-icon={item.name}
+              data-color={color}
+              className="w-full aspect-square flex items-center justify-center rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              <IconComponent size={20} style={{ color }} />
+            </button>
+          );
+        })}
+      </div>
+    );
+  },
+  (prev, next) => {
+    // 只有当 items 引用或 color 真正变化时才重渲染
+    if (prev.color !== next.color) return false;
+    if (prev.items.length !== next.items.length) return false;
+    // 比较 items 的 name（因为 items 是 slice 产生的新数组）
+    for (let i = 0; i < prev.items.length; i++) {
+      if (prev.items[i].name !== next.items[i].name) return false;
+    }
+    return true;
+  }
+);
 
 interface VirtualIconGridProps {
   icons: IconItem[];
