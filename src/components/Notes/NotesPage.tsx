@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
-import { Search, Settings, Calendar } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
@@ -22,7 +22,7 @@ interface NotesPageProps {
   onOpenSettings?: () => void;
 }
 
-export function NotesPage({ onOpenSettings }: NotesPageProps) {
+export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
   const {
     rootFolder,
     currentNote,
@@ -42,7 +42,6 @@ export function NotesPage({ onOpenSettings }: NotesPageProps) {
   const {
     notesSidebarCollapsed: sidebarCollapsed,
     notesShowAIPanel: showAIPanel,
-    toggleAppViewMode,
     setSidebarHeaderHovered,
   } = useUIStore();
 
@@ -50,12 +49,19 @@ export function NotesPage({ onOpenSettings }: NotesPageProps) {
 
   const [showSearch, setShowSearch] = useState(false);
 
+  // Load assets and cleanup temp files when vault is present
+  const { loadAssetIndex, cleanupAssetTempFiles } = useNotesStore();
+
   // Unlock main window resizable when vault is present
   useEffect(() => {
     if (!currentVault) return;
     loadFavorites(currentVault.path);
     loadMetadata(currentVault.path);
+    loadAssetIndex(currentVault.path);
     loadFileTree();
+
+    // Cleanup orphaned temp files on startup
+    cleanupAssetTempFiles();
 
     const unlockWindow = async () => {
       try {
@@ -66,7 +72,7 @@ export function NotesPage({ onOpenSettings }: NotesPageProps) {
     };
 
     unlockWindow();
-  }, [currentVault, loadFavorites, loadMetadata, loadFileTree]);
+  }, [currentVault, loadFavorites, loadMetadata, loadAssetIndex, loadFileTree, cleanupAssetTempFiles]);
 
 
 

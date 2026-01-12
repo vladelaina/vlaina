@@ -232,19 +232,6 @@ export function MarkdownEditor() {
     if (path) setVaultPath(path);
   }, []);
 
-  const handleCoverUpload = async (file: File) => {
-    if (!currentNote?.path) return;
-
-    // 1. Upload asset
-    const { uploadNoteAsset } = useNotesStore.getState();
-    const assetPath = await uploadNoteAsset(currentNote.path, file);
-
-    if (assetPath) {
-      // 2. Update centralized metadata
-      setNoteCover(currentNote.path, assetPath, 50);
-    }
-  };
-
   const handleCoverUpdate = (url: string | null, y: number) => {
     if (!currentNote?.path) return;
     setNoteCover(currentNote.path, url, y);
@@ -359,7 +346,6 @@ export function MarkdownEditor() {
           url={coverUrl}
           positionY={coverY}
           onUpdate={handleCoverUpdate}
-          onUpload={handleCoverUpload}
           vaultPath={vaultPath}
         />
 
