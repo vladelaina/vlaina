@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
-import { Search } from 'lucide-react';
+import { Search, Settings, Calendar } from 'lucide-react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
@@ -18,7 +18,11 @@ import { cn, NOTES_COLORS } from '@/lib/utils';
 
 const AI_PANEL_WIDTH = 360;
 
-export function NotesPage() {
+interface NotesPageProps {
+  onOpenSettings?: () => void;
+}
+
+export function NotesPage({ onOpenSettings }: NotesPageProps) {
   const {
     rootFolder,
     currentNote,
@@ -38,6 +42,7 @@ export function NotesPage() {
   const {
     notesSidebarCollapsed: sidebarCollapsed,
     notesShowAIPanel: showAIPanel,
+    toggleAppViewMode,
   } = useUIStore();
 
   const { sidebarWidth, isDragging, handleDragStart } = useNotesSidebarResize();
@@ -148,6 +153,36 @@ export function NotesPage() {
             onCreateNote={() => createNote()}
             onCreateFolder={() => createFolder('')}
           />
+        </div>
+
+        {/* Bottom buttons */}
+        <div className="flex-shrink-0 px-2 py-2 border-t border-[var(--neko-border)]">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggleAppViewMode}
+              className={cn(
+                "flex items-center justify-center w-8 h-8 rounded-md",
+                "text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)]",
+                "hover:bg-[var(--neko-hover)]",
+                "transition-colors"
+              )}
+              title="Switch to Calendar"
+            >
+              <Calendar className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onOpenSettings}
+              className={cn(
+                "flex items-center justify-center w-8 h-8 rounded-md",
+                "text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)]",
+                "hover:bg-[var(--neko-hover)]",
+                "transition-colors"
+              )}
+              title="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </aside>
 

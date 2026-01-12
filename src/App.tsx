@@ -166,7 +166,7 @@ function AppContent() {
         <Layout
           onOpenSettings={() => setSettingsOpen(true)}
         >
-          <NotesPage />
+          <NotesPage onOpenSettings={() => setSettingsOpen(true)} />
         </Layout>
       )}
     </DndContext>

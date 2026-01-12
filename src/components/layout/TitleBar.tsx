@@ -2,7 +2,7 @@ import React, { ReactNode, memo, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { 
   Settings, 
-  PanelLeftClose,
+  PanelLeft,
   MessageCircle,
   FileText,
   X,
@@ -184,17 +184,12 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
 
 interface LeftButtonsProps {
   onToggleSidebar: () => void;
-  onOpenSettings?: () => void;
-  onToggleViewMode: () => void;
-  viewModeIcon: typeof Calendar;
 }
 
-function LeftButtons({ onToggleSidebar, onOpenSettings, onToggleViewMode, viewModeIcon }: LeftButtonsProps) {
+function LeftButtons({ onToggleSidebar }: LeftButtonsProps) {
   return (
     <>
-      <TitleBarButton icon={PanelLeftClose} onClick={onToggleSidebar} className="w-9 px-0" />
-      <TitleBarButton icon={Settings} onClick={onOpenSettings} />
-      <TitleBarButton icon={viewModeIcon} onClick={onToggleViewMode} />
+      <TitleBarButton icon={PanelLeft} onClick={onToggleSidebar} className="w-9 px-0" />
     </>
   );
 }
@@ -305,9 +300,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
             >
               <LeftButtons 
                 onToggleSidebar={toggleSidebar}
-                onOpenSettings={onOpenSettings}
-                onToggleViewMode={toggleAppViewMode}
-                viewModeIcon={Calendar}
               />
               
               {/* Draggable area to fill remaining space in sidebar header */}
@@ -323,9 +315,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
             <div className="flex items-center z-20">
               <LeftButtons 
                 onToggleSidebar={toggleSidebar}
-                onOpenSettings={onOpenSettings}
-                onToggleViewMode={toggleAppViewMode}
-                viewModeIcon={Calendar}
               />
             </div>
           )}
