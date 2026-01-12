@@ -15,6 +15,10 @@ import {
   WORKSPACE_FILE,
   FAVORITES_FILE,
 } from './constants';
+import type { MetadataFile, NoteMetadataEntry } from './types';
+
+// Re-export for convenience
+export type { MetadataFile, NoteMetadataEntry };
 
 // ============ localStorage utilities ============
 
@@ -54,52 +58,7 @@ export async function safeWriteTextFile(path: string, content: string): Promise<
   await storage.writeFile(path, content);
 }
 
-/**
- * Load icons from .nekotick/icons.json
- */
-export async function loadNoteIconsFromFile(vaultPath: string): Promise<Map<string, string>> {
-  try {
-    const storage = getStorageAdapter();
-    const iconsPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, ICONS_FILE);
-
-    if (!(await storage.exists(iconsPath))) {
-      return new Map();
-    }
-
-    const content = await storage.readFile(iconsPath);
-    const obj = JSON.parse(content);
-    return new Map(Object.entries(obj));
-  } catch {
-    return new Map();
-  }
-}
-
-/**
- * Save icons to .nekotick/icons.json
- * @deprecated Use saveNoteMetadata instead
- */
-export async function saveNoteIconsToFile(vaultPath: string, icons: Map<string, string>): Promise<void> {
-  // Now redirects to new metadata system
-  const metadata = await loadNoteMetadata(vaultPath);
-  icons.forEach((icon, path) => {
-    const existing = metadata.notes[path] || {};
-    metadata.notes[path] = { ...existing, icon };
-  });
-  await saveNoteMetadata(vaultPath, metadata);
-}
-
 // ============ Unified Metadata System ============
-
-export interface NoteMetadataEntry {
-  icon?: string;
-  cover?: string;
-  coverY?: number;
-}
-
-export interface MetadataFile {
-  version: number;
-  notes: Record<string, NoteMetadataEntry>;
-}
 
 const CURRENT_METADATA_VERSION = 1;
 

@@ -4,16 +4,14 @@
 
 import { StateCreator } from 'zustand';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { NotesStore, FileTreeNode } from '../types';
+import { NotesStore, FileTreeNode, MetadataFile } from '../types';
 import {
   saveFavoritesToFile,
-  saveNoteIconsToFile,
   loadRecentNotes,
   loadFavoritesFromFile,
   loadNoteMetadata,
   saveNoteMetadata,
   setNoteEntry,
-  MetadataFile,
 } from '../storage';
 import { EMOJI_MAP } from '@/components/Notes/features/IconPicker/constants';
 
@@ -23,11 +21,10 @@ export interface FeatureSlice {
   starredNotes: NotesStore['starredNotes'];
   starredFolders: NotesStore['starredFolders'];
   favoritesLoaded: NotesStore['favoritesLoaded'];
-  noteIcons: NotesStore['noteIcons'];
   noteMetadata: MetadataFile | null;
 
   loadFavorites: (vaultPath: string) => Promise<void>;
-  loadNoteIcons: (vaultPath: string) => Promise<void>;
+  loadMetadata: (vaultPath: string) => Promise<void>;
   scanAllNotes: () => Promise<void>;
   getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];
   getAllTags: () => { tag: string; count: number }[];
@@ -49,7 +46,6 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
   starredNotes: [],
   starredFolders: [],
   favoritesLoaded: false,
-  noteIcons: new Map(),
   noteMetadata: null,
 
   loadFavorites: async (vaultPath: string) => {
@@ -57,15 +53,11 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     set({ starredNotes: data.notes, starredFolders: data.folders, favoritesLoaded: true });
   },
 
-  loadNoteIcons: async (vaultPath: string) => {
-    // Load from new unified metadata system
+  loadMetadata: async (vaultPath: string) => {
     const metadata = await loadNoteMetadata(vaultPath);
-    const icons = new Map<string, string>();
-    Object.entries(metadata.notes).forEach(([path, entry]) => {
-      if (entry.icon) icons.set(path, entry.icon);
-    });
-    set({ noteIcons: icons, noteMetadata: metadata });
+    set({ noteMetadata: metadata });
   },
+
 
   scanAllNotes: async () => {
     const { notesPath, rootFolder } = get();
@@ -186,75 +178,73 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
   isFolderStarred: (path: string) => get().starredFolders.includes(path),
 
-  getNoteIcon: (path: string) => get().noteIcons.get(path),
+  getNoteIcon: (path: string) => {
+    const { noteMetadata } = get();
+    if (!noteMetadata) return undefined;
+    return noteMetadata.notes[path]?.icon;
+  },
 
   setNoteIcon: (path: string, emoji: string | null) => {
-    const { noteIcons, notesPath } = get();
-    const updated = new Map(noteIcons);
-    if (emoji) updated.set(path, emoji);
-    else updated.delete(path);
-    if (notesPath) saveNoteIconsToFile(notesPath, updated);
-    set({ noteIcons: updated });
+    const { noteMetadata, notesPath } = get();
+    if (!noteMetadata || !notesPath) return;
+
+    const updates = emoji ? { icon: emoji } : { icon: undefined };
+    const updated = setNoteEntry(noteMetadata, path, updates);
+    set({ noteMetadata: updated });
+    saveNoteMetadata(notesPath, updated);
   },
 
   updateAllIconColors: (newColor: string) => {
-    const { noteIcons, notesPath } = get();
-    const updated = new Map<string, string>();
-    let hasChanges = false;
+    const { noteMetadata, notesPath } = get();
+    if (!noteMetadata || !notesPath) return;
 
-    noteIcons.forEach((icon, path) => {
-      if (icon.startsWith('icon:')) {
-        // icon:name:color -> icon:name:newColor
-        const parts = icon.split(':');
+    let hasChanges = false;
+    const updatedNotes = { ...noteMetadata.notes };
+
+    Object.entries(updatedNotes).forEach(([path, entry]) => {
+      if (entry.icon?.startsWith('icon:')) {
+        const parts = entry.icon.split(':');
         const iconName = parts[1];
         const newIcon = `icon:${iconName}:${newColor}`;
-        if (newIcon !== icon) {
-          updated.set(path, newIcon);
+        if (newIcon !== entry.icon) {
+          updatedNotes[path] = { ...entry, icon: newIcon };
           hasChanges = true;
-        } else {
-          updated.set(path, icon);
         }
-      } else {
-        updated.set(path, icon);
       }
     });
 
     if (hasChanges) {
-      if (notesPath) saveNoteIconsToFile(notesPath, updated);
-      set({ noteIcons: updated });
+      const updated: MetadataFile = { ...noteMetadata, notes: updatedNotes };
+      set({ noteMetadata: updated });
+      saveNoteMetadata(notesPath, updated);
     }
   },
 
   updateAllEmojiSkinTones: (newTone: number) => {
-    const { noteIcons, notesPath } = get();
-    const updated = new Map<string, string>();
+    const { noteMetadata, notesPath } = get();
+    if (!noteMetadata || !notesPath) return;
+
     let hasChanges = false;
+    const updatedNotes = { ...noteMetadata.notes };
 
-    noteIcons.forEach((icon, path) => {
-      // 跳过 icon 类型
-      if (icon.startsWith('icon:')) {
-        updated.set(path, icon);
-        return;
-      }
+    Object.entries(updatedNotes).forEach(([path, entry]) => {
+      const icon = entry.icon;
+      if (!icon || icon.startsWith('icon:')) return;
 
-      // 查找 emoji 并转换肤色
       const item = EMOJI_MAP.get(icon);
       if (item && item.skins && item.skins.length > newTone) {
         const newEmoji = newTone === 0 ? item.native : (item.skins[newTone]?.native || item.native);
         if (newEmoji !== icon) {
-          updated.set(path, newEmoji);
+          updatedNotes[path] = { ...entry, icon: newEmoji };
           hasChanges = true;
-        } else {
-          updated.set(path, icon);
         }
-      } else {
-        updated.set(path, icon);
       }
     });
 
     if (hasChanges) {
-      if (notesPath) saveNoteIconsToFile(notesPath, updated);
-      set({ noteIcons: updated });
+      const updated: MetadataFile = { ...noteMetadata, notes: updatedNotes };
+      set({ noteMetadata: updated });
+      saveNoteMetadata(notesPath, updated);
     }
   },
 
@@ -279,3 +269,4 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     saveNoteMetadata(notesPath, updated);
   },
 });
+

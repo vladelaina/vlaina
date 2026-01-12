@@ -15,7 +15,7 @@ export function useDisplayName(path: string | undefined): string | undefined {
       [path]
     )
   );
-  
+
   const previewTitle = useUIStore((state) => state.notesPreviewTitle);
 
   if (!path) return undefined;
@@ -26,12 +26,8 @@ export function useDisplayName(path: string | undefined): string | undefined {
 }
 
 export function useDisplayIcon(path: string | undefined): string | undefined {
-  const noteIcon = useNotesStore(
-    useCallback(
-      (state) => (path ? state.noteIcons.get(path) : undefined),
-      [path]
-    )
-  );
+  const getNoteIcon = useNotesStore(state => state.getNoteIcon);
+  const noteIcon = path ? getNoteIcon(path) : undefined;
   const previewIcon = useUIStore((state) => state.notesPreviewIcon);
 
   if (!path) return undefined;

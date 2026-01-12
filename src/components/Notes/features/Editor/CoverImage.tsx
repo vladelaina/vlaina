@@ -133,10 +133,10 @@ export function CoverImage({
         document.removeEventListener('mouseup', handleMouseUp);
         document.body.style.cursor = '';
 
-        // Sync to React state and PERSIST change
-        setDragY(currentYRef.current);
-        setDragY(positionY);
-        currentYRef.current = positionY;
+        // Persist the new position
+        const newY = currentYRef.current;
+        setDragY(newY);
+        onUpdate(url, newY);
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

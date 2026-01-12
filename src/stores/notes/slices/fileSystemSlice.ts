@@ -17,12 +17,12 @@ import {
 import {
   getNotesBasePath,
   ensureNotesFolder,
-  loadNoteIconsFromFile,
+  loadNoteMetadata,
+  saveNoteMetadata,
   loadWorkspaceState,
   loadFavoritesFromFile,
   saveWorkspaceState,
   saveFavoritesToFile,
-  saveNoteIconsToFile,
   safeWriteTextFile,
   addToRecentNotes,
 } from '../storage';
@@ -70,7 +70,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
 
       await ensureNotesFolder(basePath);
       const children = await buildFileTree(basePath);
-      const icons = await loadNoteIconsFromFile(basePath);
+      const metadata = await loadNoteMetadata(basePath);
       const workspace = await loadWorkspaceState(basePath);
       const favorites = await loadFavoritesFromFile(basePath);
 
@@ -91,7 +91,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
           children: restoredChildren,
           expanded: true,
         },
-        noteIcons: icons,
+        noteMetadata: metadata,
         starredNotes: favorites.notes,
         starredFolders: favorites.folders,
         isLoading: false,
@@ -308,7 +308,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       openTabs,
       starredNotes,
       starredFolders,
-      noteIcons,
+      noteMetadata,
     } = get();
     const storage = getStorageAdapter();
 
@@ -336,15 +336,16 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         saveFavoritesToFile(notesPath, { notes: updatedStarred, folders: starredFolders });
       }
 
-      // Update note icons if exists and save to file
-      if (noteIcons.has(path)) {
-        const icon = noteIcons.get(path);
-        const updatedIcons = new Map(noteIcons);
-        updatedIcons.delete(path);
-        if (icon) updatedIcons.set(newPath, icon);
-        set({ noteIcons: updatedIcons });
-        // Save to config file
-        saveNoteIconsToFile(notesPath, updatedIcons);
+      // Update metadata if exists (move icon and cover from old path to new path)
+      if (noteMetadata?.notes[path]) {
+        const entry = noteMetadata.notes[path];
+        const { [path]: _, ...restNotes } = noteMetadata.notes;
+        const updated = {
+          ...noteMetadata,
+          notes: { ...restNotes, [newPath]: entry },
+        };
+        set({ noteMetadata: updated });
+        saveNoteMetadata(notesPath, updated);
       }
 
       const updatedTabs = openTabs.map((tab) =>

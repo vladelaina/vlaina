@@ -18,6 +18,18 @@ export interface FolderNode {
 
 export type FileTreeNode = NoteFile | FolderNode;
 
+// Unified Metadata Types
+export interface NoteMetadataEntry {
+  icon?: string;
+  cover?: string;
+  coverY?: number;
+}
+
+export interface MetadataFile {
+  version: number;
+  notes: Record<string, NoteMetadataEntry>;
+}
+
 export interface NotesState {
   rootFolder: FolderNode | null;
   currentNote: { path: string; content: string } | null;
@@ -31,8 +43,7 @@ export interface NotesState {
   starredNotes: string[];
   starredFolders: string[];
   favoritesLoaded: boolean;
-  noteIcons: Map<string, string>;
-  noteMetadata: import('./storage').MetadataFile | null;
+  noteMetadata: MetadataFile | null;
   displayNames: Map<string, string>;
   isNewlyCreated: boolean;
   newlyCreatedFolderPath: string | null;
@@ -62,7 +73,7 @@ export interface NotesActions {
   getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];
   getAllTags: () => { tag: string; count: number }[];
   loadFavorites: (vaultPath: string) => Promise<void>;
-  loadNoteIcons: (vaultPath: string) => Promise<void>;
+  loadMetadata: (vaultPath: string) => Promise<void>;
   toggleStarred: (path: string) => void;
   toggleFolderStarred: (path: string) => void;
   isStarred: (path: string) => boolean;
