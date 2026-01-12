@@ -16,6 +16,9 @@ import { cn, iconButtonStyles } from '@/lib/utils';
 import { IconPicker, NoteIcon } from '../IconPicker';
 import { getRandomEmoji, loadRecentIcons, addToRecentIcons, loadSkinTone } from '../IconPicker/constants';
 import { TitleInput } from './TitleInput';
+import { CoverImage } from './CoverImage';
+import { parseFrontmatter, updateFrontmatter, Frontmatter } from '@/lib/frontmatter';
+import { getCurrentVaultPath } from '@/stores/notes/storage';
 
 // Custom plugins - unified import
 import {
@@ -212,6 +215,88 @@ export function MarkdownEditor() {
   const previewRafRef = useRef<number | null>(null);
   const clearPreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Store actions for updating frontmatter
+  const updateContent = useNotesStore(s => s.updateContent);
+  const saveNote = useNotesStore(s => s.saveNote);
+
+  // Cover Image State
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [coverY, setCoverY] = useState<number>(50);
+  const [vaultPath, setVaultPath] = useState<string>('');
+
+  // Get Vault Path
+  useEffect(() => {
+    const path = getCurrentVaultPath();
+    if (path) setVaultPath(path);
+  }, []);
+
+  // Parse Frontmatter when content changes
+  useEffect(() => {
+    if (!currentNote?.content) return;
+
+    if (currentNote.content.startsWith('---')) {
+      const { data } = parseFrontmatter(currentNote.content);
+      if (typeof data.cover === 'string') {
+        setCoverUrl(data.cover);
+      } else {
+        setCoverUrl(null);
+      }
+
+      if (typeof data.coverY === 'number') {
+        setCoverY(data.coverY);
+      } else {
+        setCoverY(50);
+      }
+    } else {
+      setCoverUrl(null);
+      setCoverY(50);
+    }
+  }, [currentNote?.path, currentNote?.content]);
+
+  const handleCoverUpload = async (file: File) => {
+    if (!currentNote?.path) return;
+
+    // 1. Upload asset
+    const { uploadNoteAsset } = useNotesStore.getState();
+    const assetPath = await uploadNoteAsset(currentNote.path, file);
+
+    if (assetPath) {
+      // 2. Update Frontmatter
+      const newContent = updateFrontmatter(currentNote.content || '', {
+        cover: assetPath,
+        coverY: 50
+      });
+
+      // 3. Save
+      updateContent(newContent);
+      saveNote();
+
+      // Optimistic upate
+      setCoverUrl(assetPath);
+      setCoverY(50);
+    }
+  };
+
+  const handleCoverUpdate = (url: string | null, y: number) => {
+    if (!currentNote?.path) return;
+
+    const updates: Partial<Frontmatter> = {};
+    if (url === null) {
+      updates.cover = undefined;
+      updates.coverY = undefined;
+    } else {
+      updates.cover = url;
+      updates.coverY = y;
+    }
+
+    const newContent = updateFrontmatter(currentNote.content || '', updates);
+    updateContent(newContent);
+    saveNote();
+
+    setCoverUrl(url);
+    setCoverY(y);
+  };
+
   const handleIconSelect = (emoji: string) => {
     if (currentNote) {
       setNoteIcon(currentNote.path, emoji);
@@ -282,8 +367,17 @@ export function MarkdownEditor() {
     return fileName.replace(/\.md$/, '');
   }, [currentNote?.path]);
 
+  // Click handler to focus editor when clicking empty space
+  const handleEditorClick = (e: React.MouseEvent) => {
+    // Only focus if clicking the container background directly
+    if (e.target === e.currentTarget) {
+      const editor = document.querySelector('.milkdown .ProseMirror') as HTMLElement;
+      editor?.focus();
+    }
+  };
+
   return (
-    <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative">
+    <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative" onClick={handleEditorClick}>
       <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
         <button
           onClick={() => currentNote && toggleStarred(currentNote.path)}
@@ -307,13 +401,27 @@ export function MarkdownEditor() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto neko-scrollbar flex flex-col items-center">
-        <div className="max-w-[720px] w-full px-6 sm:px-12 shrink-0">
+      <div className="flex-1 overflow-auto neko-scrollbar flex flex-col items-center relative">
+        <CoverImage
+          url={coverUrl}
+          positionY={coverY}
+          onUpdate={handleCoverUpdate}
+          onUpload={handleCoverUpload}
+          vaultPath={vaultPath}
+        />
+
+        <div className="max-w-[720px] w-full px-6 sm:px-12 shrink-0 z-10">
           <div
-            className="pt-12 sm:pt-32 pb-4"
+            className={cn(
+              "pb-4 transition-all duration-300",
+              // If cover exists, reduce top padding to pull title up. 
+              // If no cover (Aurora), keep it airy.
+              coverUrl ? "pt-12" : "pt-24"
+            )}
             onMouseEnter={() => setIsHoveringHeader(true)}
             onMouseLeave={() => setIsHoveringHeader(false)}
           >
+
             {displayIcon ? (
               <button
                 ref={iconButtonRef}

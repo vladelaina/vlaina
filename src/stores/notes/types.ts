@@ -72,6 +72,7 @@ export interface NotesActions {
   updateAllEmojiSkinTones: (newTone: number) => void;
   syncDisplayName: (path: string, title: string) => void;
   getDisplayName: (path: string) => string;
+  uploadNoteAsset: (notePath: string, file: File) => Promise<string | null>;
 }
 
 export type NotesStore = NotesState & NotesActions;

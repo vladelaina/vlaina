@@ -50,6 +50,7 @@ export interface FileSystemSlice {
   clearNewlyCreatedFolder: () => void;
   deleteFolder: (path: string) => Promise<void>;
   moveItem: (sourcePath: string, targetFolderPath: string) => Promise<void>;
+  uploadNoteAsset: (notePath: string, file: File) => Promise<string | null>;
 }
 
 export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemSlice> = (
@@ -317,10 +318,10 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       const sanitizedName = sanitizeFileName(newName);
       const newFileName = sanitizedName.endsWith('.md') ? sanitizedName : `${sanitizedName}.md`;
       const newPath = dirPath ? `${dirPath}/${newFileName}` : newFileName;
-      
+
       // Skip if path hasn't changed
       if (newPath === path) return;
-      
+
       const newFullPath = await joinPath(notesPath, newPath);
 
       await storage.rename(fullPath, newFullPath);
@@ -593,6 +594,46 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to move item' });
+    }
+  },
+
+  uploadNoteAsset: async (_notePath: string, file: File): Promise<string | null> => {
+    const { notesPath } = get();
+    const storage = getStorageAdapter();
+
+    try {
+      // confirm vault path
+      const vaultPath = notesPath || await getNotesBasePath();
+
+      // Ensure .nekotick directory exists
+      const assetsDir = await joinPath(vaultPath, '.nekotick');
+      if (!await storage.exists(assetsDir)) {
+        await storage.mkdir(assetsDir, true);
+      }
+
+      // Generate unique filename
+      // Format: cover-[timestamp]-[random].ext
+      const ext = file.name.split('.').pop() || 'jpg';
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 10000);
+      const fileName = `cover-${timestamp}-${random}.${ext}`;
+
+      const fullPath = await joinPath(assetsDir, fileName);
+
+      // Convert File to Uint8Array
+      const buffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(buffer);
+
+      // Write binary file
+      await storage.writeBinaryFile(fullPath, uint8Array);
+
+      // Return relative path (standardized with forward slashes for markdown compatibility)
+      return `.nekotick/${fileName}`;
+
+    } catch (error) {
+      console.error('Failed to upload asset:', error);
+      set({ error: error instanceof Error ? error.message : 'Failed to upload asset' });
+      return null;
     }
   },
 });

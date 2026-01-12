@@ -37,10 +37,10 @@ function loadPanelWidth(key: string, defaultValue: number): number {
 }
 
 export function Layout({ children, onOpenSettings, toolbar, content, leftPanel, showLeftPanel = false, rightPanel, showRightPanel = false }: LayoutProps) {
-  const [rightPanelWidth, setRightPanelWidth] = useState(() => 
+  const [rightPanelWidth, setRightPanelWidth] = useState(() =>
     loadPanelWidth(PANEL_CONFIG.right.storageKey, PANEL_CONFIG.right.default)
   );
-  const [leftPanelWidth, setLeftPanelWidth] = useState(() => 
+  const [leftPanelWidth, setLeftPanelWidth] = useState(() =>
     loadPanelWidth(PANEL_CONFIG.left.storageKey, PANEL_CONFIG.left.default)
   );
 
@@ -70,8 +70,8 @@ export function Layout({ children, onOpenSettings, toolbar, content, leftPanel, 
 
     const handleMouseMove = (e: MouseEvent) => {
       const windowWidth = window.innerWidth;
-      const otherPanelWidth = isDraggingRight 
-        ? (showLeftPanel ? leftPanelWidth : 0) 
+      const otherPanelWidth = isDraggingRight
+        ? (showLeftPanel ? leftPanelWidth : 0)
         : (showRightPanel ? rightPanelWidth : 0);
       const maxPanelWidth = windowWidth - otherPanelWidth - 200;
 
@@ -113,7 +113,7 @@ export function Layout({ children, onOpenSettings, toolbar, content, leftPanel, 
       )}>
         {showLeftPanel && leftPanel && (
           <>
-            <aside 
+            <aside
               className="flex-shrink-0 flex flex-col bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl overflow-auto"
               style={{ width: leftPanelWidth }}
             >
@@ -135,7 +135,7 @@ export function Layout({ children, onOpenSettings, toolbar, content, leftPanel, 
           <TitleBar onOpenSettings={onOpenSettings} toolbar={toolbar} content={content} hideWindowControls={showRightPanel} />
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
-        
+
         {showRightPanel && rightPanel && (
           <>
             <div
@@ -147,12 +147,12 @@ export function Layout({ children, onOpenSettings, toolbar, content, leftPanel, 
                 isDraggingRight && "bg-zinc-400 dark:bg-zinc-600"
               )}
             />
-            <aside 
+            <aside
               className="flex-shrink-0 flex flex-col bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl overflow-hidden"
               style={{ width: rightPanelWidth }}
             >
               {/* Window Controls at top of right panel - with drag region */}
-              <div 
+              <div
                 className="flex-shrink-0 flex items-center border-b border-zinc-200 dark:border-zinc-800 h-10"
                 onMouseDown={(e) => {
                   // Allow dragging on the empty space, but not on buttons
@@ -162,7 +162,7 @@ export function Layout({ children, onOpenSettings, toolbar, content, leftPanel, 
                 }}
               >
                 {/* Drag region spacer */}
-                <div 
+                <div
                   className="flex-1 h-full cursor-default"
                   onMouseDown={() => getWindow().startDragging()}
                 />
