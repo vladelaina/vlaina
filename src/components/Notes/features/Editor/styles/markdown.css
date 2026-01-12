@@ -88,11 +88,13 @@
 
 /* Inline Code */
 .milkdown code:not(pre code) {
-  font-size: calc(15px - 3px);
-  padding: 0 4px 2px;
+  font-size: 13px;
+  padding: 3px 5px;
+  margin: 0 3px;
   background-color: var(--neko-bg-secondary);
-  border-radius: 4px;
-  font-family: var(--neko-font-mono-family);
+  border: 1px solid var(--neko-border);
+  border-radius: 5px;
+  font-family: inherit;
 }
 
 /* Images */
