@@ -3,8 +3,6 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, FloatingToolbarState } from '../types';
 import { BLOCK_TYPES } from '../utils';
 import { convertBlockType } from '../commands';
-import { getCurrentBlockElement } from '../floatingToolbarPlugin';
-import { applyBlockPreview, clearBlockPreview } from '../previewStyles';
 
 // Block type icons as SVG strings
 const BLOCK_ICONS: Record<string, string> = {
@@ -109,63 +107,14 @@ export function renderBlockDropdown(
     }
   });
   
-  // Function to find the current block element (called fresh each time)
-  const findCurrentBlockElement = (): HTMLElement | null => {
-    // Get from the plugin's saved reference, but verify it's still in DOM
-    const saved = getCurrentBlockElement();
-    if (saved && document.body.contains(saved)) {
-      return saved;
-    }
-    
-    // Fallback: find by selection
-    try {
-      const { $from } = view.state.selection;
-      const domAtPos = view.domAtPos($from.pos);
-      let node = domAtPos.node as Node;
-      
-      if (node.nodeType === Node.TEXT_NODE) {
-        node = node.parentNode as Node;
-      }
-      
-      let el = node as HTMLElement;
-      while (el && el.parentElement) {
-        const tagName = el.tagName?.toUpperCase();
-        if (tagName === 'P' || (tagName && /^H[1-6]$/.test(tagName))) {
-          return el;
-        }
-        if (el.classList?.contains('milkdown') || el.classList?.contains('editor')) {
-          break;
-        }
-        el = el.parentElement;
-      }
-    } catch {
-      // ignore
-    }
-    return null;
-  };
-  
   // Add event listeners
   dropdown.querySelectorAll('[data-block-type]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      clearBlockPreview(view);
       const blockType = (btn as HTMLElement).dataset.blockType as BlockType;
       convertBlockType(view, blockType);
       onClose();
-    });
-    
-    // Preview on hover for all block types
-    btn.addEventListener('mouseenter', () => {
-      const blockType = (btn as HTMLElement).dataset.blockType as BlockType;
-      const blockElement = findCurrentBlockElement();
-      if (blockElement) {
-        applyBlockPreview(view, blockElement, blockType);
-      }
-    });
-    
-    btn.addEventListener('mouseleave', () => {
-      clearBlockPreview(view);
     });
   });
 }

@@ -235,11 +235,6 @@ let currentState: FloatingToolbarState | null = null;
 let delegateHandler: ((e: Event) => void) | null = null;
 let hoverHandler: ((e: Event) => void) | null = null;
 let leaveHandler: ((e: Event) => void) | null = null;
-let toolbarLeaveHandler: (() => void) | null = null;
-
-// Track which action was just clicked to prevent immediate reverse preview
-let justClickedAction: string | null = null;
-let justClickedTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function setupToolbarEventDelegation(
   toolbarElement: HTMLElement,
@@ -258,24 +253,12 @@ export function setupToolbarEventDelegation(
       if (button && currentView && currentState) {
         e.preventDefault();
         e.stopPropagation();
-        // Don't hide tooltip on click - keep it visible for better UX
+        
+        // Clear preview before applying
         clearFormatPreview(currentView);
         
         const action = button.dataset.action;
         if (action) {
-          // Mark this action as just clicked - prevents immediate reverse preview
-          // Clear any existing timer
-          if (justClickedTimer) {
-            clearTimeout(justClickedTimer);
-          }
-          justClickedAction = action;
-          
-          // Set a cooldown timer - after 100ms, if mouse is still on button,
-          // the next mouseover (from re-render) will be ignored
-          justClickedTimer = setTimeout(() => {
-            // Keep justClickedAction set until mouse actually leaves
-          }, 100);
-          
           handleToolbarAction(currentView, action, currentState);
         }
       }
@@ -289,15 +272,10 @@ export function setupToolbarEventDelegation(
       if (button && currentView) {
         const action = button.dataset.action;
         
-        // Skip all hover effects if this action was just clicked
-        if (action === justClickedAction) {
-          return;
-        }
-        
-        if (action && hasFormatPreview(action)) {
-          // Check if format is already active - if so, preview removal
-          const isActive = button.classList.contains('active');
-          applyFormatPreview(currentView, action, isActive);
+        // Apply format preview only for inactive formats
+        const isActive = button.classList.contains('active');
+        if (action && hasFormatPreview(action) && !isActive) {
+          applyFormatPreview(currentView, action, false);
         }
         
         if (button.dataset.tooltip) {
@@ -319,36 +297,19 @@ export function setupToolbarEventDelegation(
           return;
         }
         
-        // Clear just-clicked state when mouse leaves the button
+        // Clear format preview
         const action = button.dataset.action;
-        if (action === justClickedAction) {
-          justClickedAction = null;
-          if (justClickedTimer) {
-            clearTimeout(justClickedTimer);
-            justClickedTimer = null;
-          }
-        }
-        
         if (action && hasFormatPreview(action)) {
           clearFormatPreview(currentView);
         }
+        
         hideTooltip();
-      }
-    };
-    
-    // Toolbar leave handler - clear justClickedAction when mouse leaves toolbar entirely
-    toolbarLeaveHandler = () => {
-      justClickedAction = null;
-      if (justClickedTimer) {
-        clearTimeout(justClickedTimer);
-        justClickedTimer = null;
       }
     };
     
     toolbarElement.addEventListener('click', delegateHandler);
     toolbarElement.addEventListener('mouseover', hoverHandler);
     toolbarElement.addEventListener('mouseout', leaveHandler);
-    toolbarElement.addEventListener('mouseleave', toolbarLeaveHandler);
   }
 }
 
@@ -370,16 +331,6 @@ export function cleanupToolbarEventDelegation(toolbarElement: HTMLElement) {
     toolbarElement.removeEventListener('mouseout', leaveHandler);
     leaveHandler = null;
   }
-  if (toolbarLeaveHandler) {
-    toolbarElement.removeEventListener('mouseleave', toolbarLeaveHandler);
-    toolbarLeaveHandler = null;
-  }
-  // Clear any pending timers
-  if (justClickedTimer) {
-    clearTimeout(justClickedTimer);
-    justClickedTimer = null;
-  }
-  justClickedAction = null;
   hideTooltip();
   if (tooltipElement) {
     tooltipElement.remove();
