@@ -1,22 +1,20 @@
 import React, { ReactNode, memo, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { 
-  Settings, 
+import {
+  Settings,
   PanelLeft,
   MessageCircle,
   FileText,
   X,
   Plus,
   StickyNote,
-  ChevronDown,
-  LogOut,
-  LogIn,
+
 } from 'lucide-react';
 import { WindowControls } from './WindowControls';
 import { TitleBarButton } from './TitleBarButton';
 import { useUIStore } from '@/stores/uiSlice';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
+
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { cn, NOTES_COLORS } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -55,25 +53,25 @@ function TabContent({ tab, isActive, icon, displayName }: TabContentProps) {
           <NoteIcon icon={icon} size={16} />
         </span>
       ) : (
-        <FileText 
+        <FileText
           className={cn(
             "w-4 h-4 flex-shrink-0 pointer-events-none",
-            isActive 
-              ? "text-[var(--neko-accent)]" 
+            isActive
+              ? "text-[var(--neko-accent)]"
               : "text-zinc-400 dark:text-zinc-500"
-          )} 
+          )}
         />
       )}
-      
+
       <span className={cn(
         "text-[13px] truncate pointer-events-none",
-        isActive 
-          ? "text-zinc-700 dark:text-zinc-200 font-medium" 
+        isActive
+          ? "text-zinc-700 dark:text-zinc-200 font-medium"
           : "text-zinc-500 dark:text-zinc-400"
       )}>
         {displayName || tab.name}
       </span>
-      
+
       {tab.isDirty && (
         <span className="w-1.5 h-1.5 rounded-full bg-[var(--neko-accent)] flex-shrink-0 pointer-events-none" />
       )}
@@ -135,14 +133,14 @@ const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick 
       className={cn(
         "group relative flex items-center gap-2 px-3 py-1.5 cursor-pointer min-w-0 flex-shrink",
         "rounded-lg my-1",
-        isActive 
-          ? "bg-white dark:bg-zinc-800 shadow-sm" 
+        isActive
+          ? "bg-white dark:bg-zinc-800 shadow-sm"
           : "hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50",
         isDragging && "opacity-50 z-50"
       )}
     >
       <TabContent tab={tab} isActive={isActive} icon={icon} displayName={displayName} />
-      
+
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -175,8 +173,8 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
       className={cn(
         "flex items-center gap-2 px-3 py-1.5 min-w-0 max-w-[200px]",
         "rounded-lg shadow-lg",
-        isActive 
-          ? "bg-white dark:bg-zinc-800" 
+        isActive
+          ? "bg-white dark:bg-zinc-800"
           : "bg-zinc-100 dark:bg-zinc-700"
       )}
     >
@@ -185,120 +183,7 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
   );
 }
 
-// User Menu Component
-interface UserMenuProps {
-  isGithubConnected: boolean;
-  githubUsername: string | null;
-  githubAvatarUrl: string | null;
-  onOpenSettings?: () => void;
-}
-
-function UserMenu({ isGithubConnected, githubUsername, githubAvatarUrl, onOpenSettings }: UserMenuProps) {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const [isHovered, setIsHovered] = React.useState(false);
-  const menuRef = React.useRef<HTMLDivElement>(null);
-  const { disconnect, connect } = useGithubSyncStore();
-
-  // Close menu when clicking outside
-  React.useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isOpen]);
-
-  const handleLogout = () => {
-    disconnect();
-    setIsOpen(false);
-  };
-
-  const handleLogin = () => {
-    connect();
-    setIsOpen(false);
-  };
-
-  const handleSettings = () => {
-    onOpenSettings?.();
-    setIsOpen(false);
-  };
-
-  return (
-    <div ref={menuRef} className="relative flex-1 min-w-0">
-      <button
-        className="flex items-center gap-2 min-w-0 w-full h-full py-1 rounded-md hover:bg-[var(--neko-hover)] transition-colors group"
-        onClick={() => setIsOpen(!isOpen)}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        {isGithubConnected && githubUsername ? (
-          <>
-            <img
-              src={githubAvatarUrl || `https://github.com/${githubUsername}.png?size=64`}
-              alt={githubUsername}
-              className="w-5 h-5 rounded-full flex-shrink-0"
-            />
-            <span className="text-[13px] font-medium text-[var(--neko-text-primary)] truncate">
-              {githubUsername}
-            </span>
-          </>
-        ) : (
-          <>
-            <img
-              src="/logo.png"
-              alt="NekoTick"
-              className="w-5 h-5 rounded-full flex-shrink-0"
-            />
-            <span className="text-[13px] font-medium text-[var(--neko-text-primary)]">
-              NekoTick
-            </span>
-          </>
-        )}
-        <ChevronDown 
-          className={cn(
-            "w-3 h-3 flex-shrink-0 text-[var(--neko-text-tertiary)] transition-all",
-            (isHovered || isOpen) ? "opacity-100" : "opacity-0",
-            isOpen && "rotate-180"
-          )} 
-        />
-      </button>
-
-      {/* Dropdown Menu */}
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-48 bg-[var(--neko-bg-primary)] border border-[var(--neko-border)] rounded-lg shadow-lg py-1 z-50">
-          <button
-            onClick={handleSettings}
-            className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)] transition-colors"
-          >
-            <Settings className="w-4 h-4 text-[var(--neko-text-tertiary)]" />
-            Settings
-          </button>
-          {isGithubConnected ? (
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)] transition-colors"
-            >
-              <LogOut className="w-4 h-4 text-[var(--neko-text-tertiary)]" />
-              Log out
-            </button>
-          ) : (
-            <button
-              onClick={handleLogin}
-              className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)] transition-colors"
-            >
-              <LogIn className="w-4 h-4 text-[var(--neko-text-tertiary)]" />
-              Log in
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 
 interface TitleBarProps {
   onOpenSettings?: () => void;
@@ -311,42 +196,42 @@ interface TitleBarProps {
 export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls }: TitleBarProps) {
   const { appViewMode, toggleAppViewMode, notesSidebarCollapsed, notesSidebarWidth, notesShowAIPanel, toggleNotesSidebar, toggleNotesAIPanel } = useUIStore();
   const { currentVault } = useVaultStore();
-  const { username: githubUsername, avatarUrl: githubAvatarUrl, isConnected: isGithubConnected } = useGithubSyncStore();
+
   const currentNote = useNotesStore(s => s.currentNote);
   const openTabs = useNotesStore(s => s.openTabs);
   const closeTab = useNotesStore(s => s.closeTab);
   const openNote = useNotesStore(s => s.openNote);
   const createNote = useNotesStore(s => s.createNote);
   const reorderTabs = useNotesStore(s => s.reorderTabs);
-  
+
   // Alias for cleaner code
   const sidebarCollapsed = notesSidebarCollapsed;
   const sidebarWidth = notesSidebarWidth;
   const showAIPanel = notesShowAIPanel;
   const toggleSidebar = toggleNotesSidebar;
   const toggleAIPanel = toggleNotesAIPanel;
-  
+
   // Use white background when no vault is selected (welcome screen)
   const titleBarBgColor = currentVault ? NOTES_COLORS.sidebarBg : 'var(--neko-bg-primary)';
-  
+
   const RESIZE_HANDLE_WIDTH = 4;
-  
+
   const [activeTabId, setActiveTabId] = React.useState<string | null>(null);
-  
+
   // DnD sensors for tab reordering
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
     })
   );
-  
+
   const startDrag = useCallback(async () => {
     await getCurrentWindow().startDragging();
   }, []);
 
   // Handle new note creation
   const handleCreateNote = React.useCallback(() => {
-    const folderPath = currentNote?.path 
+    const folderPath = currentNote?.path
       ? currentNote.path.substring(0, currentNote.path.lastIndexOf('/')) || undefined
       : undefined;
     createNote(folderPath);
@@ -360,25 +245,25 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
   // Handle tab drag end
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    
+
     setActiveTabId(null);
-    
+
     if (over && active.id !== over.id) {
       const oldIndex = openTabs.findIndex(tab => tab.path === active.id);
       const newIndex = openTabs.findIndex(tab => tab.path === over.id);
-      
+
       if (oldIndex !== -1 && newIndex !== -1) {
         reorderTabs(oldIndex, newIndex);
       }
     }
   };
-  
+
   const activeTab = activeTabId ? openTabs.find(tab => tab.path === activeTabId) : null;
 
   useShortcuts({ scope: 'notes' });
 
   return (
-    <div 
+    <div
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) startDrag();
       }}
@@ -388,7 +273,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
       {/* Welcome screen - only show window controls */}
       {appViewMode === 'notes' && !currentVault && (
         <>
-          <div 
+          <div
             className="flex-1 h-full cursor-default"
             onMouseDown={startDrag}
           />
@@ -401,17 +286,12 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
         <>
           {/* Left sidebar area - matches sidebar width */}
           {!sidebarCollapsed && (
-            <div 
+            <div
               className="h-full flex items-center justify-between flex-shrink-0 z-20 px-3"
               style={{ width: sidebarWidth }}
             >
               {/* User info with dropdown */}
-              <UserMenu
-                isGithubConnected={isGithubConnected}
-                githubUsername={githubUsername}
-                githubAvatarUrl={githubAvatarUrl}
-                onOpenSettings={onOpenSettings}
-              />
+              <WorkspaceSwitcher onOpenSettings={onOpenSettings} />
               {/* Collapse button */}
               <button
                 onClick={toggleSidebar}
@@ -442,9 +322,9 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
 
           {/* White background area for main content - creates the "cutout" effect */}
           {!sidebarCollapsed && (
-            <div 
+            <div
               className="absolute top-0 bottom-0 right-0 bg-white dark:bg-zinc-800 rounded-tl-xl"
-              style={{ 
+              style={{
                 left: sidebarWidth + RESIZE_HANDLE_WIDTH,
               }}
             />
@@ -452,13 +332,13 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
 
           {/* White background when sidebar is collapsed */}
           {sidebarCollapsed && (
-            <div 
+            <div
               className="absolute top-0 bottom-0 left-0 right-0 bg-white dark:bg-zinc-800"
             />
           )}
 
           {/* Note Tabs */}
-          <div 
+          <div
             className="flex-1 flex items-center z-20 overflow-hidden min-w-0 h-full"
           >
             {/* Tabs container */}
@@ -482,7 +362,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                       onClick={openNote}
                     />
                   ))}
-                  
+
                   {/* Add new tab button */}
                   {openTabs.length > 0 && (
                     <Tooltip delayDuration={500}>
@@ -495,7 +375,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                             "hover:text-zinc-500 dark:hover:text-zinc-400"
                           )}
                         >
-                        <Plus className="w-4 h-4" />
+                          <Plus className="w-4 h-4" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" sideOffset={2}>
@@ -509,27 +389,27 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                   )}
                 </div>
               </SortableContext>
-              
+
               <DragOverlay dropAnimation={null}>
                 {activeTab ? (
-                  <TabOverlay 
-                    tab={activeTab} 
+                  <TabOverlay
+                    tab={activeTab}
                     isActive={currentNote?.path === activeTab.path}
                   />
                 ) : null}
               </DragOverlay>
             </DndContext>
-            
+
             {/* Draggable empty area - fills remaining space, outside DndContext */}
-            <div 
+            <div
               className="flex-1 h-full min-w-[20px] cursor-default"
               onMouseDown={startDrag}
             />
           </div>
 
           {/* AI Chat Toggle */}
-          <TitleBarButton 
-            icon={MessageCircle} 
+          <TitleBarButton
+            icon={MessageCircle}
             onClick={toggleAIPanel}
             isActive={showAIPanel}
             className="w-9 px-0 z-20"
@@ -553,7 +433,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
 
           {/* Center Content Area - Absolutely positioned for true centering */}
           {content && (
-            <div 
+            <div
               onMouseDown={(e) => {
                 if (e.target === e.currentTarget || (e.target as HTMLElement).hasAttribute('data-tauri-drag-region')) {
                   startDrag();
