@@ -364,7 +364,7 @@ export function MarkdownEditor() {
         />
 
         <div className={cn(
-          "max-w-[720px] w-full px-6 sm:px-12 shrink-0 z-10 relative",
+          "max-w-[720px] w-full px-6 sm:px-12 shrink-0 z-10 relative transition-[margin] duration-150 ease-out",
           // Pull content up to overlap with cover (Notion-style)
           coverUrl && "mt-[-40px]"
         )}>
@@ -393,7 +393,7 @@ export function MarkdownEditor() {
           )}
           <div
             className={cn(
-              "pb-4 transition-all duration-300",
+              "pb-4 transition-all duration-150",
               // If cover exists, minimal top padding since icon overlaps cover
               // If no cover, use comfortable top padding (Notion-style ~80px)
               coverUrl ? "pt-0" : "pt-20"

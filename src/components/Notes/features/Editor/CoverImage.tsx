@@ -467,14 +467,13 @@ export function CoverImage({
         }
     }, [resolvedSrc, isImageReady]);
 
-    // No cover - return null (no placeholder space)
-    // The "Add cover" button should be in the header area, not here
+    // No cover and no picker/preview - render nothing
+    if (!url && !showPicker && !previewSrc) {
+        return null;
+    }
+    
+    // No cover but picker is open or has preview - show preview area
     if (!url) {
-        // Only render if picker is open (for preview) or if there's a preview
-        if (!showPicker && !previewSrc) {
-            return null;
-        }
-        
         return (
             <div className="relative w-full">
                 {previewSrc && (
@@ -498,7 +497,7 @@ export function CoverImage({
     return (
         <div className="relative w-full">
             <div
-                className="relative w-full bg-muted/20 shrink-0 select-none overflow-hidden"
+                className="relative w-full bg-muted/20 shrink-0 select-none overflow-hidden transition-[height] duration-150 ease-out"
                 style={{ height: coverHeight }}
                 ref={containerRef}
             >

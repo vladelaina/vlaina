@@ -55,20 +55,13 @@ function TabContent({ tab, isActive, icon, displayName }: TabContentProps) {
         </span>
       ) : (
         <FileText
-          className={cn(
-            "w-4 h-4 flex-shrink-0 pointer-events-none",
-            isActive
-              ? "text-[var(--neko-accent)]"
-              : "text-zinc-400 dark:text-zinc-500"
-          )}
+          className="w-4 h-4 flex-shrink-0 pointer-events-none text-current opacity-70"
         />
       )}
 
       <span className={cn(
-        "text-[13px] truncate pointer-events-none",
-        isActive
-          ? "text-zinc-700 dark:text-zinc-200 font-medium"
-          : "text-zinc-500 dark:text-zinc-400"
+        "text-[13px] truncate pointer-events-none text-current",
+        isActive && "font-medium"
       )}>
         {displayName || tab.name}
       </span>
@@ -85,9 +78,10 @@ interface SortableTabProps {
   isActive: boolean;
   onClose: (path: string) => void | Promise<void>;
   onClick: (path: string) => void;
+  showSeparator?: boolean;
 }
 
-const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick }: SortableTabProps) {
+const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick, showSeparator }: SortableTabProps) {
   const icon = useDisplayIcon(tab.path);
   const displayName = useDisplayName(tab.path);
   const {
@@ -133,13 +127,17 @@ const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick 
       }}
       className={cn(
         "group relative flex items-center gap-2 px-3 py-1.5 cursor-pointer min-w-0 flex-shrink",
-        "rounded-lg my-1",
+        "rounded-md transition-colors",
         isActive
-          ? "bg-white dark:bg-zinc-800 shadow-sm"
-          : "hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50",
+          ? "text-zinc-800 dark:text-zinc-100"
+          : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300",
         isDragging && "opacity-50 z-50"
       )}
     >
+      {/* Subtle separator line between tabs */}
+      {showSeparator && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-3.5 bg-zinc-200 dark:bg-zinc-700" />
+      )}
       <TabContent tab={tab} isActive={isActive} icon={icon} displayName={displayName} />
 
       <button
@@ -173,10 +171,10 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
     <div
       className={cn(
         "flex items-center gap-2 px-3 py-1.5 min-w-0 max-w-[200px]",
-        "rounded-lg shadow-lg",
+        "rounded-md shadow-md bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm",
         isActive
-          ? "bg-white dark:bg-zinc-800"
-          : "bg-zinc-100 dark:bg-zinc-700"
+          ? "text-zinc-800 dark:text-zinc-100"
+          : "text-zinc-500 dark:text-zinc-400"
       )}
     >
       <TabContent tab={tab} isActive={isActive} icon={icon} displayName={displayName} />
@@ -365,14 +363,15 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                 items={openTabs.map(tab => tab.path)}
                 strategy={horizontalListSortingStrategy}
               >
-                <div className="flex items-center gap-1 px-2 h-full min-w-0 flex-shrink">
-                  {openTabs.map((tab) => (
+                <div className="flex items-center px-2 h-full min-w-0 flex-shrink">
+                  {openTabs.map((tab, index) => (
                     <SortableTab
                       key={tab.path}
                       tab={tab}
                       isActive={currentNote?.path === tab.path}
                       onClose={closeTab}
                       onClick={openNote}
+                      showSeparator={index > 0}
                     />
                   ))}
 
