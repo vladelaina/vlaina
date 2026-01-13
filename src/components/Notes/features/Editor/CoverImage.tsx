@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, MouseEvent } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, MouseEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { CoverPicker } from '../AssetLibrary';
 import { loadImageAsBlob } from '@/lib/assets/imageLoader';
@@ -114,6 +114,9 @@ export function CoverImage({
     
     // Track last resolved URL to avoid duplicate resolves
     const lastResolvedUrlRef = useRef<string | null>(null);
+    
+    // Track blob URLs for cleanup
+    const blobUrlRef = useRef<string | null>(null);
 
     // Sync props to state/refs
     useEffect(() => {
@@ -156,6 +159,7 @@ export function CoverImage({
             }
             
             let imageUrl: string;
+            let isNewBlobUrl = false;
             
             if (url.startsWith('http')) { 
                 imageUrl = url;
@@ -165,6 +169,7 @@ export function CoverImage({
                 try {
                     const fullPath = buildFullAssetPath(vaultPath, url);
                     imageUrl = await loadImageAsBlob(fullPath);
+                    isNewBlobUrl = true;
                 } catch {
                     // 文件不存在或加载失败，自动清除封面
                     setResolvedSrc(null);
@@ -183,6 +188,12 @@ export function CoverImage({
                 cachedDimensionsRef.current = dimensions;
             }
             
+            // 清理旧的 blob URL
+            if (blobUrlRef.current) {
+                URL.revokeObjectURL(blobUrlRef.current);
+            }
+            blobUrlRef.current = isNewBlobUrl ? imageUrl : null;
+            
             setResolvedSrc(imageUrl);
             setPreviewSrc(null);
             isSelectingRef.current = false;
@@ -191,10 +202,11 @@ export function CoverImage({
         resolve();
     }, [url, vaultPath, onUpdate]);
 
-    // Cleanup on unmount
+    // Cleanup blob URL on unmount
     useEffect(() => {
         return () => {
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+            if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
         };
     }, []);
 
@@ -391,11 +403,11 @@ export function CoverImage({
     }, []);
 
     // Calculate image style - use cached dimensions if img element not ready yet
-    const getImageStyle = useCallback((): React.CSSProperties => {
+    const imageStyle = useMemo((): React.CSSProperties => {
         const container = containerRef.current;
-        if (!container) {
-            return { width: '100%', height: '100%', objectFit: 'cover', objectPosition: `${dragX}% ${dragY}%` };
-        }
+        // 使用 coverHeight state 而不是 container.clientHeight，确保切换笔记时高度正确
+        const containerW = container?.clientWidth || 720;
+        const containerH = coverHeight;
         
         // Use img element dimensions if available, otherwise use cached dimensions
         const imgW = imgRef.current?.naturalWidth || cachedDimensionsRef.current?.width;
@@ -406,7 +418,7 @@ export function CoverImage({
         }
         
         const { width, height, overflowX, overflowY } = calcImageDimensions(
-            container.clientWidth, container.clientHeight,
+            containerW, containerH,
             imgW, imgH,
             currentScale
         );
@@ -419,7 +431,7 @@ export function CoverImage({
             maxWidth: 'none',
             maxHeight: 'none',
         };
-    }, [dragX, dragY, currentScale]);
+    }, [dragX, dragY, currentScale, coverHeight]);
 
     // Handle image load - mark as ready when dimensions are confirmed
     const handleImageLoad = useCallback(() => {
@@ -487,7 +499,7 @@ export function CoverImage({
                             isAnimating && "transition-all duration-150 ease-out"
                         )}
                         style={{
-                            ...(previewSrc ? { width: '100%', height: '100%', objectFit: 'cover' } : getImageStyle()),
+                            ...(previewSrc ? { width: '100%', height: '100%', objectFit: 'cover' } : imageStyle),
                             // 显示条件：预览 / 新图片准备好 / 有旧图片过渡
                             opacity: previewSrc || isImageReady || prevSrcRef.current ? 1 : 0,
                         }}
