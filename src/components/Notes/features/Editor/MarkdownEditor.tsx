@@ -224,8 +224,10 @@ export function MarkdownEditor() {
   // Get cover from centralized metadata
   const coverData = currentNote ? getNoteCover(currentNote.path) : {};
   const coverUrl = coverData.cover || null;
+  const coverX = coverData.coverX ?? 50;
   const coverY = coverData.coverY ?? 50;
   const coverH = coverData.coverH;
+  const coverScale = coverData.coverScale ?? 1;
 
   // Get Vault Path
   useEffect(() => {
@@ -233,9 +235,9 @@ export function MarkdownEditor() {
     if (path) setVaultPath(path);
   }, []);
 
-  const handleCoverUpdate = (url: string | null, y: number, h?: number) => {
+  const handleCoverUpdate = (url: string | null, x: number, y: number, h?: number, scale?: number) => {
     if (!currentNote?.path) return;
-    setNoteCover(currentNote.path, url, y, h);
+    setNoteCover(currentNote.path, url, x, y, h, scale);
   };
 
   const handleIconSelect = (emoji: string) => {
@@ -345,8 +347,10 @@ export function MarkdownEditor() {
       <div className="flex-1 overflow-auto neko-scrollbar flex flex-col items-center relative">
         <CoverImage
           url={coverUrl}
+          positionX={coverX}
           positionY={coverY}
           height={coverH}
+          scale={coverScale}
           onUpdate={handleCoverUpdate}
           vaultPath={vaultPath}
         />

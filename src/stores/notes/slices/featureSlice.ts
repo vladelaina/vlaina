@@ -36,8 +36,8 @@ export interface FeatureSlice {
   setNoteIcon: (path: string, emoji: string | null) => void;
   updateAllIconColors: (newColor: string) => void;
   updateAllEmojiSkinTones: (newTone: number) => void;
-  getNoteCover: (path: string) => { cover?: string; coverY?: number; coverH?: number };
-  setNoteCover: (path: string, cover: string | null, coverY?: number, coverH?: number) => void;
+  getNoteCover: (path: string) => { cover?: string; coverX?: number; coverY?: number; coverH?: number; coverScale?: number };
+  setNoteCover: (path: string, cover: string | null, coverX?: number, coverY?: number, coverH?: number, coverScale?: number) => void;
 }
 
 export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> = (set, get) => ({
@@ -253,16 +253,16 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     if (!noteMetadata) return {};
     const entry = noteMetadata.notes[path];
     if (!entry) return {};
-    return { cover: entry.cover, coverY: entry.coverY, coverH: entry.coverH };
+    return { cover: entry.cover, coverX: entry.coverX, coverY: entry.coverY, coverH: entry.coverH, coverScale: entry.coverScale };
   },
 
-  setNoteCover: (path: string, cover: string | null, coverY?: number, coverH?: number) => {
+  setNoteCover: (path: string, cover: string | null, coverX?: number, coverY?: number, coverH?: number, coverScale?: number) => {
     const { noteMetadata, notesPath } = get();
     if (!noteMetadata || !notesPath) return;
 
     const updates = cover
-      ? { cover, coverY: coverY ?? 50, coverH: coverH }
-      : { cover: undefined, coverY: undefined, coverH: undefined };
+      ? { cover, coverX: coverX ?? 50, coverY: coverY ?? 50, coverH: coverH, coverScale: coverScale ?? 1 }
+      : { cover: undefined, coverX: undefined, coverY: undefined, coverH: undefined, coverScale: undefined };
 
     const updated = setNoteEntry(noteMetadata, path, updates);
     set({ noteMetadata: updated });

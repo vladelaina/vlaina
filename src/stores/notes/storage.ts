@@ -123,7 +123,10 @@ export function setNoteEntry(
   if (updated.icon === null || updated.icon === undefined) delete updated.icon;
   if (updated.cover === null || updated.cover === undefined) {
     delete updated.cover;
+    delete updated.coverX;
     delete updated.coverY;
+    delete updated.coverH;
+    delete updated.coverScale;
   }
 
   // Remove entry if empty

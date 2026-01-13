@@ -290,11 +290,12 @@ export const webGithubCommands = {
   },
 
   /** Check if connected on web */
-  getStatus(): { connected: boolean; username: string | null; gistId: string | null; lastSyncTime: number | null } {
+  getStatus(): { connected: boolean; username: string | null; avatarUrl: string | null; gistId: string | null; lastSyncTime: number | null } {
     const creds = getWebGithubCredentials();
     return {
       connected: !!creds,
       username: creds?.username || null,
+      avatarUrl: creds?.avatarUrl || null,
       gistId: creds?.gistId || null,
       lastSyncTime: creds?.lastSyncTime || null,
     };

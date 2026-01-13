@@ -109,6 +109,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       set({
         isConnected: status.connected,
         username: status.username,
+        avatarUrl: status.avatarUrl,
         gistId: status.gistId,
         lastSyncTime: status.lastSyncTime,
         isLoading: false,
@@ -143,6 +144,9 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
             username: result.username,
             isConnecting: false,
           });
+          
+          // Fetch full status including avatar
+          await get().checkStatus();
           
           try {
             const proStatus = await githubCommands.checkProStatus();
@@ -219,6 +223,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       set({
         isConnected: true,
         username: result.username,
+        avatarUrl: result.avatarUrl || null,
         isConnecting: false,
       });
 
@@ -257,6 +262,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
     set({
       isConnected: false,
       username: null,
+      avatarUrl: null,
       gistId: null,
       hasRemoteData: false,
       remoteModifiedTime: null,

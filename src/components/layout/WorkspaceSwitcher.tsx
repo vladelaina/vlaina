@@ -35,10 +35,8 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
     // Fallback data
     const displayName = githubUsername || "NekoTick";
 
-    // Use logo for logged out state, valid avatar url for logged in, or undefined (render initial)
-    const displayAvatar = isGithubConnected
-        ? (githubAvatarUrl || undefined)
-        : "/logo.png";
+    // Use logo as fallback when no avatar available
+    const displayAvatar = githubAvatarUrl || "/logo.png";
 
     const handleLogout = () => {
         disconnect();
@@ -87,18 +85,12 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                     )}
                 >
 
-                    {/* Avatar logic */}
-                    {displayAvatar ? (
-                        <img
-                            src={displayAvatar}
-                            alt={displayName}
-                            className="w-5 h-5 rounded-sm object-cover shadow-sm"
-                        />
-                    ) : (
-                        <div className="w-5 h-5 rounded-sm bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-bold shadow-sm">
-                            {displayName.charAt(0).toUpperCase()}
-                        </div>
-                    )}
+                    {/* Avatar */}
+                    <img
+                        src={displayAvatar}
+                        alt={displayName}
+                        className="w-5 h-5 rounded-sm object-cover shadow-sm"
+                    />
 
                     <span className="text-[14px] font-medium truncate max-w-[120px]">
                         {displayName}
