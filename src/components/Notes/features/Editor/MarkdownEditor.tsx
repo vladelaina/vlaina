@@ -17,6 +17,7 @@ import { IconPicker, NoteIcon } from '../IconPicker';
 import { getRandomEmoji, loadRecentIcons, addToRecentIcons, loadSkinTone } from '../IconPicker/constants';
 import { TitleInput } from './TitleInput';
 import { CoverImage } from './CoverImage';
+import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
 import { getCurrentVaultPath } from '@/stores/notes/storage';
 
 // Custom plugins - unified import
@@ -220,6 +221,7 @@ export function MarkdownEditor() {
 
   // Cover Image State (derived from centralized metadata)
   const [vaultPath, setVaultPath] = useState<string>('');
+  const [showCoverPicker, setShowCoverPicker] = useState(false);
 
   // Get cover from centralized metadata
   const coverData = currentNote ? getNoteCover(currentNote.path) : {};
@@ -321,9 +323,12 @@ export function MarkdownEditor() {
 
   return (
     <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative" onClick={handleEditorClick}>
-      <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+      <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
         <button
-          onClick={() => currentNote && toggleStarred(currentNote.path)}
+          onClick={(e) => {
+            e.stopPropagation();
+            currentNote && toggleStarred(currentNote.path);
+          }}
           className={cn(
             "p-1.5 transition-colors",
             starred
@@ -335,6 +340,7 @@ export function MarkdownEditor() {
         </button>
 
         <button
+          onClick={(e) => e.stopPropagation()}
           className={cn(
             "p-1.5 transition-colors",
             iconButtonStyles
@@ -353,32 +359,59 @@ export function MarkdownEditor() {
           scale={coverScale}
           onUpdate={handleCoverUpdate}
           vaultPath={vaultPath}
+          pickerOpen={showCoverPicker}
+          onPickerOpenChange={setShowCoverPicker}
         />
 
         <div className={cn(
-          "max-w-[720px] w-full px-6 sm:px-12 shrink-0 z-10",
+          "max-w-[720px] w-full px-6 sm:px-12 shrink-0 z-10 relative",
           // Pull content up to overlap with cover (Notion-style)
           coverUrl && "mt-[-40px]"
         )}>
+          {/* Clickable area to add cover - entire top padding area */}
+          {!coverUrl && (
+            <div 
+              className="absolute top-0 left-0 right-0 h-20 cursor-pointer hover:bg-[var(--neko-hover)]/30 transition-colors"
+              onClick={() => {
+                // Get all available covers (user uploads + built-in)
+                const allCovers = useNotesStore.getState().getAssetList();
+                let randomCover: string;
+                
+                if (allCovers.length > 0) {
+                  // Random from all available covers
+                  const randomIndex = Math.floor(Math.random() * allCovers.length);
+                  randomCover = allCovers[randomIndex].filename;
+                } else {
+                  // Fallback to built-in if no covers loaded yet
+                  randomCover = getRandomBuiltinCover();
+                }
+                
+                handleCoverUpdate(randomCover, 50, 50, 200, 1);
+                setShowCoverPicker(true);
+              }}
+            />
+          )}
           <div
             className={cn(
               "pb-4 transition-all duration-300",
               // If cover exists, minimal top padding since icon overlaps cover
-              // If no cover (Aurora), keep it airy.
-              coverUrl ? "pt-0" : "pt-24"
+              // If no cover, use comfortable top padding (Notion-style ~80px)
+              coverUrl ? "pt-0" : "pt-20"
             )}
             onMouseEnter={() => setIsHoveringHeader(true)}
             onMouseLeave={() => setIsHoveringHeader(false)}
           >
 
             {displayIcon ? (
-              <button
-                ref={iconButtonRef}
-                onClick={() => setShowIconPicker(true)}
-                className="h-14 hover:scale-105 transition-transform cursor-pointer flex items-center"
-              >
-                <NoteIcon icon={displayIcon} size={48} />
-              </button>
+              <div className="relative h-14 flex items-center">
+                <button
+                  ref={iconButtonRef}
+                  onClick={() => setShowIconPicker(true)}
+                  className="hover:scale-105 transition-transform cursor-pointer flex items-center"
+                >
+                  <NoteIcon icon={displayIcon} size={48} />
+                </button>
+              </div>
             ) : showIconPicker ? (
               <div className="h-14 flex items-center">
                 <button
@@ -393,29 +426,32 @@ export function MarkdownEditor() {
                 </button>
               </div>
             ) : (
-              <button
-                ref={iconButtonRef}
-                onClick={() => {
-                  if (!noteIcon) {
-                    const currentSkinTone = loadSkinTone();
-                    const randomEmoji = getRandomEmoji(currentSkinTone);
-                    handleIconSelect(randomEmoji);
-                    // Add to recent icons so it appears in the picker's recent list
-                    const currentRecent = loadRecentIcons();
-                    addToRecentIcons(randomEmoji, currentRecent);
-                  }
-                  setShowIconPicker(true);
-                }}
-                className={cn(
-                  "flex items-center gap-1.5 py-1 rounded-md text-sm",
-                  iconButtonStyles,
-                  "transition-all duration-150",
-                  isHoveringHeader ? "opacity-100" : "opacity-0 pointer-events-none"
-                )}
-              >
-                <HeartPulse className="size-4" />
-                <span>Add icon</span>
-              </button>
+              <div className={cn(
+                "flex items-center gap-2 transition-all duration-150",
+                isHoveringHeader ? "opacity-100" : "opacity-0 pointer-events-none"
+              )}>
+                <button
+                  ref={iconButtonRef}
+                  onClick={() => {
+                    if (!noteIcon) {
+                      const currentSkinTone = loadSkinTone();
+                      const randomEmoji = getRandomEmoji(currentSkinTone);
+                      handleIconSelect(randomEmoji);
+                      // Add to recent icons so it appears in the picker's recent list
+                      const currentRecent = loadRecentIcons();
+                      addToRecentIcons(randomEmoji, currentRecent);
+                    }
+                    setShowIconPicker(true);
+                  }}
+                  className={cn(
+                    "flex items-center gap-1.5 py-1 rounded-md text-sm",
+                    iconButtonStyles
+                  )}
+                >
+                  <HeartPulse className="size-4" />
+                  <span>Add icon</span>
+                </button>
+              </div>
             )}
 
             {showIconPicker && (

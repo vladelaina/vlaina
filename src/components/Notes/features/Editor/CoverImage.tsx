@@ -14,6 +14,9 @@ interface CoverImageProps {
     readOnly?: boolean;
     onUpdate: (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => void;
     vaultPath: string;
+    /** External control to open the picker (for "Add cover" button) */
+    pickerOpen?: boolean;
+    onPickerOpenChange?: (open: boolean) => void;
 }
 
 // Constants
@@ -72,6 +75,8 @@ export function CoverImage({
     readOnly = false,
     onUpdate,
     vaultPath,
+    pickerOpen,
+    onPickerOpenChange,
 }: CoverImageProps) {
     // Display state
     const [dragX, setDragX] = useState(positionX);
@@ -87,8 +92,16 @@ export function CoverImage({
     // Image ready state - prevents "jump" by hiding image until dimensions are available
     const [isImageReady, setIsImageReady] = useState(false);
     
-    // UI state
-    const [showPicker, setShowPicker] = useState(false);
+    // UI state - use external control if provided
+    const [internalShowPicker, setInternalShowPicker] = useState(false);
+    const showPicker = pickerOpen ?? internalShowPicker;
+    const setShowPicker = useCallback((open: boolean) => {
+        if (onPickerOpenChange) {
+            onPickerOpenChange(open);
+        } else {
+            setInternalShowPicker(open);
+        }
+    }, [onPickerOpenChange]);
 
     // Refs for DOM elements
     const containerRef = useRef<HTMLDivElement>(null);
@@ -129,12 +142,21 @@ export function CoverImage({
         }
     }, [positionX, positionY, scale, height]);
 
+    // Track previous url to detect "add new" vs "switch" scenarios
+    const prevUrlRef = useRef<string | null>(null);
+    
     // Reset image ready state when url changes
     useEffect(() => {
-        // 保存当前 src 作为过渡显示
-        if (resolvedSrc) {
+        // 只有在"切换封面"时才保存旧 src 用于过渡
+        // 如果是从无封面到有封面（新添加），不保存旧 src，避免闪现之前移除的封面
+        if (prevUrlRef.current && resolvedSrc) {
             prevSrcRef.current = resolvedSrc;
+        } else {
+            // 新添加封面或移除封面，清除过渡 src
+            prevSrcRef.current = null;
         }
+        
+        prevUrlRef.current = url;
         setIsImageReady(false);
         cachedDimensionsRef.current = null;
         lastResolvedUrlRef.current = null;
@@ -445,18 +467,21 @@ export function CoverImage({
         }
     }, [resolvedSrc, isImageReady]);
 
-    // No cover - show empty area
+    // No cover - return null (no placeholder space)
+    // The "Add cover" button should be in the header area, not here
     if (!url) {
+        // Only render if picker is open (for preview) or if there's a preview
+        if (!showPicker && !previewSrc) {
+            return null;
+        }
+        
         return (
             <div className="relative w-full">
-                <div
-                    className={cn("relative h-[120px] w-full shrink-0", !readOnly && "cursor-pointer")}
-                    onClick={() => !readOnly && setShowPicker(true)}
-                >
-                    {previewSrc && (
+                {previewSrc && (
+                    <div className="relative w-full h-[200px] shrink-0 overflow-hidden">
                         <img src={previewSrc} alt="Preview" className="w-full h-full object-cover" />
-                    )}
-                </div>
+                    </div>
+                )}
                 <CoverPicker
                     isOpen={showPicker}
                     onClose={handlePickerClose}

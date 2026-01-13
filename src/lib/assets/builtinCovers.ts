@@ -66,3 +66,11 @@ export function getBuiltinCoverUrl(assetPath: string): string {
 export function toBuiltinAssetPath(cover: BuiltinCover): string {
   return `${BUILTIN_PREFIX}${cover.id}`;
 }
+
+/**
+ * Get a random built-in cover asset path
+ */
+export function getRandomBuiltinCover(): string {
+  const randomIndex = Math.floor(Math.random() * BUILTIN_COVERS.length);
+  return toBuiltinAssetPath(BUILTIN_COVERS[randomIndex]);
+}
