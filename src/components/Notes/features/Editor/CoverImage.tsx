@@ -38,7 +38,7 @@ function calcImageDimensions(
 ) {
     const containerRatio = containerW / containerH;
     const imgRatio = imgW / imgH;
-    
+
     let baseW: number, baseH: number;
     if (imgRatio > containerRatio) {
         baseH = containerH;
@@ -47,7 +47,7 @@ function calcImageDimensions(
         baseW = containerW;
         baseH = containerW / imgRatio;
     }
-    
+
     return {
         width: baseW * scale,
         height: baseH * scale,
@@ -84,14 +84,15 @@ export function CoverImage({
     const [currentScale, setCurrentScale] = useState(scale);
     const [coverHeight, setCoverHeight] = useState(height ?? DEFAULT_HEIGHT);
     const [isAnimating, setIsAnimating] = useState(false);
-    
+    const [containerWidth, setContainerWidth] = useState(720);
+
     // Image sources
     const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
     const [previewSrc, setPreviewSrc] = useState<string | null>(null);
-    
+
     // Image ready state - prevents "jump" by hiding image until dimensions are available
     const [isImageReady, setIsImageReady] = useState(false);
-    
+
     // UI state - use external control if provided
     const [internalShowPicker, setInternalShowPicker] = useState(false);
     const showPicker = pickerOpen ?? internalShowPicker;
@@ -106,27 +107,44 @@ export function CoverImage({
     // Refs for DOM elements
     const containerRef = useRef<HTMLDivElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
-    
+
     // Refs for current values (avoid stale closures)
     const currentXRef = useRef(positionX);
     const currentYRef = useRef(positionY);
     const currentScaleRef = useRef(scale);
     const currentHeightRef = useRef(height ?? DEFAULT_HEIGHT);
-    
+
     // Refs for drag state
     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, height: 0 });
     const hasDraggedRef = useRef(false);
     const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isSelectingRef = useRef(false);
-    
+
     // Cache image dimensions to calculate position before img element is ready
     const cachedDimensionsRef = useRef<{ width: number; height: number } | null>(null);
-    
+
     // Track previous src to show during transition
     const prevSrcRef = useRef<string | null>(null);
-    
+
     // Track last resolved URL to avoid duplicate resolves
     const lastResolvedUrlRef = useRef<string | null>(null);
+
+    // ResizeObserver to track container width changes (for sidebar toggle)
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                if (entry.contentRect.width > 0) {
+                    setContainerWidth(entry.contentRect.width);
+                }
+            }
+        });
+
+        resizeObserver.observe(container);
+        return () => resizeObserver.disconnect();
+    }, []);
 
     // Sync props to state/refs
     useEffect(() => {
@@ -144,7 +162,7 @@ export function CoverImage({
 
     // Track previous url to detect "add new" vs "switch" scenarios
     const prevUrlRef = useRef<string | null>(null);
-    
+
     // Reset image ready state when url changes
     useEffect(() => {
         // 只有在"切换封面"时才保存旧 src 用于过渡
@@ -155,7 +173,7 @@ export function CoverImage({
             // 新添加封面或移除封面，清除过渡 src
             prevSrcRef.current = null;
         }
-        
+
         prevUrlRef.current = url;
         setIsImageReady(false);
         cachedDimensionsRef.current = null;
@@ -169,17 +187,17 @@ export function CoverImage({
             if (url === lastResolvedUrlRef.current && resolvedSrc) {
                 return;
             }
-            
-            if (!url) { 
-                setResolvedSrc(null); 
+
+            if (!url) {
+                setResolvedSrc(null);
                 setPreviewSrc(null);
                 isSelectingRef.current = false;
-                return; 
+                return;
             }
-            
+
             let imageUrl: string;
-            
-            if (url.startsWith('http')) { 
+
+            if (url.startsWith('http')) {
                 imageUrl = url;
             } else if (isBuiltinCover(url)) {
                 imageUrl = getBuiltinCoverUrl(url);
@@ -198,16 +216,16 @@ export function CoverImage({
             } else {
                 return;
             }
-            
+
             // Pre-load image to get dimensions before rendering
             const dimensions = await loadImageWithDimensions(imageUrl);
             if (dimensions) {
                 cachedDimensionsRef.current = dimensions;
             }
-            
+
             // Note: We don't revoke blob URLs here because loadImageAsBlob caches them globally
             // The cache manages the lifecycle of blob URLs
-            
+
             setResolvedSrc(imageUrl);
             setPreviewSrc(null);
             isSelectingRef.current = false;
@@ -225,8 +243,8 @@ export function CoverImage({
     }, []);
 
     // Debounced save helper - use ref to avoid dependency issues
-    const debouncedSaveRef = useRef<(newScale?: number) => void>(() => {});
-    
+    const debouncedSaveRef = useRef<(newScale?: number) => void>(() => { });
+
     useEffect(() => {
         debouncedSaveRef.current = (newScale?: number) => {
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -246,7 +264,7 @@ export function CoverImage({
 
         const deltaX = e.clientX - dragStartRef.current.mouseX;
         const deltaY = e.clientY - dragStartRef.current.mouseY;
-        
+
         if (!hasDraggedRef.current && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
             hasDraggedRef.current = true;
             setIsAnimating(false);
@@ -259,14 +277,14 @@ export function CoverImage({
             img.naturalWidth, img.naturalHeight,
             currentScaleRef.current
         );
-        
-        const newX = overflowX > 0 
+
+        const newX = overflowX > 0
             ? Math.max(0, Math.min(100, dragStartRef.current.posX - (deltaX / overflowX) * 100))
             : 50;
         const newY = overflowY > 0
             ? Math.max(0, Math.min(100, dragStartRef.current.posY - (deltaY / overflowY) * 100))
             : 50;
-        
+
         currentXRef.current = newX;
         currentYRef.current = newY;
         setDragX(newX);
@@ -309,7 +327,7 @@ export function CoverImage({
             const isFast = e.ctrlKey || e.metaKey;
             const step = isFast ? 0.15 : 0.03;
             const delta = -Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY), 100) / 100 * step;
-            
+
             const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, currentScaleRef.current + delta));
             if (newScale === currentScaleRef.current) return;
 
@@ -351,10 +369,10 @@ export function CoverImage({
     // Cover selection handler
     const handleCoverSelect = useCallback(async (assetPath: string) => {
         isSelectingRef.current = true;
-        
+
         const container = containerRef.current;
         const containerWidth = container?.clientWidth || 720;
-        
+
         try {
             // Get image URL based on type
             let imageUrl: string;
@@ -364,16 +382,16 @@ export function CoverImage({
                 const fullPath = buildFullAssetPath(vaultPath, assetPath);
                 imageUrl = await loadImageAsBlob(fullPath);
             }
-            
+
             const dimensions = await loadImageWithDimensions(imageUrl);
-            
+
             if (dimensions) {
                 const imgRatio = dimensions.width / dimensions.height;
                 const minHeightForCover = Math.ceil(containerWidth / imgRatio);
                 const finalHeight = coverHeight <= minHeightForCover && coverHeight <= MAX_HEIGHT
                     ? coverHeight
                     : Math.min(minHeightForCover, MAX_HEIGHT);
-                
+
                 onUpdate(assetPath, 50, 50, Math.max(finalHeight, MIN_HEIGHT), 1);
             } else {
                 onUpdate(assetPath, 50, 50, coverHeight, 1);
@@ -381,7 +399,7 @@ export function CoverImage({
         } catch {
             onUpdate(assetPath, 50, 50, coverHeight, 1);
         }
-        
+
         setShowPicker(false);
     }, [vaultPath, coverHeight, onUpdate]);
 
@@ -393,16 +411,16 @@ export function CoverImage({
             }
             return;
         }
-        
+
         try {
             // Built-in covers use URL directly
             if (isBuiltinCover(assetPath)) {
                 setPreviewSrc(getBuiltinCoverUrl(assetPath));
                 return;
             }
-            
+
             if (!vaultPath) return;
-            
+
             const fullPath = buildFullAssetPath(vaultPath, assetPath);
             // loadImageAsBlob has internal caching, no need to manage blob URLs here
             const blobUrl = await loadImageAsBlob(fullPath);
@@ -419,25 +437,24 @@ export function CoverImage({
 
     // Calculate image style - use cached dimensions if img element not ready yet
     const imageStyle = useMemo((): React.CSSProperties => {
-        const container = containerRef.current;
-        // 使用 coverHeight state 而不是 container.clientHeight，确保切换笔记时高度正确
-        const containerW = container?.clientWidth || 720;
+        // Use containerWidth state for responsive resizing
+        const containerW = containerWidth;
         const containerH = coverHeight;
-        
+
         // Use img element dimensions if available, otherwise use cached dimensions
         const imgW = imgRef.current?.naturalWidth || cachedDimensionsRef.current?.width;
         const imgH = imgRef.current?.naturalHeight || cachedDimensionsRef.current?.height;
-        
+
         if (!imgW || !imgH) {
             return { width: '100%', height: '100%', objectFit: 'cover', objectPosition: `${dragX}% ${dragY}%` };
         }
-        
+
         const { width, height, overflowX, overflowY } = calcImageDimensions(
             containerW, containerH,
             imgW, imgH,
             currentScale
         );
-        
+
         return {
             position: 'absolute',
             width, height,
@@ -446,7 +463,7 @@ export function CoverImage({
             maxWidth: 'none',
             maxHeight: 'none',
         };
-    }, [dragX, dragY, currentScale, coverHeight]);
+    }, [dragX, dragY, currentScale, coverHeight, containerWidth]);
 
     // Handle image load - mark as ready when dimensions are confirmed
     const handleImageLoad = useCallback(() => {
@@ -459,7 +476,7 @@ export function CoverImage({
     // 当 resolvedSrc 设置后，如果图片已经加载（preview 和 resolved 相同），手动标记为 ready
     useEffect(() => {
         if (!resolvedSrc || isImageReady) return;
-        
+
         const img = imgRef.current;
         if (img?.complete && img?.naturalWidth) {
             setIsImageReady(true);
@@ -471,7 +488,7 @@ export function CoverImage({
     if (!url && !showPicker && !previewSrc) {
         return null;
     }
-    
+
     // No cover but picker is open or has preview - show preview area
     if (!url) {
         return (
