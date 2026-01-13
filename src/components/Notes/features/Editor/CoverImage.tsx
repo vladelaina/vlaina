@@ -117,6 +117,7 @@ export function CoverImage({
     
     // Track blob URLs for cleanup
     const blobUrlRef = useRef<string | null>(null);
+    const previewBlobUrlRef = useRef<string | null>(null);
 
     // Sync props to state/refs
     useEffect(() => {
@@ -207,6 +208,7 @@ export function CoverImage({
         return () => {
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
             if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+            if (previewBlobUrlRef.current) URL.revokeObjectURL(previewBlobUrlRef.current);
         };
     }, []);
 
@@ -375,6 +377,11 @@ export function CoverImage({
     const handlePreview = useCallback(async (assetPath: string | null) => {
         if (!assetPath) {
             if (!isSelectingRef.current) {
+                // 清理旧的 preview blob URL
+                if (previewBlobUrlRef.current) {
+                    URL.revokeObjectURL(previewBlobUrlRef.current);
+                    previewBlobUrlRef.current = null;
+                }
                 setPreviewSrc(null);
             }
             return;
@@ -383,6 +390,11 @@ export function CoverImage({
         try {
             // Built-in covers use URL directly
             if (isBuiltinCover(assetPath)) {
+                // 清理旧的 preview blob URL
+                if (previewBlobUrlRef.current) {
+                    URL.revokeObjectURL(previewBlobUrlRef.current);
+                    previewBlobUrlRef.current = null;
+                }
                 setPreviewSrc(getBuiltinCoverUrl(assetPath));
                 return;
             }
@@ -391,6 +403,13 @@ export function CoverImage({
             
             const fullPath = buildFullAssetPath(vaultPath, assetPath);
             const blobUrl = await loadImageAsBlob(fullPath);
+            
+            // 清理旧的 preview blob URL
+            if (previewBlobUrlRef.current) {
+                URL.revokeObjectURL(previewBlobUrlRef.current);
+            }
+            previewBlobUrlRef.current = blobUrl;
+            
             setPreviewSrc(blobUrl);
         } catch {
             setPreviewSrc(null);
@@ -398,6 +417,11 @@ export function CoverImage({
     }, [vaultPath]);
 
     const handlePickerClose = useCallback(() => {
+        // 清理 preview blob URL
+        if (previewBlobUrlRef.current) {
+            URL.revokeObjectURL(previewBlobUrlRef.current);
+            previewBlobUrlRef.current = null;
+        }
         setPreviewSrc(null);
         setShowPicker(false);
     }, []);
