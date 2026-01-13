@@ -29,7 +29,7 @@ function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, onHover
 
   // Lazy load with Intersection Observer
   useEffect(() => {
-    if (!imgRef.current) return;
+    if (!imgRef.current || !vaultPath) return; // Guard against empty vaultPath
 
     const observer = new IntersectionObserver(
       async (entries) => {

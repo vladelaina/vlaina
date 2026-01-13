@@ -99,24 +99,25 @@ export function CoverImage({
 
     // Resolve local path to blob URL
     useEffect(() => {
-        let blobUrl: string | null = null;
-        
         async function resolve() {
             if (!url) { setResolvedSrc(null); return; }
             if (url.startsWith('http')) { setResolvedSrc(url); return; }
+            // Wait for vaultPath to be available
+            if (!vaultPath) { return; }
 
             try {
                 const sep = vaultPath.includes('\\') ? '\\' : '/';
                 const fullPath = `${vaultPath}${sep}.nekotick${sep}assets${sep}covers${sep}${url}`;
-                blobUrl = await loadImageAsBlob(fullPath);
+                // loadImageAsBlob handles caching internally, don't revoke here
+                const blobUrl = await loadImageAsBlob(fullPath);
                 setResolvedSrc(blobUrl);
             } catch {
                 setResolvedSrc(null);
             }
         }
         resolve();
-        
-        return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
+        // Note: Don't revoke blob URLs here - they're managed by imageLoader cache
+        // Revoking would break other components using the same cached URL
     }, [url, vaultPath]);
 
     // Cleanup & window resize
@@ -258,6 +259,7 @@ export function CoverImage({
             setPreviewSrc(null);
             return;
         }
+        if (!vaultPath) return; // Wait for vaultPath
         try {
             const sep = vaultPath.includes('\\') ? '\\' : '/';
             const fullPath = `${vaultPath}${sep}.nekotick${sep}assets${sep}covers${sep}${assetPath}`;
