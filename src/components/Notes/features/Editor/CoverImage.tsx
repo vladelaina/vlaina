@@ -111,6 +111,9 @@ export function CoverImage({
     
     // Track previous src to show during transition
     const prevSrcRef = useRef<string | null>(null);
+    
+    // Track last resolved URL to avoid duplicate resolves
+    const lastResolvedUrlRef = useRef<string | null>(null);
 
     // Sync props to state/refs
     useEffect(() => {
@@ -134,11 +137,17 @@ export function CoverImage({
         }
         setIsImageReady(false);
         cachedDimensionsRef.current = null;
+        lastResolvedUrlRef.current = null;
     }, [url]);
 
     // Resolve local path to blob URL with pre-loaded dimensions
     useEffect(() => {
         async function resolve() {
+            // 避免重复解析相同的 URL
+            if (url === lastResolvedUrlRef.current && resolvedSrc) {
+                return;
+            }
+            
             if (!url) { 
                 setResolvedSrc(null); 
                 setPreviewSrc(null);
@@ -177,7 +186,7 @@ export function CoverImage({
             setResolvedSrc(imageUrl);
             setPreviewSrc(null);
             isSelectingRef.current = false;
-            // 注意：不在这里清除 prevSrcRef，等 onLoad 时再清除
+            lastResolvedUrlRef.current = url;
         }
         resolve();
     }, [url, vaultPath, onUpdate]);
@@ -416,10 +425,20 @@ export function CoverImage({
     const handleImageLoad = useCallback(() => {
         if (imgRef.current?.naturalWidth) {
             setIsImageReady(true);
-            // 新图片加载完成，清除旧图片引用
             prevSrcRef.current = null;
         }
     }, []);
+
+    // 当 resolvedSrc 设置后，如果图片已经加载（preview 和 resolved 相同），手动标记为 ready
+    useEffect(() => {
+        if (!resolvedSrc || isImageReady) return;
+        
+        const img = imgRef.current;
+        if (img?.complete && img?.naturalWidth) {
+            setIsImageReady(true);
+            prevSrcRef.current = null;
+        }
+    }, [resolvedSrc, isImageReady]);
 
     // No cover - show aurora background
     if (!url) {
