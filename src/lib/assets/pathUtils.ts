@@ -67,3 +67,15 @@ export function isValidAssetFilename(filename: string): boolean {
 export function buildAssetPath(filename: string): string {
   return `.nekotick/assets/covers/${filename}`;
 }
+
+/**
+ * Build full absolute path to an asset file
+ * @param vaultPath - The vault root path
+ * @param assetFilename - The asset filename (may include subdirectory)
+ * @returns Full absolute path to the asset
+ */
+export function buildFullAssetPath(vaultPath: string, assetFilename: string): string {
+  const sep = vaultPath.includes('\\') ? '\\' : '/';
+  const normalizedFilename = assetFilename.replace(/\//g, sep);
+  return `${vaultPath}${sep}.nekotick${sep}assets${sep}covers${sep}${normalizedFilename}`;
+}

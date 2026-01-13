@@ -2,15 +2,15 @@
  * AssetGrid - Grid display of assets from the library
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
 import { Trash2, Loader2 } from 'lucide-react';
 import { AssetGridProps } from './types';
 import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { buildFullAssetPath } from '@/lib/assets/pathUtils';
 
-const ASSETS_DIR = '.nekotick/assets/covers';
-const PREVIEW_CLEAR_DELAY = 100; // ms delay before clearing preview
+const PREVIEW_CLEAR_DELAY = 100;
 
 interface AssetThumbnailProps {
   filename: string;
@@ -22,24 +22,23 @@ interface AssetThumbnailProps {
   compact?: boolean;
 }
 
-function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, isHovered, compact }: AssetThumbnailProps) {
+// Memoized thumbnail component to prevent unnecessary re-renders
+const AssetThumbnail = memo(function AssetThumbnail({ 
+  filename, size, vaultPath, onSelect, onDelete, isHovered, compact 
+}: AssetThumbnailProps) {
   const [src, setSrc] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const imgRef = useRef<HTMLDivElement>(null);
 
   // Lazy load with Intersection Observer
   useEffect(() => {
-    if (!imgRef.current || !vaultPath) return; // Guard against empty vaultPath
+    if (!imgRef.current || !vaultPath) return;
 
     const observer = new IntersectionObserver(
       async (entries) => {
         if (entries[0].isIntersecting) {
-          // Build full path and load as blob
-          // filename may contain subdirectory (e.g., "subfolder/image.png")
-          const separator = vaultPath.includes('\\') ? '\\' : '/';
-          const normalizedFilename = filename.replace(/\//g, separator);
-          const fullPath = `${vaultPath}${separator}${ASSETS_DIR.replace(/\//g, separator)}${separator}${normalizedFilename}`;
           try {
+            const fullPath = buildFullAssetPath(vaultPath, filename);
             const blobUrl = await loadImageAsBlob(fullPath);
             setSrc(blobUrl);
           } catch (error) {
@@ -66,6 +65,9 @@ function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, isHover
     onDelete();
   };
 
+  // Extract display name from path
+  const displayName = filename.split('/').pop() || filename;
+
   return (
     <div
       ref={imgRef}
@@ -82,7 +84,7 @@ function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, isHover
         <>
           <img
             src={src}
-            alt={filename}
+            alt={displayName}
             className={cn(
               "w-full h-full object-cover transition-opacity duration-200",
               isLoaded ? "opacity-100" : "opacity-0"
@@ -101,7 +103,6 @@ function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, isHover
         </div>
       )}
 
-      {/* Hover overlay with info */}
       {!compact && (
         <div
           className={cn(
@@ -110,12 +111,11 @@ function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, isHover
             isHovered ? "opacity-100" : "opacity-0"
           )}
         >
-          <p className="text-white text-xs truncate font-medium">{filename.split('/').pop()}</p>
+          <p className="text-white text-xs truncate font-medium">{displayName}</p>
           <p className="text-white/70 text-xs">{formatSize(size)}</p>
         </div>
       )}
 
-      {/* Delete button */}
       {!compact && (
         <button
           onClick={handleDelete}
@@ -131,7 +131,7 @@ function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, isHover
       )}
     </div>
   );
-}
+});
 
 export function AssetGrid({ onSelect, onHover, vaultPath, compact }: AssetGridProps) {
   const { getAssetList, deleteAsset, loadAssets } = useNotesStore();

@@ -15,6 +15,7 @@ import {
   isRelativePath,
   isValidAssetFilename,
   buildAssetPath,
+  buildFullAssetPath,
 } from './pathUtils';
 
 describe('pathUtils', () => {
@@ -130,6 +131,33 @@ describe('pathUtils', () => {
           ),
           { numRuns: 100 }
         );
+      });
+    });
+
+    describe('buildFullAssetPath', () => {
+      it('builds correct full path for Unix-style vault', () => {
+        expect(buildFullAssetPath('/home/user/vault', 'photo.jpg'))
+          .toBe('/home/user/vault/.nekotick/assets/covers/photo.jpg');
+      });
+
+      it('builds correct full path for Windows-style vault', () => {
+        expect(buildFullAssetPath('C:\\Users\\test\\vault', 'photo.jpg'))
+          .toBe('C:\\Users\\test\\vault\\.nekotick\\assets\\covers\\photo.jpg');
+      });
+
+      it('handles subdirectory in filename for Unix', () => {
+        expect(buildFullAssetPath('/home/user/vault', 'subfolder/photo.jpg'))
+          .toBe('/home/user/vault/.nekotick/assets/covers/subfolder/photo.jpg');
+      });
+
+      it('handles subdirectory in filename for Windows', () => {
+        expect(buildFullAssetPath('C:\\Users\\test\\vault', 'subfolder/photo.jpg'))
+          .toBe('C:\\Users\\test\\vault\\.nekotick\\assets\\covers\\subfolder\\photo.jpg');
+      });
+
+      it('normalizes forward slashes in filename to match vault separator', () => {
+        const result = buildFullAssetPath('C:\\Users\\vault', 'a/b/c.jpg');
+        expect(result).toBe('C:\\Users\\vault\\.nekotick\\assets\\covers\\a\\b\\c.jpg');
       });
     });
   });

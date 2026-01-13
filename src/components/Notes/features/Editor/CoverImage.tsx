@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, MouseEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { CoverPicker } from '../AssetLibrary';
 import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { buildFullAssetPath } from '@/lib/assets/pathUtils';
 
 interface CoverImageProps {
     url: string | null;
@@ -14,12 +15,14 @@ interface CoverImageProps {
     vaultPath: string;
 }
 
+// Constants
 const MIN_HEIGHT = 120;
 const MAX_HEIGHT = 400;
 const DEFAULT_HEIGHT = 200;
 const MIN_SCALE = 1;
 const MAX_SCALE = 3;
 const DRAG_THRESHOLD = 5;
+const SAVE_DEBOUNCE_MS = 200;
 
 // Calculate image dimensions for cover-fit display
 function calcImageDimensions(
@@ -49,6 +52,16 @@ function calcImageDimensions(
     };
 }
 
+// Load image and get its natural dimensions
+async function loadImageWithDimensions(src: string): Promise<{ width: number; height: number } | null> {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onerror = () => resolve(null);
+        img.src = src;
+    });
+}
+
 export function CoverImage({
     url,
     positionX,
@@ -59,27 +72,35 @@ export function CoverImage({
     onUpdate,
     vaultPath,
 }: CoverImageProps) {
+    // Display state
     const [dragX, setDragX] = useState(positionX);
     const [dragY, setDragY] = useState(positionY);
     const [currentScale, setCurrentScale] = useState(scale);
-    const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
-    const [previewSrc, setPreviewSrc] = useState<string | null>(null); // For hover preview
-    const [showPicker, setShowPicker] = useState(false);
     const [coverHeight, setCoverHeight] = useState(height ?? DEFAULT_HEIGHT);
     const [isAnimating, setIsAnimating] = useState(false);
-    const [imageLoaded, setImageLoaded] = useState(false);
-    const [, forceUpdate] = useState(0);
+    
+    // Image sources
+    const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
+    const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+    
+    // UI state
+    const [showPicker, setShowPicker] = useState(false);
 
+    // Refs for DOM elements
     const containerRef = useRef<HTMLDivElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
+    
+    // Refs for current values (avoid stale closures)
     const currentXRef = useRef(positionX);
     const currentYRef = useRef(positionY);
     const currentScaleRef = useRef(scale);
     const currentHeightRef = useRef(height ?? DEFAULT_HEIGHT);
+    
+    // Refs for drag state
     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, height: 0 });
     const hasDraggedRef = useRef(false);
     const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const isSelectingRef = useRef(false); // Prevent preview clear during selection
+    const isSelectingRef = useRef(false);
 
     // Sync props to state/refs
     useEffect(() => {
@@ -94,9 +115,6 @@ export function CoverImage({
             currentHeightRef.current = height;
         }
     }, [positionX, positionY, scale, height]);
-
-    // Reset imageLoaded when url changes
-    useEffect(() => { setImageLoaded(false); }, [url]);
 
     // Resolve local path to blob URL
     useEffect(() => {
@@ -113,12 +131,10 @@ export function CoverImage({
                 isSelectingRef.current = false;
                 return; 
             }
-            if (!vaultPath) { return; }
+            if (!vaultPath) return;
 
             try {
-                const sep = vaultPath.includes('\\') ? '\\' : '/';
-                const normalizedUrl = url.replace(/\//g, sep);
-                const fullPath = `${vaultPath}${sep}.nekotick${sep}assets${sep}covers${sep}${normalizedUrl}`;
+                const fullPath = buildFullAssetPath(vaultPath, url);
                 const blobUrl = await loadImageAsBlob(fullPath);
                 setResolvedSrc(blobUrl);
                 setPreviewSrc(null);
@@ -132,35 +148,27 @@ export function CoverImage({
         resolve();
     }, [url, vaultPath]);
 
-    // Cleanup & window resize
+    // Cleanup on unmount
     useEffect(() => {
-        const onResize = () => forceUpdate(n => n + 1);
-        window.addEventListener('resize', onResize);
         return () => {
-            window.removeEventListener('resize', onResize);
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         };
     }, []);
 
-    // Debounced save helper
-    const debouncedSave = useCallback((newScale?: number) => {
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = setTimeout(() => {
-            onUpdate(url, currentXRef.current, currentYRef.current, currentHeightRef.current, newScale ?? currentScaleRef.current);
-            setIsAnimating(false);
-        }, 200);
+    // Debounced save helper - use ref to avoid dependency issues
+    const debouncedSaveRef = useRef<(newScale?: number) => void>(() => {});
+    
+    useEffect(() => {
+        debouncedSaveRef.current = (newScale?: number) => {
+            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+            saveTimeoutRef.current = setTimeout(() => {
+                onUpdate(url, currentXRef.current, currentYRef.current, currentHeightRef.current, newScale ?? currentScaleRef.current);
+                setIsAnimating(false);
+            }, SAVE_DEBOUNCE_MS);
+        };
     }, [url, onUpdate]);
 
     // Image drag handlers
-    const handleImageMouseDown = (e: MouseEvent) => {
-        if (readOnly) return;
-        e.preventDefault();
-        hasDraggedRef.current = false;
-        dragStartRef.current = { mouseX: e.clientX, mouseY: e.clientY, posX: currentXRef.current, posY: currentYRef.current, height: 0 };
-        document.addEventListener('mousemove', handleImageMouseMove);
-        document.addEventListener('mouseup', handleImageMouseUp);
-    };
-
     const handleImageMouseMove = useCallback((e: globalThis.MouseEvent) => {
         const container = containerRef.current;
         const img = imgRef.current;
@@ -208,6 +216,15 @@ export function CoverImage({
         }
     }, [url, coverHeight, onUpdate, handleImageMouseMove]);
 
+    const handleImageMouseDown = useCallback((e: MouseEvent) => {
+        if (readOnly) return;
+        e.preventDefault();
+        hasDraggedRef.current = false;
+        dragStartRef.current = { mouseX: e.clientX, mouseY: e.clientY, posX: currentXRef.current, posY: currentYRef.current, height: 0 };
+        document.addEventListener('mousemove', handleImageMouseMove);
+        document.addEventListener('mouseup', handleImageMouseUp);
+    }, [readOnly, handleImageMouseMove, handleImageMouseUp]);
+
     // Mouse wheel zoom
     useEffect(() => {
         const container = containerRef.current;
@@ -216,6 +233,9 @@ export function CoverImage({
         const handleWheel = (e: WheelEvent) => {
             e.preventDefault();
             e.stopPropagation();
+
+            const img = imgRef.current;
+            if (!img?.naturalWidth) return;
 
             const isFast = e.ctrlKey || e.metaKey;
             const step = isFast ? 0.15 : 0.03;
@@ -227,25 +247,14 @@ export function CoverImage({
             currentScaleRef.current = newScale;
             setCurrentScale(newScale);
             setIsAnimating(true);
-            debouncedSave(newScale);
+            debouncedSaveRef.current(newScale);
         };
 
         container.addEventListener('wheel', handleWheel, { passive: false });
         return () => container.removeEventListener('wheel', handleWheel);
-    }, [readOnly, url, debouncedSave]);
+    }, [readOnly, url]);
 
     // Height resize handlers
-    const handleResizeMouseDown = (e: MouseEvent) => {
-        if (readOnly || !url) return;
-        e.preventDefault();
-        e.stopPropagation();
-        dragStartRef.current.mouseY = e.clientY;
-        dragStartRef.current.height = coverHeight;
-        setIsAnimating(false);
-        document.addEventListener('mousemove', handleResizeMouseMove);
-        document.addEventListener('mouseup', handleResizeMouseUp);
-    };
-
     const handleResizeMouseMove = useCallback((e: globalThis.MouseEvent) => {
         e.preventDefault();
         const newHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, dragStartRef.current.height + e.clientY - dragStartRef.current.mouseY));
@@ -259,28 +268,31 @@ export function CoverImage({
         onUpdate(url, dragX, dragY, currentHeightRef.current, currentScale);
     }, [url, dragX, dragY, currentScale, onUpdate, handleResizeMouseMove]);
 
+    const handleResizeMouseDown = useCallback((e: MouseEvent) => {
+        if (readOnly || !url) return;
+        e.preventDefault();
+        e.stopPropagation();
+        dragStartRef.current.mouseY = e.clientY;
+        dragStartRef.current.height = coverHeight;
+        setIsAnimating(false);
+        document.addEventListener('mousemove', handleResizeMouseMove);
+        document.addEventListener('mouseup', handleResizeMouseUp);
+    }, [readOnly, url, coverHeight, handleResizeMouseMove, handleResizeMouseUp]);
+
+    // Cover selection handler
     const handleCoverSelect = useCallback(async (assetPath: string) => {
-        // Mark as selecting to prevent preview from being cleared
         isSelectingRef.current = true;
         
         const container = containerRef.current;
         const containerWidth = container?.clientWidth || 720;
         
         try {
-            const sep = vaultPath.includes('\\') ? '\\' : '/';
-            const normalizedPath = assetPath.replace(/\//g, sep);
-            const fullPath = `${vaultPath}${sep}.nekotick${sep}assets${sep}covers${sep}${normalizedPath}`;
+            const fullPath = buildFullAssetPath(vaultPath, assetPath);
             const blobUrl = await loadImageAsBlob(fullPath);
+            const dimensions = await loadImageWithDimensions(blobUrl);
             
-            const img = new Image();
-            img.src = blobUrl;
-            await new Promise<void>((resolve) => {
-                img.onload = () => resolve();
-                img.onerror = () => resolve();
-            });
-            
-            if (img.naturalWidth && img.naturalHeight) {
-                const imgRatio = img.naturalWidth / img.naturalHeight;
+            if (dimensions) {
+                const imgRatio = dimensions.width / dimensions.height;
                 const minHeightForCover = Math.ceil(containerWidth / imgRatio);
                 const finalHeight = coverHeight <= minHeightForCover && coverHeight <= MAX_HEIGHT
                     ? coverHeight
@@ -297,20 +309,18 @@ export function CoverImage({
         setShowPicker(false);
     }, [vaultPath, coverHeight, onUpdate]);
 
-    // Handle preview on hover
+    // Preview handler
     const handlePreview = useCallback(async (assetPath: string | null) => {
         if (!assetPath) {
-            // Don't clear preview if we're in the middle of selecting
             if (!isSelectingRef.current) {
                 setPreviewSrc(null);
             }
             return;
         }
         if (!vaultPath) return;
+        
         try {
-            const sep = vaultPath.includes('\\') ? '\\' : '/';
-            const normalizedPath = assetPath.replace(/\//g, sep);
-            const fullPath = `${vaultPath}${sep}.nekotick${sep}assets${sep}covers${sep}${normalizedPath}`;
+            const fullPath = buildFullAssetPath(vaultPath, assetPath);
             const blobUrl = await loadImageAsBlob(fullPath);
             setPreviewSrc(blobUrl);
         } catch {
@@ -322,6 +332,32 @@ export function CoverImage({
         setPreviewSrc(null);
         setShowPicker(false);
     }, []);
+
+    // Calculate image style
+    const getImageStyle = useCallback((): React.CSSProperties => {
+        const img = imgRef.current;
+        const container = containerRef.current;
+        
+        // 只要 img 有有效的 naturalWidth 就可以计算样式，不依赖 imageLoaded 状态
+        if (!img || !container || !img.naturalWidth) {
+            return { width: '100%', height: '100%', objectFit: 'cover', objectPosition: `${dragX}% ${dragY}%` };
+        }
+        
+        const { width, height, overflowX, overflowY } = calcImageDimensions(
+            container.clientWidth, container.clientHeight,
+            img.naturalWidth, img.naturalHeight,
+            currentScale
+        );
+        
+        return {
+            position: 'absolute',
+            width, height,
+            left: -(overflowX * dragX / 100),
+            top: -(overflowY * dragY / 100),
+            maxWidth: 'none',
+            maxHeight: 'none',
+        };
+    }, [dragX, dragY, currentScale]);
 
     // No cover - show aurora background
     if (!url) {
@@ -351,32 +387,6 @@ export function CoverImage({
         );
     }
 
-    // Calculate image style
-    const getImageStyle = (): React.CSSProperties => {
-        const img = imgRef.current;
-        const container = containerRef.current;
-        
-        if (!img || !container || !imageLoaded || !img.naturalWidth) {
-            return { width: '100%', height: '100%', objectFit: 'cover', objectPosition: `${dragX}% ${dragY}%` };
-        }
-        
-        const { width, height, overflowX, overflowY } = calcImageDimensions(
-            container.clientWidth, container.clientHeight,
-            img.naturalWidth, img.naturalHeight,
-            currentScale
-        );
-        
-        return {
-            position: 'absolute',
-            width, height,
-            left: -(overflowX * dragX / 100),
-            top: -(overflowY * dragY / 100),
-            maxWidth: 'none',
-            maxHeight: 'none',
-        };
-    };
-
-    // Display source: preview > resolved
     const displaySrc = previewSrc || resolvedSrc || '';
 
     return (
@@ -395,7 +405,6 @@ export function CoverImage({
                         style={previewSrc ? { width: '100%', height: '100%', objectFit: 'cover' } : getImageStyle()}
                         draggable={false}
                         onMouseDown={previewSrc ? undefined : handleImageMouseDown}
-                        onLoad={() => setImageLoaded(true)}
                     />
                 )}
                 {!readOnly && !showPicker && (
