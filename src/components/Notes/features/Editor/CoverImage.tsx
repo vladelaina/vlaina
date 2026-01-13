@@ -84,6 +84,9 @@ export function CoverImage({
     const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
     const [previewSrc, setPreviewSrc] = useState<string | null>(null);
     
+    // Image ready state - prevents "jump" by hiding image until dimensions are available
+    const [isImageReady, setIsImageReady] = useState(false);
+    
     // UI state
     const [showPicker, setShowPicker] = useState(false);
 
@@ -102,6 +105,12 @@ export function CoverImage({
     const hasDraggedRef = useRef(false);
     const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isSelectingRef = useRef(false);
+    
+    // Cache image dimensions to calculate position before img element is ready
+    const cachedDimensionsRef = useRef<{ width: number; height: number } | null>(null);
+    
+    // Track previous src to show during transition
+    const prevSrcRef = useRef<string | null>(null);
 
     // Sync props to state/refs
     useEffect(() => {
@@ -117,7 +126,17 @@ export function CoverImage({
         }
     }, [positionX, positionY, scale, height]);
 
-    // Resolve local path to blob URL
+    // Reset image ready state when url changes
+    useEffect(() => {
+        // 保存当前 src 作为过渡显示
+        if (resolvedSrc) {
+            prevSrcRef.current = resolvedSrc;
+        }
+        setIsImageReady(false);
+        cachedDimensionsRef.current = null;
+    }, [url]);
+
+    // Resolve local path to blob URL with pre-loaded dimensions
     useEffect(() => {
         async function resolve() {
             if (!url) { 
@@ -126,34 +145,39 @@ export function CoverImage({
                 isSelectingRef.current = false;
                 return; 
             }
+            
+            let imageUrl: string;
+            
             if (url.startsWith('http')) { 
-                setResolvedSrc(url); 
-                setPreviewSrc(null);
-                isSelectingRef.current = false;
-                return; 
-            }
-            // Built-in covers use URL directly
-            if (isBuiltinCover(url)) {
-                setResolvedSrc(getBuiltinCoverUrl(url));
-                setPreviewSrc(null);
-                isSelectingRef.current = false;
+                imageUrl = url;
+            } else if (isBuiltinCover(url)) {
+                imageUrl = getBuiltinCoverUrl(url);
+            } else if (vaultPath) {
+                try {
+                    const fullPath = buildFullAssetPath(vaultPath, url);
+                    imageUrl = await loadImageAsBlob(fullPath);
+                } catch {
+                    // 文件不存在或加载失败，自动清除封面
+                    setResolvedSrc(null);
+                    setPreviewSrc(null);
+                    isSelectingRef.current = false;
+                    onUpdate(null, 50, 50);
+                    return;
+                }
+            } else {
                 return;
             }
-            if (!vaultPath) return;
-
-            try {
-                const fullPath = buildFullAssetPath(vaultPath, url);
-                const blobUrl = await loadImageAsBlob(fullPath);
-                setResolvedSrc(blobUrl);
-                setPreviewSrc(null);
-                isSelectingRef.current = false;
-            } catch {
-                // 文件不存在或加载失败，自动清除封面
-                setResolvedSrc(null);
-                setPreviewSrc(null);
-                isSelectingRef.current = false;
-                onUpdate(null, 50, 50);
+            
+            // Pre-load image to get dimensions before rendering
+            const dimensions = await loadImageWithDimensions(imageUrl);
+            if (dimensions) {
+                cachedDimensionsRef.current = dimensions;
             }
+            
+            setResolvedSrc(imageUrl);
+            setPreviewSrc(null);
+            isSelectingRef.current = false;
+            // 注意：不在这里清除 prevSrcRef，等 onLoad 时再清除
         }
         resolve();
     }, [url, vaultPath, onUpdate]);
@@ -357,19 +381,24 @@ export function CoverImage({
         setShowPicker(false);
     }, []);
 
-    // Calculate image style
+    // Calculate image style - use cached dimensions if img element not ready yet
     const getImageStyle = useCallback((): React.CSSProperties => {
-        const img = imgRef.current;
         const container = containerRef.current;
+        if (!container) {
+            return { width: '100%', height: '100%', objectFit: 'cover', objectPosition: `${dragX}% ${dragY}%` };
+        }
         
-        // 只要 img 有有效的 naturalWidth 就可以计算样式，不依赖 imageLoaded 状态
-        if (!img || !container || !img.naturalWidth) {
+        // Use img element dimensions if available, otherwise use cached dimensions
+        const imgW = imgRef.current?.naturalWidth || cachedDimensionsRef.current?.width;
+        const imgH = imgRef.current?.naturalHeight || cachedDimensionsRef.current?.height;
+        
+        if (!imgW || !imgH) {
             return { width: '100%', height: '100%', objectFit: 'cover', objectPosition: `${dragX}% ${dragY}%` };
         }
         
         const { width, height, overflowX, overflowY } = calcImageDimensions(
             container.clientWidth, container.clientHeight,
-            img.naturalWidth, img.naturalHeight,
+            imgW, imgH,
             currentScale
         );
         
@@ -382,6 +411,15 @@ export function CoverImage({
             maxHeight: 'none',
         };
     }, [dragX, dragY, currentScale]);
+
+    // Handle image load - mark as ready when dimensions are confirmed
+    const handleImageLoad = useCallback(() => {
+        if (imgRef.current?.naturalWidth) {
+            setIsImageReady(true);
+            // 新图片加载完成，清除旧图片引用
+            prevSrcRef.current = null;
+        }
+    }, []);
 
     // No cover - show aurora background
     if (!url) {
@@ -411,7 +449,7 @@ export function CoverImage({
         );
     }
 
-    const displaySrc = previewSrc || resolvedSrc || '';
+    const displaySrc = previewSrc || resolvedSrc || prevSrcRef.current || '';
 
     return (
         <div className="relative w-full">
@@ -425,10 +463,18 @@ export function CoverImage({
                         ref={imgRef}
                         src={displaySrc}
                         alt="Cover"
-                        className={cn(!readOnly && "cursor-pointer", isAnimating && "transition-all duration-150 ease-out")}
-                        style={previewSrc ? { width: '100%', height: '100%', objectFit: 'cover' } : getImageStyle()}
+                        className={cn(
+                            !readOnly && "cursor-pointer",
+                            isAnimating && "transition-all duration-150 ease-out"
+                        )}
+                        style={{
+                            ...(previewSrc ? { width: '100%', height: '100%', objectFit: 'cover' } : getImageStyle()),
+                            // 显示条件：预览 / 新图片准备好 / 有旧图片过渡
+                            opacity: previewSrc || isImageReady || prevSrcRef.current ? 1 : 0,
+                        }}
                         draggable={false}
                         onMouseDown={previewSrc ? undefined : handleImageMouseDown}
+                        onLoad={handleImageLoad}
                     />
                 )}
                 {!readOnly && !showPicker && (
