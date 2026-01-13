@@ -29,10 +29,21 @@ const AssetThumbnail = memo(function AssetThumbnail({
 }: AssetThumbnailProps) {
   const [src, setSrc] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const imgRef = useRef<HTMLDivElement>(null);
+  // Use a unique mount ID to handle StrictMode double-mount
+  const mountIdRef = useRef(0);
 
   // Lazy load with Intersection Observer
   useEffect(() => {
+    // Increment mount ID to invalidate any pending async operations from previous mount
+    const currentMountId = ++mountIdRef.current;
+    
+    // Reset state on mount
+    setSrc(null);
+    setIsLoaded(false);
+    setHasError(false);
+    
     if (!imgRef.current) return;
 
     const observer = new IntersectionObserver(
@@ -41,11 +52,22 @@ const AssetThumbnail = memo(function AssetThumbnail({
           try {
             // Built-in covers use URL, user uploads use blob
             if (isBuiltinCover(filename)) {
-              setSrc(getBuiltinCoverUrl(filename));
+              // Check if this mount is still valid
+              if (mountIdRef.current === currentMountId) {
+                setSrc(getBuiltinCoverUrl(filename));
+              }
             } else if (vaultPath) {
               const fullPath = buildFullAssetPath(vaultPath, filename);
+              // loadImageAsBlob has internal caching, so we don't need to manage blob URLs here
+              // The cache ensures the same blob URL is reused across mounts
               const blobUrl = await loadImageAsBlob(fullPath);
-              setSrc(blobUrl);
+              
+              // Check if this mount is still valid (handles StrictMode double-mount)
+              if (mountIdRef.current === currentMountId) {
+                setSrc(blobUrl);
+              }
+              // Note: We don't revoke blob URLs here because loadImageAsBlob caches them
+              // The cache manages the lifecycle of blob URLs
             }
           } catch (error) {
             console.error('Failed to load thumbnail:', filename, error);
@@ -57,8 +79,19 @@ const AssetThumbnail = memo(function AssetThumbnail({
     );
 
     observer.observe(imgRef.current);
-    return () => observer.disconnect();
+    
+    return () => {
+      observer.disconnect();
+      // Note: We don't revoke blob URLs here because loadImageAsBlob caches them globally
+      // Revoking would invalidate the cache and cause ERR_FILE_NOT_FOUND on next open
+    };
   }, [filename, vaultPath]);
+
+  // Handle image load error (e.g., revoked blob URL)
+  const handleImageError = useCallback(() => {
+    setHasError(true);
+    setIsLoaded(false);
+  }, []);
 
   const formatSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} B`;
@@ -88,7 +121,7 @@ const AssetThumbnail = memo(function AssetThumbnail({
       )}
       onClick={onSelect}
     >
-      {src ? (
+      {src && !hasError ? (
         <>
           <img
             src={src}
@@ -98,6 +131,7 @@ const AssetThumbnail = memo(function AssetThumbnail({
               isLoaded ? "opacity-100" : "opacity-0"
             )}
             onLoad={() => setIsLoaded(true)}
+            onError={handleImageError}
           />
           {!isLoaded && (
             <div className="absolute inset-0 flex items-center justify-center">

@@ -114,10 +114,6 @@ export function CoverImage({
     
     // Track last resolved URL to avoid duplicate resolves
     const lastResolvedUrlRef = useRef<string | null>(null);
-    
-    // Track blob URLs for cleanup
-    const blobUrlRef = useRef<string | null>(null);
-    const previewBlobUrlRef = useRef<string | null>(null);
 
     // Sync props to state/refs
     useEffect(() => {
@@ -160,7 +156,6 @@ export function CoverImage({
             }
             
             let imageUrl: string;
-            let isNewBlobUrl = false;
             
             if (url.startsWith('http')) { 
                 imageUrl = url;
@@ -170,7 +165,6 @@ export function CoverImage({
                 try {
                     const fullPath = buildFullAssetPath(vaultPath, url);
                     imageUrl = await loadImageAsBlob(fullPath);
-                    isNewBlobUrl = true;
                 } catch {
                     // 文件不存在或加载失败，自动清除封面
                     setResolvedSrc(null);
@@ -189,11 +183,8 @@ export function CoverImage({
                 cachedDimensionsRef.current = dimensions;
             }
             
-            // 清理旧的 blob URL
-            if (blobUrlRef.current) {
-                URL.revokeObjectURL(blobUrlRef.current);
-            }
-            blobUrlRef.current = isNewBlobUrl ? imageUrl : null;
+            // Note: We don't revoke blob URLs here because loadImageAsBlob caches them globally
+            // The cache manages the lifecycle of blob URLs
             
             setResolvedSrc(imageUrl);
             setPreviewSrc(null);
@@ -203,12 +194,11 @@ export function CoverImage({
         resolve();
     }, [url, vaultPath, onUpdate]);
 
-    // Cleanup blob URL on unmount
+    // Cleanup on unmount - only clear timeouts, not blob URLs (managed by cache)
     useEffect(() => {
         return () => {
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-            if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
-            if (previewBlobUrlRef.current) URL.revokeObjectURL(previewBlobUrlRef.current);
+            // Note: We don't revoke blob URLs here because loadImageAsBlob caches them globally
         };
     }, []);
 
@@ -377,11 +367,6 @@ export function CoverImage({
     const handlePreview = useCallback(async (assetPath: string | null) => {
         if (!assetPath) {
             if (!isSelectingRef.current) {
-                // 清理旧的 preview blob URL
-                if (previewBlobUrlRef.current) {
-                    URL.revokeObjectURL(previewBlobUrlRef.current);
-                    previewBlobUrlRef.current = null;
-                }
                 setPreviewSrc(null);
             }
             return;
@@ -390,11 +375,6 @@ export function CoverImage({
         try {
             // Built-in covers use URL directly
             if (isBuiltinCover(assetPath)) {
-                // 清理旧的 preview blob URL
-                if (previewBlobUrlRef.current) {
-                    URL.revokeObjectURL(previewBlobUrlRef.current);
-                    previewBlobUrlRef.current = null;
-                }
                 setPreviewSrc(getBuiltinCoverUrl(assetPath));
                 return;
             }
@@ -402,14 +382,8 @@ export function CoverImage({
             if (!vaultPath) return;
             
             const fullPath = buildFullAssetPath(vaultPath, assetPath);
+            // loadImageAsBlob has internal caching, no need to manage blob URLs here
             const blobUrl = await loadImageAsBlob(fullPath);
-            
-            // 清理旧的 preview blob URL
-            if (previewBlobUrlRef.current) {
-                URL.revokeObjectURL(previewBlobUrlRef.current);
-            }
-            previewBlobUrlRef.current = blobUrl;
-            
             setPreviewSrc(blobUrl);
         } catch {
             setPreviewSrc(null);
@@ -417,11 +391,6 @@ export function CoverImage({
     }, [vaultPath]);
 
     const handlePickerClose = useCallback(() => {
-        // 清理 preview blob URL
-        if (previewBlobUrlRef.current) {
-            URL.revokeObjectURL(previewBlobUrlRef.current);
-            previewBlobUrlRef.current = null;
-        }
         setPreviewSrc(null);
         setShowPicker(false);
     }, []);
@@ -476,7 +445,7 @@ export function CoverImage({
         }
     }, [resolvedSrc, isImageReady]);
 
-    // No cover - show aurora background
+    // No cover - show empty area
     if (!url) {
         return (
             <div className="relative w-full">
@@ -484,13 +453,8 @@ export function CoverImage({
                     className={cn("relative h-[120px] w-full shrink-0", !readOnly && "cursor-pointer")}
                     onClick={() => !readOnly && setShowPicker(true)}
                 >
-                    {previewSrc ? (
+                    {previewSrc && (
                         <img src={previewSrc} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                        <div className="absolute inset-0 pointer-events-none z-0 opacity-60 dark:opacity-40 select-none overflow-hidden">
-                            <div className="absolute top-[-40%] left-[-10%] w-[70%] h-[150%] rounded-full bg-[var(--neko-accent)] opacity-[0.08] blur-[80px]" />
-                            <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[120%] rounded-full bg-purple-500 opacity-[0.05] blur-[80px]" />
-                        </div>
                     )}
                 </div>
                 <CoverPicker
