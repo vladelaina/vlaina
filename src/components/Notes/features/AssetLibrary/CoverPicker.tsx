@@ -1,19 +1,21 @@
 /**
- * CoverPicker - Modal for selecting or uploading cover images
+ * CoverPicker - Popover for selecting or uploading cover images
+ * Positioned at bottom-right of cover for real-time preview
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
-import { X, Image, Upload, Trash2 } from 'lucide-react';
+import { Image, Upload } from 'lucide-react';
 import { AssetGrid } from './AssetGrid';
 import { UploadZone } from './UploadZone';
 import { EmptyState } from './EmptyState';
 import { CoverPickerProps, CoverPickerTab } from './types';
 
-export function CoverPicker({ isOpen, onClose, onSelect, onRemove, vaultPath }: CoverPickerProps) {
+export function CoverPicker({ isOpen, onClose, onSelect, onRemove, onPreview, vaultPath }: CoverPickerProps) {
   const [activeTab, setActiveTab] = useState<CoverPickerTab>('library');
   const [isUploading, setIsUploading] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
   
   const { getAssetList, loadAssets, uploadAsset } = useNotesStore();
   const uploadingRef = useRef(false);
@@ -28,13 +30,18 @@ export function CoverPicker({ isOpen, onClose, onSelect, onRemove, vaultPath }: 
     }
   }, [isOpen, vaultPath, loadAssets]);
 
-  // Switch to library tab after upload
-  const handleUploadComplete = useCallback((assetPath: string) => {
+  // Handle asset selection with preview
+  const handleAssetSelect = useCallback((assetPath: string) => {
     onSelect(assetPath);
     onClose();
   }, [onSelect, onClose]);
 
-  const handleAssetSelect = useCallback((assetPath: string) => {
+  // Handle asset hover for preview
+  const handleAssetHover = useCallback((assetPath: string | null) => {
+    onPreview?.(assetPath);
+  }, [onPreview]);
+
+  const handleUploadComplete = useCallback((assetPath: string) => {
     onSelect(assetPath);
     onClose();
   }, [onSelect, onClose]);
@@ -43,10 +50,35 @@ export function CoverPicker({ isOpen, onClose, onSelect, onRemove, vaultPath }: 
     setActiveTab('upload');
   }, []);
 
+  // Handle click outside to close
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        onPreview?.(null);
+        onClose();
+      }
+    };
+
+    // Delay to avoid immediate close on open click
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose, onPreview]);
+
   // Handle escape key and paste
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        onPreview?.(null);
         onClose();
       }
     };
@@ -80,114 +112,88 @@ export function CoverPicker({ isOpen, onClose, onSelect, onRemove, vaultPath }: 
       }
     };
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.addEventListener('paste', handlePaste);
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-        document.removeEventListener('paste', handlePaste);
-      };
-    }
-  }, [isOpen, onClose, uploadAsset, onSelect]);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('paste', handlePaste);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [isOpen, onClose, uploadAsset, onSelect, onPreview]);
 
   if (!isOpen) return null;
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={onClose}
+      ref={pickerRef}
+      className="absolute top-full right-2 mt-2 z-40 bg-[var(--neko-bg-primary)] rounded-lg shadow-xl border border-[var(--neko-border)] w-[280px] max-h-[320px] flex flex-col overflow-hidden"
     >
-      <div 
-        className="bg-[var(--neko-bg-primary)] rounded-xl shadow-xl w-[400px] max-h-[80vh] flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--neko-border)]">
-          <h2 className="text-[var(--neko-text-primary)] font-medium">
-            Choose Cover
-          </h2>
-          <div className="flex items-center gap-1">
-            {onRemove && (
-              <button
-                onClick={() => {
-                  onRemove();
-                  onClose();
-                }}
-                className="p-1.5 rounded-md hover:bg-red-500/10 text-[var(--neko-text-tertiary)] hover:text-red-500 transition-colors"
-                title="Remove cover"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="p-1 rounded-md hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-[var(--neko-border)]">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--neko-border)]">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab('library')}
             className={cn(
-              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors",
+              "text-xs font-medium px-2 py-1 rounded transition-colors",
               activeTab === 'library'
-                ? "text-[var(--neko-accent)] border-b-2 border-[var(--neko-accent)]"
+                ? "bg-[var(--neko-accent)]/10 text-[var(--neko-accent)]"
                 : "text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)]"
             )}
           >
-            <Image className="w-4 h-4" />
+            <Image className="w-3.5 h-3.5 inline mr-1" />
             Library
-            {hasAssets && (
-              <span className="text-xs bg-[var(--neko-bg-tertiary)] px-1.5 py-0.5 rounded-full">
-                {assets.length}
-              </span>
-            )}
           </button>
           <button
             onClick={() => setActiveTab('upload')}
             className={cn(
-              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors",
+              "text-xs font-medium px-2 py-1 rounded transition-colors",
               activeTab === 'upload'
-                ? "text-[var(--neko-accent)] border-b-2 border-[var(--neko-accent)]"
+                ? "bg-[var(--neko-accent)]/10 text-[var(--neko-accent)]"
                 : "text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)]"
             )}
           >
-            <Upload className="w-4 h-4" />
+            <Upload className="w-3.5 h-3.5 inline mr-1" />
             Upload
           </button>
         </div>
+        {onRemove && (
+          <button
+            onClick={() => {
+              onRemove();
+              onClose();
+            }}
+            className="text-xs text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors"
+          >
+            Remove
+          </button>
+        )}
+      </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto">
-          {activeTab === 'library' ? (
-            hasAssets ? (
-              <AssetGrid 
-                onSelect={handleAssetSelect} 
-                vaultPath={vaultPath} 
-              />
-            ) : (
-              <EmptyState onUploadClick={handleSwitchToUpload} />
-            )
+      {/* Content */}
+      <div className="flex-1 overflow-auto">
+        {activeTab === 'library' ? (
+          hasAssets ? (
+            <AssetGrid 
+              onSelect={handleAssetSelect}
+              onHover={handleAssetHover}
+              vaultPath={vaultPath}
+              compact
+            />
           ) : (
-            <div className="p-4">
-              <UploadZone 
-                onUploadComplete={handleUploadComplete}
-              />
-              <p className="mt-2 text-xs text-center text-[var(--neko-text-tertiary)]">
-                Or paste an image with {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}+V
+            <EmptyState onUploadClick={handleSwitchToUpload} compact />
+          )
+        ) : (
+          <div className="p-3">
+            <UploadZone onUploadComplete={handleUploadComplete} compact />
+            <p className="mt-2 text-xs text-center text-[var(--neko-text-tertiary)]">
+              {navigator.userAgent.includes('Mac') ? '⌘' : 'Ctrl'}+V to paste
+            </p>
+            {isUploading && (
+              <p className="mt-1 text-xs text-center text-[var(--neko-accent)]">
+                Uploading...
               </p>
-              {isUploading && (
-                <p className="mt-2 text-sm text-center text-[var(--neko-accent)]">
-                  Uploading...
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

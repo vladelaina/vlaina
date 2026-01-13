@@ -5,30 +5,33 @@
 import { ImagePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyStateProps } from './types';
+import { cn } from '@/lib/utils';
 
-export function EmptyState({ onUploadClick }: EmptyStateProps) {
+export function EmptyState({ onUploadClick, compact }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4">
-      <div className="w-16 h-16 rounded-full bg-[var(--neko-bg-tertiary)] flex items-center justify-center mb-4">
-        <ImagePlus className="w-8 h-8 text-[var(--neko-text-tertiary)]" />
+    <div className={cn("flex flex-col items-center justify-center px-4", compact ? "py-6" : "py-12")}>
+      <div className={cn(
+        "rounded-full bg-[var(--neko-bg-tertiary)] flex items-center justify-center mb-3",
+        compact ? "w-10 h-10" : "w-16 h-16 mb-4"
+      )}>
+        <ImagePlus className={cn("text-[var(--neko-text-tertiary)]", compact ? "w-5 h-5" : "w-8 h-8")} />
       </div>
       
-      <h3 className="text-[var(--neko-text-primary)] font-medium mb-1">
-        No images yet
-      </h3>
-      
-      <p className="text-[var(--neko-text-secondary)] text-sm text-center mb-4 max-w-[200px]">
-        Upload images to use as covers for your notes
+      <p className={cn(
+        "text-[var(--neko-text-secondary)] text-center mb-3",
+        compact ? "text-xs" : "text-sm mb-4 max-w-[200px]"
+      )}>
+        {compact ? "No images yet" : "Upload images to use as covers for your notes"}
       </p>
       
       <Button
         variant="outline"
         size="sm"
         onClick={onUploadClick}
-        className="gap-2"
+        className="gap-1.5 text-xs"
       >
-        <ImagePlus className="w-4 h-4" />
-        Upload Image
+        <ImagePlus className="w-3.5 h-3.5" />
+        Upload
       </Button>
     </div>
   );

@@ -17,9 +17,11 @@ interface AssetThumbnailProps {
   vaultPath: string;
   onSelect: () => void;
   onDelete: () => void;
+  onHover?: (hovered: boolean) => void;
+  compact?: boolean;
 }
 
-function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete }: AssetThumbnailProps) {
+function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, onHover, compact }: AssetThumbnailProps) {
   const [src, setSrc] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -72,8 +74,8 @@ function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete }: Asset
         "group"
       )}
       onClick={onSelect}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={() => { setIsHovered(true); onHover?.(true); }}
+      onMouseLeave={() => { setIsHovered(false); onHover?.(false); }}
     >
       {src ? (
         <>
@@ -99,34 +101,38 @@ function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete }: Asset
       )}
 
       {/* Hover overlay with info */}
-      <div
-        className={cn(
-          "absolute inset-0 bg-black/60 flex flex-col justify-end p-2",
-          "transition-opacity duration-200",
-          isHovered ? "opacity-100" : "opacity-0"
-        )}
-      >
-        <p className="text-white text-xs truncate font-medium">{filename}</p>
-        <p className="text-white/70 text-xs">{formatSize(size)}</p>
-      </div>
+      {!compact && (
+        <div
+          className={cn(
+            "absolute inset-0 bg-black/60 flex flex-col justify-end p-2",
+            "transition-opacity duration-200",
+            isHovered ? "opacity-100" : "opacity-0"
+          )}
+        >
+          <p className="text-white text-xs truncate font-medium">{filename}</p>
+          <p className="text-white/70 text-xs">{formatSize(size)}</p>
+        </div>
+      )}
 
       {/* Delete button */}
-      <button
-        onClick={handleDelete}
-        className={cn(
-          "absolute top-2 right-2 p-1.5 rounded-md",
-          "bg-red-500/80 hover:bg-red-500 text-white",
-          "transition-all duration-200",
-          isHovered ? "opacity-100" : "opacity-0"
-        )}
-      >
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
+      {!compact && (
+        <button
+          onClick={handleDelete}
+          className={cn(
+            "absolute top-2 right-2 p-1.5 rounded-md",
+            "bg-red-500/80 hover:bg-red-500 text-white",
+            "transition-all duration-200",
+            isHovered ? "opacity-100" : "opacity-0"
+          )}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
     </div>
   );
 }
 
-export function AssetGrid({ onSelect, vaultPath }: AssetGridProps) {
+export function AssetGrid({ onSelect, onHover, vaultPath, compact }: AssetGridProps) {
   const { getAssetList, deleteAsset, loadAssets } = useNotesStore();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   
@@ -140,9 +146,12 @@ export function AssetGrid({ onSelect, vaultPath }: AssetGridProps) {
   }, [vaultPath, loadAssets]);
 
   const handleSelect = useCallback((filename: string) => {
-    // Return only filename, not full path
     onSelect(filename);
   }, [onSelect]);
+
+  const handleHover = useCallback((filename: string, hovered: boolean) => {
+    onHover?.(hovered ? filename : null);
+  }, [onHover]);
 
   const handleDeleteClick = useCallback((filename: string) => {
     setDeleteConfirm(filename);
@@ -161,7 +170,7 @@ export function AssetGrid({ onSelect, vaultPath }: AssetGridProps) {
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-2 p-2">
+      <div className={cn("grid gap-1.5 p-2", compact ? "grid-cols-4" : "grid-cols-3 gap-2")}>
         {assets.map((asset) => (
           <AssetThumbnail
             key={asset.filename}
@@ -170,6 +179,8 @@ export function AssetGrid({ onSelect, vaultPath }: AssetGridProps) {
             vaultPath={vaultPath}
             onSelect={() => handleSelect(asset.filename)}
             onDelete={() => handleDeleteClick(asset.filename)}
+            onHover={(hovered) => handleHover(asset.filename, hovered)}
+            compact={compact}
           />
         ))}
       </div>

@@ -63,11 +63,12 @@ export function CoverImage({
     const [dragY, setDragY] = useState(positionY);
     const [currentScale, setCurrentScale] = useState(scale);
     const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
+    const [previewSrc, setPreviewSrc] = useState<string | null>(null); // For hover preview
     const [showPicker, setShowPicker] = useState(false);
     const [coverHeight, setCoverHeight] = useState(height ?? DEFAULT_HEIGHT);
-    const [isAnimating, setIsAnimating] = useState(false); // For zoom/drag transition
+    const [isAnimating, setIsAnimating] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
-    const [, forceUpdate] = useState(0); // For window resize
+    const [, forceUpdate] = useState(0);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
@@ -246,25 +247,57 @@ export function CoverImage({
     }, [url, dragX, dragY, currentScale, onUpdate, handleResizeMouseMove]);
 
     const handleCoverSelect = (assetPath: string) => {
+        setPreviewSrc(null);
         onUpdate(assetPath, 50, 50, DEFAULT_HEIGHT, 1);
         setShowPicker(false);
     };
 
+    // Handle preview on hover
+    const handlePreview = useCallback(async (assetPath: string | null) => {
+        if (!assetPath) {
+            setPreviewSrc(null);
+            return;
+        }
+        try {
+            const sep = vaultPath.includes('\\') ? '\\' : '/';
+            const fullPath = `${vaultPath}${sep}.nekotick${sep}assets${sep}covers${sep}${assetPath}`;
+            const blobUrl = await loadImageAsBlob(fullPath);
+            setPreviewSrc(blobUrl);
+        } catch {
+            setPreviewSrc(null);
+        }
+    }, [vaultPath]);
+
+    const handlePickerClose = useCallback(() => {
+        setPreviewSrc(null);
+        setShowPicker(false);
+    }, []);
+
     // No cover - show aurora background
     if (!url) {
         return (
-            <>
+            <div className="relative w-full">
                 <div
                     className={cn("relative h-[120px] w-full shrink-0", !readOnly && "cursor-pointer")}
                     onClick={() => !readOnly && setShowPicker(true)}
                 >
-                    <div className="absolute inset-0 pointer-events-none z-0 opacity-60 dark:opacity-40 select-none overflow-hidden">
-                        <div className="absolute top-[-40%] left-[-10%] w-[70%] h-[150%] rounded-full bg-[var(--neko-accent)] opacity-[0.08] blur-[80px]" />
-                        <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[120%] rounded-full bg-purple-500 opacity-[0.05] blur-[80px]" />
-                    </div>
+                    {previewSrc ? (
+                        <img src={previewSrc} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="absolute inset-0 pointer-events-none z-0 opacity-60 dark:opacity-40 select-none overflow-hidden">
+                            <div className="absolute top-[-40%] left-[-10%] w-[70%] h-[150%] rounded-full bg-[var(--neko-accent)] opacity-[0.08] blur-[80px]" />
+                            <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[120%] rounded-full bg-purple-500 opacity-[0.05] blur-[80px]" />
+                        </div>
+                    )}
                 </div>
-                <CoverPicker isOpen={showPicker} onClose={() => setShowPicker(false)} onSelect={handleCoverSelect} vaultPath={vaultPath} />
-            </>
+                <CoverPicker
+                    isOpen={showPicker}
+                    onClose={handlePickerClose}
+                    onSelect={handleCoverSelect}
+                    onPreview={handlePreview}
+                    vaultPath={vaultPath}
+                />
+            </div>
         );
     }
 
@@ -293,36 +326,40 @@ export function CoverImage({
         };
     };
 
+    // Display source: preview > resolved
+    const displaySrc = previewSrc || resolvedSrc || '';
+
     return (
-        <>
+        <div className="relative w-full">
             <div
                 className="relative w-full bg-muted/20 shrink-0 select-none overflow-hidden"
                 style={{ height: coverHeight }}
                 ref={containerRef}
             >
-                {resolvedSrc && (
+                {displaySrc && (
                     <img
                         ref={imgRef}
-                        src={resolvedSrc}
+                        src={displaySrc}
                         alt="Cover"
                         className={cn(!readOnly && "cursor-pointer", isAnimating && "transition-all duration-150 ease-out")}
-                        style={getImageStyle()}
+                        style={previewSrc ? { width: '100%', height: '100%', objectFit: 'cover' } : getImageStyle()}
                         draggable={false}
-                        onMouseDown={handleImageMouseDown}
+                        onMouseDown={previewSrc ? undefined : handleImageMouseDown}
                         onLoad={() => setImageLoaded(true)}
                     />
                 )}
-                {!readOnly && (
+                {!readOnly && !showPicker && (
                     <div className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-30" onMouseDown={handleResizeMouseDown} />
                 )}
             </div>
             <CoverPicker
                 isOpen={showPicker}
-                onClose={() => setShowPicker(false)}
+                onClose={handlePickerClose}
                 onSelect={handleCoverSelect}
                 onRemove={url ? () => onUpdate(null, 50, 50) : undefined}
+                onPreview={handlePreview}
                 vaultPath={vaultPath}
             />
-        </>
+        </div>
     );
 }

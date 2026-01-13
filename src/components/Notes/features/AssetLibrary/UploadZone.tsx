@@ -10,7 +10,7 @@ import { UploadZoneProps } from './types';
 
 type UploadStatus = 'idle' | 'dragging' | 'uploading' | 'success' | 'duplicate' | 'error';
 
-export function UploadZone({ onUploadComplete, onDuplicateDetected }: UploadZoneProps) {
+export function UploadZone({ onUploadComplete, onDuplicateDetected, compact }: UploadZoneProps) {
   const { uploadAsset, uploadProgress } = useNotesStore();
   const [status, setStatus] = useState<UploadStatus>('idle');
   const [message, setMessage] = useState<string>('');
@@ -103,12 +103,13 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected }: UploadZone
   }, [handleFile]);
 
   const getStatusIcon = () => {
+    const iconSize = compact ? "w-6 h-6" : "w-10 h-10";
     switch (status) {
       case 'uploading':
         return (
           <div className="relative">
-            <Upload className="w-10 h-10 text-[var(--neko-accent)]" />
-            {uploadProgress !== null && (
+            <Upload className={cn(iconSize, "text-[var(--neko-accent)]")} />
+            {uploadProgress !== null && !compact && (
               <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-[var(--neko-text-secondary)]">
                 {uploadProgress}%
               </div>
@@ -116,20 +117,20 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected }: UploadZone
           </div>
         );
       case 'success':
-        return <CheckCircle className="w-10 h-10 text-green-500" />;
+        return <CheckCircle className={cn(iconSize, "text-green-500")} />;
       case 'duplicate':
-        return <Image className="w-10 h-10 text-blue-500" />;
+        return <Image className={cn(iconSize, "text-blue-500")} />;
       case 'error':
-        return <AlertCircle className="w-10 h-10 text-red-500" />;
+        return <AlertCircle className={cn(iconSize, "text-red-500")} />;
       default:
-        return <Upload className="w-10 h-10 text-[var(--neko-text-tertiary)]" />;
+        return <Upload className={cn(iconSize, "text-[var(--neko-text-tertiary)]")} />;
     }
   };
 
   const getStatusText = () => {
     if (message) return message;
     if (status === 'dragging') return 'Drop image here';
-    return 'Drag and drop an image, or click to browse';
+    return compact ? 'Drop or click to upload' : 'Drag and drop an image, or click to browse';
   };
 
   return (
@@ -139,8 +140,9 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected }: UploadZone
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       className={cn(
-        "flex flex-col items-center justify-center p-8 rounded-lg cursor-pointer",
+        "flex flex-col items-center justify-center rounded-lg cursor-pointer",
         "border-2 border-dashed transition-all duration-200",
+        compact ? "p-4" : "p-8",
         status === 'dragging' && "border-[var(--neko-accent)] bg-[var(--neko-accent)]/5",
         status === 'uploading' && "border-[var(--neko-accent)] bg-[var(--neko-accent)]/5",
         status === 'success' && "border-green-500 bg-green-500/5",
@@ -152,13 +154,14 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected }: UploadZone
       {getStatusIcon()}
       
       <p className={cn(
-        "mt-4 text-sm text-center",
+        "text-center",
+        compact ? "mt-2 text-xs" : "mt-4 text-sm",
         status === 'error' ? "text-red-500" : "text-[var(--neko-text-secondary)]"
       )}>
         {getStatusText()}
       </p>
 
-      {status === 'idle' && (
+      {status === 'idle' && !compact && (
         <p className="mt-1 text-xs text-[var(--neko-text-tertiary)]">
           Supports JPG, PNG, GIF, WebP (max 50MB)
         </p>
