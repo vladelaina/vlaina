@@ -10,6 +10,7 @@ import { getNotesBasePath } from '../storage';
 import { AssetEntry, UploadResult } from '@/lib/assets/types';
 import { processFilename, getMimeType } from '@/lib/assets/filenameService';
 import { writeAssetAtomic, cleanupTempFiles } from '@/lib/assets/atomicWrite';
+import { getBuiltinCovers, toBuiltinAssetPath } from '@/lib/assets/builtinCovers';
 
 const ASSETS_DIR = '.nekotick/assets/covers';
 
@@ -42,8 +43,6 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
       // Ensure directory exists
       if (!await storage.exists(assetsDir)) {
         await storage.mkdir(assetsDir, true);
-        set({ assetList: [], isLoadingAssets: false });
-        return;
       }
 
       const assets: AssetEntry[] = [];
@@ -86,8 +85,32 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
       await scanDirectory(assetsDir);
 
-      // Sort by filename (which includes timestamp for our uploads)
-      assets.sort((a, b) => b.filename.localeCompare(a.filename));
+      // Add built-in covers
+      const builtinCovers = getBuiltinCovers();
+      for (const cover of builtinCovers) {
+        assets.push({
+          filename: toBuiltinAssetPath(cover),
+          hash: '',
+          size: 0,
+          mimeType: 'image/webp',
+          uploadedAt: '',
+        });
+      }
+
+      // Sort: user uploads first, then built-in covers
+      // User uploads have no prefix, built-in have "@" prefix
+      assets.sort((a, b) => {
+        const aIsBuiltIn = a.filename.startsWith('@');
+        const bIsBuiltIn = b.filename.startsWith('@');
+        
+        // User uploads come first
+        if (aIsBuiltIn !== bIsBuiltIn) {
+          return aIsBuiltIn ? 1 : -1;
+        }
+        
+        // Within same group, sort by filename descending
+        return b.filename.localeCompare(a.filename);
+      });
 
       set({ assetList: assets, isLoadingAssets: false });
     } catch (error) {

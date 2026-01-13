@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { CoverPicker } from '../AssetLibrary';
 import { loadImageAsBlob } from '@/lib/assets/imageLoader';
 import { buildFullAssetPath } from '@/lib/assets/pathUtils';
+import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 
 interface CoverImageProps {
     url: string | null;
@@ -130,6 +131,13 @@ export function CoverImage({
                 setPreviewSrc(null);
                 isSelectingRef.current = false;
                 return; 
+            }
+            // Built-in covers use URL directly
+            if (isBuiltinCover(url)) {
+                setResolvedSrc(getBuiltinCoverUrl(url));
+                setPreviewSrc(null);
+                isSelectingRef.current = false;
+                return;
             }
             if (!vaultPath) return;
 
@@ -289,9 +297,16 @@ export function CoverImage({
         const containerWidth = container?.clientWidth || 720;
         
         try {
-            const fullPath = buildFullAssetPath(vaultPath, assetPath);
-            const blobUrl = await loadImageAsBlob(fullPath);
-            const dimensions = await loadImageWithDimensions(blobUrl);
+            // Get image URL based on type
+            let imageUrl: string;
+            if (isBuiltinCover(assetPath)) {
+                imageUrl = getBuiltinCoverUrl(assetPath);
+            } else {
+                const fullPath = buildFullAssetPath(vaultPath, assetPath);
+                imageUrl = await loadImageAsBlob(fullPath);
+            }
+            
+            const dimensions = await loadImageWithDimensions(imageUrl);
             
             if (dimensions) {
                 const imgRatio = dimensions.width / dimensions.height;
@@ -319,9 +334,16 @@ export function CoverImage({
             }
             return;
         }
-        if (!vaultPath) return;
         
         try {
+            // Built-in covers use URL directly
+            if (isBuiltinCover(assetPath)) {
+                setPreviewSrc(getBuiltinCoverUrl(assetPath));
+                return;
+            }
+            
+            if (!vaultPath) return;
+            
             const fullPath = buildFullAssetPath(vaultPath, assetPath);
             const blobUrl = await loadImageAsBlob(fullPath);
             setPreviewSrc(blobUrl);

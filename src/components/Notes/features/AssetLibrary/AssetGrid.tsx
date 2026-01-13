@@ -9,6 +9,7 @@ import { Trash2, Loader2 } from 'lucide-react';
 import { AssetGridProps } from './types';
 import { loadImageAsBlob } from '@/lib/assets/imageLoader';
 import { buildFullAssetPath } from '@/lib/assets/pathUtils';
+import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 
 const PREVIEW_CLEAR_DELAY = 100;
 
@@ -32,15 +33,20 @@ const AssetThumbnail = memo(function AssetThumbnail({
 
   // Lazy load with Intersection Observer
   useEffect(() => {
-    if (!imgRef.current || !vaultPath) return;
+    if (!imgRef.current) return;
 
     const observer = new IntersectionObserver(
       async (entries) => {
         if (entries[0].isIntersecting) {
           try {
-            const fullPath = buildFullAssetPath(vaultPath, filename);
-            const blobUrl = await loadImageAsBlob(fullPath);
-            setSrc(blobUrl);
+            // Built-in covers use URL, user uploads use blob
+            if (isBuiltinCover(filename)) {
+              setSrc(getBuiltinCoverUrl(filename));
+            } else if (vaultPath) {
+              const fullPath = buildFullAssetPath(vaultPath, filename);
+              const blobUrl = await loadImageAsBlob(fullPath);
+              setSrc(blobUrl);
+            }
           } catch (error) {
             console.error('Failed to load thumbnail:', filename, error);
           }
@@ -65,8 +71,10 @@ const AssetThumbnail = memo(function AssetThumbnail({
     onDelete();
   };
 
-  // Extract display name from path
-  const displayName = filename.split('/').pop() || filename;
+  // Extract display name from path (remove @ prefix if present)
+  const cleanFilename = filename.replace(/^@/, '');
+  const displayName = cleanFilename.split('/').pop() || cleanFilename;
+  const isBuiltin = isBuiltinCover(filename);
 
   return (
     <div
@@ -116,7 +124,7 @@ const AssetThumbnail = memo(function AssetThumbnail({
         </div>
       )}
 
-      {!compact && (
+      {!compact && !isBuiltin && (
         <button
           onClick={handleDelete}
           className={cn(
