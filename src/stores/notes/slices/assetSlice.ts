@@ -46,30 +46,45 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
         return;
       }
 
-      // Scan directory
-      const entries = await storage.listDir(assetsDir);
       const assets: AssetEntry[] = [];
 
-      for (const entry of entries) {
-        // Skip directories and temp files
-        if (entry.isDirectory || entry.name.endsWith('.tmp')) {
-          continue;
-        }
+      // Recursive function to scan directories
+      async function scanDirectory(dirPath: string, relativePath: string = '') {
+        const entries = await storage.listDir(dirPath);
 
-        // Check if it's an image file
-        const mimeType = getMimeType(entry.name);
-        if (!mimeType.startsWith('image/')) {
-          continue;
-        }
+        for (const entry of entries) {
+          // Skip temp files
+          if (entry.name.endsWith('.tmp')) {
+            continue;
+          }
 
-        assets.push({
-          filename: entry.name,
-          hash: '',
-          size: 0,
-          mimeType,
-          uploadedAt: new Date().toISOString(),
-        });
+          if (entry.isDirectory) {
+            // Recursively scan subdirectories
+            const subDirPath = await joinPath(dirPath, entry.name);
+            const subRelativePath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+            await scanDirectory(subDirPath, subRelativePath);
+          } else {
+            // Check if it's an image file
+            const mimeType = getMimeType(entry.name);
+            if (!mimeType.startsWith('image/')) {
+              continue;
+            }
+
+            // Store relative path from assets dir (e.g., "subfolder/image.png")
+            const filename = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+
+            assets.push({
+              filename,
+              hash: '',
+              size: 0,
+              mimeType,
+              uploadedAt: new Date().toISOString(),
+            });
+          }
+        }
       }
+
+      await scanDirectory(assetsDir);
 
       // Sort by filename (which includes timestamp for our uploads)
       assets.sort((a, b) => b.filename.localeCompare(a.filename));
@@ -151,7 +166,12 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     try {
       const vaultPath = notesPath || await getNotesBasePath();
       const assetsDir = await joinPath(vaultPath, ASSETS_DIR);
-      const filePath = await joinPath(assetsDir, filename);
+      
+      // filename may contain subdirectory path (e.g., "subfolder/image.png")
+      // Convert forward slashes to OS-native separator
+      const separator = vaultPath.includes('\\') ? '\\' : '/';
+      const normalizedFilename = filename.replace(/\//g, separator);
+      const filePath = await joinPath(assetsDir, normalizedFilename);
 
       // Delete file
       if (await storage.exists(filePath)) {

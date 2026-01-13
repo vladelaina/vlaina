@@ -32,9 +32,9 @@ export function CoverPicker({ isOpen, onClose, onSelect, onRemove, onPreview, va
 
   // Handle asset selection with preview
   const handleAssetSelect = useCallback((assetPath: string) => {
+    // Only call onSelect - let parent handle closing to avoid race condition
     onSelect(assetPath);
-    onClose();
-  }, [onSelect, onClose]);
+  }, [onSelect]);
 
   // Handle asset hover for preview
   const handleAssetHover = useCallback((assetPath: string | null) => {
@@ -42,9 +42,9 @@ export function CoverPicker({ isOpen, onClose, onSelect, onRemove, onPreview, va
   }, [onPreview]);
 
   const handleUploadComplete = useCallback((assetPath: string) => {
+    // Only call onSelect - let parent handle closing
     onSelect(assetPath);
-    onClose();
-  }, [onSelect, onClose]);
+  }, [onSelect]);
 
   const handleSwitchToUpload = useCallback(() => {
     setActiveTab('upload');
@@ -104,7 +104,7 @@ export function CoverPicker({ isOpen, onClose, onSelect, onRemove, onPreview, va
             
             if (result.success && result.path) {
               onSelect(result.path);
-              onClose();
+              // Don't call onClose here - let parent handle it
             }
           }
           break;

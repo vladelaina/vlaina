@@ -79,6 +79,7 @@ export function CoverImage({
     const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, height: 0 });
     const hasDraggedRef = useRef(false);
     const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isSelectingRef = useRef(false); // Prevent preview clear during selection
 
     // Sync props to state/refs
     useEffect(() => {
@@ -100,24 +101,35 @@ export function CoverImage({
     // Resolve local path to blob URL
     useEffect(() => {
         async function resolve() {
-            if (!url) { setResolvedSrc(null); return; }
-            if (url.startsWith('http')) { setResolvedSrc(url); return; }
-            // Wait for vaultPath to be available
+            if (!url) { 
+                setResolvedSrc(null); 
+                setPreviewSrc(null);
+                isSelectingRef.current = false;
+                return; 
+            }
+            if (url.startsWith('http')) { 
+                setResolvedSrc(url); 
+                setPreviewSrc(null);
+                isSelectingRef.current = false;
+                return; 
+            }
             if (!vaultPath) { return; }
 
             try {
                 const sep = vaultPath.includes('\\') ? '\\' : '/';
-                const fullPath = `${vaultPath}${sep}.nekotick${sep}assets${sep}covers${sep}${url}`;
-                // loadImageAsBlob handles caching internally, don't revoke here
+                const normalizedUrl = url.replace(/\//g, sep);
+                const fullPath = `${vaultPath}${sep}.nekotick${sep}assets${sep}covers${sep}${normalizedUrl}`;
                 const blobUrl = await loadImageAsBlob(fullPath);
                 setResolvedSrc(blobUrl);
+                setPreviewSrc(null);
+                isSelectingRef.current = false;
             } catch {
                 setResolvedSrc(null);
+                setPreviewSrc(null);
+                isSelectingRef.current = false;
             }
         }
         resolve();
-        // Note: Don't revoke blob URLs here - they're managed by imageLoader cache
-        // Revoking would break other components using the same cached URL
     }, [url, vaultPath]);
 
     // Cleanup & window resize
@@ -247,22 +259,58 @@ export function CoverImage({
         onUpdate(url, dragX, dragY, currentHeightRef.current, currentScale);
     }, [url, dragX, dragY, currentScale, onUpdate, handleResizeMouseMove]);
 
-    const handleCoverSelect = (assetPath: string) => {
-        setPreviewSrc(null);
-        onUpdate(assetPath, 50, 50, DEFAULT_HEIGHT, 1);
+    const handleCoverSelect = useCallback(async (assetPath: string) => {
+        // Mark as selecting to prevent preview from being cleared
+        isSelectingRef.current = true;
+        
+        const container = containerRef.current;
+        const containerWidth = container?.clientWidth || 720;
+        
+        try {
+            const sep = vaultPath.includes('\\') ? '\\' : '/';
+            const normalizedPath = assetPath.replace(/\//g, sep);
+            const fullPath = `${vaultPath}${sep}.nekotick${sep}assets${sep}covers${sep}${normalizedPath}`;
+            const blobUrl = await loadImageAsBlob(fullPath);
+            
+            const img = new Image();
+            img.src = blobUrl;
+            await new Promise<void>((resolve) => {
+                img.onload = () => resolve();
+                img.onerror = () => resolve();
+            });
+            
+            if (img.naturalWidth && img.naturalHeight) {
+                const imgRatio = img.naturalWidth / img.naturalHeight;
+                const minHeightForCover = Math.ceil(containerWidth / imgRatio);
+                const finalHeight = coverHeight <= minHeightForCover && coverHeight <= MAX_HEIGHT
+                    ? coverHeight
+                    : Math.min(minHeightForCover, MAX_HEIGHT);
+                
+                onUpdate(assetPath, 50, 50, Math.max(finalHeight, MIN_HEIGHT), 1);
+            } else {
+                onUpdate(assetPath, 50, 50, coverHeight, 1);
+            }
+        } catch {
+            onUpdate(assetPath, 50, 50, coverHeight, 1);
+        }
+        
         setShowPicker(false);
-    };
+    }, [vaultPath, coverHeight, onUpdate]);
 
     // Handle preview on hover
     const handlePreview = useCallback(async (assetPath: string | null) => {
         if (!assetPath) {
-            setPreviewSrc(null);
+            // Don't clear preview if we're in the middle of selecting
+            if (!isSelectingRef.current) {
+                setPreviewSrc(null);
+            }
             return;
         }
-        if (!vaultPath) return; // Wait for vaultPath
+        if (!vaultPath) return;
         try {
             const sep = vaultPath.includes('\\') ? '\\' : '/';
-            const fullPath = `${vaultPath}${sep}.nekotick${sep}assets${sep}covers${sep}${assetPath}`;
+            const normalizedPath = assetPath.replace(/\//g, sep);
+            const fullPath = `${vaultPath}${sep}.nekotick${sep}assets${sep}covers${sep}${normalizedPath}`;
             const blobUrl = await loadImageAsBlob(fullPath);
             setPreviewSrc(blobUrl);
         } catch {

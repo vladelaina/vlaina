@@ -10,6 +10,7 @@ import { AssetGridProps } from './types';
 import { loadImageAsBlob } from '@/lib/assets/imageLoader';
 
 const ASSETS_DIR = '.nekotick/assets/covers';
+const PREVIEW_CLEAR_DELAY = 100; // ms delay before clearing preview
 
 interface AssetThumbnailProps {
   filename: string;
@@ -17,14 +18,13 @@ interface AssetThumbnailProps {
   vaultPath: string;
   onSelect: () => void;
   onDelete: () => void;
-  onHover?: (hovered: boolean) => void;
+  isHovered: boolean;
   compact?: boolean;
 }
 
-function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, onHover, compact }: AssetThumbnailProps) {
+function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, isHovered, compact }: AssetThumbnailProps) {
   const [src, setSrc] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
   const imgRef = useRef<HTMLDivElement>(null);
 
   // Lazy load with Intersection Observer
@@ -35,8 +35,10 @@ function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, onHover
       async (entries) => {
         if (entries[0].isIntersecting) {
           // Build full path and load as blob
+          // filename may contain subdirectory (e.g., "subfolder/image.png")
           const separator = vaultPath.includes('\\') ? '\\' : '/';
-          const fullPath = `${vaultPath}${separator}${ASSETS_DIR.replace(/\//g, separator)}${separator}${filename}`;
+          const normalizedFilename = filename.replace(/\//g, separator);
+          const fullPath = `${vaultPath}${separator}${ASSETS_DIR.replace(/\//g, separator)}${separator}${normalizedFilename}`;
           try {
             const blobUrl = await loadImageAsBlob(fullPath);
             setSrc(blobUrl);
@@ -67,6 +69,7 @@ function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, onHover
   return (
     <div
       ref={imgRef}
+      data-filename={filename}
       className={cn(
         "relative aspect-square rounded-lg overflow-hidden cursor-pointer",
         "bg-[var(--neko-bg-tertiary)] border border-transparent",
@@ -74,8 +77,6 @@ function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, onHover
         "group"
       )}
       onClick={onSelect}
-      onMouseEnter={() => { setIsHovered(true); onHover?.(true); }}
-      onMouseLeave={() => { setIsHovered(false); onHover?.(false); }}
     >
       {src ? (
         <>
@@ -109,7 +110,7 @@ function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, onHover
             isHovered ? "opacity-100" : "opacity-0"
           )}
         >
-          <p className="text-white text-xs truncate font-medium">{filename}</p>
+          <p className="text-white text-xs truncate font-medium">{filename.split('/').pop()}</p>
           <p className="text-white/70 text-xs">{formatSize(size)}</p>
         </div>
       )}
@@ -135,6 +136,10 @@ function AssetThumbnail({ filename, size, vaultPath, onSelect, onDelete, onHover
 export function AssetGrid({ onSelect, onHover, vaultPath, compact }: AssetGridProps) {
   const { getAssetList, deleteAsset, loadAssets } = useNotesStore();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [hoveredFilename, setHoveredFilename] = useState<string | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const clearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastHoveredRef = useRef<string | null>(null);
   
   const assets = getAssetList();
 
@@ -145,13 +150,58 @@ export function AssetGrid({ onSelect, onHover, vaultPath, compact }: AssetGridPr
     }
   }, [vaultPath, loadAssets]);
 
+  // Event delegation for hover - similar to emoji picker
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const item = target.closest('[data-filename]') as HTMLElement;
+      const filename = item?.dataset.filename || null;
+
+      // Only update when hovering a NEW image (not when moving to gap)
+      // This prevents preview from clearing when moving between images
+      if (filename && filename !== lastHoveredRef.current) {
+        // Clear any pending clear timeout
+        if (clearTimeoutRef.current) {
+          clearTimeout(clearTimeoutRef.current);
+          clearTimeoutRef.current = null;
+        }
+
+        lastHoveredRef.current = filename;
+        setHoveredFilename(filename);
+        onHover?.(filename);
+      }
+    };
+
+    const handleMouseLeave = () => {
+      // Delay clearing preview to handle gaps between items
+      if (clearTimeoutRef.current) {
+        clearTimeout(clearTimeoutRef.current);
+      }
+      clearTimeoutRef.current = setTimeout(() => {
+        lastHoveredRef.current = null;
+        setHoveredFilename(null);
+        onHover?.(null);
+      }, PREVIEW_CLEAR_DELAY);
+    };
+
+    grid.addEventListener('mouseover', handleMouseOver);
+    grid.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      grid.removeEventListener('mouseover', handleMouseOver);
+      grid.removeEventListener('mouseleave', handleMouseLeave);
+      if (clearTimeoutRef.current) {
+        clearTimeout(clearTimeoutRef.current);
+      }
+    };
+  }, [onHover]);
+
   const handleSelect = useCallback((filename: string) => {
     onSelect(filename);
   }, [onSelect]);
-
-  const handleHover = useCallback((filename: string, hovered: boolean) => {
-    onHover?.(hovered ? filename : null);
-  }, [onHover]);
 
   const handleDeleteClick = useCallback((filename: string) => {
     setDeleteConfirm(filename);
@@ -170,7 +220,10 @@ export function AssetGrid({ onSelect, onHover, vaultPath, compact }: AssetGridPr
 
   return (
     <>
-      <div className={cn("grid gap-1.5 p-2", compact ? "grid-cols-4" : "grid-cols-3 gap-2")}>
+      <div 
+        ref={gridRef}
+        className={cn("grid gap-1.5 p-2", compact ? "grid-cols-4" : "grid-cols-3 gap-2")}
+      >
         {assets.map((asset) => (
           <AssetThumbnail
             key={asset.filename}
@@ -179,7 +232,7 @@ export function AssetGrid({ onSelect, onHover, vaultPath, compact }: AssetGridPr
             vaultPath={vaultPath}
             onSelect={() => handleSelect(asset.filename)}
             onDelete={() => handleDeleteClick(asset.filename)}
-            onHover={(hovered) => handleHover(asset.filename, hovered)}
+            isHovered={hoveredFilename === asset.filename}
             compact={compact}
           />
         ))}
