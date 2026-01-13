@@ -140,13 +140,15 @@ export function CoverImage({
                 setPreviewSrc(null);
                 isSelectingRef.current = false;
             } catch {
+                // 文件不存在或加载失败，自动清除封面
                 setResolvedSrc(null);
                 setPreviewSrc(null);
                 isSelectingRef.current = false;
+                onUpdate(null, 50, 50);
             }
         }
         resolve();
-    }, [url, vaultPath]);
+    }, [url, vaultPath, onUpdate]);
 
     // Cleanup on unmount
     useEffect(() => {
