@@ -125,7 +125,7 @@ export function CoverPicker({ isOpen, onClose, onSelect, onRemove, onPreview, va
   return (
     <div 
       ref={pickerRef}
-      className="absolute top-full right-2 mt-2 z-40 bg-[var(--neko-bg-primary)] rounded-lg shadow-xl border border-[var(--neko-border)] w-[280px] max-h-[320px] flex flex-col overflow-hidden"
+      className="absolute top-full right-2 mt-2 z-40 bg-[var(--neko-bg-primary)] rounded-lg shadow-xl border border-[var(--neko-border)] w-[280px] max-h-[320px] flex flex-col overflow-hidden select-none"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--neko-border)]">
