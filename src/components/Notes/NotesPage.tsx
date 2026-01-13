@@ -171,7 +171,7 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
             onMouseLeave={() => setSidebarHeaderHovered(false)}
             className={cn(
               "w-2 cursor-col-resize group",
-              "fixed top-0 bottom-0 z-[100]",
+              "fixed top-0 bottom-0 z-10",
               "flex items-center justify-center"
             )}
             style={{ left: sidebarWidth - 2 }}

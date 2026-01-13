@@ -334,7 +334,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           {/* White background area for main content - creates the "cutout" effect */}
           {!sidebarCollapsed && (
             <div
-              className="absolute top-0 bottom-0 right-0 bg-white dark:bg-zinc-800 rounded-tl-xl"
+              className="absolute top-0 bottom-0 right-0 bg-white dark:bg-zinc-800"
               style={{
                 left: sidebarWidth + RESIZE_HANDLE_WIDTH,
               }}
