@@ -85,6 +85,7 @@ export function CoverImage({
     const [coverHeight, setCoverHeight] = useState(height ?? DEFAULT_HEIGHT);
     const [isAnimating, setIsAnimating] = useState(false);
     const [containerWidth, setContainerWidth] = useState(720);
+    const [isResizingHeight, setIsResizingHeight] = useState(false);
 
     // Image sources
     const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
@@ -115,7 +116,7 @@ export function CoverImage({
     const currentHeightRef = useRef(height ?? DEFAULT_HEIGHT);
 
     // Refs for drag state
-    const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, height: 0 });
+    const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0, height: 0, pixelOffsetY: 0 });
     const hasDraggedRef = useRef(false);
     const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isSelectingRef = useRef(false);
@@ -256,6 +257,10 @@ export function CoverImage({
     }, [url, onUpdate]);
 
     // Image drag handlers
+    // Image drag state refs
+    const imageRafRef = useRef<number | null>(null);
+    const pendingDragPos = useRef<{ x: number; y: number } | null>(null);
+
     const handleImageMouseMove = useCallback((e: globalThis.MouseEvent) => {
         const container = containerRef.current;
         const img = imgRef.current;
@@ -285,16 +290,43 @@ export function CoverImage({
             ? Math.max(0, Math.min(100, dragStartRef.current.posY - (deltaY / overflowY) * 100))
             : 50;
 
-        currentXRef.current = newX;
-        currentYRef.current = newY;
-        setDragX(newX);
-        setDragY(newY);
+        // Store pending position and schedule update with rAF for smooth 60fps
+        pendingDragPos.current = { x: newX, y: newY };
+
+        if (imageRafRef.current === null) {
+            imageRafRef.current = requestAnimationFrame(() => {
+                if (pendingDragPos.current !== null) {
+                    currentXRef.current = pendingDragPos.current.x;
+                    currentYRef.current = pendingDragPos.current.y;
+                    setDragX(pendingDragPos.current.x);
+                    setDragY(pendingDragPos.current.y);
+                    pendingDragPos.current = null;
+                }
+                imageRafRef.current = null;
+            });
+        }
     }, []);
 
     const handleImageMouseUp = useCallback(() => {
         document.removeEventListener('mousemove', handleImageMouseMove);
         document.removeEventListener('mouseup', handleImageMouseUp);
         document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+
+        // Apply any pending position immediately
+        if (pendingDragPos.current !== null) {
+            currentXRef.current = pendingDragPos.current.x;
+            currentYRef.current = pendingDragPos.current.y;
+            setDragX(pendingDragPos.current.x);
+            setDragY(pendingDragPos.current.y);
+            pendingDragPos.current = null;
+        }
+
+        // Cancel any pending rAF
+        if (imageRafRef.current !== null) {
+            cancelAnimationFrame(imageRafRef.current);
+            imageRafRef.current = null;
+        }
 
         if (hasDraggedRef.current) {
             onUpdate(url, currentXRef.current, currentYRef.current, coverHeight, currentScaleRef.current);
@@ -307,7 +339,11 @@ export function CoverImage({
         if (readOnly) return;
         e.preventDefault();
         hasDraggedRef.current = false;
-        dragStartRef.current = { mouseX: e.clientX, mouseY: e.clientY, posX: currentXRef.current, posY: currentYRef.current, height: 0 };
+        dragStartRef.current = { mouseX: e.clientX, mouseY: e.clientY, posX: currentXRef.current, posY: currentYRef.current, height: 0, pixelOffsetY: 0 };
+
+        // Prevent text selection during drag
+        document.body.style.userSelect = 'none';
+
         document.addEventListener('mousemove', handleImageMouseMove);
         document.addEventListener('mouseup', handleImageMouseUp);
     }, [readOnly, handleImageMouseMove, handleImageMouseUp]);
@@ -341,30 +377,101 @@ export function CoverImage({
         return () => container.removeEventListener('wheel', handleWheel);
     }, [readOnly, url]);
 
+    // Height resize state refs
+    const resizeRafRef = useRef<number | null>(null);
+    const pendingHeight = useRef<number | null>(null);
+
     // Height resize handlers
     const handleResizeMouseMove = useCallback((e: globalThis.MouseEvent) => {
         e.preventDefault();
         const newHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, dragStartRef.current.height + e.clientY - dragStartRef.current.mouseY));
-        currentHeightRef.current = newHeight;
-        setCoverHeight(newHeight);
+
+        // Store pending height and schedule update with rAF for smooth 60fps
+        pendingHeight.current = newHeight;
+
+        if (resizeRafRef.current === null) {
+            resizeRafRef.current = requestAnimationFrame(() => {
+                if (pendingHeight.current !== null) {
+                    currentHeightRef.current = pendingHeight.current;
+                    setCoverHeight(pendingHeight.current);
+                    pendingHeight.current = null;
+                }
+                resizeRafRef.current = null;
+            });
+        }
     }, []);
 
     const handleResizeMouseUp = useCallback(() => {
         document.removeEventListener('mousemove', handleResizeMouseMove);
         document.removeEventListener('mouseup', handleResizeMouseUp);
-        onUpdate(url, dragX, dragY, currentHeightRef.current, currentScale);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+
+        // Apply any pending height immediately
+        if (pendingHeight.current !== null) {
+            currentHeightRef.current = pendingHeight.current;
+            setCoverHeight(pendingHeight.current);
+            pendingHeight.current = null;
+        }
+
+        // Cancel any pending rAF
+        if (resizeRafRef.current !== null) {
+            cancelAnimationFrame(resizeRafRef.current);
+            resizeRafRef.current = null;
+        }
+
+        // Recalculate dragY based on new height and preserved pixel offset
+        const img = imgRef.current;
+        const container = containerRef.current;
+        if (img?.naturalWidth && container) {
+            const { overflowY } = calcImageDimensions(
+                container.clientWidth, currentHeightRef.current,
+                img.naturalWidth, img.naturalHeight,
+                currentScaleRef.current
+            );
+            // Convert preserved pixel offset back to percentage
+            const newDragY = overflowY > 0 ? Math.max(0, Math.min(100, (dragStartRef.current.pixelOffsetY / overflowY) * 100)) : 50;
+            setDragY(newDragY);
+            currentYRef.current = newDragY;
+            onUpdate(url, dragX, newDragY, currentHeightRef.current, currentScale);
+        } else {
+            onUpdate(url, dragX, dragY, currentHeightRef.current, currentScale);
+        }
+
+        setIsResizingHeight(false);
     }, [url, dragX, dragY, currentScale, onUpdate, handleResizeMouseMove]);
 
     const handleResizeMouseDown = useCallback((e: MouseEvent) => {
         if (readOnly || !url) return;
         e.preventDefault();
         e.stopPropagation();
+
+        // Calculate and store current pixel offset
+        const img = imgRef.current;
+        const container = containerRef.current;
+        if (img?.naturalWidth && container) {
+            const { overflowY } = calcImageDimensions(
+                container.clientWidth, coverHeight,
+                img.naturalWidth, img.naturalHeight,
+                currentScaleRef.current
+            );
+            dragStartRef.current.pixelOffsetY = overflowY * dragY / 100;
+        } else {
+            dragStartRef.current.pixelOffsetY = 0;
+        }
+
         dragStartRef.current.mouseY = e.clientY;
         dragStartRef.current.height = coverHeight;
         setIsAnimating(false);
+        setIsResizingHeight(true);
+
+        // Prevent text selection and set cursor
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'ns-resize';
+
         document.addEventListener('mousemove', handleResizeMouseMove);
         document.addEventListener('mouseup', handleResizeMouseUp);
-    }, [readOnly, url, coverHeight, handleResizeMouseMove, handleResizeMouseUp]);
+    }, [readOnly, url, coverHeight, dragY, handleResizeMouseMove, handleResizeMouseUp]);
 
     // Cover selection handler
     const handleCoverSelect = useCallback(async (assetPath: string) => {
@@ -455,15 +562,20 @@ export function CoverImage({
             currentScale
         );
 
+        // During height resize, use fixed pixel offset to prevent visual jumping
+        const topOffset = isResizingHeight && dragStartRef.current.pixelOffsetY > 0
+            ? -dragStartRef.current.pixelOffsetY
+            : -(overflowY * dragY / 100);
+
         return {
             position: 'absolute',
             width, height,
             left: -(overflowX * dragX / 100),
-            top: -(overflowY * dragY / 100),
+            top: topOffset,
             maxWidth: 'none',
             maxHeight: 'none',
         };
-    }, [dragX, dragY, currentScale, coverHeight, containerWidth]);
+    }, [dragX, dragY, currentScale, coverHeight, containerWidth, isResizingHeight]);
 
     // Handle image load - mark as ready when dimensions are confirmed
     const handleImageLoad = useCallback(() => {
@@ -514,8 +626,16 @@ export function CoverImage({
     return (
         <div className="relative w-full">
             <div
-                className="relative w-full bg-muted/20 shrink-0 select-none overflow-hidden transition-[height] duration-150 ease-out"
-                style={{ height: coverHeight }}
+                className={cn(
+                    "relative w-full bg-muted/20 shrink-0 select-none overflow-hidden",
+                    // Only apply transition when NOT actively resizing
+                    !isResizingHeight && "transition-[height] duration-150 ease-out"
+                )}
+                style={{
+                    height: coverHeight,
+                    // GPU acceleration hint during resize
+                    willChange: isResizingHeight ? 'height' : 'auto',
+                }}
                 ref={containerRef}
             >
                 {displaySrc && (
@@ -525,10 +645,13 @@ export function CoverImage({
                         alt="Cover"
                         className={cn(
                             !readOnly && "cursor-pointer",
-                            isAnimating && "transition-all duration-150 ease-out"
+                            // Only apply transition when animating and NOT resizing
+                            isAnimating && !isResizingHeight && "transition-all duration-150 ease-out"
                         )}
                         style={{
                             ...(previewSrc ? { width: '100%', height: '100%', objectFit: 'cover' } : imageStyle),
+                            // GPU acceleration hint during resize/drag
+                            willChange: isResizingHeight ? 'width, height, top' : 'auto',
                             // 显示条件：预览 / 新图片准备好 / 有旧图片过渡
                             opacity: previewSrc || isImageReady || prevSrcRef.current ? 1 : 0,
                         }}
