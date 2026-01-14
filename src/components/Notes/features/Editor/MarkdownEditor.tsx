@@ -20,7 +20,7 @@ import { TitleInput } from './TitleInput';
 import { CoverImage } from './CoverImage';
 import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
 import { getCurrentVaultPath } from '@/stores/notes/storage';
-import { SPRING_PREMIUM } from '@/lib/animations';
+import { SPRING_PREMIUM, SPRING_FLASH } from '@/lib/animations';
 
 // Custom plugins - unified import
 import {
@@ -43,6 +43,7 @@ import {
   videoPlugin,
   abbrPlugin,
 } from './plugins';
+import { GAP_SCALE, CONTENT_MAX_WIDTH, PADDING_DESKTOP, PADDING_MOBILE, EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { configureTheme } from './theme';
 
 // Editor styles
@@ -74,20 +75,23 @@ const customPlugins = [
   abbrPlugin,
 ];
 
-// Shared Layout Constant to guarantee strict vertical alignment between Header and Body
-// using Golden Ratio-ish Max-Width (900px) and consistent fluid padding.
-const EDITOR_LAYOUT_CLASS = "w-full max-w-[900px] px-12 md:px-24 shrink-0";
+
 
 function MilkdownEditorInner() {
-  const { currentNote, updateContent, saveNote, isNewlyCreated } = useNotesStore();
+  const updateContent = useNotesStore(s => s.updateContent);
+  const saveNote = useNotesStore(s => s.saveNote);
+  const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
+  const currentNotePath = useNotesStore(s => s.currentNote?.path);
+
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hasAutoFocused = useRef(false);
 
   // Calculate initial content by stripping First H1 if it matches filename
   // No longer stripping the First H1. User has full control.
+  // We read from .getState() to avoid subscribing to content updates
   const initialContent = useMemo(() => {
-    return currentNote?.content || '';
-  }, [currentNote?.path]);
+    return useNotesStore.getState().currentNote?.content || '';
+  }, [currentNotePath]);
 
   const debouncedSave = useCallback(() => {
     if (saveTimeoutRef.current) {
@@ -154,13 +158,13 @@ function MilkdownEditorInner() {
       .use(listener)
       .use(configureTheme)
       .use(customPlugins),
-    [currentNote?.path] // Re-create editor when path changes
+    [currentNotePath] // Re-create editor when path changes
   );
 
   // Reset auto-focus flag when note changes
   useEffect(() => {
     hasAutoFocused.current = false;
-  }, [currentNote?.path]);
+  }, [currentNotePath]);
 
   // Check if content is empty or minimal (only has heading marker)
   const isEmptyContent = useMemo(() => {
@@ -203,30 +207,36 @@ function MilkdownEditorInner() {
   );
 }
 
-// Golden ratio constant
-const PHI = 1.618033988749895;
 
-// Calculate the horizontal offset to center content at golden ratio point
-// When peeking, we need to recalculate based on remaining space
-function calculateGoldenOffset(viewportWidth: number, contentWidth: number, sidebarWidth: number, isPeeking: boolean): number {
-  if (!isPeeking) {
-    return 0; // Normal state: CSS handles centering
-  }
 
-  // Available space when sidebar is showing
-  const availableWidth = viewportWidth - sidebarWidth;
+// Calculate the horizontal offset to avoid collision with peeking sidebar
+// Uses a "Golden Safety Gap" to maintain aesthetic breathing room
+function calculateGoldenOffset(viewportWidth: number, sidebarWidth: number, isPeeking: boolean): number {
+  if (!isPeeking) return 0;
 
-  // Golden ratio center point in available space (from left edge of available area)
-  // Using 1/PHI ≈ 0.618 to place content at the "golden" position
-  const goldenCenterInAvailable = availableWidth / PHI;
+  // We need to account for padding because visual collision happens at the text, not the container edge.
+  // md breakpoint is 768px.
+  // Note: Padding is on both sides. We care about Left Padding.
+  const contentPadding = viewportWidth >= 768 ? PADDING_DESKTOP : PADDING_MOBILE;
 
-  // Current center point (when content is centered in full viewport)
-  const currentCenter = viewportWidth / 2;
+  // 1. Calculate the "Natural" Left Edge of the text content
+  // Container Logic: (Viewport - ContentWidth) / 2
+  // Text Logic: ContainerLeft + Padding
+  const actualContainerWidth = Math.min(viewportWidth, CONTENT_MAX_WIDTH);
+  const containerLeftEdge = (viewportWidth - actualContainerWidth) / 2;
+  const naturalTextLeftEdge = containerLeftEdge + contentPadding;
 
-  // Target center point (golden ratio in available space, offset by sidebar)
-  const targetCenter = sidebarWidth + goldenCenterInAvailable / 2 + (availableWidth - goldenCenterInAvailable) / 2;
+  // 2. Calculate the Safe Zone
+  // SidebarWidth + GoldenGap (Phi^4 ~ 37px)
+  const goldenGap = sidebarWidth / GAP_SCALE;
+  const safeZoneLimit = sidebarWidth + goldenGap;
 
-  return sidebarWidth / 2;
+  // 3. Calculate Required Shift
+  // Only shift if the safe zone encroaches on the text content
+  const intrusion = safeZoneLimit - naturalTextLeftEdge;
+
+  // If intrusion is positive, we need to shift right by that amount
+  return Math.max(0, intrusion);
 }
 
 export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeeking?: boolean; peekOffset?: number }) {
@@ -241,10 +251,10 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
 
   // Calculate the offset to maintain golden ratio positioning
   const contentOffset = useMemo(() => {
-    return calculateGoldenOffset(viewportWidth, 900, peekOffset, isPeeking);
+    return calculateGoldenOffset(viewportWidth, peekOffset, isPeeking);
   }, [viewportWidth, peekOffset, isPeeking]);
 
-  const currentNote = useNotesStore(s => s.currentNote);
+  const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const isStarred = useNotesStore(s => s.isStarred);
   const toggleStarred = useNotesStore(s => s.toggleStarred);
   const getNoteIcon = useNotesStore(s => s.getNoteIcon);
@@ -252,9 +262,9 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
 
   const setNotesPreviewIcon = useUIStore(s => s.setNotesPreviewIcon);
 
-  const displayIcon = useDisplayIcon(currentNote?.path);
-  const starred = currentNote ? isStarred(currentNote.path) : false;
-  const noteIcon = currentNote ? getNoteIcon(currentNote.path) : undefined;
+  const displayIcon = useDisplayIcon(currentNotePath);
+  const starred = currentNotePath ? isStarred(currentNotePath) : false;
+  const noteIcon = currentNotePath ? getNoteIcon(currentNotePath) : undefined;
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [isHoveringHeader, setIsHoveringHeader] = useState(false);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
@@ -270,7 +280,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
   const [showCoverPicker, setShowCoverPicker] = useState(false);
 
   // Get cover from centralized metadata
-  const coverData = currentNote ? getNoteCover(currentNote.path) : {};
+  const coverData = currentNotePath ? getNoteCover(currentNotePath) : {};
   const coverUrl = coverData.cover || null;
   const coverX = coverData.coverX ?? 50;
   const coverY = coverData.coverY ?? 50;
@@ -284,26 +294,26 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
   }, []);
 
   const handleCoverUpdate = (url: string | null, x: number, y: number, h?: number, scale?: number) => {
-    if (!currentNote?.path) return;
-    setNoteCover(currentNote.path, url, x, y, h, scale);
+    if (!currentNotePath) return;
+    setNoteCover(currentNotePath, url, x, y, h, scale);
   };
 
   const handleIconSelect = (emoji: string) => {
-    if (currentNote) {
-      setNoteIcon(currentNote.path, emoji);
+    if (currentNotePath) {
+      setNoteIcon(currentNotePath, emoji);
       setNotesPreviewIcon(null, null);
     }
   };
 
   const handleRemoveIcon = () => {
-    if (currentNote) {
-      setNoteIcon(currentNote.path, null);
+    if (currentNotePath) {
+      setNoteIcon(currentNotePath, null);
       setNotesPreviewIcon(null, null);
     }
   };
 
   const handleIconPreview = useCallback((icon: string | null) => {
-    if (!currentNote) return;
+    if (!currentNotePath) return;
 
     if (clearPreviewTimerRef.current) {
       clearTimeout(clearPreviewTimerRef.current);
@@ -320,10 +330,10 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
       }
       previewRafRef.current = requestAnimationFrame(() => {
         previewRafRef.current = null;
-        setNotesPreviewIcon(currentNote.path, icon);
+        setNotesPreviewIcon(currentNotePath, icon);
       });
     }
-  }, [currentNote, setNotesPreviewIcon]);
+  }, [currentNotePath, setNotesPreviewIcon]);
 
   const handleIconPickerClose = () => {
     setShowIconPicker(false);
@@ -352,11 +362,11 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
 
   // Calculate display name for Title Input
   const noteName = useMemo(() => {
-    if (!currentNote) return '';
-    const pathParts = currentNote.path.split(/[\\/]/);
+    if (!currentNotePath) return '';
+    const pathParts = currentNotePath.split(/[\\/]/);
     const fileName = pathParts[pathParts.length - 1] || 'Untitled';
     return fileName.replace(/\.md$/, '');
-  }, [currentNote?.path]);
+  }, [currentNotePath]);
 
   // Click handler to focus editor when clicking empty space
   const handleEditorClick = (e: React.MouseEvent) => {
@@ -373,7 +383,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
         <button
           onClick={(e) => {
             e.stopPropagation();
-            currentNote && toggleStarred(currentNote.path);
+            currentNotePath && toggleStarred(currentNotePath);
           }}
           className={cn(
             "p-1.5 transition-colors",
@@ -414,7 +424,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
         <motion.div
           className="w-full flex flex-col items-center"
           animate={{ x: contentOffset }}
-          transition={SPRING_PREMIUM}
+          transition={SPRING_FLASH}
         >
           <div className={cn(
             EDITOR_LAYOUT_CLASS,
@@ -525,18 +535,22 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
             </div>
 
             {/* Title Input Component - Independent from Editor Content */}
-            {currentNote && (
-              <div className="mb-4">
+            {currentNotePath && (
+              <div className="mb-4 pointer-events-auto">
                 <TitleInput
-                  notePath={currentNote.path}
+                  notePath={currentNotePath}
                   initialTitle={noteName}
+                  onEnter={() => {
+                    const editor = document.querySelector('.milkdown .ProseMirror') as HTMLElement;
+                    editor?.focus();
+                  }}
                 />
               </div>
             )}
 
           </div>
 
-          <MilkdownProvider key={currentNote?.path}>
+          <MilkdownProvider key={currentNotePath}>
             <MilkdownEditorInner />
           </MilkdownProvider>
         </motion.div>

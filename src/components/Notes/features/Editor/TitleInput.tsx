@@ -5,9 +5,10 @@ import { useUIStore } from '@/stores/uiSlice';
 interface TitleInputProps {
   notePath: string;
   initialTitle: string;
+  onEnter?: () => void;
 }
 
-export function TitleInput({ notePath, initialTitle }: TitleInputProps) {
+export function TitleInput({ notePath, initialTitle, onEnter }: TitleInputProps) {
   const [title, setTitle] = useState(initialTitle);
   const inputRef = useRef<HTMLInputElement>(null);
   const renameNote = useNotesStore(s => s.renameNote);
@@ -53,12 +54,13 @@ export function TitleInput({ notePath, initialTitle }: TitleInputProps) {
     if (e.key === 'Enter') {
       e.preventDefault();
       inputRef.current?.blur();
+      onEnter?.();
     } else if (e.key === 'Escape') {
       setTitle(initialTitle);
       setNotesPreviewTitle(null, null);
       inputRef.current?.blur();
     }
-  }, [initialTitle, setNotesPreviewTitle]);
+  }, [initialTitle, setNotesPreviewTitle, onEnter]);
 
   return (
     <input
