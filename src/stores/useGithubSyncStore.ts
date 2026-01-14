@@ -44,10 +44,32 @@ interface GithubSyncActions {
 
 type GithubSyncStore = GithubSyncState & GithubSyncActions;
 
+const GITHUB_USER_PERSIST_KEY = 'nekotick_github_user_identity';
+
+interface PersistedUser {
+  isConnected: boolean;
+  username: string | null;
+  avatarUrl: string | null;
+}
+
+function getPersistedUser(): PersistedUser {
+  try {
+    const stored = localStorage.getItem(GITHUB_USER_PERSIST_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Failed to load persisted GitHub user:', e);
+  }
+  return { isConnected: false, username: null, avatarUrl: null };
+}
+
+const persisted = getPersistedUser();
+
 const initialState: GithubSyncState = {
-  isConnected: false,
-  username: null,
-  avatarUrl: null,
+  isConnected: persisted.isConnected,
+  username: persisted.username,
+  avatarUrl: persisted.avatarUrl,
   gistId: null,
   isSyncing: false,
   isConnecting: false,
@@ -66,13 +88,13 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
 
   checkStatus: async () => {
     set({ isLoading: true });
-    
+
     if (hasBackendCommands()) {
       // Tauri platform
       try {
         const status = await githubCommands.getGithubSyncStatus();
         if (status) {
-          set({
+          const newState = {
             isConnected: status.connected,
             username: status.username,
             avatarUrl: status.avatarUrl,
@@ -81,7 +103,15 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
             hasRemoteData: status.hasRemoteData,
             remoteModifiedTime: status.remoteModifiedTime,
             isLoading: false,
-          });
+          };
+          set(newState);
+
+          // Persist identity
+          localStorage.setItem(GITHUB_USER_PERSIST_KEY, JSON.stringify({
+            isConnected: status.connected,
+            username: status.username,
+            avatarUrl: status.avatarUrl,
+          }));
 
           if (status.connected) {
             try {
@@ -106,14 +136,22 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
     } else {
       // Web platform
       const status = webGithubCommands.getStatus();
-      set({
+      const newState = {
         isConnected: status.connected,
         username: status.username,
         avatarUrl: status.avatarUrl,
         gistId: status.gistId,
         lastSyncTime: status.lastSyncTime,
         isLoading: false,
-      });
+      };
+      set(newState);
+
+      // Persist identity
+      localStorage.setItem(GITHUB_USER_PERSIST_KEY, JSON.stringify({
+        isConnected: status.connected,
+        username: status.username,
+        avatarUrl: status.avatarUrl,
+      }));
 
       if (status.connected) {
         try {
@@ -144,10 +182,10 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
             username: result.username,
             isConnecting: false,
           });
-          
+
           // Fetch full status including avatar
           await get().checkStatus();
-          
+
           try {
             const proStatus = await githubCommands.checkProStatus();
             if (proStatus) {
@@ -160,7 +198,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
           } catch (e) {
             console.error('Failed to check PRO status:', e);
           }
-          
+
           get().checkRemoteData();
           return true;
         } else {
@@ -186,7 +224,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
 
         // Save state for verification
         sessionStorage.setItem('github_oauth_state', authData.state);
-        
+
         // Redirect to GitHub
         window.location.href = authData.authUrl;
         return true; // Page will redirect, won't reach here
@@ -210,7 +248,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
     // Verify state
     const savedState = sessionStorage.getItem('github_oauth_state');
     sessionStorage.removeItem('github_oauth_state');
-    
+
     if (savedState && callback.state && savedState !== callback.state) {
       set({ syncError: 'OAuth state mismatch', isConnecting: false });
       return false;
@@ -218,14 +256,22 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
 
     // Exchange code
     const result = await webGithubCommands.exchangeCode(callback.code);
-    
+
     if (result.success && result.username) {
-      set({
+      const newState = {
         isConnected: true,
         username: result.username,
         avatarUrl: result.avatarUrl || null,
         isConnecting: false,
-      });
+      };
+      set(newState);
+
+      // Persist identity
+      localStorage.setItem(GITHUB_USER_PERSIST_KEY, JSON.stringify({
+        isConnected: true,
+        username: result.username,
+        avatarUrl: result.avatarUrl || null,
+      }));
 
       // Check PRO status
       try {
@@ -268,7 +314,10 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       remoteModifiedTime: null,
       syncError: null,
     });
-    
+
+    // Clear persistence
+    localStorage.removeItem(GITHUB_USER_PERSIST_KEY);
+
     useLicenseStore.getState().clearProStatus();
   },
 
