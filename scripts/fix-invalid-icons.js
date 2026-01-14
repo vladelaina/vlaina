@@ -1,7 +1,7 @@
 import * as lucide from 'lucide-react';
 import fs from 'fs';
 
-// 获取所有有效的图标名称
+// Get all valid icon names
 const validIcons = new Set(Object.keys(lucide).filter(name => {
   const item = lucide[name];
   if (!item || typeof item !== 'object' || !item.$$typeof) return false;
@@ -12,7 +12,7 @@ const validIcons = new Set(Object.keys(lucide).filter(name => {
 
 console.log('Valid icons count:', validIcons.size);
 
-// 需要修复的文件
+// Files to fix
 const files = [
   'src/components/Notes/features/IconPicker/icons/common.ts',
   'src/components/Notes/features/IconPicker/icons/status.ts',
@@ -24,48 +24,48 @@ const files = [
   'src/components/Notes/features/IconPicker/icons/place.ts'
 ];
 
-// 图标名称映射（错误名称 -> 正确名称或删除）
+// Icon name mapping (wrong name -> correct name or delete)
 const iconFixes = {
-  'SpaceHorizontal': null, // 删除，不存在
+  'SpaceHorizontal': null, // Delete, doesn't exist
   'SpaceVertical': null,
-  'LinkOff': 'Unlink', // 使用 Unlink 代替
-  'Cut': null, // 删除，使用 Scissors
-  'TagX': null, // 删除，不存在
-  'Trademark': null, // 删除，不存在
-  'MessageSquareCheck': null, // 删除，不存在
-  'ViewOff': null, // 删除，使用 EyeOff
-  'Pulse': null, // 删除，使用 HeartPulse
+  'LinkOff': 'Unlink', // Use Unlink instead
+  'Cut': null, // Delete, use Scissors
+  'TagX': null, // Delete, doesn't exist
+  'Trademark': null, // Delete, doesn't exist
+  'MessageSquareCheck': null, // Delete, doesn't exist
+  'ViewOff': null, // Delete, use EyeOff
+  'Pulse': null, // Delete, use HeartPulse
   'WrenchIcon': 'Wrench',
-  'FingerprintOff': null, // 删除，不存在
-  'SdCard': null, // 删除，不存在
+  'FingerprintOff': null, // Delete, doesn't exist
+  'SdCard': null, // Delete, doesn't exist
   'UsbPort': 'Usb',
-  'WebcamOff': null, // 删除，不存在
-  'SpeakerOff': null, // 删除，不存在
+  'WebcamOff': null, // Delete, doesn't exist
+  'SpeakerOff': null, // Delete, doesn't exist
   'PuzzlePiece': 'Puzzle',
-  'Incognito': null, // 删除，不存在
+  'Incognito': null, // Delete, doesn't exist
   'SkullIcon': 'Skull',
   'Sunglasses': 'Glasses',
   'HighlighterLine': 'Highlighter',
-  'Ferriswheel': 'FerrisWheel', // 修正大小写
+  'Ferriswheel': 'FerrisWheel', // Fix case
   'RatioIcon': 'Ratio',
-  'Lemon': null, // 删除，不存在
-  'Hotdog': null, // 删除，不存在
-  'Bacon': null, // 删除，不存在
-  'Bread': null, // 删除，不存在
-  'Spoon': null, // 删除，不存在
-  'Knife': null, // 删除，不存在
-  'Fork': null, // 删除，不存在
-  'Protractor': null, // 删除，不存在
-  'Screwdriver': null, // 删除，不存在
-  'Sink': null, // 删除，不存在
-  'Mirror': null, // 删除，不存在
-  'Window': null, // 删除，不存在
-  'Curtains': null, // 删除，不存在
-  'Rug': null, // 删除，不存在
-  'Plant': 'Sprout', // 使用 Sprout 代替
-  'Vase': null, // 删除，不存在
-  'Candle': null, // 删除，不存在
-  // 分类名称（不是图标）
+  'Lemon': null, // Delete, doesn't exist
+  'Hotdog': null, // Delete, doesn't exist
+  'Bacon': null, // Delete, doesn't exist
+  'Bread': null, // Delete, doesn't exist
+  'Spoon': null, // Delete, doesn't exist
+  'Knife': null, // Delete, doesn't exist
+  'Fork': null, // Delete, doesn't exist
+  'Protractor': null, // Delete, doesn't exist
+  'Screwdriver': null, // Delete, doesn't exist
+  'Sink': null, // Delete, doesn't exist
+  'Mirror': null, // Delete, doesn't exist
+  'Window': null, // Delete, doesn't exist
+  'Curtains': null, // Delete, doesn't exist
+  'Rug': null, // Delete, doesn't exist
+  'Plant': 'Sprout', // Use Sprout instead
+  'Vase': null, // Delete, doesn't exist
+  'Candle': null, // Delete, doesn't exist
+  // Category names (not icons)
   'Common': null,
   'Status': null,
   'Development': null,
@@ -86,7 +86,7 @@ files.forEach(filePath => {
         content = content.replace(regex, `'${correct}'`);
         console.log(`${filePath}: Replaced '${wrong}' with '${correct}'`);
       } else {
-        // 删除无效图标（包括前面的逗号或后面的逗号）
+        // Delete invalid icon (including preceding or following comma)
         content = content.replace(new RegExp(`,\\s*'${wrong}'`, 'g'), '');
         content = content.replace(new RegExp(`'${wrong}',\\s*`, 'g'), '');
         content = content.replace(new RegExp(`'${wrong}'`, 'g'), '');

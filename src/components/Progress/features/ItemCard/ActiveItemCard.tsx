@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion'; // Removed AnimatePresence
+import { motion } from 'framer-motion';
 import { Plus, Minus, RefreshCw } from 'lucide-react';
 import { getIconByName } from '../IconPicker';
 import { ItemCardProps } from './types';

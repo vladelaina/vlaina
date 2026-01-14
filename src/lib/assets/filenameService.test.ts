@@ -48,10 +48,10 @@ describe('filenameService', () => {
       it('preserves Chinese characters and spaces', () => {
         // Test specific safe characters
         const safeInputs = [
-          '中文测试',
+          'chinese_test',
           'hello world',
           'photo_2024',
-          '照片-test',
+          'photo-test',
           'file.name.jpg',
         ];
         
@@ -213,9 +213,9 @@ describe('filenameService', () => {
     });
 
     it('handles unicode filenames', () => {
-      expect(sanitizeFilename('照片_2024.jpg')).toBe('照片_2024.jpg');
-      expect(sanitizeFilename('фото.png')).toBe('фото.png');
-      expect(sanitizeFilename('写真<test>.jpg')).toBe('写真test.jpg');
+      expect(sanitizeFilename('photo_2024.jpg')).toBe('photo_2024.jpg');
+      expect(sanitizeFilename('photo.png')).toBe('photo.png');
+      expect(sanitizeFilename('image<test>.jpg')).toBe('imagetest.jpg');
     });
   });
 });

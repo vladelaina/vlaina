@@ -57,7 +57,7 @@ const initialState: GithubSyncState = {
   remoteModifiedTime: null,
   isLoading: true,
   syncStatus: 'idle',
-  // Web 端现在也支持登录（但同步功能有限）
+  // Web platform now also supports login (but sync features are limited)
   isSyncAvailable: true,
 };
 
@@ -68,7 +68,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
     set({ isLoading: true });
     
     if (hasBackendCommands()) {
-      // Tauri 平台
+      // Tauri platform
       try {
         const status = await githubCommands.getGithubSyncStatus();
         if (status) {
@@ -104,7 +104,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         set({ isLoading: false });
       }
     } else {
-      // Web 平台
+      // Web platform
       const status = webGithubCommands.getStatus();
       set({
         isConnected: status.connected,
@@ -134,7 +134,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
     set({ isConnecting: true, syncError: null });
 
     if (hasBackendCommands()) {
-      // Tauri 平台 - 使用本地 OAuth 流程
+      // Tauri platform - use local OAuth flow
       try {
         const result = await githubCommands.githubAuth();
 
@@ -176,7 +176,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         return false;
       }
     } else {
-      // Web 平台 - 使用重定向 OAuth 流程
+      // Web platform - use redirect OAuth flow
       try {
         const authData = await webGithubCommands.startAuth();
         if (!authData) {
@@ -184,12 +184,12 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
           return false;
         }
 
-        // 保存 state 用于验证
+        // Save state for verification
         sessionStorage.setItem('github_oauth_state', authData.state);
         
-        // 重定向到 GitHub
+        // Redirect to GitHub
         window.location.href = authData.authUrl;
-        return true; // 页面会重定向，不会执行到这里
+        return true; // Page will redirect, won't reach here
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         set({ syncError: errorMsg, isConnecting: false });
@@ -207,7 +207,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
 
     set({ isConnecting: true, syncError: null });
 
-    // 验证 state
+    // Verify state
     const savedState = sessionStorage.getItem('github_oauth_state');
     sessionStorage.removeItem('github_oauth_state');
     
@@ -216,7 +216,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       return false;
     }
 
-    // 交换 code
+    // Exchange code
     const result = await webGithubCommands.exchangeCode(callback.code);
     
     if (result.success && result.username) {
@@ -227,7 +227,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         isConnecting: false,
       });
 
-      // 检查 PRO 状态
+      // Check PRO status
       try {
         const proStatus = await webGithubCommands.checkProStatus();
         useLicenseStore.getState().setProStatus(

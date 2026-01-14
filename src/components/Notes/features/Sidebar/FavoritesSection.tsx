@@ -16,7 +16,7 @@ export function FavoritesSection() {
     const hasFavoritePaths = starredNotes.length > 0 || starredFolders.length > 0;
     const [expanded, setExpanded] = useState(false);
 
-    // 当收藏加载完成且有收藏时，自动展开
+    // Auto-expand when favorites are loaded and there are favorites
     useEffect(() => {
         if (favoritesLoaded && hasFavoritePaths) {
             setExpanded(true);

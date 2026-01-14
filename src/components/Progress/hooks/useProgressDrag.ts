@@ -1,17 +1,14 @@
 import { useState, useCallback } from 'react';
 import type { DragStartEvent, DragMoveEvent, DragEndEvent } from '@dnd-kit/core';
-// Removed ProgressOrCounter import since items parameter was removed
-// import type { ProgressOrCounter } from '../../../stores/useProgressStore';
 
 interface UseProgressDragOptions {
-  // Removed items: ProgressOrCounter[];
   onReorder: (activeId: string, overId: string) => void;
 }
 
 /**
  * Hook for managing drag and drop state
  */
-export function useProgressDrag({ onReorder }: UseProgressDragOptions) { // Removed items parameter
+export function useProgressDrag({ onReorder }: UseProgressDragOptions) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
@@ -19,7 +16,7 @@ export function useProgressDrag({ onReorder }: UseProgressDragOptions) { // Remo
     setActiveId(event.active.id as string);
   }, []);
 
-  const handleDragMove = useCallback(() => { // Removed event parameter
+  const handleDragMove = useCallback(() => {
     // No-op for now, purely state driven
   }, []);
 

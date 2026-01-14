@@ -34,11 +34,11 @@ const IconRow = memo(
     );
   },
   (prev, next) => {
-    // 只有当 items 引用或 color 真正变化时才重渲染
+    // Only re-render when items reference or color actually changes
     if (prev.color !== next.color) return false;
     if (prev.keyPrefix !== next.keyPrefix) return false;
     if (prev.items.length !== next.items.length) return false;
-    // 比较 items 的 name（因为 items 是 slice 产生的新数组）
+    // Compare items by name (since items is a new array from slice)
     for (let i = 0; i < prev.items.length; i++) {
       if (prev.items[i].name !== next.items[i].name) return false;
     }
@@ -65,7 +65,7 @@ export function VirtualIconGrid({
 }: VirtualIconGridProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   
-  // 使用 ref 存储回调，避免依赖变化导致重渲染
+  // Use ref to store callbacks to avoid re-renders from dependency changes
   const onPreviewRef = useRef(onPreview);
   const onSelectRef = useRef(onSelect);
   onPreviewRef.current = onPreview;
@@ -131,7 +131,7 @@ export function VirtualIconGrid({
 
   const lastPreviewRef = useRef<string | null>(null);
 
-  // 使用原生事件处理，绕过 React 的合成事件系统以获得更好的性能
+  // Use native event handling to bypass React's synthetic event system for better performance
   useEffect(() => {
     const container = parentRef.current;
     if (!container) return;
@@ -233,7 +233,7 @@ export function VirtualIconSearchResults({
   const parentRef = useRef<HTMLDivElement>(null);
   const lastPreviewRef = useRef<string | null>(null);
   
-  // 使用 ref 存储回调
+  // Use ref to store callbacks
   const onPreviewRef = useRef(onPreview);
   const onSelectRef = useRef(onSelect);
   onPreviewRef.current = onPreview;
@@ -254,7 +254,7 @@ export function VirtualIconSearchResults({
     overscan: 5,
   });
 
-  // 使用原生事件处理
+  // Use native event handling
   useEffect(() => {
     const container = parentRef.current;
     if (!container) return;

@@ -15,7 +15,7 @@ const http = require('http');
 
 const PORT = 8787;
 
-// In-memory license database (GitHub 账号绑定模式)
+// In-memory license database (GitHub account binding mode)
 const licenses = {
   'NEKO-TEST-1234-5678': {
     github_username: 'testuser',
@@ -24,7 +24,7 @@ const licenses = {
     status: 'active'
   },
   'NEKO-DEMO-AAAA-BBBB': {
-    github_username: null, // 未绑定
+    github_username: null, // Unbound
     email: null,
     expires_at: null,
     duration: 365 * 24 * 60 * 60 * 1000,
@@ -56,11 +56,11 @@ const server = http.createServer((req, res) => {
     try {
       const data = JSON.parse(body || '{}');
 
-      // POST /check_pro - 检查 PRO 状态
+      // POST /check_pro - Check PRO status
       if (req.url === '/check_pro') {
         const { github_username } = data;
         
-        // 查找绑定到该 GitHub 用户的激活码
+        // Find license bound to this GitHub user
         const license = Object.values(licenses).find(
           l => l.github_username?.toLowerCase() === github_username?.toLowerCase() && l.status === 'active'
         );
@@ -71,7 +71,7 @@ const server = http.createServer((req, res) => {
           return;
         }
         
-        // 检查是否过期
+        // Check if expired
         if (license.expires_at && license.expires_at < Date.now()) {
           log(req.method, req.url, 200, `user=${github_username} isPro=false (expired)`);
           res.end(JSON.stringify({ success: true, isPro: false, reason: 'EXPIRED' }));
@@ -87,7 +87,7 @@ const server = http.createServer((req, res) => {
           expiresAt: license.expires_at 
         }));
       }
-      // POST /bind_license - 绑定激活码到 GitHub 账号
+      // POST /bind_license - Bind license to GitHub account
       else if (req.url === '/bind_license') {
         const { license_key, github_username } = data;
         const license = licenses[license_key?.toUpperCase()];
@@ -110,7 +110,7 @@ const server = http.createServer((req, res) => {
           return;
         }
         
-        // 绑定
+        // Bind
         license.github_username = github_username?.toLowerCase();
         if (license.duration && !license.expires_at) {
           license.expires_at = Date.now() + license.duration;

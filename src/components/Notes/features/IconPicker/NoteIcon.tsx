@@ -14,7 +14,7 @@ interface NoteIconProps {
   className?: string;
 }
 
-// Icon 渲染组件
+// Icon renderer component
 const IconIconRenderer = memo(function IconIconRenderer({ 
   iconName,
   originalColor,
@@ -49,7 +49,7 @@ const IconIconRenderer = memo(function IconIconRenderer({
   );
 });
 
-// Emoji 渲染组件
+// Emoji renderer component
 const EmojiIconRenderer = memo(function EmojiIconRenderer({ 
   emoji,
   size, 
@@ -85,7 +85,7 @@ const EmojiIconRenderer = memo(function EmojiIconRenderer({
   );
 });
 
-// 外层组件订阅 store，只在预览状态变化时重渲染
+// Outer component subscribes to store, only re-renders when preview state changes
 export function NoteIcon({ icon, size = 16, className }: NoteIconProps) {
   const previewIconColor = useUIStore(s => s.notesPreviewIconColor);
   const previewSkinTone = useUIStore(s => s.notesPreviewSkinTone);

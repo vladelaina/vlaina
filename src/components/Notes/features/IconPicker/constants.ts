@@ -171,7 +171,7 @@ export function saveRecentIcons(icons: string[]): void {
 }
 
 export function addToRecentIcons(icon: string, current: string[]): string[] {
-  // 对于 icon，按名称去重（忽略颜色）
+  // For icons, deduplicate by name (ignore color)
   const getIconName = (i: string) => {
     if (i.startsWith('icon:')) {
       return i.split(':')[1];
@@ -182,10 +182,10 @@ export function addToRecentIcons(icon: string, current: string[]): string[] {
   const iconName = getIconName(icon);
   const filtered = current.filter(i => {
     if (icon.startsWith('icon:') && i.startsWith('icon:')) {
-      // 同为 icon 时，按名称去重
+      // When both are icons, deduplicate by name
       return getIconName(i) !== iconName;
     }
-    // emoji 或不同类型时，完整比较
+    // For emoji or different types, compare fully
     return i !== icon;
   });
 

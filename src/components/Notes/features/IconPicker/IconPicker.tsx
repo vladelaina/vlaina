@@ -59,7 +59,7 @@ export function IconPicker({
     saveActiveTab(tab);
   }, []);
 
-  // 使用 ref 存储最新的 recentIcons，避免回调依赖变化
+  // Use ref to store latest recentIcons to avoid callback dependency changes
   const recentIconsRef = useRef(recentIcons);
   recentIconsRef.current = recentIcons;
 

@@ -5,7 +5,7 @@ console.log('='.repeat(60));
 console.log('COMPREHENSIVE ICON CHECK');
 console.log('='.repeat(60));
 
-// 获取所有 lucide-react 导出的图标
+// Get all icons exported from lucide-react
 const allExports = Object.keys(lucide);
 const allIcons = allExports.filter(name => {
   const item = lucide[name];
@@ -20,7 +20,7 @@ console.log('-'.repeat(40));
 console.log(`Total exports: ${allExports.length}`);
 console.log(`Unique icons (excluding aliases): ${allIcons.length}`);
 
-// 读取所有图标文件
+// Read all icon files
 const files = [
   { name: 'common.ts', path: 'src/components/Notes/features/IconPicker/icons/common.ts' },
   { name: 'status.ts', path: 'src/components/Notes/features/IconPicker/icons/status.ts' },
@@ -42,7 +42,7 @@ let totalIconsInFiles = 0;
 files.forEach(({ name, path }) => {
   const content = fs.readFileSync(path, 'utf-8');
   
-  // 只匹配 ICONS 数组中的图标名称
+  // Only match icon names in the ICONS array
   const iconsArrayMatch = content.match(/const ICONS = \[([\s\S]*?)\];/);
   if (!iconsArrayMatch) {
     console.log(`Warning: Could not find ICONS array in ${name}`);
@@ -66,7 +66,7 @@ console.log('-'.repeat(40));
 console.log(`Total (with duplicates): ${totalIconsInFiles}`);
 console.log(`Unique icons used: ${usedIcons.size}`);
 
-// 检查未使用的图标
+// Check unused icons
 console.log('\n[3] UNUSED ICONS CHECK');
 console.log('-'.repeat(40));
 const unusedIcons = allIcons.filter(icon => !usedIcons.has(icon));
@@ -77,7 +77,7 @@ if (unusedIcons.length > 0) {
   unusedIcons.forEach(icon => console.log(`  - ${icon}`));
 }
 
-// 检查无效的图标名（在文件中但不在 lucide-react 中）
+// Check invalid icon names (in files but not in lucide-react)
 console.log('\n[4] INVALID ICONS CHECK');
 console.log('-'.repeat(40));
 const invalidIcons = [...usedIcons].filter(icon => !allIcons.includes(icon));
@@ -88,7 +88,7 @@ if (invalidIcons.length > 0) {
   invalidIcons.forEach(icon => console.log(`  - ${icon}`));
 }
 
-// 检查重复的图标
+// Check duplicate icons
 console.log('\n[5] DUPLICATE ICONS CHECK');
 console.log('-'.repeat(40));
 const allIconsInFiles = [];
@@ -124,7 +124,7 @@ if (duplicates.length > 0 && duplicates.length <= 20) {
   });
 }
 
-// 最终总结
+// Final summary
 console.log('\n' + '='.repeat(60));
 console.log('SUMMARY');
 console.log('='.repeat(60));

@@ -45,7 +45,7 @@ export function IconsTab({
   const effectiveColor = previewColor !== null ? previewColor : iconColor;
   const currentColor = ICON_COLORS[effectiveColor]?.color || ICON_COLORS[0].color;
 
-  // 使用 ref 存储回调和状态，避免依赖变化
+  // Use ref to store callbacks and state to avoid dependency changes
   const onPreviewRef = useRef(onPreview);
   onPreviewRef.current = onPreview;
   
@@ -58,7 +58,7 @@ export function IconsTab({
   const setNotesPreviewIconColorRef = useRef(setNotesPreviewIconColor);
   setNotesPreviewIconColorRef.current = setNotesPreviewIconColor;
 
-  // 用于追踪上次预览的颜色，避免重复更新
+  // Track last previewed color to avoid duplicate updates
   const lastPreviewColorRef = useRef<number | null>(null);
 
   const recentIconsList = useMemo(() => 
@@ -83,12 +83,12 @@ export function IconsTab({
     return results;
   }, [searchQuery]);
 
-  // 稳定的 handlePreview 回调
+  // Stable handlePreview callback
   const handlePreview = useCallback((icon: string | null) => {
     onPreviewRef.current?.(icon);
   }, []);
 
-  // 使用原生事件处理颜色悬停，绕过 React 合成事件系统
+  // Use native event handling for color hover to bypass React synthetic event system
   useEffect(() => {
     const container = colorPickerRef.current;
     if (!container || !showColorPicker) return;
@@ -103,7 +103,7 @@ export function IconsTab({
           setPreviewColor(colorId);
           const color = ICON_COLORS[colorId]?.color || ICON_COLORS[0].color;
           setNotesPreviewIconColorRef.current(color);
-          // 同时预览当前笔记的图标
+          // Also preview current note's icon
           const icon = currentIconRef.current;
           if (icon && icon.startsWith('icon:')) {
             const parts = icon.split(':');
@@ -140,7 +140,7 @@ export function IconsTab({
     lastPreviewColorRef.current = null;
     setNotesPreviewIconColor(null);
     onPreview?.(null);
-    // 更新所有笔记的 icon 颜色
+    // Update all notes' icon colors
     const newColor = ICON_COLORS[colorId]?.color || ICON_COLORS[0].color;
     updateAllIconColors(newColor);
   }, [setIconColor, updateAllIconColors, onPreview, setNotesPreviewIconColor]);

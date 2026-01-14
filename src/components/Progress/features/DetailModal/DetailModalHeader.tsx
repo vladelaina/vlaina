@@ -23,7 +23,6 @@ interface DetailModalHeaderProps {
 
 export function DetailModalHeader({
   displayIcon: DisplayIcon,
-  // isEditing, // Unused
   showMenu,
   isArchived,
   onIconClick,

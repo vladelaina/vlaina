@@ -166,12 +166,12 @@ export function CoverImage({
 
     // Reset image ready state when url changes
     useEffect(() => {
-        // 只有在"切换封面"时才保存旧 src 用于过渡
-        // 如果是从无封面到有封面（新添加），不保存旧 src，避免闪现之前移除的封面
+        // Only save old src for transition when "switching cover"
+        // If going from no cover to having a cover (new addition), don't save old src to avoid flashing the previously removed cover
         if (prevUrlRef.current && resolvedSrc) {
             prevSrcRef.current = resolvedSrc;
         } else {
-            // 新添加封面或移除封面，清除过渡 src
+            // Adding new cover or removing cover, clear transition src
             prevSrcRef.current = null;
         }
 
@@ -184,7 +184,7 @@ export function CoverImage({
     // Resolve local path to blob URL with pre-loaded dimensions
     useEffect(() => {
         async function resolve() {
-            // 避免重复解析相同的 URL
+            // Avoid duplicate resolution of the same URL
             if (url === lastResolvedUrlRef.current && resolvedSrc) {
                 return;
             }
@@ -207,7 +207,7 @@ export function CoverImage({
                     const fullPath = buildFullAssetPath(vaultPath, url);
                     imageUrl = await loadImageAsBlob(fullPath);
                 } catch {
-                    // 文件不存在或加载失败，自动清除封面
+                    // File doesn't exist or failed to load, automatically clear cover
                     setResolvedSrc(null);
                     setPreviewSrc(null);
                     isSelectingRef.current = false;
@@ -585,7 +585,7 @@ export function CoverImage({
         }
     }, []);
 
-    // 当 resolvedSrc 设置后，如果图片已经加载（preview 和 resolved 相同），手动标记为 ready
+    // When resolvedSrc is set, if image is already loaded (preview and resolved are the same), manually mark as ready
     useEffect(() => {
         if (!resolvedSrc || isImageReady) return;
 
@@ -652,7 +652,7 @@ export function CoverImage({
                             ...(previewSrc ? { width: '100%', height: '100%', objectFit: 'cover' } : imageStyle),
                             // GPU acceleration hint during resize/drag
                             willChange: isResizingHeight ? 'width, height, top' : 'auto',
-                            // 显示条件：预览 / 新图片准备好 / 有旧图片过渡
+                            // Display condition: preview / new image ready / has old image for transition
                             opacity: previewSrc || isImageReady || prevSrcRef.current ? 1 : 0,
                         }}
                         draggable={false}

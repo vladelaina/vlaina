@@ -7,8 +7,8 @@ export interface ClockTime {
   minutes: number;
 }
 
-const PM_INDICATORS = ['pm', 'p.m.', 'p.m', '下午', '晚上'];
-const AM_INDICATORS = ['am', 'a.m.', 'a.m', '上午', '早上', '凌晨'];
+const PM_INDICATORS = ['pm', 'p.m.', 'p.m', 'afternoon', 'evening'];
+const AM_INDICATORS = ['am', 'a.m.', 'a.m', 'morning', 'early morning', 'dawn'];
 
 export function parseClockTime(input: string): ClockTime | null {
   if (!input || typeof input !== 'string') {
@@ -16,7 +16,7 @@ export function parseClockTime(input: string): ClockTime | null {
   }
 
   let str = input.trim().toLowerCase();
-  str = str.replace(/[：.。\-－]/g, ':');
+  str = str.replace(/[�?。\-－]/g, ':');
   str = str.replace(/\s+/g, ' ');
 
   let isPM = false;
@@ -40,7 +40,7 @@ export function parseClockTime(input: string): ClockTime | null {
     }
   }
 
-  str = str.replace(/点/g, ':');
+  str = str.replace(/o'clock/gi, ':');
   str = str.replace(/:+$/, '');
 
   let hours = 0;
@@ -114,5 +114,3 @@ export function minutesToClockTime(totalMinutes: number): ClockTime {
     minutes: Math.floor(normalized % 60),
   };
 }
-
-

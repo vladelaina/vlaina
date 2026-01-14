@@ -67,21 +67,21 @@ describe('parseClockTime', () => {
 
   describe('Chinese format', () => {
     it('parses afternoon time', () => {
-      expect(parseClockTime('下午2:30')).toEqual({ hours: 14, minutes: 30 });
-      expect(parseClockTime('下午2')).toEqual({ hours: 14, minutes: 0 });
+      expect(parseClockTime('afternoon2:30')).toEqual({ hours: 14, minutes: 30 });
+      expect(parseClockTime('afternoon2')).toEqual({ hours: 14, minutes: 0 });
     });
 
     it('parses morning time', () => {
-      expect(parseClockTime('上午9:30')).toEqual({ hours: 9, minutes: 30 });
-      expect(parseClockTime('上午9')).toEqual({ hours: 9, minutes: 0 });
+      expect(parseClockTime('morning9:30')).toEqual({ hours: 9, minutes: 30 });
+      expect(parseClockTime('morning9')).toEqual({ hours: 9, minutes: 0 });
     });
 
     it('parses evening time', () => {
-      expect(parseClockTime('晚上8:00')).toEqual({ hours: 20, minutes: 0 });
+      expect(parseClockTime('evening8:00')).toEqual({ hours: 20, minutes: 0 });
     });
 
     it('parses early morning time', () => {
-      expect(parseClockTime('凌晨2:00')).toEqual({ hours: 2, minutes: 0 });
+      expect(parseClockTime('dawn2:00')).toEqual({ hours: 2, minutes: 0 });
     });
   });
 

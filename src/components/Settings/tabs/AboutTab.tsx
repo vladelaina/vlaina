@@ -478,7 +478,7 @@ export function AboutTab() {
             </div>
             <select className={selectClassName} style={selectStyle}>
               <option value="en-US">English</option>
-              <option value="zh-CN">简体中文</option>
+              <option value="zh-CN">Simplified Chinese</option>
             </select>
           </div>
         </div>

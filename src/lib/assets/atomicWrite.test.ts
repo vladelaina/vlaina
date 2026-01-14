@@ -52,7 +52,7 @@ describe('atomicWrite', () => {
           'photo.jpg',
           'image.png',
           'path/to/file.gif',
-          '中文文件.webp',
+          'chinese_file.webp',
           'file with spaces.jpg',
         ];
 

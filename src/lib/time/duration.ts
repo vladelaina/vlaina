@@ -132,5 +132,3 @@ export function extractDuration(content: string): ExtractDurationResult {
 
   return { cleanContent: content };
 }
-
-

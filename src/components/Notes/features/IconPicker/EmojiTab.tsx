@@ -49,7 +49,7 @@ export function EmojiTab({
 
   const effectiveSkinTone = previewSkinTone !== null ? previewSkinTone : skinTone;
 
-  // 使用 ref 存储回调和状态，避免依赖变化
+  // Use ref to store callbacks and state to avoid dependency changes
   const onPreviewRef = useRef(onPreview);
   onPreviewRef.current = onPreview;
   
@@ -59,10 +59,10 @@ export function EmojiTab({
   const setNotesPreviewSkinToneRef = useRef(setNotesPreviewSkinTone);
   setNotesPreviewSkinToneRef.current = setNotesPreviewSkinTone;
 
-  // 用于追踪上次预览的肤色，避免重复更新
+  // Track last previewed skin tone to avoid duplicate updates
   const lastPreviewToneRef = useRef<number | null>(null);
 
-  // 使用原生事件处理肤色悬停，绕过 React 合成事件系统
+  // Use native event handling for skin tone hover to bypass React synthetic event system
   useEffect(() => {
     const container = skinTonePickerRef.current;
     if (!container || !showSkinTonePicker) return;
@@ -76,7 +76,7 @@ export function EmojiTab({
           lastPreviewToneRef.current = tone;
           setPreviewSkinTone(tone);
           setNotesPreviewSkinToneRef.current(tone);
-          // 同时预览当前笔记的 emoji
+          // Also preview current note's emoji
           const icon = currentIconRef.current;
           if (icon && !icon.startsWith('icon:')) {
             const item = EMOJI_MAP.get(icon);
@@ -117,7 +117,7 @@ export function EmojiTab({
     lastPreviewToneRef.current = null;
     setNotesPreviewSkinTone(null);
     onPreview?.(null);
-    // 更新所有笔记的 emoji 肤色
+    // Update all notes' emoji skin tones
     updateAllEmojiSkinTones(tone);
   }, [setSkinTone, updateAllEmojiSkinTones, onPreview, setNotesPreviewSkinTone]);
 
@@ -145,7 +145,7 @@ export function EmojiTab({
     return results;
   }, [searchQuery]);
 
-  // 稳定的 handlePreview 回调
+  // Stable handlePreview callback
   const handlePreview = useCallback((emoji: string | null) => {
     onPreviewRef.current?.(emoji);
   }, []);

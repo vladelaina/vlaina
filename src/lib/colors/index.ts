@@ -220,5 +220,3 @@ export function getValidColor(color?: ItemColor | string): ItemColor {
   }
   return color as ItemColor;
 }
-
-
