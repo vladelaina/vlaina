@@ -1,18 +1,16 @@
 // NotesPage - Main notes view container
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
-import { Search } from 'lucide-react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
 import { VaultWelcome } from '@/components/VaultWelcome';
-import { FavoritesSection } from './features/Sidebar/FavoritesSection';
-import { GitHubSection } from './features/Sidebar/GitHubSection';
-import { WorkspaceSection } from './features/Sidebar/WorkspaceSection';
+import { SidebarContent } from './features/Sidebar/SidebarContent';
 import { useNotesSidebarResize } from '@/hooks/useSidebarResize';
+import { AnimatePresence, motion } from 'framer-motion';
 import './features/BlockEditor/styles.css';
 import { cn, NOTES_COLORS } from '@/lib/utils';
 
@@ -45,9 +43,19 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
   const { sidebarWidth, isDragging, handleDragStart } = useNotesSidebarResize();
 
   const [showSearch, setShowSearch] = useState(false);
+  const [isPeeking, setIsPeeking] = useState(false);
+  const peekTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load assets and cleanup temp files when vault is present
   const { loadAssets, cleanupAssetTempFiles } = useNotesStore();
+
+  // Clear timer on unmount
+  useEffect(() => {
+    return () => {
+      if (peekTimerRef.current) clearTimeout(peekTimerRef.current);
+    };
+  }, []);
+
 
   // Unlock main window resizable when vault is present
   useEffect(() => {
@@ -116,51 +124,80 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
       isDragging && "select-none cursor-col-resize"
     )}>
 
+      {/* Static Sidebar */}
       <aside
         className={cn(
-          "flex-shrink-0 flex flex-col overflow-hidden select-none",
-          sidebarCollapsed && "w-0"
+          "flex-shrink-0 flex flex-col overflow-hidden select-none relative",
+          sidebarCollapsed && "w-0" // When collapsed, width is 0 but we keep it in DOM for structure if needed, or just let it vanish
         )}
         style={{
           width: sidebarCollapsed ? 0 : sidebarWidth,
           backgroundColor: NOTES_COLORS.sidebarBg,
         }}
       >
-
-        <div className="px-2 pt-2 pb-2">
-          <button
-            onClick={() => setShowSearch(true)}
-            className={cn(
-              "w-full flex items-center gap-2 px-3 py-2 rounded-lg",
-              "bg-[var(--neko-bg-tertiary)] hover:bg-[var(--neko-hover-filled)]",
-              "text-[var(--neko-text-secondary)] text-[13px]",
-              "transition-colors"
-            )}
-          >
-            <Search className="w-4 h-4" />
-            <span className="flex-1 text-left">Search</span>
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-auto neko-scrollbar">
-          {/* Favorites Section */}
-          <FavoritesSection />
-
-          {/* GitHub Section */}
-          <GitHubSection />
-
-          {/* Workspace Section */}
-          <WorkspaceSection
-            rootFolder={rootFolder}
-            isLoading={isLoading}
-            currentNotePath={currentNote?.path}
-            onCreateNote={() => createNote()}
-            onCreateFolder={() => createFolder('')}
-          />
-        </div>
-
-
+        <SidebarContent
+          onSearchClick={() => setShowSearch(true)}
+          rootFolder={rootFolder}
+          isLoading={isLoading}
+          currentNote={currentNote}
+          createNote={createNote}
+          createFolder={(path) => createFolder(path)}
+        />
       </aside>
+
+      {/* Hover Peek - Trigger Zone & Floating Sidebar */}
+      {sidebarCollapsed && (
+        <>
+          {/* Trigger Zone - Invisible strip on the left edge with Intent Delay */}
+          <div
+            className="fixed top-0 left-0 bottom-0 w-12 z-[40]"
+            onMouseEnter={() => {
+              // Intent Detection: Wait 75ms (Perceptually instant, physically filter)
+              // With 48px width, a fast swipe (< 40ms) will leave before this fires.
+              peekTimerRef.current = setTimeout(() => {
+                setIsPeeking(true);
+              }, 75);
+            }}
+            onMouseLeave={() => {
+              // If user leaves quickly (e.g. exiting window or swipe), cancel peek
+              if (peekTimerRef.current) {
+                clearTimeout(peekTimerRef.current);
+                peekTimerRef.current = null;
+              }
+            }}
+          />
+
+          {/* Floating Sidebar Overlay */}
+          <AnimatePresence>
+            {isPeeking && (
+              <>
+                {/* Backdrop - Optional, maybe just click outside to close? 
+                     Actually Notion doesn't have a backdrop, it just closes when you leave. 
+                     Let's stick to "Leave to Close" for now. */}
+
+                <motion.aside
+                  initial={{ x: '-100%', opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: '-100%', opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 40 }}
+                  className="fixed top-0 left-0 bottom-0 w-[260px] z-[50] shadow-2xl border-r border-black/5 dark:border-white/5"
+                  style={{ backgroundColor: NOTES_COLORS.sidebarBg }}
+                  onMouseLeave={() => setIsPeeking(false)}
+                >
+                  <SidebarContent
+                    onSearchClick={() => setShowSearch(true)}
+                    rootFolder={rootFolder}
+                    isLoading={isLoading}
+                    currentNote={currentNote}
+                    createNote={createNote}
+                    createFolder={(path) => createFolder(path)}
+                  />
+                </motion.aside>
+              </>
+            )}
+          </AnimatePresence>
+        </>
+      )}
 
       {!sidebarCollapsed && (
         <>
@@ -192,6 +229,8 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
       <main className="flex-1 flex flex-col min-w-0 bg-[var(--neko-bg-primary)]">
         {currentNote ? (
           <div className="flex-1 flex min-h-0">
+            {/* If peeking, we might want to push content or just overlay. 
+                 Decision: Overlay (as per plan & user request for "pop out"). */}
             <div className="flex-1 min-w-0">
               <MarkdownEditor />
             </div>
