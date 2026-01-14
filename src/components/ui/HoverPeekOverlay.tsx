@@ -72,7 +72,8 @@ export function HoverPeekOverlay({
                         transition={SPRING_PREMIUM}
                         className={cn(
                             "fixed top-12 left-3 bottom-3 z-[50]",
-                            "shadow-2xl border border-black/5 dark:border-white/5 rounded-2xl overflow-hidden",
+                            "shadow-2xl border border-black/5 dark:border-white/5 rounded-2xl",
+                            "overflow-hidden",
                             className
                         )}
                         style={{ width, ...style }}

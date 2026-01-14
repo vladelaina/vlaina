@@ -344,11 +344,17 @@ body {
 
 /* Thin custom scrollbar (no arrow buttons) */
 .neko-scrollbar {
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .neko-scrollbar::-webkit-scrollbar {
   width: 6px;
+}
+
+.neko-scrollbar::-webkit-scrollbar:horizontal {
+  display: none;
+  height: 0;
 }
 
 .neko-scrollbar::-webkit-scrollbar-track {
