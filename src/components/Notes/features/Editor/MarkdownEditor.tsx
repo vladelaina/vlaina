@@ -72,6 +72,10 @@ const customPlugins = [
   abbrPlugin,
 ];
 
+// Shared Layout Constant to guarantee strict vertical alignment between Header and Body
+// using Golden Ratio-ish Max-Width (900px) and consistent fluid padding.
+const EDITOR_LAYOUT_CLASS = "w-full max-w-[900px] px-12 md:px-24 shrink-0";
+
 function MilkdownEditorInner() {
   const { currentNote, updateContent, saveNote, isNewlyCreated } = useNotesStore();
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -191,7 +195,7 @@ function MilkdownEditorInner() {
   }, [get, isNewlyCreated, isEmptyContent]);
 
   return (
-    <div className="milkdown-editor w-full max-w-[720px] shrink-0">
+    <div className={cn("milkdown-editor", EDITOR_LAYOUT_CLASS)}>
       <Milkdown />
     </div>
   );
@@ -364,19 +368,20 @@ export function MarkdownEditor() {
         />
 
         <div className={cn(
-          "max-w-[720px] w-full px-6 sm:px-12 shrink-0 z-10 relative transition-[margin] duration-150 ease-out",
+          EDITOR_LAYOUT_CLASS,
+          "z-10 relative transition-[margin] duration-150 ease-out",
           // Pull content up to overlap with cover (Notion-style)
-          coverUrl && "mt-[-40px]"
+          coverUrl && "mt-[-48px]"
         )}>
           {/* Clickable area to add cover - entire top padding area */}
           {!coverUrl && (
-            <div 
+            <div
               className="absolute top-0 left-0 right-0 h-20 cursor-pointer hover:bg-[var(--neko-hover)]/30 transition-colors"
               onClick={() => {
                 // Get all available covers (user uploads + built-in)
                 const allCovers = useNotesStore.getState().getAssetList();
                 let randomCover: string;
-                
+
                 if (allCovers.length > 0) {
                   // Random from all available covers
                   const randomIndex = Math.floor(Math.random() * allCovers.length);
@@ -385,7 +390,7 @@ export function MarkdownEditor() {
                   // Fallback to built-in if no covers loaded yet
                   randomCover = getRandomBuiltinCover();
                 }
-                
+
                 handleCoverUpdate(randomCover, 50, 50, 200, 1);
                 setShowCoverPicker(true);
               }}
@@ -407,7 +412,7 @@ export function MarkdownEditor() {
                 <button
                   ref={iconButtonRef}
                   onClick={() => setShowIconPicker(true)}
-                  className="hover:scale-105 transition-transform cursor-pointer flex items-center"
+                  className="hover:scale-105 transition-transform cursor-pointer flex items-center -ml-1"
                 >
                   <NoteIcon icon={displayIcon} size={48} />
                 </button>
