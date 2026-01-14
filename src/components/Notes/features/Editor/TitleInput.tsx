@@ -68,7 +68,7 @@ export function TitleInput({ notePath, initialTitle }: TitleInputProps) {
       onChange={handleChange}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className="w-full bg-transparent border-none outline-none text-[40px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--neko-text-primary)] placeholder:text-[var(--neko-text-disabled)] selection:bg-[#2783de] selection:text-white"
+      className="w-full bg-transparent border-none outline-none text-[42px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--neko-text-primary)] placeholder:text-[var(--neko-text-disabled)] selection:bg-[#2783de] selection:text-white"
       placeholder="Untitled"
     />
   );

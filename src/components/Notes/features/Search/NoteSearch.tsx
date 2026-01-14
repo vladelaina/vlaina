@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Search, FileText, X, Clock } from 'lucide-react';
+import { FileText, X, Clock } from 'lucide-react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 
@@ -162,7 +162,7 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search notes..."
-            className="flex-1 bg-transparent text-[15px] text-[var(--neko-text-primary)] placeholder:text-[var(--neko-text-tertiary)] outline-none"
+            className="flex-1 bg-transparent text-[16px] text-[var(--neko-text-primary)] placeholder:text-[var(--neko-text-tertiary)] outline-none"
           />
           {query && (
             <button onClick={() => setQuery('')} className="p-1 hover:bg-[var(--neko-hover)] rounded">
@@ -193,11 +193,11 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
               >
                 <FileText className="w-4 h-4 text-amber-500 flex-shrink-0" />
                 <div className="min-w-0">
-                  <div className="text-sm text-[var(--neko-text-primary)] truncate">
+                  <div className="text-[14px] text-[var(--neko-text-primary)] truncate">
                     {result.name}
                   </div>
                   {result.preview && (
-                    <div className="text-xs text-[var(--neko-text-tertiary)] truncate">
+                    <div className="text-[12px] text-[var(--neko-text-tertiary)] truncate">
                       {result.preview}
                     </div>
                   )}
