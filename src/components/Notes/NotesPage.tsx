@@ -179,10 +179,10 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
             <div
               className="w-0.5 h-full transition-colors"
               style={{
-                backgroundColor: isDragging ? NOTES_COLORS.dividerHover : NOTES_COLORS.divider,
+                backgroundColor: isDragging ? NOTES_COLORS.dividerHover : 'transparent',
               }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = NOTES_COLORS.dividerHover}
-              onMouseLeave={(e) => !isDragging && (e.currentTarget.style.backgroundColor = NOTES_COLORS.divider)}
+              onMouseLeave={(e) => !isDragging && (e.currentTarget.style.backgroundColor = 'transparent')}
             />
           </div>
         </>
