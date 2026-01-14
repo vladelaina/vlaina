@@ -188,24 +188,17 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
       }
 
 
-      <motion.main
-        className="flex-1 flex flex-col min-w-0 bg-[var(--neko-bg-primary)]"
-        animate={{
-          x: isPeeking ? sidebarWidth : 0,
-          // Optional: Add a subtle scale effect to emphasize the push? No, user wants 'Like really unfolded'
-        }}
-        transition={SPRING_PREMIUM}
-      >
+      <main className="flex-1 flex flex-col min-w-0 bg-[var(--neko-bg-primary)]">
         {currentNote ? (
           <div className="flex-1 flex min-h-0">
             <div className="flex-1 min-w-0">
-              <MarkdownEditor />
+              <MarkdownEditor isPeeking={isPeeking} peekOffset={sidebarWidth} />
             </div>
           </div>
         ) : (
           <div className="flex-1" />
         )}
-      </motion.main>
+      </main>
 
       <NoteSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
     </div >

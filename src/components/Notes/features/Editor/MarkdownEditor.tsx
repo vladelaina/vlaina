@@ -9,6 +9,7 @@ import { clipboard } from '@milkdown/kit/plugin/clipboard';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { Ellipsis, Star, HeartPulse } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
@@ -19,6 +20,7 @@ import { TitleInput } from './TitleInput';
 import { CoverImage } from './CoverImage';
 import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
 import { getCurrentVaultPath } from '@/stores/notes/storage';
+import { SPRING_PREMIUM } from '@/lib/animations';
 
 // Custom plugins - unified import
 import {
@@ -201,7 +203,47 @@ function MilkdownEditorInner() {
   );
 }
 
-export function MarkdownEditor() {
+// Golden ratio constant
+const PHI = 1.618033988749895;
+
+// Calculate the horizontal offset to center content at golden ratio point
+// When peeking, we need to recalculate based on remaining space
+function calculateGoldenOffset(viewportWidth: number, contentWidth: number, sidebarWidth: number, isPeeking: boolean): number {
+  if (!isPeeking) {
+    return 0; // Normal state: CSS handles centering
+  }
+  
+  // Available space when sidebar is showing
+  const availableWidth = viewportWidth - sidebarWidth;
+  
+  // Golden ratio center point in available space (from left edge of available area)
+  // Using 1/PHI ≈ 0.618 to place content at the "golden" position
+  const goldenCenterInAvailable = availableWidth / PHI;
+  
+  // Current center point (when content is centered in full viewport)
+  const currentCenter = viewportWidth / 2;
+  
+  // Target center point (golden ratio in available space, offset by sidebar)
+  const targetCenter = sidebarWidth + goldenCenterInAvailable / 2 + (availableWidth - goldenCenterInAvailable) / 2;
+  
+  return sidebarWidth / 2;
+}
+
+export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeeking?: boolean; peekOffset?: number }) {
+  const [viewportWidth, setViewportWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  // Track viewport width for golden ratio calculation
+  useEffect(() => {
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Calculate the offset to maintain golden ratio positioning
+  const contentOffset = useMemo(() => {
+    return calculateGoldenOffset(viewportWidth, 900, peekOffset, isPeeking);
+  }, [viewportWidth, peekOffset, isPeeking]);
+
   const currentNote = useNotesStore(s => s.currentNote);
   const isStarred = useNotesStore(s => s.isStarred);
   const toggleStarred = useNotesStore(s => s.toggleStarred);
@@ -355,6 +397,7 @@ export function MarkdownEditor() {
       </div>
 
       <div className="flex-1 overflow-auto neko-scrollbar flex flex-col items-center relative">
+        {/* Cover stays fixed - no animation */}
         <CoverImage
           url={coverUrl}
           positionX={coverX}
@@ -367,129 +410,136 @@ export function MarkdownEditor() {
           onPickerOpenChange={setShowCoverPicker}
         />
 
-        <div className={cn(
-          EDITOR_LAYOUT_CLASS,
-          "z-10 relative transition-[margin] duration-150 ease-out",
-          // Pull content up to overlap with cover (Notion-style)
-          coverUrl && "mt-[-48px]"
-        )}>
-          {/* Clickable area to add cover - entire top padding area */}
-          {!coverUrl && (
+        {/* Content area with peek animation - maintains golden ratio positioning */}
+        <motion.div
+          className="w-full flex flex-col items-center"
+          animate={{ x: contentOffset }}
+          transition={SPRING_PREMIUM}
+        >
+          <div className={cn(
+            EDITOR_LAYOUT_CLASS,
+            "z-10 relative transition-[margin] duration-150 ease-out",
+            // Pull content up to overlap with cover (Notion-style)
+            coverUrl && "mt-[-48px]"
+          )}>
+            {/* Clickable area to add cover - entire top padding area */}
+            {!coverUrl && (
+              <div
+                className="absolute top-0 left-0 right-0 h-20 cursor-pointer hover:bg-[var(--neko-hover)]/30 transition-colors"
+                onClick={() => {
+                  // Get all available covers (user uploads + built-in)
+                  const allCovers = useNotesStore.getState().getAssetList();
+                  let randomCover: string;
+
+                  if (allCovers.length > 0) {
+                    // Random from all available covers
+                    const randomIndex = Math.floor(Math.random() * allCovers.length);
+                    randomCover = allCovers[randomIndex].filename;
+                  } else {
+                    // Fallback to built-in if no covers loaded yet
+                    randomCover = getRandomBuiltinCover();
+                  }
+
+                  handleCoverUpdate(randomCover, 50, 50, 200, 1);
+                  setShowCoverPicker(true);
+                }}
+              />
+            )}
             <div
-              className="absolute top-0 left-0 right-0 h-20 cursor-pointer hover:bg-[var(--neko-hover)]/30 transition-colors"
-              onClick={() => {
-                // Get all available covers (user uploads + built-in)
-                const allCovers = useNotesStore.getState().getAssetList();
-                let randomCover: string;
+              className={cn(
+                "pb-4 transition-all duration-150",
+                // If cover exists, minimal top padding since icon overlaps cover
+                // If no cover, use comfortable top padding (Notion-style ~80px)
+                coverUrl ? "pt-0" : "pt-20"
+              )}
+              onMouseEnter={() => setIsHoveringHeader(true)}
+              onMouseLeave={() => setIsHoveringHeader(false)}
+            >
 
-                if (allCovers.length > 0) {
-                  // Random from all available covers
-                  const randomIndex = Math.floor(Math.random() * allCovers.length);
-                  randomCover = allCovers[randomIndex].filename;
-                } else {
-                  // Fallback to built-in if no covers loaded yet
-                  randomCover = getRandomBuiltinCover();
-                }
-
-                handleCoverUpdate(randomCover, 50, 50, 200, 1);
-                setShowCoverPicker(true);
-              }}
-            />
-          )}
-          <div
-            className={cn(
-              "pb-4 transition-all duration-150",
-              // If cover exists, minimal top padding since icon overlaps cover
-              // If no cover, use comfortable top padding (Notion-style ~80px)
-              coverUrl ? "pt-0" : "pt-20"
-            )}
-            onMouseEnter={() => setIsHoveringHeader(true)}
-            onMouseLeave={() => setIsHoveringHeader(false)}
-          >
-
-            {displayIcon ? (
-              <div className="relative h-[60px] flex items-center">
-                <button
-                  ref={iconButtonRef}
-                  onClick={() => setShowIconPicker(true)}
-                  className="hover:scale-105 transition-transform cursor-pointer flex items-center -ml-1.5"
-                >
-                  <NoteIcon icon={displayIcon} size={60} />
-                </button>
-              </div>
-            ) : showIconPicker ? (
-              <div className="h-14 flex items-center">
-                <button
-                  ref={iconButtonRef}
-                  className={cn(
-                    "flex items-center gap-1.5 py-1 rounded-md text-sm",
-                    iconButtonStyles
-                  )}
-                >
-                  <HeartPulse className="size-4" />
-                  <span>Add icon</span>
-                </button>
-              </div>
-            ) : (
-              <div className={cn(
-                "flex items-center gap-2 transition-all duration-150",
-                isHoveringHeader ? "opacity-100" : "opacity-0 pointer-events-none"
-              )}>
-                <button
-                  ref={iconButtonRef}
-                  onClick={() => {
-                    if (!noteIcon) {
-                      const currentSkinTone = loadSkinTone();
-                      const randomEmoji = getRandomEmoji(currentSkinTone);
-                      handleIconSelect(randomEmoji);
-                      // Add to recent icons so it appears in the picker's recent list
-                      const currentRecent = loadRecentIcons();
-                      addToRecentIcons(randomEmoji, currentRecent);
-                    }
-                    setShowIconPicker(true);
-                  }}
-                  className={cn(
-                    "flex items-center gap-1.5 py-1 rounded-md text-sm",
-                    iconButtonStyles
-                  )}
-                >
-                  <HeartPulse className="size-4" />
-                  <span>Add icon</span>
-                </button>
-              </div>
-            )}
-
-            {showIconPicker && (
-              <div className="relative">
-                <div className="absolute top-2 left-0 z-50">
-                  <IconPicker
-                    onSelect={handleIconSelect}
-                    onPreview={handleIconPreview}
-                    onRemove={handleRemoveIcon}
-                    onClose={handleIconPickerClose}
-                    hasIcon={!!noteIcon}
-                    currentIcon={noteIcon}
-                  />
+              {displayIcon ? (
+                <div className="relative h-[60px] flex items-center">
+                  <button
+                    ref={iconButtonRef}
+                    onClick={() => setShowIconPicker(true)}
+                    className="hover:scale-105 transition-transform cursor-pointer flex items-center -ml-1.5"
+                  >
+                    <NoteIcon icon={displayIcon} size={60} />
+                  </button>
                 </div>
+              ) : showIconPicker ? (
+                <div className="h-14 flex items-center">
+                  <button
+                    ref={iconButtonRef}
+                    className={cn(
+                      "flex items-center gap-1.5 py-1 rounded-md text-sm",
+                      iconButtonStyles
+                    )}
+                  >
+                    <HeartPulse className="size-4" />
+                    <span>Add icon</span>
+                  </button>
+                </div>
+              ) : (
+                <div className={cn(
+                  "flex items-center gap-2 transition-all duration-150",
+                  isHoveringHeader ? "opacity-100" : "opacity-0 pointer-events-none"
+                )}>
+                  <button
+                    ref={iconButtonRef}
+                    onClick={() => {
+                      if (!noteIcon) {
+                        const currentSkinTone = loadSkinTone();
+                        const randomEmoji = getRandomEmoji(currentSkinTone);
+                        handleIconSelect(randomEmoji);
+                        // Add to recent icons so it appears in the picker's recent list
+                        const currentRecent = loadRecentIcons();
+                        addToRecentIcons(randomEmoji, currentRecent);
+                      }
+                      setShowIconPicker(true);
+                    }}
+                    className={cn(
+                      "flex items-center gap-1.5 py-1 rounded-md text-sm",
+                      iconButtonStyles
+                    )}
+                  >
+                    <HeartPulse className="size-4" />
+                    <span>Add icon</span>
+                  </button>
+                </div>
+              )}
+
+              {showIconPicker && (
+                <div className="relative">
+                  <div className="absolute top-2 left-0 z-50">
+                    <IconPicker
+                      onSelect={handleIconSelect}
+                      onPreview={handleIconPreview}
+                      onRemove={handleRemoveIcon}
+                      onClose={handleIconPickerClose}
+                      hasIcon={!!noteIcon}
+                      currentIcon={noteIcon}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Title Input Component - Independent from Editor Content */}
+            {currentNote && (
+              <div className="mb-4">
+                <TitleInput
+                  notePath={currentNote.path}
+                  initialTitle={noteName}
+                />
               </div>
             )}
+
           </div>
 
-          {/* Title Input Component - Independent from Editor Content */}
-          {currentNote && (
-            <div className="mb-4">
-              <TitleInput
-                notePath={currentNote.path}
-                initialTitle={noteName}
-              />
-            </div>
-          )}
-
-        </div>
-
-        <MilkdownProvider key={currentNote?.path}>
-          <MilkdownEditorInner />
-        </MilkdownProvider>
+          <MilkdownProvider key={currentNote?.path}>
+            <MilkdownEditorInner />
+          </MilkdownProvider>
+        </motion.div>
       </div>
     </div>
   );
