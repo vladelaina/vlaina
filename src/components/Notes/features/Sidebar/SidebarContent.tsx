@@ -12,6 +12,7 @@ interface SidebarContentProps {
     createNote: () => void;
     createFolder: (path: string) => void;
     className?: string;
+    isPeeking?: boolean;
 }
 
 export function SidebarContent({
@@ -21,11 +22,15 @@ export function SidebarContent({
     currentNote,
     createNote,
     createFolder,
-    className
+    className,
+    isPeeking = false
 }: SidebarContentProps) {
     return (
         <div className={cn("flex flex-col h-full", className)}>
-            <div className="flex-1 overflow-auto neko-scrollbar px-2 pt-2">
+            <div className={cn(
+                "flex-1 overflow-auto neko-scrollbar px-2",
+                isPeeking ? "pt-4 pb-4 neko-scrollbar-rounded" : "pt-2"
+            )}>
                 <div className="pb-2">
                     <button
                         onClick={onSearchClick}

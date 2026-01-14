@@ -162,7 +162,7 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
         style={{ backgroundColor: NOTES_COLORS.sidebarBg }}
         onPeekChange={setIsPeeking}
       >
-        <SidebarContent {...sidebarContentProps} />
+        <SidebarContent {...sidebarContentProps} isPeeking />
       </HoverPeekOverlay>
 
       {

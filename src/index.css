@@ -364,6 +364,13 @@ body {
   background-color: var(--neko-text-tertiary);
 }
 
+/* Scrollbar with rounded corner inset (for peek sidebar) */
+.neko-scrollbar-rounded::-webkit-scrollbar-track {
+  background: transparent;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
 /* Custom scrollbar container */
 .neko-scrollbar-custom {
   position: relative;
