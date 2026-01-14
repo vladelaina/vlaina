@@ -22,19 +22,19 @@ interface NotesPageProps {
 }
 
 export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
-  const {
-    rootFolder,
-    currentNote,
-    isLoading,
-    loadFileTree,
-    createNote,
-    createFolder,
-    openNote,
-    openTabs,
-    closeTab,
-    loadFavorites,
-    loadMetadata,
-  } = useNotesStore();
+  // CRITICAL: Only subscribe to what we actually render.
+  // We do NOT need currentNote.content here, only whether a note exists.
+  const rootFolder = useNotesStore(s => s.rootFolder);
+  const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const isLoading = useNotesStore(s => s.isLoading);
+  const loadFileTree = useNotesStore(s => s.loadFileTree);
+  const createNote = useNotesStore(s => s.createNote);
+  const createFolder = useNotesStore(s => s.createFolder);
+  const openNote = useNotesStore(s => s.openNote);
+  const openTabs = useNotesStore(s => s.openTabs);
+  const closeTab = useNotesStore(s => s.closeTab);
+  const loadFavorites = useNotesStore(s => s.loadFavorites);
+  const loadMetadata = useNotesStore(s => s.loadMetadata);
 
   const { currentVault } = useVaultStore();
 
@@ -56,7 +56,8 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
   const [showSearch, setShowSearch] = useState(false);
 
   // Load assets and cleanup temp files when vault is present
-  const { loadAssets, cleanupAssetTempFiles } = useNotesStore();
+  const loadAssets = useNotesStore(s => s.loadAssets);
+  const cleanupAssetTempFiles = useNotesStore(s => s.cleanupAssetTempFiles);
 
   // Unlock main window resizable when vault is present
   useEffect(() => {
@@ -84,7 +85,7 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Tab' && e.ctrlKey && openTabs.length > 1) {
         e.preventDefault();
-        const currentIndex = openTabs.findIndex(t => t.path === currentNote?.path);
+        const currentIndex = openTabs.findIndex(t => t.path === currentNotePath);
         if (currentIndex === -1) return;
 
         let nextIndex: number;
@@ -97,9 +98,9 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
         openNote(openTabs[nextIndex].path);
       }
 
-      if (e.key === 'w' && e.ctrlKey && !e.shiftKey && !e.altKey && currentNote) {
+      if (e.key === 'w' && e.ctrlKey && !e.shiftKey && !e.altKey && currentNotePath) {
         e.preventDefault();
-        closeTab(currentNote.path);
+        closeTab(currentNotePath);
       }
 
       // Search shortcut: Ctrl+K or Cmd+K
@@ -111,7 +112,7 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [openTabs, currentNote, openNote, closeTab]);
+  }, [openTabs, currentNotePath, openNote, closeTab]);
 
   // Show vault welcome if no vault selected
   if (!currentVault) {
@@ -127,7 +128,7 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
     onSearchClick: () => setShowSearch(true),
     rootFolder,
     isLoading,
-    currentNote,
+    currentNotePath,
     createNote,
     createFolder: (path: string) => createFolder(path),
   };
@@ -195,7 +196,7 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
 
 
       <main className="flex-1 flex flex-col min-w-0 bg-[var(--neko-bg-primary)]">
-        {currentNote ? (
+        {currentNotePath ? (
           <div className="flex-1 flex min-h-0">
             <div className="flex-1 min-w-0">
               <MarkdownEditor isPeeking={isPeeking} peekOffset={sidebarWidth} />

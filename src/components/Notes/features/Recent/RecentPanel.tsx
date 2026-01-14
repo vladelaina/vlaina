@@ -14,7 +14,7 @@ interface RecentPanelProps {
 }
 
 export function RecentPanel({ onNoteClick }: RecentPanelProps) {
-  const { recentNotes } = useNotesStore();
+  const recentNotes = useNotesStore(s => s.recentNotes);
   const [isExpanded, setIsExpanded] = useState(true);
 
   // Get note name from path

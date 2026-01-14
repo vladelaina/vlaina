@@ -8,7 +8,7 @@ interface SidebarContentProps {
     onSearchClick: () => void;
     rootFolder: any; // Using exact types would be better but keeping it flexible for now matching useNotesStore
     isLoading: boolean;
-    currentNote?: { path: string } | null;
+    currentNotePath?: string | null;
     createNote: () => void;
     createFolder: (path: string) => void;
     className?: string;
@@ -19,7 +19,7 @@ export function SidebarContent({
     onSearchClick,
     rootFolder,
     isLoading,
-    currentNote,
+    currentNotePath,
     createNote,
     createFolder,
     className,
@@ -60,7 +60,7 @@ export function SidebarContent({
                 <WorkspaceSection
                     rootFolder={rootFolder}
                     isLoading={isLoading}
-                    currentNotePath={currentNote?.path}
+                    currentNotePath={currentNotePath ?? undefined}
                     onCreateNote={createNote}
                     onCreateFolder={() => createFolder('')}
                 />

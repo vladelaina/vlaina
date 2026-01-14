@@ -1,6 +1,6 @@
 // MarkdownEditor - WYSIWYG Markdown editor using Milkdown
 
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Editor, rootCtx, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
@@ -20,7 +20,7 @@ import { TitleInput } from './TitleInput';
 import { CoverImage } from './CoverImage';
 import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
 import { getCurrentVaultPath } from '@/stores/notes/storage';
-import { SPRING_PREMIUM, SPRING_FLASH } from '@/lib/animations';
+import { SPRING_FLASH } from '@/lib/animations';
 
 // Custom plugins - unified import
 import {
@@ -77,7 +77,9 @@ const customPlugins = [
 
 
 
-function MilkdownEditorInner() {
+const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
+
+
   const updateContent = useNotesStore(s => s.updateContent);
   const saveNote = useNotesStore(s => s.saveNote);
   const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
@@ -86,13 +88,13 @@ function MilkdownEditorInner() {
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hasAutoFocused = useRef(false);
 
-  // Calculate initial content by stripping First H1 if it matches filename
-  // No longer stripping the First H1. User has full control.
+  // Read initial content from store without subscribing to updates
   // We read from .getState() to avoid subscribing to content updates
   const initialContent = useMemo(() => {
     return useNotesStore.getState().currentNote?.content || '';
   }, [currentNotePath]);
 
+  // Debounced auto-save (2s after last edit)
   const debouncedSave = useCallback(() => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -133,22 +135,17 @@ function MilkdownEditorInner() {
 
         ctx.get(listenerCtx)
           .markdownUpdated((_ctx, markdown) => {
-            // Only apply safety guard during initialization period
+            // Safety guard: prevent accidental wipe during initialization
             const isInitializing = Date.now() - initTime < INIT_PERIOD;
-
-            if (isInitializing) {
-              const contentWasSubstantial = initialContent.length > 20;
-              const newContentIsTiny = markdown.trim().length < 5;
-
-              if (contentWasSubstantial && newContentIsTiny) {
-                console.warn('Prevented accidental note wipe on initialization');
-                return;
-              }
+            if (isInitializing && initialContent.length > 20 && markdown.trim().length < 5) {
+              return;
             }
-
-            // Save raw markdown directly (without re-adding title)
-            updateContent(markdown);
-            debouncedSave();
+            // CRITICAL: Defer state update to next frame to not block IME input
+            // This ensures the browser paints the character before React processes state
+            requestAnimationFrame(() => {
+              updateContent(markdown);
+              debouncedSave();
+            });
           });
       })
       .use(commonmark)
@@ -205,7 +202,7 @@ function MilkdownEditorInner() {
       <Milkdown />
     </div>
   );
-}
+});
 
 
 
