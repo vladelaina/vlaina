@@ -85,7 +85,7 @@ export function LocalFileTree({ repoId, owner, repo, depth, subPath = '' }: Loca
       {entries.map((entry) => {
         const relativePath = subPath ? `${subPath}/${entry.name}` : entry.name;
         const fileStatus = repoGitStatus.find(s => s.path === relativePath);
-        
+
         return (
           <LocalFileTreeItem
             key={entry.name}
@@ -133,16 +133,16 @@ function LocalFileTreeItem({
 }: LocalFileTreeItemProps) {
   const isFolder = entry.isDirectory;
   const isMdFile = !isFolder && entry.name.endsWith('.md');
-  
+
   // Get current note path from notes store to highlight active file
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const openNoteByAbsolutePath = useNotesStore(s => s.openNoteByAbsolutePath);
-  
+
   // Check if this file is currently active
   const fullFilePath = `${localRepoPath}/${relativePath}`.replace(/\\/g, '/');
-  const isActive = currentNotePath === fullFilePath || 
-                   currentNotePath?.replace(/\\/g, '/') === fullFilePath;
-  
+  const isActive = currentNotePath === fullFilePath ||
+    currentNotePath?.replace(/\\/g, '/') === fullFilePath;
+
   const paddingLeft = 8 + depth * 16;
 
   const [showMenu, setShowMenu] = useState(false);
@@ -204,7 +204,7 @@ function LocalFileTreeItem({
       >
         {/* Indent spacer */}
         <div style={{ width: paddingLeft }} className="flex-shrink-0" />
-        
+
         {/* Content with background - same as FileTreeItem */}
         <div
           className={cn(
@@ -235,7 +235,7 @@ function LocalFileTreeItem({
             </span>
           ) : (
             <span className="w-4 h-4 flex items-center justify-center">
-              <FileText className={cn("w-4 h-4 text-[var(--neko-icon-secondary)]", getStatusColor())} />
+              <FileText className={cn("w-4 h-4 text-amber-500", getStatusColor())} />
             </span>
           )}
 
@@ -251,9 +251,9 @@ function LocalFileTreeItem({
           {/* Git status indicator */}
           {gitStatus && (
             <span className={cn("text-[10px] font-medium", getStatusColor())}>
-              {gitStatus === 'new' || gitStatus === 'untracked' ? 'U' : 
-               gitStatus === 'modified' ? 'M' : 
-               gitStatus === 'deleted' ? 'D' : ''}
+              {gitStatus === 'new' || gitStatus === 'untracked' ? 'U' :
+                gitStatus === 'modified' ? 'M' :
+                  gitStatus === 'deleted' ? 'D' : ''}
             </span>
           )}
 
@@ -284,11 +284,11 @@ function LocalFileTreeItem({
       {/* Context menu */}
       {showMenu && createPortal(
         <>
-          <div 
-            className="fixed inset-0 z-[9998]" 
+          <div
+            className="fixed inset-0 z-[9998]"
             onClick={() => setShowMenu(false)}
           />
-          <div 
+          <div
             style={{ top: menuPosition.top, left: menuPosition.left }}
             className={cn(
               "fixed z-[9999] min-w-[160px] py-1.5 rounded-lg shadow-lg",

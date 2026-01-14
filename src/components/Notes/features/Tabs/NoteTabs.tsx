@@ -40,8 +40,8 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
       className={cn(
         "group relative flex items-center gap-1.5 px-3 h-full cursor-pointer min-w-0 max-w-[180px]",
         "border-r border-[var(--neko-border)] transition-colors",
-        isActive 
-          ? "bg-[var(--neko-bg-primary)]" 
+        isActive
+          ? "bg-[var(--neko-bg-primary)]"
           : "bg-transparent hover:bg-[var(--neko-hover)]"
       )}
     >
@@ -49,35 +49,35 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
       {isActive && (
         <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--neko-accent)]" />
       )}
-      
+
       {icon ? (
         <span className="flex-shrink-0">
           <NoteIcon icon={icon} size={14} />
         </span>
       ) : (
-        <FileText 
+        <FileText
           className={cn(
             "w-3.5 h-3.5 flex-shrink-0",
-            isActive 
-              ? "text-[var(--neko-accent)]" 
-              : "text-[var(--neko-icon-secondary)]"
-          )} 
+            isActive
+              ? "text-[var(--neko-accent)]"
+              : "text-amber-500"
+          )}
         />
       )}
-      
+
       <span className={cn(
         "text-[12px] truncate",
-        isActive 
-          ? "text-[var(--neko-text-primary)]" 
+        isActive
+          ? "text-[var(--neko-text-primary)]"
           : "text-[var(--neko-text-secondary)]"
       )}>
         {displayName || tab.name}
       </span>
-      
+
       {tab.isDirty && (
         <span className="w-1.5 h-1.5 rounded-full bg-[var(--neko-accent)] flex-shrink-0" />
       )}
-      
+
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -102,17 +102,17 @@ interface NoteTabsProps {
   onTabMiddleClick: (path: string) => void;
 }
 
-export function NoteTabs({ 
-  tabs, 
-  activeTabPath, 
-  onTabClick, 
+export function NoteTabs({
+  tabs,
+  activeTabPath,
+  onTabClick,
   onTabClose,
-  onTabMiddleClick 
+  onTabMiddleClick
 }: NoteTabsProps) {
   if (tabs.length === 0) return null;
 
   return (
-    <div 
+    <div
       className={cn(
         "flex items-center h-[36px] overflow-x-auto neko-scrollbar",
         "bg-[var(--neko-bg-secondary)] border-b border-[var(--neko-border)]"

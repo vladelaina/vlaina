@@ -2,11 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { 
+import {
   ChevronRight,
   ChevronDown,
-  Ellipsis, 
-  Trash2, 
+  Ellipsis,
+  Trash2,
   Pencil,
   FileText,
   Folder,
@@ -48,13 +48,13 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
   const toggleFolderStarred = useNotesStore(s => s.toggleFolderStarred);
   const isStarred = useNotesStore(s => s.isStarred);
   const isFolderStarred = useNotesStore(s => s.isFolderStarred);
-  
+
   const isItemStarred = node.isFolder ? isFolderStarred(node.path) : isStarred(node.path);
-  
+
   const noteDisplayName = useDisplayName(node.isFolder ? undefined : node.path);
   const displayName = node.isFolder ? node.name : (noteDisplayName || node.name);
   const noteIcon = useDisplayIcon(node.isFolder ? undefined : node.path);
-  
+
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [isRenaming, setIsRenaming] = useState(false);
@@ -170,9 +170,9 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
+
     if (!node.isFolder) return;
-    
+
     const sourcePath = e.dataTransfer.getData('text/plain');
     if (sourcePath && sourcePath !== node.path && !sourcePath.startsWith(node.path + '/')) {
       await moveItem(sourcePath, node.path);
@@ -193,7 +193,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
       >
         {/* Indent spacer - no background */}
         <div style={{ width: paddingLeft }} className="flex-shrink-0" />
-        
+
         {/* Content with background */}
         <div
           className={cn(
@@ -203,92 +203,92 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
           )}
           style={isActive ? { backgroundColor: NOTES_COLORS.activeItem } : undefined}
         >
-        {node.isFolder ? (
-          <span className="w-4 h-4 flex items-center justify-center relative">
-            {/* Folder icon - hidden on hover */}
-            <span className="group-hover:hidden">
-              {node.expanded ? (
-                <FolderOpen className="w-4 h-4 text-amber-500" />
+          {node.isFolder ? (
+            <span className="w-4 h-4 flex items-center justify-center relative">
+              {/* Folder icon - hidden on hover */}
+              <span className="group-hover:hidden">
+                {node.expanded ? (
+                  <FolderOpen className="w-4 h-4 text-amber-500" />
+                ) : (
+                  <Folder className="w-4 h-4 text-amber-500" />
+                )}
+              </span>
+              {/* Chevron icon - shown on hover */}
+              <span className="hidden group-hover:block text-amber-500">
+                {node.expanded ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+              </span>
+            </span>
+          ) : (
+            <span className="w-4 h-4 flex items-center justify-center">
+              {noteIcon ? (
+                <NoteIcon icon={noteIcon} size={16} />
               ) : (
-                <Folder className="w-4 h-4 text-amber-500" />
+                <FileText className="w-4 h-4 text-amber-500" />
               )}
             </span>
-            {/* Chevron icon - shown on hover */}
-            <span className="hidden group-hover:block text-amber-500">
-              {node.expanded ? (
-                <ChevronDown className="w-4 h-4" />
-              ) : (
-                <ChevronRight className="w-4 h-4" />
-              )}
-            </span>
-          </span>
-        ) : (
-          <span className="w-4 h-4 flex items-center justify-center">
-            {noteIcon ? (
-              <NoteIcon icon={noteIcon} size={16} />
-            ) : (
-              <FileText className="w-4 h-4 text-[var(--neko-icon-secondary)]" />
-            )}
-          </span>
-        )}
-
-        {isRenaming ? (
-          <input
-            type="text"
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onBlur={handleRenameSubmit}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleRenameSubmit();
-              if (e.key === 'Escape') setIsRenaming(false);
-            }}
-            autoFocus
-            className={cn(
-              "flex-1 min-w-0 text-[13px] px-1.5 py-0.5 rounded",
-              "bg-[var(--neko-bg-primary)] border border-[var(--neko-accent)]",
-              "text-[var(--neko-text-primary)] outline-none"
-            )}
-            onClick={(e) => e.stopPropagation()}
-          />
-        ) : (
-          <span className={cn(
-            "flex-1 min-w-0 text-[13px] truncate text-[var(--neko-text-primary)]",
-            isActive && "font-medium"
-          )}>
-            {displayName}
-          </span>
-        )}
-
-        <button
-          ref={buttonRef}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!showMenu && buttonRef.current) {
-              const rect = buttonRef.current.getBoundingClientRect();
-              setMenuPosition({
-                top: rect.bottom + 4,
-                left: rect.right - 160,
-              });
-            }
-            setShowMenu(!showMenu);
-          }}
-          className={cn(
-            "p-0.5 opacity-0 group-hover:opacity-100 transition-opacity",
-            iconButtonStyles
           )}
-        >
-          <Ellipsis className="w-4 h-4" />
-        </button>
+
+          {isRenaming ? (
+            <input
+              type="text"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onBlur={handleRenameSubmit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleRenameSubmit();
+                if (e.key === 'Escape') setIsRenaming(false);
+              }}
+              autoFocus
+              className={cn(
+                "flex-1 min-w-0 text-[13px] px-1.5 py-0.5 rounded",
+                "bg-[var(--neko-bg-primary)] border border-[var(--neko-accent)]",
+                "text-[var(--neko-text-primary)] outline-none"
+              )}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span className={cn(
+              "flex-1 min-w-0 text-[13px] truncate text-[var(--neko-text-primary)]",
+              isActive && "font-medium"
+            )}>
+              {displayName}
+            </span>
+          )}
+
+          <button
+            ref={buttonRef}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!showMenu && buttonRef.current) {
+                const rect = buttonRef.current.getBoundingClientRect();
+                setMenuPosition({
+                  top: rect.bottom + 4,
+                  left: rect.right - 160,
+                });
+              }
+              setShowMenu(!showMenu);
+            }}
+            className={cn(
+              "p-0.5 opacity-0 group-hover:opacity-100 transition-opacity",
+              iconButtonStyles
+            )}
+          >
+            <Ellipsis className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
       {showMenu && createPortal(
         <>
-          <div 
-            className="fixed inset-0 z-[9998]" 
+          <div
+            className="fixed inset-0 z-[9998]"
             onClick={() => setShowMenu(false)}
           />
-          <div 
+          <div
             ref={menuRef}
             style={{ top: menuPosition.top, left: menuPosition.left }}
             className={cn(
@@ -298,34 +298,34 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
           >
             {node.isFolder && (
               <>
-                <MenuItem 
-                  icon={<FileText />} 
-                  label="New Note" 
-                  onClick={handleNewNoteInFolder} 
+                <MenuItem
+                  icon={<FileText />}
+                  label="New Note"
+                  onClick={handleNewNoteInFolder}
                 />
-                <MenuItem 
-                  icon={<Folder />} 
-                  label="New Folder" 
-                  onClick={handleNewFolderInFolder} 
+                <MenuItem
+                  icon={<Folder />}
+                  label="New Folder"
+                  onClick={handleNewFolderInFolder}
                 />
                 <div className="h-px bg-[var(--neko-divider)] my-1.5 mx-2" />
               </>
             )}
-            <MenuItem 
-              icon={<Pencil />} 
-              label="Rename" 
-              onClick={handleRename} 
+            <MenuItem
+              icon={<Pencil />}
+              label="Rename"
+              onClick={handleRename}
             />
-            <MenuItem 
-              icon={isItemStarred ? <Star className="text-yellow-500" fill="currentColor" /> : <Star />} 
-              label={isItemStarred ? "Remove from Favorites" : "Add to Favorites"} 
-              onClick={handleToggleStar} 
+            <MenuItem
+              icon={isItemStarred ? <Star className="text-yellow-500" fill="currentColor" /> : <Star />}
+              label={isItemStarred ? "Remove from Favorites" : "Add to Favorites"}
+              onClick={handleToggleStar}
             />
-            <MenuItem 
-              icon={<Trash2 />} 
-              label="Delete" 
+            <MenuItem
+              icon={<Trash2 />}
+              label="Delete"
               onClick={handleDeleteClick}
-              danger 
+              danger
             />
           </div>
         </>,
@@ -335,9 +335,9 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
       {node.isFolder && node.expanded && node.children.length > 0 && (
         <div>
           {node.children.map((child) => (
-            <FileTreeItem 
-              key={child.id} 
-              node={child} 
+            <FileTreeItem
+              key={child.id}
+              node={child}
               depth={depth + 1}
               currentNotePath={currentNotePath}
             />
@@ -346,7 +346,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
       )}
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent 
+        <DialogContent
           showCloseButton={false}
           className="bg-[var(--neko-bg-primary)] border-[var(--neko-border)] max-w-[320px]"
         >
@@ -385,14 +385,14 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
   );
 }
 
-function MenuItem({ 
-  icon, 
-  label, 
-  onClick, 
-  danger = false 
-}: { 
-  icon: React.ReactNode; 
-  label: string; 
+function MenuItem({
+  icon,
+  label,
+  onClick,
+  danger = false
+}: {
+  icon: React.ReactNode;
+  label: string;
   onClick: () => void;
   danger?: boolean;
 }) {
@@ -401,8 +401,8 @@ function MenuItem({
       onClick={onClick}
       className={cn(
         "w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] transition-colors",
-        danger 
-          ? "text-red-500 hover:bg-red-500/10" 
+        danger
+          ? "text-red-500 hover:bg-red-500/10"
           : "text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)]"
       )}
     >

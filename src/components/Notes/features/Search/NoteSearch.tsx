@@ -41,7 +41,7 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
   // Get recent notes as search results when no query
   const recentResults = useMemo(() => {
     if (query.trim() || !rootFolder) return [];
-    
+
     const findNote = (path: string, children: typeof rootFolder.children): SearchResult | null => {
       for (const node of children) {
         if (node.isFolder) {
@@ -96,7 +96,7 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
     };
 
     searchInFolder(rootFolder.children);
-    
+
     // Sort by match position (earlier matches first)
     matches.sort((a, b) => a.matchIndex - b.matchIndex);
     setResults(matches.slice(0, 10));
@@ -111,7 +111,7 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
 
   // Keyboard navigation
   const displayResults = query.trim() ? results : recentResults;
-  
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
       case 'ArrowDown':
@@ -146,11 +146,11 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Search Modal */}
       <div className="relative w-full max-w-lg bg-[var(--neko-bg-primary)] rounded-xl shadow-2xl border border-[var(--neko-border)] overflow-hidden">
         {/* Search Input */}
@@ -187,12 +187,12 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
                 onClick={() => handleResultClick(result)}
                 className={cn(
                   "w-full px-4 py-2 flex items-center gap-3 text-left transition-colors",
-                  index === selectedIndex 
-                    ? "bg-[var(--neko-accent-light)]" 
+                  index === selectedIndex
+                    ? "bg-[var(--neko-accent-light)]"
                     : "hover:bg-[var(--neko-hover)]"
                 )}
               >
-                <FileText className="w-4 h-4 text-[var(--neko-icon-secondary)] flex-shrink-0" />
+                <FileText className="w-4 h-4 text-amber-500 flex-shrink-0" />
                 <div className="min-w-0">
                   <div className="text-sm text-[var(--neko-text-primary)] truncate">
                     {result.name}

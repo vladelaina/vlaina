@@ -37,8 +37,8 @@ export function RecentPanel({ onNoteClick }: RecentPanelProps) {
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full px-3 py-2 flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider hover:bg-zinc-50 dark:hover:bg-zinc-800"
       >
-        <ChevronRight 
-          className={cn("size-3 transition-transform", isExpanded && "rotate-90")} 
+        <ChevronRight
+          className={cn("size-3 transition-transform", isExpanded && "rotate-90")}
         />
         <Clock className="size-3.5" />
         Recent
@@ -48,7 +48,7 @@ export function RecentPanel({ onNoteClick }: RecentPanelProps) {
           </span>
         )}
       </button>
-      
+
       {isExpanded && (
         <div className="pb-2 max-h-48 overflow-auto">
           {recentNotes.length === 0 ? (
@@ -70,7 +70,7 @@ export function RecentPanel({ onNoteClick }: RecentPanelProps) {
                     onClick={() => onNoteClick(path)}
                     className="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors group"
                   >
-                    <FileText className="size-4 text-zinc-400 flex-shrink-0" />
+                    <FileText className="size-4 text-amber-500 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <span className="text-sm text-zinc-700 dark:text-zinc-300 truncate block">
                         {getNoteName(path)}
