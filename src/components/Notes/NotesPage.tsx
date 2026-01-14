@@ -125,13 +125,16 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
     )}>
 
       {/* Static Sidebar */}
-      <aside
-        className={cn(
-          "flex-shrink-0 flex flex-col overflow-hidden select-none relative",
-          sidebarCollapsed && "w-0" // When collapsed, width is 0 but we keep it in DOM for structure if needed, or just let it vanish
-        )}
-        style={{
+      {/* Static Sidebar with Premium Physics */}
+      <motion.aside
+        initial={false}
+        animate={{
           width: sidebarCollapsed ? 0 : sidebarWidth,
+          opacity: 1
+        }}
+        transition={{ type: "spring", stiffness: 400, damping: 40 }}
+        className="flex-shrink-0 flex flex-col overflow-hidden select-none relative"
+        style={{
           backgroundColor: NOTES_COLORS.sidebarBg,
         }}
       >
@@ -143,7 +146,7 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
           createNote={createNote}
           createFolder={(path) => createFolder(path)}
         />
-      </aside>
+      </motion.aside>
 
       {/* Hover Peek - Trigger Zone & Floating Sidebar */}
       {sidebarCollapsed && (
