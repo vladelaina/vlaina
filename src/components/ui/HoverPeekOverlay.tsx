@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { SPRING_FLASH } from '@/lib/animations';
+import { SPRING_PREMIUM } from '@/lib/animations';
 
 interface HoverPeekOverlayProps {
     children: ReactNode;
@@ -49,10 +49,10 @@ export function HoverPeekOverlay({
                     // Safety: If user is dragging specific things (mouse btn down), don't trigger
                     if (e.buttons > 0) return;
 
-                    // Intent Detection: Wait 30ms (Virtually instant, just filters pixel noise)
+                    // Intent Detection: Wait 75ms (Perceptually instant, physically filter)
                     peekTimerRef.current = setTimeout(() => {
                         setIsPeeking(true);
-                    }, 30);
+                    }, 75);
                 }}
                 onMouseLeave={() => {
                     if (peekTimerRef.current) {
@@ -69,7 +69,7 @@ export function HoverPeekOverlay({
                         initial={{ x: -20, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: -20, opacity: 0 }}
-                        transition={SPRING_FLASH}
+                        transition={SPRING_PREMIUM}
                         className={cn(
                             "fixed top-12 left-3 bottom-3 z-[50]",
                             "shadow-2xl border border-black/5 dark:border-white/5 rounded-2xl",

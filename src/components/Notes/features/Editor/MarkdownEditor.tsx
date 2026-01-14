@@ -20,7 +20,7 @@ import { TitleInput } from './TitleInput';
 import { CoverImage } from './CoverImage';
 import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
 import { getCurrentVaultPath } from '@/stores/notes/storage';
-import { SPRING_FLASH } from '@/lib/animations';
+import { SPRING_PREMIUM } from '@/lib/animations';
 
 // Custom plugins - unified import
 import {
@@ -43,7 +43,6 @@ import {
   videoPlugin,
   abbrPlugin,
 } from './plugins';
-import { GAP_SCALE, CONTENT_MAX_WIDTH, PADDING_DESKTOP, PADDING_MOBILE, EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { configureTheme } from './theme';
 
 // Editor styles
@@ -77,8 +76,7 @@ const customPlugins = [
 
 // Shared Layout Constant to guarantee strict vertical alignment between Header and Body
 // using Golden Ratio-ish Max-Width (900px) and consistent fluid padding.
-// Now imported from @/lib/layout
-
+const EDITOR_LAYOUT_CLASS = "w-full max-w-[900px] px-12 md:px-24 shrink-0";
 
 function MilkdownEditorInner() {
   const { currentNote, updateContent, saveNote, isNewlyCreated } = useNotesStore();
@@ -199,40 +197,36 @@ function MilkdownEditorInner() {
   }, [get, isNewlyCreated, isEmptyContent]);
 
   return (
-    <div className={cn("milkdown-editor pointer-events-auto", EDITOR_LAYOUT_CLASS)}>
+    <div className={cn("milkdown-editor", EDITOR_LAYOUT_CLASS)}>
       <Milkdown />
     </div>
   );
 }
 
-// Calculate the horizontal offset to avoid collision with peeking sidebar
-// Uses a "Golden Safety Gap" to maintain aesthetic breathing room
-function calculateGoldenOffset(viewportWidth: number, sidebarWidth: number, isPeeking: boolean): number {
-  if (!isPeeking) return 0;
+// Golden ratio constant
+const PHI = 1.618033988749895;
 
-  // We need to account for padding because visual collision happens at the text, not the container edge.
-  // md breakpoint is 768px.
-  // Note: Padding is on both sides. We care about Left Padding.
-  const contentPadding = viewportWidth >= 768 ? PADDING_DESKTOP : PADDING_MOBILE;
+// Calculate the horizontal offset to center content at golden ratio point
+// When peeking, we need to recalculate based on remaining space
+function calculateGoldenOffset(viewportWidth: number, contentWidth: number, sidebarWidth: number, isPeeking: boolean): number {
+  if (!isPeeking) {
+    return 0; // Normal state: CSS handles centering
+  }
 
-  // 1. Calculate the "Natural" Left Edge of the text content
-  // Container Logic: (Viewport - ContentWidth) / 2
-  // Text Logic: ContainerLeft + Padding
-  const actualContainerWidth = Math.min(viewportWidth, CONTENT_MAX_WIDTH);
-  const containerLeftEdge = (viewportWidth - actualContainerWidth) / 2;
-  const naturalTextLeftEdge = containerLeftEdge + contentPadding;
+  // Available space when sidebar is showing
+  const availableWidth = viewportWidth - sidebarWidth;
 
-  // 2. Calculate the Safe Zone
-  // SidebarWidth + GoldenGap (Phi^4 ~ 37px)
-  const goldenGap = sidebarWidth / GAP_SCALE;
-  const safeZoneLimit = sidebarWidth + goldenGap;
+  // Golden ratio center point in available space (from left edge of available area)
+  // Using 1/PHI ≈ 0.618 to place content at the "golden" position
+  const goldenCenterInAvailable = availableWidth / PHI;
 
-  // 3. Calculate Required Shift
-  // Only shift if the safe zone encroaches on the text content
-  const intrusion = safeZoneLimit - naturalTextLeftEdge;
+  // Current center point (when content is centered in full viewport)
+  const currentCenter = viewportWidth / 2;
 
-  // If intrusion is positive, we need to shift right by that amount
-  return Math.max(0, intrusion);
+  // Target center point (golden ratio in available space, offset by sidebar)
+  const targetCenter = sidebarWidth + goldenCenterInAvailable / 2 + (availableWidth - goldenCenterInAvailable) / 2;
+
+  return sidebarWidth / 2;
 }
 
 export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeeking?: boolean; peekOffset?: number }) {
@@ -247,7 +241,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
 
   // Calculate the offset to maintain golden ratio positioning
   const contentOffset = useMemo(() => {
-    return calculateGoldenOffset(viewportWidth, peekOffset, isPeeking);
+    return calculateGoldenOffset(viewportWidth, 900, peekOffset, isPeeking);
   }, [viewportWidth, peekOffset, isPeeking]);
 
   const currentNote = useNotesStore(s => s.currentNote);
@@ -418,13 +412,13 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
 
         {/* Content area with peek animation - maintains golden ratio positioning */}
         <motion.div
-          className="w-full flex flex-col items-center z-40 pointer-events-none"
+          className="w-full flex flex-col items-center"
           animate={{ x: contentOffset }}
-          transition={SPRING_FLASH}
+          transition={SPRING_PREMIUM}
         >
           <div className={cn(
             EDITOR_LAYOUT_CLASS,
-            "z-10 relative",
+            "z-10 relative transition-[margin] duration-150 ease-out",
             // Pull content up to overlap with cover (Notion-style)
             coverUrl && "mt-[-48px]"
           )}>
@@ -463,11 +457,11 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
             >
 
               {displayIcon ? (
-                <div className="relative h-[60px] flex items-center z-40">
+                <div className="relative h-[60px] flex items-center">
                   <button
                     ref={iconButtonRef}
                     onClick={() => setShowIconPicker(true)}
-                    className="hover:scale-105 transition-transform cursor-pointer flex items-center -ml-1.5 pointer-events-auto"
+                    className="hover:scale-105 transition-transform cursor-pointer flex items-center -ml-1.5"
                   >
                     <NoteIcon icon={displayIcon} size={60} />
                   </button>
@@ -477,7 +471,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
                   <button
                     ref={iconButtonRef}
                     className={cn(
-                      "flex items-center gap-1.5 py-1 rounded-md text-sm pointer-events-auto",
+                      "flex items-center gap-1.5 py-1 rounded-md text-sm",
                       iconButtonStyles
                     )}
                   >
@@ -504,7 +498,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
                       setShowIconPicker(true);
                     }}
                     className={cn(
-                      "flex items-center gap-1.5 py-1 rounded-md text-sm pointer-events-auto",
+                      "flex items-center gap-1.5 py-1 rounded-md text-sm",
                       iconButtonStyles
                     )}
                   >
@@ -515,7 +509,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
               )}
 
               {showIconPicker && (
-                <div className="relative pointer-events-auto">
+                <div className="relative">
                   <div className="absolute top-2 left-0 z-50">
                     <IconPicker
                       onSelect={handleIconSelect}
@@ -532,7 +526,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
 
             {/* Title Input Component - Independent from Editor Content */}
             {currentNote && (
-              <div className="mb-4 pointer-events-auto">
+              <div className="mb-4">
                 <TitleInput
                   notePath={currentNote.path}
                   initialTitle={noteName}
