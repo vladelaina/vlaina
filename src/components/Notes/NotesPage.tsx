@@ -45,11 +45,12 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
 
   const { sidebarWidth, isDragging, handleDragStart } = useNotesSidebarResize();
 
+  const [isPeeking, setIsPeeking] = useState(false);
+
   const [showSearch, setShowSearch] = useState(false);
 
   // Load assets and cleanup temp files when vault is present
   const { loadAssets, cleanupAssetTempFiles } = useNotesStore();
-
 
   // Unlock main window resizable when vault is present
   useEffect(() => {
@@ -72,8 +73,6 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
 
     unlockWindow();
   }, [currentVault, loadFavorites, loadMetadata, loadAssets, loadFileTree, cleanupAssetTempFiles]);
-
-
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -117,6 +116,16 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
     );
   }
 
+  // Common props for both Sidebar instances to ensure strict reuse/consistency
+  const sidebarContentProps = {
+    onSearchClick: () => setShowSearch(true),
+    rootFolder,
+    isLoading,
+    currentNote,
+    createNote,
+    createFolder: (path: string) => createFolder(path),
+  };
+
   return (
     <div className={cn(
       "h-full flex overflow-hidden",
@@ -124,7 +133,6 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
       isDragging && "select-none cursor-col-resize"
     )}>
 
-      {/* Static Sidebar */}
       {/* Static Sidebar with Premium Physics */}
       <motion.aside
         initial={false}
@@ -138,29 +146,17 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
           backgroundColor: NOTES_COLORS.sidebarBg,
         }}
       >
-        <SidebarContent
-          onSearchClick={() => setShowSearch(true)}
-          rootFolder={rootFolder}
-          isLoading={isLoading}
-          currentNote={currentNote}
-          createNote={createNote}
-          createFolder={(path: string) => createFolder(path)}
-        />
+        <SidebarContent {...sidebarContentProps} />
       </motion.aside>
 
       {/* Hover Peek - Trigger Zone & Floating Sidebar */}
       <HoverPeekOverlay
         isEnabled={sidebarCollapsed}
+        width={sidebarWidth} // Sync with Golden Ratio width
         style={{ backgroundColor: NOTES_COLORS.sidebarBg }}
+        onPeekChange={setIsPeeking}
       >
-        <SidebarContent
-          onSearchClick={() => setShowSearch(true)}
-          rootFolder={rootFolder}
-          isLoading={isLoading}
-          currentNote={currentNote}
-          createNote={createNote}
-          createFolder={(path: string) => createFolder(path)}
-        />
+        <SidebarContent {...sidebarContentProps} />
       </HoverPeekOverlay>
 
       {
@@ -192,11 +188,16 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
       }
 
 
-      <main className="flex-1 flex flex-col min-w-0 bg-[var(--neko-bg-primary)]">
+      <motion.main
+        className="flex-1 flex flex-col min-w-0 bg-[var(--neko-bg-primary)]"
+        animate={{
+          x: isPeeking ? sidebarWidth : 0,
+          // Optional: Add a subtle scale effect to emphasize the push? No, user wants 'Like really unfolded'
+        }}
+        transition={SPRING_PREMIUM}
+      >
         {currentNote ? (
           <div className="flex-1 flex min-h-0">
-            {/* If peeking, we might want to push content or just overlay. 
-                 Decision: Overlay (as per plan & user request for "pop out"). */}
             <div className="flex-1 min-w-0">
               <MarkdownEditor />
             </div>
@@ -204,7 +205,7 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
         ) : (
           <div className="flex-1" />
         )}
-      </main>
+      </motion.main>
 
       <NoteSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
     </div >
