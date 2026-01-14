@@ -408,13 +408,13 @@ export function MarkdownEditor() {
           >
 
             {displayIcon ? (
-              <div className="relative h-14 flex items-center">
+              <div className="relative h-[60px] flex items-center">
                 <button
                   ref={iconButtonRef}
                   onClick={() => setShowIconPicker(true)}
-                  className="hover:scale-105 transition-transform cursor-pointer flex items-center -ml-1"
+                  className="hover:scale-105 transition-transform cursor-pointer flex items-center -ml-1.5"
                 >
-                  <NoteIcon icon={displayIcon} size={48} />
+                  <NoteIcon icon={displayIcon} size={60} />
                 </button>
               </div>
             ) : showIconPicker ? (
