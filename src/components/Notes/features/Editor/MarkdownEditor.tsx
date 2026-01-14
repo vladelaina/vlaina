@@ -197,36 +197,15 @@ function MilkdownEditorInner() {
   }, [get, isNewlyCreated, isEmptyContent]);
 
   return (
-    <div className={cn("milkdown-editor", EDITOR_LAYOUT_CLASS)}>
+    <div className={cn("milkdown-editor pointer-events-auto", EDITOR_LAYOUT_CLASS)}>
       <Milkdown />
     </div>
   );
 }
 
 // Golden ratio constant
-const PHI = 1.618033988749895;
-
-// Calculate the horizontal offset to center content at golden ratio point
-// When peeking, we need to recalculate based on remaining space
-function calculateGoldenOffset(viewportWidth: number, contentWidth: number, sidebarWidth: number, isPeeking: boolean): number {
-  if (!isPeeking) {
-    return 0; // Normal state: CSS handles centering
-  }
-  
-  // Available space when sidebar is showing
-  const availableWidth = viewportWidth - sidebarWidth;
-  
-  // Golden ratio center point in available space (from left edge of available area)
-  // Using 1/PHI ≈ 0.618 to place content at the "golden" position
-  const goldenCenterInAvailable = availableWidth / PHI;
-  
-  // Current center point (when content is centered in full viewport)
-  const currentCenter = viewportWidth / 2;
-  
-  // Target center point (golden ratio in available space, offset by sidebar)
-  const targetCenter = sidebarWidth + goldenCenterInAvailable / 2 + (availableWidth - goldenCenterInAvailable) / 2;
-  
-  return sidebarWidth / 2;
+function calculateGoldenOffset(_viewportWidth: number, sidebarWidth: number, isPeeking: boolean): number {
+  return isPeeking ? sidebarWidth / 2 : 0;
 }
 
 export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeeking?: boolean; peekOffset?: number }) {
@@ -241,7 +220,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
 
   // Calculate the offset to maintain golden ratio positioning
   const contentOffset = useMemo(() => {
-    return calculateGoldenOffset(viewportWidth, 900, peekOffset, isPeeking);
+    return calculateGoldenOffset(viewportWidth, peekOffset, isPeeking);
   }, [viewportWidth, peekOffset, isPeeking]);
 
   const currentNote = useNotesStore(s => s.currentNote);
@@ -412,7 +391,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
 
         {/* Content area with peek animation - maintains golden ratio positioning */}
         <motion.div
-          className="w-full flex flex-col items-center"
+          className="w-full flex flex-col items-center z-40 pointer-events-none"
           animate={{ x: contentOffset }}
           transition={SPRING_PREMIUM}
         >
@@ -457,11 +436,11 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
             >
 
               {displayIcon ? (
-                <div className="relative h-[60px] flex items-center">
+                <div className="relative h-[60px] flex items-center z-40">
                   <button
                     ref={iconButtonRef}
                     onClick={() => setShowIconPicker(true)}
-                    className="hover:scale-105 transition-transform cursor-pointer flex items-center -ml-1.5"
+                    className="hover:scale-105 transition-transform cursor-pointer flex items-center -ml-1.5 pointer-events-auto"
                   >
                     <NoteIcon icon={displayIcon} size={60} />
                   </button>
@@ -471,7 +450,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
                   <button
                     ref={iconButtonRef}
                     className={cn(
-                      "flex items-center gap-1.5 py-1 rounded-md text-sm",
+                      "flex items-center gap-1.5 py-1 rounded-md text-sm pointer-events-auto",
                       iconButtonStyles
                     )}
                   >
@@ -498,7 +477,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
                       setShowIconPicker(true);
                     }}
                     className={cn(
-                      "flex items-center gap-1.5 py-1 rounded-md text-sm",
+                      "flex items-center gap-1.5 py-1 rounded-md text-sm pointer-events-auto",
                       iconButtonStyles
                     )}
                   >
@@ -509,7 +488,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
               )}
 
               {showIconPicker && (
-                <div className="relative">
+                <div className="relative pointer-events-auto">
                   <div className="absolute top-2 left-0 z-50">
                     <IconPicker
                       onSelect={handleIconSelect}
@@ -526,7 +505,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
 
             {/* Title Input Component - Independent from Editor Content */}
             {currentNote && (
-              <div className="mb-4">
+              <div className="mb-4 pointer-events-auto">
                 <TitleInput
                   notePath={currentNote.path}
                   initialTitle={noteName}
