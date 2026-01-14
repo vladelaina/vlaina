@@ -420,23 +420,9 @@ export function CoverImage({
             resizeRafRef.current = null;
         }
 
-        // Recalculate dragY based on new height and preserved pixel offset
-        const img = imgRef.current;
-        const container = containerRef.current;
-        if (img?.naturalWidth && container) {
-            const { overflowY } = calcImageDimensions(
-                container.clientWidth, currentHeightRef.current,
-                img.naturalWidth, img.naturalHeight,
-                currentScaleRef.current
-            );
-            // Convert preserved pixel offset back to percentage
-            const newDragY = overflowY > 0 ? Math.max(0, Math.min(100, (dragStartRef.current.pixelOffsetY / overflowY) * 100)) : 50;
-            setDragY(newDragY);
-            currentYRef.current = newDragY;
-            onUpdate(url, dragX, newDragY, currentHeightRef.current, currentScale);
-        } else {
-            onUpdate(url, dragX, dragY, currentHeightRef.current, currentScale);
-        }
+        // Just update with current height - maintain the same dragY (percentage alignment)
+        // This keeps the "focus point" (e.g. center) consistent even if dimensions changed
+        onUpdate(url, dragX, dragY, currentHeightRef.current, currentScale);
 
         setIsResizingHeight(false);
     }, [url, dragX, dragY, currentScale, onUpdate, handleResizeMouseMove]);
@@ -445,20 +431,6 @@ export function CoverImage({
         if (readOnly || !url) return;
         e.preventDefault();
         e.stopPropagation();
-
-        // Calculate and store current pixel offset
-        const img = imgRef.current;
-        const container = containerRef.current;
-        if (img?.naturalWidth && container) {
-            const { overflowY } = calcImageDimensions(
-                container.clientWidth, coverHeight,
-                img.naturalWidth, img.naturalHeight,
-                currentScaleRef.current
-            );
-            dragStartRef.current.pixelOffsetY = overflowY * dragY / 100;
-        } else {
-            dragStartRef.current.pixelOffsetY = 0;
-        }
 
         dragStartRef.current.mouseY = e.clientY;
         dragStartRef.current.height = coverHeight;
@@ -471,10 +443,21 @@ export function CoverImage({
 
         document.addEventListener('mousemove', handleResizeMouseMove);
         document.addEventListener('mouseup', handleResizeMouseUp);
-    }, [readOnly, url, coverHeight, dragY, handleResizeMouseMove, handleResizeMouseUp]);
+    }, [readOnly, url, coverHeight, handleResizeMouseMove, handleResizeMouseUp]);
 
     // Cover selection handler
     const handleCoverSelect = useCallback(async (assetPath: string) => {
+        // If selecting the same cover, useEffect[url] won't fire to clear preview
+        // So we must manually clear it and reset state
+        if (assetPath === url) {
+            setPreviewSrc(null);
+            isSelectingRef.current = false;
+            // Still reset position to default center
+            onUpdate(assetPath, 50, 50, coverHeight, 1);
+            setShowPicker(false);
+            return;
+        }
+
         isSelectingRef.current = true;
 
         const container = containerRef.current;
@@ -562,10 +545,9 @@ export function CoverImage({
             currentScale
         );
 
-        // During height resize, use fixed pixel offset to prevent visual jumping
-        const topOffset = isResizingHeight && dragStartRef.current.pixelOffsetY > 0
-            ? -dragStartRef.current.pixelOffsetY
-            : -(overflowY * dragY / 100);
+        // Always use percentage-based offset for responsive behavior
+        // This ensures the image "follows" the resize and behaves like background-position
+        const topOffset = -(overflowY * dragY / 100);
 
         return {
             position: 'absolute',
@@ -574,8 +556,10 @@ export function CoverImage({
             top: topOffset,
             maxWidth: 'none',
             maxHeight: 'none',
+            // Safety: Ensure image covers the box even if calculated W/H are mismatched (e.g. CSS squash)
+            objectFit: 'cover',
         };
-    }, [dragX, dragY, currentScale, coverHeight, containerWidth, isResizingHeight]);
+    }, [dragX, dragY, currentScale, coverHeight, containerWidth]);
 
     // Handle image load - mark as ready when dimensions are confirmed
     const handleImageLoad = useCallback(() => {
