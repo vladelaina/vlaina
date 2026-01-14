@@ -1,6 +1,8 @@
 // Premium spring physics for fluid UI interactions
 // Critically damped to avoid "cheap" oscillation while maintaining responsiveness
-export const SPRING_PREMIUM = { type: "spring", stiffness: 400, damping: 40 } as const;
+// Tuned for "Efficiency Tool" feel: High stiffness, low mass for instant response
+export const SPRING_PREMIUM = { type: "spring", stiffness: 800, damping: 40, mass: 0.2 } as const;
+export const SPRING_FLASH = { type: "spring", stiffness: 900, damping: 50, mass: 0.1 } as const;
 
 // Micro-scale breathing effect for entry animations
 export const VARIANTS_BREATHE = {

@@ -20,7 +20,7 @@ import { TitleInput } from './TitleInput';
 import { CoverImage } from './CoverImage';
 import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
 import { getCurrentVaultPath } from '@/stores/notes/storage';
-import { SPRING_PREMIUM } from '@/lib/animations';
+import { SPRING_FLASH } from '@/lib/animations';
 
 // Custom plugins - unified import
 import {
@@ -420,11 +420,11 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
         <motion.div
           className="w-full flex flex-col items-center z-40 pointer-events-none"
           animate={{ x: contentOffset }}
-          transition={SPRING_PREMIUM}
+          transition={SPRING_FLASH}
         >
           <div className={cn(
             EDITOR_LAYOUT_CLASS,
-            "z-10 relative transition-[margin] duration-150 ease-out",
+            "z-10 relative",
             // Pull content up to overlap with cover (Notion-style)
             coverUrl && "mt-[-48px]"
           )}>
