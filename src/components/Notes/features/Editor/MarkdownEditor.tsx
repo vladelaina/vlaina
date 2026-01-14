@@ -43,6 +43,7 @@ import {
   videoPlugin,
   abbrPlugin,
 } from './plugins';
+import { GAP_SCALE, CONTENT_MAX_WIDTH, PADDING_DESKTOP, PADDING_MOBILE, EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { configureTheme } from './theme';
 
 // Editor styles
@@ -76,7 +77,8 @@ const customPlugins = [
 
 // Shared Layout Constant to guarantee strict vertical alignment between Header and Body
 // using Golden Ratio-ish Max-Width (900px) and consistent fluid padding.
-const EDITOR_LAYOUT_CLASS = "w-full max-w-[900px] px-12 md:px-24 shrink-0";
+// Now imported from @/lib/layout
+
 
 function MilkdownEditorInner() {
   const { currentNote, updateContent, saveNote, isNewlyCreated } = useNotesStore();
@@ -203,9 +205,34 @@ function MilkdownEditorInner() {
   );
 }
 
-// Golden ratio constant
-function calculateGoldenOffset(_viewportWidth: number, sidebarWidth: number, isPeeking: boolean): number {
-  return isPeeking ? sidebarWidth / 2 : 0;
+// Calculate the horizontal offset to avoid collision with peeking sidebar
+// Uses a "Golden Safety Gap" to maintain aesthetic breathing room
+function calculateGoldenOffset(viewportWidth: number, sidebarWidth: number, isPeeking: boolean): number {
+  if (!isPeeking) return 0;
+
+  // We need to account for padding because visual collision happens at the text, not the container edge.
+  // md breakpoint is 768px.
+  // Note: Padding is on both sides. We care about Left Padding.
+  const contentPadding = viewportWidth >= 768 ? PADDING_DESKTOP : PADDING_MOBILE;
+
+  // 1. Calculate the "Natural" Left Edge of the text content
+  // Container Logic: (Viewport - ContentWidth) / 2
+  // Text Logic: ContainerLeft + Padding
+  const actualContainerWidth = Math.min(viewportWidth, CONTENT_MAX_WIDTH);
+  const containerLeftEdge = (viewportWidth - actualContainerWidth) / 2;
+  const naturalTextLeftEdge = containerLeftEdge + contentPadding;
+
+  // 2. Calculate the Safe Zone
+  // SidebarWidth + GoldenGap (Phi^4 ~ 37px)
+  const goldenGap = sidebarWidth / GAP_SCALE;
+  const safeZoneLimit = sidebarWidth + goldenGap;
+
+  // 3. Calculate Required Shift
+  // Only shift if the safe zone encroaches on the text content
+  const intrusion = safeZoneLimit - naturalTextLeftEdge;
+
+  // If intrusion is positive, we need to shift right by that amount
+  return Math.max(0, intrusion);
 }
 
 export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeeking?: boolean; peekOffset?: number }) {
