@@ -21,8 +21,8 @@ interface CoverImageProps {
 
 // Constants
 const MIN_HEIGHT = 120;
-const MAX_HEIGHT = 400;
-const DEFAULT_HEIGHT = 200;
+const MAX_HEIGHT = 500;
+const DEFAULT_HEIGHT = 255; // Symmetry with Sidebar (Golden Ratio recursion)
 const MIN_SCALE = 1;
 const MAX_SCALE = 3;
 const DRAG_THRESHOLD = 5;
@@ -645,7 +645,19 @@ export function CoverImage({
                     />
                 )}
                 {!readOnly && !showPicker && (
-                    <div className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-30" onMouseDown={handleResizeMouseDown} />
+                    <div
+                        className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-30 flex justify-center group/handle hover:h-3 transition-[height]"
+                        onMouseDown={handleResizeMouseDown}
+                        onDoubleClick={() => {
+                            // Calculate dynamic Golden Ratio height based on current viewport
+                            // 100vh / 1.618 / 1.618 / 1.618 ≈ 23.6vh
+                            const goldenHeight = Math.round(window.innerHeight * 0.236);
+
+                            setCoverHeight(goldenHeight);
+                            currentHeightRef.current = goldenHeight;
+                            onUpdate(url, dragX, dragY, goldenHeight, currentScale);
+                        }}
+                    />
                 )}
             </div>
             <CoverPicker
