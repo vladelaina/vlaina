@@ -162,7 +162,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   startDrag();
                 }
               }}
-              onMouseUp={(e) => {
+              onMouseUp={() => {
                 // If we didn't trigger a drag, it's a click
                 if (!isDraggingRef.current) {
                   onClose();
@@ -186,7 +186,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               <div className="w-[260px] flex-shrink-0 bg-[#F7F7F7] dark:bg-[#141414] flex flex-col border-r border-[#EEEEEE] dark:border-[#2C2C2C]">
                 {/* Header */}
                 <div className="px-6 pt-8 pb-4">
-                  <h2 className="text-[15px] font-bold text-zinc-900 dark:text-zinc-100">
+                  <h2 className="text-[16px] font-bold text-zinc-900 dark:text-zinc-100">
                     Settings
                   </h2>
                 </div>
@@ -245,7 +245,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                               key={item.id}
                               onClick={() => setActiveTab(item.id)}
                               className={cn(
-                                "w-full flex items-center gap-3 px-3.5 py-2 rounded-[8px] text-[13.5px] font-medium transition-all duration-200 relative",
+                                "w-full flex items-center gap-3 px-3.5 py-2 rounded-[8px] text-[13px] font-medium transition-all duration-200 relative",
                                 isActive
                                   ? "text-black dark:text-white shadow-[0_2px_4px_rgba(0,0,0,0.02),0_1px_0_rgba(0,0,0,0.02)]"
                                   : "text-zinc-600 dark:text-zinc-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-zinc-200"
@@ -289,10 +289,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   <div className="px-12 py-10 max-w-[800px] w-full mx-auto">
                     {/* Page Header */}
                     <div className="mb-10">
-                      <h1 className="text-[22px] font-bold text-[#111] dark:text-white mb-1.5 tracking-tight">
+                      <h1 className="text-[26px] font-bold text-[#111] dark:text-white mb-1.5 tracking-tight">
                         {getTabTitle(activeTab)}
                       </h1>
-                      <p className="text-[14px] text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-lg">
+                      <p className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-lg">
                         {getTabSubtitle(activeTab)}
                       </p>
                     </div>
