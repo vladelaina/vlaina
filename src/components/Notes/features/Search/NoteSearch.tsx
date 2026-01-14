@@ -147,7 +147,7 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-transparent"
         onClick={onClose}
       />
 
@@ -155,7 +155,6 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
       <div className="relative w-full max-w-lg bg-[var(--neko-bg-primary)] rounded-xl shadow-2xl border border-[var(--neko-border)] overflow-hidden">
         {/* Search Input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--neko-border)]">
-          <Search className="w-5 h-5 text-[var(--neko-icon-secondary)]" />
           <input
             ref={inputRef}
             type="text"
@@ -163,7 +162,7 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search notes..."
-            className="flex-1 bg-transparent text-sm text-[var(--neko-text-primary)] placeholder:text-[var(--neko-text-tertiary)] outline-none"
+            className="flex-1 bg-transparent text-[15px] text-[var(--neko-text-primary)] placeholder:text-[var(--neko-text-tertiary)] outline-none"
           />
           {query && (
             <button onClick={() => setQuery('')} className="p-1 hover:bg-[var(--neko-hover)] rounded">

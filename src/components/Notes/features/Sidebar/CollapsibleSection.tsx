@@ -38,19 +38,19 @@ export function CollapsibleSection({
   return (
     <div className={className}>
       {/* Header */}
-      <div className="px-2 py-1">
+      <div className="px-2 py-1 mb-0.5">
         <div
           onClick={handleHeaderClick}
-          className="group flex items-center justify-between px-2 py-1 rounded-md hover:bg-[var(--neko-hover)] transition-colors cursor-pointer"
+          className="group flex items-center justify-between px-2 py-1 rounded-[4px] cursor-pointer"
         >
-          <div className="flex items-center gap-1">
-            <span className="text-[11px] font-medium text-[var(--neko-text-tertiary)] tracking-wider">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-zinc-400 group-hover:text-zinc-600 dark:text-zinc-500 dark:group-hover:text-zinc-300 tracking-wider transition-colors">
               {title}
             </span>
-            <ToggleIcon expanded={expanded} size={14} className="text-[#CDCDCD]" />
+            <ToggleIcon expanded={expanded} size={12} className="text-zinc-300 group-hover:text-zinc-500 dark:text-zinc-600 dark:group-hover:text-zinc-400 transition-colors" />
           </div>
           {actions && (
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {actions}
             </div>
           )}

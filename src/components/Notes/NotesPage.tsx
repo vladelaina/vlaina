@@ -96,6 +96,12 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
         e.preventDefault();
         closeTab(currentNote.path);
       }
+
+      // Search shortcut: Ctrl+K or Cmd+K
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(prev => !prev);
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
@@ -138,7 +144,7 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
           isLoading={isLoading}
           currentNote={currentNote}
           createNote={createNote}
-          createFolder={(path) => createFolder(path)}
+          createFolder={(path: string) => createFolder(path)}
         />
       </motion.aside>
 
@@ -153,7 +159,7 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
           isLoading={isLoading}
           currentNote={currentNote}
           createNote={createNote}
-          createFolder={(path) => createFolder(path)}
+          createFolder={(path: string) => createFolder(path)}
         />
       </HoverPeekOverlay>
 

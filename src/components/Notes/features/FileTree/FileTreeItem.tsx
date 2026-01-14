@@ -189,7 +189,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
         onDrop={handleDrop}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-        className="flex items-center h-[30px] cursor-pointer"
+        className="flex items-center group py-[1px] cursor-pointer"
       >
         {/* Indent spacer - no background */}
         <div style={{ width: paddingLeft }} className="flex-shrink-0" />
@@ -197,8 +197,9 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
         {/* Content with background */}
         <div
           className={cn(
-            "group flex-1 flex items-center gap-1 h-full pr-2 rounded-md transition-colors",
-            "hover:bg-[var(--neko-hover)]",
+            "flex-1 flex items-center gap-2 pr-2 py-1.5 rounded-[6px] transition-all duration-200 ease-out mx-2",
+            "hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50",
+            isActive && "bg-zinc-200 dark:bg-zinc-800",
             isDragOver && "bg-[var(--neko-accent-light)] ring-1 ring-[var(--neko-accent)]"
           )}
           style={isActive ? { backgroundColor: NOTES_COLORS.activeItem } : undefined}
