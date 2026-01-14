@@ -41,11 +41,17 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
   const {
     notesSidebarCollapsed: sidebarCollapsed,
     setSidebarHeaderHovered,
+    setNotesSidebarPeeking,
   } = useUIStore();
 
   const { sidebarWidth, isDragging, handleDragStart } = useNotesSidebarResize();
 
   const [isPeeking, setIsPeeking] = useState(false);
+
+  // Sync peeking state to global store for TitleBar
+  useEffect(() => {
+    setNotesSidebarPeeking(isPeeking);
+  }, [isPeeking, setNotesSidebarPeeking]);
 
   const [showSearch, setShowSearch] = useState(false);
 

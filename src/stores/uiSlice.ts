@@ -21,6 +21,8 @@ interface UIStore {
   setNotesSidebarWidth: (width: number) => void;
   sidebarHeaderHovered: boolean;
   setSidebarHeaderHovered: (hovered: boolean) => void;
+  notesSidebarPeeking: boolean;
+  setNotesSidebarPeeking: (peeking: boolean) => void;
 
   notesPreviewIcon: { path: string; icon: string } | null;
   setNotesPreviewIcon: (path: string | null, icon: string | null) => void;
@@ -139,6 +141,8 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   setNotesSidebarWidth: (width) => set({ notesSidebarWidth: width }),
   sidebarHeaderHovered: false,
   setSidebarHeaderHovered: (hovered) => set({ sidebarHeaderHovered: hovered }),
+  notesSidebarPeeking: false,
+  setNotesSidebarPeeking: (peeking) => set({ notesSidebarPeeking: peeking }),
 
   notesPreviewIcon: null,
   setNotesPreviewIcon: (path, icon) => {

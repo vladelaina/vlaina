@@ -193,7 +193,7 @@ interface TitleBarProps {
 }
 
 export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls }: TitleBarProps) {
-  const { appViewMode, toggleAppViewMode, notesSidebarCollapsed, notesSidebarWidth, toggleNotesSidebar, sidebarHeaderHovered, setSidebarHeaderHovered } = useUIStore();
+  const { appViewMode, toggleAppViewMode, notesSidebarCollapsed, notesSidebarWidth, toggleNotesSidebar, sidebarHeaderHovered, setSidebarHeaderHovered, notesSidebarPeeking } = useUIStore();
   const { currentVault } = useVaultStore();
 
   const currentNote = useNotesStore(s => s.currentNote);
@@ -317,11 +317,16 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                   iconButtonStyles,
                   "group"
                 )}
-                title="Expand sidebar"
               >
-                {/* Default: Menu (Hamburger), Hover: ChevronsRight (>>) */}
-                <Menu className="w-4 h-4 group-hover:hidden" />
-                <ChevronsRight className="w-4 h-4 hidden group-hover:block" />
+                {/* When peeking: show ChevronsRight (>>), otherwise: Menu with hover effect */}
+                {notesSidebarPeeking ? (
+                  <ChevronsRight className="w-4 h-4" />
+                ) : (
+                  <>
+                    <Menu className="w-4 h-4 group-hover:hidden" />
+                    <ChevronsRight className="w-4 h-4 hidden group-hover:block" />
+                  </>
+                )}
               </button>
             </div>
           )}
