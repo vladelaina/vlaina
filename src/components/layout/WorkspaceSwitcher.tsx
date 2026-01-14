@@ -39,18 +39,34 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
     // Use logo as fallback when no avatar available
     const displayAvatar = githubAvatarUrl || "/logo.png";
 
-    const handleLogout = () => {
-        disconnect();
+    const handleLogout = async () => {
+        await disconnect();
         setIsOpen(false);
     };
 
-    const handleLogin = () => {
-        connect();
+    const handleLogin = async () => {
+        await connect();
         setIsOpen(false);
+    };
+
+    const handleSwitchAccount = async () => {
+        setIsOpen(false);
+        await connect();
     };
 
     const handleOpenSettings = () => {
         onOpenSettings?.();
+        setIsOpen(false);
+    };
+
+    const handleUpgradePlan = async () => {
+        const url = "https://nekotick.com/pricing";
+        if (isDesktop) {
+            const { openUrl } = await import('@tauri-apps/plugin-opener');
+            await openUrl(url);
+        } else {
+            window.open(url, "_blank");
+        }
         setIsOpen(false);
     };
 
@@ -160,9 +176,15 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                             </div>
 
                             <div className="flex items-center gap-1.5 leading-none">
-                                <span className="text-[11px] text-[var(--neko-text-tertiary)] font-medium">
+                                <button
+                                    onClick={handleUpgradePlan}
+                                    className={cn(
+                                        "text-[11px] font-medium px-1 py-0.5 rounded transition-colors",
+                                        iconButtonStyles
+                                    )}
+                                >
                                     {isProUser ? "Pro Plan" : "Free Plan"}
-                                </span>
+                                </button>
 
                                 <span className="text-[var(--neko-text-tertiary)] opacity-30 text-[10px]">·</span>
 
@@ -190,17 +212,22 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                                 />
                                 <div className="absolute left-[calc(100%-10px)] top-8 z-[70] w-40 p-1 rounded-lg bg-[var(--neko-bg-primary)] border border-[var(--neko-border)] shadow-xl animate-in fade-in-0 zoom-in-95 slide-in-from-top-1">
                                     <button
-                                        disabled
-                                        className="flex items-center gap-2 px-2 py-1.5 rounded-md w-full text-left text-[12px] font-medium text-[var(--neko-text-tertiary)] opacity-50 cursor-not-allowed"
+                                        onClick={handleSwitchAccount}
+                                        className={cn(
+                                            "flex items-center gap-2 px-2 py-1.5 rounded-md w-full text-left text-[12px] font-medium transition-colors",
+                                            iconButtonStyles
+                                        )}
                                     >
                                         <Users className="w-3.5 h-3.5" />
                                         Switch Account
                                     </button>
-                                    <div className="h-[1px] bg-[var(--neko-border)] my-1 opacity-50" />
                                     {isGithubConnected ? (
                                         <button
                                             onClick={handleLogout}
-                                            className="flex items-center gap-2 px-2 py-1.5 rounded-md w-full text-left text-[12px] font-medium text-[var(--neko-text-secondary)] hover:bg-[var(--neko-hover)] transition-colors"
+                                            className={cn(
+                                                "flex items-center gap-2 px-2 py-1.5 rounded-md w-full text-left text-[12px] font-medium transition-colors",
+                                                iconButtonStyles
+                                            )}
                                         >
                                             <LogOut className="w-3.5 h-3.5" />
                                             Log out
@@ -208,7 +235,10 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                                     ) : (
                                         <button
                                             onClick={handleLogin}
-                                            className="flex items-center gap-2 px-2 py-1.5 rounded-md w-full text-left text-[12px] font-medium text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)] transition-colors"
+                                            className={cn(
+                                                "flex items-center gap-2 px-2 py-1.5 rounded-md w-full text-left text-[12px] font-medium transition-colors",
+                                                iconButtonStyles
+                                            )}
                                         >
                                             <LogOut className="w-3.5 h-3.5 rotate-180" />
                                             Connect GitHub
