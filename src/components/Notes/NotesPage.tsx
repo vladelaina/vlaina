@@ -1,6 +1,6 @@
 // NotesPage - Main notes view container
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -10,9 +10,12 @@ import { NoteSearch } from './features/Search';
 import { VaultWelcome } from '@/components/VaultWelcome';
 import { SidebarContent } from './features/Sidebar/SidebarContent';
 import { useNotesSidebarResize } from '@/hooks/useSidebarResize';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { HoverPeekOverlay } from '@/components/ui/HoverPeekOverlay';
+import { SPRING_PREMIUM } from '@/lib/animations';
 import './features/BlockEditor/styles.css';
 import { cn, NOTES_COLORS } from '@/lib/utils';
+
 
 interface NotesPageProps {
   onOpenSettings?: () => void;
@@ -43,18 +46,9 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
   const { sidebarWidth, isDragging, handleDragStart } = useNotesSidebarResize();
 
   const [showSearch, setShowSearch] = useState(false);
-  const [isPeeking, setIsPeeking] = useState(false);
-  const peekTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load assets and cleanup temp files when vault is present
   const { loadAssets, cleanupAssetTempFiles } = useNotesStore();
-
-  // Clear timer on unmount
-  useEffect(() => {
-    return () => {
-      if (peekTimerRef.current) clearTimeout(peekTimerRef.current);
-    };
-  }, []);
 
 
   // Unlock main window resizable when vault is present
@@ -132,7 +126,7 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
           width: sidebarCollapsed ? 0 : sidebarWidth,
           opacity: 1
         }}
-        transition={{ type: "spring", stiffness: 400, damping: 40 }}
+        transition={SPRING_PREMIUM}
         className="flex-shrink-0 flex flex-col overflow-hidden select-none relative"
         style={{
           backgroundColor: NOTES_COLORS.sidebarBg,
@@ -149,84 +143,47 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
       </motion.aside>
 
       {/* Hover Peek - Trigger Zone & Floating Sidebar */}
-      {sidebarCollapsed && (
-        <>
-          {/* Trigger Zone - Invisible strip on the left edge with Intent Delay */}
-          <div
-            className="fixed top-0 left-0 bottom-0 w-12 z-[40]"
-            onMouseEnter={() => {
-              // Intent Detection: Wait 75ms (Perceptually instant, physically filter)
-              // With 48px width, a fast swipe (< 40ms) will leave before this fires.
-              peekTimerRef.current = setTimeout(() => {
-                setIsPeeking(true);
-              }, 75);
-            }}
-            onMouseLeave={() => {
-              // If user leaves quickly (e.g. exiting window or swipe), cancel peek
-              if (peekTimerRef.current) {
-                clearTimeout(peekTimerRef.current);
-                peekTimerRef.current = null;
-              }
-            }}
-          />
+      <HoverPeekOverlay
+        isEnabled={sidebarCollapsed}
+        style={{ backgroundColor: NOTES_COLORS.sidebarBg }}
+      >
+        <SidebarContent
+          onSearchClick={() => setShowSearch(true)}
+          rootFolder={rootFolder}
+          isLoading={isLoading}
+          currentNote={currentNote}
+          createNote={createNote}
+          createFolder={(path) => createFolder(path)}
+        />
+      </HoverPeekOverlay>
 
-          {/* Floating Sidebar Overlay */}
-          <AnimatePresence>
-            {isPeeking && (
-              <>
-                {/* Backdrop - Optional, maybe just click outside to close? 
-                     Actually Notion doesn't have a backdrop, it just closes when you leave. 
-                     Let's stick to "Leave to Close" for now. */}
-
-                <motion.aside
-                  initial={{ x: '-100%', opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: '-100%', opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 40 }}
-                  className="fixed top-0 left-0 bottom-0 w-[260px] z-[50] shadow-2xl border-r border-black/5 dark:border-white/5"
-                  style={{ backgroundColor: NOTES_COLORS.sidebarBg }}
-                  onMouseLeave={() => setIsPeeking(false)}
-                >
-                  <SidebarContent
-                    onSearchClick={() => setShowSearch(true)}
-                    rootFolder={rootFolder}
-                    isLoading={isLoading}
-                    currentNote={currentNote}
-                    createNote={createNote}
-                    createFolder={(path) => createFolder(path)}
-                  />
-                </motion.aside>
-              </>
-            )}
-          </AnimatePresence>
-        </>
-      )}
-
-      {!sidebarCollapsed && (
-        <>
-          <div className="w-0.5 flex-shrink-0" style={{ backgroundColor: NOTES_COLORS.sidebarBg }} />
-          <div
-            onMouseDown={handleDragStart}
-            onMouseEnter={() => setSidebarHeaderHovered(true)}
-            onMouseLeave={() => setSidebarHeaderHovered(false)}
-            className={cn(
-              "w-2 cursor-col-resize group",
-              "fixed top-0 bottom-0 z-10",
-              "flex items-center justify-center"
-            )}
-            style={{ left: sidebarWidth - 2 }}
-          >
+      {
+        !sidebarCollapsed && (
+          <>
+            <div className="w-0.5 flex-shrink-0" style={{ backgroundColor: NOTES_COLORS.sidebarBg }} />
             <div
-              className="w-0.5 h-full transition-colors"
-              style={{
-                backgroundColor: isDragging ? NOTES_COLORS.dividerHover : 'transparent',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = NOTES_COLORS.dividerHover}
-              onMouseLeave={(e) => !isDragging && (e.currentTarget.style.backgroundColor = 'transparent')}
-            />
-          </div>
-        </>
-      )}
+              onMouseDown={handleDragStart}
+              onMouseEnter={() => setSidebarHeaderHovered(true)}
+              onMouseLeave={() => setSidebarHeaderHovered(false)}
+              className={cn(
+                "w-2 cursor-col-resize group",
+                "fixed top-0 bottom-0 z-10",
+                "flex items-center justify-center"
+              )}
+              style={{ left: sidebarWidth - 2 }}
+            >
+              <div
+                className="w-0.5 h-full transition-colors"
+                style={{
+                  backgroundColor: isDragging ? NOTES_COLORS.dividerHover : 'transparent',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = NOTES_COLORS.dividerHover}
+                onMouseLeave={(e) => !isDragging && (e.currentTarget.style.backgroundColor = 'transparent')}
+              />
+            </div>
+          </>
+        )
+      }
 
 
       <main className="flex-1 flex flex-col min-w-0 bg-[var(--neko-bg-primary)]">
@@ -244,6 +201,6 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
       </main>
 
       <NoteSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
-    </div>
+    </div >
   );
 }
