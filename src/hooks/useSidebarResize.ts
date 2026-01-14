@@ -4,7 +4,7 @@ import { useUIStore } from '@/stores/uiSlice';
 
 const SIDEBAR_MIN_WIDTH = 200;
 const SIDEBAR_MAX_WIDTH = 400;
-const SIDEBAR_DEFAULT_WIDTH = 248;
+const SIDEBAR_DEFAULT_WIDTH = 255; // 1080p / 1.618 / 1.618 / 1.618 ~= 255px (Golden Ratio recursion)
 const SNAP_THRESHOLD = 20; // Pixels from edge to trigger snapping
 const SNAP_RESISTANCE = 0.3; // Resistance factor when near edge
 
