@@ -1,18 +1,15 @@
 import React, { ReactNode, memo, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
-  Settings,
   ChevronsLeft,
   ChevronsRight,
   Menu,
   FileText,
   X,
   Plus,
-  StickyNote,
 } from 'lucide-react';
 
 import { WindowControls } from './WindowControls';
-import { TitleBarButton } from './TitleBarButton';
 import { useUIStore } from '@/stores/uiSlice';
 import { useNotesStore } from '@/stores/useNotesStore';
 
@@ -109,53 +106,60 @@ const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick,
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      onPointerDown={handlePointerDown}
-      onClick={(e) => {
-        if (e.button === 1) return;
-        onClick(tab.path);
-      }}
-      onAuxClick={(e) => {
-        if (e.button === 1) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      }}
-      className={cn(
-        "group relative flex items-center gap-2 px-3 py-1.5 cursor-pointer min-w-0 flex-shrink",
-        "rounded-md transition-colors",
-        isActive
-          ? "text-zinc-800 dark:text-zinc-100"
-          : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300",
-        isDragging && "opacity-50 z-50"
-      )}
-    >
-      {/* Subtle separator line between tabs */}
-      {showSeparator && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-3.5 bg-zinc-200 dark:bg-zinc-700" />
-      )}
-      <TabContent tab={tab} isActive={isActive} icon={icon} displayName={displayName} />
+    <Tooltip delayDuration={1000}>
+      <TooltipTrigger asChild>
+        <div
+          ref={setNodeRef}
+          style={style}
+          {...attributes}
+          {...listeners}
+          onPointerDown={handlePointerDown}
+          onClick={(e) => {
+            if (e.button === 1) return;
+            onClick(tab.path);
+          }}
+          onAuxClick={(e) => {
+            if (e.button === 1) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
+          className={cn(
+            "group relative flex items-center gap-2 px-3 py-1.5 cursor-pointer min-w-0 flex-shrink",
+            "rounded-md transition-colors",
+            isActive
+              ? "text-zinc-800 dark:text-zinc-100"
+              : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300",
+            isDragging && "opacity-50 z-50"
+          )}
+        >
+          {/* Subtle separator line between tabs */}
+          {showSeparator && (
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-3.5 bg-zinc-200 dark:bg-zinc-700" />
+          )}
+          <TabContent tab={tab} isActive={isActive} icon={icon} displayName={displayName} />
 
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose(tab.path);
-        }}
-        onPointerDown={(e) => e.stopPropagation()}
-        className={cn(
-          "p-0.5 rounded transition-all ml-auto",
-          "opacity-0 group-hover:opacity-100",
-          "text-zinc-300 dark:text-zinc-600",
-          "hover:text-zinc-500 dark:hover:text-zinc-400"
-        )}
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
-    </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose(tab.path);
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className={cn(
+              "p-0.5 rounded transition-all ml-auto",
+              "opacity-0 group-hover:opacity-100",
+              "text-zinc-300 dark:text-zinc-600",
+              "hover:text-zinc-500 dark:hover:text-zinc-400"
+            )}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" sideOffset={5}>
+        <span className="text-xs font-medium">{displayName || tab.name}</span>
+      </TooltipContent>
+    </Tooltip>
   );
 });
 
@@ -193,7 +197,7 @@ interface TitleBarProps {
 }
 
 export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls }: TitleBarProps) {
-  const { appViewMode, toggleAppViewMode, notesSidebarCollapsed, notesSidebarWidth, toggleNotesSidebar, sidebarHeaderHovered, setSidebarHeaderHovered, notesSidebarPeeking } = useUIStore();
+  const { appViewMode, notesSidebarCollapsed, notesSidebarWidth, toggleNotesSidebar, sidebarHeaderHovered, setSidebarHeaderHovered, notesSidebarPeeking } = useUIStore();
   const { currentVault } = useVaultStore();
 
   const currentNote = useNotesStore(s => s.currentNote);
@@ -382,7 +386,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
 
                   {/* Add new tab button */}
                   {openTabs.length > 0 && (
-                    <Tooltip delayDuration={500}>
+                    <Tooltip delayDuration={1000}>
                       <TooltipTrigger asChild>
                         <button
                           onClick={handleCreateNote}
