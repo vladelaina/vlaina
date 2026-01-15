@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import Cropper from 'react-easy-crop';
 import { cn } from '@/lib/utils';
 import { CoverPicker } from '../AssetLibrary';
@@ -153,61 +153,6 @@ export function CoverImage({
     // Track if picker was open at start of interaction to prevent "Close -> Reopen" race
     const wasPickerOpenRef = useRef(false);
 
-    // Define handlers for Start/End to manage interacting state and saving
-    const handleInteractionStart = () => {
-        setIsInteracting(true);
-        dragOccurredRef.current = false;
-        wasPickerOpenRef.current = showPicker;
-    };
-
-    const handleInteractionEnd = () => {
-        setIsInteracting(false);
-
-        if (dragOccurredRef.current) {
-            // If dragged/zoomed, save changes
-            saveToDb(crop, zoom);
-        } else if (!readOnly && !wasPickerOpenRef.current) {
-            // If closed, open it
-            setShowPicker(true);
-        } else if (!readOnly && wasPickerOpenRef.current) {
-            // If open, close it
-            setShowPicker(false);
-        }
-    };
-
-    // --- Handlers for Cropper ---
-    // Update local state only
-    const onCropperCropChange = (newCrop: { x: number, y: number }) => {
-        if (readOnly) return;
-
-        // Manual Hard Clamp to prevent "Rubber Banding" (Whitespace)
-        if (mediaSize && containerSize) {
-            const baseDims = getBaseDimensions(mediaSize, containerSize);
-            const scaledW = baseDims.width * zoom;
-            const scaledH = baseDims.height * zoom;
-
-            // Calculate max translation allowed (from center)
-            // If image is smaller than container effectively (shouldn't happen with zoom=1+), clamp to 0
-            const maxTranslateX = Math.max(0, (scaledW - containerSize.width) / 2);
-            const maxTranslateY = Math.max(0, (scaledH - containerSize.height) / 2);
-
-            // Clamp
-            newCrop.x = Math.max(-maxTranslateX, Math.min(maxTranslateX, newCrop.x));
-            newCrop.y = Math.max(-maxTranslateY, Math.min(maxTranslateY, newCrop.y));
-        }
-
-        setCrop(newCrop);
-        dragOccurredRef.current = true;
-    };
-
-    const onCropperZoomChange = (newZoom: number) => {
-        if (readOnly) return;
-        // Hard Clamp: Enforce "No Whitespace" during interaction
-        const safeZoom = Math.max(newZoom, effectiveMinZoom);
-        setZoom(safeZoom);
-        dragOccurredRef.current = true;
-    };
-
     // Helper to save changes to the database
     const saveToDb = useCallback((currentCrop: { x: number, y: number }, currentZoom: number) => {
         if (!mediaSize || !containerSize) return;
@@ -221,6 +166,93 @@ export function CoverImage({
 
         onUpdate(url, percent.x, percent.y, coverHeight, currentZoom);
     }, [mediaSize, containerSize, url, coverHeight, onUpdate]);
+
+    // --- Interaction Handlers (Memoized) ---
+    // Define handlers for Start/End to manage interacting state and saving
+    const handleInteractionStart = useCallback(() => {
+        setIsInteracting(true);
+        dragOccurredRef.current = false;
+        wasPickerOpenRef.current = showPicker;
+    }, [showPicker]);
+
+    const handleInteractionEnd = useCallback(() => {
+        setIsInteracting(false);
+
+        if (dragOccurredRef.current) {
+            // If dragged/zoomed, save changes
+            saveToDb(crop, zoom);
+        } else if (!readOnly && !wasPickerOpenRef.current) {
+            // If closed, open it
+            setShowPicker(true);
+        } else if (!readOnly && wasPickerOpenRef.current) {
+            // If open, close it
+            setShowPicker(false);
+        }
+    }, [readOnly, crop, zoom, saveToDb, setShowPicker]);
+
+    // --- Handlers for Cropper (Memoized) ---
+    // Update local state only
+    const onCropperCropChange = useCallback((newCrop: { x: number, y: number }) => {
+        if (readOnly) return;
+
+        // Manual Hard Clamp to prevent "Rubber Banding" (Whitespace)
+        // Access state directly or via refs if needed, but here we depend on mediaSize/containerSize
+        // We include them in dependency array.
+        // NOTE: To avoid re-creating this function if mediaSize changes (which shouldn't happen during drag often),
+        // we are fine. But zoom changes? No, zoom is stable during pan.
+        // Actually, zoom might change during zoom interactions.
+
+        if (mediaSize && containerSize) {
+            const baseDims = getBaseDimensions(mediaSize, containerSize);
+            const scaledW = baseDims.width * zoom;
+            const scaledH = baseDims.height * zoom;
+
+            // Calculate max translation allowed (from center)
+            const maxTranslateX = Math.max(0, (scaledW - containerSize.width) / 2);
+            const maxTranslateY = Math.max(0, (scaledH - containerSize.height) / 2);
+
+            // Clamp
+            const clampedX = Math.max(-maxTranslateX, Math.min(maxTranslateX, newCrop.x));
+            const clampedY = Math.max(-maxTranslateY, Math.min(maxTranslateY, newCrop.y));
+
+            setCrop({ x: clampedX, y: clampedY });
+        } else {
+            setCrop(newCrop);
+        }
+
+        dragOccurredRef.current = true;
+    }, [readOnly, mediaSize, containerSize, zoom]);
+
+    const onCropperZoomChange = useCallback((newZoom: number) => {
+        if (readOnly) return;
+        // Hard Clamp: Enforce "No Whitespace" during interaction
+        const safeZoom = Math.max(newZoom, effectiveMinZoom);
+        setZoom(safeZoom);
+        dragOccurredRef.current = true;
+    }, [readOnly, effectiveMinZoom]);
+
+    // Memoize static style objects to prevent re-renders
+    const cropperStyle = useMemo(() => ({
+        containerStyle: { backgroundColor: 'transparent' },
+        cropAreaStyle: { border: 'none', boxShadow: 'none', color: 'transparent' },
+        mediaStyle: {
+            willChange: 'transform',
+            backfaceVisibility: 'hidden' as 'hidden',
+            transform: 'translateZ(0)',
+            maxWidth: 'none',
+            maxHeight: 'none'
+        }
+    }), []);
+
+    const mediaProps = useMemo(() => ({
+        style: {
+            willChange: 'transform',
+            backfaceVisibility: 'hidden' as 'hidden',
+            transform: 'translateZ(0)',
+            maxWidth: 'none',
+            maxHeight: 'none'
+        }
+    }), []);
 
     // --- Other Handlers (Copy reused) ---
     const handleCoverSelect = useCallback((assetPath: string) => {
@@ -379,13 +411,8 @@ export function CoverImage({
                                 setIsImageReady(true);
                             }
                         }}
-                        style={{
-                            containerStyle: { backgroundColor: 'transparent' },
-                            cropAreaStyle: { border: 'none', boxShadow: 'none', color: 'transparent' }
-                        }}
-                        mediaProps={{
-                            style: { maxWidth: 'none', maxHeight: 'none' }
-                        }}
+                        style={cropperStyle}
+                        mediaProps={mediaProps}
                     />
                 </div>
             )}

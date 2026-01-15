@@ -27,6 +27,13 @@ export function CoverPicker({ isOpen, onClose, onSelect, onRemove, onPreview, va
   useEffect(() => {
     if (isOpen && vaultPath) {
       loadAssets(vaultPath);
+    } else if (!isOpen) {
+      // Reset tab state when closed (after a short delay for animation)
+      const timer = setTimeout(() => {
+        setActiveTab('library');
+        setIsUploading(false);
+      }, 200);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, vaultPath, loadAssets]);
 
@@ -107,7 +114,7 @@ export function CoverPicker({ isOpen, onClose, onSelect, onRemove, onPreview, va
       <PopoverAnchor className="absolute bottom-4 right-4 w-1 h-1 pointer-events-none" />
 
       <PopoverContent
-        className="w-[280px] p-0 flex flex-col overflow-hidden bg-[var(--neko-bg-primary)] border-[var(--neko-border)] shadow-xl z-50 pointer-events-auto"
+        className="w-[280px] p-0 flex flex-col overflow-hidden bg-[var(--neko-bg-primary)] border-[var(--neko-border)] shadow-xl z-50 pointer-events-auto select-none"
         align="end"
         side="bottom"
         sideOffset={8}
