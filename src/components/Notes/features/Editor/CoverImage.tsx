@@ -9,7 +9,7 @@ import { useCoverSource } from './hooks/useCoverSource';
 // We import constants for consistent constraints
 import {
     MIN_HEIGHT, MAX_HEIGHT, DEFAULT_HEIGHT, MAX_SCALE,
-    calculateCropPixels, calculateCropPercentage
+    calculateCropPixels, calculateCropPercentage, getBaseDimensions
 } from './hooks/coverUtils';
 
 interface CoverImageProps {
@@ -52,6 +52,7 @@ export function CoverImage({
     const {
         resolvedSrc,
         previewSrc,
+        isImageReady,
         setPreviewSrc,
         setIsImageReady,
         prevSrcRef,
@@ -178,6 +179,23 @@ export function CoverImage({
     // Update local state only
     const onCropperCropChange = (newCrop: { x: number, y: number }) => {
         if (readOnly) return;
+
+        // Manual Hard Clamp to prevent "Rubber Banding" (Whitespace)
+        if (mediaSize && containerSize) {
+            const baseDims = getBaseDimensions(mediaSize, containerSize);
+            const scaledW = baseDims.width * zoom;
+            const scaledH = baseDims.height * zoom;
+
+            // Calculate max translation allowed (from center)
+            // If image is smaller than container effectively (shouldn't happen with zoom=1+), clamp to 0
+            const maxTranslateX = Math.max(0, (scaledW - containerSize.width) / 2);
+            const maxTranslateY = Math.max(0, (scaledH - containerSize.height) / 2);
+
+            // Clamp
+            newCrop.x = Math.max(-maxTranslateX, Math.min(maxTranslateX, newCrop.x));
+            newCrop.y = Math.max(-maxTranslateY, Math.min(maxTranslateY, newCrop.y));
+        }
+
         setCrop(newCrop);
         dragOccurredRef.current = true;
     };
@@ -310,34 +328,66 @@ export function CoverImage({
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
         >
-            {/* Cropper Layer */}
+            {/* Static CSS Placeholder (Instant Load) */}
             {displaySrc && (
-                <Cropper
-                    image={displaySrc}
-                    crop={crop}
-                    zoom={zoom}
-                    cropSize={containerSize ?? undefined}
-                    minZoom={effectiveMinZoom}
-                    maxZoom={effectiveMaxZoom}
-                    objectFit={objectFitMode}
-                    restrictPosition={true}
-                    showGrid={false}
-                    onCropChange={onCropperCropChange}
-                    onZoomChange={onCropperZoomChange}
-                    onInteractionStart={handleInteractionStart}
-                    onInteractionEnd={handleInteractionEnd}
-                    onMediaLoaded={(media) => {
-                        setMediaSize({ width: media.naturalWidth, height: media.naturalHeight });
-                        setIsImageReady(true);
-                    }}
+                <img
+                    src={displaySrc}
+                    alt="Cover"
+                    className={cn(
+                        "absolute inset-0 w-full h-full object-cover transition-opacity duration-300",
+                        isImageReady ? "opacity-0 pointer-events-none" : "opacity-100 placeholder-active"
+                    )}
                     style={{
-                        containerStyle: { backgroundColor: 'transparent' },
-                        cropAreaStyle: { border: 'none', boxShadow: 'none', color: 'transparent' }
-                    }}
-                    mediaProps={{
-                        style: { maxWidth: 'none', maxHeight: 'none' }
+                        objectPosition: `${positionX}% ${positionY}%`
                     }}
                 />
+            )}
+
+            {/* Cropper Layer */}
+            {displaySrc && (
+                <div
+                    className={cn("absolute inset-0 transition-opacity duration-300", isImageReady ? "opacity-100" : "opacity-0")}
+                >
+                    <Cropper
+                        image={displaySrc}
+                        crop={crop}
+                        zoom={zoom}
+                        cropSize={containerSize ?? undefined}
+                        minZoom={effectiveMinZoom}
+                        maxZoom={effectiveMaxZoom}
+                        objectFit={objectFitMode}
+                        restrictPosition={true}
+                        showGrid={false}
+                        onCropChange={onCropperCropChange}
+                        onZoomChange={onCropperZoomChange}
+                        onInteractionStart={handleInteractionStart}
+                        onInteractionEnd={handleInteractionEnd}
+                        onMediaLoaded={(media) => {
+                            const dims = { width: media.naturalWidth, height: media.naturalHeight };
+                            setMediaSize(dims);
+
+                            // Pre-calculate crop to prevent "Center -> Position" flash
+                            // We must ensure the first visible frame has the correct crop
+                            if (containerSize) {
+                                const pixels = calculateCropPixels(
+                                    { x: positionX, y: positionY },
+                                    dims,
+                                    containerSize,
+                                    zoom
+                                );
+                                setCrop(pixels);
+                                setIsImageReady(true);
+                            }
+                        }}
+                        style={{
+                            containerStyle: { backgroundColor: 'transparent' },
+                            cropAreaStyle: { border: 'none', boxShadow: 'none', color: 'transparent' }
+                        }}
+                        mediaProps={{
+                            style: { maxWidth: 'none', maxHeight: 'none' }
+                        }}
+                    />
+                </div>
             )}
 
             {/* ReadOnly Overlay / Picker Trigger */}

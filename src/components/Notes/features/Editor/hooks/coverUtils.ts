@@ -62,6 +62,39 @@ interface Size { width: number; height: number; }
 interface Point { x: number; y: number; }
 
 /**
+ * Calculate the "Base" dimensions of the image as rendered with object-fit: cover/contain
+ * This represents the image size when zoom = 1
+ */
+/**
+ * Calculate the "Base" dimensions of the image as rendered with object-fit: cover/contain
+ * This represents the image size when zoom = 1
+ */
+export function getBaseDimensions(mediaSize: Size, containerSize: Size): Size {
+    const mediaRatio = mediaSize.width / mediaSize.height;
+    const containerRatio = containerSize.width / containerSize.height;
+
+    let baseW: number, baseH: number;
+
+    // "cover" logic: defaults to matching the SMALLER dimension to fill gaps
+    // If image is wider than container (relative to height), we match height
+    // If image is taller than container (relative to width), we match width
+    // Wait, object-fit: cover works by matching the constrained dimension
+
+    // Logic from react-easy-crop or standard CSS 'cover':
+    if (mediaRatio > containerRatio) {
+        // Image is wider than container: Match Height, crop Width
+        baseH = containerSize.height;
+        baseW = baseH * mediaRatio;
+    } else {
+        // Image is taller than container: Match Width, crop Height
+        baseW = containerSize.width;
+        baseH = baseW / mediaRatio;
+    }
+
+    return { width: baseW, height: baseH };
+}
+
+/**
  * Convert Database Percentage Position (0-100) to React-Easy-Crop Pixel Offset
  */
 export function calculateCropPixels(
@@ -70,19 +103,18 @@ export function calculateCropPixels(
     containerSize: Size,
     zoom: number
 ): Point {
-    const scaledW = mediaSize.width * zoom;
-    const scaledH = mediaSize.height * zoom;
+    // 1. Get the actual rendered size of the image at zoom=1 (Cover state)
+    const baseDims = getBaseDimensions(mediaSize, containerSize);
+
+    // 2. Apply Zoom to get the final visual size
+    const scaledW = baseDims.width * zoom;
+    const scaledH = baseDims.height * zoom;
 
     // Max translation allowed (dragging to edge)
-    // Positive value means the image edge is aligned with container edge
     const maxTranslateX = (scaledW - containerSize.width) / 2;
     const maxTranslateY = (scaledH - containerSize.height) / 2;
 
     // Map 0-100% to +Max -> -Max translation
-    // 50% -> 0 (Center)
-    // 0%  -> +Max (Left/Top Edge)
-    // 100% -> -Max (Right/Bottom Edge)
-
     const x = ((50 - positionPercent.x) / 50) * maxTranslateX;
     const y = ((50 - positionPercent.y) / 50) * maxTranslateY;
 
@@ -98,27 +130,35 @@ export function calculateCropPercentage(
     containerSize: Size,
     zoom: number
 ): Point {
-    const scaledW = mediaSize.width * zoom;
-    const scaledH = mediaSize.height * zoom;
+    // 1. Get the actual rendered size
+    const baseDims = getBaseDimensions(mediaSize, containerSize);
+
+    const scaledW = baseDims.width * zoom;
+    const scaledH = baseDims.height * zoom;
 
     const maxTranslateX = (scaledW - containerSize.width) / 2;
     const maxTranslateY = (scaledH - containerSize.height) / 2;
 
-    let x = 50;
+    // Prevent divide by zero if perfect fit
+    let percentX = 50;
+    let percentY = 50;
+
     if (maxTranslateX > 0) {
-        // Reverse: Translate = ((50 - P) / 50) * Max
-        // Translate / Max * 50 = 50 - P
-        // P = 50 - (Translate / Max * 50)
-        x = 50 - (cropPixels.x / maxTranslateX * 50);
+        // x = ((50 - P) / 50) * Max
+        // x / Max = (50 - P) / 50
+        // (x / Max) * 50 = 50 - P
+        // P = 50 - (x / Max) * 50
+        percentX = 50 - (cropPixels.x / maxTranslateX) * 50;
     }
 
-    let y = 50;
     if (maxTranslateY > 0) {
-        y = 50 - (cropPixels.y / maxTranslateY * 50);
+        percentY = 50 - (cropPixels.y / maxTranslateY) * 50;
     }
 
+    // Clamp to 0-100 for safety
     return {
-        x: Math.max(0, Math.min(100, x)),
-        y: Math.max(0, Math.min(100, y))
+        x: Math.max(0, Math.min(100, percentX)),
+        y: Math.max(0, Math.min(100, percentY))
     };
 }
+

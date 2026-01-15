@@ -161,6 +161,5 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
         prevSrcRef,
         isSelectingRef,
         cachedDimensionsRef,
-        handleImageLoad,
     };
 }
