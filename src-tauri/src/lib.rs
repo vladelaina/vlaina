@@ -251,7 +251,6 @@ pub fn run() {
             github::commands::restore_from_github,
             github::commands::sync_github_bidirectional,
             github::commands::check_pro_status,
-            github::commands::bind_license_key,
             // GitHub Repository commands
             github::repo_commands::list_github_repos,
             github::repo_commands::get_repo_tree,

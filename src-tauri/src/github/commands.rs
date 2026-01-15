@@ -89,7 +89,6 @@ pub struct GitHubBidirectionalSyncResult {
 #[serde(rename_all = "camelCase")]
 pub struct ProStatusResult {
     pub is_pro: bool,
-    pub license_key: Option<String>,
     pub expires_at: Option<i64>,
 }
 
@@ -107,6 +106,8 @@ pub struct GitHubRemoteDataInfo {
 struct GitHubCredentials {
     access_token: String,
     username: String,
+    #[serde(default)]
+    github_id: Option<u64>,
     #[serde(default)]
     avatar_url: Option<String>,
     gist_id: Option<String>,
@@ -319,8 +320,9 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
 
     // Store credentials
     let creds = GitHubCredentials {
-        access_token: tokens.access_token,
+        access_token: tokens.access_token.clone(),
         username: user_info.login.clone(),
+        github_id: Some(user_info.id),
         avatar_url: user_info.avatar_url.clone(),
         gist_id: existing_gist.map(|g| g.id),
     };
@@ -332,6 +334,19 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
             error: Some(e),
         });
     }
+
+    // Register user with cloud API (fire and forget, don't block login)
+    let access_token_for_register = tokens.access_token.clone();
+    tokio::spawn(async move {
+        let client = reqwest::Client::new();
+        let _ = client
+            .post("https://api.nekotick.com/auth/register")
+            .json(&serde_json::json!({
+                "access_token": access_token_for_register
+            }))
+            .send()
+            .await;
+    });
 
     Ok(GitHubAuthResult {
         success: true,
@@ -630,12 +645,15 @@ pub async fn check_pro_status(app: tauri::AppHandle) -> Result<ProStatusResult, 
     let creds = load_github_credentials(&app)
         .ok_or("Not connected to GitHub")?;
 
+    let github_id = creds.github_id
+        .ok_or("GitHub ID not available. Please reconnect to GitHub.")?;
+
     // Call cloud API to check PRO status
     let client = reqwest::Client::new();
     let response = client
         .post("https://api.nekotick.com/check_pro")
         .json(&serde_json::json!({
-            "github_username": creds.username
+            "github_id": github_id
         }))
         .send()
         .await
@@ -644,7 +662,6 @@ pub async fn check_pro_status(app: tauri::AppHandle) -> Result<ProStatusResult, 
     if !response.status().is_success() {
         return Ok(ProStatusResult {
             is_pro: false,
-            license_key: None,
             expires_at: None,
         });
     }
@@ -655,48 +672,10 @@ pub async fn check_pro_status(app: tauri::AppHandle) -> Result<ProStatusResult, 
         .map_err(|e| format!("Failed to parse response: {}", e))?;
 
     let is_pro = data.get("isPro").and_then(|v| v.as_bool()).unwrap_or(false);
-    let license_key = data.get("licenseKey").and_then(|v| v.as_str()).map(String::from);
     let expires_at = data.get("expiresAt").and_then(|v| v.as_i64());
 
     Ok(ProStatusResult {
         is_pro,
-        license_key,
         expires_at,
     })
-}
-
-/// Bind license key to GitHub account
-#[tauri::command]
-pub async fn bind_license_key(app: tauri::AppHandle, license_key: String) -> Result<ProStatusResult, String> {
-    let creds = load_github_credentials(&app)
-        .ok_or("Not connected to GitHub")?;
-
-    // Call cloud API to bind license
-    let client = reqwest::Client::new();
-    let response = client
-        .post("https://api.nekotick.com/bind_license")
-        .json(&serde_json::json!({
-            "license_key": license_key,
-            "github_username": creds.username
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed to bind license: {}", e))?;
-
-    let data: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
-
-    if data.get("success").and_then(|v| v.as_bool()).unwrap_or(false) {
-        let expires_at = data.get("expiresAt").and_then(|v| v.as_i64());
-        Ok(ProStatusResult {
-            is_pro: true,
-            license_key: Some(license_key),
-            expires_at,
-        })
-    } else {
-        let error_code = data.get("error_code").and_then(|v| v.as_str()).unwrap_or("UNKNOWN");
-        Err(format!("Bind failed: {}", error_code))
-    }
 }

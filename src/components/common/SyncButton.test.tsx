@@ -22,7 +22,7 @@ interface MockSyncStore {
   syncError: string | null;
 }
 
-interface MockLicenseStore {
+interface MockProStatusStore {
   isProUser: boolean;
 }
 
@@ -34,7 +34,7 @@ const mockSyncStore: MockSyncStore = {
   syncError: null,
 };
 
-const mockLicenseStore: MockLicenseStore = {
+const mockProStatusStore: MockProStatusStore = {
   isProUser: false,
 };
 
@@ -42,8 +42,8 @@ vi.mock('@/stores/useGithubSyncStore', () => ({
   useGithubSyncStore: () => mockSyncStore,
 }));
 
-vi.mock('@/stores/useLicenseStore', () => ({
-  useLicenseStore: () => mockLicenseStore,
+vi.mock('@/stores/useProStatusStore', () => ({
+  useProStatusStore: () => mockProStatusStore,
 }));
 
 describe('SyncButton', () => {
@@ -53,7 +53,7 @@ describe('SyncButton', () => {
     mockSyncStore.isSyncing = false;
     mockSyncStore.syncStatus = 'idle';
     mockSyncStore.syncError = null;
-    mockLicenseStore.isProUser = false;
+    mockProStatusStore.isProUser = false;
   });
 
   describe('Property 2: Manual sync button visibility', () => {
@@ -69,7 +69,7 @@ describe('SyncButton', () => {
           fc.boolean(), // isConnected
           (isProUser, isConnected) => {
             // Setup
-            mockLicenseStore.isProUser = isProUser;
+            mockProStatusStore.isProUser = isProUser;
             mockSyncStore.isConnected = isConnected;
 
             // Render
@@ -99,7 +99,7 @@ describe('SyncButton', () => {
         fc.property(
           fc.boolean(), // isConnected
           (isConnected) => {
-            mockLicenseStore.isProUser = true;
+            mockProStatusStore.isProUser = true;
             mockSyncStore.isConnected = isConnected;
 
             const { container } = render(<SyncButton />);
@@ -118,7 +118,7 @@ describe('SyncButton', () => {
         fc.property(
           fc.boolean(), // isProUser
           (isProUser) => {
-            mockLicenseStore.isProUser = isProUser;
+            mockProStatusStore.isProUser = isProUser;
             mockSyncStore.isConnected = false;
 
             const { container } = render(<SyncButton />);

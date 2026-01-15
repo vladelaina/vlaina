@@ -186,26 +186,10 @@ export const githubCommands = {
   async checkProStatus() {
     return safeInvoke<{
       isPro: boolean;
-      licenseKey: string | null;
       expiresAt: number | null;
     }>('check_pro_status', undefined, {
       webFallback: {
         isPro: false,
-        licenseKey: null,
-        expiresAt: null,
-      },
-    });
-  },
-
-  async bindLicenseKey(licenseKey: string) {
-    return safeInvoke<{
-      isPro: boolean;
-      licenseKey: string | null;
-      expiresAt: number | null;
-    }>('bind_license_key', { licenseKey }, {
-      webFallback: {
-        isPro: false,
-        licenseKey: null,
         expiresAt: null,
       },
     });
@@ -221,6 +205,7 @@ const WEB_GITHUB_CREDS_KEY = 'nekotick_github_creds';
 interface WebGithubCredentials {
   accessToken: string;
   username: string;
+  githubId?: number;
   avatarUrl?: string;
   gistId?: string;
   lastSyncTime?: number;
@@ -280,6 +265,7 @@ export const webGithubCommands = {
         saveWebGithubCredentials({
           accessToken: data.accessToken,
           username: data.username,
+          githubId: data.githubId,
           avatarUrl: data.avatarUrl,
         });
       }
@@ -307,41 +293,23 @@ export const webGithubCommands = {
   },
 
   /** Check PRO status using stored credentials */
-  async checkProStatus(): Promise<{ isPro: boolean; licenseKey: string | null; expiresAt: number | null }> {
+  async checkProStatus(): Promise<{ isPro: boolean; expiresAt: number | null }> {
     const creds = getWebGithubCredentials();
-    if (!creds) return { isPro: false, licenseKey: null, expiresAt: null };
+    if (!creds || !creds.githubId) return { isPro: false, expiresAt: null };
 
     try {
       const res = await fetch(`${API_BASE}/check_pro`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ github_username: creds.username }),
+        body: JSON.stringify({ github_id: creds.githubId }),
       });
       const data = await res.json();
       return {
         isPro: data.isPro || false,
-        licenseKey: data.licenseKey || null,
         expiresAt: data.expiresAt || null,
       };
     } catch {
-      return { isPro: false, licenseKey: null, expiresAt: null };
-    }
-  },
-
-  /** Bind license key */
-  async bindLicenseKey(licenseKey: string): Promise<{ success: boolean; expiresAt?: number; error?: string }> {
-    const creds = getWebGithubCredentials();
-    if (!creds) return { success: false, error: 'Not connected' };
-
-    try {
-      const res = await fetch(`${API_BASE}/bind_license`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ license_key: licenseKey, github_username: creds.username }),
-      });
-      return res.json();
-    } catch (e) {
-      return { success: false, error: String(e) };
+      return { isPro: false, expiresAt: null };
     }
   },
 

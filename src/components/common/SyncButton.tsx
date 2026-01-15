@@ -16,7 +16,7 @@ import {
   RefreshCw 
 } from 'lucide-react';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
-import { useLicenseStore } from '@/stores/useLicenseStore';
+import { useProStatusStore } from '@/stores/useProStatusStore';
 import { cn } from '@/lib/utils';
 
 interface SyncButtonProps {
@@ -32,7 +32,7 @@ export function SyncButton({ className }: SyncButtonProps) {
     syncError,
   } = useGithubSyncStore();
   
-  const { isProUser } = useLicenseStore();
+  const { isProUser } = useProStatusStore();
   
   const [showTooltip, setShowTooltip] = useState(false);
   const [animating, setAnimating] = useState(false);

@@ -15,7 +15,7 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
-import { useLicenseStore } from '@/stores/useLicenseStore';
+import { useProStatusStore } from '@/stores/useProStatusStore';
 import type { ItemColor } from '@/lib/colors';
 import type { TimeView } from '@/lib/date';
 import {
@@ -242,10 +242,10 @@ export async function saveUnifiedData(data: UnifiedData): Promise<void> {
  */
 function triggerAutoSyncIfEligible(): void {
   const syncState = useGithubSyncStore.getState();
-  const licenseState = useLicenseStore.getState();
+  const proStatusState = useProStatusStore.getState();
 
   // Only trigger for PRO users connected to GitHub
-  if (syncState.isConnected && licenseState.isProUser) {
+  if (syncState.isConnected && proStatusState.isProUser) {
     const autoSyncManager = getAutoSyncManager();
     autoSyncManager.triggerSync();
   }

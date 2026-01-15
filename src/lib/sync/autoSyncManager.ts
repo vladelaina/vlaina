@@ -9,7 +9,7 @@
  */
 
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
-import { useLicenseStore } from '@/stores/useLicenseStore';
+import { useProStatusStore } from '@/stores/useProStatusStore';
 
 export interface AutoSyncConfig {
   debounceMs: number;
@@ -83,7 +83,7 @@ class AutoSyncManagerImpl {
    */
   canSync(): boolean {
     const syncState = useGithubSyncStore.getState();
-    const licenseState = useLicenseStore.getState();
+    const proStatusState = useProStatusStore.getState();
 
     // Must be connected to GitHub
     if (!syncState.isConnected) {
@@ -91,7 +91,7 @@ class AutoSyncManagerImpl {
     }
 
     // Must be PRO user
-    if (!licenseState.isProUser) {
+    if (!proStatusState.isProUser) {
       return false;
     }
 

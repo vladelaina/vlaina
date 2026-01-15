@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vite
 import * as fc from 'fast-check';
 import { getAutoSyncManager, resetAutoSyncManager, AutoSyncConfig } from './autoSyncManager';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
-import { useLicenseStore } from '@/stores/useLicenseStore';
+import { useProStatusStore } from '@/stores/useProStatusStore';
 
 // Mock stores
 vi.mock('@/stores/useGithubSyncStore', () => ({
@@ -26,8 +26,8 @@ vi.mock('@/stores/useGithubSyncStore', () => ({
   },
 }));
 
-vi.mock('@/stores/useLicenseStore', () => ({
-  useLicenseStore: {
+vi.mock('@/stores/useProStatusStore', () => ({
+  useProStatusStore: {
     getState: vi.fn(() => ({
       isProUser: true,
     })),
@@ -36,7 +36,7 @@ vi.mock('@/stores/useLicenseStore', () => ({
 
 // Get mocked functions with proper typing
 const mockSyncStoreGetState = useGithubSyncStore.getState as Mock;
-const mockLicenseStoreGetState = useLicenseStore.getState as Mock;
+const mockProStatusStoreGetState = useProStatusStore.getState as Mock;
 
 describe('AutoSyncManager', () => {
   beforeEach(() => {
@@ -52,7 +52,7 @@ describe('AutoSyncManager', () => {
       syncBidirectional: vi.fn().mockResolvedValue(true),
     });
     
-    mockLicenseStoreGetState.mockReturnValue({
+    mockProStatusStoreGetState.mockReturnValue({
       isProUser: true,
     });
   });
@@ -167,7 +167,7 @@ describe('AutoSyncManager', () => {
         isConnected: true,
         isSyncing: false,
       });
-      mockLicenseStoreGetState.mockReturnValue({
+      mockProStatusStoreGetState.mockReturnValue({
         isProUser: false,
       });
 

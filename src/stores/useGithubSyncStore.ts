@@ -7,7 +7,7 @@
 
 import { create } from 'zustand';
 import { githubCommands, hasBackendCommands, webGithubCommands, handleOAuthCallback } from '@/lib/tauri/invoke';
-import { useLicenseStore } from '@/stores/useLicenseStore';
+import { useProStatusStore } from '@/stores/useProStatusStore';
 
 export type GithubSyncStatusType = 'idle' | 'pending' | 'syncing' | 'success' | 'error';
 
@@ -117,9 +117,8 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
             try {
               const proStatus = await githubCommands.checkProStatus();
               if (proStatus) {
-                useLicenseStore.getState().setProStatus(
+                useProStatusStore.getState().setProStatus(
                   proStatus.isPro,
-                  proStatus.licenseKey,
                   proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
                 );
               }
@@ -156,9 +155,8 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       if (status.connected) {
         try {
           const proStatus = await webGithubCommands.checkProStatus();
-          useLicenseStore.getState().setProStatus(
+          useProStatusStore.getState().setProStatus(
             proStatus.isPro,
-            proStatus.licenseKey,
             proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
           );
         } catch (e) {
@@ -189,9 +187,8 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
           try {
             const proStatus = await githubCommands.checkProStatus();
             if (proStatus) {
-              useLicenseStore.getState().setProStatus(
+              useProStatusStore.getState().setProStatus(
                 proStatus.isPro,
-                proStatus.licenseKey,
                 proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
               );
             }
@@ -276,9 +273,8 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       // Check PRO status
       try {
         const proStatus = await webGithubCommands.checkProStatus();
-        useLicenseStore.getState().setProStatus(
+        useProStatusStore.getState().setProStatus(
           proStatus.isPro,
-          proStatus.licenseKey,
           proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
         );
       } catch (e) {
@@ -318,7 +314,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
     // Clear persistence
     localStorage.removeItem(GITHUB_USER_PERSIST_KEY);
 
-    useLicenseStore.getState().clearProStatus();
+    useProStatusStore.getState().clearProStatus();
   },
 
   syncToCloud: async () => {

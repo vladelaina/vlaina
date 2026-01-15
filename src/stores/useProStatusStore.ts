@@ -2,49 +2,45 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 /**
- * Simplified license store
+ * PRO Status Store
  * 
- * PRO status is now determined by the cloud API during GitHub sync.
- * The license key is bound to the user's GitHub account (email), not device.
+ * PRO status is determined by the cloud API during GitHub sync.
+ * Subscription is bound to the user's GitHub account.
  * All verification happens server-side at sync time.
  */
 
-interface LicenseState {
+interface ProStatusState {
   // PRO status (set by cloud API during sync)
   isProUser: boolean;
-  // License key (masked, for display only)
-  licenseKey: string | null;
   // Expiry timestamp (seconds)
   expiresAt: number | null;
   // Last check timestamp
   lastCheckedAt: number | null;
 }
 
-interface LicenseActions {
+interface ProStatusActions {
   // Set PRO status (called by sync process)
-  setProStatus: (isPro: boolean, licenseKey?: string | null, expiresAt?: number | null) => void;
+  setProStatus: (isPro: boolean, expiresAt?: number | null) => void;
   // Clear PRO status
   clearProStatus: () => void;
   // Get expiry days remaining
   getExpiryDaysRemaining: () => number | null;
 }
 
-type LicenseStore = LicenseState & LicenseActions;
+type ProStatusStore = ProStatusState & ProStatusActions;
 
-export const useLicenseStore = create<LicenseStore>()(
+export const useProStatusStore = create<ProStatusStore>()(
   persist(
     (set, get) => ({
       // Initial state
       isProUser: false,
-      licenseKey: null,
       expiresAt: null,
       lastCheckedAt: null,
 
       // Set PRO status (called by sync process after cloud validation)
-      setProStatus: (isPro, licenseKey = null, expiresAt = null) => {
+      setProStatus: (isPro, expiresAt = null) => {
         set({
           isProUser: isPro,
-          licenseKey,
           expiresAt,
           lastCheckedAt: Math.floor(Date.now() / 1000),
         });
@@ -54,7 +50,6 @@ export const useLicenseStore = create<LicenseStore>()(
       clearProStatus: () => {
         set({
           isProUser: false,
-          licenseKey: null,
           expiresAt: null,
           lastCheckedAt: null,
         });
@@ -73,10 +68,9 @@ export const useLicenseStore = create<LicenseStore>()(
       },
     }),
     {
-      name: 'nekotick-license',
+      name: 'nekotick-pro-status',
       partialize: (state) => ({
         isProUser: state.isProUser,
-        licenseKey: state.licenseKey,
         expiresAt: state.expiresAt,
         lastCheckedAt: state.lastCheckedAt,
       }),

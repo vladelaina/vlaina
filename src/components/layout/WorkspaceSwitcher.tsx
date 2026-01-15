@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
-import { useLicenseStore } from "@/stores/useLicenseStore";
+import { useProStatusStore } from "@/stores/useProStatusStore";
 import { useUIStore } from "@/stores/uiSlice";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { isTauri } from "@/lib/storage/adapter";
@@ -29,7 +29,7 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
         disconnect,
         connect,
     } = useGithubSyncStore();
-    const { isProUser } = useLicenseStore();
+    const { isProUser } = useProStatusStore();
     const { appViewMode, toggleAppViewMode } = useUIStore();
     const [isOpen, setIsOpen] = React.useState(false);
 

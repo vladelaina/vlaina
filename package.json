@@ -8,8 +8,7 @@
     "build": "tsc && vite build",
     "build:web": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri",
-    "dev:license-server": "node scripts/dev/mock-license-server.cjs"
+    "tauri": "tauri"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
