@@ -434,9 +434,8 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
       {
         appViewMode === 'calendar' && (
           <>
-            <div className="flex items-center z-20">
-              <TitleBarButton icon={Settings} onClick={onOpenSettings} />
-              <TitleBarButton icon={StickyNote} onClick={toggleAppViewMode} />
+            <div className="flex items-center z-20 px-3">
+              <WorkspaceSwitcher onOpenSettings={onOpenSettings} />
             </div>
 
             {/* Spacer */}
