@@ -103,6 +103,7 @@ export interface NotesActions {
   deleteAsset: (filename: string) => Promise<void>;
   cleanupAssetTempFiles: () => Promise<void>;
   getAssetList: () => AssetEntry[];
+  clearAssetUrlCache: () => void;
 }
 
 export type NotesStore = NotesState & NotesActions;

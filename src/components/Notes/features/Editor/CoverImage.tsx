@@ -135,16 +135,28 @@ export function CoverImage({
         const container = containerRef.current;
         if (!container) return;
 
+        let rafId: number | null = null;
+
         const resizeObserver = new ResizeObserver((entries) => {
-            for (const entry of entries) {
-                if (entry.contentRect.width > 0) {
-                    setContainerWidth(entry.contentRect.width);
+            if (rafId !== null) return;
+
+            rafId = requestAnimationFrame(() => {
+                for (const entry of entries) {
+                    if (entry.contentRect.width > 0) {
+                        setContainerWidth(entry.contentRect.width);
+                    }
                 }
-            }
+                rafId = null;
+            });
         });
 
         resizeObserver.observe(container);
-        return () => resizeObserver.disconnect();
+        return () => {
+            resizeObserver.disconnect();
+            if (rafId !== null) {
+                cancelAnimationFrame(rafId);
+            }
+        };
     }, []);
 
     // Sync props to state/refs

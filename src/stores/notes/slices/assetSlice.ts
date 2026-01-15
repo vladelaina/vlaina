@@ -10,6 +10,7 @@ import { getNotesBasePath } from '../storage';
 import { AssetEntry, UploadResult } from '@/lib/assets/types';
 import { processFilename, getMimeType } from '@/lib/assets/filenameService';
 import { writeAssetAtomic, cleanupTempFiles } from '@/lib/assets/atomicWrite';
+import { clearImageCache } from '@/lib/assets/imageLoader';
 import { getBuiltinCovers, toBuiltinAssetPath } from '@/lib/assets/builtinCovers';
 
 const ASSETS_DIR = '.nekotick/assets/covers';
@@ -26,6 +27,7 @@ export interface AssetSlice {
   deleteAsset: (filename: string) => Promise<void>;
   cleanupAssetTempFiles: () => Promise<void>;
   getAssetList: () => AssetEntry[];
+  clearAssetUrlCache: () => void;
 }
 
 export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (set, get) => ({
@@ -34,6 +36,9 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
   uploadProgress: null,
 
   loadAssets: async (vaultPath: string) => {
+    // Clear previous blob URLs to free memory when switching vaults
+    clearImageCache();
+
     set({ isLoadingAssets: true });
     const storage = getStorageAdapter();
 
@@ -102,12 +107,12 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
       assets.sort((a, b) => {
         const aIsBuiltIn = a.filename.startsWith('@');
         const bIsBuiltIn = b.filename.startsWith('@');
-        
+
         // User uploads come first
         if (aIsBuiltIn !== bIsBuiltIn) {
           return aIsBuiltIn ? 1 : -1;
         }
-        
+
         // Within same group, sort by filename descending
         return b.filename.localeCompare(a.filename);
       });
@@ -144,7 +149,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
       const buffer = await file.arrayBuffer();
       const data = new Uint8Array(buffer);
       const filePath = await joinPath(assetsDir, filename);
-      
+
       await writeAssetAtomic(filePath, data);
       set({ uploadProgress: 80 });
 
@@ -157,9 +162,9 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
         uploadedAt: new Date().toISOString(),
       };
 
-      set({ 
+      set({
         assetList: [newEntry, ...assetList],
-        uploadProgress: 100 
+        uploadProgress: 100
       });
 
       // Clear progress after a short delay
@@ -189,7 +194,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     try {
       const vaultPath = notesPath || await getNotesBasePath();
       const assetsDir = await joinPath(vaultPath, ASSETS_DIR);
-      
+
       // filename may contain subdirectory path (e.g., "subfolder/image.png")
       // Convert forward slashes to OS-native separator
       const separator = vaultPath.includes('\\') ? '\\' : '/';
@@ -212,11 +217,15 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     const { notesPath } = get();
     const vaultPath = notesPath || await getNotesBasePath();
     const assetsDir = await joinPath(vaultPath, ASSETS_DIR);
-    
+
     await cleanupTempFiles(assetsDir);
   },
 
   getAssetList: (): AssetEntry[] => {
     return get().assetList;
+  },
+
+  clearAssetUrlCache: () => {
+    clearImageCache();
   },
 });

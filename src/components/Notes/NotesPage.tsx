@@ -58,6 +58,7 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
   // Load assets and cleanup temp files when vault is present
   const loadAssets = useNotesStore(s => s.loadAssets);
   const cleanupAssetTempFiles = useNotesStore(s => s.cleanupAssetTempFiles);
+  const clearAssetUrlCache = useNotesStore(s => s.clearAssetUrlCache);
 
   // Unlock main window resizable when vault is present
   useEffect(() => {
@@ -79,7 +80,12 @@ export function NotesPage({ onOpenSettings: _onOpenSettings }: NotesPageProps) {
     };
 
     unlockWindow();
-  }, [currentVault, loadFavorites, loadMetadata, loadAssets, loadFileTree, cleanupAssetTempFiles]);
+
+    // Cleanup blob URLs from memory when leaving Notes context
+    return () => {
+      clearAssetUrlCache();
+    };
+  }, [currentVault, loadFavorites, loadMetadata, loadAssets, loadFileTree, cleanupAssetTempFiles, clearAssetUrlCache]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

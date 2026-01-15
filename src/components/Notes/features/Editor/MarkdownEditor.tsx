@@ -426,13 +426,14 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
           <div className={cn(
             EDITOR_LAYOUT_CLASS,
             "z-10 relative transition-[margin] duration-150 ease-out",
+            "pointer-events-none",
             // Pull content up to overlap with cover (Notion-style)
             coverUrl && "mt-[-48px]"
           )}>
             {/* Clickable area to add cover - entire top padding area */}
             {!coverUrl && (
               <div
-                className="absolute top-0 left-0 right-0 h-20 cursor-pointer hover:bg-[var(--neko-hover)]/30 transition-colors"
+                className="absolute top-0 left-0 right-0 h-20 cursor-pointer hover:bg-[var(--neko-hover)]/30 transition-colors pointer-events-auto"
                 onClick={() => {
                   // Get all available covers (user uploads + built-in)
                   const allCovers = useNotesStore.getState().getAssetList();
@@ -454,7 +455,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
             )}
             <div
               className={cn(
-                "pb-4 transition-all duration-150",
+                "pb-4 transition-all duration-150 pointer-events-auto",
                 // If cover exists, minimal top padding since icon overlaps cover
                 // If no cover, use comfortable top padding (Notion-style ~80px)
                 coverUrl ? "pt-0" : "pt-20"
