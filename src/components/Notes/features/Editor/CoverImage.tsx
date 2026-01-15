@@ -1,12 +1,16 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import Cropper from 'react-easy-crop';
 import { cn } from '@/lib/utils';
 import { CoverPicker } from '../AssetLibrary';
 import { loadImageAsBlob } from '@/lib/assets/imageLoader';
 import { buildFullAssetPath } from '@/lib/assets/pathUtils';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 import { useCoverSource } from './hooks/useCoverSource';
-import { useCoverInteraction } from './hooks/useCoverInteraction';
-
+// We import constants for consistent constraints
+import {
+    MIN_HEIGHT, MAX_HEIGHT, DEFAULT_HEIGHT, MAX_SCALE,
+    calculateCropPixels, calculateCropPercentage
+} from './hooks/coverUtils';
 
 interface CoverImageProps {
     url: string | null;
@@ -17,7 +21,6 @@ interface CoverImageProps {
     readOnly?: boolean;
     onUpdate: (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => void;
     vaultPath: string;
-    /** External control to open the picker (for "Add cover" button) */
     pickerOpen?: boolean;
     onPickerOpenChange?: (open: boolean) => void;
 }
@@ -26,7 +29,7 @@ export function CoverImage({
     url,
     positionX,
     positionY,
-    height,
+    height: initialHeight,
     scale = 1,
     readOnly = false,
     onUpdate,
@@ -34,41 +37,53 @@ export function CoverImage({
     pickerOpen,
     onPickerOpenChange,
 }: CoverImageProps) {
-    // Refs for DOM elements
+    // --- Height State (Managed Manually) ---
+    const [coverHeight, setCoverHeight] = useState(initialHeight ?? DEFAULT_HEIGHT);
     const containerRef = useRef<HTMLDivElement>(null);
-    const imgRef = useRef<HTMLImageElement>(null);
+    const lastHeightProp = useRef(initialHeight);
 
-    // 1. Data Source Hook
+    // Sync height if prop changes externally
+    if (initialHeight !== undefined && initialHeight !== lastHeightProp.current) {
+        lastHeightProp.current = initialHeight;
+        setCoverHeight(initialHeight);
+    }
+
+    // --- Data Source ---
     const {
         resolvedSrc,
         previewSrc,
         setPreviewSrc,
-        isImageReady,
+        setIsImageReady,
         prevSrcRef,
-        isSelectingRef,
-        cachedDimensionsRef,
-        handleImageLoad
+        isSelectingRef
     } = useCoverSource({ url, vaultPath, onUpdate });
 
-    // 2. Interaction Hook
-    const {
-        coverHeight,
-        setCoverHeight,
-        isAnimating,
-        isResizingHeight,
-        handleImageMouseDown,
-        handleResizeMouseDown,
-        imageStyle
-    } = useCoverInteraction({
-        url, positionX, positionY, height, scale, readOnly, onUpdate,
-        containerRef, imgRef, cachedDimensionsRef, isImageReady
-    });
 
-    // UI state - use external control if provided
+    // --- Resize Observer for Container ---
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                const { width, height } = entry.contentRect;
+                setContainerSize(prev => {
+                    // Prevent loops if dimensions match
+                    if (prev?.width === width && prev?.height === height) return prev;
+                    return { width, height };
+                });
+            }
+        });
+
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []); // containerRef is stable
+
+
+    // --- Picker State ---
     const [internalShowPicker, setInternalShowPicker] = useState(false);
     const showPicker = pickerOpen ?? internalShowPicker;
 
-    // Wrapped setter to handle external vs internal control
     const setShowPicker = useCallback((open: boolean) => {
         if (onPickerOpenChange) {
             onPickerOpenChange(open);
@@ -77,62 +92,150 @@ export function CoverImage({
         }
     }, [onPickerOpenChange]);
 
-    // Cover selection handler
-    const handleCoverSelect = useCallback(async (assetPath: string) => {
-        // If selecting the same cover, useEffect[url] won't fire to clear preview
-        // So we must manually clear it and reset state
+    // --- Cropper State ---
+    const [crop, setCrop] = useState({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(scale);
+    const [mediaSize, setMediaSize] = useState<{ width: number, height: number } | null>(null);
+    const [containerSize, setContainerSize] = useState<{ width: number, height: number } | null>(null);
+    // Track if we are currently interacting to prevent state loops
+    const [isInteracting, setIsInteracting] = useState(false);
+
+    // Determine objectFit mode for true "cover" behavior
+    // If image aspect ratio > container aspect ratio: image is wider, so fill height (vertical-cover)
+    // If image aspect ratio < container aspect ratio: image is taller, so fill width (horizontal-cover)
+    const objectFitMode: 'contain' | 'horizontal-cover' | 'vertical-cover' = (() => {
+        if (!mediaSize || !containerSize) return 'horizontal-cover'; // Safe default
+        const imageAspect = mediaSize.width / mediaSize.height;
+        const containerAspect = containerSize.width / containerSize.height;
+        return imageAspect > containerAspect ? 'vertical-cover' : 'horizontal-cover';
+    })();
+
+    // With objectFit='...-cover', Zoom 1 always means "Perfectly Covered".
+    // So we just need to ensure Zoom never drops below 1.
+    const effectiveMinZoom = 1;
+
+    // Use a reasonable max zoom (e.g. 5x or 10x the cover size)
+    const effectiveMaxZoom = MAX_SCALE;
+
+    // Sync Zoom Prop & Enforce Min Scale
+    useEffect(() => {
+        if (!isInteracting) {
+            // Ensure we don't drop below 1.0
+            const safeZoom = Math.max(scale, 1);
+            if (zoom !== safeZoom) {
+                setZoom(safeZoom);
+            }
+        }
+    }, [scale, isInteracting]);
+
+    // Sync Crop Props
+    useEffect(() => {
+        if (isInteracting || !mediaSize || !containerSize) return;
+
+        const pixels = calculateCropPixels(
+            { x: positionX, y: positionY },
+            mediaSize,
+            containerSize,
+            zoom
+        );
+        setCrop(pixels);
+
+    }, [positionX, positionY, scale, mediaSize, containerSize, isInteracting, zoom]); // Use scale prop for sync
+
+    // --- Interaction Handlers ---
+
+    // --- Handlers for Cropper ---
+    // --- Interaction Handlers ---
+
+    // Track if actual modification occurred during interaction
+    const dragOccurredRef = useRef(false);
+    // Track if picker was open at start of interaction to prevent "Close -> Reopen" race
+    const wasPickerOpenRef = useRef(false);
+
+    // Define handlers for Start/End to manage interacting state and saving
+    const handleInteractionStart = () => {
+        setIsInteracting(true);
+        dragOccurredRef.current = false;
+        wasPickerOpenRef.current = showPicker;
+    };
+
+    const handleInteractionEnd = () => {
+        setIsInteracting(false);
+
+        if (dragOccurredRef.current) {
+            // If dragged/zoomed, save changes
+            saveToDb(crop, zoom);
+        } else if (!readOnly && !wasPickerOpenRef.current) {
+            // If closed, open it
+            setShowPicker(true);
+        } else if (!readOnly && wasPickerOpenRef.current) {
+            // If open, close it
+            setShowPicker(false);
+        }
+    };
+
+    // --- Handlers for Cropper ---
+    // Update local state only
+    const onCropperCropChange = (newCrop: { x: number, y: number }) => {
+        if (readOnly) return;
+        setCrop(newCrop);
+        dragOccurredRef.current = true;
+    };
+
+    const onCropperZoomChange = (newZoom: number) => {
+        if (readOnly) return;
+        // Hard Clamp: Enforce "No Whitespace" during interaction
+        const safeZoom = Math.max(newZoom, effectiveMinZoom);
+        setZoom(safeZoom);
+        dragOccurredRef.current = true;
+    };
+
+    // Helper to save changes to the database
+    const saveToDb = useCallback((currentCrop: { x: number, y: number }, currentZoom: number) => {
+        if (!mediaSize || !containerSize) return;
+
+        const percent = calculateCropPercentage(
+            currentCrop,
+            mediaSize,
+            containerSize,
+            currentZoom
+        );
+
+        onUpdate(url, percent.x, percent.y, coverHeight, currentZoom);
+    }, [mediaSize, containerSize, url, coverHeight, onUpdate]);
+
+    // --- Other Handlers (Copy reused) ---
+    const handleCoverSelect = useCallback((assetPath: string) => {
         if (assetPath === url) {
             setPreviewSrc(null);
             isSelectingRef.current = false;
-            // Reset logic for re-selection
             onUpdate(assetPath, 50, 50, coverHeight, 1);
             setShowPicker(false);
             return;
         }
-
         isSelectingRef.current = true;
-
-        // RESET LOGIC: 
-        // Reset Position -> Center (50, 50)
-        // Reset Scale -> 1
-        // Keep Height -> Preserves user's layout preference
         onUpdate(assetPath, 50, 50, coverHeight, 1);
         setShowPicker(false);
     }, [url, coverHeight, onUpdate, setPreviewSrc, isSelectingRef, setShowPicker]);
 
     const lastPreviewPathRef = useRef<string | null>(null);
-
-    // Preview handler
     const handlePreview = useCallback(async (assetPath: string | null) => {
         lastPreviewPathRef.current = assetPath;
-
         if (!assetPath) {
-            if (!isSelectingRef.current) {
-                setPreviewSrc(null);
-            }
+            if (!isSelectingRef.current) setPreviewSrc(null);
             return;
         }
-
         try {
-            // Built-in covers use URL directly
             if (isBuiltinCover(assetPath)) {
                 setPreviewSrc(getBuiltinCoverUrl(assetPath));
                 return;
             }
-
             if (!vaultPath) return;
-
             const fullPath = buildFullAssetPath(vaultPath, assetPath);
             const blobUrl = await loadImageAsBlob(fullPath);
-
-            // Check if this result is still the latest requested
-            if (assetPath === lastPreviewPathRef.current) {
-                setPreviewSrc(blobUrl);
-            }
+            if (assetPath === lastPreviewPathRef.current) setPreviewSrc(blobUrl);
         } catch {
-            if (assetPath === lastPreviewPathRef.current) {
-                setPreviewSrc(null);
-            }
+            if (assetPath === lastPreviewPathRef.current) setPreviewSrc(null);
         }
     }, [vaultPath, isSelectingRef, setPreviewSrc]);
 
@@ -141,14 +244,39 @@ export function CoverImage({
         setShowPicker(false);
     }, [setPreviewSrc, setShowPicker]);
 
-    // Render Logic
+    // Resize Height Logic (Simplified from useCoverInteraction)
+    const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const startY = e.clientY;
+        const startH = coverHeight;
 
-    // No cover and no picker/preview - render nothing
-    if (!url && !showPicker && !previewSrc) {
-        return null;
-    }
+        const onMove = (me: MouseEvent) => {
+            const delta = me.clientY - startY;
+            const newH = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, startH + delta));
+            setCoverHeight(newH);
+        };
 
-    // No cover but picker is open or has preview - show preview area
+        const onUp = (me: MouseEvent) => {
+            const delta = me.clientY - startY;
+            const newH = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, startH + delta));
+            // Save final height
+            // We assume Crop/Zoom didn't change, we use current Prop values?
+            // Yes, resize height only changes height.
+            onUpdate(url, positionX, positionY, newH, scale);
+
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }, [coverHeight, onUpdate, url, positionX, positionY, scale]);
+
+
+    // Return Render
+    if (!url && !showPicker && !previewSrc) return null;
+
     if (!url) {
         return (
             <div className="relative w-full">
@@ -170,68 +298,76 @@ export function CoverImage({
 
     const displaySrc = previewSrc || resolvedSrc || prevSrcRef.current || '';
 
+    // If we have no displaySrc but url exists (e.g. loading or error), Show Placeholder
+    // Actually displaySrc includes 'prevSrcRef' so it handles transitions.
+    // If absolutely nothing, show error.
+
     return (
-        <div className="relative w-full">
-            <div
-                className={cn(
-                    "relative w-full bg-muted/20 shrink-0 select-none overflow-hidden",
-                    // Only apply transition when NOT actively resizing
-                    !isResizingHeight && "transition-[height] duration-150 ease-out"
-                )}
-                style={{
-                    height: coverHeight,
-                    // GPU acceleration hint during resize
-                    willChange: isResizingHeight ? 'height' : 'auto',
-                }}
-                ref={containerRef}
-                // Allow opening picker if image failed to load (Error State Recovery)
-                onMouseDown={(e) => {
-                    if (!displaySrc && !showPicker && !readOnly) {
-                        setShowPicker(true);
-                    }
-                }}
-            >
-                {displaySrc ? (
-                    <img
-                        ref={imgRef}
-                        src={displaySrc}
-                        alt="Cover"
-                        className={cn(
-                            !readOnly && "cursor-pointer",
-                            // Only apply transition when animating and NOT resizing
-                            isAnimating && !isResizingHeight && "transition-all duration-150 ease-out"
-                        )}
-                        style={{
-                            ...(previewSrc ? { width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center center' } : imageStyle),
-                            // GPU acceleration hint during resize/drag
-                            willChange: 'transform, width, height',
-                            // Display condition: preview / new image ready / has old image for transition
-                            opacity: previewSrc || isImageReady || prevSrcRef.current ? 1 : 0,
-                        }}
-                        draggable={false}
-                        // Use wrapped handler that opens picker if not dragged
-                        onMouseDown={previewSrc ? undefined : (e) => handleImageMouseDown(e, () => setShowPicker(true))}
-                        onLoad={handleImageLoad}
-                    />
-                ) : (
-                    // Error/Loading Placeholder - Clickable to retry/replace
-                    <div className={cn("w-full h-full flex items-center justify-center text-muted-foreground", !readOnly && "cursor-pointer")}>
-                        {!readOnly && <span className="text-xs">Click to change cover</span>}
-                    </div>
-                )}
-                {!readOnly && !showPicker && (
-                    <div
-                        className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-30 flex justify-center group/handle hover:h-3 transition-[height]"
-                        onMouseDown={handleResizeMouseDown}
-                        onDoubleClick={() => {
-                            // Classic Golden Ratio reset
-                            const goldenHeight = Math.round(window.innerHeight * 0.236);
-                            setCoverHeight(goldenHeight);
-                            onUpdate(url, 50, 50, goldenHeight, 1);
-                        }}
-                    />
-                )}
-            </div>
+        <div
+            className={cn("relative w-full bg-muted/20 shrink-0 select-none overflow-hidden group")}
+            style={{ height: coverHeight }}
+            ref={containerRef}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+        >
+            {/* Cropper Layer */}
+            {displaySrc && (
+                <Cropper
+                    image={displaySrc}
+                    crop={crop}
+                    zoom={zoom}
+                    cropSize={containerSize ?? undefined}
+                    minZoom={effectiveMinZoom}
+                    maxZoom={effectiveMaxZoom}
+                    objectFit={objectFitMode}
+                    restrictPosition={true}
+                    showGrid={false}
+                    onCropChange={onCropperCropChange}
+                    onZoomChange={onCropperZoomChange}
+                    onInteractionStart={handleInteractionStart}
+                    onInteractionEnd={handleInteractionEnd}
+                    onMediaLoaded={(media) => {
+                        setMediaSize({ width: media.naturalWidth, height: media.naturalHeight });
+                        setIsImageReady(true);
+                    }}
+                    style={{
+                        containerStyle: { backgroundColor: 'transparent' },
+                        cropAreaStyle: { border: 'none', boxShadow: 'none', color: 'transparent' }
+                    }}
+                    mediaProps={{
+                        style: { maxWidth: 'none', maxHeight: 'none' }
+                    }}
+                />
+            )}
+
+            {/* ReadOnly Overlay / Picker Trigger */}
+            {!displaySrc && (
+                <div
+                    className="absolute inset-0 flex items-center justify-center text-muted-foreground cursor-pointer z-10"
+                    onMouseDown={() => !readOnly && setShowPicker(true)}
+                >
+                    {!readOnly && <span className="text-xs">Click to change cover</span>}
+                </div>
+            )}
+
+            {/* ReadOnly blocker */}
+            {readOnly && <div className="absolute inset-0 z-20" />}
+
+
+
+            {/* Height Resize Handle */}
+            {!readOnly && (
+                <div
+                    className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-40 opacity-0 hover:opacity-100 transition-opacity"
+                    onMouseDown={handleResizeMouseDown}
+                    onDoubleClick={() => {
+                        const goldenHeight = Math.round(window.innerHeight * 0.236);
+                        setCoverHeight(goldenHeight);
+                        onUpdate(url, positionX, positionY, goldenHeight, scale);
+                    }}
+                />
+            )}
+
             <CoverPicker
                 isOpen={showPicker}
                 onClose={handlePickerClose}
@@ -240,6 +376,6 @@ export function CoverImage({
                 onPreview={handlePreview}
                 vaultPath={vaultPath}
             />
-        </div >
+        </div>
     );
 }
