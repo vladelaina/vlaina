@@ -17,11 +17,12 @@ interface UseCoverInteractionProps {
     containerRef: RefObject<HTMLDivElement | null>;
     imgRef: RefObject<HTMLImageElement | null>;
     cachedDimensionsRef: RefObject<{ width: number; height: number } | null>;
+    isImageReady: boolean;
 }
 
 export function useCoverInteraction({
     url, positionX, positionY, height, scale = 1, readOnly, onUpdate,
-    containerRef, imgRef, cachedDimensionsRef
+    containerRef, imgRef, cachedDimensionsRef, isImageReady
 }: UseCoverInteractionProps) {
     // Local State
     const [dragX, setDragX] = useState(positionX);
@@ -301,7 +302,7 @@ export function useCoverInteraction({
             maxHeight: 'none',
             objectFit: 'cover',
         };
-    }, [dragX, dragY, currentScale, coverHeight, containerWidth, cachedDimensionsRef]);
+    }, [dragX, dragY, currentScale, coverHeight, containerWidth, cachedDimensionsRef, isImageReady]);
 
     return {
         dragX, dragY, currentScale, coverHeight,

@@ -44,6 +44,8 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
 
     // Resolve URL to Blob
     useEffect(() => {
+        let ignore = false;
+
         async function resolve() {
             if (url === lastResolvedUrlRef.current && resolvedSrc) return;
 
@@ -64,29 +66,48 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
                 try {
                     const fullPath = buildFullAssetPath(vaultPath, url);
                     imageUrl = await loadImageAsBlob(fullPath);
-                } catch {
+                } catch (e) {
+                    console.error("Failed to load cover image", e);
+                    if (ignore) return;
                     setResolvedSrc(null);
                     setPreviewSrc(null);
                     isSelectingRef.current = false;
-                    onUpdate(null, 50, 50);
+                    // Do NOT auto-delete the cover. Let the user see the error state.
+                    // onUpdate(null, 50, 50); 
                     return;
                 }
             } else {
                 return;
             }
 
+            if (ignore) return;
+
             // Pre-load dimensions
             const dimensions = await loadImageWithDimensions(imageUrl);
-            if (dimensions) {
-                cachedDimensionsRef.current = dimensions;
+
+            if (ignore) return;
+
+            if (!dimensions) {
+                // Image failed to load (corrupt or 404)
+                setResolvedSrc(null);
+                setPreviewSrc(null);
+                isSelectingRef.current = false;
+                return;
             }
 
+            cachedDimensionsRef.current = dimensions;
             setResolvedSrc(imageUrl);
             setPreviewSrc(null);
             isSelectingRef.current = false;
             lastResolvedUrlRef.current = url;
         }
+
         resolve();
+
+        // Cleanup function to set ignore flag
+        return () => {
+            ignore = true;
+        };
     }, [url, vaultPath, onUpdate]);
 
     // Handle Image Load Event

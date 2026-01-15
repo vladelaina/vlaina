@@ -61,7 +61,7 @@ export function CoverImage({
         imageStyle
     } = useCoverInteraction({
         url, positionX, positionY, height, scale, readOnly, onUpdate,
-        containerRef, imgRef, cachedDimensionsRef
+        containerRef, imgRef, cachedDimensionsRef, isImageReady
     });
 
     // UI state - use external control if provided
@@ -100,8 +100,12 @@ export function CoverImage({
         setShowPicker(false);
     }, [url, coverHeight, onUpdate, setPreviewSrc, isSelectingRef, setShowPicker]);
 
+    const lastPreviewPathRef = useRef<string | null>(null);
+
     // Preview handler
     const handlePreview = useCallback(async (assetPath: string | null) => {
+        lastPreviewPathRef.current = assetPath;
+
         if (!assetPath) {
             if (!isSelectingRef.current) {
                 setPreviewSrc(null);
@@ -120,9 +124,15 @@ export function CoverImage({
 
             const fullPath = buildFullAssetPath(vaultPath, assetPath);
             const blobUrl = await loadImageAsBlob(fullPath);
-            setPreviewSrc(blobUrl);
+
+            // Check if this result is still the latest requested
+            if (assetPath === lastPreviewPathRef.current) {
+                setPreviewSrc(blobUrl);
+            }
         } catch {
-            setPreviewSrc(null);
+            if (assetPath === lastPreviewPathRef.current) {
+                setPreviewSrc(null);
+            }
         }
     }, [vaultPath, isSelectingRef, setPreviewSrc]);
 
@@ -174,8 +184,14 @@ export function CoverImage({
                     willChange: isResizingHeight ? 'height' : 'auto',
                 }}
                 ref={containerRef}
+                // Allow opening picker if image failed to load (Error State Recovery)
+                onMouseDown={(e) => {
+                    if (!displaySrc && !showPicker && !readOnly) {
+                        setShowPicker(true);
+                    }
+                }}
             >
-                {displaySrc && (
+                {displaySrc ? (
                     <img
                         ref={imgRef}
                         src={displaySrc}
@@ -197,6 +213,11 @@ export function CoverImage({
                         onMouseDown={previewSrc ? undefined : (e) => handleImageMouseDown(e, () => setShowPicker(true))}
                         onLoad={handleImageLoad}
                     />
+                ) : (
+                    // Error/Loading Placeholder - Clickable to retry/replace
+                    <div className={cn("w-full h-full flex items-center justify-center text-muted-foreground", !readOnly && "cursor-pointer")}>
+                        {!readOnly && <span className="text-xs">Click to change cover</span>}
+                    </div>
                 )}
                 {!readOnly && !showPicker && (
                     <div
@@ -219,6 +240,6 @@ export function CoverImage({
                 onPreview={handlePreview}
                 vaultPath={vaultPath}
             />
-        </div>
+        </div >
     );
 }
