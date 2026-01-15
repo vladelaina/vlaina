@@ -11,6 +11,9 @@ import {
   saveFavoritesToFile,
   saveWorkspaceState,
   safeWriteTextFile,
+  loadNoteMetadata,
+  saveNoteMetadata,
+  setNoteEntry,
 } from '../storage';
 import { collectExpandedPaths, restoreExpandedState } from '../fileTreeUtils';
 
@@ -106,7 +109,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     try {
       const storage = getStorageAdapter();
       const content = await storage.readFile(absolutePath);
-      
+
       // Use the absolute path as the identifier
       const fileName = absolutePath.split(/[/\\]/).pop()?.replace('.md', '') || 'Untitled';
       const tabName = fileName;
@@ -147,12 +150,24 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     try {
       // Check if path is absolute (starts with drive letter on Windows or / on Unix)
       const isAbsolutePath = /^[A-Za-z]:[\\/]/.test(currentNote.path) || currentNote.path.startsWith('/');
-      const fullPath = isAbsolutePath 
-        ? currentNote.path 
+      const fullPath = isAbsolutePath
+        ? currentNote.path
         : await joinPath(notesPath, currentNote.path);
-      
+
       await safeWriteTextFile(fullPath, currentNote.content);
-      set({ isDirty: false });
+
+      // Update modification time
+      const metadata = await loadNoteMetadata(notesPath);
+      const updatedMetadata = setNoteEntry(metadata, currentNote.path, {
+        updatedAt: Date.now(),
+      });
+      await saveNoteMetadata(notesPath, updatedMetadata);
+
+      // Update store with new metadata
+      set({
+        isDirty: false,
+        noteMetadata: updatedMetadata
+      });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save note' });
     }

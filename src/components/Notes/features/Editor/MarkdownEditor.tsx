@@ -1,6 +1,14 @@
 // MarkdownEditor - WYSIWYG Markdown editor using Milkdown
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Editor, rootCtx, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
@@ -94,7 +102,8 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
     return useNotesStore.getState().currentNote?.content || '';
   }, [currentNotePath]);
 
-  // Debounced auto-save (2s after last edit)
+
+
   const debouncedSave = useCallback(() => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -262,6 +271,13 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
   const displayIcon = useDisplayIcon(currentNotePath);
   const starred = currentNotePath ? isStarred(currentNotePath) : false;
   const noteIcon = currentNotePath ? getNoteIcon(currentNotePath) : undefined;
+
+  // Retrieve metadata for the current note from the store
+  const noteMetadata = useNotesStore(s => s.noteMetadata);
+  const currentNoteMetadata = useMemo(() => {
+    return currentNotePath && noteMetadata?.notes ? noteMetadata.notes[currentNotePath] : undefined;
+  }, [currentNotePath, noteMetadata]);
+
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [isHoveringHeader, setIsHoveringHeader] = useState(false);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
@@ -392,15 +408,33 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
           <Star className="size-4" fill={starred ? "currentColor" : "none"} />
         </button>
 
-        <button
-          onClick={(e) => e.stopPropagation()}
-          className={cn(
-            "p-1.5 transition-colors",
-            iconButtonStyles
-          )}
-        >
-          <Ellipsis className="size-4" />
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              onClick={(e) => e.stopPropagation()}
+              className={cn(
+                "p-1.5 transition-colors",
+                iconButtonStyles
+              )}
+            >
+              <Ellipsis className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Note Details</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+
+            {/* Future slot for Full Width toggle etc. */}
+
+            <div className="px-2 py-1.5 text-xs text-muted-foreground grid grid-cols-[60px_1fr] gap-1">
+              <span className="font-medium">Created:</span>
+              <span>{currentNoteMetadata?.createdAt ? new Date(currentNoteMetadata.createdAt).toLocaleString() : '-'}</span>
+
+              <span className="font-medium">Updated:</span>
+              <span>{currentNoteMetadata?.updatedAt ? new Date(currentNoteMetadata.updatedAt).toLocaleString() : '-'}</span>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="flex-1 overflow-auto neko-scrollbar flex flex-col items-center relative">

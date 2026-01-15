@@ -19,6 +19,7 @@ import {
   ensureNotesFolder,
   loadNoteMetadata,
   saveNoteMetadata,
+  setNoteEntry,
   loadWorkspaceState,
   loadFavoritesFromFile,
   saveWorkspaceState,
@@ -162,6 +163,16 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
 
       const defaultContent = '';
       await safeWriteTextFile(fullPath, defaultContent);
+
+      // Initialize Metadata
+      const now = Date.now();
+      const metadata = await loadNoteMetadata(notesPath);
+      const updatedMetadata = setNoteEntry(metadata, relativePath, {
+        createdAt: now,
+        updatedAt: now,
+      });
+      await saveNoteMetadata(notesPath, updatedMetadata);
+
       await loadFileTree();
 
       const currentRootFolder = get().rootFolder;
@@ -171,6 +182,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
             ...currentRootFolder,
             children: restoreExpandedState(currentRootFolder.children, expandedPaths),
           },
+          noteMetadata: updatedMetadata, // Update store
         });
       }
 
@@ -197,7 +209,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     name: string,
     content: string
   ) => {
-    let { notesPath, loadFileTree, rootFolder } = get();
+    let { notesPath, loadFileTree, rootFolder, openTabs, recentNotes, noteMetadata } = get();
     const storage = getStorageAdapter();
     const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
 
@@ -219,6 +231,16 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       }
 
       await safeWriteTextFile(fullPath, content);
+
+      // Initialize Metadata
+      const now = Date.now();
+      const metadata = await loadNoteMetadata(notesPath);
+      const updatedMetadata = setNoteEntry(metadata, relativePath, {
+        createdAt: now,
+        updatedAt: now,
+      });
+      await saveNoteMetadata(notesPath, updatedMetadata);
+
       await loadFileTree();
 
       const currentRootFolder = get().rootFolder;
@@ -228,16 +250,18 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
             ...currentRootFolder,
             children: restoreExpandedState(currentRootFolder.children, expandedPaths),
           },
+          noteMetadata: updatedMetadata,
         });
       }
 
       // Update recent notes
-      const updatedRecent = addToRecentNotes(relativePath, get().recentNotes);
+      const updatedRecent = addToRecentNotes(relativePath, recentNotes); // Use fresh recentNotes
 
       set({
         currentNote: { path: relativePath, content },
         isDirty: false,
         recentNotes: updatedRecent,
+        noteMetadata: updatedMetadata,
       });
       return relativePath;
     } catch (error) {

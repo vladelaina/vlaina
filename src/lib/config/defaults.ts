@@ -18,6 +18,8 @@ export const STORAGE_KEY_SHORTCUTS = 'nekotick-shortcuts';
 export const STORAGE_KEY_PENDING_SYNC = 'pendingSync';
 export const STORAGE_KEY_FONT_SIZE = 'fontSize';
 export const STORAGE_KEY_AUTO_UPDATE = 'autoUpdate';
+export const STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED = 'nekotick-notes-sidebar-collapsed';
+export const STORAGE_KEY_SHOW_SIDEBAR = 'nekotick-show-sidebar';
 
 export const DEFAULT_SETTINGS = {
   timezone: DEFAULT_TIMEZONE,

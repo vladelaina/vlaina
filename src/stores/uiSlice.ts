@@ -3,7 +3,12 @@
 import { create } from 'zustand';
 import { ALL_COLORS, type ItemColor } from '@/lib/colors';
 import { type TimeView } from '@/lib/date';
-import { STORAGE_KEY_COLOR_FILTER, STORAGE_KEY_STATUS_FILTER } from '@/lib/config';
+import {
+  STORAGE_KEY_COLOR_FILTER,
+  STORAGE_KEY_STATUS_FILTER,
+  STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED,
+  STORAGE_KEY_SHOW_SIDEBAR
+} from '@/lib/config';
 
 export type TaskStatus = 'todo' | 'scheduled' | 'completed';
 export const ALL_STATUSES: TaskStatus[] = ['todo', 'scheduled', 'completed'];
@@ -98,6 +103,18 @@ interface UIStore {
   setPreviewColor: (eventId: string | null, color: ItemColor | null) => void;
 }
 
+function loadBoolean(key: string, defaultValue: boolean): boolean {
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved !== null) {
+      return saved === 'true';
+    }
+  } catch {
+    // ignore
+  }
+  return defaultValue;
+}
+
 function loadColorFilter(): ItemColor[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_COLOR_FILTER);
@@ -135,9 +152,13 @@ export const useUIStore = create<UIStore>()((set, get) => ({
     appViewMode: state.appViewMode === 'calendar' ? 'notes' : 'calendar'
   })),
 
-  notesSidebarCollapsed: false,
+  notesSidebarCollapsed: loadBoolean(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, false),
   notesSidebarWidth: 248,
-  toggleNotesSidebar: () => set((state) => ({ notesSidebarCollapsed: !state.notesSidebarCollapsed })),
+  toggleNotesSidebar: () => set((state) => {
+    const newState = !state.notesSidebarCollapsed;
+    localStorage.setItem(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, String(newState));
+    return { notesSidebarCollapsed: newState };
+  }),
   setNotesSidebarWidth: (width) => set({ notesSidebarWidth: width }),
   sidebarHeaderHovered: false,
   setSidebarHeaderHovered: (hovered) => set({ sidebarHeaderHovered: hovered }),
@@ -264,8 +285,12 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   draggingToCalendarTaskId: null,
   setDraggingToCalendarTaskId: (id) => set({ draggingToCalendarTaskId: id }),
 
-  showSidebar: true,
-  toggleSidebar: () => set((state) => ({ showSidebar: !state.showSidebar })),
+  showSidebar: loadBoolean(STORAGE_KEY_SHOW_SIDEBAR, true),
+  toggleSidebar: () => set((state) => {
+    const newState = !state.showSidebar;
+    localStorage.setItem(STORAGE_KEY_SHOW_SIDEBAR, String(newState));
+    return { showSidebar: newState };
+  }),
 
   showContextPanel: true,
   toggleContextPanel: () => set((state) => ({ showContextPanel: !state.showContextPanel })),

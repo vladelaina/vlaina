@@ -28,6 +28,8 @@ export interface NoteMetadataEntry {
   coverY?: number;
   coverH?: number;
   coverScale?: number;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface MetadataFile {
