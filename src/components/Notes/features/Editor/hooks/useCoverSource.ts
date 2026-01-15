@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { loadImageAsBlob, getCachedBlobUrl } from '@/lib/assets/imageLoader';
 import { buildFullAssetPath } from '@/lib/assets/pathUtils';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
-import { loadImageWithDimensions } from './coverUtils';
+import { loadImageWithDimensions, getCachedDimensions } from './coverUtils';
 
 interface UseCoverSourceProps {
     url: string | null;
@@ -11,36 +11,64 @@ interface UseCoverSourceProps {
 }
 
 export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps) {
+    // Helper to try resolving synchronously from cache
+    const resolveSync = (targetUrl: string | null): [string | null, { width: number; height: number } | null] => {
+        if (!targetUrl) return [null, null];
+
+        if (targetUrl.startsWith('http')) return [targetUrl, null]; // External URLs not sync cached logic here yet
+        if (isBuiltinCover(targetUrl)) return [getBuiltinCoverUrl(targetUrl), { width: 1920, height: 1080 }];
+
+        if (vaultPath) {
+            try {
+                const fullPath = buildFullAssetPath(vaultPath, targetUrl);
+                const cachedBlob = getCachedBlobUrl(fullPath);
+                if (cachedBlob) {
+                    const cachedDims = getCachedDimensions(cachedBlob);
+                    return [cachedBlob, cachedDims || null];
+                }
+            } catch {
+                return [null, null];
+            }
+        }
+        return [null, null];
+    };
+
+    // Initialize State
     const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
     const [previewSrc, setPreviewSrc] = useState<string | null>(null);
     const [isImageReady, setIsImageReady] = useState(false);
 
-    // Track previous src to show during transition
+    // Track previous state for transitions
     const prevSrcRef = useRef<string | null>(null);
-    // Track previous url to detect "add new" vs "switch" scenarios
-    const prevUrlRef = useRef<string | null>(null);
-    // Track last resolved URL to avoid duplicate resolves
+    const prevUrlRef = useRef<string | null>(null); // To detect changes
     const lastResolvedUrlRef = useRef<string | null>(null);
-    // Cache image dimensions
     const cachedDimensionsRef = useRef<{ width: number; height: number } | null>(null);
-    // Selection state tracking
     const isSelectingRef = useRef(false);
 
-    // Reset image ready state when url changes
-    useEffect(() => {
-        // Switch cover: keep old src for transition
-        if (prevUrlRef.current && resolvedSrc) {
-            prevSrcRef.current = resolvedSrc;
-        } else {
-            // New/Remove: clear transition src
-            prevSrcRef.current = null;
-        }
-
+    // --- Synchronous "Derived State" Pattern for Instant Switching ---
+    if (url !== prevUrlRef.current) {
         prevUrlRef.current = url;
-        setIsImageReady(false);
-        cachedDimensionsRef.current = null;
-        lastResolvedUrlRef.current = null;
-    }, [url]);
+
+        // Try sync resolve
+        const [syncSrc, syncDims] = resolveSync(url);
+
+        // Update State Immediately (during render phase) to prevent flash
+        if (syncSrc && syncDims) {
+            setResolvedSrc(syncSrc);
+            setIsImageReady(true);
+            cachedDimensionsRef.current = syncDims;
+            lastResolvedUrlRef.current = url;
+            prevSrcRef.current = null;
+        } else {
+            // Not cached, enter loading state
+            // Keep old src for transition
+            if (resolvedSrc) prevSrcRef.current = resolvedSrc;
+            setResolvedSrc(null);
+            setIsImageReady(false);
+            cachedDimensionsRef.current = null;
+            lastResolvedUrlRef.current = null;
+        }
+    }
 
     // Resolve URL to Blob
     useEffect(() => {

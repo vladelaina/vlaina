@@ -23,7 +23,7 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
   }
 
   const storage = getStorageAdapter();
-  
+
   try {
     const data = await storage.readBinaryFile(fullPath);
     const mimeType = getMimeType(fullPath);
@@ -31,10 +31,10 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
     const copy = new Uint8Array(data);
     const blob = new Blob([copy], { type: mimeType });
     const blobUrl = URL.createObjectURL(blob);
-    
+
     // Cache the URL
     blobUrlCache.set(fullPath, blobUrl);
-    
+
     return blobUrl;
   } catch (error) {
     console.error('Failed to load image:', fullPath, error);
@@ -61,4 +61,11 @@ export function clearImageCache(): void {
     URL.revokeObjectURL(url);
   }
   blobUrlCache.clear();
+}
+
+/**
+ * Synchronously get cached blob URL if available
+ */
+export function getCachedBlobUrl(fullPath: string): string | undefined {
+  return blobUrlCache.get(fullPath);
 }

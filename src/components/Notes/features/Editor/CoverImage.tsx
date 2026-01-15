@@ -204,7 +204,7 @@ export function CoverImage({
                         style={{
                             ...(previewSrc ? { width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center center' } : imageStyle),
                             // GPU acceleration hint during resize/drag
-                            willChange: isResizingHeight ? 'width, height, top' : 'auto',
+                            willChange: 'transform, width, height',
                             // Display condition: preview / new image ready / has old image for transition
                             opacity: previewSrc || isImageReady || prevSrcRef.current ? 1 : 0,
                         }}

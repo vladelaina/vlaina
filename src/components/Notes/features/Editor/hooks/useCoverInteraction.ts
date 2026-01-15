@@ -201,25 +201,46 @@ export function useCoverInteraction({
         const container = containerRef.current;
         if (!container || readOnly || !url) return;
 
+        let rafId: number | null = null;
+        let pendingDeltaY = 0;
+
         const handleWheel = (e: WheelEvent) => {
             e.preventDefault();
             e.stopPropagation();
             if (!imgRef.current?.naturalWidth) return;
 
-            const isFast = e.ctrlKey || e.metaKey;
-            const step = isFast ? 0.15 : 0.03;
-            const delta = -Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY), 100) / 100 * step;
+            // Accumulate delta for high-frequency events
+            pendingDeltaY += e.deltaY;
 
-            const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, currentScaleRef.current + delta));
-            if (newScale === currentScaleRef.current) return;
+            if (rafId === null) {
+                rafId = requestAnimationFrame(() => {
+                    const current = currentScaleRef.current;
+                    // Formula: scale - delta * sensitivity
+                    // Proportional speed: Fast scrolling = Fast zoom
+                    // 0.001 is a base sensitivity that feels natural for pixels
+                    const sensitivity = 0.001;
+                    const delta = pendingDeltaY * sensitivity;
 
-            currentScaleRef.current = newScale;
-            setCurrentScale(newScale);
-            setIsAnimating(true);
-            debouncedSave(newScale);
+                    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, current - delta));
+
+                    if (newScale !== current) {
+                        currentScaleRef.current = newScale;
+                        setCurrentScale(newScale);
+                        setIsAnimating(false); // Direct control, no transition
+                        debouncedSave(newScale);
+                    }
+
+                    pendingDeltaY = 0;
+                    rafId = null;
+                });
+            }
         };
+
         container.addEventListener('wheel', handleWheel, { passive: false });
-        return () => container.removeEventListener('wheel', handleWheel);
+        return () => {
+            container.removeEventListener('wheel', handleWheel);
+            if (rafId !== null) cancelAnimationFrame(rafId);
+        };
     }, [readOnly, url, debouncedSave]);
 
     // --- Resize Logic ---
@@ -293,11 +314,19 @@ export function useCoverInteraction({
         const { width, height, overflowX, overflowY } = calcImageDimensions(containerW, containerH, imgW, imgH, currentScale);
         const topOffset = -(overflowY * dragY / 100);
 
+        // Snap to pixels requires Math.round
+        // But for smooth zoom/drag, we MUST use floats to avoid quantization jitter.
+        // Modern browsers handle sub-pixel rendering well, especially with transform: translate3d.
+        const x = -(overflowX * dragX / 100);
+        const y = topOffset;
+
         return {
             position: 'absolute',
-            width, height,
-            left: -(overflowX * dragX / 100),
-            top: topOffset,
+            width: width,
+            height: height,
+            left: 0,
+            top: 0,
+            transform: `translate3d(${x}px, ${y}px, 0)`,
             maxWidth: 'none',
             maxHeight: 'none',
             objectFit: 'cover',
