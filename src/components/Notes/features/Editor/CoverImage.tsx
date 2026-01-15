@@ -464,7 +464,9 @@ export function CoverImage({
         if (assetPath === url) {
             setPreviewSrc(null);
             isSelectingRef.current = false;
-            // Still reset position to default center
+            // When re-selecting SAME image, we can optionally reset or keep.
+            // But to be consistent with "Reset on New", maybe re-selecting implies "reset this image"
+            // Let's reset it to be safe and consistent.
             onUpdate(assetPath, 50, 50, coverHeight, 1);
             setShowPicker(false);
             return;
@@ -472,38 +474,20 @@ export function CoverImage({
 
         isSelectingRef.current = true;
 
-        const container = containerRef.current;
-        const containerWidth = container?.clientWidth || 720;
+        // RESET LOGIC:
+        // When selecting a NEW cover, we:
+        // 1. Reset Position -> 50% 50% (Center)
+        // 2. Reset Scale -> 1 (Fit/Cover depending on dimensions)
+        // 3. Keep Height -> Preserves user's layout preference
+        const targetHeight = coverHeight;
 
-        try {
-            // Get image URL based on type
-            let imageUrl: string;
-            if (isBuiltinCover(assetPath)) {
-                imageUrl = getBuiltinCoverUrl(assetPath);
-            } else {
-                const fullPath = buildFullAssetPath(vaultPath, assetPath);
-                imageUrl = await loadImageAsBlob(fullPath);
-            }
+        // Note: We don't calculate "minHeight" anymore because we want to preserve the "Container"
+        // and let the "Content" (image) adapt via CSS object-fit or our manual positioning.
+        // If the new image is too small, it will just be covered/zoomed by our manual logic automatically.
 
-            const dimensions = await loadImageWithDimensions(imageUrl);
-
-            if (dimensions) {
-                const imgRatio = dimensions.width / dimensions.height;
-                const minHeightForCover = Math.ceil(containerWidth / imgRatio);
-                const finalHeight = coverHeight <= minHeightForCover && coverHeight <= MAX_HEIGHT
-                    ? coverHeight
-                    : Math.min(minHeightForCover, MAX_HEIGHT);
-
-                onUpdate(assetPath, 50, 50, Math.max(finalHeight, MIN_HEIGHT), 1);
-            } else {
-                onUpdate(assetPath, 50, 50, coverHeight, 1);
-            }
-        } catch {
-            onUpdate(assetPath, 50, 50, coverHeight, 1);
-        }
-
+        onUpdate(assetPath, 50, 50, targetHeight, 1);
         setShowPicker(false);
-    }, [vaultPath, coverHeight, onUpdate]);
+    }, [url, coverHeight, onUpdate]);
 
     // Preview handler
     const handlePreview = useCallback(async (assetPath: string | null) => {
@@ -645,7 +629,7 @@ export function CoverImage({
                             isAnimating && !isResizingHeight && "transition-all duration-150 ease-out"
                         )}
                         style={{
-                            ...(previewSrc ? { width: '100%', height: '100%', objectFit: 'cover' } : imageStyle),
+                            ...(previewSrc ? { width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center center' } : imageStyle),
                             // GPU acceleration hint during resize/drag
                             willChange: isResizingHeight ? 'width, height, top' : 'auto',
                             // Display condition: preview / new image ready / has old image for transition
