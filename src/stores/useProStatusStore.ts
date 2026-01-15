@@ -16,11 +16,15 @@ interface ProStatusState {
   expiresAt: number | null;
   // Last check timestamp
   lastCheckedAt: number | null;
+  // Transient loading state (not persisted)
+  isChecking: boolean;
 }
 
 interface ProStatusActions {
   // Set PRO status (called by sync process)
   setProStatus: (isPro: boolean, expiresAt?: number | null) => void;
+  // Set loading state
+  setIsChecking: (isChecking: boolean) => void;
   // Clear PRO status
   clearProStatus: () => void;
   // Get expiry days remaining
@@ -36,6 +40,10 @@ export const useProStatusStore = create<ProStatusStore>()(
       isProUser: false,
       expiresAt: null,
       lastCheckedAt: null,
+      isChecking: false,
+
+      // Set loading state
+      setIsChecking: (isChecking) => set({ isChecking }),
 
       // Set PRO status (called by sync process after cloud validation)
       setProStatus: (isPro, expiresAt = null) => {
@@ -43,6 +51,7 @@ export const useProStatusStore = create<ProStatusStore>()(
           isProUser: isPro,
           expiresAt,
           lastCheckedAt: Math.floor(Date.now() / 1000),
+          isChecking: false, // Automatically clear loading state when status is set
         });
       },
 
@@ -52,6 +61,7 @@ export const useProStatusStore = create<ProStatusStore>()(
           isProUser: false,
           expiresAt: null,
           lastCheckedAt: null,
+          isChecking: false,
         });
       },
 
@@ -59,11 +69,11 @@ export const useProStatusStore = create<ProStatusStore>()(
       getExpiryDaysRemaining: () => {
         const { expiresAt, isProUser } = get();
         if (!isProUser || !expiresAt) return null;
-        
+
         const now = Math.floor(Date.now() / 1000);
         const remaining = expiresAt - now;
         if (remaining <= 0) return 0;
-        
+
         return Math.ceil(remaining / (24 * 60 * 60));
       },
     }),

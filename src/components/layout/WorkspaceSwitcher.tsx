@@ -32,7 +32,7 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
         isConnecting,
         cancelConnect
     } = useGithubSyncStore();
-    const { isProUser } = useProStatusStore();
+    const { isProUser, isChecking: isProChecking } = useProStatusStore();
     const { appViewMode, toggleAppViewMode } = useUIStore();
     const [isOpen, setIsOpen] = React.useState(false);
 
@@ -49,7 +49,6 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
 
     const handleLogin = async () => {
         await connect();
-        setIsOpen(false);
     };
 
     const handleSwitchAccount = async () => {
@@ -70,12 +69,10 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
         } else {
             window.open(url, "_blank");
         }
-        setIsOpen(false);
     };
 
     const handleToggleView = () => {
         toggleAppViewMode();
-        setIsOpen(false);
     };
 
     const handleOpenAppLink = async () => {
@@ -195,7 +192,7 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                                         alt={displayName}
                                         className="w-10 h-10 rounded-lg shadow-sm border border-[var(--neko-border)] object-cover"
                                     />
-                                    {isProUser && (
+                                    {isProUser && !isProChecking && (
                                         <div className="absolute -bottom-1 -right-1 bg-yellow-400 text-[8px] px-1 rounded-full font-bold text-black border border-white ring-1 ring-black/5 dark:ring-white/10">
                                             PRO
                                         </div>
@@ -220,16 +217,30 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                                         </button>
                                     </div>
 
-                                    <div className="flex items-center gap-1.5 leading-none">
+                                    <div className="flex items-center gap-1.5 leading-none h-4">
+                                        <div className="flex items-center gap-1.5 h-full min-w-[60px]">
+                                            {!isProChecking ? (
+                                                <>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleUpgradePlan();
+                                                        }}
+                                                        className="text-[11px] font-medium text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors whitespace-nowrap"
+                                                    >
+                                                        {isProUser ? "Pro Plan" : "Free Plan"}
+                                                    </button>
+                                                    <span className="text-[var(--neko-text-tertiary)] opacity-30 text-[10px]">·</span>
+                                                </>
+                                            ) : (
+                                                <div className="w-10 h-2 bg-[var(--neko-border)] rounded-full animate-pulse opacity-40" />
+                                            )}
+                                        </div>
                                         <button
-                                            onClick={handleUpgradePlan}
-                                            className="text-[11px] font-medium text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors"
-                                        >
-                                            {isProUser ? "Pro Plan" : "Free Plan"}
-                                        </button>
-                                        <span className="text-[var(--neko-text-tertiary)] opacity-30 text-[10px]">·</span>
-                                        <button
-                                            onClick={handleOpenSettings}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleOpenSettings();
+                                            }}
                                             className="flex items-center gap-1 text-[11px] font-medium text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors group/settings"
                                         >
                                             <Settings className="w-3 h-3 opacity-60 group-hover/settings:opacity-100 transition-opacity" />
@@ -332,6 +343,6 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                     </div>
                 </Popover.Content>
             </Popover.Portal>
-        </Popover.Root>
+        </Popover.Root >
     );
 }

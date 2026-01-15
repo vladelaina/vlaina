@@ -191,6 +191,9 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         clearTimeout(timeoutId);
 
         if (result?.success) {
+          // Set checked status true immediately to avoid flicker
+          useProStatusStore.getState().setIsChecking(true);
+
           set({
             isConnected: true,
             username: result.username,
@@ -207,9 +210,12 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
                 proStatus.isPro,
                 proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
               );
+            } else {
+              useProStatusStore.getState().setIsChecking(false);
             }
           } catch (e) {
             console.error('Failed to check PRO status:', e);
+            useProStatusStore.getState().setIsChecking(false);
           }
 
           get().checkRemoteData();
