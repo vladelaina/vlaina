@@ -8,6 +8,8 @@ import { getStorageAdapter } from '@/lib/storage/adapter';
 import { getMimeType } from './filenameService';
 
 // Cache for blob URLs to avoid re-reading files
+// Using a Map as an LRU cache (insert order preservation)
+const MAX_CACHE_SIZE = 50;
 const blobUrlCache = new Map<string, string>();
 
 /**
@@ -19,6 +21,9 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
   // Check cache first
   const cached = blobUrlCache.get(fullPath);
   if (cached) {
+    // Refresh LRU position (delete and re-add)
+    blobUrlCache.delete(fullPath);
+    blobUrlCache.set(fullPath, cached);
     return cached;
   }
 
@@ -33,6 +38,16 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
     const blobUrl = URL.createObjectURL(blob);
 
     // Cache the URL
+    // If cache is full, remove oldest (first) item
+    if (blobUrlCache.size >= MAX_CACHE_SIZE) {
+      const oldestKey = blobUrlCache.keys().next().value;
+      if (oldestKey) {
+        const oldestUrl = blobUrlCache.get(oldestKey);
+        if (oldestUrl) URL.revokeObjectURL(oldestUrl);
+        blobUrlCache.delete(oldestKey);
+      }
+    }
+
     blobUrlCache.set(fullPath, blobUrl);
 
     return blobUrl;
@@ -67,5 +82,12 @@ export function clearImageCache(): void {
  * Synchronously get cached blob URL if available
  */
 export function getCachedBlobUrl(fullPath: string): string | undefined {
-  return blobUrlCache.get(fullPath);
+  const cached = blobUrlCache.get(fullPath);
+  // Optional: Refresh LRU on sync access? 
+  // Probably yes, if we are viewing it, it's "used".
+  if (cached) {
+    blobUrlCache.delete(fullPath);
+    blobUrlCache.set(fullPath, cached);
+  }
+  return cached;
 }
