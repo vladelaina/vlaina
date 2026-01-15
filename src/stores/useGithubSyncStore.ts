@@ -37,6 +37,7 @@ interface GithubSyncActions {
   restoreFromCloud: () => Promise<boolean>;
   checkRemoteData: () => Promise<void>;
   clearError: () => void;
+  cancelConnect: () => void;
   setSyncStatus: (status: GithubSyncStatusType) => void;
   /** Handle OAuth callback (web only) */
   handleOAuthCallback: () => Promise<boolean>;
@@ -169,10 +170,25 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
   connect: async () => {
     set({ isConnecting: true, syncError: null });
 
+    // 60-second safety timeout (Apple-style: keep it shorter but provide Cancel option)
+    const timeoutId = setTimeout(() => {
+      const state = get();
+      if (state.isConnecting) {
+        set({
+          isConnecting: false,
+          syncError: null // Silently reset on timeout to avoid 'broken' feeling
+        });
+      }
+    }, 60000);
+
+    // Store timeoutId to allow manual cancellation
+    (window as any).__nekotick_auth_timeout = timeoutId;
+
     if (hasBackendCommands()) {
       // Tauri platform - use local OAuth flow
       try {
         const result = await githubCommands.githubAuth();
+        clearTimeout(timeoutId);
 
         if (result?.success) {
           set({
@@ -206,6 +222,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
           return false;
         }
       } catch (error) {
+        clearTimeout(timeoutId);
         const errorMsg = error instanceof Error ? error.message : String(error);
         set({ syncError: errorMsg, isConnecting: false });
         return false;
@@ -214,6 +231,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       // Web platform - use redirect OAuth flow
       try {
         const authData = await webGithubCommands.startAuth();
+        clearTimeout(timeoutId);
         if (!authData) {
           set({ syncError: 'Failed to start OAuth', isConnecting: false });
           return false;
@@ -226,6 +244,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         window.location.href = authData.authUrl;
         return true; // Page will redirect, won't reach here
       } catch (error) {
+        clearTimeout(timeoutId);
         const errorMsg = error instanceof Error ? error.message : String(error);
         set({ syncError: errorMsg, isConnecting: false });
         return false;
@@ -472,9 +491,16 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
     }
   },
 
-  clearError: () => {
-    set({ syncError: null });
+  cancelConnect: () => {
+    const timeoutId = (window as any).__nekotick_auth_timeout;
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      (window as any).__nekotick_auth_timeout = null;
+    }
+    set({ isConnecting: false, syncError: null });
   },
+
+  clearError: () => set({ syncError: null }),
 
   setSyncStatus: (status: GithubSyncStatusType) => {
     set({ syncStatus: status });
