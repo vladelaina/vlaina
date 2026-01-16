@@ -14,13 +14,13 @@ import { useCalendarEvents } from '../../hooks/useCalendarEvents';
 import { EventBlock } from '../Event/EventBlock';
 import { AllDayArea } from './AllDayArea';
 import { calculateEventLayout } from '../../utils/eventLayout';
-import { 
-  getSnapMinutes, 
-  pixelsToMinutes, 
-  pixelsDeltaToMinutes, 
-  CALENDAR_CONSTANTS, 
-  displayPositionToHour, 
-  hourToDisplayPosition, 
+import {
+  getSnapMinutes,
+  pixelsToMinutes,
+  pixelsDeltaToMinutes,
+  CALENDAR_CONSTANTS,
+  displayPositionToHour,
+  hourToDisplayPosition,
   minutesToPixels,
   DEFAULT_DAY_START_MINUTES,
   isEventInVisualDay,
@@ -34,8 +34,8 @@ interface BaseTimeGridProps {
 }
 
 export function BaseTimeGrid({ days }: BaseTimeGridProps) {
-  const { 
-    addEvent, setEditingEventId, closeEditingEvent, 
+  const {
+    addEvent, setEditingEventId, closeEditingEvent,
     hourHeight, updateEvent, use24Hour, dayStartTime,
     events, deleteEvent, editingEventId
   } = useCalendarStore();
@@ -80,7 +80,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
 
   const columnCount = days.length;
   const snapMinutes = getSnapMinutes(hourHeight);
-  
+
   // Use configured day start time or default
   const dayStartMinutes = dayStartTime ?? DEFAULT_DAY_START_MINUTES;
 
@@ -88,7 +88,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
   const { allDayEvents, timedEvents } = useMemo(() => {
     const allDay: typeof displayItems = [];
     const timed: typeof displayItems = [];
-    
+
     for (const item of displayItems) {
       if (item.isAllDay) {
         allDay.push(item);
@@ -96,7 +96,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
         timed.push(item);
       }
     }
-    
+
     return { allDayEvents: allDay, timedEvents: timed };
   }, [displayItems]);
 
@@ -117,24 +117,24 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
   }, []);
 
   // Auto-scroll when dragging near edges
-  const autoScrollRef = useRef<{ 
-    rafId: number | null; 
-    lastMouseX: number; 
+  const autoScrollRef = useRef<{
+    rafId: number | null;
+    lastMouseX: number;
     lastMouseY: number;
     isScrolling: boolean;
-  }>({ 
-    rafId: null, 
+  }>({
+    rafId: null,
     lastMouseX: 0,
     lastMouseY: 0,
     isScrolling: false
   });
-  
+
   // Store a ref to trigger drag update for smooth dragging during auto-scroll
   const triggerDragUpdateRef = useRef<(() => void) | null>(null);
-  
+
   useEffect(() => {
     const isAnyDragging = isDragging || eventDrag !== null;
-    
+
     if (!isAnyDragging) {
       // Cancel animation frame when not dragging
       if (autoScrollRef.current.rafId !== null) {
@@ -147,21 +147,21 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
 
     const EDGE_THRESHOLD = 80; // pixels from edge to trigger scroll
     const MAX_SCROLL_SPEED = 15; // max pixels per frame
-    
+
     const handleAutoScroll = () => {
       if (!scrollRef.current) {
         autoScrollRef.current.rafId = requestAnimationFrame(handleAutoScroll);
         return;
       }
-      
+
       const scrollRect = scrollRef.current.getBoundingClientRect();
       const allDayRect = allDayAreaRef.current?.getBoundingClientRect();
       const mouseY = autoScrollRef.current.lastMouseY;
       let scrollAmount = 0;
-      
+
       // Top edge is the bottom of all-day area (or scroll area top if no all-day area)
       const topEdge = allDayRect ? allDayRect.bottom : scrollRect.top;
-      
+
       // Check if mouse is near top edge (below all-day area)
       if (mouseY < topEdge + EDGE_THRESHOLD && mouseY > topEdge - 20) {
         const distance = topEdge + EDGE_THRESHOLD - mouseY;
@@ -172,11 +172,11 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
         const distance = mouseY - (scrollRect.bottom - EDGE_THRESHOLD);
         scrollAmount = Math.ceil((distance / EDGE_THRESHOLD) * MAX_SCROLL_SPEED);
       }
-      
+
       if (scrollAmount !== 0) {
         scrollRef.current.scrollTop += scrollAmount;
         autoScrollRef.current.isScrolling = true;
-        
+
         // Trigger drag update immediately after scroll to keep event in sync
         if (triggerDragUpdateRef.current) {
           triggerDragUpdateRef.current();
@@ -184,7 +184,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
       } else {
         autoScrollRef.current.isScrolling = false;
       }
-      
+
       // Continue the animation loop
       autoScrollRef.current.rafId = requestAnimationFrame(handleAutoScroll);
     };
@@ -255,7 +255,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
     // Update mouse position for auto-scroll
     autoScrollRef.current.lastMouseX = e.clientX;
     autoScrollRef.current.lastMouseY = e.clientY;
-    
+
     // Core drag update logic - extracted so it can be called during auto-scroll
     const updateDragPosition = (clientX: number, clientY: number) => {
       // Check if mouse is in all-day area (for event drag conversion)
@@ -290,20 +290,20 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
           // For all-day events being dragged out, calculate target time based on mouse position
           const scrollRect = scrollRef.current.getBoundingClientRect();
           const allDayRect = allDayAreaRef.current?.getBoundingClientRect();
-          
+
           // Only update if mouse is in the time grid area (below all-day area)
           if (allDayRect && clientY > allDayRect.bottom && canvasRef.current) {
             const relativeY = clientY - scrollRect.top + scrollRef.current.scrollTop;
             const totalMinutes = pixelsToMinutes(relativeY, hourHeight, dayStartMinutes);
             let snappedMinutes = Math.round(totalMinutes / snapMinutes) * snapMinutes;
             snappedMinutes = Math.max(0, Math.min(1439, snappedMinutes));
-            
+
             // Calculate which day column the mouse is over
             const canvasRect = canvasRef.current.getBoundingClientRect();
             const relativeX = clientX - canvasRect.left;
             const dayWidth = canvasRect.width / columnCount;
             const dayIndex = Math.max(0, Math.min(columnCount - 1, Math.floor(relativeX / dayWidth)));
-            
+
             const event = displayItems.find(item => item.id === eventDrag.eventId);
             if (event) {
               const targetDay = days[dayIndex];
@@ -312,14 +312,14 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                 const newStartDate = new Date(targetDay);
                 newStartDate.setHours(Math.floor(snappedMinutes / 60), snappedMinutes % 60, 0, 0);
                 const newEndDate = new Date(newStartDate.getTime() + 60 * 60 * 1000); // 1 hour later
-                
+
                 // Update event in real-time (convert to timed event)
                 updateEvent(eventDrag.eventId, {
                   isAllDay: false,
                   startDate: newStartDate.getTime(),
                   endDate: newEndDate.getTime(),
                 });
-                
+
                 // Show time indicator
                 setDragTimeIndicator({
                   startMinutes: snappedMinutes,
@@ -341,159 +341,159 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
           }
           return;
         }
-        
+
         const scrollDelta = scrollRef.current.scrollTop - eventDrag.startScrollTop;
         const deltaY = clientY - eventDrag.startY + scrollDelta;
-      // Use pixelsDeltaToMinutes for relative movement (no day start offset)
-      const deltaMinutes = Math.round(pixelsDeltaToMinutes(deltaY, hourHeight) / snapMinutes) * snapMinutes;
-      const deltaMs = deltaMinutes * 60 * 1000;
+        // Use pixelsDeltaToMinutes for relative movement (no day start offset)
+        const deltaMinutes = Math.round(pixelsDeltaToMinutes(deltaY, hourHeight) / snapMinutes) * snapMinutes;
+        const deltaMs = deltaMinutes * 60 * 1000;
 
-      const event = displayItems.find(item => item.id === eventDrag.eventId);
-      if (!event) return;
+        const event = displayItems.find(item => item.id === eventDrag.eventId);
+        if (!event) return;
 
-      // Get visual day boundaries for the event (use current event position to handle cross-day scenarios)
-      const boundaries = getVisualDayBoundaries(event.startDate, dayStartMinutes);
-      const minDuration = Math.max(snapMinutes, 5) * 60 * 1000;
+        // Get visual day boundaries for the event (use current event position to handle cross-day scenarios)
+        const boundaries = getVisualDayBoundaries(event.startDate, dayStartMinutes);
+        const minDuration = Math.max(snapMinutes, 5) * 60 * 1000;
 
-      if (eventDrag.edge === 'top') {
-        // Dragging from top edge - the bottom (originalEnd) is the anchor
-        // Clamp anchor to boundaries in case event was moved
-        const anchor = Math.max(boundaries.start, Math.min(boundaries.end, eventDrag.originalEnd));
-        const draggedPosition = eventDrag.originalStart + deltaMs;
-        
-        // Clamp to visual day boundaries
-        const clampedPosition = Math.max(boundaries.start, Math.min(boundaries.end, draggedPosition));
-        
-        // Calculate new start and end based on dragged position relative to anchor
-        let newStart: number;
-        let newEnd: number;
-        
-        if (clampedPosition <= anchor) {
-          // Normal case: position is at or above anchor
-          newStart = clampedPosition;
-          newEnd = anchor;
-        } else {
-          // Flipped case: position is below anchor
-          newStart = anchor;
-          newEnd = clampedPosition;
-        }
-        
-        // Ensure minimum duration while respecting boundaries
-        if (newEnd - newStart < minDuration) {
+        if (eventDrag.edge === 'top') {
+          // Dragging from top edge - the bottom (originalEnd) is the anchor
+          // Clamp anchor to boundaries in case event was moved
+          const anchor = Math.max(boundaries.start, Math.min(boundaries.end, eventDrag.originalEnd));
+          const draggedPosition = eventDrag.originalStart + deltaMs;
+
+          // Clamp to visual day boundaries
+          const clampedPosition = Math.max(boundaries.start, Math.min(boundaries.end, draggedPosition));
+
+          // Calculate new start and end based on dragged position relative to anchor
+          let newStart: number;
+          let newEnd: number;
+
           if (clampedPosition <= anchor) {
-            // Try to extend start upward
-            newStart = Math.max(boundaries.start, newEnd - minDuration);
-            // If still not enough, extend end downward
-            if (newEnd - newStart < minDuration) {
-              newEnd = Math.min(boundaries.end, newStart + minDuration);
-            }
+            // Normal case: position is at or above anchor
+            newStart = clampedPosition;
+            newEnd = anchor;
           } else {
-            // Try to extend end downward
-            newEnd = Math.min(boundaries.end, newStart + minDuration);
-            // If still not enough, extend start upward
-            if (newEnd - newStart < minDuration) {
+            // Flipped case: position is below anchor
+            newStart = anchor;
+            newEnd = clampedPosition;
+          }
+
+          // Ensure minimum duration while respecting boundaries
+          if (newEnd - newStart < minDuration) {
+            if (clampedPosition <= anchor) {
+              // Try to extend start upward
               newStart = Math.max(boundaries.start, newEnd - minDuration);
+              // If still not enough, extend end downward
+              if (newEnd - newStart < minDuration) {
+                newEnd = Math.min(boundaries.end, newStart + minDuration);
+              }
+            } else {
+              // Try to extend end downward
+              newEnd = Math.min(boundaries.end, newStart + minDuration);
+              // If still not enough, extend start upward
+              if (newEnd - newStart < minDuration) {
+                newStart = Math.max(boundaries.start, newEnd - minDuration);
+              }
             }
           }
-        }
-        
-        updateEvent(eventDrag.eventId, { startDate: newStart, endDate: newEnd });
-        
-        // Update time indicator
-        setDragTimeIndicator({
-          startMinutes: new Date(newStart).getHours() * 60 + new Date(newStart).getMinutes(),
-          endMinutes: new Date(newEnd).getHours() * 60 + new Date(newEnd).getMinutes(),
-        });
-        
-      } else if (eventDrag.edge === 'bottom') {
-        // Dragging from bottom edge - the top (originalStart) is the anchor
-        // Clamp anchor to boundaries in case event was moved
-        const anchor = Math.max(boundaries.start, Math.min(boundaries.end, eventDrag.originalStart));
-        const draggedPosition = eventDrag.originalEnd + deltaMs;
-        
-        // Clamp to visual day boundaries
-        const clampedPosition = Math.max(boundaries.start, Math.min(boundaries.end, draggedPosition));
-        
-        // Calculate new start and end based on dragged position relative to anchor
-        let newStart: number;
-        let newEnd: number;
-        
-        if (clampedPosition >= anchor) {
-          // Normal case: position is at or below anchor
-          newStart = anchor;
-          newEnd = clampedPosition;
-        } else {
-          // Flipped case: position is above anchor
-          newStart = clampedPosition;
-          newEnd = anchor;
-        }
-        
-        // Ensure minimum duration while respecting boundaries
-        if (newEnd - newStart < minDuration) {
-          if (clampedPosition >= anchor) {
-            // Try to extend end downward
-            newEnd = Math.min(boundaries.end, newStart + minDuration);
-            // If still not enough, extend start upward
-            if (newEnd - newStart < minDuration) {
-              newStart = Math.max(boundaries.start, newEnd - minDuration);
-            }
-          } else {
-            // Try to extend start upward
-            newStart = Math.max(boundaries.start, newEnd - minDuration);
-            // If still not enough, extend end downward
-            if (newEnd - newStart < minDuration) {
-              newEnd = Math.min(boundaries.end, newStart + minDuration);
-            }
-          }
-        }
-        
-        updateEvent(eventDrag.eventId, { startDate: newStart, endDate: newEnd });
-        
-        // Update time indicator
-        setDragTimeIndicator({
-          startMinutes: new Date(newStart).getHours() * 60 + new Date(newStart).getMinutes(),
-          endMinutes: new Date(newEnd).getHours() * 60 + new Date(newEnd).getMinutes(),
-        });
-        
-      } else {
-        // Move entire event
-        const newStart = eventDrag.originalStart + deltaMs;
-        const newEnd = eventDrag.originalEnd + deltaMs;
-        const eventDuration = eventDrag.originalEnd - eventDrag.originalStart;
 
-        // Clamp to boundaries while preserving duration
-        let clampedStart = newStart;
-        let clampedEnd = newEnd;
-        
-        if (newStart < boundaries.start) {
-          clampedStart = boundaries.start;
-          clampedEnd = boundaries.start + eventDuration;
-        } else if (newEnd > boundaries.end) {
-          clampedEnd = boundaries.end;
-          clampedStart = boundaries.end - eventDuration;
-        }
+          updateEvent(eventDrag.eventId, { startDate: newStart, endDate: newEnd });
 
-        // Only update if within boundaries
-        if (clampedStart >= boundaries.start && clampedEnd <= boundaries.end) {
-          updateEvent(eventDrag.eventId, { 
-            startDate: clampedStart, 
-            endDate: clampedEnd 
-          });
           // Update time indicator
           setDragTimeIndicator({
-            startMinutes: new Date(clampedStart).getHours() * 60 + new Date(clampedStart).getMinutes(),
-            endMinutes: new Date(clampedEnd).getHours() * 60 + new Date(clampedEnd).getMinutes(),
+            startMinutes: new Date(newStart).getHours() * 60 + new Date(newStart).getMinutes(),
+            endMinutes: new Date(newEnd).getHours() * 60 + new Date(newEnd).getMinutes(),
           });
+
+        } else if (eventDrag.edge === 'bottom') {
+          // Dragging from bottom edge - the top (originalStart) is the anchor
+          // Clamp anchor to boundaries in case event was moved
+          const anchor = Math.max(boundaries.start, Math.min(boundaries.end, eventDrag.originalStart));
+          const draggedPosition = eventDrag.originalEnd + deltaMs;
+
+          // Clamp to visual day boundaries
+          const clampedPosition = Math.max(boundaries.start, Math.min(boundaries.end, draggedPosition));
+
+          // Calculate new start and end based on dragged position relative to anchor
+          let newStart: number;
+          let newEnd: number;
+
+          if (clampedPosition >= anchor) {
+            // Normal case: position is at or below anchor
+            newStart = anchor;
+            newEnd = clampedPosition;
+          } else {
+            // Flipped case: position is above anchor
+            newStart = clampedPosition;
+            newEnd = anchor;
+          }
+
+          // Ensure minimum duration while respecting boundaries
+          if (newEnd - newStart < minDuration) {
+            if (clampedPosition >= anchor) {
+              // Try to extend end downward
+              newEnd = Math.min(boundaries.end, newStart + minDuration);
+              // If still not enough, extend start upward
+              if (newEnd - newStart < minDuration) {
+                newStart = Math.max(boundaries.start, newEnd - minDuration);
+              }
+            } else {
+              // Try to extend start upward
+              newStart = Math.max(boundaries.start, newEnd - minDuration);
+              // If still not enough, extend end downward
+              if (newEnd - newStart < minDuration) {
+                newEnd = Math.min(boundaries.end, newStart + minDuration);
+              }
+            }
+          }
+
+          updateEvent(eventDrag.eventId, { startDate: newStart, endDate: newEnd });
+
+          // Update time indicator
+          setDragTimeIndicator({
+            startMinutes: new Date(newStart).getHours() * 60 + new Date(newStart).getMinutes(),
+            endMinutes: new Date(newEnd).getHours() * 60 + new Date(newEnd).getMinutes(),
+          });
+
+        } else {
+          // Move entire event
+          const newStart = eventDrag.originalStart + deltaMs;
+          const newEnd = eventDrag.originalEnd + deltaMs;
+          const eventDuration = eventDrag.originalEnd - eventDrag.originalStart;
+
+          // Clamp to boundaries while preserving duration
+          let clampedStart = newStart;
+          let clampedEnd = newEnd;
+
+          if (newStart < boundaries.start) {
+            clampedStart = boundaries.start;
+            clampedEnd = boundaries.start + eventDuration;
+          } else if (newEnd > boundaries.end) {
+            clampedEnd = boundaries.end;
+            clampedStart = boundaries.end - eventDuration;
+          }
+
+          // Only update if within boundaries
+          if (clampedStart >= boundaries.start && clampedEnd <= boundaries.end) {
+            updateEvent(eventDrag.eventId, {
+              startDate: clampedStart,
+              endDate: clampedEnd
+            });
+            // Update time indicator
+            setDragTimeIndicator({
+              startMinutes: new Date(clampedStart).getHours() * 60 + new Date(clampedStart).getMinutes(),
+              endMinutes: new Date(clampedEnd).getHours() * 60 + new Date(clampedEnd).getMinutes(),
+            });
+          }
         }
       }
-    }
     };
-    
+
     // Set the trigger ref so auto-scroll can call this
     triggerDragUpdateRef.current = () => {
       updateDragPosition(autoScrollRef.current.lastMouseX, autoScrollRef.current.lastMouseY);
     };
-    
+
     // Call the update with current mouse position
     updateDragPosition(e.clientX, e.clientY);
   }, [isDragging, dragStart, eventDrag, hourHeight, snapMinutes, displayItems, updateEvent, dayStartMinutes, columnCount, days]);
@@ -505,7 +505,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
 
       if (dragStart.minutes !== dragEnd.minutes) {
         const dayDate = days[dragStart.dayIndex];
-        
+
         // Safety check: ensure dayDate exists
         if (!dayDate) {
           setDragStart(null);
@@ -513,7 +513,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
           setDragTimeIndicator(null);
           return;
         }
-        
+
         const actualStartMinutes = Math.min(dragStart.minutes, dragEnd.minutes);
         const actualEndMinutes = Math.max(dragStart.minutes, dragEnd.minutes);
 
@@ -522,12 +522,12 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
         // where the time is before dayStartMinutes (belongs to next calendar day)
         let startDate: Date;
         let endDate: Date;
-        
+
         // Check if the drag spans across the dayStartMinutes boundary
         // This happens when one time is before dayStartMinutes and the other is after
         const startBeforeDayStart = actualStartMinutes < dayStartMinutes;
         const endBeforeDayStart = actualEndMinutes < dayStartMinutes;
-        
+
         if (startBeforeDayStart && !endBeforeDayStart) {
           // Edge case: drag spans across the day boundary (e.g., 2:00 AM to 6:00 AM when dayStart is 5:00 AM)
           // This is an invalid selection in our visual day model, so we should not create the event
@@ -537,7 +537,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
           setDragTimeIndicator(null);
           return;
         }
-        
+
         if (startBeforeDayStart) {
           // Time is in the "late night" portion, belongs to next calendar day
           startDate = new Date(dayDate);
@@ -547,7 +547,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
           startDate = new Date(dayDate);
           startDate.setHours(Math.floor(actualStartMinutes / 60), actualStartMinutes % 60, 0, 0);
         }
-        
+
         if (endBeforeDayStart) {
           // Time is in the "late night" portion, belongs to next calendar day
           endDate = new Date(dayDate);
@@ -583,7 +583,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
           const eventDate = new Date(event.startDate);
           const dayStart = startOfDay(eventDate);
           const dayEnd = endOfDay(eventDate);
-          
+
           updateEvent(eventDrag.eventId, {
             isAllDay: true,
             startDate: dayStart.getTime(),
@@ -596,7 +596,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
       else if (eventDrag.originalIsAllDay) {
         // Event was already updated during drag, nothing more to do
       }
-      
+
       setEventDrag(null);
       setDragTimeIndicator(null);
       setIsAllDayDropTarget(false);
@@ -650,7 +650,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
       endDate: endOfDay(endDay).getTime(),
       isAllDay: true,
     });
-    
+
     // Open editor
     setEditingEventId(newEventId);
   }, [addEvent, setEditingEventId]);
@@ -681,7 +681,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
         setDragEnd(null);
         setDragTimeIndicator(null);
       }
-      
+
       // Cancel event drag and restore original state
       if (eventDrag) {
         // Restore original event state
@@ -690,7 +690,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
           startDate: eventDrag.originalStart,
           endDate: eventDrag.originalEnd,
         });
-        
+
         setEventDrag(null);
         setDragTimeIndicator(null);
         setIsAllDayDropTarget(false);
@@ -744,27 +744,27 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                 <div key={displayPos} style={{ height: hourHeight }} className="relative">
                   {displayPos !== 0 && (
                     <span className="absolute -top-2 right-3 text-[11px] text-zinc-400 dark:text-zinc-500 font-medium tabular-nums">
-                      {use24Hour 
+                      {use24Hour
                         ? `${actualHour}:00`
-                        : actualHour === 0 ? '12AM' 
-                        : actualHour < 12 ? `${actualHour}AM` 
-                        : actualHour === 12 ? '12PM' 
-                        : `${actualHour - 12}PM`
+                        : actualHour === 0 ? '12AM'
+                          : actualHour < 12 ? `${actualHour}AM`
+                            : actualHour === 12 ? '12PM'
+                              : `${actualHour - 12}PM`
                       }
                     </span>
                   )}
                 </div>
               );
             })}
-            
+
             {/* Drag time indicators */}
             {dragTimeIndicator && (
               <>
                 {/* Start time indicator - only show if not on the hour */}
                 {dragTimeIndicator.startMinutes % 60 !== 0 && (
-                  <div 
+                  <div
                     className="absolute z-20 pointer-events-none"
-                    style={{ 
+                    style={{
                       top: `${minutesToPixels(dragTimeIndicator.startMinutes, hourHeight, dayStartMinutes)}px`,
                       right: 12,
                       transform: 'translateY(-50%)',
@@ -777,9 +777,9 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                 )}
                 {/* End time indicator - only show if not on the hour */}
                 {dragTimeIndicator.endMinutes % 60 !== 0 && (
-                  <div 
+                  <div
                     className="absolute z-20 pointer-events-none"
-                    style={{ 
+                    style={{
                       top: `${minutesToPixels(dragTimeIndicator.endMinutes, hourHeight, dayStartMinutes)}px`,
                       right: 12,
                       transform: 'translateY(-50%)',
@@ -792,15 +792,15 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                 )}
               </>
             )}
-            
+
             {/* Hover time indicator - preview when hovering resize edge */}
             {hoverTimeIndicator && !dragTimeIndicator && (
               <>
                 {/* Start time indicator */}
                 {hoverTimeIndicator.startMinutes % 60 !== 0 && (
-                  <div 
+                  <div
                     className="absolute z-20 pointer-events-none transition-all duration-75"
-                    style={{ 
+                    style={{
                       top: `${minutesToPixels(hoverTimeIndicator.startMinutes, hourHeight, dayStartMinutes)}px`,
                       right: 12,
                       transform: 'translateY(-50%)',
@@ -813,9 +813,9 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                 )}
                 {/* End time indicator */}
                 {hoverTimeIndicator.endMinutes % 60 !== 0 && (
-                  <div 
+                  <div
                     className="absolute z-20 pointer-events-none transition-all duration-75"
-                    style={{ 
+                    style={{
                       top: `${minutesToPixels(hoverTimeIndicator.endMinutes, hourHeight, dayStartMinutes)}px`,
                       right: 12,
                       transform: 'translateY(-50%)',
@@ -845,16 +845,14 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
             </div>
 
             {/* Column dividers */}
-            <div 
-              className="absolute inset-0 grid z-0 pointer-events-none" 
+            <div
+              className="absolute inset-0 grid z-0 pointer-events-none"
               style={{ gridTemplateColumns: `repeat(${columnCount}, 1fr)` }}
             >
-              {days.map((day, i) => (
-                <div 
-                  key={i} 
-                  className={`border-r border-zinc-100 dark:border-zinc-800/50 last:border-r-0 h-full ${
-                    isEventInVisualDay(now.getTime(), day, dayStartMinutes) ? 'bg-red-50/10 dark:bg-red-900/5' : ''
-                  }`} 
+              {days.map((_day, i) => (
+                <div
+                  key={i}
+                  className="border-r border-zinc-100 dark:border-zinc-800/50 last:border-r-0 h-full"
                 />
               ))}
             </div>
@@ -872,8 +870,8 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
             )}
 
             {/* Events layer */}
-            <div 
-              className="absolute inset-0 z-10 grid pointer-events-none" 
+            <div
+              className="absolute inset-0 z-10 grid pointer-events-none"
               style={{ gridTemplateColumns: `repeat(${columnCount}, 1fr)` }}
             >
               {days.map((day, dayIdx) => {
@@ -882,7 +880,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                 );
 
                 // Ghost event handling
-                const isCreatingOnThisDay = isDragging && dragStart && dragEnd && 
+                const isCreatingOnThisDay = isDragging && dragStart && dragEnd &&
                   dragStart.dayIndex === dayIdx && dragStart.minutes !== dragEnd.minutes;
 
                 let layoutMap;
@@ -891,11 +889,11 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                 if (isCreatingOnThisDay) {
                   const actualStartMin = Math.min(dragStart!.minutes, dragEnd!.minutes);
                   const actualEndMin = Math.max(dragStart!.minutes, dragEnd!.minutes);
-                  
+
                   // Check if the drag spans across the dayStartMinutes boundary
                   const startBeforeDayStart = actualStartMin < dayStartMinutes;
                   const endBeforeDayStart = actualEndMin < dayStartMinutes;
-                  
+
                   // If drag spans across day boundary, don't show ghost (invalid selection)
                   if (startBeforeDayStart && !endBeforeDayStart) {
                     layoutMap = calculateEventLayout(dayEvents);
@@ -903,7 +901,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                     // Calculate ghost event times considering visual day
                     let ghostStartDate: Date;
                     let ghostEndDate: Date;
-                    
+
                     if (startBeforeDayStart) {
                       ghostStartDate = new Date(day);
                       ghostStartDate.setDate(ghostStartDate.getDate() + 1);
@@ -912,7 +910,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                       ghostStartDate = new Date(day);
                       ghostStartDate.setHours(Math.floor(actualStartMin / 60), actualStartMin % 60, 0, 0);
                     }
-                    
+
                     if (endBeforeDayStart) {
                       ghostEndDate = new Date(day);
                       ghostEndDate.setDate(ghostEndDate.getDate() + 1);
@@ -921,7 +919,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
                       ghostEndDate = new Date(day);
                       ghostEndDate.setHours(Math.floor(actualEndMin / 60), actualEndMin % 60, 0, 0);
                     }
-                    
+
                     const ghostStartTime = ghostStartDate.getTime();
                     const ghostEndTime = ghostEndDate.getTime();
 
