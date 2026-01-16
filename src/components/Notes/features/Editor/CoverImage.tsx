@@ -76,10 +76,14 @@ export function CoverImage({
             rafId = requestAnimationFrame(() => {
                 for (const entry of entries) {
                     const { width, height } = entry.contentRect;
+                    // Pixel Rounding: Avoid sub-pixel jitter
+                    const roundedWidth = Math.round(width);
+                    const roundedHeight = Math.round(height);
+
                     setContainerSize(prev => {
                         // Prevent loops if dimensions match
-                        if (prev?.width === width && prev?.height === height) return prev;
-                        return { width, height };
+                        if (prev?.width === roundedWidth && prev?.height === roundedHeight) return prev;
+                        return { width: roundedWidth, height: roundedHeight };
                     });
                 }
             });
@@ -120,6 +124,12 @@ export function CoverImage({
         if (!mediaSize || !containerSize) return 'horizontal-cover'; // Safe default
         const imageAspect = mediaSize.width / mediaSize.height;
         const containerAspect = containerSize.width / containerSize.height;
+
+        // Hysteresis: If aspect ratios are very close, prefer horizontal-cover to prevent thrashing
+        if (Math.abs(imageAspect - containerAspect) < 0.01) {
+            return 'horizontal-cover';
+        }
+
         return imageAspect > containerAspect ? 'vertical-cover' : 'horizontal-cover';
     })();
 

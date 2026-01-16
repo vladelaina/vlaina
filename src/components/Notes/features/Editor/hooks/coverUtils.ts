@@ -128,7 +128,11 @@ export function calculateCropPixels(
     const x = ((50 - positionPercent.x) / 50) * maxTranslateX;
     const y = ((50 - positionPercent.y) / 50) * maxTranslateY;
 
-    return { x, y };
+    // Pixel Rounding for Stability
+    return {
+        x: Math.round(x),
+        y: Math.round(y)
+    };
 }
 
 /**
