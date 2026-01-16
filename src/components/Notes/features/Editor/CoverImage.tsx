@@ -41,7 +41,9 @@ export function CoverImage({
     // --- Height State (Managed Manually) ---
     const [coverHeight, setCoverHeight] = useState(initialHeight ?? DEFAULT_HEIGHT);
     const containerRef = useRef<HTMLDivElement>(null);
+    const wrapperRef = useRef<HTMLDivElement>(null); // New Wrapper for counter-transform
     const lastHeightProp = useRef(initialHeight);
+    const isManualResizingRef = useRef(false); // Flag to bypass Observer
 
     // Sync height if prop changes externally
     if (initialHeight !== undefined && initialHeight !== lastHeightProp.current) {
@@ -80,6 +82,9 @@ export function CoverImage({
                     const roundedWidth = Math.round(width);
                     const roundedHeight = Math.round(height);
 
+                    // SKIP update if manual resizing is active to prevent fighting
+                    if (isManualResizingRef.current) return;
+
                     setContainerSize(prev => {
                         // Prevent loops if dimensions match
                         if (prev?.width === roundedWidth && prev?.height === roundedHeight) return prev;
@@ -116,6 +121,18 @@ export function CoverImage({
     const [containerSize, setContainerSize] = useState<{ width: number, height: number } | null>(null);
     // Track if we are currently interacting to prevent state loops
     const [isInteracting, setIsInteracting] = useState(false);
+    // Track if we are currently resizing the container
+    const [isResizing, setIsResizing] = useState(false);
+
+    // SNAPSHOT STATE: The absolute position of the image when drag started.
+    // This allows us to render a completely static "Frozen Layer" that ignores container updates.
+    const [frozenImageState, setFrozenImageState] = useState<{
+        top: number;
+        left: number;
+        width: number;
+        height: number;
+    } | null>(null);
+    const frozenImgRef = useRef<HTMLImageElement>(null); // For direct manipulation during pull-down
 
     // Determine objectFit mode for true "cover" behavior
     // If image aspect ratio > container aspect ratio: image is wider, so fill height (vertical-cover)
@@ -153,7 +170,7 @@ export function CoverImage({
 
     // Sync Crop Props
     useEffect(() => {
-        if (isInteracting || !mediaSize || !containerSize) return;
+        if (isInteracting || isResizing || !mediaSize || !containerSize) return;
 
         const pixels = calculateCropPixels(
             { x: positionX, y: positionY },
@@ -163,7 +180,7 @@ export function CoverImage({
         );
         setCrop(pixels);
 
-    }, [positionX, positionY, scale, mediaSize, containerSize, isInteracting, zoom]); // Use scale prop for sync
+    }, [positionX, positionY, scale, mediaSize, containerSize, isInteracting, isResizing, zoom]); // Use scale prop for sync
 
     // --- Interaction Handlers ---
 
@@ -316,32 +333,192 @@ export function CoverImage({
         setShowPicker(false);
     }, [setPreviewSrc, setShowPicker]);
 
-    // Resize Height Logic (Simplified from useCoverInteraction)
+    // Resize Height Logic - "Snapshot & Freeze" Strategy (Separate Layers)
     const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+
+        // 1. SNAPSHOT: Calculate current absolute visual position
+        // We need to know exactly where the image is NOW, relative to the container top-left.
+        if (!mediaSize || !containerSize) return;
+
+        const baseDims = getBaseDimensions(mediaSize, containerSize);
+        const scaledW = baseDims.width * zoom;
+        const scaledH = baseDims.height * zoom;
+
+        // "Center" of the image relative to the container center
+        // crop.x/y is the offset from the center.
+        // Container Center is (W/2, H/2)
+        // Image Center is (W/2 + crop.x, H/2 + crop.y)
+        // Top Left is (Image Center X - ImgW/2, Image Center Y - ImgH/2)
+
+        // Let's derive Top/Left relative to Container (0,0)
+        // Container Center Y = containerSize.height / 2
+        // Image Top relative to Center Y = crop.y - (scaledH / 2)
+        // Absolute Top = (containerSize.height / 2) + crop.y - (scaledH / 2)
+
+        const absoluteTop = (containerSize.height / 2) + crop.y - (scaledH / 2);
+        const absoluteLeft = (containerSize.width / 2) + crop.x - (scaledW / 2);
+
+        setFrozenImageState({
+            top: absoluteTop,
+            left: absoluteLeft,
+            width: scaledW,
+            height: scaledH
+        });
+
+        setIsResizing(true);
+
         const startY = e.clientY;
         const startH = coverHeight;
+
+        // LIMIT VALUES (Snapshot)
+        const snapTop = absoluteTop; // Usually negative
+        const snapHeight = scaledH;
+
+        // 1. Where does the image end visibly?
+        const maxVisualH_NoShift = snapTop + snapHeight;
+
+        // 2. How much can we shift down? (Until Top hits 0)
+        // Ensure non-negative to handle data anomalies
+        const maxShiftDown = Math.max(0, -snapTop);
+
+        // 3. Absolute Maximum Container Height allowed by the mechanics
+        // = Bottom of image + Max Shift
+        const absMaxMechHeight = maxVisualH_NoShift + maxShiftDown;
+
+        // Optimize: Disable transitions for instant response
+        if (containerRef.current) containerRef.current.style.transition = 'none';
 
         let rafId: number;
 
         const onMove = (me: MouseEvent) => {
             if (rafId) cancelAnimationFrame(rafId);
-
             rafId = requestAnimationFrame(() => {
                 const delta = me.clientY - startY;
-                const newH = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, startH + delta));
-                setCoverHeight(newH);
+                const rawH = startH + delta;
+
+                // LOGIC: Calculate Height FIRST, then Derive Shift
+
+                // 1. Apply Constraints to Height
+                // - Min: MIN_HEIGHT
+                // - Max: Global MAX_HEIGHT
+                // - Mech Max: The physical limit of the image (absMaxMechHeight)
+                const limitH = Math.min(MAX_HEIGHT, absMaxMechHeight);
+                const effectiveH = Math.max(MIN_HEIGHT, Math.min(limitH, rawH));
+
+                // 2. Derive Shift
+                // If effectiveH > maxVisualH_NoShift, we MUST have pulled down
+                let shiftY = 0;
+                if (effectiveH > maxVisualH_NoShift) {
+                    shiftY = effectiveH - maxVisualH_NoShift;
+                }
+
+                // Safety Clamp (should be covered by effectiveH logic, but double-bag it)
+                shiftY = Math.max(0, Math.min(shiftY, maxShiftDown));
+
+                // DOM UPDATE 1: Container Height
+                if (containerRef.current) {
+                    containerRef.current.style.height = `${effectiveH}px`;
+                }
+
+                // DOM UPDATE 2: Image Position (Pull Effect)
+                if (frozenImgRef.current) {
+                    frozenImgRef.current.style.top = `${snapTop + shiftY}px`;
+                }
             });
         };
 
         const onUp = (me: MouseEvent) => {
             if (rafId) cancelAnimationFrame(rafId);
             const delta = me.clientY - startY;
-            const newH = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, startH + delta));
 
-            // Save final height
-            onUpdate(url, positionX, positionY, newH, scale);
+            // RE-RUN LOGIC for consistency
+            const rawH = startH + delta;
+
+            // 1. Calculate Height
+            const limitH = Math.min(MAX_HEIGHT, absMaxMechHeight);
+            const effectiveH = Math.max(MIN_HEIGHT, Math.min(limitH, rawH));
+
+            // 2. Derive Shift
+            let shiftY = 0;
+            if (effectiveH > maxVisualH_NoShift) {
+                shiftY = effectiveH - maxVisualH_NoShift;
+            }
+            // Clamp Shift
+            shiftY = Math.max(0, Math.min(shiftY, maxShiftDown));
+
+            console.log('[Resize Debug] onUp:', {
+                rawH,
+                limitH,
+                effectiveH,
+                shiftY,
+                maxVisualH_NoShift,
+                maxShiftDown,
+                snapTop
+            });
+
+            // 3. RECONCILE
+            // Mobile (Frozen) Top = snapTop + shiftY.
+            // Image Top relative to Center = crop.y - (scaledH / 2)
+            // Absolute Top = CenterY + ImageTopRel
+            //              = (effectiveH / 2) + crop.y - (scaledH / 2)
+            // We want Absolute Top to equal (snapTop + shiftY)
+            // (snapTop + shiftY) = (effectiveH / 2) + newCropY - (scaledH / 2)
+            // newCropY = (snapTop + shiftY) - (effectiveH / 2) + (scaledH / 2)
+
+            const finalImageTop = snapTop + shiftY;
+            const newCropY = finalImageTop - (effectiveH / 2) + (scaledH / 2);
+
+            const newCropX = absoluteLeft - (containerSize.width / 2) + (scaledW / 2);
+
+            // NaN Safety
+            const safeCropX = isNaN(newCropX) ? 0 : newCropX;
+            const safeCropY = isNaN(newCropY) ? 0 : newCropY;
+            const finalCrop = { x: safeCropX, y: safeCropY };
+
+            console.log('[Resize Debug] Final Reconcile:', {
+                finalImageTop,
+                newCropY,
+                newCropX,
+                safeCropX,
+                safeCropY
+            });
+
+            // Unlock
+            setIsResizing(false);
+            setFrozenImageState(null);
+
+            // Clean DOM
+            if (containerRef.current) {
+                containerRef.current.style.height = '';
+                containerRef.current.style.transition = '';
+            }
+
+            // Commit State
+            setCoverHeight(effectiveH);
+            setCrop(finalCrop);
+
+            // Save to DB
+            const currentW = containerSize?.width || 0;
+            const tempContainerSize = { width: currentW, height: effectiveH };
+
+            if (currentW > 0) {
+                const percent = calculateCropPercentage(
+                    finalCrop,
+                    mediaSize,
+                    tempContainerSize,
+                    zoom
+                );
+                // Ensure percent is finite
+                const safePctX = Number.isFinite(percent.x) ? percent.x : 50;
+                const safePctY = Number.isFinite(percent.y) ? percent.y : 50;
+
+                console.log('[Resize Debug] Saving to DB:', { safePctX, safePctY, effectiveH });
+                onUpdate(url, safePctX, safePctY, effectiveH, scale);
+            } else {
+                onUpdate(url, positionX, positionY, effectiveH, scale);
+            }
 
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
@@ -350,13 +527,15 @@ export function CoverImage({
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
 
-        // Store cleanup function in ref for unmount safety
+        // Store cleanup
         resizeCleanupRef.current = () => {
             if (rafId) cancelAnimationFrame(rafId);
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
+            setIsResizing(false);
+            setFrozenImageState(null);
         };
-    }, [coverHeight, onUpdate, url, positionX, positionY, scale]);
+    }, [coverHeight, crop, containerSize, mediaSize, zoom, onUpdate, url, positionX, positionY, scale]);
 
     // Safety: Cleanup resize listeners on unmount
     const resizeCleanupRef = useRef<(() => void) | null>(null);
@@ -421,10 +600,12 @@ export function CoverImage({
                 />
             )}
 
-            {/* Cropper Layer */}
-            {displaySrc && (
+            {/* Cropper Layer (Standard Mode) - Only show when NOT resizing */}
+            {displaySrc && !isResizing && (
                 <div
+                    ref={wrapperRef}
                     className={cn("absolute inset-0 transition-opacity duration-300", isImageReady ? "opacity-100" : "opacity-0")}
+                    style={{ willChange: 'transform' }}
                 >
                     <Cropper
                         image={displaySrc}
@@ -459,6 +640,27 @@ export function CoverImage({
                         }}
                         style={cropperStyle}
                         mediaProps={mediaProps}
+                    />
+                </div>
+            )}
+
+            {/* FROZEN LAYER (Resize Mode) - Separate Independent Layer */}
+            {isResizing && frozenImageState && displaySrc && (
+                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                    <img
+                        ref={frozenImgRef}
+                        src={displaySrc}
+                        alt="Frozen Cover"
+                        style={{
+                            position: 'absolute',
+                            top: frozenImageState.top,
+                            left: frozenImageState.left,
+                            width: frozenImageState.width,
+                            height: frozenImageState.height,
+                            maxWidth: 'none',
+                            maxHeight: 'none',
+                            objectFit: 'fill'
+                        }}
                     />
                 </div>
             )}
