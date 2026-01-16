@@ -14,6 +14,7 @@ import { clearImageCache } from '@/lib/assets/imageLoader';
 import { getBuiltinCovers, toBuiltinAssetPath } from '@/lib/assets/builtinCovers';
 
 const ASSETS_DIR = '.nekotick/assets/covers';
+const MAX_ASSET_SIZE = 10 * 1024 * 1024; // 10MB Limit
 
 export interface AssetSlice {
   // State
@@ -127,6 +128,32 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
   uploadAsset: async (file: File): Promise<UploadResult> => {
     const { notesPath, assetList } = get();
     const storage = getStorageAdapter();
+
+    // --- Validation Gate ---
+    // 1. Check File Size (10MB Limit)
+    if (file.size > MAX_ASSET_SIZE) {
+      const msg = `File is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Limit is 10MB.`;
+      console.warn(msg);
+      return {
+        success: false,
+        path: null,
+        isDuplicate: false,
+        error: msg
+      };
+    }
+
+    // 2. Check MIME Type
+    if (!file.type.startsWith('image/')) {
+      const msg = `Invalid file type: ${file.type}. Only images are allowed.`;
+      console.warn(msg);
+      return {
+        success: false,
+        path: null,
+        isDuplicate: false,
+        error: msg
+      };
+    }
+    // -----------------------
 
     try {
       const vaultPath = notesPath || await getNotesBasePath();
