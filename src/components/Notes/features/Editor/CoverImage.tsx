@@ -339,18 +339,39 @@ export function CoverImage({
             if (rafId) cancelAnimationFrame(rafId);
             const delta = me.clientY - startY;
             const newH = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, startH + delta));
+
+            setIsResizingHeight(false); // Clear Flag
+
             // Save final height
-            // We assume Crop/Zoom didn't change, we use current Prop values?
-            // Yes, resize height only changes height.
             onUpdate(url, positionX, positionY, newH, scale);
 
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
         };
 
+        setIsResizingHeight(true); // Set Flag
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
+
+        // Store cleanup function in ref for unmount safety
+        resizeCleanupRef.current = () => {
+            if (rafId) cancelAnimationFrame(rafId);
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
     }, [coverHeight, onUpdate, url, positionX, positionY, scale]);
+
+    // Safety: Cleanup resize listeners on unmount
+    const resizeCleanupRef = useRef<(() => void) | null>(null);
+    const [isResizingHeight, setIsResizingHeight] = useState(false);
+
+    useEffect(() => {
+        return () => {
+            if (resizeCleanupRef.current) {
+                resizeCleanupRef.current();
+            }
+        };
+    }, []);
 
 
     // Return Render
