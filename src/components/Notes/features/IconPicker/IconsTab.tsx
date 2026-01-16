@@ -48,21 +48,21 @@ export function IconsTab({
   // Use ref to store callbacks and state to avoid dependency changes
   const onPreviewRef = useRef(onPreview);
   onPreviewRef.current = onPreview;
-  
+
   const currentIconRef = useRef(currentIcon);
   currentIconRef.current = currentIcon;
-  
+
   const iconColorRef = useRef(iconColor);
   iconColorRef.current = iconColor;
-  
+
   const setNotesPreviewIconColorRef = useRef(setNotesPreviewIconColor);
   setNotesPreviewIconColorRef.current = setNotesPreviewIconColor;
 
   // Track last previewed color to avoid duplicate updates
   const lastPreviewColorRef = useRef<number | null>(null);
 
-  const recentIconsList = useMemo(() => 
-    recentIcons.filter(i => i.startsWith('icon:')), 
+  const recentIconsList = useMemo(() =>
+    recentIcons.filter(i => i.startsWith('icon:')),
     [recentIcons]
   );
 
@@ -157,11 +157,11 @@ export function IconsTab({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={cn(
-              "w-full pl-8 py-1.5 text-sm rounded-md",
+              "w-full pl-8 py-1 h-8 text-sm rounded-md",
               searchQuery ? "pr-8" : "pr-3",
-              "bg-zinc-100 dark:bg-zinc-800",
-              "border border-transparent focus:border-zinc-300 dark:focus:border-zinc-600",
-              "outline-none transition-colors"
+              "bg-white dark:bg-zinc-900",
+              "border border-zinc-200 dark:border-zinc-700 focus:border-[#1e96eb]",
+              "outline-none transition-all"
             )}
           />
           {searchQuery && (
@@ -173,6 +173,7 @@ export function IconsTab({
             </button>
           )}
         </div>
+
         <div className="relative">
           <button
             onClick={() => setShowColorPicker(!showColorPicker)}
@@ -181,7 +182,7 @@ export function IconsTab({
             <Candy size={18} style={{ color: ICON_COLORS[iconColor]?.color || ICON_COLORS[0].color }} />
           </button>
           {showColorPicker && (
-            <div 
+            <div
               ref={colorPickerRef}
               className={cn(
                 "absolute right-0 top-full mt-1 p-2 rounded-lg shadow-lg z-10",
@@ -225,8 +226,8 @@ export function IconsTab({
       {!searchQuery && (
         <div className="flex items-center justify-around px-2 py-1.5 border-t border-[var(--neko-border)] bg-zinc-50 dark:bg-zinc-800/50">
           {ICON_CATEGORIES.map((category) => {
-            const IconComponent = typeof category.emoji !== 'string' 
-              ? category.emoji as React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }> 
+            const IconComponent = typeof category.emoji !== 'string'
+              ? category.emoji as React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>
               : null;
             return (
               <button

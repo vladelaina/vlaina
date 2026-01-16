@@ -38,6 +38,9 @@ export interface FeatureSlice {
   updateAllEmojiSkinTones: (newTone: number) => void;
   getNoteCover: (path: string) => { cover?: string; coverX?: number; coverY?: number; coverH?: number; coverScale?: number };
   setNoteCover: (path: string, cover: string | null, coverX?: number, coverY?: number, coverH?: number, coverScale?: number) => void;
+  getNoteIconSize: (path: string) => number | undefined;
+  setNoteIconSize: (path: string, size: number) => void;
+  setGlobalIconSize: (size: number) => void;
 }
 
 export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> = (set, get) => ({
@@ -268,5 +271,32 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     set({ noteMetadata: updated });
     saveNoteMetadata(notesPath, updated);
   },
-});
 
+  getNoteIconSize: (_path: string) => {
+    const { noteMetadata } = get();
+    // Use global default size, fallback to 60 if not set
+    // We ignore per-note size now as per requirements, or we could prioritise it if found
+    // But the requirement is "Global", so let's stick to global.
+    return noteMetadata?.defaultIconSize ?? 60;
+  },
+
+  setGlobalIconSize: (size: number) => {
+    const { noteMetadata, notesPath } = get();
+    if (!noteMetadata || !notesPath) return;
+
+    const updated: MetadataFile = { ...noteMetadata, defaultIconSize: size };
+    set({ noteMetadata: updated });
+    saveNoteMetadata(notesPath, updated);
+  },
+
+  setNoteIconSize: (path: string, size: number) => {
+    // Legacy support or specific override if needed in future
+    // For now, redirect to global or just update local metadata but it won't be used by getter
+    const { noteMetadata, notesPath } = get();
+    if (!noteMetadata || !notesPath) return;
+
+    const updated = setNoteEntry(noteMetadata, path, { iconSize: size });
+    set({ noteMetadata: updated });
+    saveNoteMetadata(notesPath, updated);
+  },
+});

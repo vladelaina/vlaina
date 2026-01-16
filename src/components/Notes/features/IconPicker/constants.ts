@@ -4,7 +4,7 @@ import data from '@emoji-mart/data';
 import { ICON_LIST } from './icons';
 import type { IconItem } from './icons';
 
-export type TabType = 'emoji' | 'icons';
+export type TabType = 'emoji' | 'icons' | 'upload';
 
 export const RECENT_ICONS_KEY = 'nekotick-recent-icons';
 export const SKIN_TONE_KEY = 'nekotick-emoji-skin-tone';
@@ -237,7 +237,7 @@ export function saveIconColor(colorId: number): void {
 export function loadActiveTab(): TabType {
   try {
     const saved = localStorage.getItem(ACTIVE_TAB_KEY);
-    return (saved === 'emoji' || saved === 'icons') ? saved : 'emoji';
+    return (saved === 'emoji' || saved === 'icons' || saved === 'upload') ? saved : 'emoji';
   } catch {
     return 'emoji';
   }

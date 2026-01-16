@@ -52,10 +52,10 @@ export function EmojiTab({
   // Use ref to store callbacks and state to avoid dependency changes
   const onPreviewRef = useRef(onPreview);
   onPreviewRef.current = onPreview;
-  
+
   const currentIconRef = useRef(currentIcon);
   currentIconRef.current = currentIcon;
-  
+
   const setNotesPreviewSkinToneRef = useRef(setNotesPreviewSkinTone);
   setNotesPreviewSkinToneRef.current = setNotesPreviewSkinTone;
 
@@ -162,11 +162,11 @@ export function EmojiTab({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={cn(
-              "w-full pl-8 py-1.5 text-sm rounded-md",
+              "w-full pl-8 py-1 h-8 text-sm rounded-md",
               searchQuery ? "pr-8" : "pr-3",
-              "bg-zinc-100 dark:bg-zinc-800",
-              "border border-transparent focus:border-zinc-300 dark:focus:border-zinc-600",
-              "outline-none transition-colors"
+              "bg-white dark:bg-zinc-900",
+              "border border-zinc-200 dark:border-zinc-700 focus:border-[#1e96eb]",
+              "outline-none transition-all"
             )}
           />
           {searchQuery && (
@@ -178,6 +178,7 @@ export function EmojiTab({
             </button>
           )}
         </div>
+
         <div className="relative">
           <button
             onClick={() => setShowSkinTonePicker(!showSkinTonePicker)}
@@ -186,7 +187,7 @@ export function EmojiTab({
             {SKIN_TONES[skinTone].emoji}
           </button>
           {showSkinTonePicker && (
-            <div 
+            <div
               ref={skinTonePickerRef}
               className={cn(
                 "absolute right-0 top-full mt-1 p-2 rounded-lg shadow-lg z-10",

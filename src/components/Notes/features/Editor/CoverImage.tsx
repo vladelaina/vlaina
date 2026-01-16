@@ -340,8 +340,6 @@ export function CoverImage({
             const delta = me.clientY - startY;
             const newH = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, startH + delta));
 
-            setIsResizingHeight(false); // Clear Flag
-
             // Save final height
             onUpdate(url, positionX, positionY, newH, scale);
 
@@ -349,7 +347,6 @@ export function CoverImage({
             document.removeEventListener('mouseup', onUp);
         };
 
-        setIsResizingHeight(true); // Set Flag
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
 
@@ -363,7 +360,6 @@ export function CoverImage({
 
     // Safety: Cleanup resize listeners on unmount
     const resizeCleanupRef = useRef<(() => void) | null>(null);
-    const [isResizingHeight, setIsResizingHeight] = useState(false);
 
     useEffect(() => {
         return () => {

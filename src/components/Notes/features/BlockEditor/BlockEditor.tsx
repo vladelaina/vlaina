@@ -26,17 +26,17 @@ function BlockEditorInner({ className }: BlockEditorInnerProps) {
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    
+
     // Find the closest block element
     const target = e.target as HTMLElement;
     const blockWrapper = target.closest('[data-block-id]') as HTMLElement;
-    
+
     if (blockWrapper) {
       const blockId = blockWrapper.dataset.blockId;
       const rect = blockWrapper.getBoundingClientRect();
       const midY = rect.top + rect.height / 2;
       const position = e.clientY < midY ? 'before' : 'after';
-      
+
       setDropTargetId(blockId || null);
       setDropPosition(position);
     }
@@ -46,11 +46,11 @@ function BlockEditorInner({ className }: BlockEditorInnerProps) {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const draggedBlockId = e.dataTransfer.getData('text/plain');
-    
+
     if (draggedBlockId && dropTargetId && draggedBlockId !== dropTargetId) {
       moveBlock(draggedBlockId, dropTargetId, dropPosition);
     }
-    
+
     setDropTargetId(null);
   }, [dropTargetId, dropPosition, moveBlock]);
 
@@ -98,14 +98,14 @@ function BlockEditorInner({ className }: BlockEditorInnerProps) {
           position={linkSuggest.position}
           searchText={linkSuggest.searchText}
           notes={[]} // TODO: Pass actual notes from parent
-          onSelect={(note) => {
+          onSelect={(_note) => {
             // TODO: Insert wiki link
-            console.log('Selected note:', note);
+            // console.log('Selected note:', note);
             setLinkSuggest(prev => ({ ...prev, isOpen: false }));
           }}
-          onCreate={(title) => {
+          onCreate={(_title) => {
             // TODO: Create new note and insert link
-            console.log('Create note:', title);
+            // console.log('Create note:', title);
             setLinkSuggest(prev => ({ ...prev, isOpen: false }));
           }}
           onClose={() => setLinkSuggest(prev => ({ ...prev, isOpen: false }))}

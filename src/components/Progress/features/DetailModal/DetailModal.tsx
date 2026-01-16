@@ -218,7 +218,10 @@ export function DetailModal({
                 <AnimatePresence>
                   {isPickingIcon && (
                     <motion.div
-                      {...SLIDE_FROM_BOTTOM}
+                      variants={SLIDE_FROM_BOTTOM}
+                      initial="hidden"
+                      animate="visible"
+                      exit="hidden"
                       transition={SPRING_SNAPPY}
                       className="absolute inset-0 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl flex flex-col p-6"
                       onClick={(e) => e.stopPropagation()}

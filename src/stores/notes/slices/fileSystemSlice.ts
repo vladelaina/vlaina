@@ -209,7 +209,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     name: string,
     content: string
   ) => {
-    let { notesPath, loadFileTree, rootFolder, openTabs, recentNotes, noteMetadata } = get();
+    let { notesPath, loadFileTree, rootFolder, recentNotes } = get();
     const storage = getStorageAdapter();
     const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
 

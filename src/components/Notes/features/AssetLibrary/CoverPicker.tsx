@@ -20,7 +20,7 @@ export function CoverPicker({ isOpen, onClose, onSelect, onRemove, onPreview, va
   const { getAssetList, loadAssets, uploadAsset } = useNotesStore();
   const uploadingRef = useRef(false);
 
-  const assets = getAssetList();
+  const assets = getAssetList('covers');
   const hasAssets = assets.length > 0;
 
   // Load assets when opened
@@ -172,6 +172,7 @@ export function CoverPicker({ isOpen, onClose, onSelect, onRemove, onPreview, va
                 onHover={handleAssetHover}
                 vaultPath={vaultPath}
                 compact
+                category="covers"
               />
             ) : (
               <EmptyState onUploadClick={handleSwitchToUpload} compact />

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { loadImageAsBlob, getCachedBlobUrl } from '@/lib/assets/imageLoader';
 import { buildFullAssetPath } from '@/lib/assets/pathUtils';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
@@ -144,12 +144,6 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
             ignore = true;
         };
     }, [url, vaultPath, onUpdate]);
-
-    // Handle Image Load Event
-    const handleImageLoad = useCallback(() => {
-        setIsImageReady(true);
-        prevSrcRef.current = null;
-    }, []);
 
     // Manual ready check if preview matches resolved
     useEffect(() => {

@@ -24,8 +24,8 @@ interface AssetThumbnailProps {
 }
 
 // Memoized thumbnail component to prevent unnecessary re-renders
-const AssetThumbnail = memo(function AssetThumbnail({ 
-  filename, size, vaultPath, onSelect, onDelete, isHovered, compact 
+const AssetThumbnail = memo(function AssetThumbnail({
+  filename, size, vaultPath, onSelect, onDelete, isHovered, compact
 }: AssetThumbnailProps) {
   const [src, setSrc] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -38,12 +38,12 @@ const AssetThumbnail = memo(function AssetThumbnail({
   useEffect(() => {
     // Increment mount ID to invalidate any pending async operations from previous mount
     const currentMountId = ++mountIdRef.current;
-    
+
     // Reset state on mount
     setSrc(null);
     setIsLoaded(false);
     setHasError(false);
-    
+
     if (!imgRef.current) return;
 
     const observer = new IntersectionObserver(
@@ -61,7 +61,7 @@ const AssetThumbnail = memo(function AssetThumbnail({
               // loadImageAsBlob has internal caching, so we don't need to manage blob URLs here
               // The cache ensures the same blob URL is reused across mounts
               const blobUrl = await loadImageAsBlob(fullPath);
-              
+
               // Check if this mount is still valid (handles StrictMode double-mount)
               if (mountIdRef.current === currentMountId) {
                 setSrc(blobUrl);
@@ -79,7 +79,7 @@ const AssetThumbnail = memo(function AssetThumbnail({
     );
 
     observer.observe(imgRef.current);
-    
+
     return () => {
       observer.disconnect();
       // Note: We don't revoke blob URLs here because loadImageAsBlob caches them globally
@@ -175,15 +175,15 @@ const AssetThumbnail = memo(function AssetThumbnail({
   );
 });
 
-export function AssetGrid({ onSelect, onHover, vaultPath, compact }: AssetGridProps) {
+export function AssetGrid({ onSelect, onHover, vaultPath, compact, category }: AssetGridProps) {
   const { getAssetList, deleteAsset, loadAssets } = useNotesStore();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [hoveredFilename, setHoveredFilename] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const clearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastHoveredRef = useRef<string | null>(null);
-  
-  const assets = getAssetList();
+
+  const assets = getAssetList(category);
 
   // Load assets on mount
   useEffect(() => {
@@ -262,7 +262,7 @@ export function AssetGrid({ onSelect, onHover, vaultPath, compact }: AssetGridPr
 
   return (
     <>
-      <div 
+      <div
         ref={gridRef}
         className={cn("grid gap-1.5 p-2", compact ? "grid-cols-4" : "grid-cols-3 gap-2")}
       >

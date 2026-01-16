@@ -31,17 +31,17 @@ export function isRelativePath(path: string): boolean {
   if (/^[A-Za-z]:[\\/]/.test(path)) {
     return false;
   }
-  
+
   // Check for Unix absolute paths
   if (path.startsWith('/')) {
     return false;
   }
-  
+
   // Check for UNC paths (\\server\share)
   if (path.startsWith('\\\\')) {
     return false;
   }
-  
+
   return true;
 }
 
@@ -65,6 +65,14 @@ export function isValidAssetFilename(filename: string): boolean {
  * Build full asset path from filename
  */
 export function buildAssetPath(filename: string): string {
+  // If filename starts with icons/, it goes to assets/icons
+  if (filename.startsWith('icons/')) {
+    // Remove prefix for actual storage path construction if needed, 
+    // BUT here we want the full relative path from .nekotick root?
+    // Actually this function seems to return path relative to vault root including .nekotick
+    return `.nekotick/assets/${filename}`;
+  }
+  // Default legacy behavior: everything else is a cover
   return `.nekotick/assets/covers/${filename}`;
 }
 
@@ -76,6 +84,24 @@ export function buildAssetPath(filename: string): string {
  */
 export function buildFullAssetPath(vaultPath: string, assetFilename: string): string {
   const sep = vaultPath.includes('\\') ? '\\' : '/';
-  const normalizedFilename = assetFilename.replace(/\//g, sep);
+
+  // Normalize filename checks
+  const isIcon = assetFilename.startsWith('icons/') || assetFilename.startsWith('icons\\');
+  const normalizedFilename = assetFilename.replace(/\//g, sep); // Ensure OS separators
+
+  if (isIcon) {
+    // It's in .nekotick/assets/icons/filename (filename already includes icons/ prefix?)
+    // Wait, if assetFilename is "icons/foo.png", handling separators:
+    // "icons\foo.png".
+    // We want .nekotick\assets\icons\foo.png ... wait.
+    // If we append "icons\foo.png" to ".nekotick\assets", it works.
+    // But existing logic was ".nekotick\assets\covers" + filename.
+    // So we need to conditionally choose the parent dir.
+
+    // Actually, if filename already includes "icons/", we can just use .nekotick/assets/ + filename.
+    return `${vaultPath}${sep}.nekotick${sep}assets${sep}${normalizedFilename}`;
+  }
+
+  // Legacy/Default: Covers
   return `${vaultPath}${sep}.nekotick${sep}assets${sep}covers${sep}${normalizedFilename}`;
 }

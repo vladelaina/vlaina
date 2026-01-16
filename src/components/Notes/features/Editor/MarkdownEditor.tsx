@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -16,17 +15,12 @@ import { history } from '@milkdown/kit/plugin/history';
 import { clipboard } from '@milkdown/kit/plugin/clipboard';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
-import { Ellipsis, Star, HeartPulse } from 'lucide-react';
+import { Ellipsis, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { useUIStore } from '@/stores/uiSlice';
-import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn, iconButtonStyles } from '@/lib/utils';
-import { IconPicker, NoteIcon } from '../IconPicker';
-import { getRandomEmoji, loadRecentIcons, addToRecentIcons, loadSkinTone } from '../IconPicker/constants';
-import { TitleInput } from './TitleInput';
+import { NoteHeader } from './NoteHeader';
 import { CoverImage } from './CoverImage';
-import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
 import { getCurrentVaultPath } from '@/stores/notes/storage';
 import { SPRING_FLASH } from '@/lib/animations';
 
@@ -263,26 +257,14 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const isStarred = useNotesStore(s => s.isStarred);
   const toggleStarred = useNotesStore(s => s.toggleStarred);
-  const getNoteIcon = useNotesStore(s => s.getNoteIcon);
-  const setNoteIcon = useNotesStore(s => s.setNoteIcon);
 
-  const setNotesPreviewIcon = useUIStore(s => s.setNotesPreviewIcon);
-
-  const displayIcon = useDisplayIcon(currentNotePath);
-  const starred = currentNotePath ? isStarred(currentNotePath) : false;
-  const noteIcon = currentNotePath ? getNoteIcon(currentNotePath) : undefined;
-
-  // Retrieve metadata for the current note from the store
+  // Note Metadata for details dropdown
   const noteMetadata = useNotesStore(s => s.noteMetadata);
   const currentNoteMetadata = useMemo(() => {
     return currentNotePath && noteMetadata?.notes ? noteMetadata.notes[currentNotePath] : undefined;
   }, [currentNotePath, noteMetadata]);
 
-  const [showIconPicker, setShowIconPicker] = useState(false);
-  const [isHoveringHeader, setIsHoveringHeader] = useState(false);
-  const iconButtonRef = useRef<HTMLButtonElement>(null);
-  const previewRafRef = useRef<number | null>(null);
-  const clearPreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const starred = currentNotePath ? isStarred(currentNotePath) : false;
 
   // Cover metadata actions
   const getNoteCover = useNotesStore(s => s.getNoteCover);
@@ -311,76 +293,6 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
     setNoteCover(currentNotePath, url, x, y, h, scale);
   };
 
-  const handleIconSelect = (emoji: string) => {
-    if (currentNotePath) {
-      setNoteIcon(currentNotePath, emoji);
-      setNotesPreviewIcon(null, null);
-    }
-  };
-
-  const handleRemoveIcon = () => {
-    if (currentNotePath) {
-      setNoteIcon(currentNotePath, null);
-      setNotesPreviewIcon(null, null);
-    }
-  };
-
-  const handleIconPreview = useCallback((icon: string | null) => {
-    if (!currentNotePath) return;
-
-    if (clearPreviewTimerRef.current) {
-      clearTimeout(clearPreviewTimerRef.current);
-      clearPreviewTimerRef.current = null;
-    }
-
-    if (icon === null) {
-      clearPreviewTimerRef.current = setTimeout(() => {
-        setNotesPreviewIcon(null, null);
-      }, 80);
-    } else {
-      if (previewRafRef.current !== null) {
-        cancelAnimationFrame(previewRafRef.current);
-      }
-      previewRafRef.current = requestAnimationFrame(() => {
-        previewRafRef.current = null;
-        setNotesPreviewIcon(currentNotePath, icon);
-      });
-    }
-  }, [currentNotePath, setNotesPreviewIcon]);
-
-  const handleIconPickerClose = () => {
-    setShowIconPicker(false);
-    setIsHoveringHeader(false);
-    if (previewRafRef.current !== null) {
-      cancelAnimationFrame(previewRafRef.current);
-      previewRafRef.current = null;
-    }
-    if (clearPreviewTimerRef.current) {
-      clearTimeout(clearPreviewTimerRef.current);
-      clearPreviewTimerRef.current = null;
-    }
-    setNotesPreviewIcon(null, null);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (previewRafRef.current !== null) {
-        cancelAnimationFrame(previewRafRef.current);
-      }
-      if (clearPreviewTimerRef.current) {
-        clearTimeout(clearPreviewTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Calculate display name for Title Input
-  const noteName = useMemo(() => {
-    if (!currentNotePath) return '';
-    const pathParts = currentNotePath.split(/[\\/]/);
-    const fileName = pathParts[pathParts.length - 1] || 'Untitled';
-    return fileName.replace(/\.md$/, '');
-  }, [currentNotePath]);
-
   // Click handler to focus editor when clicking empty space
   const handleEditorClick = (e: React.MouseEvent) => {
     // Only focus if clicking the container background directly
@@ -402,7 +314,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
             "p-1.5 transition-colors",
             starred
               ? "text-yellow-500"
-              : `${iconButtonStyles} hover:text-yellow-500`
+              : `${iconButtonStyles} hover: text - yellow - 500`
           )}
         >
           <Star className="size-4" fill={starred ? "currentColor" : "none"} />
@@ -457,130 +369,11 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
           animate={{ x: contentOffset }}
           transition={SPRING_FLASH}
         >
-          <div className={cn(
-            EDITOR_LAYOUT_CLASS,
-            "z-10 relative transition-[margin] duration-150 ease-out",
-            "pointer-events-none",
-            // Pull content up to overlap with cover (Notion-style)
-            coverUrl && "mt-[-48px]"
-          )}>
-            {/* Clickable area to add cover - entire top padding area */}
-            {!coverUrl && (
-              <div
-                className="absolute top-0 left-0 right-0 h-20 cursor-pointer hover:bg-[var(--neko-hover)]/30 transition-colors pointer-events-auto"
-                onClick={() => {
-                  // Get all available covers (user uploads + built-in)
-                  const allCovers = useNotesStore.getState().getAssetList();
-                  let randomCover: string;
-
-                  if (allCovers.length > 0) {
-                    // Random from all available covers
-                    const randomIndex = Math.floor(Math.random() * allCovers.length);
-                    randomCover = allCovers[randomIndex].filename;
-                  } else {
-                    // Fallback to built-in if no covers loaded yet
-                    randomCover = getRandomBuiltinCover();
-                  }
-
-                  handleCoverUpdate(randomCover, 50, 50, 200, 1);
-                  setShowCoverPicker(true);
-                }}
-              />
-            )}
-            <div
-              className={cn(
-                "pb-4 transition-all duration-150 pointer-events-auto",
-                // If cover exists, minimal top padding since icon overlaps cover
-                // If no cover, use comfortable top padding (Notion-style ~80px)
-                coverUrl ? "pt-0" : "pt-20"
-              )}
-              onMouseEnter={() => setIsHoveringHeader(true)}
-              onMouseLeave={() => setIsHoveringHeader(false)}
-            >
-
-              {displayIcon ? (
-                <div className="relative h-[60px] flex items-center">
-                  <button
-                    ref={iconButtonRef}
-                    onClick={() => setShowIconPicker(true)}
-                    className="hover:scale-105 transition-transform cursor-pointer flex items-center -ml-1.5"
-                  >
-                    <NoteIcon icon={displayIcon} size={60} />
-                  </button>
-                </div>
-              ) : showIconPicker ? (
-                <div className="h-14 flex items-center">
-                  <button
-                    ref={iconButtonRef}
-                    className={cn(
-                      "flex items-center gap-1.5 py-1 rounded-md text-sm",
-                      iconButtonStyles
-                    )}
-                  >
-                    <HeartPulse className="size-4" />
-                    <span>Add icon</span>
-                  </button>
-                </div>
-              ) : (
-                <div className={cn(
-                  "flex items-center gap-2 transition-all duration-150",
-                  isHoveringHeader ? "opacity-100" : "opacity-0 pointer-events-none"
-                )}>
-                  <button
-                    ref={iconButtonRef}
-                    onClick={() => {
-                      if (!noteIcon) {
-                        const currentSkinTone = loadSkinTone();
-                        const randomEmoji = getRandomEmoji(currentSkinTone);
-                        handleIconSelect(randomEmoji);
-                        // Add to recent icons so it appears in the picker's recent list
-                        const currentRecent = loadRecentIcons();
-                        addToRecentIcons(randomEmoji, currentRecent);
-                      }
-                      setShowIconPicker(true);
-                    }}
-                    className={cn(
-                      "flex items-center gap-1.5 py-1 rounded-md text-sm",
-                      iconButtonStyles
-                    )}
-                  >
-                    <HeartPulse className="size-4" />
-                    <span>Add icon</span>
-                  </button>
-                </div>
-              )}
-
-              {showIconPicker && (
-                <div className="relative">
-                  <div className="absolute top-2 left-0 z-50">
-                    <IconPicker
-                      onSelect={handleIconSelect}
-                      onPreview={handleIconPreview}
-                      onRemove={handleRemoveIcon}
-                      onClose={handleIconPickerClose}
-                      hasIcon={!!noteIcon}
-                      currentIcon={noteIcon}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Title Input Component - Independent from Editor Content */}
-            {currentNotePath && (
-              <div className="mb-4 pointer-events-auto">
-                <TitleInput
-                  notePath={currentNotePath}
-                  initialTitle={noteName}
-                  onEnter={() => {
-                    const editor = document.querySelector('.milkdown .ProseMirror') as HTMLElement;
-                    editor?.focus();
-                  }}
-                />
-              </div>
-            )}
-
-          </div>
+          <NoteHeader
+            coverUrl={coverUrl}
+            onCoverUpdate={handleCoverUpdate}
+            setShowCoverPicker={setShowCoverPicker}
+          />
 
           <MilkdownProvider key={currentNotePath}>
             <MilkdownEditorInner />

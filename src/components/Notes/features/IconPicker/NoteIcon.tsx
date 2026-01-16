@@ -3,22 +3,54 @@
  * Performance optimized: uses memo and shallow comparison
  */
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState, useEffect } from 'react';
 import { FileText } from 'lucide-react';
 import { useUIStore } from '@/stores/uiSlice';
+import { useNotesStore } from '@/stores/useNotesStore';
+import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { buildFullAssetPath } from '@/lib/assets/pathUtils';
+import { cn } from '@/lib/utils';
 import { ICON_MAP as ICON_ITEM_MAP, EMOJI_MAP } from './constants';
 
 interface NoteIconProps {
   icon: string;
   size?: number;
   className?: string;
+  rounding?: string;
 }
 
+// Custom Image renderer component
+const ImageIconRenderer = memo(function ImageIconRenderer({
+  src,
+  size,
+  className,
+  rounding
+}: {
+  src: string;
+  size?: number;
+  className?: string;
+  rounding?: string;
+}) {
+  return (
+    <img
+      src={src}
+      className={cn("object-cover select-none pointer-events-none", rounding || "rounded-sm", className)}
+      style={{
+        width: size,
+        height: size,
+        display: 'inline-block',
+      }}
+      draggable={false}
+      alt="icon"
+    />
+  );
+});
+
 // Icon renderer component
-const IconIconRenderer = memo(function IconIconRenderer({ 
+const IconIconRenderer = memo(function IconIconRenderer({
   iconName,
   originalColor,
-  size, 
+  size,
   className,
   previewColor,
 }: {
@@ -31,7 +63,7 @@ const IconIconRenderer = memo(function IconIconRenderer({
   const color = previewColor || originalColor;
   const iconItem = ICON_ITEM_MAP.get(iconName);
   const IconComponent = iconItem?.icon || FileText;
-  
+
   return (
     <span
       className={className}
@@ -50,9 +82,9 @@ const IconIconRenderer = memo(function IconIconRenderer({
 });
 
 // Emoji renderer component
-const EmojiIconRenderer = memo(function EmojiIconRenderer({ 
+const EmojiIconRenderer = memo(function EmojiIconRenderer({
   emoji,
-  size, 
+  size,
   className,
   previewTone,
 }: {
@@ -69,11 +101,11 @@ const EmojiIconRenderer = memo(function EmojiIconRenderer({
     }
     return emoji;
   }, [emoji, previewTone]);
-  
+
   return (
-    <span 
+    <span
       className={className}
-      style={{ 
+      style={{
         fontSize: size,
         lineHeight: 1,
         display: 'inline-block',
@@ -86,30 +118,70 @@ const EmojiIconRenderer = memo(function EmojiIconRenderer({
 });
 
 // Outer component subscribes to store, only re-renders when preview state changes
-export function NoteIcon({ icon, size = 16, className }: NoteIconProps) {
+export function NoteIcon({ icon, size = 16, className, rounding }: NoteIconProps) {
   const previewIconColor = useUIStore(s => s.notesPreviewIconColor);
   const previewSkinTone = useUIStore(s => s.notesPreviewSkinTone);
+  const vaultPath = useNotesStore(s => s.notesPath);
+  const [imgSrc, setImgSrc] = useState<string | null>(null);
 
+  useEffect(() => {
+    let active = true;
+    if (icon.startsWith('img:') && vaultPath) {
+      const relativePath = icon.substring(4);
+      const fullPath = buildFullAssetPath(vaultPath, relativePath);
+
+      loadImageAsBlob(fullPath)
+        .then(url => {
+          if (active) setImgSrc(url);
+        })
+        .catch(err => {
+          console.error('Failed to load icon image', err);
+          if (active) setImgSrc(null);
+        });
+    } else {
+      setImgSrc(null);
+    }
+    return () => { active = false; };
+  }, [icon, vaultPath]);
+
+  // Handle Image Icons
+  if (icon.startsWith('img:')) {
+    if (!imgSrc) {
+      // Placeholder or null while loading
+      return <div style={{ width: size, height: size }} className={className} />;
+    }
+    return (
+      <ImageIconRenderer
+        src={imgSrc}
+        size={size}
+        className={className}
+        rounding={rounding}
+      />
+    );
+  }
+
+  // Handle Vector Icons
   if (icon.startsWith('icon:')) {
     const parts = icon.split(':');
     const iconName = parts[1];
     const originalColor = parts[2] || '#6b7280';
-    
+
     return (
-      <IconIconRenderer 
+      <IconIconRenderer
         iconName={iconName}
         originalColor={originalColor}
-        size={size} 
+        size={size}
         className={className}
         previewColor={previewIconColor}
       />
     );
   }
 
+  // Handle Emojis
   return (
-    <EmojiIconRenderer 
+    <EmojiIconRenderer
       emoji={icon}
-      size={size} 
+      size={size}
       className={className}
       previewTone={previewSkinTone}
     />

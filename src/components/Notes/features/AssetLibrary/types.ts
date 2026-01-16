@@ -16,6 +16,7 @@ export interface AssetGridProps {
   onHover?: (assetPath: string | null) => void;
   vaultPath: string;
   compact?: boolean;
+  category?: 'covers' | 'icons';
 }
 
 export interface UploadZoneProps {

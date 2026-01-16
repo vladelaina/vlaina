@@ -26,8 +26,17 @@ export function useDisplayName(path: string | undefined): string | undefined {
 }
 
 export function useDisplayIcon(path: string | undefined): string | undefined {
-  const getNoteIcon = useNotesStore(state => state.getNoteIcon);
-  const noteIcon = path ? getNoteIcon(path) : undefined;
+  const noteIcon = useNotesStore(
+    useCallback(
+      (state) => {
+        if (!path) return undefined;
+        // Direct subscription to the specific field ensures re-render ONLY when this icon changes
+        return state.noteMetadata?.notes[path]?.icon;
+      },
+      [path]
+    )
+  );
+
   const previewIcon = useUIStore((state) => state.notesPreviewIcon);
 
   if (!path) return undefined;
