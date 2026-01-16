@@ -288,13 +288,17 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
           {/* Left sidebar area - matches sidebar width */}
           {!sidebarCollapsed && (
             <div
-              className="h-full flex items-center justify-between flex-shrink-0 z-20 px-3 group"
+              className="h-full flex items-center flex-shrink-0 z-20 px-3 group"
               style={{ width: sidebarWidth }}
               onMouseEnter={() => setSidebarHeaderHovered(true)}
               onMouseLeave={() => setSidebarHeaderHovered(false)}
             >
               {/* User info with dropdown */}
               <WorkspaceSwitcher onOpenSettings={onOpenSettings} />
+
+              {/* Draggable Spacer Region */}
+              <div className="flex-1 h-full" data-tauri-drag-region />
+
               {/* Collapse button - hidden by default, visible on header hover or divider hover */}
               <button
                 onClick={toggleSidebar}
