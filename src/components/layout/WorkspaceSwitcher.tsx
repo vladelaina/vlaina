@@ -132,7 +132,8 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                         "w-[260px] z-50 rounded-xl p-1.5 select-none",
                         "bg-[var(--neko-bg-primary)] dark:bg-zinc-900",
                         "border border-[var(--neko-border)] shadow-xl",
-                        "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+                        "animate-in fade-in-0 zoom-in-95 duration-200",
+                        "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-100",
                         "data-[side=bottom]:slide-in-from-top-2"
                     )}
                     sideOffset={8}

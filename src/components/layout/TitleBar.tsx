@@ -227,7 +227,11 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
   );
 
   const startDrag = useCallback(async () => {
-    await getCurrentWindow().startDragging();
+    // Delay slightly to allow React state updates (e.g. closing menus) to flush
+    // and animations to start before handing control to the OS window manager.
+    setTimeout(async () => {
+      await getCurrentWindow().startDragging();
+    }, 100);
   }, []);
 
   // Handle new note creation
@@ -301,7 +305,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
             <WorkspaceSwitcher onOpenSettings={onOpenSettings} />
 
             {/* Draggable Spacer Region */}
-            <div className="flex-1 h-full" data-tauri-drag-region />
+            <div className="flex-1 h-full" onMouseDown={startDrag} />
 
             {/* Collapse button - hidden by default, visible on header hover or divider hover */}
             <button
