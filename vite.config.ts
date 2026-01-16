@@ -16,7 +16,7 @@ function spaFallbackPlugin(): Plugin {
       const distPath = path.resolve(__dirname, 'dist');
       const indexPath = path.join(distPath, 'index.html');
       const notFoundPath = path.join(distPath, '404.html');
-      
+
       if (fs.existsSync(indexPath)) {
         fs.copyFileSync(indexPath, notFoundPath);
         console.log('Created 404.html for SPA support');
@@ -45,7 +45,7 @@ export default defineConfig(async () => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  
+
   // Base path - always '/' for custom domain (app.nekotick.com)
   base: '/',
 
@@ -73,15 +73,15 @@ export default defineConfig(async () => ({
   clearScreen: false,
   // 2. tauri expects a fixed port, fail if that port is not available
   server: {
-    port: 3000,
+    port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : 3000,
     strictPort: true,
     host: "127.0.0.1",
     hmr: host
       ? {
-          protocol: "ws",
-          host,
-          port: 1421,
-        }
+        protocol: "ws",
+        host,
+        port: 1421,
+      }
       : undefined,
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
