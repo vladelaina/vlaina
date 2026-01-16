@@ -29,6 +29,7 @@ export function useSyncInit() {
 
   // Check status on Tauri platform
   useEffect(() => {
+    useGithubSyncStore.getState().hydrateAvatar();
     if (!hasBackendCommands()) return;
     checkStatus();
   }, [checkStatus]);

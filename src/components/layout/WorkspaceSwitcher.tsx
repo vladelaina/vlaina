@@ -27,6 +27,7 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
         isConnected: isGithubConnected,
         username: githubUsername,
         avatarUrl: githubAvatarUrl,
+        localAvatarUrl,
         connect,
         disconnect,
         isConnecting,
@@ -39,8 +40,8 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
     // Fallback data
     const displayName = githubUsername || "NekoTick";
 
-    // Use logo as fallback when no avatar available
-    const displayAvatar = githubAvatarUrl || "/logo.png";
+    // Use local avatar if available (offline support), then remote, then fallback
+    const displayAvatar = localAvatarUrl || githubAvatarUrl || "/logo.png";
 
     const handleLogout = async () => {
         await disconnect();
