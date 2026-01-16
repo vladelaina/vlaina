@@ -304,7 +304,6 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
                   sidebarHeaderHovered ? "opacity-100" : "opacity-0",
                   "transition-opacity"
                 )}
-                title="Collapse sidebar"
               >
                 <ChevronsLeft className="w-4 h-4" />
               </button>
