@@ -2,7 +2,7 @@ import { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import Cropper from 'react-easy-crop';
 import { Button } from '@/components/ui/button';
-import { Upload, X, Trash2 } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getCroppedImg } from '@/lib/assets/imageLoader';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -10,6 +10,7 @@ import { useToastStore } from '@/stores/useToastStore';
 import { NoteIcon } from './NoteIcon';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 import { CustomEmoji } from '@/stores/notes/slices/customEmojiSlice';
+import { DeletableItem } from '@/components/ui/deletable-item';
 
 interface UploadTabProps {
     onSelect: (value: string) => void;
@@ -23,7 +24,6 @@ export function UploadTab({ onSelect, onPreview, onClose }: UploadTabProps) {
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
     const [isUploading, setIsUploading] = useState(false);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const uploadAsset = useNotesStore(s => s.uploadAsset);
     const addWorkspaceEmoji = useNotesStore(s => s.addWorkspaceEmoji);
@@ -105,21 +105,10 @@ export function UploadTab({ onSelect, onPreview, onClose }: UploadTabProps) {
         }
     };
 
-    const handleDelete = async (e: React.MouseEvent, id: string) => {
-        e.stopPropagation();
-        if (deletingId === id) {
-            // Second click: Confirm deletion
-            await removeWorkspaceEmoji(id);
-            setDeletingId(null);
-        } else {
-            // First click: Enter confirmation state
-            setDeletingId(id);
-        }
-    };
+
 
     // Helper to handle library item click
     const handleLibraryItemClick = (url: string) => {
-        if (deletingId) return; // Don't select if we're in deleting state
         onSelect(url);
         onClose();
     };
@@ -243,50 +232,25 @@ export function UploadTab({ onSelect, onPreview, onClose }: UploadTabProps) {
                     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-900 px-3">
                         <div className="flex-1 overflow-y-auto neko-scrollbar pr-1 grid grid-cols-7 gap-2 content-start pb-2">
                             {workspaceEmojis.map((emoji) => (
-                                <div
+                                <DeletableItem
                                     key={emoji.id}
-                                    className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95 group/item"
-                                    onClick={() => handleLibraryItemClick(emoji.url)}
-                                    onMouseEnter={() => !deletingId && onPreview?.(emoji.url)}
-                                    onMouseLeave={() => {
-                                        onPreview?.(null);
-                                        if (deletingId === emoji.id) setDeletingId(null);
-                                    }}
+                                    id={emoji.id}
+                                    onDelete={(id) => removeWorkspaceEmoji(id)}
+                                    className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95"
                                 >
-                                    <div className={cn(
-                                        "w-full h-full transition-all duration-300",
-                                        deletingId === emoji.id ? "opacity-40 blur-[0.5px]" : "opacity-100"
-                                    )}>
+                                    <div
+                                        className="w-full h-full"
+                                        onClick={() => handleLibraryItemClick(emoji.url)}
+                                        onMouseEnter={() => onPreview?.(emoji.url)}
+                                        onMouseLeave={() => onPreview?.(null)}
+                                    >
                                         <NoteIcon
                                             icon={emoji.url}
                                             size={44}
                                             className="w-full h-full object-contain"
                                         />
                                     </div>
-
-                                    {/* Deletion Overlay (X / Trash) */}
-                                    {deletingId === emoji.id ? (
-                                        <div
-                                            className="absolute inset-0 flex items-center justify-center cursor-pointer z-30"
-                                            onClick={(e) => handleDelete(e, emoji.id)}
-                                        >
-                                            <div className="text-red-500 transition-all active:scale-90 pointer-events-none">
-                                                <Trash2 size={24} strokeWidth={2} />
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <button
-                                            onClick={(e) => handleDelete(e, emoji.id)}
-                                            className={cn(
-                                                "absolute -top-1 -right-1 z-20 p-1.5 transition-all duration-200",
-                                                "flex items-center justify-center",
-                                                "text-zinc-400 hover:text-red-500 opacity-0 group-hover/item:opacity-100 scale-90 hover:scale-100"
-                                            )}
-                                        >
-                                            <X size={12} strokeWidth={2.5} />
-                                        </button>
-                                    )}
-                                </div>
+                                </DeletableItem>
                             ))}
                             {workspaceEmojis.length === 0 && (
                                 <div className="col-span-7 py-8 text-center text-xs text-muted-foreground italic">

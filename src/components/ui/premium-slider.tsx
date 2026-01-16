@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface PremiumSliderProps {
@@ -7,6 +7,7 @@ interface PremiumSliderProps {
     step?: number;
     value: number;
     onChange: (value: number) => void;
+    onConfirm?: (value: number) => void;
     className?: string;
 }
 
@@ -16,9 +17,10 @@ export function PremiumSlider({
     step = 1,
     value,
     onChange,
+    onConfirm,
     className,
 }: PremiumSliderProps) {
-    const rafRef = useRef<number>();
+    const rafRef = useRef<number | undefined>(undefined);
     const latestValueRef = useRef(value);
     const [internalValue, setInternalValue] = useState(value);
 
@@ -67,6 +69,8 @@ export function PremiumSlider({
                 step={step}
                 value={internalValue}
                 onChange={handleChange}
+                onMouseUp={() => onConfirm?.(internalValue)}
+                onTouchEnd={() => onConfirm?.(internalValue)}
                 className={cn(
                     'absolute w-full h-full opacity-0 cursor-pointer z-10',
                     'appearance-none bg-transparent'

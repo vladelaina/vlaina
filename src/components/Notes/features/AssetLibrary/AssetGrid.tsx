@@ -5,7 +5,8 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
-import { Trash2, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { DeletableItem } from '@/components/ui/deletable-item';
 import { AssetGridProps } from './types';
 import { loadImageAsBlob } from '@/lib/assets/imageLoader';
 import { buildFullAssetPath } from '@/lib/assets/pathUtils';
@@ -18,14 +19,14 @@ interface AssetThumbnailProps {
   size: number;
   vaultPath: string;
   onSelect: () => void;
-  onDelete: () => void;
+  // onDelete removed as handled by parent wrapper
   isHovered: boolean;
   compact?: boolean;
 }
 
 // Memoized thumbnail component to prevent unnecessary re-renders
 const AssetThumbnail = memo(function AssetThumbnail({
-  filename, size, vaultPath, onSelect, onDelete, isHovered, compact
+  filename, size, vaultPath, onSelect, isHovered, compact
 }: AssetThumbnailProps) {
   const [src, setSrc] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -99,15 +100,9 @@ const AssetThumbnail = memo(function AssetThumbnail({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onDelete();
-  };
-
   // Extract display name from path (remove @ prefix if present)
   const cleanFilename = filename.replace(/^@/, '');
   const displayName = cleanFilename.split('/').pop() || cleanFilename;
-  const isBuiltin = isBuiltinCover(filename);
 
   return (
     <div
@@ -158,26 +153,13 @@ const AssetThumbnail = memo(function AssetThumbnail({
         </div>
       )}
 
-      {!compact && !isBuiltin && (
-        <button
-          onClick={handleDelete}
-          className={cn(
-            "absolute top-2 right-2 p-1.5 rounded-md",
-            "bg-red-500/80 hover:bg-red-500 text-white",
-            "transition-all duration-200",
-            isHovered ? "opacity-100" : "opacity-0"
-          )}
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      )}
+
     </div>
   );
 });
 
-export function AssetGrid({ onSelect, onHover, vaultPath, compact, category }: AssetGridProps) {
+export function AssetGrid({ onSelect, onHover, vaultPath, compact, itemSize, category }: AssetGridProps) {
   const { getAssetList, deleteAsset, loadAssets } = useNotesStore();
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [hoveredFilename, setHoveredFilename] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const clearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -245,68 +227,44 @@ export function AssetGrid({ onSelect, onHover, vaultPath, compact, category }: A
     onSelect(filename);
   }, [onSelect]);
 
-  const handleDeleteClick = useCallback((filename: string) => {
-    setDeleteConfirm(filename);
-  }, []);
-
-  const handleDeleteConfirm = useCallback(async () => {
-    if (deleteConfirm) {
-      await deleteAsset(deleteConfirm);
-      setDeleteConfirm(null);
-    }
-  }, [deleteConfirm, deleteAsset]);
 
   if (assets.length === 0) {
     return null; // EmptyState will be shown by parent
   }
 
+  // Dynamic grid style based on itemSize
+  const gridStyle = itemSize
+    ? { gridTemplateColumns: `repeat(auto-fill, minmax(${itemSize}px, 1fr))` }
+    : undefined;
+
   return (
     <>
       <div
         ref={gridRef}
-        className={cn("grid gap-1.5 p-2", compact ? "grid-cols-4" : "grid-cols-3 gap-2")}
+        className={cn("grid gap-2 p-2", !itemSize && (compact ? "grid-cols-5" : "grid-cols-3"))}
+        style={gridStyle}
       >
         {assets.map((asset) => (
-          <AssetThumbnail
+          <DeletableItem
             key={asset.filename}
-            filename={asset.filename}
-            size={asset.size}
-            vaultPath={vaultPath}
-            onSelect={() => handleSelect(asset.filename)}
-            onDelete={() => handleDeleteClick(asset.filename)}
-            isHovered={hoveredFilename === asset.filename}
-            compact={compact}
-          />
+            id={asset.filename}
+            onDelete={(id) => deleteAsset(id)}
+            className="relative aspect-square rounded-lg overflow-hidden"
+            // Built-in covers cannot be deleted
+            disabled={isBuiltinCover(asset.filename)}
+          >
+            <AssetThumbnail
+              filename={asset.filename}
+              size={asset.size}
+              vaultPath={vaultPath}
+              onSelect={() => handleSelect(asset.filename)}
+              isHovered={hoveredFilename === asset.filename}
+              compact={compact}
+            />
+          </DeletableItem>
         ))}
       </div>
 
-      {/* Delete confirmation dialog */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[var(--neko-bg-primary)] rounded-lg p-4 max-w-sm mx-4 shadow-xl">
-            <h3 className="text-[var(--neko-text-primary)] font-medium mb-2">
-              Delete Asset
-            </h3>
-            <p className="text-[var(--neko-text-secondary)] text-sm mb-4">
-              Are you sure you want to delete "{deleteConfirm}"? Notes using this image will show a broken image.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="px-3 py-1.5 rounded-md text-sm text-[var(--neko-text-secondary)] hover:bg-[var(--neko-hover)]"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteConfirm}
-                className="px-3 py-1.5 rounded-md text-sm bg-red-500 text-white hover:bg-red-600"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

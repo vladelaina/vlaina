@@ -13,7 +13,15 @@ import { EmptyState } from './EmptyState';
 import { CoverPickerProps, CoverPickerTab } from './types';
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
 
-export function CoverPicker({ isOpen, onClose, onSelect, onRemove, onPreview, vaultPath }: CoverPickerProps) {
+
+export function CoverPicker({
+  isOpen,
+  onClose,
+  onSelect,
+  onRemove,
+  onPreview,
+  vaultPath,
+}: CoverPickerProps) {
   const [activeTab, setActiveTab] = useState<CoverPickerTab>('library');
   const [isUploading, setIsUploading] = useState(false);
 
@@ -114,7 +122,7 @@ export function CoverPicker({ isOpen, onClose, onSelect, onRemove, onPreview, va
       <PopoverAnchor className="absolute bottom-4 right-4 w-1 h-1 pointer-events-none" />
 
       <PopoverContent
-        className="w-[280px] p-0 flex flex-col overflow-hidden bg-[var(--neko-bg-primary)] border-[var(--neko-border)] shadow-xl z-50 pointer-events-auto select-none"
+        className="w-[340px] p-0 flex flex-col overflow-hidden bg-[var(--neko-bg-primary)] border-[var(--neko-border)] shadow-xl z-50 pointer-events-auto select-none"
         align="end"
         side="bottom"
         sideOffset={8}
@@ -122,6 +130,7 @@ export function CoverPicker({ isOpen, onClose, onSelect, onRemove, onPreview, va
         onPointerDown={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
       >
+
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--neko-border)] bg-[var(--neko-bg-primary)]">
           <div className="flex items-center gap-2">

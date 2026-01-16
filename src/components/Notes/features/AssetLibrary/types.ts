@@ -16,6 +16,7 @@ export interface AssetGridProps {
   onHover?: (assetPath: string | null) => void;
   vaultPath: string;
   compact?: boolean;
+  itemSize?: number;
   category?: 'covers' | 'icons';
 }
 
