@@ -15,6 +15,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
 import { useProStatusStore } from "@/stores/useProStatusStore";
 import { useUIStore } from "@/stores/uiSlice";
+import { useUserAvatar } from "@/hooks/useUserAvatar"; // Import hook
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { isTauri } from "@/lib/storage/adapter";
 
@@ -26,8 +27,6 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
     const {
         isConnected: isGithubConnected,
         username: githubUsername,
-        avatarUrl: githubAvatarUrl,
-        localAvatarUrl,
         connect,
         disconnect,
         isConnecting,
@@ -40,8 +39,9 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
     // Fallback data
     const displayName = githubUsername || "NekoTick";
 
-    // Use local avatar if available (offline support), then remote, then fallback
-    const displayAvatar = localAvatarUrl || githubAvatarUrl || "/logo.png";
+    // Use centralized hook for avatar logic
+    const userAvatar = useUserAvatar();
+    const displayAvatar = userAvatar || "/logo.png";
 
     const handleLogout = async () => {
         await disconnect();

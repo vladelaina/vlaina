@@ -12,6 +12,7 @@ import { ShortcutsTab } from './tabs/ShortcutsTab';
 import { StorageTab } from './tabs/StorageTab';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useProStatusStore } from '@/stores/useProStatusStore';
+import { useUserAvatar } from '@/hooks/useUserAvatar';
 import { cn } from '@/lib/utils';
 
 interface SettingsModalProps {
@@ -57,7 +58,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
 
   // Store data for profile section
-  const { username, avatarUrl, isConnected } = useGithubSyncStore();
+  const { username, isConnected } = useGithubSyncStore();
+  const avatarUrl = useUserAvatar(); // Use hook
   const { isProUser } = useProStatusStore();
 
   // Shortcut editor state
