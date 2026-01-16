@@ -286,33 +286,36 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
       {appViewMode === 'notes' && currentVault && (
         <>
           {/* Left sidebar area - matches sidebar width */}
-          {!sidebarCollapsed && (
-            <div
-              className="h-full flex items-center flex-shrink-0 z-20 px-3 group"
-              style={{ width: sidebarWidth }}
-              onMouseEnter={() => setSidebarHeaderHovered(true)}
-              onMouseLeave={() => setSidebarHeaderHovered(false)}
+          {/* Left sidebar area - matches sidebar width */}
+          {/* Optimization: Use CSS hidden instead of unmount to prevent avatar flicker */}
+          <div
+            className={cn(
+              "h-full items-center flex-shrink-0 z-20 px-3 group",
+              sidebarCollapsed ? "hidden" : "flex"
+            )}
+            style={{ width: sidebarWidth }}
+            onMouseEnter={() => setSidebarHeaderHovered(true)}
+            onMouseLeave={() => setSidebarHeaderHovered(false)}
+          >
+            {/* User info with dropdown */}
+            <WorkspaceSwitcher onOpenSettings={onOpenSettings} />
+
+            {/* Draggable Spacer Region */}
+            <div className="flex-1 h-full" data-tauri-drag-region />
+
+            {/* Collapse button - hidden by default, visible on header hover or divider hover */}
+            <button
+              onClick={toggleSidebar}
+              className={cn(
+                "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0",
+                iconButtonStyles,
+                sidebarHeaderHovered ? "opacity-100" : "opacity-0",
+                "transition-opacity"
+              )}
             >
-              {/* User info with dropdown */}
-              <WorkspaceSwitcher onOpenSettings={onOpenSettings} />
-
-              {/* Draggable Spacer Region */}
-              <div className="flex-1 h-full" data-tauri-drag-region />
-
-              {/* Collapse button - hidden by default, visible on header hover or divider hover */}
-              <button
-                onClick={toggleSidebar}
-                className={cn(
-                  "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0",
-                  iconButtonStyles,
-                  sidebarHeaderHovered ? "opacity-100" : "opacity-0",
-                  "transition-opacity"
-                )}
-              >
-                <ChevronsLeft className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+              <ChevronsLeft className="w-4 h-4" />
+            </button>
+          </div>
 
           {/* When sidebar is collapsed, show expand button */}
           {sidebarCollapsed && (
