@@ -20,6 +20,7 @@ interface UploadTabProps {
 
 export function UploadTab({ onSelect, onPreview, onClose }: UploadTabProps) {
     const [imageSrc, setImageSrc] = useState<string | null>(null);
+    const [originalFile, setOriginalFile] = useState<File | null>(null);
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
@@ -38,6 +39,7 @@ export function UploadTab({ onSelect, onPreview, onClose }: UploadTabProps) {
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles && acceptedFiles.length > 0) {
             const file = acceptedFiles[0];
+            setOriginalFile(file);
             const reader = new FileReader();
             reader.addEventListener('load', () => {
                 setImageSrc(reader.result?.toString() || null);
@@ -57,8 +59,12 @@ export function UploadTab({ onSelect, onPreview, onClose }: UploadTabProps) {
         setCroppedAreaPixels(croppedAreaPixels);
     }, []);
 
+    const isGif = originalFile?.type === 'image/gif';
+    const isWebP = originalFile?.type === 'image/webp';
+    const shouldPreserve = isGif || isWebP;
+
     const handleSave = async () => {
-        if (!imageSrc || !croppedAreaPixels) return;
+        if (!imageSrc || (!croppedAreaPixels && !shouldPreserve)) return;
 
         try {
             setIsUploading(true);
@@ -67,26 +73,34 @@ export function UploadTab({ onSelect, onPreview, onClose }: UploadTabProps) {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T');
             const finalName = `icon_${timestamp[0]}_${timestamp[1].split('Z')[0]}`;
 
-            // 2. Get cropped blob
-            const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
-            if (!croppedBlob) throw new Error('Failed to crop image');
+            let fileToUpload: File;
 
-            // 3. Convert to File
-            const file = new File([croppedBlob], `${finalName}.png`, { type: 'image/png' });
+            if (shouldPreserve && originalFile) {
+                // For GIFs/WebP, preserve original file (animation/quality)
+                const ext = isGif ? 'gif' : 'webp';
+                fileToUpload = new File([originalFile], `${finalName}.${ext}`, { type: originalFile.type });
+            } else {
+                // 2. Get cropped blob
+                const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
+                if (!croppedBlob) throw new Error('Failed to crop image');
+
+                // 3. Convert to File
+                fileToUpload = new File([croppedBlob], `${finalName}.png`, { type: 'image/png' });
+            }
 
             // 4. Upload to 'icons' folder
-            const result = await uploadAsset(file, 'icons');
+            const result = await uploadAsset(fileToUpload, 'icons');
             if (!result.success || !result.path) {
                 throw new Error(result.error || 'Upload failed');
             }
 
-            // 5. Construct asset URL (format: "img:icons/filename.png")
+            // 5. Construct asset URL
             const assetUrl = `img:${result.path}`;
 
             // 6. Always Add to library
             const newEmoji: CustomEmoji = {
                 // Use filename as ID to match file-system based loading
-                id: `${finalName}.png`,
+                id: fileToUpload.name,
                 name: finalName,
                 url: assetUrl,
                 createdAt: Date.now(),
@@ -121,22 +135,39 @@ export function UploadTab({ onSelect, onPreview, onClose }: UploadTabProps) {
                 <div className="flex flex-col flex-1 px-5 pt-3 pb-6">
                     <div
                         {...getRootProps({ onClick: (e) => e.stopPropagation() })}
-                        className="relative flex-1 bg-zinc-950 rounded-lg overflow-hidden mb-6 group/cropper"
+                        className="relative flex-1 bg-zinc-950 rounded-lg overflow-hidden mb-6 group/cropper flex items-center justify-center h-[180px]"
                     >
-                        <Cropper
-                            image={imageSrc}
-                            crop={crop}
-                            zoom={zoom}
-                            aspect={1}
-                            onCropChange={setCrop}
-                            onCropComplete={onCropComplete}
-                            onZoomChange={setZoom}
-                            showGrid={false}
-                            zoomWithScroll={true}
-                            zoomSpeed={0.5}
-                            minZoom={1}
-                            maxZoom={3}
-                        />
+                        {shouldPreserve ? (
+                            <>
+                                <img
+                                    src={imageSrc}
+                                    className="max-w-full max-h-full object-contain"
+                                    alt="Preview"
+                                />
+                                <div className="absolute bottom-3 left-3 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm border border-white/10 flex items-center gap-1.5 pointer-events-none">
+                                    <span className="relative flex h-2 w-2">
+                                        <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping", isGif ? "bg-green-400" : "bg-blue-400")}></span>
+                                        <span className={cn("relative inline-flex rounded-full h-2 w-2", isGif ? "bg-green-500" : "bg-blue-500")}></span>
+                                    </span>
+                                    {isGif ? "Animation Preserved" : "Original Format"}
+                                </div>
+                            </>
+                        ) : (
+                            <Cropper
+                                image={imageSrc}
+                                crop={crop}
+                                zoom={zoom}
+                                aspect={1}
+                                onCropChange={setCrop}
+                                onCropComplete={onCropComplete}
+                                onZoomChange={setZoom}
+                                showGrid={false}
+                                zoomWithScroll={true}
+                                zoomSpeed={0.5}
+                                minZoom={1}
+                                maxZoom={3}
+                            />
+                        )}
 
                         {/* Direct Re-upload Overlay */}
                         <button
@@ -157,17 +188,19 @@ export function UploadTab({ onSelect, onPreview, onClose }: UploadTabProps) {
                     </div>
 
                     <div className="flex flex-col gap-6">
-                        {/* High-Performance Slider */}
-                        <div className="flex items-center gap-4">
-                            <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400 w-10">Zoom</span>
-                            <PremiumSlider
-                                min={1}
-                                max={3}
-                                step={0.1}
-                                value={zoom}
-                                onChange={(val: number) => setZoom(val)}
-                            />
-                        </div>
+                        {/* High-Performance Slider (Hidden for GIFs) */}
+                        {!isGif && (
+                            <div className="flex items-center gap-4">
+                                <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400 w-10">Zoom</span>
+                                <PremiumSlider
+                                    min={1}
+                                    max={3}
+                                    step={0.1}
+                                    value={zoom}
+                                    onChange={(val: number) => setZoom(val)}
+                                />
+                            </div>
+                        )}
 
                         <div className="flex justify-between items-center mt-2">
                             <button
