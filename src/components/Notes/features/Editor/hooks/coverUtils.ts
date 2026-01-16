@@ -34,6 +34,7 @@ export function calcImageDimensions(
     };
 }
 
+const MAX_CACHE_SIZE = 50;
 const dimensionCache = new Map<string, { width: number; height: number }>();
 
 export function getCachedDimensions(src: string) {
@@ -49,7 +50,16 @@ export async function loadImageWithDimensions(src: string): Promise<{ width: num
         const img = new Image();
         img.onload = () => {
             const dims = { width: img.naturalWidth, height: img.naturalHeight };
+
+            // Basic LRU Logic:
+            // 1. If exists, delete to re-insert (refresh order) - though here it didn't exist
+            // 2. If size >= MAX, delete oldest (first)
+            if (dimensionCache.size >= MAX_CACHE_SIZE) {
+                const firstKey = dimensionCache.keys().next().value;
+                if (firstKey) dimensionCache.delete(firstKey);
+            }
             dimensionCache.set(src, dims);
+
             resolve(dims);
         };
         img.onerror = () => resolve(null);

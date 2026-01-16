@@ -65,19 +65,29 @@ export function CoverImage({
         const el = containerRef.current;
         if (!el) return;
 
+        let rafId: number;
+
         const observer = new ResizeObserver(entries => {
-            for (const entry of entries) {
-                const { width, height } = entry.contentRect;
-                setContainerSize(prev => {
-                    // Prevent loops if dimensions match
-                    if (prev?.width === width && prev?.height === height) return prev;
-                    return { width, height };
-                });
-            }
+            // Cancel previous pending frame to ensure we only run the latest
+            if (rafId) cancelAnimationFrame(rafId);
+
+            rafId = requestAnimationFrame(() => {
+                for (const entry of entries) {
+                    const { width, height } = entry.contentRect;
+                    setContainerSize(prev => {
+                        // Prevent loops if dimensions match
+                        if (prev?.width === width && prev?.height === height) return prev;
+                        return { width, height };
+                    });
+                }
+            });
         });
 
         observer.observe(el);
-        return () => observer.disconnect();
+        return () => {
+            observer.disconnect();
+            if (rafId) cancelAnimationFrame(rafId);
+        };
     }, []); // containerRef is stable
 
 
