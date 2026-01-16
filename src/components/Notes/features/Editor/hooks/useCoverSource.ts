@@ -37,6 +37,7 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
     const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
     const [previewSrc, setPreviewSrc] = useState<string | null>(null);
     const [isImageReady, setIsImageReady] = useState(false);
+    const [isError, setIsError] = useState(false);
 
     // Track previous state for transitions
     const prevSrcRef = useRef<string | null>(null);
@@ -56,6 +57,7 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
         if (syncSrc && syncDims) {
             setResolvedSrc(syncSrc);
             setIsImageReady(true);
+            setIsError(false);
             cachedDimensionsRef.current = syncDims;
             lastResolvedUrlRef.current = url;
             prevSrcRef.current = null;
@@ -65,6 +67,7 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
             if (resolvedSrc) prevSrcRef.current = resolvedSrc;
             setResolvedSrc(null);
             setIsImageReady(false);
+            setIsError(false);
             cachedDimensionsRef.current = null;
             lastResolvedUrlRef.current = null;
         }
@@ -80,6 +83,7 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
             if (!url) {
                 setResolvedSrc(null);
                 setPreviewSrc(null);
+                setIsError(false);
                 isSelectingRef.current = false;
                 return;
             }
@@ -99,6 +103,7 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
                     if (ignore) return;
                     setResolvedSrc(null);
                     setPreviewSrc(null);
+                    setIsError(true);
                     isSelectingRef.current = false;
                     // Do NOT auto-delete the cover. Let the user see the error state.
                     // onUpdate(null, 50, 50); 
@@ -119,6 +124,7 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
                 // Image failed to load (corrupt or 404)
                 setResolvedSrc(null);
                 setPreviewSrc(null);
+                setIsError(true);
                 isSelectingRef.current = false;
                 return;
             }
@@ -126,6 +132,7 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
             cachedDimensionsRef.current = dimensions;
             setResolvedSrc(imageUrl);
             setPreviewSrc(null);
+            setIsError(false);
             isSelectingRef.current = false;
             lastResolvedUrlRef.current = url;
         }
@@ -158,6 +165,7 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
         setPreviewSrc,
         isImageReady,
         setIsImageReady,
+        isError,
         prevSrcRef,
         isSelectingRef,
         cachedDimensionsRef,

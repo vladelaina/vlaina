@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import Cropper from 'react-easy-crop';
+import { ImageOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CoverPicker } from '../AssetLibrary';
 import { loadImageAsBlob } from '@/lib/assets/imageLoader';
@@ -56,6 +57,7 @@ export function CoverImage({
         setPreviewSrc,
         setIsImageReady,
         prevSrcRef,
+        isError,
         isSelectingRef
     } = useCoverSource({ url, vaultPath, onUpdate });
 
@@ -311,13 +313,20 @@ export function CoverImage({
         const startY = e.clientY;
         const startH = coverHeight;
 
+        let rafId: number;
+
         const onMove = (me: MouseEvent) => {
-            const delta = me.clientY - startY;
-            const newH = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, startH + delta));
-            setCoverHeight(newH);
+            if (rafId) cancelAnimationFrame(rafId);
+
+            rafId = requestAnimationFrame(() => {
+                const delta = me.clientY - startY;
+                const newH = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, startH + delta));
+                setCoverHeight(newH);
+            });
         };
 
         const onUp = (me: MouseEvent) => {
+            if (rafId) cancelAnimationFrame(rafId);
             const delta = me.clientY - startY;
             const newH = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, startH + delta));
             // Save final height
@@ -427,8 +436,24 @@ export function CoverImage({
                 </div>
             )}
 
+
+            {/* Error State Overlay */}
+            {isError && (
+                <div
+                    className={cn(
+                        "absolute inset-0 flex flex-col items-center justify-center bg-muted/20 text-muted-foreground z-10",
+                        !readOnly && "cursor-pointer hover:bg-muted/30 transition-colors"
+                    )}
+                    onMouseDown={() => !readOnly && setShowPicker(true)}
+                >
+                    <ImageOff className="w-8 h-8 mb-2 opacity-50" />
+                    <span className="text-xs font-medium opacity-70">Image failed to load</span>
+                    {!readOnly && <span className="text-[10px] opacity-50 mt-1">Click to replace</span>}
+                </div>
+            )}
+
             {/* ReadOnly Overlay / Picker Trigger */}
-            {!displaySrc && (
+            {!displaySrc && !isError && (
                 <div
                     className="absolute inset-0 flex items-center justify-center text-muted-foreground cursor-pointer z-10"
                     onMouseDown={() => !readOnly && setShowPicker(true)}
