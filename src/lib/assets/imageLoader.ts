@@ -87,7 +87,7 @@ export async function loadImageAsBase64(fullPath: string): Promise<string> {
       reader.readAsDataURL(blob);
     });
 
-    return `data:${mimeType};base64,${base64}`;
+
   } catch (error) {
     console.error('Failed to load image as base64:', fullPath, error);
     throw error;

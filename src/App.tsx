@@ -3,9 +3,12 @@ import { DndContext, useSensor, useSensors, PointerSensor, DragEndEvent, DragSta
 import { windowCommands } from '@/lib/tauri/invoke';
 import { isTauri } from '@/lib/storage/adapter';
 import { SettingsModal } from '@/components/Settings';
-import { CalendarPage, CalendarToolbar, CalendarTaskPanel, CalendarSidebar } from '@/components/Calendar';
+import { CalendarPage, CalendarToolbar, CalendarSidebar } from '@/components/Calendar';
 import { CalendarHeaderControl } from '@/components/Calendar/features/Grid/CalendarHeaderControl';
+import { CalendarContextPanel } from '@/components/Calendar/features/TaskPanel/CalendarContextPanel';
 import { NotesPage } from '@/components/Notes/NotesPage';
+import { TodoPage } from '@/components/Todo/TodoPage';
+import { TodoSidebar } from '@/components/Todo/TodoSidebar';
 import { Layout } from '@/components/layout';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
@@ -159,10 +162,20 @@ function AppContent() {
           leftPanel={<CalendarSidebar />}
           showLeftPanel={showSidebar}
           leftPanelResizable={false}
-          rightPanel={<CalendarTaskPanel />}
+          rightPanel={<CalendarContextPanel />}
           showRightPanel={showContextPanel}
         >
           <CalendarPage />
+        </Layout>
+      ) : appViewMode === 'todo' ? (
+        /* Todo Page */
+        <Layout
+          onOpenSettings={() => setSettingsOpen(true)}
+          leftPanel={<TodoSidebar />}
+          showLeftPanel={showSidebar}
+          leftPanelResizable={false}
+        >
+          <TodoPage />
         </Layout>
       ) : (
         /* Notes Page */

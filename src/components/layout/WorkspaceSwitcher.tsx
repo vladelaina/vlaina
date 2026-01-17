@@ -10,6 +10,7 @@ import {
     MoreHorizontal,
     Users,
     ChevronRight,
+    ClipboardList,
 } from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
@@ -33,7 +34,7 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
         cancelConnect
     } = useGithubSyncStore();
     const { isProUser, isChecking: isProChecking } = useProStatusStore();
-    const { appViewMode, toggleAppViewMode } = useUIStore();
+    const { appViewMode, setAppViewMode } = useUIStore();
     const [isOpen, setIsOpen] = React.useState(false);
 
     // Fallback data
@@ -72,9 +73,7 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
         }
     };
 
-    const handleToggleView = () => {
-        toggleAppViewMode();
-    };
+
 
     const handleOpenAppLink = async () => {
         const isDesktop = isTauri();
@@ -302,25 +301,58 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                                 </button>
                             )}
 
-                            <button
-                                onClick={handleToggleView}
-                                className={cn(
-                                    "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
-                                    "hover:bg-[var(--neko-hover)]"
-                                )}
-                            >
-                                {appViewMode === 'calendar' ? (
-                                    <>
-                                        <StickyNote className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
-                                        <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Switch to Notes</span>
-                                    </>
-                                ) : (
-                                    <>
+                            <div className="flex flex-col gap-0.5 py-1">
+
+                                {appViewMode !== 'calendar' && (
+                                    <button
+                                        onClick={() => {
+                                            setAppViewMode('calendar');
+                                            setIsOpen(false);
+                                        }}
+                                        className={cn(
+                                            "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
+                                            "hover:bg-[var(--neko-hover)]"
+                                        )}
+                                    >
                                         <Calendar className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
-                                        <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Switch to Calendar</span>
-                                    </>
+                                        <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Calendar</span>
+                                    </button>
                                 )}
-                            </button>
+
+                                {appViewMode !== 'notes' && (
+                                    <button
+                                        onClick={() => {
+                                            setAppViewMode('notes');
+                                            setIsOpen(false);
+                                        }}
+                                        className={cn(
+                                            "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
+                                            "hover:bg-[var(--neko-hover)]"
+                                        )}
+                                    >
+                                        <StickyNote className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
+                                        <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Notes</span>
+                                    </button>
+                                )}
+
+                                {appViewMode !== 'todo' && (
+                                    <button
+                                        onClick={() => {
+                                            setAppViewMode('todo');
+                                            setIsOpen(false);
+                                        }}
+                                        className={cn(
+                                            "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
+                                            "hover:bg-[var(--neko-hover)]"
+                                        )}
+                                    >
+                                        <ClipboardList className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
+                                        <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Todos</span>
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="h-[1px] bg-[var(--neko-border)] mx-3 my-1 opacity-50" />
 
                             <button
                                 onClick={handleOpenAppLink}
