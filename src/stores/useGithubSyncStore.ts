@@ -390,11 +390,8 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
     }
 
     // Clear state
-    const currentLocalUrl = get().localAvatarUrl;
-    if (currentLocalUrl) {
-      URL.revokeObjectURL(currentLocalUrl);
-    }
-
+    // Note: We used to revokeObjectURL here, but now we use Base64 for avatars, 
+    // so no manual cleanup is needed for localAvatarUrl.
     set({
       isConnected: false,
       username: null,

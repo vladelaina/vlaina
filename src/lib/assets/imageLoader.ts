@@ -58,6 +58,43 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
 }
 
 /**
+ * Load a local image file and return a Base64 Data URI
+ * This avoids Blob lifecycle management issues (revocation, 404s).
+ * Ideal for small assets like avatars.
+ */
+export async function loadImageAsBase64(fullPath: string): Promise<string> {
+  const storage = getStorageAdapter();
+
+  try {
+    const data = await storage.readBinaryFile(fullPath);
+    const mimeType = getMimeType(fullPath);
+
+    // Convert using FileReader (more efficient than manual string construction)
+    const copy = new Uint8Array(data);
+    const blob = new Blob([copy], { type: mimeType });
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result;
+        if (typeof result === 'string') {
+          resolve(result);
+        } else {
+          reject(new Error('Failed to convert image to base64'));
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    return `data:${mimeType};base64,${base64}`;
+  } catch (error) {
+    console.error('Failed to load image as base64:', fullPath, error);
+    throw error;
+  }
+}
+
+/**
  * Revoke a blob URL and remove from cache
  */
 export function revokeImageBlob(fullPath: string): void {

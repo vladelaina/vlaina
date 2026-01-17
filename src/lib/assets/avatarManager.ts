@@ -1,5 +1,5 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { loadImageAsBlob, invalidateImageCache } from './imageLoader';
+import { loadImageAsBase64 } from './imageLoader';
 
 const SYSTEM_DIR_NAME = '.nekotick';
 const SYSTEM_SUBDIR = 'system';
@@ -55,10 +55,6 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
             const avatarPath = await joinPath(systemDir, filename);
             await storage.writeBinaryFile(avatarPath, uint8Array);
 
-            // 5. Invalidate cache to ensure UI gets the new image
-            // DO NOT revoke immediately, as the UI might still be displaying the old blob
-            invalidateImageCache(avatarPath);
-
             console.log('[AvatarManager] Avatar saved locally to:', avatarPath);
             return avatarPath;
         } catch (error) {
@@ -77,7 +73,7 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
 /**
  * Get the local asset URL for the saved avatar
  * @param username GitHub username
- * @returns Blob URL (blob:...) or null if not found
+ * @returns Base64 Data URI or null if not found
  */
 export async function getLocalAvatarUrl(username: string): Promise<string | null> {
     if (!username) return null;
@@ -88,8 +84,8 @@ export async function getLocalAvatarUrl(username: string): Promise<string | null
         const avatarPath = await joinPath(basePath, SYSTEM_DIR_NAME, SYSTEM_SUBDIR, filename);
 
         if (await storage.exists(avatarPath)) {
-            // Use imageLoader to get a fresh blob URL
-            return await loadImageAsBlob(avatarPath);
+            // Use Base64 to avoid Blob lifecycle issues (broken images on reload/unmount)
+            return await loadImageAsBase64(avatarPath);
         }
         return null;
     } catch (error) {

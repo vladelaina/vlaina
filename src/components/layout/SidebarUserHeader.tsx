@@ -11,13 +11,11 @@ interface SidebarUserHeaderProps {
 }
 
 export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUserHeaderProps) {
-    const { sidebarHeaderHovered, setSidebarHeaderHovered } = useUIStore();
+    const sidebarHeaderHovered = useUIStore(s => s.sidebarHeaderHovered);
+    const setSidebarHeaderHovered = useUIStore(s => s.setSidebarHeaderHovered);
 
     const startDrag = useCallback(async () => {
-        // Delay slightly to allow React state updates
-        setTimeout(async () => {
-            await getCurrentWindow().startDragging();
-        }, 100);
+        await getCurrentWindow().startDragging();
     }, []);
 
     return (
@@ -45,7 +43,6 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                     sidebarHeaderHovered ? "opacity-100" : "opacity-0",
                     "transition-opacity"
                 )}
-                title="Collapse Sidebar"
             >
                 <ChevronsLeft className="w-4 h-4" />
             </button>
