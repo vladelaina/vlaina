@@ -49,34 +49,108 @@
   line-height: calc(1em + 8px);
 }
 
-.milkdown ul > li {
+.milkdown ul>li:not(.task-list-item) {
   list-style-type: disc;
 }
 
-.milkdown ol > li {
+.milkdown ul ul>li:not(.task-list-item) {
+  list-style-type: circle;
+}
+
+.milkdown ul ul ul>li:not(.task-list-item) {
+  list-style-type: square;
+}
+
+.milkdown ul ul ul ul>li:not(.task-list-item) {
+  list-style-type: disc;
+}
+
+.milkdown ul ul ul ul ul>li:not(.task-list-item) {
+  list-style-type: circle;
+}
+
+.milkdown ul ul ul ul ul ul>li:not(.task-list-item) {
+  list-style-type: square;
+}
+
+.milkdown ul ul ul ul ul ul ul>li:not(.task-list-item) {
+  list-style-type: disc;
+}
+
+.milkdown ol>li {
   list-style-type: decimal;
 }
 
-.milkdown li > ul,
-.milkdown li > ol {
+.milkdown ol ol>li {
+  list-style-type: lower-alpha;
+}
+
+.milkdown ol ol ol>li {
+  list-style-type: lower-roman;
+}
+
+.milkdown ol ol ol ol>li {
+  list-style-type: decimal;
+}
+
+.milkdown ol ol ol ol ol>li {
+  list-style-type: lower-alpha;
+}
+
+.milkdown ol ol ol ol ol ol>li {
+  list-style-type: lower-roman;
+}
+
+.milkdown li>ul,
+.milkdown li>ol {
   margin: 4px 0;
 }
 
-/* Task List */
-.milkdown ul.task-list {
-  list-style: none;
-  padding-left: 0;
-}
-
-.milkdown .task-list-item {
+/* Task List - Milkdown uses data-item-type="task" and data-checked attributes */
+.milkdown li[data-item-type="task"] {
+  list-style-type: none !important;
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
+  position: relative;
+  padding-left: 0;
 }
 
-.milkdown .task-list-item input[type="checkbox"] {
+/* Custom checkbox using ::before pseudo-element */
+.milkdown li[data-item-type="task"]::before {
+  content: '';
+  display: inline-block;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
   margin-top: 0.25rem;
+  border: 2px solid var(--neko-text-tertiary);
+  border-radius: 3px;
+  background-color: transparent;
   cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+/* Checked state */
+.milkdown li[data-item-type="task"][data-checked="true"]::before {
+  background-color: var(--neko-accent);
+  border-color: var(--neko-accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+  background-size: 12px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Checked text style - strikethrough */
+.milkdown li[data-item-type="task"][data-checked="true"]>p {
+  text-decoration: line-through;
+  color: var(--neko-text-tertiary);
+}
+
+/* Task list paragraph should fill available space for proper click handling */
+.milkdown li[data-item-type="task"]>p {
+  flex: 1;
+  min-width: 0;
 }
 
 /* Horizontal Rule */

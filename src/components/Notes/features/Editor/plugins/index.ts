@@ -34,6 +34,12 @@ export { highlightPlugin } from './highlight';
 export { autolinkPlugin } from './autolink';
 export { abbrPlugin } from './abbr';
 
+// Task list interaction
+export { taskListClickPlugin } from './task-list';
+
+// List collapse
+export { listCollapsePlugin } from './collapse';
+
 // Re-export types that are actually used
 export type { SlashMenuItem } from './slash/types';
 export type { CalloutBlockAttrs, IconData } from './callout/types';

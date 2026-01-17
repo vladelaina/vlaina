@@ -260,3 +260,45 @@
   overflow-x: auto;
   margin: 1rem 0;
 }
+
+/* === Collapse Toggle Button (shared by heading and list collapse) === */
+.milkdown .neko-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s;
+  color: var(--neko-text-tertiary);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+/* Show button on hover */
+.milkdown li:hover>.neko-collapse-btn,
+.milkdown h1:hover>.neko-collapse-btn,
+.milkdown h2:hover>.neko-collapse-btn,
+.milkdown h3:hover>.neko-collapse-btn,
+.milkdown h4:hover>.neko-collapse-btn,
+.milkdown h5:hover>.neko-collapse-btn,
+.milkdown h6:hover>.neko-collapse-btn {
+  opacity: 1;
+}
+
+/* Rotate triangle when collapsed */
+.milkdown .neko-collapse-btn[data-collapsed="true"] {
+  transform: rotate(-90deg);
+}
+
+/* Hide button when no content to collapse */
+.milkdown .neko-collapse-btn[data-has-content="false"] {
+  visibility: hidden;
+}
+
+/* Collapsed content - hide with smooth animation */
+.milkdown .neko-collapsed-content {
+  display: none !important;
+}
