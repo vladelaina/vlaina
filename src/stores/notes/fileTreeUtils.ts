@@ -211,3 +211,58 @@ export function addNodeToTree(
     return node;
   });
 }
+
+/**
+ * Remove a node from the tree by path
+ */
+export function removeNodeFromTree(
+  nodes: FileTreeNode[],
+  targetPath: string
+): FileTreeNode[] {
+  return nodes.filter(node => node.path !== targetPath).map(node => {
+    if (node.isFolder) {
+      return {
+        ...node,
+        children: removeNodeFromTree(node.children, targetPath)
+      };
+    }
+    return node;
+  });
+}
+
+/**
+ * Find a node in the tree by path
+ */
+export function findNode(nodes: FileTreeNode[], targetPath: string): FileTreeNode | null {
+  for (const node of nodes) {
+    if (node.path === targetPath) return node;
+    if (node.isFolder) {
+      const found = findNode(node.children, targetPath);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/**
+ * Deep update paths for a node and its children (used when moving a folder)
+ */
+export function deepUpdateNodePath(
+  node: FileTreeNode,
+  oldBasePath: string,
+  newBasePath: string
+): FileTreeNode {
+  const newPath = node.path === oldBasePath
+    ? newBasePath
+    : node.path.replace(oldBasePath, newBasePath);
+
+  const newNode = {
+    ...node,
+    id: newPath,
+    path: newPath,
+    children: node.isFolder
+      ? node.children.map(child => deepUpdateNodePath(child, oldBasePath, newBasePath))
+      : [],
+  };
+  return newNode;
+}

@@ -64,17 +64,25 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
     setNotesPreviewTitle(null, null);
   }, [title, initialTitle, notePath, renameNote, setNotesPreviewTitle]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback(async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      inputRef.current?.blur();
-      onEnter?.();
+      // Perform rename synchronously before moving focus
+      const trimmed = title.trim();
+      if (trimmed && trimmed !== initialTitle) {
+        setNotesPreviewTitle(null, null);
+        await renameNote(notePath, trimmed);
+      }
+      // Use setTimeout to ensure focus happens after React re-renders from rename
+      setTimeout(() => {
+        onEnter?.();
+      }, 50);
     } else if (e.key === 'Escape') {
       setTitle(initialTitle);
       setNotesPreviewTitle(null, null);
       inputRef.current?.blur();
     }
-  }, [initialTitle, setNotesPreviewTitle, onEnter]);
+  }, [title, initialTitle, notePath, renameNote, setNotesPreviewTitle, onEnter]);
 
   return (
     <input

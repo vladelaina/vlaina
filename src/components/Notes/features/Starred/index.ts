@@ -1,1 +1,0 @@
-export { StarredPanel } from './StarredPanel';

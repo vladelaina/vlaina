@@ -1,7 +1,7 @@
 import { Search } from 'lucide-react';
-import { FavoritesSection } from './FavoritesSection';
-import { GitHubSection } from './GitHubSection';
-import { WorkspaceSection } from './WorkspaceSection';
+import { FavoritesSection } from '../Favorites';
+import { GitHubSection } from '../GitHub';
+import { WorkspaceSection } from '../FileTree';
 import { cn } from '@/lib/utils';
 
 interface SidebarContentProps {

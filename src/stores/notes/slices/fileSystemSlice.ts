@@ -14,6 +14,9 @@ import {
   collectExpandedPaths,
   restoreExpandedState,
   addNodeToTree,
+  removeNodeFromTree,
+  findNode,
+  deepUpdateNodePath,
 } from '../fileTreeUtils';
 import {
   getNotesBasePath,
@@ -140,7 +143,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   createNote: async (folderPath?: string) => {
-    let { notesPath, openTabs, recentNotes, rootFolder } = get();
+    let { notesPath, openTabs, recentNotes /*, rootFolder */ } = get();
     const storage = getStorageAdapter();
 
     if (!notesPath) {
@@ -228,7 +231,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     name: string,
     content: string
   ) => {
-    let { notesPath, rootFolder, recentNotes, openTabs } = get();
+    let { notesPath, /* rootFolder, */ recentNotes, openTabs } = get();
     const storage = getStorageAdapter();
 
     if (!notesPath) {
@@ -323,14 +326,12 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     const {
       notesPath,
       currentNote,
-      loadFileTree,
       rootFolder,
       openTabs,
       starredNotes,
       starredFolders,
     } = get();
     const storage = getStorageAdapter();
-    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
 
     try {
       const fullPath = await joinPath(notesPath, path);
@@ -358,13 +359,13 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         set({ openTabs: updatedTabs });
       }
 
-      await loadFileTree();
+      // Optimistic Update: Remove from tree without reloading
       const currentRootFolder = get().rootFolder;
       if (currentRootFolder) {
         set({
           rootFolder: {
             ...currentRootFolder,
-            children: restoreExpandedState(currentRootFolder.children, expandedPaths),
+            children: removeNodeFromTree(currentRootFolder.children, path),
           },
         });
       }
@@ -515,9 +516,8 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   createFolder: async (parentPath: string, name?: string) => {
-    const { notesPath, loadFileTree, rootFolder } = get();
+    const { notesPath } = get();
     const storage = getStorageAdapter();
-    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
 
     try {
       let folderName = name || 'Untitled';
@@ -535,15 +535,23 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       }
 
       await storage.mkdir(fullPath, true);
-      if (parentPath) expandedPaths.add(parentPath);
 
-      await loadFileTree();
+      // Optimistic Update
+      const newNode: any = { // Using any momentarily to satisfy type if strict
+        id: folderPath,
+        name: folderName,
+        path: folderPath,
+        isFolder: true,
+        children: [],
+        expanded: false
+      };
+
       const currentRootFolder = get().rootFolder;
       if (currentRootFolder) {
         set({
           rootFolder: {
             ...currentRootFolder,
-            children: restoreExpandedState(currentRootFolder.children, expandedPaths),
+            children: addNodeToTree(currentRootFolder.children, parentPath, newNode),
           },
           newlyCreatedFolderPath: !name ? folderPath : null,
         });
@@ -558,9 +566,8 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   clearNewlyCreatedFolder: () => set({ newlyCreatedFolderPath: null }),
 
   deleteFolder: async (path: string) => {
-    const { notesPath, loadFileTree, rootFolder, starredNotes, starredFolders } = get();
+    const { notesPath, currentNote, openTabs, starredNotes, starredFolders } = get();
     const storage = getStorageAdapter();
-    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
 
     try {
       const fullPath = await joinPath(notesPath, path);
@@ -583,15 +590,36 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         });
       }
 
-      await loadFileTree();
+      // Update open tabs: close any tabs that were inside the deleted folder
+      const updatedTabs = openTabs.filter((tab) => !tab.path.startsWith(path + '/') && tab.path !== path);
 
+      // If the current note was inside the deleted folder, clear it
+      let updatedCurrentNote = currentNote;
+      if (currentNote && (currentNote.path === path || currentNote.path.startsWith(path + '/'))) {
+        if (updatedTabs.length > 0) {
+          const lastTab = updatedTabs[updatedTabs.length - 1];
+          // Open the last remaining tab
+          get().openNote(lastTab.path); // This will also set currentNote and openTabs
+          updatedCurrentNote = null; // openNote will handle setting currentNote
+        } else {
+          updatedCurrentNote = null;
+          set({ currentNote: null, isDirty: false });
+        }
+      }
+
+      // Remove display names for all items in the deleted folder
+      removeDisplayName(set, path); // This function should handle recursive removal if path is a folder
+
+      // Optimistic Update: Remove from tree
       const currentRootFolder = get().rootFolder;
       if (currentRootFolder) {
         set({
           rootFolder: {
             ...currentRootFolder,
-            children: restoreExpandedState(currentRootFolder.children, expandedPaths),
+            children: removeNodeFromTree(currentRootFolder.children, path),
           },
+          openTabs: updatedTabs,
+          currentNote: updatedCurrentNote !== null ? updatedCurrentNote : get().currentNote, // Ensure currentNote is updated if it was cleared
         });
       }
     } catch (error) {
@@ -603,14 +631,11 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     const {
       notesPath,
       currentNote,
-      loadFileTree,
-      rootFolder,
       openTabs,
       starredNotes,
       starredFolders,
     } = get();
     const storage = getStorageAdapter();
-    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
 
     try {
       const fileName = sourcePath.split('/').pop() || '';
@@ -656,15 +681,28 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         set({ openTabs: updatedTabs });
       }
 
-      await loadFileTree();
+      // Optimistic Update: Move node in tree
       const currentRootFolder = get().rootFolder;
       if (currentRootFolder) {
-        set({
-          rootFolder: {
-            ...currentRootFolder,
-            children: restoreExpandedState(currentRootFolder.children, expandedPaths),
-          },
-        });
+        const nodeToMove = findNode(currentRootFolder.children, sourcePath);
+        if (nodeToMove) {
+          // 1. Prepare new node with updated paths
+          const nodeWithNewPath = deepUpdateNodePath(nodeToMove, sourcePath, newPath);
+          const updatedNode = { ...nodeWithNewPath, name: fileName.replace('.md', '') };
+
+          // 2. Remove from old location
+          const childrenWithoutNode = removeNodeFromTree(currentRootFolder.children, sourcePath);
+
+          // 3. Add to new location
+          const newChildren = addNodeToTree(childrenWithoutNode, targetFolderPath, updatedNode);
+
+          set({
+            rootFolder: {
+              ...currentRootFolder,
+              children: newChildren,
+            },
+          });
+        }
       }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to move item' });

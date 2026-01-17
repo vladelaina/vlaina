@@ -1,8 +1,9 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
+import { findNode } from '@/stores/notes/fileTreeUtils';
 import { FileTreeItem } from '../FileTree/FileTreeItem';
-import { CollapsibleSection } from './CollapsibleSection';
+import { CollapsibleSection } from '../Sidebar/CollapsibleSection';
 
 export function FavoritesSection() {
     const {
@@ -23,31 +24,13 @@ export function FavoritesSection() {
         }
     }, [favoritesLoaded, hasFavoritePaths]);
 
-    // Find node by path in file tree
-    const findNode = useCallback((path: string): FileTreeNode | null => {
-        if (!rootFolder) return null;
-
-        const search = (nodes: FileTreeNode[]): FileTreeNode | null => {
-            for (const node of nodes) {
-                if (node.path === path) return node;
-                if (node.isFolder) {
-                    const found = search(node.children);
-                    if (found) return found;
-                }
-            }
-            return null;
-        };
-
-        return search(rootFolder.children);
-    }, [rootFolder]);
-
     // Get nodes for starred items
     const starredFolderNodes = starredFolders
-        .map(path => findNode(path))
+        .map(path => rootFolder ? findNode(rootFolder.children, path) : null)
         .filter((node): node is FileTreeNode => node !== null);
 
     const starredNoteNodes = starredNotes
-        .map(path => findNode(path))
+        .map(path => rootFolder ? findNode(rootFolder.children, path) : null)
         .filter((node): node is FileTreeNode => node !== null);
 
     const hasResolvedFavorites = starredFolderNodes.length > 0 || starredNoteNodes.length > 0;

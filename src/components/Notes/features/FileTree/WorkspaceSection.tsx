@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Plus, Folder } from 'lucide-react';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { IconButton } from '@/components/ui/icon-button';
-import { FileTree } from '../FileTree';
-import { CollapsibleSection } from './CollapsibleSection';
+import { FileTree } from './FileTree';
+import { CollapsibleSection } from '../Sidebar/CollapsibleSection';
 import { type FolderNode } from '@/stores/useNotesStore';
 
 interface WorkspaceSectionProps {

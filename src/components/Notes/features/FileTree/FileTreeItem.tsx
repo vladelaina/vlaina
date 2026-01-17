@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronRight,
   ChevronDown,
@@ -12,6 +13,11 @@ import {
   Folder,
   FolderOpen,
   Star,
+  Info,
+  FilePlus2,
+  Copy,
+  ExternalLink,
+  SplitSquareHorizontal,
 } from 'lucide-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { useDisplayName, useDisplayIcon } from '@/hooks/useTitleSync';
@@ -40,7 +46,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
   const renameNote = useNotesStore(s => s.renameNote);
   const renameFolder = useNotesStore(s => s.renameFolder);
   const createNote = useNotesStore(s => s.createNote);
-  const createFolder = useNotesStore(s => s.createFolder);
+  // const createFolder = useNotesStore(s => s.createFolder);
   const moveItem = useNotesStore(s => s.moveItem);
   const newlyCreatedFolderPath = useNotesStore(s => s.newlyCreatedFolderPath);
   const clearNewlyCreatedFolder = useNotesStore(s => s.clearNewlyCreatedFolder);
@@ -57,6 +63,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
 
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [menuPlacement, setMenuPlacement] = useState<'top' | 'bottom'>('bottom');
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(node.name);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -134,12 +141,12 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
     setShowMenu(false);
   };
 
-  const handleNewFolderInFolder = async () => {
+  /* const handleNewFolderInFolder = async () => {
     if (node.isFolder) {
       await createFolder(node.path);
     }
     setShowMenu(false);
-  };
+  }; */
 
   const handleToggleStar = () => {
     if (node.isFolder) {
@@ -266,10 +273,13 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
               e.stopPropagation();
               if (!showMenu && buttonRef.current) {
                 const rect = buttonRef.current.getBoundingClientRect();
+
+                // Position: To the right of the button, align top with button top
                 setMenuPosition({
-                  top: rect.bottom + 4,
-                  left: rect.right - 160,
+                  top: rect.top, // Align top
+                  left: rect.right + 4, // Shift right slightly
                 });
+                setMenuPlacement('bottom'); // Always animate top-down
               }
               setShowMenu(!showMenu);
             }}
@@ -283,53 +293,92 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
         </div>
       </div>
 
-      {showMenu && createPortal(
-        <>
-          <div
-            className="fixed inset-0 z-[9998]"
-            onClick={() => setShowMenu(false)}
-          />
-          <div
-            ref={menuRef}
-            style={{ top: menuPosition.top, left: menuPosition.left }}
-            className={cn(
-              "fixed z-[9999] min-w-[160px] py-1.5 rounded-lg shadow-lg",
-              "bg-[var(--neko-bg-primary)] border border-[var(--neko-border)]"
-            )}
-          >
-            {node.isFolder && (
-              <>
+      {createPortal(
+        <AnimatePresence>
+          {showMenu && (
+            <>
+              <motion.div
+                className="fixed inset-0 z-[9998]"
+                onClick={() => setShowMenu(false)}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
+              />
+              <motion.div
+                ref={menuRef}
+                style={{
+                  top: menuPosition.top,
+                  left: menuPosition.left,
+                  transformOrigin: 'top left'
+                }}
+                className={cn(
+                  "fixed z-[9999] min-w-[240px] p-2 rounded-lg",
+                  "bg-white dark:bg-zinc-900",
+                  "border border-gray-200/60 dark:border-zinc-700/60",
+                  "shadow-[0_8px_24px_-4px_rgba(0,0,0,0.12),0_2px_6px_-1px_rgba(0,0,0,0.08)]"
+                )}
+                initial={{ opacity: 0, scale: 0.9, y: menuPlacement === 'bottom' ? -8 : 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.1 } }}
+                transition={{
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 25,
+                  mass: 0.5
+                }}
+              >
                 <MenuItem
-                  icon={<FileText />}
-                  label="New Note"
-                  onClick={handleNewNoteInFolder}
+                  icon={<Pencil />}
+                  label="Rename"
+                  onClick={handleRename}
                 />
                 <MenuItem
-                  icon={<Folder />}
-                  label="New Folder"
-                  onClick={handleNewFolderInFolder}
+                  icon={<Info />}
+                  label="View Info"
+                  onClick={() => setShowMenu(false)}
                 />
-                <div className="h-px bg-[var(--neko-divider)] my-1.5 mx-2" />
-              </>
-            )}
-            <MenuItem
-              icon={<Pencil />}
-              label="Rename"
-              onClick={handleRename}
-            />
-            <MenuItem
-              icon={isItemStarred ? <Star className="text-yellow-500" fill="currentColor" /> : <Star />}
-              label={isItemStarred ? "Remove from Favorites" : "Add to Favorites"}
-              onClick={handleToggleStar}
-            />
-            <MenuItem
-              icon={<Trash2 />}
-              label="Delete"
-              onClick={handleDeleteClick}
-              danger
-            />
-          </div>
-        </>,
+                {node.isFolder && (
+                  <MenuItem
+                    icon={<FilePlus2 />}
+                    label="Add linked doc"
+                    onClick={handleNewNoteInFolder}
+                  />
+                )}
+                <MenuItem
+                  icon={<Copy />}
+                  label="Duplicate"
+                  onClick={() => setShowMenu(false)}
+                />
+                <MenuItem
+                  icon={<ExternalLink />}
+                  label="Open in new tab"
+                  onClick={() => {
+                    openNote(node.path, true);
+                    setShowMenu(false);
+                  }}
+                />
+                <MenuItem
+                  icon={<SplitSquareHorizontal />}
+                  label="Open in split view"
+                  onClick={() => setShowMenu(false)}
+                />
+                <MenuItem
+                  icon={isItemStarred ? <Star className="text-amber-500 fill-amber-500" /> : <Star />}
+                  label={isItemStarred ? "Remove from favourites" : "Add to favourites"}
+                  onClick={handleToggleStar}
+                />
+                <div className="h-px bg-gray-100 dark:bg-zinc-800 my-1 mx-1" />
+                <MenuItem
+                  icon={<Trash2 />}
+                  label="Move to trash"
+                  onClick={handleDeleteClick}
+                  danger
+                />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>,
         document.body
       )}
 
@@ -401,13 +450,16 @@ function MenuItem({
     <button
       onClick={onClick}
       className={cn(
-        "w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] transition-colors",
+        "w-full flex items-center gap-2 px-2 py-1 rounded-[5px] text-[13px] font-[450] tracking-[-0.01em] transition-colors",
         danger
-          ? "text-red-500 hover:bg-red-500/10"
-          : "text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)]"
+          ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+          : "text-[var(--neko-text-primary)] hover:bg-black/5 dark:hover:bg-white/5"
       )}
     >
-      <span className="w-4 h-4 flex items-center justify-center">
+      <span className={cn(
+        "w-[16px] h-[16px] flex items-center justify-center flex-shrink-0 [&>svg]:w-[14px] [&>svg]:h-[14px]",
+        danger ? "text-red-500" : "text-[var(--neko-text-secondary)]"
+      )}>
         {icon}
       </span>
       {label}
