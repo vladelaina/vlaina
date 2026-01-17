@@ -14,7 +14,7 @@ import { ICON_MAP as ICON_ITEM_MAP, EMOJI_MAP } from './constants';
 
 interface NoteIconProps {
   icon: string;
-  size?: number;
+  size?: number | string;
   className?: string;
   rounding?: string;
 }
@@ -27,7 +27,7 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
   rounding
 }: {
   src: string;
-  size?: number;
+  size?: number | string;
   className?: string;
   rounding?: string;
 }) {
@@ -47,6 +47,8 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
 });
 
 // Icon renderer component
+// NOTE: Lucide icons don't accept CSS variables for size (SVG attributes don't support them).
+// We use a container with CSS variable sizing and let the icon fill 100%.
 const IconIconRenderer = memo(function IconIconRenderer({
   iconName,
   originalColor,
@@ -56,13 +58,16 @@ const IconIconRenderer = memo(function IconIconRenderer({
 }: {
   iconName: string;
   originalColor: string;
-  size?: number;
+  size?: number | string;
   className?: string;
   previewColor: string | null;
 }) {
   const color = previewColor || originalColor;
   const iconItem = ICON_ITEM_MAP.get(iconName);
   const IconComponent = iconItem?.icon || FileText;
+
+  // Check if size is a CSS variable string
+  const isCSSVariable = typeof size === 'string' && size.startsWith('var(');
 
   return (
     <span
@@ -76,7 +81,18 @@ const IconIconRenderer = memo(function IconIconRenderer({
         lineHeight: 1,
       }}
     >
-      <IconComponent size={size} style={{ color }} />
+      {/* 
+        If size is a CSS variable, we can't pass it to Lucide.
+        Instead, make the icon fill the container.
+      */}
+      <IconComponent
+        size={isCSSVariable ? '100%' : size}
+        style={{
+          color,
+          // Ensure the icon fills the container when using CSS vars
+          ...(isCSSVariable ? { width: '100%', height: '100%' } : {})
+        }}
+      />
     </span>
   );
 });
@@ -89,7 +105,7 @@ const EmojiIconRenderer = memo(function EmojiIconRenderer({
   previewTone,
 }: {
   emoji: string;
-  size?: number;
+  size?: number | string;
   className?: string;
   previewTone: number | null;
 }) {

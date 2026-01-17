@@ -1,4 +1,16 @@
-import React, { useRef, useEffect, useState } from 'react';
+/**
+ * PremiumSlider - Zero-Render Performance Edition
+ *
+ * This slider achieves maximum performance by:
+ * 1. Using NO React state for visual updates
+ * 2. All visual feedback (track, thumb) is handled by the native browser engine
+ * 3. React is only used for the callback dispatch
+ *
+ * The secret: We use CSS custom properties and direct DOM manipulation
+ * to update the visual state, completely bypassing React's render cycle.
+ */
+
+import React, { useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
 interface PremiumSliderProps {
@@ -20,74 +32,113 @@ export function PremiumSlider({
     onConfirm,
     className,
 }: PremiumSliderProps) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
     const rafRef = useRef<number | undefined>(undefined);
     const latestValueRef = useRef(value);
-    const [internalValue, setInternalValue] = useState(value);
 
-    // Sync internal value when external value changes
+    // Initialize visual state on mount and when value prop changes externally
+    // This handles external sync (e.g., switching notes, database updates)
     useEffect(() => {
-        setInternalValue(value);
         latestValueRef.current = value;
-    }, [value]);
+        updateVisuals(value);
+        // IMPORTANT: Also sync the native input's value
+        // Since we use defaultValue (uncontrolled), we need to manually update it
+        if (inputRef.current) {
+            inputRef.current.value = String(value);
+        }
+    }, [value, min, max]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Direct DOM update - NO React state, NO re-render
+    const updateVisuals = useCallback((currentValue: number) => {
+        if (!containerRef.current) return;
+        const percentage = ((currentValue - min) / (max - min)) * 100;
+        containerRef.current.style.setProperty('--slider-percentage', `${percentage}%`);
+    }, [min, max]);
+
+    // Handle input change - update visuals directly, dispatch via RAF
+    const handleInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = parseFloat(e.target.value);
-        setInternalValue(newValue);
         latestValueRef.current = newValue;
 
-        if (rafRef.current) return;
+        // Instant visual feedback - direct DOM, no React
+        updateVisuals(newValue);
 
+        // Throttled callback to parent - prevents overwhelming the main thread
+        if (rafRef.current) return;
         rafRef.current = requestAnimationFrame(() => {
             onChange(latestValueRef.current);
             rafRef.current = undefined;
         });
-    };
+    }, [onChange, updateVisuals]);
 
+    // Handle release - confirm the final value
+    const handleRelease = useCallback(() => {
+        // Flush any pending RAF
+        if (rafRef.current) {
+            cancelAnimationFrame(rafRef.current);
+            rafRef.current = undefined;
+        }
+        // Emit final value
+        onConfirm?.(latestValueRef.current);
+    }, [onConfirm]);
+
+    // Cleanup on unmount
     useEffect(() => {
         return () => {
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
         };
     }, []);
 
-    const percentage = ((internalValue - min) / (max - min)) * 100;
+    // Calculate initial percentage for SSR/first paint
+    const initialPercentage = ((value - min) / (max - min)) * 100;
 
     return (
-        <div className={cn('relative flex items-center w-full h-6 group', className)}>
-            {/* Visual Track */}
+        <div
+            ref={containerRef}
+            className={cn('premium-slider relative flex items-center w-full h-6 group', className)}
+            style={{
+                '--slider-percentage': `${initialPercentage}%`,
+            } as React.CSSProperties}
+        >
+            {/* Visual Track - driven by CSS variable, no React re-render needed */}
             <div
-                className="absolute w-full h-[3px] rounded-full bg-zinc-100 dark:bg-zinc-800 pointer-events-none"
+                className="absolute w-full h-[3px] rounded-full pointer-events-none"
                 style={{
-                    background: `linear-gradient(to right, #1e96eb ${percentage}%, var(--neko-bg-tertiary, #e4e4e7) ${percentage}%)`,
+                    background: `linear-gradient(to right, #1e96eb var(--slider-percentage), var(--neko-bg-tertiary, #e4e4e7) var(--slider-percentage))`,
                 }}
             />
 
-            {/* Hidden Native Input (The Controller) */}
+            {/* Native Range Input - UNCONTROLLED for performance */}
+            {/* Using defaultValue + ref for updates, NOT value prop */}
             <input
+                ref={inputRef}
                 type="range"
                 min={min}
                 max={max}
                 step={step}
-                value={internalValue}
-                onChange={handleChange}
-                onMouseUp={() => onConfirm?.(internalValue)}
-                onTouchEnd={() => onConfirm?.(internalValue)}
+                defaultValue={value}
+                onInput={handleInput}
+                onMouseUp={handleRelease}
+                onTouchEnd={handleRelease}
                 className={cn(
                     'absolute w-full h-full opacity-0 cursor-pointer z-10',
                     'appearance-none bg-transparent'
                 )}
             />
 
-            {/* Premium Thumb (Visual Only) */}
+            {/* Premium Thumb - position driven by CSS variable */}
             <div
-                className="absolute pointer-events-none"
+                className="absolute pointer-events-none transition-none"
                 style={{
-                    left: `calc(${percentage}% - 12px)`, // 12px is half of 24px width
+                    left: `calc(var(--slider-percentage) - 12px)`,
                 }}
             >
                 <div
                     className={cn(
-                        'w-6 h-3 bg-white rounded-full shadow-md border border-zinc-200/50 transition-transform duration-150',
-                        'group-active:scale-[0.9] dark:bg-zinc-100 dark:border-white/20'
+                        'w-6 h-3 bg-white rounded-full shadow-md border border-zinc-200/50',
+                        'group-active:scale-[0.9] transition-transform duration-100',
+                        'dark:bg-zinc-100 dark:border-white/20'
                     )}
                 />
             </div>

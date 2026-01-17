@@ -33,23 +33,24 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
     );
 
     // Reactive subscription to icon size
-    // This ensures the header re-renders if the size is changed from another tab/sync
-    // Reactive subscription to icon size
     // Now sourced from global preference via featureSlice logic
     const iconSize = useNotesStore(
         useCallback(state => {
-            // We use the selector logic directly here or just access the state
-            // duplicating selector logic for performance is fine:
             return state.noteMetadata?.defaultIconSize ?? 60;
         }, [])
     );
 
-    // Local state for smooth resizing
-    // We sync with store on mount and when store updates (remote change)
-    const [previewIconSize, setPreviewIconSize] = useState(iconSize);
+    // PERFORMANCE OPTIMIZATION:
+    // Instead of using React State for "Preview Size" (which causes full re-renders),
+    // We use a CSS Variable and Direct DOM manipulation.
+    // This allows the slider to update the size at 60fps+ without layout thrashing.
+    const headerRef = useRef<HTMLDivElement>(null);
 
+    // Sync CSS variable when real state changes (initial load or DB update)
     useEffect(() => {
-        setPreviewIconSize(iconSize);
+        if (headerRef.current) {
+            headerRef.current.style.setProperty('--header-icon-size', `${iconSize}px`);
+        }
     }, [iconSize]);
 
     const [showIconPicker, setShowIconPicker] = useState(false);
@@ -72,12 +73,24 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
         }
     };
 
+    // Low-Overhead Handler: Updates CSS Variable Only
     const handleIconSizeChange = useCallback((size: number) => {
-        setPreviewIconSize(size);
+        if (headerRef.current) {
+            // CRITICAL PERFORMANCE FIX:
+            // Disable transitions during direct manipulation to prevent the browser from
+            // trying to interpolate/animate the layout changes 60fps.
+            // This eliminates the "fighting" between JS updates and CSS transitions.
+            headerRef.current.style.transition = 'none';
+            headerRef.current.style.setProperty('--header-icon-size', `${size}px`);
+        }
     }, []);
 
     const handleIconSizeConfirm = useCallback((size: number) => {
         if (currentNotePath) {
+            if (headerRef.current) {
+                // Restore transition for future state changes (like Cover toggle)
+                headerRef.current.style.transition = '';
+            }
             setGlobalIconSize(size);
         }
     }, [currentNotePath, setGlobalIconSize]);
@@ -141,15 +154,19 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
 
     return (
         <div
+            ref={headerRef}
             className={cn(
                 EDITOR_LAYOUT_CLASS,
                 "z-10 relative transition-[margin-top] duration-75 ease-out",
-                "pointer-events-none",
-                "will-change-[margin-top]"
+                "pointer-events-none"
+                // Removed will-change to let browser decide, and removed potential conflict
             )}
             style={{
-                marginTop: coverUrl ? `-${previewIconSize * 0.618}px` : undefined
-            }}
+                // Initialize variable for SSR/First Paint
+                '--header-icon-size': `${iconSize}px`,
+                // Use Calc with the Variable
+                marginTop: coverUrl ? `calc(var(--header-icon-size) * -0.618)` : undefined
+            } as React.CSSProperties}
         >
             {/* Clickable area to add cover - entire top padding area */}
             {!coverUrl && (
@@ -174,7 +191,10 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
             )}
             <div
                 className={cn(
-                    "pb-4 transition-all duration-150 pointer-events-auto",
+                    "pb-4 duration-150 pointer-events-auto",
+                    // Optimize Transition: Only animate properties we care about for Cover Toggle
+                    // Avoid transition-all which catches the icon resize layout changes
+                    "transition-[padding,opacity]",
                     coverUrl ? "pt-0" : "pt-20"
                 )}
                 onMouseEnter={() => setIsHoveringHeader(true)}
@@ -183,17 +203,17 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
                 {displayIcon ? (
                     <div
                         className="relative flex items-center"
-                        style={{ height: previewIconSize }}
+                        style={{ height: 'var(--header-icon-size)' }}
                     >
                         <button
                             ref={iconButtonRef}
                             onClick={() => setShowIconPicker(true)}
                             className="hover:scale-105 transition-transform cursor-pointer flex items-center"
                             style={{
-                                marginLeft: `-${previewIconSize * 0.1}px`
+                                marginLeft: `calc(var(--header-icon-size) * -0.1)`
                             }}
                         >
-                            <NoteIcon icon={displayIcon} size={previewIconSize} />
+                            <NoteIcon icon={displayIcon} size="var(--header-icon-size)" />
                         </button>
                     </div>
                 ) : showIconPicker ? (
@@ -241,7 +261,7 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
                                 onClose={handleIconPickerClose}
                                 hasIcon={!!noteIcon}
                                 currentIcon={noteIcon}
-                                currentSize={previewIconSize}
+                                currentSize={iconSize} // Pass the committed size (number) to helper initialization
                                 onSizeChange={handleIconSizeChange}
                                 onSizeConfirm={handleIconSizeConfirm}
                             />

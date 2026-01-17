@@ -410,8 +410,27 @@ export function CoverImage({
         // = Bottom of image + Max Shift
         const absMaxMechHeight = maxVisualH_NoShift + maxShiftDown;
 
+
+
         // Optimize: Disable transitions for instant response
         if (containerRef.current) containerRef.current.style.transition = 'none';
+
+        // ZERO LATENCY - Manual DOM Apply
+        if (frozenImgRef.current) {
+            frozenImgRef.current.style.top = `${absoluteTop}px`;
+            frozenImgRef.current.style.left = `${absoluteLeft}px`;
+            frozenImgRef.current.style.width = `${scaledW}px`;
+            frozenImgRef.current.style.height = `${scaledH}px`;
+
+            // Force visibility
+            frozenImgRef.current.style.opacity = '1';
+            frozenImgRef.current.style.visibility = 'visible';
+        }
+
+        // Hide Cropper Immediately
+        if (wrapperRef.current) {
+            wrapperRef.current.style.opacity = '0';
+        }
 
         let rafId: number;
 
@@ -511,6 +530,17 @@ export function CoverImage({
             // Unlock
             setIsResizing(false);
             setFrozenImageState(null);
+
+            // Hide Frozen Layer Manually (React will catch up, but we want instant)
+            if (frozenImgRef.current) {
+                frozenImgRef.current.style.opacity = '0';
+                frozenImgRef.current.style.visibility = 'hidden';
+            }
+            // Show Cropper Manually
+            if (wrapperRef.current) {
+                // We depend on 'isImageReady' class logic, but we can force it
+                wrapperRef.current.style.opacity = '1';
+            }
 
             // Allow Observer to take over after a small delay to prevent fighting
             setTimeout(() => {
@@ -679,22 +709,34 @@ export function CoverImage({
                 </div>
             )}
 
-            {/* FROZEN LAYER (Resize Mode) - Separate Independent Layer */}
-            {isResizing && frozenImageState && displaySrc && (
-                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            {/* FROZEN LAYER (Resize Mode) - Always Mounted for Zero Latency */}
+            {displaySrc && (
+                <div
+                    className={cn(
+                        "absolute inset-0 pointer-events-none overflow-hidden transition-none", // No transition on container
+                        // We control visibility manually during drag for speed, but use class for init
+                        !isResizing ? "invisible" : "visible"
+                    )}
+                >
                     <img
                         ref={frozenImgRef}
                         src={displaySrc}
                         alt="Frozen Cover"
+                        // Apply default styles. 
+                        // During Interaction: 'style' prop updates via state (frozenImageState).
+                        // Start of Interaction: Manual DOM manip overrides this until render.
                         style={{
                             position: 'absolute',
-                            top: frozenImageState.top,
-                            left: frozenImageState.left,
-                            width: frozenImageState.width,
-                            height: frozenImageState.height,
+                            top: frozenImageState?.top ?? 0,
+                            left: frozenImageState?.left ?? 0,
+                            width: frozenImageState?.width ?? 0,
+                            height: frozenImageState?.height ?? 0,
                             maxWidth: 'none',
                             maxHeight: 'none',
-                            objectFit: 'fill'
+                            objectFit: 'fill',
+                            // Use opacity to hide/show without unmounting
+                            opacity: isResizing ? 1 : 0,
+                            transition: 'none' // Crucial: No fade for the ghost layer
                         }}
                     />
                 </div>

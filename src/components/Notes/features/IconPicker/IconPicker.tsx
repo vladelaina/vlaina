@@ -53,16 +53,6 @@ export function IconPicker({
 
 
 
-  // Local size state for smooth sliding without waiting for parent/store roundtrips
-  const [localSize, setLocalSize] = useState(currentSize ?? 60);
-
-  // Sync local size if prop changes externally (e.g. initial load or reset)
-  useEffect(() => {
-    if (currentSize !== undefined) {
-      setLocalSize(currentSize);
-    }
-  }, [currentSize]);
-
   // Track active categories for random selection within current group
   const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('people');
   const [activeIconCategory, setActiveIconCategory] = useState<string>('common');
@@ -217,9 +207,11 @@ export function IconPicker({
           <PremiumSlider
             min={20}
             max={150}
-            value={localSize}
+            value={currentSize}
             onChange={(newVal: number) => {
-              setLocalSize(newVal);
+              // DIRECT UPDATE: Do NOT set local state here.
+              // We trust PremiumSlider to update its own visual thumb.
+              // We only push the side effect (CSS update) to the parent Ref.
               onSizeChange(newVal);
             }}
             onConfirm={onSizeConfirm}
