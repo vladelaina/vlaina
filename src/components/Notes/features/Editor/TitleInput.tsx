@@ -6,13 +6,27 @@ interface TitleInputProps {
   notePath: string;
   initialTitle: string;
   onEnter?: () => void;
+  autoFocus?: boolean;
 }
 
-export function TitleInput({ notePath, initialTitle, onEnter }: TitleInputProps) {
+export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: TitleInputProps) {
   const [title, setTitle] = useState(initialTitle);
   const inputRef = useRef<HTMLInputElement>(null);
   const renameNote = useNotesStore(s => s.renameNote);
   const setNotesPreviewTitle = useUIStore(s => s.setNotesPreviewTitle);
+
+  // Auto-focus logic for new notes
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      // Small timeout to ensure layout is settled
+      requestAnimationFrame(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+        }
+      });
+    }
+  }, [autoFocus]);
 
   // Sync with external changes
   useEffect(() => {

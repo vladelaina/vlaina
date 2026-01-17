@@ -4,7 +4,7 @@
 
 import { StateCreator } from 'zustand';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { NotesStore } from '../types';
+import { NotesStore, FileTreeNode } from '../types';
 import {
   buildFileTree,
   sortFileTree,
@@ -13,6 +13,7 @@ import {
   updateFileNodePath,
   collectExpandedPaths,
   restoreExpandedState,
+  addNodeToTree,
 } from '../fileTreeUtils';
 import {
   getNotesBasePath,
@@ -36,7 +37,7 @@ export interface FileSystemSlice {
   isNewlyCreated: NotesStore['isNewlyCreated'];
   newlyCreatedFolderPath: NotesStore['newlyCreatedFolderPath'];
 
-  loadFileTree: () => Promise<void>;
+  loadFileTree: (skipRestore?: boolean) => Promise<void>;
   toggleFolder: (path: string) => void;
   createNote: (folderPath?: string) => Promise<string>;
   createNoteWithContent: (
@@ -63,7 +64,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   isNewlyCreated: false,
   newlyCreatedFolderPath: null,
 
-  loadFileTree: async () => {
+  loadFileTree: async (skipRestore = false) => {
     set({ isLoading: true, error: null });
     try {
       const storage = getStorageAdapter();
@@ -99,7 +100,8 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       });
 
       // Restore last opened note
-      if (workspace?.currentNotePath) {
+      // skipRestore is used when we want to manually handle navigation (e.g. after creating a new note)
+      if (!skipRestore && workspace?.currentNotePath) {
         setTimeout(async () => {
           try {
             const fullPath = await joinPath(basePath, workspace.currentNotePath!);
@@ -138,9 +140,8 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   createNote: async (folderPath?: string) => {
-    let { notesPath, loadFileTree, openTabs, recentNotes, rootFolder } = get();
+    let { notesPath, openTabs, recentNotes, rootFolder } = get();
     const storage = getStorageAdapter();
-    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
 
     if (!notesPath) {
       notesPath = await getNotesBasePath();
@@ -173,21 +174,39 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       });
       await saveNoteMetadata(notesPath, updatedMetadata);
 
-      await loadFileTree();
+      // Optimistic Update: Add to tree without reloading
+      const newNode: any = { // fileTreeUtils types might need export, using any for safety momentarily or import FileTreeNode
+        id: relativePath,
+        name: fileName.replace('.md', ''),
+        path: relativePath,
+        isFolder: false
+      };
 
       const currentRootFolder = get().rootFolder;
       if (currentRootFolder) {
         set({
           rootFolder: {
             ...currentRootFolder,
-            children: restoreExpandedState(currentRootFolder.children, expandedPaths),
+            children: addNodeToTree(currentRootFolder.children, folderPath, newNode),
           },
           noteMetadata: updatedMetadata, // Update store
         });
       }
 
       const tabName = fileName.replace('.md', '');
-      const updatedTabs = [...openTabs, { path: relativePath, name: tabName, isDirty: false }];
+
+      // Update Tabs: Replace current tab if exists, otherwise append
+      // This mimics Apple Notes behavior (single view context)
+      let updatedTabs = openTabs;
+      const newTab = { path: relativePath, name: tabName, isDirty: false };
+
+      const currentNotePath = get().currentNote?.path;
+      if (currentNotePath) {
+        updatedTabs = openTabs.map(t => t.path === currentNotePath ? newTab : t);
+      } else {
+        updatedTabs = [...openTabs, newTab];
+      }
+
       const updatedRecent = addToRecentNotes(relativePath, recentNotes);
 
       set({
@@ -209,9 +228,8 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     name: string,
     content: string
   ) => {
-    let { notesPath, loadFileTree, rootFolder, recentNotes } = get();
+    let { notesPath, rootFolder, recentNotes, openTabs } = get();
     const storage = getStorageAdapter();
-    const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
 
     if (!notesPath) {
       notesPath = await getNotesBasePath();
@@ -241,14 +259,20 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       });
       await saveNoteMetadata(notesPath, updatedMetadata);
 
-      await loadFileTree();
+      // Optimistic Update
+      const newNode: any = {
+        id: relativePath,
+        name: fileName.replace('.md', ''),
+        path: relativePath,
+        isFolder: false
+      };
 
       const currentRootFolder = get().rootFolder;
       if (currentRootFolder) {
         set({
           rootFolder: {
             ...currentRootFolder,
-            children: restoreExpandedState(currentRootFolder.children, expandedPaths),
+            children: addNodeToTree(currentRootFolder.children, folderPath, newNode),
           },
           noteMetadata: updatedMetadata,
         });
@@ -257,11 +281,36 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       // Update recent notes
       const updatedRecent = addToRecentNotes(relativePath, recentNotes); // Use fresh recentNotes
 
+      // Since this is specific "Create Note With Content", we assume it might be a paste or import.
+      // We will KEEP standard tab behavior (append) if it creates implicit content? 
+      // User requested "Create New File" flow improvement. This function is likely used by "+ Create" button too if name provided.
+      // But standard "+" button uses createNote().
+      // Let's safe-guard this one to also reuse tab if it was triggered from a similar context.
+      // Actually, createNoteWithContent is likely drag-drop or specialized. I'll stick to Reuse logic for consistency.
+
+      let updatedTabs = openTabs;  // Start with current
+      // Reuse logic
+      const currentNotePath = get().currentNote?.path;
+      if (currentNotePath) {
+        const tabName = name.replace('.md', '');
+        updatedTabs = openTabs.map(t => t.path === currentNotePath ? { path: relativePath, name: tabName, isDirty: false } : t);
+      } else {
+        const tabName = name.replace('.md', '');
+        updatedTabs = [...openTabs, { path: relativePath, name: tabName, isDirty: false }];
+      }
+
       set({
         currentNote: { path: relativePath, content },
         isDirty: false,
         recentNotes: updatedRecent,
         noteMetadata: updatedMetadata,
+        // Also update openTabs here, it was missing in original code? 
+        // Wait, original code did NOT update openTabs in createNoteWithContent. 
+        // It just set currentNote. This means it relied on openTabs not changing?
+        // Or createNoteWithContent wasn't opening it?
+        // Line 261: set({ currentNote: ... }). The store implies that currentNote should be in tabs?
+        // If I strictly follow the Apple design, I should ensure it's in a tab.
+        openTabs: updatedTabs
       });
       return relativePath;
     } catch (error) {

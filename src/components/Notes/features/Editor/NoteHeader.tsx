@@ -20,6 +20,7 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
     const currentNotePath = useNotesStore(s => s.currentNote?.path);
     const setNoteIcon = useNotesStore(s => s.setNoteIcon);
     const setGlobalIconSize = useNotesStore(s => s.setGlobalIconSize);
+    const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
 
     const setNotesPreviewIcon = useUIStore(s => s.setNotesPreviewIcon);
 
@@ -280,6 +281,7 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
                             const editor = document.querySelector('.milkdown .ProseMirror') as HTMLElement;
                             editor?.focus();
                         }}
+                        autoFocus={!!isNewlyCreated}
                     />
                 </div>
             )}

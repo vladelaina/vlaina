@@ -26,7 +26,7 @@ export async function buildFileTree(basePath: string, relativePath: string = '')
     // Check if entry is a directory (handle potential undefined values)
     const isDir = entry.isDirectory === true;
     const isFile = entry.isFile === true;
-    
+
     if (isDir) {
       const children = await buildFileTree(basePath, entryPath);
       nodes.push({
@@ -172,6 +172,40 @@ export function restoreExpandedState(
         ...node,
         expanded: expandedPaths.has(node.path),
         children: restoreExpandedState(node.children, expandedPaths),
+      };
+    }
+    return node;
+  });
+}
+
+/**
+ * Add a new node to the tree at the specified folder path
+ * If targetFolderPath is undefined/empty, adds to the root level (top of the nodes array)
+ */
+export function addNodeToTree(
+  nodes: FileTreeNode[],
+  targetFolderPath: string | undefined | null,
+  newNode: FileTreeNode
+): FileTreeNode[] {
+  // If no target folder (root), just add and sort
+  if (!targetFolderPath) {
+    return sortFileTree([...nodes, newNode]);
+  }
+
+  return nodes.map(node => {
+    if (node.isFolder) {
+      if (node.path === targetFolderPath) {
+        // Found the parent folder, add child and sort
+        return {
+          ...node,
+          children: sortFileTree([...node.children, newNode]),
+          expanded: true // Auto-expand parent when adding child
+        };
+      }
+      // Continue searching recursively
+      return {
+        ...node,
+        children: addNodeToTree(node.children, targetFolderPath, newNode)
       };
     }
     return node;
