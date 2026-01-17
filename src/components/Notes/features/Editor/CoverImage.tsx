@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, useLayoutEffect } from 'react';
 import Cropper from 'react-easy-crop';
 import { ImageOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -124,6 +124,26 @@ export function CoverImage({
     // Track if we are currently resizing the container
     const [isResizing, setIsResizing] = useState(false);
 
+    // FIX: Reset crop/zoom when previewing a NEW image.
+    // When user hovers over a different cover in the picker, we should show it
+    // at default position (center, zoom 1x) - exactly matching what will be saved.
+    // This prevents the preview from inheriting the OLD cover's positioning.
+    useLayoutEffect(() => {
+        if (previewSrc) {
+            console.log('[CoverDebug] previewSrc changed, resetting (LayoutEffect):', previewSrc);
+            // Reset to default: centered, no zoom
+            setCrop({ x: 0, y: 0 });
+            setZoom(1);
+            // Also reset isImageReady to trigger fresh load handling
+            setIsImageReady(false);
+        }
+    }, [previewSrc]);
+
+    // NOTE: We intentionally do NOT reset isImageReady when resolvedSrc changes.
+    // When user selects an image they were previewing, the Cropper already has it loaded.
+    // The preview already set up the correct centered position (50/50).
+    // Resetting here would cause the image to disappear (no new onMediaLoaded).
+
     // FIX: Construct Effective Container Size
     // Use `coverHeight` (Source of Truth) for height to avoid ResizeObserver lag.
     // Use `containerSize.width` for width (reactive to window resize).
@@ -168,6 +188,23 @@ export function CoverImage({
 
     // Use a reasonable max zoom (e.g. 5x or 10x the cover size)
     const effectiveMaxZoom = MAX_SCALE;
+
+    // PERFORMANCE OPTIMIZATION: Pre-calculate max translation boundaries
+    // These values only change when mediaSize, containerSize, or zoom changes.
+    // By caching them, we avoid recalculating on every drag frame (~60fps).
+    const cachedBounds = useMemo(() => {
+        if (!mediaSize || !effectiveContainerSize) {
+            return { maxTranslateX: 0, maxTranslateY: 0 };
+        }
+        const baseDims = getBaseDimensions(mediaSize, effectiveContainerSize);
+        const scaledW = baseDims.width * zoom;
+        const scaledH = baseDims.height * zoom;
+
+        return {
+            maxTranslateX: Math.max(0, (scaledW - effectiveContainerSize.width) / 2),
+            maxTranslateY: Math.max(0, (scaledH - effectiveContainerSize.height) / 2),
+        };
+    }, [mediaSize, effectiveContainerSize, zoom]);
 
     // Sync Zoom Prop & Enforce Min Scale
     useEffect(() => {
@@ -256,33 +293,16 @@ export function CoverImage({
     const onCropperCropChange = useCallback((newCrop: { x: number, y: number }) => {
         if (readOnly) return;
 
-        // Manual Hard Clamp to prevent "Rubber Banding" (Whitespace)
-        // Access state directly or via refs if needed, but here we depend on mediaSize/containerSize
-        // We include them in dependency array.
-        // NOTE: To avoid re-creating this function if mediaSize changes (which shouldn't happen during drag often),
-        // we are fine. But zoom changes? No, zoom is stable during pan.
-        // Actually, zoom might change during zoom interactions.
+        // OPTIMIZED: Use pre-calculated bounds from useMemo instead of recalculating every frame
+        const { maxTranslateX, maxTranslateY } = cachedBounds;
 
-        if (mediaSize && effectiveContainerSize) {
-            const baseDims = getBaseDimensions(mediaSize, effectiveContainerSize);
-            const scaledW = baseDims.width * zoom;
-            const scaledH = baseDims.height * zoom;
+        // Clamp to boundaries (prevent whitespace / rubber banding)
+        const clampedX = Math.max(-maxTranslateX, Math.min(maxTranslateX, newCrop.x));
+        const clampedY = Math.max(-maxTranslateY, Math.min(maxTranslateY, newCrop.y));
 
-            // Calculate max translation allowed (from center)
-            const maxTranslateX = Math.max(0, (scaledW - effectiveContainerSize.width) / 2);
-            const maxTranslateY = Math.max(0, (scaledH - effectiveContainerSize.height) / 2);
-
-            // Clamp
-            const clampedX = Math.max(-maxTranslateX, Math.min(maxTranslateX, newCrop.x));
-            const clampedY = Math.max(-maxTranslateY, Math.min(maxTranslateY, newCrop.y));
-
-            setCrop({ x: clampedX, y: clampedY });
-        } else {
-            setCrop(newCrop);
-        }
-
+        setCrop({ x: clampedX, y: clampedY });
         dragOccurredRef.current = true;
-    }, [readOnly, mediaSize, effectiveContainerSize, zoom]);
+    }, [readOnly, cachedBounds]);
 
     const onCropperZoomChange = useCallback((newZoom: number) => {
         if (readOnly) return;
@@ -311,11 +331,23 @@ export function CoverImage({
             backfaceVisibility: 'hidden' as 'hidden',
             transform: 'translateZ(0)',
             maxWidth: 'none',
-            maxHeight: 'none'
         }
     }), []);
 
     // --- Other Handlers (Copy reused) ---
+    // --- Seamless Selection Logic ---
+    // When a user selects a cover, we keep the previewSrc active until the new URL fully propagates.
+    // This allows the user to immediately start dragging/adjusting without a "loading" gap.
+
+    useEffect(() => {
+        // If we were selecting (isSelectingRef is true) and the URL changed,
+        // it means the selection has been committed. We can now clear the preview.
+        if (isSelectingRef.current && url) {
+            setPreviewSrc(null);
+            isSelectingRef.current = false;
+        }
+    }, [url]);
+
     const handleCoverSelect = useCallback((assetPath: string) => {
         if (assetPath === url) {
             setPreviewSrc(null);
@@ -324,6 +356,8 @@ export function CoverImage({
             setShowPicker(false);
             return;
         }
+        // Mark as selecting. We DO NOT clear previewSrc here.
+        // We keep showing the preview image so interaction is continuous.
         isSelectingRef.current = true;
         onUpdate(assetPath, 50, 50, coverHeight, 1);
         setShowPicker(false);
@@ -332,7 +366,12 @@ export function CoverImage({
     const lastPreviewPathRef = useRef<string | null>(null);
     const handlePreview = useCallback(async (assetPath: string | null) => {
         lastPreviewPathRef.current = assetPath;
+
+        // If starting a new preview, ensure we aren't in "selecting" mode from a previous action
+        if (assetPath) isSelectingRef.current = false;
+
         if (!assetPath) {
+            // Only clear preview if we are NOT in the middle of a selection commitment
             if (!isSelectingRef.current) setPreviewSrc(null);
             return;
         }
@@ -351,7 +390,11 @@ export function CoverImage({
     }, [vaultPath, isSelectingRef, setPreviewSrc]);
 
     const handlePickerClose = useCallback(() => {
-        setPreviewSrc(null);
+        // Only clear preview if NOT selecting.
+        // If selecting, we want to keep the preview visible until URL updates.
+        if (!isSelectingRef.current) {
+            setPreviewSrc(null);
+        }
         setShowPicker(false);
     }, [setPreviewSrc, setShowPicker]);
 
@@ -641,20 +684,34 @@ export function CoverImage({
     // Actually displaySrc includes 'prevSrcRef' so it handles transitions.
     // If absolutely nothing, show error.
 
+    // FIX: Force centered preview regardless of state latency.
+    // If we are previewing a new image, we MUST show it centered (50/50).
+    // EXCEPTION: If we are "selecting" (isSelectingRef=true), user might be dragging ALREADY.
+    // In that case, we MUST use the real 'crop' state, not force center.
+    const isPreviewing = previewSrc && !isSelectingRef.current;
+
+    const effectiveCrop = isPreviewing ? { x: 0, y: 0 } : crop;
+    const effectiveZoom = isPreviewing ? 1 : zoom;
+
+
     return (
         <div
             className={cn("relative w-full bg-muted/20 shrink-0 select-none overflow-hidden group")}
             style={{ height: coverHeight }}
             ref={containerRef}
         >
-            {/* Static CSS Placeholder (Instant Load) */}
-            {displaySrc && (
+            {/* Static CSS Placeholder (Instant Load) 
+                IMPORTANT: Only show when NOT previewing a different image.
+                When previewSrc exists, we let Cropper render it directly to ensure
+                the preview position matches the final selection position.
+            */}
+            {displaySrc && !previewSrc && (
                 <img
                     src={displaySrc}
                     alt="Cover"
                     className={cn(
-                        "absolute inset-0 w-full h-full object-cover transition-opacity duration-300",
-                        isImageReady ? "opacity-0 pointer-events-none" : "opacity-100 placeholder-active"
+                        "absolute inset-0 w-full h-full object-cover transition-opacity duration-300 pointer-events-none",
+                        isImageReady ? "opacity-0" : "opacity-100 placeholder-active"
                     )}
                     style={{
                         objectPosition: `${positionX}% ${positionY}%`
@@ -671,8 +728,8 @@ export function CoverImage({
                 >
                     <Cropper
                         image={displaySrc}
-                        crop={crop}
-                        zoom={zoom}
+                        crop={effectiveCrop}
+                        zoom={effectiveZoom}
                         cropSize={effectiveContainerSize ?? undefined}
                         minZoom={effectiveMinZoom}
                         maxZoom={effectiveMaxZoom}
@@ -687,19 +744,53 @@ export function CoverImage({
                             const dims = { width: media.naturalWidth, height: media.naturalHeight };
                             setMediaSize(dims);
 
+                            console.log('[CoverDebug] onMediaLoaded:', {
+                                previewSrc: !!previewSrc,
+                                isImageReady,
+                                effectiveContainerSize: !!effectiveContainerSize,
+                                positionX,
+                                positionY,
+                            });
+
                             // Pre-calculate crop to prevent "Center -> Position" flash
                             // We must ensure the first visible frame has the correct crop
-                            // FIX: Only set crop if this is the FIRST load (image not ready).
-                            // If image is already ready, it means we have valid local state (e.g. after manual resize),
-                            // so we should NOT overwrite it with stale props.
                             if (effectiveContainerSize && !isImageReady) {
+                                // FIX: When previewing a NEW image (previewSrc exists),
+                                // use 50/50 (center) instead of the old image's position.
+                                // This ensures preview = selection (both centered).
+                                const targetX = previewSrc ? 50 : positionX;
+                                const targetY = previewSrc ? 50 : positionY;
+                                const targetZoom = previewSrc ? 1 : zoom;
+
+                                console.log('[CoverDebug] Calculating crop with:', {
+                                    targetX,
+                                    targetY,
+                                    targetZoom,
+                                    mediaSize: dims,
+                                    containerSize: effectiveContainerSize
+                                });
+
                                 const pixels = calculateCropPixels(
-                                    { x: positionX, y: positionY },
+                                    { x: targetX, y: targetY },
                                     dims,
                                     effectiveContainerSize,
-                                    zoom
+                                    targetZoom
                                 );
+                                console.log('[CoverDebug] Setting crop to:', pixels);
                                 setCrop(pixels);
+                                setZoom(targetZoom);
+                            } else if (!isImageReady) {
+                                console.log('[CoverDebug] Container not ready, using default center');
+                                // Container not ready yet, but image is loaded.
+                                // Use default center position (crop=0,0, zoom=1)
+                                setCrop({ x: 0, y: 0 });
+                                setZoom(1);
+                            }
+
+                            // ALWAYS mark image as ready when it loads
+                            // This ensures visibility even if crop calculation is deferred
+                            if (!isImageReady) {
+                                console.log('[CoverDebug] Setting isImageReady = true');
                                 setIsImageReady(true);
                             }
                         }}
