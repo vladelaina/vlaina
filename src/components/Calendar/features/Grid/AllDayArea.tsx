@@ -11,7 +11,7 @@ import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useGroupStore } from '@/stores/useGroupStore';
-import type { CalendarDisplayItem } from '../../hooks/useCalendarEvents';
+import type { NekoEvent } from '@/lib/ics/types';
 import { EventContextMenu } from '../Event/EventContextMenu';
 import { getAllDayInlineStyles, getColorPriority } from '@/lib/colors';
 
@@ -23,7 +23,7 @@ const COLLAPSED_HEIGHT = 28; // Height when collapsed with chevron
 
 interface AllDayAreaProps {
   days: Date[];
-  allDayEvents: CalendarDisplayItem[];
+  allDayEvents: NekoEvent[];
   gutterWidth: number;
   isDropTarget?: boolean;
   onCreateAllDay?: (startDay: Date, endDay: Date) => void;
@@ -31,14 +31,14 @@ interface AllDayAreaProps {
 }
 
 interface LayoutedEvent {
-  event: CalendarDisplayItem;
+  event: NekoEvent;
   row: number;
   startCol: number;
   endCol: number;
 }
 
 function calculateAllDayLayout(
-  events: CalendarDisplayItem[],
+  events: NekoEvent[],
   days: Date[]
 ): { layoutedEvents: LayoutedEvent[]; totalRows: number; overflowByDay: Map<number, number> } {
   if (events.length === 0 || days.length === 0) {
@@ -53,22 +53,22 @@ function calculateAllDayLayout(
     const colorOrderA = getColorPriority(a.color);
     const colorOrderB = getColorPriority(b.color);
     if (colorOrderA !== colorOrderB) return colorOrderA - colorOrderB;
-    
+
     // Then by duration (longer first)
-    const durationA = a.endDate - a.startDate;
-    const durationB = b.endDate - b.startDate;
+    const durationA = a.dtend.getTime() - a.dtstart.getTime();
+    const durationB = b.dtend.getTime() - b.dtstart.getTime();
     if (durationA !== durationB) return durationB - durationA;
-    
+
     // Finally by start date
-    return a.startDate - b.startDate;
+    return a.dtstart.getTime() - b.dtstart.getTime();
   });
 
   const layoutedEvents: LayoutedEvent[] = [];
   const rowOccupancy: boolean[][] = []; // rowOccupancy[row][col] = occupied
 
   for (const event of sortedEvents) {
-    const eventStart = startOfDay(new Date(event.startDate));
-    const eventEnd = startOfDay(new Date(event.endDate));
+    const eventStart = startOfDay(event.dtstart);
+    const eventEnd = startOfDay(event.dtend);
 
     // Calculate column range (clipped to visible days)
     let startCol = Math.max(0, differenceInDays(eventStart, firstDay));
@@ -143,7 +143,7 @@ export function AllDayArea({
 }: AllDayAreaProps) {
   const { setEditingEventId, editingEventId } = useCalendarStore();
   const { toggleTask } = useGroupStore();
-  
+
   const areaRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<number | null>(null);
@@ -218,7 +218,7 @@ export function AllDayArea({
 
     const startIdx = Math.min(dragStart, dragEnd);
     const endIdx = Math.max(dragStart, dragEnd);
-    
+
     onCreateAllDay?.(days[startIdx], days[endIdx]);
 
     setIsDragging(false);
@@ -250,7 +250,7 @@ export function AllDayArea({
     if (e.button !== 0) return;
     // Don't start drag if clicking on checkbox
     if ((e.target as HTMLElement).closest('button')) return;
-    
+
     e.stopPropagation();
     setEventDragStarted(true);
     onEventDragStart?.(eventId, e.clientY);
@@ -272,7 +272,7 @@ export function AllDayArea({
   // Render ghost selection
   const renderGhost = () => {
     if (!isDragging || dragStart === null || dragEnd === null) return null;
-    
+
     const startIdx = Math.min(dragStart, dragEnd);
     const endIdx = Math.max(dragStart, dragEnd);
     const dayWidth = 100 / days.length;
@@ -304,8 +304,8 @@ export function AllDayArea({
       onMouseLeave={handleMouseLeave}
     >
       {/* Gutter - entire area clickable for expand/collapse */}
-      <div 
-        style={{ width: gutterWidth }} 
+      <div
+        style={{ width: gutterWidth }}
         className={`
           flex-shrink-0 flex items-center justify-end pr-2
           ${shouldCollapse ? 'hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 transition-colors' : ''}
@@ -334,81 +334,81 @@ export function AllDayArea({
       {/* Events area */}
       <div className="flex-1 relative">
         {/* Column dividers */}
-        <div 
+        <div
           className="absolute inset-0 grid pointer-events-none"
           style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}
         >
           {days.map((_, i) => (
-            <div 
-              key={i} 
-              className="border-r border-zinc-100 dark:border-zinc-800/50 last:border-r-0" 
+            <div
+              key={i}
+              className="border-r border-zinc-100 dark:border-zinc-800/50 last:border-r-0"
             />
           ))}
         </div>
 
         {/* Events - only show when expanded or single event */}
         {showEvents && layoutedEvents.map(({ event, row, startCol, endCol }) => {
-            const dayWidth = 100 / days.length;
-            const colorStyles = getAllDayInlineStyles(event.color);
-            const isDark = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
-            const bgColor = isDark ? colorStyles.bgDark : colorStyles.bg;
-            const textColor = isDark ? colorStyles.textDark : colorStyles.text;
-            const isActive = editingEventId === event.id;
-            const isMultiDay = endCol > startCol;
+          const dayWidth = 100 / days.length;
+          const colorStyles = getAllDayInlineStyles(event.color);
+          const isDark = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
+          const bgColor = isDark ? colorStyles.bgDark : colorStyles.bg;
+          const textColor = isDark ? colorStyles.textDark : colorStyles.text;
+          const isActive = editingEventId === event.uid;
+          const isMultiDay = endCol > startCol;
 
-            return (
-              <div
-                key={event.id}
-                className={`
+          return (
+            <div
+              key={event.uid}
+              className={`
                   all-day-event absolute flex items-center gap-1 px-1.5 rounded
                   transition-all duration-150 select-none
                   ${isActive ? 'ring-2 ring-blue-400 dark:ring-blue-500 shadow-md z-30' : 'hover:shadow-sm z-10'}
                   ${event.completed ? 'opacity-60' : ''}
                 `}
-                style={{
-                  left: `calc(${startCol * dayWidth}% + 2px)`,
-                  width: `calc(${(endCol - startCol + 1) * dayWidth}% - 4px)`,
-                  top: row * (EVENT_HEIGHT + EVENT_GAP) + EVENT_GAP,
-                  height: EVENT_HEIGHT,
-                  backgroundColor: bgColor,
-                  color: textColor,
-                }}
-                onClick={(e) => handleEventClick(e, event.id)}
-                onMouseDown={(e) => handleEventMouseDown(e, event.id)}
-                onContextMenu={(e) => handleContextMenu(e, event.id)}
-              >
-                {/* Checkbox */}
-                <button
-                  onClick={(e) => handleToggle(e, event.id)}
-                  className={`
+              style={{
+                left: `calc(${startCol * dayWidth}% + 2px)`,
+                width: `calc(${(endCol - startCol + 1) * dayWidth}% - 4px)`,
+                top: row * (EVENT_HEIGHT + EVENT_GAP) + EVENT_GAP,
+                height: EVENT_HEIGHT,
+                backgroundColor: bgColor,
+                color: textColor,
+              }}
+              onClick={(e) => handleEventClick(e, event.uid)}
+              onMouseDown={(e) => handleEventMouseDown(e, event.uid)}
+              onContextMenu={(e) => handleContextMenu(e, event.uid)}
+            >
+              {/* Checkbox */}
+              <button
+                onClick={(e) => handleToggle(e, event.uid)}
+                className={`
                     flex-shrink-0 w-3 h-3 rounded-sm border flex items-center justify-center
                     ${event.completed
-                      ? 'bg-zinc-400 border-zinc-400 dark:bg-zinc-500 dark:border-zinc-500'
-                      : 'border-current opacity-50 hover:opacity-80'
-                    }
+                    ? 'bg-zinc-400 border-zinc-400 dark:bg-zinc-500 dark:border-zinc-500'
+                    : 'border-current opacity-50 hover:opacity-80'
+                  }
                   `}
-                >
-                  {event.completed && <Check className="w-2 h-2 text-white" strokeWidth={3} />}
-                </button>
+              >
+                {event.completed && <Check className="w-2 h-2 text-white" strokeWidth={3} />}
+              </button>
 
-                {/* Content */}
-                <span className={`
+              {/* Content */}
+              <span className={`
                   flex-1 text-[11px] font-medium truncate
                   ${event.completed ? 'line-through' : ''}
                 `}>
-                  {event.content || 'Untitled'}
-                </span>
+                {event.summary || 'Untitled'}
+              </span>
 
-                {/* Multi-day indicator */}
-                {isMultiDay && startCol === 0 && (
-                  <span className="text-[9px] opacity-60">◀</span>
-                )}
-                {isMultiDay && endCol === days.length - 1 && (
-                  <span className="text-[9px] opacity-60">▶</span>
-                )}
-              </div>
-            );
-          })}
+              {/* Multi-day indicator */}
+              {isMultiDay && startCol === 0 && (
+                <span className="text-[9px] opacity-60">◀</span>
+              )}
+              {isMultiDay && endCol === days.length - 1 && (
+                <span className="text-[9px] opacity-60">▶</span>
+              )}
+            </div>
+          );
+        })}
 
         {/* Ghost selection */}
         {renderGhost()}
@@ -428,7 +428,7 @@ export function AllDayArea({
         <EventContextMenu
           eventId={contextMenu.eventId}
           position={{ x: contextMenu.x, y: contextMenu.y }}
-          currentColor={allDayEvents.find(e => e.id === contextMenu.eventId)?.color}
+          currentColor={allDayEvents.find(e => e.uid === contextMenu.eventId)?.color}
           onClose={() => setContextMenu(null)}
         />
       )}

@@ -28,7 +28,7 @@ export function CalendarPage() {
   } = useCalendarStore();
 
   // Get the event being edited
-  const editingEvent = editingEventId ? events.find(e => e.id === editingEventId) : null;
+  const editingEvent = editingEventId ? events.find(e => e.uid === editingEventId) : null;
 
   // Initialize
   useEffect(() => {
@@ -54,11 +54,19 @@ export function CalendarPage() {
       if (target.closest('.event-block')) return;
       // Check if clicked on context menu
       if (target.closest('[data-event-context-menu]')) return;
+      // Check if clicked on time-grid - BaseTimeGrid handles its own click logic
+      if (target.closest('#time-grid-container')) return;
+
+      console.log('[CalendarPage] Global click detected. EditingEventId:', editingEventId);
 
       // If the event being edited has no content, delete it (cancel creation)
-      const editingEvent = events.find(e => e.id === editingEventId);
-      if (editingEvent && !editingEvent.content.trim()) {
+      const editingEvent = events.find(e => e.uid === editingEventId);
+      if (editingEvent && !editingEvent.summary.trim()) {
+        console.log('[CalendarPage] Empty summary, deleting event:', editingEventId);
+        console.log('[CalendarPage] Triggered by click on:', target.tagName, target.className, target.id);
         deleteEvent(editingEventId);
+      } else {
+        console.log('[CalendarPage] Closing edit. Summary:', editingEvent?.summary);
       }
 
       closeEditingEvent();

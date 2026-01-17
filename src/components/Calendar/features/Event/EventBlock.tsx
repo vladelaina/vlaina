@@ -10,7 +10,7 @@ import { Check, Pause } from 'lucide-react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { EventContextMenu } from './EventContextMenu';
 import { type EventLayoutInfo } from '../../utils/eventLayout';
-import { type CalendarDisplayItem } from '../../hooks/useCalendarEvents';
+import type { NekoEvent } from '@/lib/ics/types';
 import { calculateEventTop, calculateEventHeight, CALENDAR_CONSTANTS, DEFAULT_DAY_START_MINUTES } from '../../utils/timeUtils';
 import { getEventInlineStyles } from '@/lib/colors';
 import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
@@ -19,7 +19,7 @@ const GAP = CALENDAR_CONSTANTS.GAP as number;
 const RESIZE_HANDLE_HEIGHT = CALENDAR_CONSTANTS.RESIZE_HANDLE_HEIGHT as number;
 
 interface EventBlockProps {
-  event: CalendarDisplayItem;
+  event: NekoEvent;
   layout?: EventLayoutInfo;
   hourHeight: number;
   onToggle?: (id: string) => void;
@@ -29,10 +29,10 @@ interface EventBlockProps {
 }
 
 export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, onHover, dayStartMinutes = DEFAULT_DAY_START_MINUTES }: EventBlockProps) {
-  const { 
-    setEditingEventId, editingEventId, 
+  const {
+    setEditingEventId, editingEventId,
     setSelectedEventId, closeEditingEvent,
-    use24Hour, events, deleteEvent,
+    use24Hour, deleteEvent,
     previewIconEventId, previewIcon,
     previewColorEventId, previewColor
   } = useCalendarStore();
@@ -44,7 +44,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   const [elapsedMs, setElapsedMs] = useState(0);
   const blockRef = useRef<HTMLDivElement>(null);
 
-  const isActive = editingEventId === event.id;
+  const isActive = editingEventId === event.uid;
   const isCompleted = event.completed;
   const isTimerRunning = event.timerState === 'running';
   const isTimerPaused = event.timerState === 'paused';
@@ -55,7 +55,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
       setElapsedMs(0);
       return;
     }
-    
+
     if (isTimerPaused) {
       setElapsedMs(event.timerAccumulated || 0);
       return;
@@ -69,16 +69,19 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
     };
 
     updateElapsed();
-    
+
     const interval = setInterval(updateElapsed, 100);
     return () => clearInterval(interval);
   }, [isTimerRunning, isTimerPaused, event.timerStartedAt, event.timerAccumulated]);
 
   // Calculate position and size
-  const top = calculateEventTop(event.startDate, hourHeight, dayStartMinutes);
-  const plannedDuration = event.endDate - event.startDate;
-  const plannedHeight = calculateEventHeight(event.startDate, event.endDate, hourHeight);
-  
+  const startDate = event.dtstart.getTime();
+  const endDate = event.dtend.getTime();
+
+  const top = calculateEventTop(startDate, hourHeight, dayStartMinutes);
+  const plannedDuration = endDate - startDate;
+  const plannedHeight = calculateEventHeight(startDate, endDate, hourHeight);
+
   const actualHeight = useMemo(() => {
     if (!isTimerActive) return plannedHeight;
     const elapsedHeight = (elapsedMs / 3600000) * hourHeight;
@@ -97,8 +100,8 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   }, [height]);
 
   // Color - use preview color when hovering, otherwise use event color
-  const displayColor = (previewColorEventId === event.id && previewColor !== null) 
-    ? previewColor 
+  const displayColor = (previewColorEventId === event.uid && previewColor !== null)
+    ? previewColor
     : event.color;
   const colorStyles = getEventInlineStyles(displayColor);
   const isDark = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
@@ -108,25 +111,19 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   const fillColor = isDark ? colorStyles.fillDark : colorStyles.fill;
 
   // Position calculation
-  // Ensure events don't overlap by applying consistent gaps
   const positioning = useMemo(() => {
     if (!layout) {
       return { left: `${GAP}px`, width: `calc(100% - ${GAP * 2}px)` };
     }
 
     const { leftPercent, widthPercent, totalColumns, column } = layout;
-    
-    // Each event gets GAP on the outside edges, and GAP/2 between adjacent events
-    // This ensures a total gap of GAP between any two adjacent events
+
     const isFirstColumn = column === 0;
     const isLastColumn = column === totalColumns - 1;
 
-    // Left padding: GAP for first column, GAP/2 for others
     const leftPadding = isFirstColumn ? GAP : GAP / 2;
-    // Right padding: GAP for last column, GAP/2 for others  
     const rightPadding = isLastColumn ? GAP : GAP / 2;
-    
-    // Total horizontal padding for this event
+
     const totalPadding = leftPadding + rightPadding;
 
     return {
@@ -161,7 +158,6 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   }, [resizeEdge, isDragging]);
 
   // Event handlers
-
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (isDragging) return;
 
@@ -180,19 +176,17 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const startY = e.clientY;
-    const LONG_PRESS_DELAY = 150; // Long press threshold (ms)
+    const LONG_PRESS_DELAY = 150;
     let longPressTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // Trigger drag mode after long press
     longPressTimer = setTimeout(() => {
       setIsDragging(true);
-      onDragStart?.(event.id, resizeEdge, startY);
+      onDragStart?.(event.uid, resizeEdge, startY);
     }, LONG_PRESS_DELAY);
 
     const handleMouseUp = () => {
-      // Clear long press timer
       if (longPressTimer) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
@@ -202,24 +196,23 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
     };
 
     window.addEventListener('mouseup', handleMouseUp);
-  }, [event.id, resizeEdge, onDragStart]);
+  }, [event.uid, resizeEdge, onDragStart]);
 
   const handleClick = useCallback(() => {
     if (isDragging) return;
     if (resizeEdge) return;
 
-    if (editingEventId && editingEventId !== event.id) {
-      // If the event being edited has no content, delete it (cancel creation)
-      const editingEvent = events.find(ev => ev.id === editingEventId);
-      if (editingEvent && !editingEvent.content.trim()) {
+    if (editingEventId && editingEventId !== event.uid) {
+      const editingEvent = useCalendarStore.getState().events.find(ev => ev.uid === editingEventId);
+      if (editingEvent && !editingEvent.summary.trim()) {
         deleteEvent(editingEventId);
       }
       closeEditingEvent();
     }
 
-    setSelectedEventId(event.id);
-    setEditingEventId(event.id);
-  }, [isDragging, resizeEdge, editingEventId, event.id, closeEditingEvent, setSelectedEventId, setEditingEventId, events, deleteEvent]);
+    setSelectedEventId(event.uid);
+    setEditingEventId(event.uid);
+  }, [isDragging, resizeEdge, editingEventId, event.uid, closeEditingEvent, setSelectedEventId, setEditingEventId, deleteEvent]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -228,14 +221,13 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   }, []);
 
   // Render
-
   const showTime = heightLevel !== 'micro' && heightLevel !== 'tiny';
   const showEndTime = heightLevel === 'large' || heightLevel === 'medium';
   const showCheckbox = heightLevel !== 'micro';
 
   const isOvertime = elapsedMs > plannedDuration;
-  const fillPercent = isTimerActive 
-    ? Math.min((elapsedMs / plannedDuration) * 100, 100) 
+  const fillPercent = isTimerActive
+    ? Math.min((elapsedMs / plannedDuration) * 100, 100)
     : 0;
 
   const formatElapsed = (ms: number) => {
@@ -243,7 +235,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
     const hours = Math.floor(totalSeconds / 3600);
     const mins = Math.floor((totalSeconds % 3600) / 60);
     const secs = totalSeconds % 60;
-    
+
     if (hours > 0) {
       return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
@@ -267,11 +259,8 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
         onMouseMove={handleMouseMove}
         onMouseEnter={() => {
           setIsHovered(true);
-          // Show time indicator when hovering event
-          const startDate = new Date(event.startDate);
-          const endDate = new Date(event.endDate);
-          const startMinutes = startDate.getHours() * 60 + startDate.getMinutes();
-          const endMinutes = endDate.getHours() * 60 + endDate.getMinutes();
+          const startMinutes = event.dtstart.getHours() * 60 + event.dtstart.getMinutes();
+          const endMinutes = event.dtend.getHours() * 60 + event.dtend.getMinutes();
           onHover?.(startMinutes, endMinutes);
         }}
         onMouseLeave={() => {
@@ -291,36 +280,36 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
             transition-shadow duration-200 ease-out
             ${shadowClass}
           `}
-          style={{ 
+          style={{
             backgroundColor: bgColor,
             opacity: isCompleted ? 0.6 : 1,
             ...(isActive ? { boxShadow: `0 0 0 2px ${ringColor}` } : {}),
             ...(isHovered && !isActive ? { boxShadow: `0 0 0 1px ${ringColor}` } : {}),
           }}
         >
-          {/* Apple Calendar style - left accent bar */}
-          <div 
+          {/* Accent bar */}
+          <div
             className={`absolute left-1 top-1 bottom-1 w-[3px] rounded-full ${isTimerActive && !isCompleted ? 'opacity-60' : ''}`}
             style={{ backgroundColor: colorStyles.accent }}
           />
 
-          {/* Timer fill layer - scan line effect (hidden when completed) */}
+          {/* Timer fill layer */}
           {isTimerActive && !isCompleted && (
-            <div 
+            <div
               className="absolute inset-0 transition-all duration-1000 ease-linear rounded-[4px]"
-              style={{ 
+              style={{
                 backgroundColor: fillColor,
                 height: `${fillPercent}%`,
                 opacity: 1,
               }}
             />
           )}
-          
-          {/* Overtime divider line */}
+
+          {/* Overtime divider */}
           {isOvertime && (
-            <div 
+            <div
               className="absolute left-0 right-0 border-t-2"
-              style={{ 
+              style={{
                 top: `${plannedHeight}px`,
                 borderColor: colorStyles.accent,
               }}
@@ -329,24 +318,24 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
 
           {/* Icon watermark */}
           {heightLevel !== 'micro' && heightLevel !== 'tiny' && (() => {
-            const displayIconName = (previewIconEventId === event.id && previewIcon !== null) 
-              ? previewIcon 
+            const displayIconName = (previewIconEventId === event.uid && previewIcon !== null)
+              ? previewIcon
               : event.icon;
             if (!displayIconName) return null;
             const IconComponent = getIconByName(displayIconName);
             if (!IconComponent) return null;
             const iconSize = Math.min(Math.max(hourHeight * 0.7, 24), 80);
             return (
-              <div 
+              <div
                 className="absolute right-1 bottom-0 pointer-events-none"
-                style={{ 
+                style={{
                   opacity: 0.25,
                   color: colorStyles.accent,
                 }}
               >
-                <IconComponent 
-                  style={{ width: iconSize, height: iconSize }} 
-                  strokeWidth={1.5} 
+                <IconComponent
+                  style={{ width: iconSize, height: iconSize }}
+                  strokeWidth={1.5}
                 />
               </div>
             );
@@ -358,7 +347,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onToggle?.(event.id);
+                  onToggle?.(event.uid);
                 }}
                 className={`
                   flex-shrink-0 w-3.5 h-3.5 rounded-[4px] border-2 flex items-center justify-center mt-0.5
@@ -382,11 +371,11 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
                   className={`font-medium leading-tight truncate ${isCompleted ? 'line-through opacity-60' : ''} ${heightLevel === 'micro' ? 'text-[9px]' : 'text-[11px]'}`}
                   style={{ color: textColor }}
                 >
-                  {event.content || 'Untitled'}
+                  {event.summary || 'Untitled'}
                 </p>
               </div>
               {showTime && (
-                <p 
+                <p
                   className={`mt-0.5 tabular-nums font-medium opacity-70 ${heightLevel === 'small' ? 'text-[8px]' : 'text-[9px]'}`}
                   style={{ color: textColor }}
                 >
@@ -399,8 +388,8 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
                     </>
                   ) : (
                     <>
-                      {use24Hour ? format(event.startDate, 'H:mm') : format(event.startDate, 'h:mma').toLowerCase()}
-                      {showEndTime && ` - ${use24Hour ? format(event.endDate, 'H:mm') : format(event.endDate, 'h:mma').toLowerCase()}`}
+                      {use24Hour ? format(event.dtstart, 'H:mm') : format(event.dtstart, 'h:mma').toLowerCase()}
+                      {showEndTime && ` - ${use24Hour ? format(event.dtend, 'H:mm') : format(event.dtend, 'h:mma').toLowerCase()}`}
                     </>
                   )}
                 </p>
@@ -412,7 +401,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
 
       {contextMenu && (
         <EventContextMenu
-          eventId={event.id}
+          eventId={event.uid}
           position={contextMenu}
           currentColor={event.color}
           currentIcon={event.icon}

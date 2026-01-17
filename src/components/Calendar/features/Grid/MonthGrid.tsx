@@ -12,7 +12,8 @@ import {
 } from 'date-fns';
 
 import { useCalendarStore } from '@/stores/useCalendarStore';
-import { useCalendarEvents, type CalendarDisplayItem } from '../../hooks/useCalendarEvents';
+import { useCalendarEvents } from '../../hooks/useCalendarEvents';
+import type { NekoEvent } from '@/lib/ics/types';
 import { isEventInVisualDay, DEFAULT_DAY_START_MINUTES } from '../../utils/timeUtils';
 import { getColorPriority, getColorHex } from '@/lib/colors';
 
@@ -22,7 +23,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
  * Sort events by completion status and color
  * Incomplete events come first, completed events come last
  */
-function sortEventsByColor(events: CalendarDisplayItem[]): CalendarDisplayItem[] {
+function sortEventsByColor(events: NekoEvent[]): NekoEvent[] {
   return [...events].sort((a, b) => {
     // First sort by completion status: incomplete first
     const completedA = a.completed ? 1 : 0;
@@ -34,7 +35,7 @@ function sortEventsByColor(events: CalendarDisplayItem[]): CalendarDisplayItem[]
     const colorOrderB = getColorPriority(b.color);
     if (colorOrderA !== colorOrderB) return colorOrderA - colorOrderB;
 
-    return a.startDate - b.startDate;
+    return a.dtstart.getTime() - b.dtstart.getTime();
   });
 }
 
@@ -68,7 +69,7 @@ export function MonthGrid() {
   // Uses visual day logic to match week/day view behavior
   const getEventsForDay = useMemo(() => {
     return (date: Date) => {
-      const dayEvents = displayItems.filter((item) => isEventInVisualDay(item.startDate, date, dayStartMinutes));
+      const dayEvents = displayItems.filter((item) => isEventInVisualDay(item.dtstart.getTime(), date, dayStartMinutes));
       return sortEventsByColor(dayEvents);
     };
   }, [displayItems, dayStartMinutes]);
@@ -137,7 +138,7 @@ export function MonthGrid() {
                   <div className="space-y-0.5 px-1">
                     {dayEvents.slice(0, 3).map((event) => (
                       <div
-                        key={event.id}
+                        key={event.uid}
                         className={`
                           text-xs px-1.5 py-0.5 rounded truncate
                           ${event.completed
@@ -149,7 +150,7 @@ export function MonthGrid() {
                           borderLeft: `3px solid ${getColorHex(event.color)}`,
                         }}
                       >
-                        {event.content}
+                        {event.summary}
                       </div>
                     ))}
                     {dayEvents.length > 3 && (

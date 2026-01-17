@@ -9,7 +9,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { format, setHours, setMinutes, startOfDay, endOfDay } from 'date-fns';
 import { Clock, Folder, ChevronDown, X, Sun } from 'lucide-react';
-import { useCalendarStore, type CalendarEvent } from '@/stores/useCalendarStore';
+import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { cn } from '@/lib/utils';
 import { ALL_COLORS, COLOR_HEX, type ItemColor } from '@/lib/colors';
@@ -26,34 +26,34 @@ function EditableTime({ date, onChange, use24Hour = true }: EditableTimeProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  
-  const displayTime = use24Hour 
+
+  const displayTime = use24Hour
     ? format(date, 'H:mm')
     : format(date, 'h:mm a').toUpperCase();
-  
+
   const parsedPreview = (() => {
     const parsed = parseClockTime(inputValue);
-    const previewDate = parsed 
+    const previewDate = parsed
       ? setMinutes(setHours(new Date(), parsed.hours), parsed.minutes)
       : date;
-    const text = use24Hour 
+    const text = use24Hour
       ? format(previewDate, 'H:mm')
       : format(previewDate, 'h:mm a').toUpperCase();
     return { valid: !!parsed, text };
   })();
-  
+
   const handleStartEdit = () => {
     setInputValue(use24Hour ? format(date, 'H:mm') : format(date, 'h:mma').toLowerCase());
     setIsEditing(true);
   };
-  
+
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
     }
   }, [isEditing]);
-  
+
   const handleInputChange = useCallback((value: string) => {
     setInputValue(value);
     const parsed = parseClockTime(value);
@@ -62,11 +62,11 @@ function EditableTime({ date, onChange, use24Hour = true }: EditableTimeProps) {
       onChange(newDate);
     }
   }, [date, onChange]);
-  
+
   const handleBlur = useCallback(() => {
     setIsEditing(false);
   }, []);
-  
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -75,7 +75,7 @@ function EditableTime({ date, onChange, use24Hour = true }: EditableTimeProps) {
       setIsEditing(false);
     }
   };
-  
+
   if (isEditing) {
     return (
       <div className="relative">
@@ -95,7 +95,7 @@ function EditableTime({ date, onChange, use24Hour = true }: EditableTimeProps) {
       </div>
     );
   }
-  
+
   return (
     <button
       onClick={handleStartEdit}
@@ -107,53 +107,72 @@ function EditableTime({ date, onChange, use24Hour = true }: EditableTimeProps) {
 }
 
 interface EventEditFormProps {
-  event: CalendarEvent;
+  event: NekoEvent;
   mode?: 'embedded' | 'floating';
   position?: { x: number; y: number };
 }
 
 export function EventEditForm({ event, mode = 'embedded', position }: EventEditFormProps) {
-  const { updateEvent, updateTaskIcon, closeEditingEvent, groups, use24Hour, deleteEvent } = useCalendarStore();
+  const { updateEvent, updateEventIcon, closeEditingEvent, calendars, use24Hour, deleteEvent } = useCalendarStore();
   const { setPreviewIcon, setPreviewColor } = useUIStore();
-  const [content, setContent] = useState(event.content || '');
-  const [showGroupPicker, setShowGroupPicker] = useState(false);
+  // No longer using summary state from useState directly
+  // const [summary, setSummary] = useState(event.summary || '');
+  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const groupPickerRef = useRef<HTMLDivElement>(null);
+  const calendarPickerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const isNewEvent = useRef(!(event.content || '').trim());
+  const isNewEvent = useRef(!(event.summary || '').trim());
+  const [localSummary, setLocalSummary] = useState(event.summary || '');
 
-  // Handle close button click - delete empty events
+  // Debounced save for summary
+  const debouncedUpdateSummary = useRef<NodeJS.Timeout>();
+
+  const saveSummary = useCallback((value: string) => {
+    updateEvent(event.uid, { summary: value });
+  }, [event.uid, updateEvent]);
+
+  // Handle close button click - save pending changes and delete if empty
   const handleClose = useCallback(() => {
-    if (!event.content.trim()) {
-      deleteEvent(event.id);
+    // Clear any pending debounce
+    if (debouncedUpdateSummary.current) {
+      clearTimeout(debouncedUpdateSummary.current);
     }
+
+    // Use current local value for final check
+    if (!localSummary.trim()) {
+      deleteEvent(event.uid);
+    } else if (localSummary !== event.summary) {
+      // Ensure final save if modified
+      saveSummary(localSummary);
+    }
+
     setPreviewIcon(null, null);
     setPreviewColor(null, null);
     closeEditingEvent();
-  }, [event.id, event.content, deleteEvent, closeEditingEvent, setPreviewIcon, setPreviewColor]);
+  }, [event.uid, event.summary, localSummary, deleteEvent, closeEditingEvent, setPreviewIcon, setPreviewColor, saveSummary]);
 
   const handleIconHover = useCallback((icon: string | undefined | null) => {
     if (icon === null) {
       setPreviewIcon(null, null);
     } else {
-      setPreviewIcon(event.id, icon);
+      setPreviewIcon(event.uid, icon);
     }
-  }, [event.id, setPreviewIcon]);
+  }, [event.uid, setPreviewIcon]);
 
   const handleColorHover = useCallback((color: ItemColor | null) => {
     if (color === null) {
       setPreviewColor(null, null);
     } else {
-      setPreviewColor(event.id, color);
+      setPreviewColor(event.uid, color);
     }
-  }, [event.id, setPreviewColor]);
+  }, [event.uid, setPreviewColor]);
 
-  const currentGroup = groups.find(g => g.id === event.groupId) || groups[0];
+  const currentCalendar = calendars.find(c => c.id === event.calendarId) || calendars[0];
 
-  // Sync content
+  // Sync summary only when switching events
   useEffect(() => {
-    setContent(event.content || '');
-  }, [event.content]);
+    setLocalSummary(event.summary || '');
+  }, [event.uid]); // Only depend on uid, NOT summary content to avoid loop
 
   // Auto-focus for new events
   useEffect(() => {
@@ -162,39 +181,47 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     }
   }, []);
 
-  // Close group picker when clicking outside
+  // Close calendar picker when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (groupPickerRef.current && !groupPickerRef.current.contains(e.target as Node)) {
-        setShowGroupPicker(false);
+      if (calendarPickerRef.current && !calendarPickerRef.current.contains(e.target as Node)) {
+        setShowCalendarPicker(false);
       }
     };
-    if (showGroupPicker) {
+    if (showCalendarPicker) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showGroupPicker]);
+  }, [showCalendarPicker]);
 
   // Event handlers
 
-  const handleContentChange = (newContent: string) => {
-    setContent(newContent);
-    updateEvent(event.id, { content: newContent });
+  const handleSummaryChange = (newSummary: string) => {
+    setLocalSummary(newSummary);
+
+    // Debounce the save
+    if (debouncedUpdateSummary.current) {
+      clearTimeout(debouncedUpdateSummary.current);
+    }
+
+    debouncedUpdateSummary.current = setTimeout(() => {
+      saveSummary(newSummary);
+    }, 500);
   };
 
   const handleColorChange = (color: ItemColor) => {
-    updateEvent(event.id, { color });
+    updateEvent(event.uid, { color });
   };
 
-  const handleGroupChange = (groupId: string) => {
-    updateEvent(event.id, { groupId });
-    setShowGroupPicker(false);
+  const handleCalendarChange = (calendarId: string) => {
+    updateEvent(event.uid, { calendarId });
+    setShowCalendarPicker(false);
   };
 
   // Time formatting
 
-  const startDate = new Date(event.startDate);
-  const endDate = new Date(event.endDate);
+  const startDate = event.dtstart;
+  const endDate = event.dtend;
   const durationMs = endDate.getTime() - startDate.getTime();
   const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
   const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
@@ -242,7 +269,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     : 'h-full flex flex-col bg-white dark:bg-zinc-900';
 
   const currentColor = event.color || 'default';
-  const colorValue = COLOR_HEX[currentColor];
+  const colorValue = COLOR_HEX[currentColor as ItemColor];
 
   // Toggle to next color when clicking the checkbox
   const handleColorToggle = () => {
@@ -279,30 +306,30 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
             style={{ borderColor: colorValue }}
             title="Click to change color"
           />
-          
+
           {/* Icon preview - same position as todo item, using event color */}
           <div className="mt-1.5">
-            <TaskIcon 
-              itemId={event.id}
+            <TaskIcon
+              itemId={event.uid}
               icon={event.icon}
               color={colorValue}
               sizeClass="size-4"
             />
           </div>
-          
+
           {/* Content input */}
           <input
             ref={inputRef}
             type="text"
-            value={content}
-            onChange={(e) => handleContentChange(e.target.value)}
+            value={localSummary}
+            onChange={(e) => handleSummaryChange(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                closeEditingEvent();
+                handleClose();
               }
             }}
-            placeholder="Add content"
+            placeholder="Add title"
             className={cn(
               "flex-1 bg-transparent text-sm outline-none py-1.5",
               "text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400"
@@ -321,9 +348,9 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
 
         {/* Icon picker row - let icon grid adapt to width */}
         <div className="mt-3 ml-7">
-          <IconSelector 
-            value={event.icon} 
-            onChange={(icon) => updateTaskIcon(event.id, icon)}
+          <IconSelector
+            value={event.icon}
+            onChange={(icon) => updateEventIcon(event.uid, icon)}
             onHover={handleIconHover}
           />
         </div>
@@ -336,42 +363,42 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
           <Sun className="size-4 text-zinc-400" />
           <button
             onClick={() => {
-              if (event.isAllDay) {
+              if (event.allDay) {
                 // Convert to timed event: set to 9:00-10:00 on the same day
-                const dayStart = new Date(event.startDate);
+                const dayStart = new Date(event.dtstart);
                 dayStart.setHours(9, 0, 0, 0);
                 const dayEnd = new Date(dayStart);
                 dayEnd.setHours(10, 0, 0, 0);
-                updateEvent(event.id, {
-                  isAllDay: false,
-                  startDate: dayStart.getTime(),
-                  endDate: dayEnd.getTime(),
+                updateEvent(event.uid, {
+                  allDay: false,
+                  dtstart: dayStart,
+                  dtend: dayEnd,
                 });
               } else {
                 // Convert to all-day event
-                updateEvent(event.id, {
-                  isAllDay: true,
-                  startDate: startOfDay(startDate).getTime(),
-                  endDate: endOfDay(startDate).getTime(),
+                updateEvent(event.uid, {
+                  allDay: true,
+                  dtstart: startOfDay(startDate),
+                  dtend: endOfDay(startDate),
                 });
               }
             }}
             className={cn(
               "flex items-center gap-2 text-sm transition-colors",
-              event.isAllDay
+              event.allDay
                 ? "text-blue-600 dark:text-blue-400"
                 : "text-zinc-600 dark:text-zinc-300 hover:text-zinc-800 dark:hover:text-zinc-100"
             )}
           >
             <div className={cn(
               "w-8 h-4 rounded-full transition-colors relative",
-              event.isAllDay
+              event.allDay
                 ? "bg-blue-500"
                 : "bg-zinc-300 dark:bg-zinc-600"
             )}>
               <div className={cn(
                 "absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform",
-                event.isAllDay ? "translate-x-4" : "translate-x-0.5"
+                event.allDay ? "translate-x-4" : "translate-x-0.5"
               )} />
             </div>
             <span>All Day</span>
@@ -379,7 +406,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         </div>
 
         {/* Time (only show for non-all-day events) */}
-        {!event.isAllDay && (
+        {!event.allDay && (
           <div className="flex items-start gap-3 mt-3">
             <Clock className="size-4 text-zinc-400 mt-0.5" />
             <div className="flex items-center text-sm">
@@ -388,9 +415,9 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
                 use24Hour={use24Hour}
                 onChange={(newStart) => {
                   const newEnd = new Date(newStart.getTime() + durationMs);
-                  updateEvent(event.id, { 
-                    startDate: newStart.getTime(),
-                    endDate: newEnd.getTime()
+                  updateEvent(event.uid, {
+                    dtstart: newStart,
+                    dtend: newEnd
                   });
                 }}
               />
@@ -399,8 +426,8 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
                 date={endDate}
                 use24Hour={use24Hour}
                 onChange={(newEnd) => {
-                  if (newEnd.getTime() > event.startDate) {
-                    updateEvent(event.id, { endDate: newEnd.getTime() });
+                  if (newEnd.getTime() > event.dtstart.getTime()) {
+                    updateEvent(event.uid, { dtend: newEnd });
                   }
                 }}
               />
@@ -409,30 +436,29 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
           </div>
         )}
 
-        {/* Group picker */}
-        <div className="flex items-center gap-3 mt-3 relative" ref={groupPickerRef}>
+        {/* Calendar picker (was Group picker) */}
+        <div className="flex items-center gap-3 mt-3 relative" ref={calendarPickerRef}>
           <Folder className="size-4 text-zinc-400" />
           <button
-            onClick={() => setShowGroupPicker(!showGroupPicker)}
+            onClick={() => setShowCalendarPicker(!showCalendarPicker)}
             className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors"
           >
-            <span>{currentGroup?.name || 'Inbox'}</span>
-            <ChevronDown className={`size-3.5 text-zinc-400 transition-transform ${showGroupPicker ? 'rotate-180' : ''}`} />
+            <span>{currentCalendar?.name || 'Personal'}</span>
+            <ChevronDown className={`size-3.5 text-zinc-400 transition-transform ${showCalendarPicker ? 'rotate-180' : ''}`} />
           </button>
 
-          {showGroupPicker && (
+          {showCalendarPicker && (
             <div className="absolute left-7 top-full mt-1 w-40 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1 z-50">
-              {groups.map((group) => (
+              {calendars.map((calendar) => (
                 <button
-                  key={group.id}
-                  onClick={() => handleGroupChange(group.id)}
-                  className={`w-full px-3 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors ${
-                    group.id === event.groupId
-                      ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                      : 'text-zinc-600 dark:text-zinc-300'
-                  }`}
+                  key={calendar.id}
+                  onClick={() => handleCalendarChange(calendar.id)}
+                  className={`w-full px-3 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors ${calendar.id === event.calendarId
+                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                    : 'text-zinc-600 dark:text-zinc-300'
+                    }`}
                 >
-                  {group.name}
+                  {calendar.name}
                 </button>
               ))}
             </div>

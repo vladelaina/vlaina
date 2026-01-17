@@ -35,6 +35,8 @@ interface UsePanelDragAndDropProps {
   };
 }
 
+import { useCalendarStore } from '@/stores/useCalendarStore';
+
 export function usePanelDragAndDrop({
   tasks,
   reorderTasks,
@@ -43,6 +45,7 @@ export function usePanelDragAndDrop({
   setDraggingTaskId,
   calendarInfo,
 }: UsePanelDragAndDropProps) {
+  const { addEvent } = useCalendarStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [dragIndent, setDragIndent] = useState(0);
@@ -69,7 +72,7 @@ export function usePanelDragAndDrop({
     const { active } = event;
     setActiveId(active.id as string);
     setDraggingTaskId(active.id as string);
-    
+
     if (event.activatorEvent instanceof PointerEvent) {
       dragStartX.current = event.activatorEvent.clientX;
     }
@@ -90,7 +93,7 @@ export function usePanelDragAndDrop({
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
-    
+
     setActiveId(null);
     setOverId(null);
     setDragIndent(0);
@@ -106,27 +109,27 @@ export function usePanelDragAndDrop({
       if (dropRect) {
         const x = dropRect.left + 20;
         const y = dropRect.top + 20;
-        
+
         if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
           const { selectedDate, hourHeight, viewMode, dayCount } = calendarInfo;
           const GUTTER_WIDTH = CALENDAR_CONSTANTS.GUTTER_WIDTH;
           const SNAP_MINUTES = getSnapMinutes(hourHeight);
-          
+
           const scrollContainer = document.getElementById('time-grid-scroll');
           const scrollTop = scrollContainer?.scrollTop || 0;
-          
+
           const relativeX = x - rect.left - GUTTER_WIDTH;
           if (relativeX < 0) return;
-          
+
           const numDays = viewMode === 'week' ? 7 : (dayCount || 1);
           const dayWidth = (rect.width - GUTTER_WIDTH) / numDays;
           const dayIndex = Math.floor(relativeX / dayWidth);
           if (dayIndex < 0 || dayIndex >= numDays) return;
-          
+
           const relativeY = y - rect.top + scrollTop;
           const totalMinutes = (relativeY / hourHeight) * 60;
           const snappedMinutes = Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
-          
+
           const selected = new Date(selectedDate);
           let weekStart: Date;
           if (viewMode === 'week') {
@@ -138,17 +141,25 @@ export function usePanelDragAndDrop({
             weekStart = selected;
           }
           weekStart.setHours(0, 0, 0, 0);
-          
+
           const dayDate = new Date(weekStart);
           dayDate.setDate(weekStart.getDate() + dayIndex);
-          
+
+
           const startDate = new Date(dayDate);
           startDate.setHours(0, 0, 0, 0);
           startDate.setMinutes(snappedMinutes);
-          
+
           const endDate = new Date(startDate.getTime() + DEFAULT_EVENT_DURATION_MS);
-          
-          updateTaskTime(activeTask.id, startDate.getTime(), endDate.getTime());
+
+          // Create a new calendar event (NekoEvent) instead of updating the task
+          // This ensures it appears on the calendar grid which now only shows ICS events
+          addEvent({
+            summary: activeTask.content,
+            dtstart: startDate,
+            dtend: endDate,
+            allDay: false,
+          });
           return;
         }
       }
@@ -157,7 +168,7 @@ export function usePanelDragAndDrop({
     if (!over || active.id === over.id) return;
 
     const overId = over.id as string;
-    
+
     if (overId === '__divider_scheduled__') {
       if (activeTask.startDate) {
         updateTaskTime(activeTask.id, null, null);
@@ -168,7 +179,7 @@ export function usePanelDragAndDrop({
       }
       return;
     }
-    
+
     if (overId === '__divider_completed__') {
       return;
     }
@@ -180,9 +191,9 @@ export function usePanelDragAndDrop({
     const activeIsCompleted = activeTask.completed;
     const overIsScheduled = !!overTask.startDate;
     const overIsCompleted = overTask.completed;
-    
+
     const isCrossSection = (activeIsScheduled !== overIsScheduled) || (activeIsCompleted !== overIsCompleted);
-    
+
     if (isCrossSection) {
       if (activeIsScheduled && !activeIsCompleted && !overIsScheduled && !overIsCompleted) {
         updateTaskTime(activeTask.id, null, null);

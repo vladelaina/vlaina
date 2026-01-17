@@ -77,7 +77,7 @@ export function CalendarTaskPanel({
   const completedMenuRef = useRef<HTMLDivElement>(null);
 
   const currentGroup = groups.find(g => g.id === activeGroupId) || groups[0];
-  const editingEvent = editingEventId ? events.find(e => e.id === editingEventId) : null;
+  const editingEvent = editingEventId ? events.find(e => e.uid === editingEventId) : null;
 
   const {
     sensors,

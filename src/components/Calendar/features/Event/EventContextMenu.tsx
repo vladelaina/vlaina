@@ -15,7 +15,7 @@ interface EventContextMenuProps {
 }
 
 export function EventContextMenu({ eventId, position, currentColor = 'blue', currentIcon, timerState = 'idle', onClose }: EventContextMenuProps) {
-  const { updateEvent, updateTaskIcon, deleteEvent, events, addEvent, startTimer, pauseTimer, resumeTimer, stopTimer } = useCalendarStore();
+  const { updateEvent, updateEventIcon, deleteEvent, events, addEvent, startTimer, pauseTimer, resumeTimer, stopTimer } = useCalendarStore();
   const [selectedIcon, setSelectedIcon] = useState(currentIcon);
 
   const handleColorChange = (color: ItemColor) => {
@@ -25,7 +25,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
 
   const handleIconChange = (icon: string | undefined) => {
     setSelectedIcon(icon);
-    updateTaskIcon(eventId, icon);
+    updateEventIcon(eventId, icon);
     onClose();
   };
 
@@ -35,13 +35,13 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
   };
 
   const handleDuplicate = () => {
-    const event = events.find(e => e.id === eventId);
+    const event = events.find(e => e.uid === eventId);
     if (event) {
       addEvent({
-        content: event.content,
-        startDate: event.startDate,
-        endDate: event.endDate,
-        isAllDay: event.isAllDay,
+        summary: event.summary,
+        dtstart: event.dtstart,
+        dtend: event.dtend,
+        allDay: event.allDay,
         color: event.color,
       });
     }
@@ -71,13 +71,13 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
   return createPortal(
     <>
       {/* Backdrop */}
-      <div 
-        data-event-context-menu 
-        className="fixed inset-0 z-[99998]" 
-        onClick={onClose} 
-        onContextMenu={(e) => { e.preventDefault(); onClose(); }} 
+      <div
+        data-event-context-menu
+        className="fixed inset-0 z-[99998]"
+        onClick={onClose}
+        onContextMenu={(e) => { e.preventDefault(); onClose(); }}
       />
-      
+
       {/* Menu */}
       <div
         data-event-context-menu
@@ -107,7 +107,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
 
         {/* Timer Actions */}
         {timerState === 'idle' && (
-          <button 
+          <button
             onClick={handleStartTimer}
             className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
           >
@@ -115,17 +115,17 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
             <span className="flex-1 text-left">Start Timer</span>
           </button>
         )}
-        
+
         {timerState === 'running' && (
           <>
-            <button 
+            <button
               onClick={handlePauseTimer}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
               <Pause className="size-4" />
               <span className="flex-1 text-left">Pause Timer</span>
             </button>
-            <button 
+            <button
               onClick={handleStopTimer}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
@@ -134,17 +134,17 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
             </button>
           </>
         )}
-        
+
         {timerState === 'paused' && (
           <>
-            <button 
+            <button
               onClick={handleResumeTimer}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
               <Play className="size-4" />
               <span className="flex-1 text-left">Resume Timer</span>
             </button>
-            <button 
+            <button
               onClick={handleStopTimer}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
@@ -169,7 +169,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
           <span className="text-zinc-500 text-xs">Ctrl C</span>
         </button>
 
-        <button 
+        <button
           onClick={handleDuplicate}
           className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
         >
@@ -180,7 +180,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
 
         <div className="h-px bg-zinc-700 my-2" />
 
-        <button 
+        <button
           onClick={handleDelete}
           className="w-full px-4 py-2 flex items-center gap-3 text-sm text-red-400 hover:bg-zinc-800"
         >

@@ -1,4 +1,4 @@
-import { MiniCalendar } from './MiniCalendar';
+import { MiniCalendar } from '../DateSelector/MiniCalendar';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
 import { useUIStore } from '@/stores/uiSlice';
 
