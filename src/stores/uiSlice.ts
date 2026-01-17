@@ -13,7 +13,7 @@ import {
 export type TaskStatus = 'todo' | 'scheduled' | 'completed';
 export const ALL_STATUSES: TaskStatus[] = ['todo', 'scheduled', 'completed'];
 
-export type AppViewMode = 'calendar' | 'notes';
+export type AppViewMode = 'calendar' | 'notes' | 'todo';
 
 interface UIStore {
   appViewMode: AppViewMode;

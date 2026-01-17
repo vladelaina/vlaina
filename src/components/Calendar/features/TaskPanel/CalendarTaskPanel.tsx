@@ -7,7 +7,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   Maximize2, Minimize2, ChevronDown, Check,
   Archive, Search, X
 } from 'lucide-react';
@@ -19,9 +19,7 @@ import { useCalendarStore } from '@/stores/useCalendarStore';
 import type { TaskStatus } from '@/stores/uiSlice';
 import { cn } from '@/lib/utils';
 import { EventEditForm } from '../ContextPanel/EventEditForm';
-import { PanelTaskInput } from './PanelTaskInput';
-import { PanelTaskItem } from './PanelTaskItem';
-import { SortableDivider } from './SortableDivider';
+import { PanelTaskInput, PanelTaskItem, SortableDivider } from '@/components/common/TaskList';
 import { usePanelDragAndDrop } from './usePanelDragAndDrop';
 import { ProgressContent } from '@/components/Progress/features/ProgressContent';
 import { getColorPriority, getAllDayInlineStyles, getColorHex } from '@/lib/colors';
@@ -33,9 +31,9 @@ interface CalendarTaskPanelProps {
   onToggleExpand?: () => void;
 }
 
-export function CalendarTaskPanel({ 
-  isExpanded = false, 
-  onToggleExpand 
+export function CalendarTaskPanel({
+  isExpanded = false,
+  onToggleExpand
 }: CalendarTaskPanelProps) {
   const {
     tasks,
@@ -110,21 +108,21 @@ export function CalendarTaskPanel({
       setDraggingToCalendarTaskId(null);
       return;
     }
-    
+
     const rect = gridContainer.getBoundingClientRect();
     const { activatorEvent, active } = event;
-    
+
     if (activatorEvent instanceof MouseEvent || activatorEvent instanceof PointerEvent) {
       const delta = event.delta;
       const initialX = (activatorEvent as MouseEvent).clientX;
       const initialY = (activatorEvent as MouseEvent).clientY;
       const currentX = initialX + delta.x;
       const currentY = initialY + delta.y;
-      
-      const isOver = currentX >= rect.left && currentX <= rect.right && 
-                     currentY >= rect.top && currentY <= rect.bottom;
+
+      const isOver = currentX >= rect.left && currentX <= rect.right &&
+        currentY >= rect.top && currentY <= rect.bottom;
       setIsOverCalendar(isOver);
-      
+
       if (isOver) {
         const task = tasks.find(t => t.id === active.id);
         if (task?.startDate) {
@@ -225,21 +223,21 @@ export function CalendarTaskPanel({
 
   const allSortableIds = useMemo(() => {
     const ids: string[] = [...incompleteTaskIds];
-    
+
     if (scheduledTasks.length > 0) {
       ids.push(SCHEDULED_DIVIDER_ID);
       if (scheduledExpanded) {
         ids.push(...scheduledTaskIds);
       }
     }
-    
+
     if (completedTasks.length > 0) {
       ids.push(COMPLETED_DIVIDER_ID);
       if (completedExpanded) {
         ids.push(...completedTaskIds);
       }
     }
-    
+
     return ids;
   }, [incompleteTaskIds, scheduledTaskIds, completedTaskIds, scheduledTasks.length, completedTasks.length, scheduledExpanded, completedExpanded]);
 
@@ -247,7 +245,7 @@ export function CalendarTaskPanel({
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest('[data-color-option]')) return;
-      
+
       if (groupPickerRef.current && !groupPickerRef.current.contains(target)) {
         setShowGroupPicker(false);
       }
@@ -275,7 +273,7 @@ export function CalendarTaskPanel({
   const renderTaskItem = useCallback((task: typeof incompleteTasks[0], level: number = 0) => {
     const children = getChildren(task.id);
     const hasChildren = children.length > 0;
-    
+
     const checkAncestorDragged = (taskId: string, visited = new Set<string>()): boolean => {
       if (taskId === activeId) return true;
       if (visited.has(taskId)) return false;
@@ -285,7 +283,7 @@ export function CalendarTaskPanel({
       return false;
     };
     const isBeingDragged = checkAncestorDragged(task.id);
-    
+
     return (
       <div key={task.id}>
         <PanelTaskItem
@@ -318,8 +316,8 @@ export function CalendarTaskPanel({
   }
 
   return (
-    <div 
-      data-context-panel 
+    <div
+      data-context-panel
       className={cn(
         "h-full flex flex-col bg-white dark:bg-zinc-900 overflow-hidden",
         isExpanded && "fixed inset-0 z-50"
@@ -507,187 +505,187 @@ export function CalendarTaskPanel({
             </div>
           )}
 
-      {/* Task list */}
-      <div
-        ref={scrollRef}
-        className={cn(
-          "flex-1 overflow-y-auto px-3 pb-3",
-          "[&::-webkit-scrollbar]:w-1",
-          "[&::-webkit-scrollbar-track]:bg-transparent",
-          "[&::-webkit-scrollbar-thumb]:bg-zinc-200",
-          "[&::-webkit-scrollbar-thumb]:rounded-full",
-          "[&::-webkit-scrollbar-thumb]:hover:bg-zinc-300",
-          "dark:[&::-webkit-scrollbar-thumb]:bg-zinc-800",
-          "dark:[&::-webkit-scrollbar-thumb]:hover:bg-zinc-700"
-        )}
-      >
-        <DndContext
-          sensors={sensors}
-          collisionDetection={customCollisionDetection}
-          onDragStart={handleDragStart}
-          onDragMove={wrappedHandleDragMove}
-          onDragOver={handleDragOver}
-          onDragEnd={wrappedHandleDragEnd}
-        >
-          {/* Use unified SortableContext for correct cross-region drag positioning */}
-          <SortableContext 
-            items={allSortableIds} 
-            strategy={verticalListSortingStrategy}
+          {/* Task list */}
+          <div
+            ref={scrollRef}
+            className={cn(
+              "flex-1 overflow-y-auto px-3 pb-3",
+              "[&::-webkit-scrollbar]:w-1",
+              "[&::-webkit-scrollbar-track]:bg-transparent",
+              "[&::-webkit-scrollbar-thumb]:bg-zinc-200",
+              "[&::-webkit-scrollbar-thumb]:rounded-full",
+              "[&::-webkit-scrollbar-thumb]:hover:bg-zinc-300",
+              "dark:[&::-webkit-scrollbar-thumb]:bg-zinc-800",
+              "dark:[&::-webkit-scrollbar-thumb]:hover:bg-zinc-700"
+            )}
           >
-            {/* Incomplete tasks */}
-            {incompleteTasks.length > 0 ? (
-              <div className="space-y-2">
-                {incompleteTasks.map(task => renderTaskItem(task, 0))}
-              </div>
-            ) : scheduledTasks.length === 0 && completedTasks.length === 0 ? (
-              <div className="py-8 text-center">
-                <p className="text-xs text-zinc-400 dark:text-zinc-600">No tasks</p>
-              </div>
-            ) : null}
-
-            {/* Scheduled tasks divider */}
-            {scheduledTasks.length > 0 && (
-              <SortableDivider
-                id={SCHEDULED_DIVIDER_ID}
-                label="Scheduled"
-                count={scheduledTasks.length}
-                expanded={scheduledExpanded}
-                onToggleExpand={() => setScheduledExpanded(!scheduledExpanded)}
-              />
-            )}
-
-            {/* Scheduled tasks */}
-            {scheduledTasks.length > 0 && scheduledExpanded && (
-              <div className="space-y-2">
-                {scheduledTasks.map(task => renderTaskItem(task, 0))}
-              </div>
-            )}
-
-            {/* Completed tasks divider */}
-            {completedTasks.length > 0 && (
-              <SortableDivider
-                id={COMPLETED_DIVIDER_ID}
-                label="Completed"
-                count={completedTasks.length}
-                expanded={completedExpanded}
-                onToggleExpand={() => setCompletedExpanded(!completedExpanded)}
-                showMenu={showCompletedMenu}
-                onMenuToggle={() => setShowCompletedMenu(!showCompletedMenu)}
-                menuRef={completedMenuRef}
-                menuContent={
-                  activeGroupId !== '__archive__' ? (
-                    <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50">
-                      <button
-                        onClick={() => {
-                          if (activeGroupId) {
-                            archiveCompletedTasks(activeGroupId);
-                          }
-                          setShowCompletedMenu(false);
-                        }}
-                        className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                      >
-                        Archive All
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (activeGroupId) {
-                            deleteCompletedTasks(activeGroupId);
-                          }
-                          setShowCompletedMenu(false);
-                        }}
-                        className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                      >
-                        Delete All
-                      </button>
-                    </div>
-                  ) : undefined
-                }
-              />
-            )}
-
-            {/* Completed tasks */}
-            {completedTasks.length > 0 && completedExpanded && (
-              <div className="space-y-2 opacity-60">
-                {completedTasks.map(task => renderTaskItem(task, 0))}
-              </div>
-            )}
-          </SortableContext>
-
-          {/* Drag Overlay - rendered via portal for cross-panel dragging */}
-          {createPortal(
-            <DragOverlay dropAnimation={null} className="cursor-grabbing" style={{ zIndex: 999999 }}>
-              {activeId ? (() => {
-                const task = tasks.find(t => t.id === activeId);
-                if (!task) return null;
-                
-                if (isOverCalendar) {
-                  const colorStyles = getAllDayInlineStyles(task.color);
-                  const isDark = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
-                  const bgColor = isDark ? colorStyles.bgDark : colorStyles.bg;
-                  const textColor = isDark ? colorStyles.textDark : colorStyles.text;
-                  const borderColor = isDark ? colorStyles.borderDark : colorStyles.border;
-                  const eventHeight = Math.max(hourHeight * (25 / 60), 20);
-                  return (
-                    <div 
-                      className={cn(
-                        "w-[120px] flex flex-col",
-                        "border-l-[3px]",
-                        "rounded-[5px]",
-                        "shadow-xl shadow-black/15 dark:shadow-black/40"
-                      )}
-                      style={{ 
-                        height: `${eventHeight}px`,
-                        backgroundColor: bgColor,
-                        borderLeftColor: borderColor,
-                      }}
-                    >
-                      <div className="flex items-start gap-1.5 px-2 py-1">
-                        <div className="flex-1 min-w-0">
-                          <p 
-                            className="font-medium leading-tight truncate text-[11px]"
-                            style={{ color: textColor }}
-                          >
-                            {task.content || 'Untitled'}
-                          </p>
-                          {eventHeight >= 32 && (
-                            <p 
-                              className="mt-0.5 tabular-nums font-medium text-[9px] opacity-70"
-                              style={{ color: textColor }}
-                            >
-                              25m
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                
-                const colorValue = task.color && task.color !== 'default'
-                  ? getColorHex(task.color)
-                  : undefined;
-                
-                return (
-                  <div className="flex items-start gap-2 px-3 py-2 bg-white dark:bg-zinc-800 rounded-lg shadow-xl ring-1 ring-black/5 dark:ring-white/10 max-w-[240px]">
-                    {/* Color checkbox */}
-                    <div 
-                      className={cn(
-                        "flex-shrink-0 w-3.5 h-3.5 rounded-sm mt-0.5",
-                        colorValue ? "border-2" : "border border-zinc-400/40"
-                      )}
-                      style={colorValue ? { borderColor: colorValue } : undefined}
-                    />
-                    <span className="text-[13px] text-zinc-700 dark:text-zinc-200 line-clamp-2">
-                      {task.content}
-                    </span>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={customCollisionDetection}
+              onDragStart={handleDragStart}
+              onDragMove={wrappedHandleDragMove}
+              onDragOver={handleDragOver}
+              onDragEnd={wrappedHandleDragEnd}
+            >
+              {/* Use unified SortableContext for correct cross-region drag positioning */}
+              <SortableContext
+                items={allSortableIds}
+                strategy={verticalListSortingStrategy}
+              >
+                {/* Incomplete tasks */}
+                {incompleteTasks.length > 0 ? (
+                  <div className="space-y-2">
+                    {incompleteTasks.map(task => renderTaskItem(task, 0))}
                   </div>
-                );
-              })() : null}
-            </DragOverlay>,
-            document.body
-          )}
-        </DndContext>
-      </div>
+                ) : scheduledTasks.length === 0 && completedTasks.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <p className="text-xs text-zinc-400 dark:text-zinc-600">No tasks</p>
+                  </div>
+                ) : null}
+
+                {/* Scheduled tasks divider */}
+                {scheduledTasks.length > 0 && (
+                  <SortableDivider
+                    id={SCHEDULED_DIVIDER_ID}
+                    label="Scheduled"
+                    count={scheduledTasks.length}
+                    expanded={scheduledExpanded}
+                    onToggleExpand={() => setScheduledExpanded(!scheduledExpanded)}
+                  />
+                )}
+
+                {/* Scheduled tasks */}
+                {scheduledTasks.length > 0 && scheduledExpanded && (
+                  <div className="space-y-2">
+                    {scheduledTasks.map(task => renderTaskItem(task, 0))}
+                  </div>
+                )}
+
+                {/* Completed tasks divider */}
+                {completedTasks.length > 0 && (
+                  <SortableDivider
+                    id={COMPLETED_DIVIDER_ID}
+                    label="Completed"
+                    count={completedTasks.length}
+                    expanded={completedExpanded}
+                    onToggleExpand={() => setCompletedExpanded(!completedExpanded)}
+                    showMenu={showCompletedMenu}
+                    onMenuToggle={() => setShowCompletedMenu(!showCompletedMenu)}
+                    menuRef={completedMenuRef}
+                    menuContent={
+                      activeGroupId !== '__archive__' ? (
+                        <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50">
+                          <button
+                            onClick={() => {
+                              if (activeGroupId) {
+                                archiveCompletedTasks(activeGroupId);
+                              }
+                              setShowCompletedMenu(false);
+                            }}
+                            className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                          >
+                            Archive All
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (activeGroupId) {
+                                deleteCompletedTasks(activeGroupId);
+                              }
+                              setShowCompletedMenu(false);
+                            }}
+                            className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                          >
+                            Delete All
+                          </button>
+                        </div>
+                      ) : undefined
+                    }
+                  />
+                )}
+
+                {/* Completed tasks */}
+                {completedTasks.length > 0 && completedExpanded && (
+                  <div className="space-y-2 opacity-60">
+                    {completedTasks.map(task => renderTaskItem(task, 0))}
+                  </div>
+                )}
+              </SortableContext>
+
+              {/* Drag Overlay - rendered via portal for cross-panel dragging */}
+              {createPortal(
+                <DragOverlay dropAnimation={null} className="cursor-grabbing" style={{ zIndex: 999999 }}>
+                  {activeId ? (() => {
+                    const task = tasks.find(t => t.id === activeId);
+                    if (!task) return null;
+
+                    if (isOverCalendar) {
+                      const colorStyles = getAllDayInlineStyles(task.color);
+                      const isDark = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
+                      const bgColor = isDark ? colorStyles.bgDark : colorStyles.bg;
+                      const textColor = isDark ? colorStyles.textDark : colorStyles.text;
+                      const borderColor = isDark ? colorStyles.borderDark : colorStyles.border;
+                      const eventHeight = Math.max(hourHeight * (25 / 60), 20);
+                      return (
+                        <div
+                          className={cn(
+                            "w-[120px] flex flex-col",
+                            "border-l-[3px]",
+                            "rounded-[5px]",
+                            "shadow-xl shadow-black/15 dark:shadow-black/40"
+                          )}
+                          style={{
+                            height: `${eventHeight}px`,
+                            backgroundColor: bgColor,
+                            borderLeftColor: borderColor,
+                          }}
+                        >
+                          <div className="flex items-start gap-1.5 px-2 py-1">
+                            <div className="flex-1 min-w-0">
+                              <p
+                                className="font-medium leading-tight truncate text-[11px]"
+                                style={{ color: textColor }}
+                              >
+                                {task.content || 'Untitled'}
+                              </p>
+                              {eventHeight >= 32 && (
+                                <p
+                                  className="mt-0.5 tabular-nums font-medium text-[9px] opacity-70"
+                                  style={{ color: textColor }}
+                                >
+                                  25m
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const colorValue = task.color && task.color !== 'default'
+                      ? getColorHex(task.color)
+                      : undefined;
+
+                    return (
+                      <div className="flex items-start gap-2 px-3 py-2 bg-white dark:bg-zinc-800 rounded-lg shadow-xl ring-1 ring-black/5 dark:ring-white/10 max-w-[240px]">
+                        {/* Color checkbox */}
+                        <div
+                          className={cn(
+                            "flex-shrink-0 w-3.5 h-3.5 rounded-sm mt-0.5",
+                            colorValue ? "border-2" : "border border-zinc-400/40"
+                          )}
+                          style={colorValue ? { borderColor: colorValue } : undefined}
+                        />
+                        <span className="text-[13px] text-zinc-700 dark:text-zinc-200 line-clamp-2">
+                          {task.content}
+                        </span>
+                      </div>
+                    );
+                  })() : null}
+                </DragOverlay>,
+                document.body
+              )}
+            </DndContext>
+          </div>
         </>
       )}
 
