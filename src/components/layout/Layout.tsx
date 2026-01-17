@@ -20,6 +20,8 @@ interface LayoutProps {
   /** Left panel content */
   leftPanel?: ReactNode;
   showLeftPanel?: boolean;
+  /** Whether left panel is resizable. Defaults to true. */
+  leftPanelResizable?: boolean;
   /** Right panel content */
   rightPanel?: ReactNode;
   showRightPanel?: boolean;
@@ -36,7 +38,17 @@ function loadPanelWidth(key: string, defaultValue: number): number {
   return defaultValue;
 }
 
-export function Layout({ children, onOpenSettings, toolbar, content, leftPanel, showLeftPanel = false, rightPanel, showRightPanel = false }: LayoutProps) {
+export function Layout({
+  children,
+  onOpenSettings,
+  toolbar,
+  content,
+  leftPanel,
+  showLeftPanel = false,
+  leftPanelResizable = true,
+  rightPanel,
+  showRightPanel = false
+}: LayoutProps) {
   const [rightPanelWidth, setRightPanelWidth] = useState(() =>
     loadPanelWidth(PANEL_CONFIG.right.storageKey, PANEL_CONFIG.right.default)
   );
@@ -58,12 +70,13 @@ export function Layout({ children, onOpenSettings, toolbar, content, leftPanel, 
   }, [rightPanelWidth]);
 
   const handleLeftDragStart = useCallback((e: React.MouseEvent) => {
+    if (!leftPanelResizable) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingLeft(true);
     dragStartX.current = e.clientX;
     dragStartWidth.current = leftPanelWidth;
-  }, [leftPanelWidth]);
+  }, [leftPanelWidth, leftPanelResizable]);
 
   useEffect(() => {
     if (!isDraggingRight && !isDraggingLeft) return;
@@ -105,6 +118,30 @@ export function Layout({ children, onOpenSettings, toolbar, content, leftPanel, 
     };
   }, [isDraggingRight, isDraggingLeft, rightPanelWidth, leftPanelWidth, showLeftPanel, showRightPanel]);
 
+  // Golden Ratio Squared (1 - 0.618)^2 ≈ 0.145898...
+  // This gives a harmonious sidebar width (~14.6% of screen)
+  const [goldenRatioWidth, setGoldenRatioWidth] = useState(240);
+
+  useEffect(() => {
+    if (leftPanelResizable) return;
+
+    const calculateWidth = () => {
+      const width = window.innerWidth;
+      const idealWidth = width * 0.1459; // Golden Ratio Squared
+      // Clamp between reasonable limits for a sidebar
+      return Math.max(220, Math.min(280, idealWidth));
+    };
+
+    setGoldenRatioWidth(calculateWidth());
+
+    const handleResize = () => {
+      setGoldenRatioWidth(calculateWidth());
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [leftPanelResizable]);
+
   if (leftPanel !== undefined || rightPanel !== undefined) {
     return (
       <div className={cn(
@@ -114,20 +151,21 @@ export function Layout({ children, onOpenSettings, toolbar, content, leftPanel, 
         {showLeftPanel && leftPanel && (
           <>
             <aside
-              className="flex-shrink-0 flex flex-col bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl overflow-auto"
-              style={{ width: leftPanelWidth }}
+              className="flex-shrink-0 flex flex-col bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl overflow-auto border-r border-zinc-200 dark:border-zinc-800 transition-[width] duration-300 ease-out"
+              style={{ width: leftPanelResizable ? leftPanelWidth : goldenRatioWidth }}
             >
               {leftPanel}
             </aside>
-            <div
-              onMouseDown={handleLeftDragStart}
-              className={cn(
-                "w-[5px] flex-shrink-0 cursor-col-resize transition-colors",
-                "bg-zinc-200/50 dark:bg-zinc-800/50",
-                "hover:bg-zinc-300 dark:hover:bg-zinc-700",
-                isDraggingLeft && "bg-zinc-400 dark:bg-zinc-600"
-              )}
-            />
+            {leftPanelResizable && (
+              <div
+                onMouseDown={handleLeftDragStart}
+                className={cn(
+                  "w-[5px] flex-shrink-0 cursor-col-resize transition-colors -ml-[1px]",
+                  "hover:bg-zinc-300 dark:hover:bg-zinc-700",
+                  isDraggingLeft && "bg-zinc-400 dark:bg-zinc-600"
+                )}
+              />
+            )}
           </>
         )}
 

@@ -158,6 +158,7 @@ function AppContent() {
           content={<CalendarHeaderControl />}
           leftPanel={<CalendarSidebar />}
           showLeftPanel={showSidebar}
+          leftPanelResizable={false}
           rightPanel={<CalendarTaskPanel />}
           showRightPanel={showContextPanel}
         >
