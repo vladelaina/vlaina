@@ -1,7 +1,7 @@
 // Store Types - Unified type definitions
 
-import type { 
-  UnifiedTask, 
+import type {
+  UnifiedTask,
   UnifiedGroup,
   UnifiedProgress,
   UnifiedArchiveSection,
@@ -14,11 +14,11 @@ import type { TimeView } from '@/lib/date';
 
 import type { TaskStatus } from './uiSlice';
 
-import type { CalendarDisplayItem, CalendarEvent } from '@/lib/calendar';
+import type { NekoEvent, NekoCalendar } from '@/lib/ics/types';
 
 // Core types re-export
-export type { 
-  UnifiedTask, 
+export type {
+  UnifiedTask,
   UnifiedGroup,
   UnifiedProgress,
   UnifiedArchiveSection,
@@ -29,7 +29,7 @@ export type { ItemColor };
 export type { TimeView };
 export type { TaskStatus };
 
-export type { CalendarDisplayItem, CalendarEvent };
+export type { NekoEvent, NekoEvent as CalendarEvent, NekoCalendar };
 
 // Derived type aliases (for backward compatibility)
 export type StoreTask = UnifiedTask;

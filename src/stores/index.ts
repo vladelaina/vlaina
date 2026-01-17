@@ -12,13 +12,14 @@ export { useProgressStore } from './useProgressStore';
 export { useToastStore } from './useToastStore';
 
 // Types
-export type { 
+export type {
   UnifiedTask,
-  Group, 
-  StoreTask, 
+  Group,
+  StoreTask,
   Task,
+  NekoEvent,
+  NekoCalendar,
   CalendarEvent,
-  CalendarDisplayItem,
   ItemColor,
   TimeView,
   TaskStatus,

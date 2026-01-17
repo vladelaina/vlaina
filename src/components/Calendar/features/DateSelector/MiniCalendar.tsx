@@ -1,101 +1,151 @@
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
+import { ChevronUp, ChevronDown, Undo2 } from 'lucide-react';
+import { useCalendarStore } from '@/stores/useCalendarStore';
+import { useUIStore } from '@/stores/uiSlice';
 import { useState } from 'react';
-import { 
-  format, 
-  addMonths, 
-  subMonths, 
-  startOfMonth, 
-  endOfMonth, 
-  startOfWeek, 
-  endOfWeek, 
-  eachDayOfInterval, 
-  isSameMonth, 
-  isSameDay, 
-  isToday 
-} from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ALL_COLORS, COLOR_HEX, RAINBOW_GRADIENT } from '@/lib/colors';
 
-interface MiniCalendarProps {
-  selectedDate: Date;
-  onSelect: (date: Date) => void;
-}
-
-export function MiniCalendar({ selectedDate, onSelect }: MiniCalendarProps) {
-  const [currentMonth, setCurrentMonth] = useState(startOfMonth(selectedDate));
-
-  const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
-  const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+export function MiniCalendar() {
+  const { selectedDate, setSelectedDate } = useCalendarStore();
+  const [currentMonth, setCurrentMonth] = useState(selectedDate);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
-  const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  // Start from Sunday
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
-  const calendarDays = eachDayOfInterval({
-    start: startDate,
-    end: endDate,
-  });
+  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-  const weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+  const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const jumpToToday = () => {
+    const today = new Date();
+    setCurrentMonth(today);
+    setSelectedDate(today);
+  };
+
+  const isCurrentMonthDisplayed = isSameMonth(currentMonth, new Date());
+
+  const handleDayClick = (day: Date) => {
+    setSelectedDate(day);
+    if (!isSameMonth(day, currentMonth)) {
+      setCurrentMonth(day);
+    }
+  };
 
   return (
-    <div className="p-1">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 px-1">
-        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          {format(currentMonth, 'MMMM yyyy')}
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={prevMonth}
-            className="p-1 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <button
-            onClick={nextMonth}
-            className="p-1 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
-          >
-            <ChevronRight className="size-4" />
-          </button>
+    <div className="flex flex-col gap-4 font-sans">
+      {/* Calendar Widget */}
+      <div className="select-none">
+        {/* Month/Year and Navigation */}
+        <div className="flex items-center justify-between mb-3 pl-1">
+          <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-300">
+            {format(currentMonth, 'MMMM yyyy')}
+          </span>
+          <div className="flex items-center gap-1">
+            {!isCurrentMonthDisplayed && (
+              <button
+                onClick={jumpToToday}
+                className="p-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors mr-1"
+                title="Return to Today"
+              >
+                <Undo2 className="size-3.5" strokeWidth={2} />
+              </button>
+            )}
+            <button
+              onClick={prevMonth}
+              className="p-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+            >
+              <ChevronUp className="size-4" strokeWidth={2} />
+            </button>
+            <button
+              onClick={nextMonth}
+              className="p-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+            >
+              <ChevronDown className="size-4" strokeWidth={2} />
+            </button>
+          </div>
+        </div>
+
+        {/* Days Header - Weekday names */}
+        <div className="grid grid-cols-7 text-center mb-1">
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+            <div key={i} className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500">
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Days Grid */}
+        <div className="grid grid-cols-7 gap-y-1">
+          {days.map((day) => {
+            const isToday = isSameDay(day, new Date());
+            const isSelected = isSameDay(day, selectedDate);
+            const isCurrentMonth = isSameMonth(day, currentMonth);
+
+            return (
+              <div
+                key={day.toString()}
+                onClick={() => handleDayClick(day)}
+                className={`
+                  h-7 flex items-center justify-center text-xs cursor-pointer relative rounded-md transition-colors
+                  ${!isCurrentMonth ? 'text-zinc-300 dark:text-zinc-700' : 'text-zinc-700 dark:text-zinc-300'}
+                  ${isSelected && !isToday ? 'bg-zinc-100 dark:bg-zinc-800 font-semibold' : ''}
+                  ${!isSelected && !isToday && isCurrentMonth ? 'hover:bg-zinc-100 dark:hover:bg-zinc-800' : ''}
+                `}
+              >
+                {isToday ? (
+                  <div className="w-6 h-6 bg-red-500 rounded flex items-center justify-center shadow-sm">
+                    <span className="text-white font-semibold text-[10px]">{format(day, 'd')}</span>
+                  </div>
+                ) : (
+                  <span>{format(day, 'd')}</span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Week days */}
-      <div className="grid grid-cols-7 mb-2">
-        {weekDays.map((day, i) => (
-          <div key={i} className="text-center text-[10px] font-medium text-zinc-400 dark:text-zinc-500">
-            {day}
-          </div>
+      {/* Color Filter */}
+      <ColorFilter />
+    </div>
+  );
+}
+
+function ColorFilter() {
+  const { selectedColors, toggleColor, toggleAllColors } = useUIStore();
+
+  return (
+    <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
+      <div className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 mb-2 uppercase tracking-wide">Filters</div>
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Color options - in new order */}
+        {ALL_COLORS.map(color => (
+          <button
+            key={color}
+            onClick={() => toggleColor(color)}
+            className={`w-3.5 h-3.5 rounded-full border transition-all hover:scale-110 ${selectedColors.includes(color)
+              ? 'ring-1 ring-zinc-400 dark:ring-zinc-500 ring-offset-1 dark:ring-offset-zinc-900 border-transparent shadow-sm'
+              : 'border-transparent opacity-70 hover:opacity-100'
+              }`}
+            style={{
+              backgroundColor: color === 'default' ? '#a1a1aa' : COLOR_HEX[color] // distinct grey for default
+            }}
+            title={color}
+          />
         ))}
-      </div>
-
-      {/* Days grid */}
-      <div className="grid grid-cols-7 gap-y-1">
-        {calendarDays.map((day) => {
-          const isSelected = isSameDay(day, selectedDate);
-          const isCurrentMonth = isSameMonth(day, monthStart);
-          const isCurrentDay = isToday(day);
-
-          return (
-            <button
-              key={day.toString()}
-              onClick={() => onSelect(day)}
-              className={cn(
-                "h-8 w-8 mx-auto flex items-center justify-center rounded-md text-sm transition-all relative",
-                !isCurrentMonth && "text-zinc-300 dark:text-zinc-700",
-                isCurrentMonth && !isSelected && "text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800",
-                isSelected && "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium shadow-sm",
-                isCurrentDay && !isSelected && "font-bold text-red-500 dark:text-red-400"
-              )}
-            >
-              {format(day, 'd')}
-              {isCurrentDay && !isSelected && (
-                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-red-500 dark:bg-red-400" />
-              )}
-            </button>
-          );
-        })}
+        {/* Select all button */}
+        <button
+          onClick={() => toggleAllColors()}
+          className={`w-4 h-4 rounded-full transition-all hover:scale-110 relative overflow-hidden ml-auto ${selectedColors.length === ALL_COLORS.length
+            ? 'ring-1 ring-zinc-400 dark:ring-zinc-500 ring-offset-1 dark:ring-offset-zinc-900 shadow-sm'
+            : 'opacity-70 hover:opacity-100'
+            }`}
+          style={{ background: RAINBOW_GRADIENT }}
+          title="Toggle All"
+        />
       </div>
     </div>
   );
