@@ -1,8 +1,6 @@
 import React, { ReactNode, memo, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
-  ChevronsRight,
-  Menu,
   FileText,
   X,
   Plus,
@@ -13,7 +11,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { useNotesStore } from '@/stores/useNotesStore';
 
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
-import { cn, NOTES_COLORS, iconButtonStyles } from '@/lib/utils';
+import { cn, NOTES_COLORS } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -187,6 +185,7 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
 
 
 import { SidebarUserHeader } from './SidebarUserHeader';
+import { SidebarExpandButton } from './SidebarExpandButton';
 
 interface TitleBarProps {
   onOpenSettings?: () => void;
@@ -318,26 +317,10 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
 
           {/* When sidebar is collapsed, show expand button */}
           {sidebarCollapsed && (
-            <div className="flex items-center z-20">
-              <button
-                onClick={toggleNotes}
-                className={cn(
-                  "flex items-center justify-center w-9 h-full",
-                  iconButtonStyles,
-                  "group"
-                )}
-              >
-                {/* When peeking: show ChevronsRight (>>), otherwise: Menu with hover effect */}
-                {notesSidebarPeeking ? (
-                  <ChevronsRight className="w-4 h-4" />
-                ) : (
-                  <>
-                    <Menu className="w-4 h-4 group-hover:hidden" />
-                    <ChevronsRight className="w-4 h-4 hidden group-hover:block" />
-                  </>
-                )}
-              </button>
-            </div>
+            <SidebarExpandButton
+              onClick={toggleNotes}
+              isPeeking={notesSidebarPeeking}
+            />
           )}
 
           {/* Resize handle spacer - only when sidebar is expanded */}
@@ -447,20 +430,7 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
 
             {/* Collapsed state - Show Expand Button */}
             {!showSidebar && (
-              <div className="flex items-center z-20">
-                <button
-                  onClick={toggleSidebar}
-                  className={cn(
-                    "flex items-center justify-center w-9 h-full",
-                    iconButtonStyles,
-                    "group"
-                  )}
-                  title="Expand Sidebar"
-                >
-                  <Menu className="size-4 group-hover:hidden" />
-                  <ChevronsRight className="size-4 hidden group-hover:block" />
-                </button>
-              </div>
+              <SidebarExpandButton onClick={toggleSidebar} />
             )}
 
             {/* Resize handle spacer/divider logic for Calendar if needed, or simple spacer */}

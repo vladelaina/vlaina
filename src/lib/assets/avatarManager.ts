@@ -1,5 +1,5 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { loadImageAsBlob, revokeImageBlob, invalidateImageCache } from './imageLoader';
+import { loadImageAsBlob, invalidateImageCache } from './imageLoader';
 
 const SYSTEM_DIR_NAME = '.nekotick';
 const SYSTEM_SUBDIR = 'system';
