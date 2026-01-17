@@ -3,7 +3,7 @@ import { DndContext, useSensor, useSensors, PointerSensor, DragEndEvent, DragSta
 import { windowCommands } from '@/lib/tauri/invoke';
 import { isTauri } from '@/lib/storage/adapter';
 import { SettingsModal } from '@/components/Settings';
-import { CalendarPage, CalendarToolbar, CalendarTaskPanel } from '@/components/Calendar';
+import { CalendarPage, CalendarToolbar, CalendarTaskPanel, CalendarSidebar } from '@/components/Calendar';
 import { CalendarHeaderControl } from '@/components/Calendar/features/Grid/CalendarHeaderControl';
 import { NotesPage } from '@/components/Notes/NotesPage';
 import { Layout } from '@/components/layout';
@@ -23,7 +23,7 @@ const { GUTTER_WIDTH } = CALENDAR_CONSTANTS;
 function AppContent() {
   const { loadData, updateTaskTime, updateTaskEstimation } = useGroupStore();
   const { showContextPanel, selectedDate, hourHeight, viewMode, dayCount } = useCalendarStore();
-  const { appViewMode } = useUIStore();
+  const { appViewMode, showSidebar } = useUIStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const toggleSettings = useCallback(() => setSettingsOpen(prev => !prev), []);
@@ -156,6 +156,8 @@ function AppContent() {
           onOpenSettings={() => setSettingsOpen(true)}
           toolbar={<CalendarToolbar />}
           content={<CalendarHeaderControl />}
+          leftPanel={<CalendarSidebar />}
+          showLeftPanel={showSidebar}
           rightPanel={<CalendarTaskPanel />}
           showRightPanel={showContextPanel}
         >

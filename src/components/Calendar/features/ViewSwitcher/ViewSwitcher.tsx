@@ -4,6 +4,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, Check, Search, PanelLeft } from
 import { useCalendarStore, type TimeView } from '@/stores/useCalendarStore';
 import { addDays, addMonths } from 'date-fns';
 import { SyncButton } from '@/components/common';
+import { useUIStore } from '@/stores/uiSlice';
 
 // View mode labels
 const VIEW_MODE_LABELS: Record<TimeView, string> = {
@@ -26,17 +27,18 @@ const VIEW_MODE_ORDER: TimeView[] = ['day', 'week', 'month'];
 const DAY_COUNT_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9];
 
 export function ViewSwitcher() {
-  const { 
-    viewMode, setViewMode, selectedDate, setSelectedDate, dayCount, setDayCount, 
+  const {
+    viewMode, setViewMode, selectedDate, setSelectedDate, dayCount, setDayCount,
     showContextPanel, toggleContextPanel
   } = useCalendarStore();
-  
+  const { showSidebar, toggleSidebar } = useUIStore();
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const [showDayCountSubmenu, setShowDayCountSubmenu] = useState(false);
   const [showCustomDayModal, setShowCustomDayModal] = useState(false);
   const [customDayInput, setCustomDayInput] = useState('');
-  
+
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const submenuRef = useRef<HTMLDivElement>(null);
@@ -47,12 +49,12 @@ export function ViewSwitcher() {
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
-      
+
       // Check if click is inside any of our elements
       const isInsideDropdown = dropdownRef.current?.contains(target);
       const isInsideSubmenu = submenuRef.current?.contains(target);
       const isInsideButton = buttonRef.current?.contains(target);
-      
+
       if (!isInsideDropdown && !isInsideSubmenu && !isInsideButton) {
         setIsDropdownOpen(false);
         setShowDayCountSubmenu(false);
@@ -94,7 +96,7 @@ export function ViewSwitcher() {
 
       const key = e.key.toUpperCase();
       const numKey = parseInt(e.key);
-      
+
       if (key === '1' || key === 'D') {
         e.preventDefault();
         setDayCount(1); // Reset to single day
@@ -152,7 +154,7 @@ export function ViewSwitcher() {
   // Navigate prev/next based on view mode
   const handleNavigate = (direction: 'prev' | 'next') => {
     const multiplier = direction === 'prev' ? -1 : 1;
-    
+
     let newDate: Date;
     switch (viewMode) {
       case 'day':
@@ -165,7 +167,7 @@ export function ViewSwitcher() {
         newDate = addMonths(selectedDate, multiplier * 1);
         break;
     }
-    
+
     setSelectedDate(newDate);
   };
 
@@ -189,6 +191,18 @@ export function ViewSwitcher() {
 
   return (
     <div className="flex items-center gap-1">
+      {/* Left Sidebar Toggle */}
+      <button
+        onClick={toggleSidebar}
+        className={`p-1.5 rounded-md transition-colors ${showSidebar
+            ? 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+            : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+          }`}
+        title={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
+      >
+        <PanelLeft className="size-5" />
+      </button>
+
       {/* Sync Button (for free users) */}
       <SyncButton />
 
@@ -208,17 +222,17 @@ export function ViewSwitcher() {
           className="flex items-center gap-1 px-2 py-1 text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors"
         >
           <span>{getDisplayLabel()}</span>
-          <ChevronDown 
-            className={`size-3 text-zinc-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} 
+          <ChevronDown
+            className={`size-3 text-zinc-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
           />
         </button>
 
         {/* Dropdown Menu - Rendered via Portal */}
         {isDropdownOpen && createPortal(
-          <div 
+          <div
             ref={dropdownRef}
             className="fixed w-52 bg-zinc-900 rounded-xl shadow-2xl py-2 overflow-hidden"
-            style={{ 
+            style={{
               zIndex: 99999,
               top: dropdownPosition.top,
               left: dropdownPosition.left,
@@ -242,12 +256,12 @@ export function ViewSwitcher() {
                 <span className="text-zinc-500 text-sm">{VIEW_MODE_SHORTCUTS[mode]}</span>
               </button>
             ))}
-            
+
             {/* Divider */}
             <div className="h-px bg-zinc-700 my-2" />
-            
+
             {/* Day Count Option with Submenu */}
-            <button 
+            <button
               ref={dayCountItemRef}
               onMouseEnter={() => setShowDayCountSubmenu(true)}
               className={`w-full px-4 py-2.5 flex items-center justify-between text-sm text-zinc-100 transition-colors ${showDayCountSubmenu ? 'bg-zinc-800' : 'hover:bg-zinc-800'}`}
@@ -262,10 +276,10 @@ export function ViewSwitcher() {
               </span>
               <ChevronRight className="size-4 text-zinc-500" />
             </button>
-            
+
             {/* Divider */}
             <div className="h-px bg-zinc-700 my-2" />
-            
+
             <button className="w-full px-4 py-2.5 flex items-center justify-between text-sm text-zinc-100 hover:bg-zinc-800 transition-colors">
               <span className="flex items-center gap-3">
                 <span className="w-4" />
@@ -279,10 +293,10 @@ export function ViewSwitcher() {
 
         {/* Day Count Submenu */}
         {isDropdownOpen && showDayCountSubmenu && createPortal(
-          <div 
+          <div
             ref={submenuRef}
             className="fixed w-40 bg-zinc-900 rounded-xl shadow-2xl py-2 overflow-hidden"
-            style={{ 
+            style={{
               zIndex: 100000,
               ...getSubmenuPosition(),
             }}
@@ -298,10 +312,10 @@ export function ViewSwitcher() {
                 <span className="text-zinc-500">{count}</span>
               </button>
             ))}
-            
+
             {/* Divider */}
             <div className="h-px bg-zinc-700 my-2" />
-            
+
             {/* Custom Option */}
             <button
               onClick={() => {
@@ -322,14 +336,14 @@ export function ViewSwitcher() {
       {showCustomDayModal && createPortal(
         <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 100001 }}>
           {/* Backdrop */}
-          <div 
+          <div
             className="absolute inset-0 bg-black/20"
             onClick={() => {
               setShowCustomDayModal(false);
               setCustomDayInput('');
             }}
           />
-          
+
           {/* Modal */}
           <div className="relative bg-white dark:bg-zinc-100 rounded-xl shadow-2xl w-80 overflow-hidden">
             {/* Search Input */}
@@ -352,7 +366,7 @@ export function ViewSwitcher() {
                 className="flex-1 bg-transparent text-sm text-zinc-900 placeholder-zinc-400 outline-none"
               />
             </div>
-            
+
             {/* Options List */}
             <div className="max-h-80 overflow-y-auto">
               {Array.from({ length: 11 }, (_, i) => i + 1).map((count) => (
@@ -370,7 +384,7 @@ export function ViewSwitcher() {
                 </button>
               ))}
             </div>
-            
+
             {/* Footer */}
             <div className="px-4 py-2 border-t border-zinc-200 flex items-center gap-4 text-xs text-zinc-400">
               <span>↑↓ Navigate</span>
@@ -401,11 +415,10 @@ export function ViewSwitcher() {
       {/* Context Panel Toggle */}
       <button
         onClick={toggleContextPanel}
-        className={`p-1.5 rounded-md transition-colors ${
-          showContextPanel 
-            ? 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800' 
+        className={`p-1.5 rounded-md transition-colors ${showContextPanel
+            ? 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
             : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-        }`}
+          }`}
         title={showContextPanel ? 'Hide sidebar' : 'Show sidebar'}
       >
         <PanelLeft className={`size-5 ${showContextPanel ? '' : 'opacity-50'}`} style={{ transform: 'scaleX(-1)' }} />
