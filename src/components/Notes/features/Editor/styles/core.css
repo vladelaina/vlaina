@@ -38,7 +38,7 @@
 }
 
 .milkdown .ProseMirror {
-  caret-color: #2C2C2B;
+  caret-color: var(--neko-text-primary, #2C2C2B);
   line-height: calc(1em + 8px);
 }
 

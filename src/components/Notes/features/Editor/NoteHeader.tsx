@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { HeartPulse } from 'lucide-react';
-import { cn, iconButtonStyles } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
@@ -221,7 +221,7 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
                     <div className="h-14 flex items-center">
                         <button
                             ref={iconButtonRef}
-                            className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm", iconButtonStyles)}
+                            className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)] transition-colors")}
                         >
                             <HeartPulse className="size-4" />
                             <span>Add icon</span>
@@ -244,7 +244,7 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
                                 }
                                 setShowIconPicker(true);
                             }}
-                            className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm", iconButtonStyles)}
+                            className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)] transition-colors")}
                         >
                             <HeartPulse className="size-4" />
                             <span>Add icon</span>

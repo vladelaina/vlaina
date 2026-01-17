@@ -12,48 +12,48 @@ export const themeClasses = {
 
     // Typography - Using Golden Spacing (26px) for Vertical Rhythm
     heading: {
-        h1: 'scroll-m-20 text-[42px] leading-[1.2] font-extrabold tracking-tight mb-[26px] mt-[42px] first:mt-0 text-[#121212] dark:text-[#eeeeee]',
-        h2: 'scroll-m-20 pb-2 text-[33px] leading-[1.3] font-semibold tracking-tight transition-colors first:mt-0 mb-[26px] mt-[33px] text-[#121212] dark:text-[#eeeeee]',
-        h3: 'scroll-m-20 text-[26px] leading-[1.4] font-semibold tracking-tight mb-[16px] mt-[26px] text-[#121212] dark:text-[#eeeeee]',
-        h4: 'scroll-m-20 text-[20px] leading-[1.4] font-semibold tracking-tight mb-[10px] mt-[20px] text-[#121212] dark:text-[#eeeeee]',
-        h5: 'scroll-m-20 text-[16px] leading-[1.5] font-semibold tracking-tight mb-[10px] mt-[16px] text-[#121212] dark:text-[#eeeeee]',
-        h6: 'scroll-m-20 text-[13px] leading-[1.5] font-semibold tracking-tight mb-[10px] mt-[16px] text-[#121212] dark:text-[#eeeeee]',
+        h1: 'scroll-m-20 text-[42px] leading-[1.2] font-extrabold tracking-tight mb-[26px] mt-[42px] first:mt-0 text-[var(--neko-text-primary)]',
+        h2: 'scroll-m-20 pb-2 text-[33px] leading-[1.3] font-semibold tracking-tight transition-colors first:mt-0 mb-[26px] mt-[33px] text-[var(--neko-text-primary)]',
+        h3: 'scroll-m-20 text-[26px] leading-[1.4] font-semibold tracking-tight mb-[16px] mt-[26px] text-[var(--neko-text-primary)]',
+        h4: 'scroll-m-20 text-[20px] leading-[1.4] font-semibold tracking-tight mb-[10px] mt-[20px] text-[var(--neko-text-primary)]',
+        h5: 'scroll-m-20 text-[16px] leading-[1.5] font-semibold tracking-tight mb-[10px] mt-[16px] text-[var(--neko-text-primary)]',
+        h6: 'scroll-m-20 text-[13px] leading-[1.5] font-semibold tracking-tight mb-[10px] mt-[16px] text-[var(--neko-text-primary)]',
     },
 
-    paragraph: 'leading-[26px] [&:not(:first-child)]:mt-[26px] text-[#121212] dark:text-[#eeeeee] text-[16px]',
+    paragraph: 'leading-[26px] [&:not(:first-child)]:mt-[26px] text-[var(--neko-text-primary)] text-[16px]',
 
     // Text Formatting
-    strong: 'font-semibold text-[#121212] dark:text-[#eeeeee]',
+    strong: 'font-semibold text-[var(--neko-text-primary)]',
     em: 'italic',
-    code: 'relative rounded bg-[#f7f9fb] dark:bg-[#2c2c2c] px-[5px] py-[2.5px] font-mono text-[13px] font-medium text-[#121212] dark:text-[#eeeeee] border border-[#e3e2e4] dark:border-[#333333]', // 5px ~ 16/3.14
+    code: 'relative rounded bg-[var(--neko-bg-tertiary)] px-[5px] py-[2.5px] font-mono text-[13px] font-medium text-[var(--neko-text-primary)] border border-[var(--neko-border)]', // 5px ~ 16/3.14
     link: 'font-medium text-[#1e96eb] underline underline-offset-4 cursor-pointer hover:text-[#0c7fd9] transition-colors',
 
     // Block Elements
-    blockquote: 'mt-[26px] border-l-[4px] border-[#e0e0e0] dark:border-[#333333] pl-[26px] italic text-[#757575] dark:text-[#a0a0a0]', // 4px = 16/4
+    blockquote: 'mt-[26px] border-l-[4px] border-[#e0e0e0] dark:border-[#333333] pl-[26px] italic text-[var(--neko-text-secondary)]', // 4px = 16/4
 
     lists: {
-        ul: 'my-[26px] ml-[26px] list-disc [&>li]:mt-2 marker:text-[#8e8e8e]',
-        ol: 'my-[26px] ml-[26px] list-decimal [&>li]:mt-2 marker:text-[#8e8e8e]',
+        ul: 'my-[26px] ml-[26px] list-disc [&>li]:mt-2 marker:text-[var(--neko-text-secondary)]',
+        ol: 'my-[26px] ml-[26px] list-decimal [&>li]:mt-2 marker:text-[var(--neko-text-secondary)]',
         li: 'pl-2',
         task: 'my-[26px] ml-0 list-none [&>li]:mt-2',
     },
 
     // Images & Media
-    image: 'rounded-md border border-[#e3e2e4] dark:border-[#333333] bg-[#f4f5f7] dark:bg-[#2c2c2c]',
+    image: 'rounded-md border border-[var(--neko-border)] bg-[var(--neko-bg-tertiary)]',
 
     // Table
     table: 'w-full caption-bottom text-sm my-[26px] overflow-y-auto',
-    thead: '[&_tr]:border-b border-[#e3e2e4] dark:border-[#333333]',
+    thead: '[&_tr]:border-b border-[var(--neko-border)]',
     tbody: '[&_tr:last-child]:border-0',
-    tr: 'border-b border-[#e3e2e4] dark:border-[#333333] transition-colors hover:bg-[#f4f5f7]/50 dark:hover:bg-[#2c2c2c]/50 data-[state=selected]:bg-[#f4f5f7] dark:data-[state=selected]:bg-[#2c2c2c]',
-    th: 'h-[42px] px-4 text-left align-middle font-medium text-[#8e8e8e] dark:text-[#a0a0a0] bg-[#f4f5f7] dark:bg-[#2c2c2c]', // Matches H1/Grid
+    tr: 'border-b border-[var(--neko-border)] transition-colors hover:bg-[var(--neko-bg-hover)] data-[state=selected]:bg-[var(--neko-bg-tertiary)]',
+    th: 'h-[42px] px-4 text-left align-middle font-medium text-[var(--neko-text-secondary)] bg-[var(--neko-bg-tertiary)]', // Matches H1/Grid
     td: 'p-4 align-middle [&:has([role=checkbox])]:pr-0',
 
     // Code Block
-    fence: 'relative rounded-lg bg-[#f7f9fb] dark:bg-[#161616] border border-[#e3e2e4] dark:border-[#333333] my-[26px] font-mono text-[13px]',
+    fence: 'relative rounded-lg bg-[var(--neko-bg-secondary)] border border-[var(--neko-border)] my-[26px] font-mono text-[13px]',
 
     // Divider
-    hr: 'my-[42px] border-[#e3e2e4] dark:border-[#333333]', // Golden Section Break
+    hr: 'my-[42px] border-[var(--neko-border)]', // Golden Section Break
 };
 
 import { headingSchema, paragraphSchema, strongSchema, emphasisSchema, inlineCodeSchema, linkSchema, blockquoteSchema, hrSchema, imageSchema } from '@milkdown/kit/preset/commonmark';

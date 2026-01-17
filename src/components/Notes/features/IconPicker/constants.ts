@@ -21,11 +21,9 @@ export const ICON_SIZE = 32;
 export const SCROLLBAR_CLASSNAME = `
   [&::-webkit-scrollbar]:w-1.5
   [&::-webkit-scrollbar-track]:bg-transparent
-  [&::-webkit-scrollbar-thumb]:bg-zinc-200
+  [&::-webkit-scrollbar-thumb]:bg-[var(--neko-border)]
   [&::-webkit-scrollbar-thumb]:rounded-full
-  [&::-webkit-scrollbar-thumb]:hover:bg-zinc-300
-  dark:[&::-webkit-scrollbar-thumb]:bg-zinc-700
-  dark:[&::-webkit-scrollbar-thumb]:hover:bg-zinc-600
+  [&::-webkit-scrollbar-thumb]:hover:bg-[var(--neko-text-tertiary)]
 `;
 
 export const SKIN_TONES = [

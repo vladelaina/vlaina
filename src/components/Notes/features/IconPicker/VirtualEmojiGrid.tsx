@@ -4,10 +4,10 @@
 
 import { useRef, useEffect, useMemo, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { 
-  EMOJI_PER_ROW, 
-  EMOJI_SIZE, 
-  ROW_GAP, 
+import {
+  EMOJI_PER_ROW,
+  EMOJI_SIZE,
+  ROW_GAP,
   EMOJI_MAP,
   SCROLLBAR_CLASSNAME,
   type EmojiItem,
@@ -25,7 +25,7 @@ const EmojiRow = memo(
           <button
             key={i}
             data-emoji={emoji}
-            className="w-full aspect-square flex items-center justify-center rounded-md text-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            className="w-full aspect-square flex items-center justify-center rounded-md text-xl hover:bg-[var(--neko-bg-hover)]"
           >
             {emoji}
           </button>
@@ -61,13 +61,13 @@ export function VirtualEmojiGrid({
   categoryName,
 }: VirtualEmojiGridProps) {
   const parentRef = useRef<HTMLDivElement>(null);
-  
+
   // Use ref to store callbacks
   const onPreviewRef = useRef(onPreview);
   const onSelectRef = useRef(onSelect);
   onPreviewRef.current = onPreview;
   onSelectRef.current = onSelect;
-  
+
   const emojisWithSkin = useMemo(() => {
     return emojis.map(emoji => {
       if (skinTone === 0 || !emoji.skins || emoji.skins.length <= skinTone) {
@@ -90,19 +90,19 @@ export function VirtualEmojiGrid({
 
   const rows = useMemo(() => {
     const result: { type: 'title' | 'emojis'; content: string | string[] }[] = [];
-    
+
     if (recentWithSkin.length > 0) {
       result.push({ type: 'title', content: 'Recent' });
       for (let i = 0; i < recentWithSkin.length; i += EMOJI_PER_ROW) {
         result.push({ type: 'emojis', content: recentWithSkin.slice(i, i + EMOJI_PER_ROW) });
       }
     }
-    
+
     result.push({ type: 'title', content: categoryName });
     for (let i = 0; i < emojisWithSkin.length; i += EMOJI_PER_ROW) {
       result.push({ type: 'emojis', content: emojisWithSkin.slice(i, i + EMOJI_PER_ROW) });
     }
-    
+
     return result;
   }, [emojisWithSkin, recentWithSkin, categoryName]);
 
@@ -199,7 +199,7 @@ export function VirtualEmojiGrid({
               }}
             >
               {row.type === 'title' ? (
-                <div className="px-2 pt-2 pb-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
+                <div className="px-2 pt-2 pb-1 text-xs text-[var(--neko-text-tertiary)] font-medium">
                   {row.content as string}
                 </div>
               ) : (
@@ -308,7 +308,7 @@ export function VirtualSearchResults({
   if (results.length === 0) {
     return (
       <div className="h-[280px] flex items-center justify-center">
-        <div className="text-zinc-400 dark:text-zinc-500 text-sm">No emoji found</div>
+        <div className="text-[var(--neko-text-tertiary)] text-sm">No emoji found</div>
       </div>
     );
   }
@@ -341,7 +341,7 @@ export function VirtualSearchResults({
               }}
             >
               {row.type === 'title' ? (
-                <div className="px-2 pt-2 pb-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
+                <div className="px-2 pt-2 pb-1 text-xs text-[var(--neko-text-tertiary)] font-medium">
                   {row.content as string}
                 </div>
               ) : (

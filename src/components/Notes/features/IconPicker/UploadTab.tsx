@@ -191,7 +191,7 @@ export function UploadTab({ onSelect, onPreview, onClose }: UploadTabProps) {
                         {/* High-Performance Slider (Hidden for GIFs) */}
                         {!isGif && (
                             <div className="flex items-center gap-4">
-                                <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400 w-10">Zoom</span>
+                                <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--neko-text-tertiary)] w-10">Zoom</span>
                                 <PremiumSlider
                                     min={1}
                                     max={3}
@@ -206,7 +206,7 @@ export function UploadTab({ onSelect, onPreview, onClose }: UploadTabProps) {
                             <button
                                 type="button"
                                 onClick={() => setImageSrc(null)}
-                                className="text-sm font-medium text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                                className="text-sm font-medium text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)] transition-colors"
                             >
                                 Back
                             </button>
@@ -255,16 +255,16 @@ export function UploadTab({ onSelect, onPreview, onClose }: UploadTabProps) {
                                 isDragActive ? "border-[#1e96eb] bg-[#1e96eb]/5 scale-[0.99]" : "border-zinc-200 dark:border-zinc-800"
                             )}
                         >
-                            <div className="p-1.5 bg-zinc-100 dark:bg-zinc-900 rounded-md transition-colors group-hover:bg-[#1e96eb]/10 group-hover:text-[#1e96eb] text-zinc-400">
+                            <div className="p-1.5 bg-[var(--neko-bg-tertiary)] rounded-md transition-colors group-hover:bg-[#1e96eb]/10 group-hover:text-[#1e96eb] text-[var(--neko-text-tertiary)]">
                                 <Upload className="size-3.5" />
                             </div>
 
                             <div className="flex flex-col items-start gap-0.5">
-                                <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300 group-hover:text-[#1e96eb] transition-colors leading-none mt-0.5">
+                                <span className="text-[11px] font-medium text-[var(--neko-text-primary)] group-hover:text-[#1e96eb] transition-colors leading-none mt-0.5">
                                     Upload from device
                                 </span>
-                                <span className="text-[9px] text-zinc-400 leading-none">
-                                    Supports <span className="font-medium text-zinc-500 dark:text-zinc-400">PNG</span>, <span className="font-medium text-[#1e96eb]">GIF</span> & <span className="font-medium text-[#1e96eb]">WebP</span>
+                                <span className="text-[9px] text-[var(--neko-text-tertiary)] leading-none">
+                                    Supports <span className="font-medium text-[var(--neko-text-secondary)]">PNG</span>, <span className="font-medium text-[#1e96eb]">GIF</span> & <span className="font-medium text-[#1e96eb]">WebP</span>
                                 </span>
                             </div>
                         </div>
