@@ -24,7 +24,7 @@ const IconRow = memo(
               key={keyPrefix + item.name}
               data-icon={item.name}
               data-color={color}
-              className="w-full aspect-square flex items-center justify-center rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              className="w-full aspect-square flex items-center justify-center rounded-md hover:bg-[var(--neko-bg-hover)]"
             >
               <IconComponent size={20} style={{ color }} />
             </button>
@@ -64,7 +64,7 @@ export function VirtualIconGrid({
   iconColor,
 }: VirtualIconGridProps) {
   const parentRef = useRef<HTMLDivElement>(null);
-  
+
   // Use ref to store callbacks to avoid re-renders from dependency changes
   const onPreviewRef = useRef(onPreview);
   const onSelectRef = useRef(onSelect);
@@ -89,19 +89,19 @@ export function VirtualIconGrid({
 
   const rows = useMemo(() => {
     const result: { type: 'title' | 'icons'; content: string | IconItem[]; isRecent?: boolean }[] = [];
-    
+
     if (recentIconItems.length > 0) {
       result.push({ type: 'title', content: 'Recent' });
       for (let i = 0; i < recentIconItems.length; i += ICON_PER_ROW) {
         result.push({ type: 'icons', content: recentIconItems.slice(i, i + ICON_PER_ROW), isRecent: true });
       }
     }
-    
+
     result.push({ type: 'title', content: categoryName });
     for (let i = 0; i < icons.length; i += ICON_PER_ROW) {
       result.push({ type: 'icons', content: icons.slice(i, i + ICON_PER_ROW) });
     }
-    
+
     return result;
   }, [icons, recentIconItems, categoryName]);
 
@@ -202,7 +202,7 @@ export function VirtualIconGrid({
               }}
             >
               {row.type === 'title' ? (
-                <div className="px-2 pt-2 pb-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
+                <div className="px-2 pt-2 pb-1 text-xs text-[var(--neko-text-tertiary)] font-medium">
                   {row.content as string}
                 </div>
               ) : (
@@ -232,7 +232,7 @@ export function VirtualIconSearchResults({
 }: VirtualIconSearchResultsProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const lastPreviewRef = useRef<string | null>(null);
-  
+
   // Use ref to store callbacks
   const onPreviewRef = useRef(onPreview);
   const onSelectRef = useRef(onSelect);
@@ -299,7 +299,7 @@ export function VirtualIconSearchResults({
 
   if (results.length === 0) {
     return (
-      <div className="h-[280px] flex items-center justify-center text-sm text-zinc-400 dark:text-zinc-500">
+      <div className="h-[280px] flex items-center justify-center text-sm text-[var(--neko-text-tertiary)]">
         No icons found
       </div>
     );

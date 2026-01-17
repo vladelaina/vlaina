@@ -220,7 +220,7 @@ export function IconPicker({
       )}
 
       {/* Block 2: The Main Content Window */}
-      <div className="flex flex-col bg-white dark:bg-zinc-900 rounded-xl border border-[var(--neko-border)] shadow-xl overflow-hidden">
+      <div className="flex flex-col bg-[var(--neko-bg-primary)] rounded-xl border border-[var(--neko-border)] shadow-xl overflow-hidden">
         <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-[var(--neko-border)] overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-4">
             <button

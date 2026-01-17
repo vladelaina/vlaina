@@ -136,9 +136,8 @@ export function PremiumSlider({
             >
                 <div
                     className={cn(
-                        'w-6 h-3 bg-white rounded-full shadow-md border border-zinc-200/50',
-                        'group-active:scale-[0.9] transition-transform duration-100',
-                        'dark:bg-zinc-100 dark:border-white/20'
+                        'w-6 h-3 bg-[var(--neko-bg-primary)] rounded-full shadow-md border border-[var(--neko-border)]',
+                        'group-active:scale-[0.9] transition-transform duration-100'
                     )}
                 />
             </div>

@@ -205,8 +205,8 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
         <div
           className={cn(
             "flex-1 flex items-center gap-2 pr-2 py-1.5 rounded-[6px] transition-all duration-200 ease-out mx-2",
-            "hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50",
-            isActive && "bg-zinc-200 dark:bg-zinc-800",
+            "hover:bg-[var(--neko-bg-hover)]",
+            isActive && "bg-[var(--neko-bg-active)]",
             isDragOver && "bg-[var(--neko-accent-light)] ring-1 ring-[var(--neko-accent)]"
           )}
           style={isActive ? { backgroundColor: NOTES_COLORS.activeItem } : undefined}
@@ -314,8 +314,8 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
                 }}
                 className={cn(
                   "fixed z-[9999] min-w-[240px] p-2 rounded-lg",
-                  "bg-white dark:bg-zinc-900",
-                  "border border-gray-200/60 dark:border-zinc-700/60",
+                  "bg-[var(--neko-bg-primary)]",
+                  "border border-[var(--neko-border)]",
                   "shadow-[0_8px_24px_-4px_rgba(0,0,0,0.12),0_2px_6px_-1px_rgba(0,0,0,0.08)]"
                 )}
                 initial={{ opacity: 0, scale: 0.9, y: menuPlacement === 'bottom' ? -8 : 8 }}
@@ -368,7 +368,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
                   label={isItemStarred ? "Remove from favourites" : "Add to favourites"}
                   onClick={handleToggleStar}
                 />
-                <div className="h-px bg-gray-100 dark:bg-zinc-800 my-1 mx-1" />
+                <div className="h-px bg-[var(--neko-border)] my-1 mx-1" />
                 <MenuItem
                   icon={<Trash2 />}
                   label="Move to trash"
@@ -453,7 +453,7 @@ function MenuItem({
         "w-full flex items-center gap-2 px-2 py-1 rounded-[5px] text-[13px] font-[450] tracking-[-0.01em] transition-colors",
         danger
           ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
-          : "text-[var(--neko-text-primary)] hover:bg-black/5 dark:hover:bg-white/5"
+          : "text-[var(--neko-text-primary)] hover:bg-[var(--neko-bg-hover)]"
       )}
     >
       <span className={cn(
