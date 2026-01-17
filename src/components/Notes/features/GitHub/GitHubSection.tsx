@@ -10,7 +10,7 @@ import { Plus, Loader2, Package, RefreshCw } from 'lucide-react';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { hasBackendCommands } from '@/lib/tauri/invoke';
-import { CollapsibleSection } from '../Sidebar/CollapsibleSection';
+import { CollapsibleSection } from '@/components/ui/collapsible-section';
 import { RepositoryItem } from './RepositoryItem';
 import { NewRepositoryDialog } from './NewRepositoryDialog';
 import { cn } from '@/lib/utils';

@@ -3,7 +3,7 @@ import { Star } from 'lucide-react';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { findNode } from '@/stores/notes/fileTreeUtils';
 import { FileTreeItem } from '../FileTree/FileTreeItem';
-import { CollapsibleSection } from '../Sidebar/CollapsibleSection';
+import { CollapsibleSection } from '@/components/ui/collapsible-section';
 
 export function FavoritesSection() {
     const {

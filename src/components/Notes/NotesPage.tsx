@@ -13,7 +13,6 @@ import { useNotesSidebarResize } from '@/hooks/useSidebarResize';
 import { motion } from 'framer-motion';
 import { HoverPeekOverlay } from '@/components/ui/HoverPeekOverlay';
 import { SPRING_PREMIUM } from '@/lib/animations';
-import './features/BlockEditor/styles.css';
 import { cn, NOTES_COLORS } from '@/lib/utils';
 
 
