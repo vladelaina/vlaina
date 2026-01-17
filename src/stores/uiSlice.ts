@@ -29,6 +29,9 @@ interface UIStore {
   notesSidebarPeeking: boolean;
   setNotesSidebarPeeking: (peeking: boolean) => void;
 
+  calendarSidebarWidth: number;
+  setCalendarSidebarWidth: (width: number) => void;
+
   notesPreviewIcon: { path: string; icon: string } | null;
   setNotesPreviewIcon: (path: string | null, icon: string | null) => void;
 
@@ -164,6 +167,9 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   setSidebarHeaderHovered: (hovered) => set({ sidebarHeaderHovered: hovered }),
   notesSidebarPeeking: false,
   setNotesSidebarPeeking: (peeking) => set({ notesSidebarPeeking: peeking }),
+
+  calendarSidebarWidth: 240,
+  setCalendarSidebarWidth: (width) => set({ calendarSidebarWidth: width }),
 
   notesPreviewIcon: null,
   setNotesPreviewIcon: (path, icon) => {

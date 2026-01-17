@@ -2,6 +2,7 @@ import { ReactNode, useState, useRef, useCallback, useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { TitleBar } from './TitleBar';
 import { WindowControls } from './WindowControls';
+import { useUIStore } from '@/stores/uiSlice';
 import { cn } from '@/lib/utils';
 
 // Get window dynamically for multi-window support
@@ -120,7 +121,7 @@ export function Layout({
 
   // Golden Ratio Squared (1 - 0.618)^2 ≈ 0.145898...
   // This gives a harmonious sidebar width (~14.6% of screen)
-  const [goldenRatioWidth, setGoldenRatioWidth] = useState(240);
+  const { calendarSidebarWidth, setCalendarSidebarWidth } = useUIStore();
 
   useEffect(() => {
     if (leftPanelResizable) return;
@@ -132,15 +133,15 @@ export function Layout({
       return Math.max(220, Math.min(280, idealWidth));
     };
 
-    setGoldenRatioWidth(calculateWidth());
+    setCalendarSidebarWidth(calculateWidth());
 
     const handleResize = () => {
-      setGoldenRatioWidth(calculateWidth());
+      setCalendarSidebarWidth(calculateWidth());
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [leftPanelResizable]);
+  }, [leftPanelResizable, setCalendarSidebarWidth]);
 
   if (leftPanel !== undefined || rightPanel !== undefined) {
     return (
@@ -152,7 +153,7 @@ export function Layout({
           <>
             <aside
               className="flex-shrink-0 flex flex-col bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl overflow-auto border-r border-zinc-200 dark:border-zinc-800 transition-[width] duration-300 ease-out"
-              style={{ width: leftPanelResizable ? leftPanelWidth : goldenRatioWidth }}
+              style={{ width: leftPanelResizable ? leftPanelWidth : calendarSidebarWidth }}
             >
               {leftPanel}
             </aside>

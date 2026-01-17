@@ -857,17 +857,16 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
               ))}
             </div>
 
-            {/* Current time line */}
-            {days.some(day => isEventInVisualDay(now.getTime(), day, dayStartMinutes)) && (
-              <div style={{ top: nowTop }} className="absolute left-0 right-0 z-20 flex items-center pointer-events-none">
-                <div className="absolute flex items-center" style={{ left: -GUTTER_WIDTH }}>
-                  <span className="bg-red-500 text-white text-[11px] font-medium px-1.5 py-0.5 rounded">
-                    {use24Hour ? format(now, 'H:mm') : format(now, 'h:mma').toUpperCase()}
-                  </span>
-                </div>
-                <div className="h-[2px] w-full bg-red-500" />
+            {/* Current time line - Always visible as reference */}
+            {/* Current time line - Always visible as reference */}
+            <div style={{ top: nowTop }} className="absolute left-0 right-0 z-20 flex items-center pointer-events-none">
+              <div className="absolute flex items-center" style={{ left: -GUTTER_WIDTH }}>
+                <span className="bg-red-500 text-white text-[11px] font-medium px-1.5 py-0.5 rounded">
+                  {use24Hour ? format(now, 'H:mm') : format(now, 'h:mma').toUpperCase()}
+                </span>
               </div>
-            )}
+              <div className="h-[2px] w-full bg-red-500" />
+            </div>
 
             {/* Events layer */}
             <div

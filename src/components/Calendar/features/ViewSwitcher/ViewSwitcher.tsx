@@ -4,7 +4,6 @@ import { ChevronDown, ChevronLeft, ChevronRight, Check, Search, PanelLeft } from
 import { useCalendarStore, type TimeView } from '@/stores/useCalendarStore';
 import { addDays, addMonths } from 'date-fns';
 import { SyncButton } from '@/components/common';
-import { useUIStore } from '@/stores/uiSlice';
 
 // View mode labels
 const VIEW_MODE_LABELS: Record<TimeView, string> = {
@@ -31,7 +30,7 @@ export function ViewSwitcher() {
     viewMode, setViewMode, selectedDate, setSelectedDate, dayCount, setDayCount,
     showContextPanel, toggleContextPanel
   } = useCalendarStore();
-  const { showSidebar, toggleSidebar } = useUIStore();
+
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
@@ -191,17 +190,6 @@ export function ViewSwitcher() {
 
   return (
     <div className="flex items-center gap-1">
-      {/* Left Sidebar Toggle */}
-      <button
-        onClick={toggleSidebar}
-        className={`p-1.5 rounded-md transition-colors ${showSidebar
-            ? 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-            : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        title={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
-      >
-        <PanelLeft className="size-5" />
-      </button>
 
       {/* Sync Button (for free users) */}
       <SyncButton />
@@ -416,8 +404,8 @@ export function ViewSwitcher() {
       <button
         onClick={toggleContextPanel}
         className={`p-1.5 rounded-md transition-colors ${showContextPanel
-            ? 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-            : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+          ? 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+          : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
           }`}
         title={showContextPanel ? 'Hide sidebar' : 'Show sidebar'}
       >

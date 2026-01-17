@@ -1,7 +1,6 @@
 import React, { ReactNode, memo, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
-  ChevronsLeft,
   ChevronsRight,
   Menu,
   FileText,
@@ -186,7 +185,8 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
   );
 }
 
-import { WorkspaceSwitcher } from './WorkspaceSwitcher';
+
+import { SidebarUserHeader } from './SidebarUserHeader';
 
 interface TitleBarProps {
   onOpenSettings?: () => void;
@@ -197,7 +197,15 @@ interface TitleBarProps {
 }
 
 export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls }: TitleBarProps) {
-  const { appViewMode, notesSidebarCollapsed, notesSidebarWidth, toggleNotesSidebar, sidebarHeaderHovered, setSidebarHeaderHovered, notesSidebarPeeking } = useUIStore();
+  const {
+    appViewMode,
+    notesSidebarCollapsed,
+    notesSidebarWidth,
+    toggleNotesSidebar,
+    notesSidebarPeeking,
+    showSidebar,         // [NEW] - Fix TS Error
+    toggleSidebar        // [NEW] - Use this generic toggle for Calendar
+  } = useUIStore();
   const { currentVault } = useVaultStore();
 
   const currentNote = useNotesStore(s => s.currentNote);
@@ -207,10 +215,12 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
   const createNote = useNotesStore(s => s.createNote);
   const reorderTabs = useNotesStore(s => s.reorderTabs);
 
-  // Alias for cleaner code
+  // Alias for cleaner code (Notes specific)
   const sidebarCollapsed = notesSidebarCollapsed;
   const sidebarWidth = notesSidebarWidth;
-  const toggleSidebar = toggleNotesSidebar;
+  // toggleSidebar is already destructured above, but let's be careful about shadowing if we alias it for notes.
+  const toggleNotes = toggleNotesSidebar; // Renaming to avoid conflict if needed, though previously it was aliased as toggleSidebar
+
 
   // Use white background when no vault is selected (welcome screen)
   const titleBarBgColor = currentVault ? NOTES_COLORS.sidebarBg : 'var(--neko-bg-primary)';
@@ -289,43 +299,28 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
       {/* Normal notes view with vault */}
       {appViewMode === 'notes' && currentVault && (
         <>
+
+
+
           {/* Left sidebar area - matches sidebar width */}
-          {/* Left sidebar area - matches sidebar width */}
-          {/* Optimization: Use CSS hidden instead of unmount to prevent avatar flicker */}
           <div
             className={cn(
-              "h-full items-center flex-shrink-0 z-20 px-3 group",
+              "h-full flex-shrink-0 z-20 group",
               sidebarCollapsed ? "hidden" : "flex"
             )}
             style={{ width: sidebarWidth }}
-            onMouseEnter={() => setSidebarHeaderHovered(true)}
-            onMouseLeave={() => setSidebarHeaderHovered(false)}
           >
-            {/* User info with dropdown */}
-            <WorkspaceSwitcher onOpenSettings={onOpenSettings} />
-
-            {/* Draggable Spacer Region */}
-            <div className="flex-1 h-full" onMouseDown={startDrag} />
-
-            {/* Collapse button - hidden by default, visible on header hover or divider hover */}
-            <button
-              onClick={toggleSidebar}
-              className={cn(
-                "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0",
-                iconButtonStyles,
-                sidebarHeaderHovered ? "opacity-100" : "opacity-0",
-                "transition-opacity"
-              )}
-            >
-              <ChevronsLeft className="w-4 h-4" />
-            </button>
+            <SidebarUserHeader
+              onOpenSettings={onOpenSettings}
+              toggleSidebar={toggleNotes}
+            />
           </div>
 
           {/* When sidebar is collapsed, show expand button */}
           {sidebarCollapsed && (
             <div className="flex items-center z-20">
               <button
-                onClick={toggleSidebar}
+                onClick={toggleNotes}
                 className={cn(
                   "flex items-center justify-center w-9 h-full",
                   iconButtonStyles,
@@ -448,14 +443,36 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
       {
         appViewMode === 'calendar' && (
           <>
-            <div className="flex items-center z-20 px-3">
-              <WorkspaceSwitcher onOpenSettings={onOpenSettings} />
-            </div>
 
-            {/* Spacer */}
-            <div className="flex-1" />
 
-            {/* Center Content Area - Absolutely positioned for true centering */}
+            {/* Collapsed state - Show Expand Button */}
+            {!showSidebar && (
+              <div className="flex items-center z-20">
+                <button
+                  onClick={toggleSidebar}
+                  className={cn(
+                    "flex items-center justify-center w-9 h-full",
+                    iconButtonStyles,
+                    "group"
+                  )}
+                  title="Expand Sidebar"
+                >
+                  <Menu className="size-4 group-hover:hidden" />
+                  <ChevronsRight className="size-4 hidden group-hover:block" />
+                </button>
+              </div>
+            )}
+
+            {/* Resize handle spacer/divider logic for Calendar if needed, or simple spacer */}
+            {!showSidebar && (
+              <div className="absolute top-0 bottom-0 left-0 right-0 bg-white dark:bg-zinc-800" />
+            )}
+
+            {/* Spacer if sidebar is open */}
+            {!showSidebar && <div className="w-1 h-full flex-shrink-0" />}
+
+
+            {/* Center Content Area (Month/Date) */}
             {content && (
               <div
                 onMouseDown={(e) => {
@@ -472,9 +489,9 @@ export function TitleBar({ onOpenSettings, toolbar, content, hideWindowControls 
               </div>
             )}
 
-            {/* Custom Toolbar (e.g., Calendar controls) */}
+            {/* Right Toolbar */}
             {toolbar && (
-              <div className="flex items-center h-full z-20 pr-3">
+              <div className="absolute right-0 top-0 bottom-0 flex items-center z-20 pr-3">
                 {toolbar}
               </div>
             )}

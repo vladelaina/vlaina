@@ -69,6 +69,15 @@ export function revokeImageBlob(fullPath: string): void {
 }
 
 /**
+ * Remove from cache WITHOUT revoking the blob URL.
+ * Use this when the file has changed and we want to load a fresh one,
+ * but the old URL might still be in use by the UI for a few frames.
+ */
+export function invalidateImageCache(fullPath: string): void {
+  blobUrlCache.delete(fullPath);
+}
+
+/**
  * Clear all cached blob URLs
  */
 export function clearImageCache(): void {

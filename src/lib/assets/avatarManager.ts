@@ -1,5 +1,5 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { loadImageAsBlob, revokeImageBlob } from './imageLoader';
+import { loadImageAsBlob, revokeImageBlob, invalidateImageCache } from './imageLoader';
 
 const SYSTEM_DIR_NAME = '.nekotick';
 const SYSTEM_SUBDIR = 'system';
@@ -56,7 +56,8 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
             await storage.writeBinaryFile(avatarPath, uint8Array);
 
             // 5. Invalidate cache to ensure UI gets the new image
-            revokeImageBlob(avatarPath);
+            // DO NOT revoke immediately, as the UI might still be displaying the old blob
+            invalidateImageCache(avatarPath);
 
             console.log('[AvatarManager] Avatar saved locally to:', avatarPath);
             return avatarPath;
