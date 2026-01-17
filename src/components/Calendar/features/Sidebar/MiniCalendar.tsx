@@ -1,5 +1,6 @@
 /**
- * DEPRECATED: This component has been moved to features/DateSelector/MiniCalendar.tsx
- * Use that component instead.
+ * FILE DELETED
+ * This file has been identified as dead code and should be removed from the project.
+ * Functionality was moved to features/DateSelector/MiniCalendar.tsx
  */
 export { };

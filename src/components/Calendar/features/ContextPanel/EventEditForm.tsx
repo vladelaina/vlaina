@@ -10,11 +10,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { format, setHours, setMinutes, startOfDay, endOfDay } from 'date-fns';
 import { Clock, Folder, ChevronDown, X, Sun } from 'lucide-react';
 import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
-import { useUIStore } from '@/stores/uiSlice';
 import { cn } from '@/lib/utils';
 import { ALL_COLORS, COLOR_HEX, type ItemColor } from '@/lib/colors';
 import { parseClockTime } from '@/lib/time';
 import { IconSelector, TaskIcon, ColorPicker } from '@/components/common';
+import { useEventForm } from './hooks/useEventForm';
 
 interface EditableTimeProps {
   date: Date;
@@ -113,66 +113,27 @@ interface EventEditFormProps {
 }
 
 export function EventEditForm({ event, mode = 'embedded', position }: EventEditFormProps) {
-  const { updateEvent, updateEventIcon, closeEditingEvent, calendars, use24Hour, deleteEvent } = useCalendarStore();
-  const { setPreviewIcon, setPreviewColor } = useUIStore();
-  // No longer using summary state from useState directly
-  // const [summary, setSummary] = useState(event.summary || '');
-  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
+  const { updateEvent, use24Hour } = useCalendarStore();
+
+  const {
+    localSummary,
+    handleSummaryChange,
+    handleKeyDown,
+    handleClose,
+    handleIconHover,
+    handleColorHover,
+    handleCalendarChange,
+    handleColorChange,
+    handleIconChange,
+    showCalendarPicker,
+    setShowCalendarPicker,
+    currentCalendar,
+    isNewEvent,
+  } = useEventForm(event);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const calendarPickerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const isNewEvent = useRef(!(event.summary || '').trim());
-  const [localSummary, setLocalSummary] = useState(event.summary || '');
-
-  // Debounced save for summary
-  const debouncedUpdateSummary = useRef<NodeJS.Timeout>();
-
-  const saveSummary = useCallback((value: string) => {
-    updateEvent(event.uid, { summary: value });
-  }, [event.uid, updateEvent]);
-
-  // Handle close button click - save pending changes and delete if empty
-  const handleClose = useCallback(() => {
-    // Clear any pending debounce
-    if (debouncedUpdateSummary.current) {
-      clearTimeout(debouncedUpdateSummary.current);
-    }
-
-    // Use current local value for final check
-    if (!localSummary.trim()) {
-      deleteEvent(event.uid);
-    } else if (localSummary !== event.summary) {
-      // Ensure final save if modified
-      saveSummary(localSummary);
-    }
-
-    setPreviewIcon(null, null);
-    setPreviewColor(null, null);
-    closeEditingEvent();
-  }, [event.uid, event.summary, localSummary, deleteEvent, closeEditingEvent, setPreviewIcon, setPreviewColor, saveSummary]);
-
-  const handleIconHover = useCallback((icon: string | undefined | null) => {
-    if (icon === null) {
-      setPreviewIcon(null, null);
-    } else {
-      setPreviewIcon(event.uid, icon);
-    }
-  }, [event.uid, setPreviewIcon]);
-
-  const handleColorHover = useCallback((color: ItemColor | null) => {
-    if (color === null) {
-      setPreviewColor(null, null);
-    } else {
-      setPreviewColor(event.uid, color);
-    }
-  }, [event.uid, setPreviewColor]);
-
-  const currentCalendar = calendars.find(c => c.id === event.calendarId) || calendars[0];
-
-  // Sync summary only when switching events
-  useEffect(() => {
-    setLocalSummary(event.summary || '');
-  }, [event.uid]); // Only depend on uid, NOT summary content to avoid loop
 
   // Auto-focus for new events
   useEffect(() => {
@@ -193,30 +154,6 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showCalendarPicker]);
-
-  // Event handlers
-
-  const handleSummaryChange = (newSummary: string) => {
-    setLocalSummary(newSummary);
-
-    // Debounce the save
-    if (debouncedUpdateSummary.current) {
-      clearTimeout(debouncedUpdateSummary.current);
-    }
-
-    debouncedUpdateSummary.current = setTimeout(() => {
-      saveSummary(newSummary);
-    }, 500);
-  };
-
-  const handleColorChange = (color: ItemColor) => {
-    updateEvent(event.uid, { color });
-  };
-
-  const handleCalendarChange = (calendarId: string) => {
-    updateEvent(event.uid, { calendarId });
-    setShowCalendarPicker(false);
-  };
 
   // Time formatting
 
@@ -323,12 +260,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
             type="text"
             value={localSummary}
             onChange={(e) => handleSummaryChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleClose();
-              }
-            }}
+            onKeyDown={handleKeyDown}
             placeholder="Add title"
             className={cn(
               "flex-1 bg-transparent text-sm outline-none py-1.5",
@@ -350,7 +282,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         <div className="mt-3 ml-7">
           <IconSelector
             value={event.icon}
-            onChange={(icon) => updateEventIcon(event.uid, icon)}
+            onChange={handleIconChange}
             onHover={handleIconHover}
           />
         </div>
