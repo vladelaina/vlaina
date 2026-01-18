@@ -104,6 +104,13 @@ export interface UnifiedArchiveSection {
   tasks: UnifiedArchiveEntry[];
 }
 
+export interface CustomIcon {
+  id: string;
+  url: string;
+  name: string;
+  createdAt: number;
+}
+
 export interface UnifiedData {
   groups: UnifiedGroup[];
   tasks: UnifiedTask[];
@@ -117,6 +124,7 @@ export interface UnifiedData {
     use24Hour?: boolean;
     dayStartTime?: number;
   };
+  customIcons?: CustomIcon[];
 }
 
 interface DataFile {

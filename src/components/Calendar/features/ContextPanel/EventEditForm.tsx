@@ -1,21 +1,15 @@
-/**
- * EventEditForm - Event edit form
- * 
- * Supports two modes:
- * 1. Embedded (in the right panel)
- * 2. Floating (when the right panel is hidden)
- */
-
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { startOfDay, endOfDay } from 'date-fns';
 import { Clock, Folder, ChevronDown, X, Sun } from 'lucide-react';
 import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
 import { cn } from '@/lib/utils';
 import { ALL_COLORS, COLOR_HEX, type ItemColor } from '@/lib/colors';
-import { IconSelector, TaskIcon, ColorPicker } from '@/components/common';
+import { ColorPicker } from '@/components/common';
 import { useEventForm } from './hooks/useEventForm';
 import { EditableTime } from './components/EditableTime';
-
+import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
+import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { HeroIconHeader } from '@/components/common/HeroIconHeader';
 
 interface EventEditFormProps {
   event: NekoEvent;
@@ -31,7 +25,6 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     handleSummaryChange,
     handleKeyDown,
     handleClose,
-    handleIconHover,
     handleColorHover,
     handleCalendarChange,
     handleColorChange,
@@ -46,6 +39,13 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
   const inputRef = useRef<HTMLInputElement>(null);
   const calendarPickerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Global Icon Upload
+  const { customIcons, onUploadFile, onDeleteCustomIcon } = useGlobalIconUpload();
+  const imageLoader = useCallback(async (src: string) => {
+      if (!src.startsWith('img:')) return src;
+      return await loadImageAsBlob(src.substring(4));
+  }, []);
 
   // Auto-focus for new events
   useEffect(() => {
@@ -68,7 +68,6 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
   }, [showCalendarPicker]);
 
   // Time formatting
-
   const startDate = event.dtstart;
   const endDate = event.dtend;
   const durationMs = endDate.getTime() - startDate.getTime();
@@ -82,39 +81,25 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
   };
 
   // Floating mode position calculation
-
   const getFloatingStyle = () => {
-    if (mode !== 'floating' || !position) {
-      return {};
-    }
-
+    if (mode !== 'floating' || !position) return {};
     const windowHeight = window.innerHeight;
     const windowWidth = window.innerWidth;
     const panelWidth = 280;
-    const panelHeight = 240;
+    const panelHeight = 400; // Increased height for new layout
 
     let top = position.y;
     let left = position.x + 20;
 
-    if (left + panelWidth > windowWidth - 20) {
-      left = position.x - panelWidth - 20;
-    }
-
-    if (top + panelHeight > windowHeight - 20) {
-      top = windowHeight - panelHeight - 20;
-    }
-
-    if (top < 20) {
-      top = 20;
-    }
+    if (left + panelWidth > windowWidth - 20) left = position.x - panelWidth - 20;
+    if (top + panelHeight > windowHeight - 20) top = windowHeight - panelHeight - 20;
+    if (top < 20) top = 20;
 
     return { top: `${top}px`, left: `${left}px` };
   };
 
-  // Render
-
   const containerClass = mode === 'floating'
-    ? 'fixed z-[100] w-[280px] bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden'
+    ? 'fixed z-[100] w-[320px] bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden flex flex-col'
     : 'h-full flex flex-col bg-white dark:bg-zinc-900';
 
   const currentColor = event.color || 'default';
@@ -134,55 +119,59 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
       style={mode === 'floating' ? getFloatingStyle() : undefined}
       className={containerClass}
     >
-      {/* Header with close button */}
-      <div className={`flex items-center justify-end p-2 ${mode === 'floating' ? 'p-2' : ''}`}>
+      {/* Header with close button - Overlay on top right */}
+      <div className="absolute top-2 right-2 z-50">
         <button
           onClick={handleClose}
-          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors"
+          className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
         >
-          <X className="size-4 text-zinc-400" />
+          <X className="size-4" />
         </button>
       </div>
 
-      {/* Task-like content area */}
-      <div className={`px-4 pb-4 ${mode === 'floating' ? 'px-3 pb-3' : ''}`}>
-        {/* Main row: Color checkbox + Icon preview + Content input */}
-        <div className="flex items-start gap-2">
-          {/* Color checkbox - like todo item */}
-          <button
-            onClick={handleColorToggle}
-            className="mt-2 flex-shrink-0 w-4 h-4 rounded-sm border-2 transition-all hover:scale-110"
-            style={{ borderColor: colorValue }}
-            title="Click to change color"
-          />
+      {/* Hero Header Section */}
+      <HeroIconHeader
+        id={event.uid}
+        icon={event.icon}
+        onIconChange={handleIconChange}
+        className="px-6 pb-0" // Adjust padding
+        
+        // Render Title with Color Indicator
+        renderTitle={() => (
+            <div className="flex items-center gap-3 w-full">
+                <button
+                    onClick={handleColorToggle}
+                    className="flex-shrink-0 w-5 h-5 rounded-full border-2 transition-all hover:scale-110"
+                    style={{ borderColor: colorValue, backgroundColor: colorValue }}
+                    title="Change Color"
+                />
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={localSummary}
+                    onChange={(e) => handleSummaryChange(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Event title"
+                    className={cn(
+                        "flex-1 bg-transparent text-xl font-semibold outline-none py-1",
+                        "text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+                    )}
+                />
+            </div>
+        )}
 
-          {/* Icon preview - same position as todo item, using event color */}
-          <div className="mt-1.5">
-            <TaskIcon
-              itemId={event.uid}
-              icon={event.icon}
-              color={colorValue}
-              sizeClass="size-4"
-            />
-          </div>
+        customIcons={customIcons}
+        onUploadFile={onUploadFile}
+        onDeleteCustomIcon={onDeleteCustomIcon}
+        imageLoader={imageLoader}
+      />
 
-          {/* Content input */}
-          <input
-            ref={inputRef}
-            type="text"
-            value={localSummary}
-            onChange={(e) => handleSummaryChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Add title"
-            className={cn(
-              "flex-1 bg-transparent text-sm outline-none py-1.5",
-              "text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400"
-            )}
-          />
-        </div>
-
+      {/* Content Area */}
+      <div className={`px-6 pb-6 flex-1 overflow-y-auto neko-scrollbar`}>
+        
         {/* Color picker row */}
-        <div className="flex items-center gap-1.5 mt-3 ml-7">
+        <div className="flex items-center gap-2 mb-6">
+          <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider w-12">Color</span>
           <ColorPicker
             value={currentColor}
             onChange={handleColorChange}
@@ -190,25 +179,17 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
           />
         </div>
 
-        {/* Icon picker row - let icon grid adapt to width */}
-        <div className="mt-3 ml-7">
-          <IconSelector
-            value={event.icon}
-            onChange={handleIconChange}
-            onHover={handleIconHover}
-          />
-        </div>
-
         {/* Divider */}
-        <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-4" />
+        <div className="h-px bg-zinc-100 dark:bg-zinc-800/50 my-4" />
 
         {/* All-day toggle */}
-        <div className="flex items-center gap-3">
-          <Sun className="size-4 text-zinc-400" />
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 flex justify-center">
+             <Sun className="size-4 text-zinc-400" />
+          </div>
           <button
             onClick={() => {
               if (event.allDay) {
-                // Convert to timed event: set to 9:00-10:00 on the same day
                 const dayStart = new Date(event.dtstart);
                 dayStart.setHours(9, 0, 0, 0);
                 const dayEnd = new Date(dayStart);
@@ -219,7 +200,6 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
                   dtend: dayEnd,
                 });
               } else {
-                // Convert to all-day event
                 updateEvent(event.uid, {
                   allDay: true,
                   dtstart: startOfDay(startDate),
@@ -249,10 +229,12 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
           </button>
         </div>
 
-        {/* Time (only show for non-all-day events) */}
+        {/* Time */}
         {!event.allDay && (
-          <div className="flex items-start gap-3 mt-3">
-            <Clock className="size-4 text-zinc-400 mt-0.5" />
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-12 flex justify-center mt-0.5">
+                <Clock className="size-4 text-zinc-400" />
+            </div>
             <div className="flex items-center text-sm">
               <EditableTime
                 date={startDate}
@@ -265,7 +247,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
                   });
                 }}
               />
-              <span className="mx-1 text-zinc-400">→</span>
+              <span className="mx-2 text-zinc-400">→</span>
               <EditableTime
                 date={endDate}
                 use24Hour={use24Hour}
@@ -275,24 +257,26 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
                   }
                 }}
               />
-              <span className="ml-2 text-zinc-400 text-xs">{formatDuration()}</span>
+              <span className="ml-3 text-zinc-400 text-xs bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">{formatDuration()}</span>
             </div>
           </div>
         )}
 
-        {/* Calendar picker (was Group picker) */}
-        <div className="flex items-center gap-3 mt-3 relative" ref={calendarPickerRef}>
-          <Folder className="size-4 text-zinc-400" />
+        {/* Calendar picker */}
+        <div className="flex items-center gap-3 relative" ref={calendarPickerRef}>
+          <div className="w-12 flex justify-center">
+             <Folder className="size-4 text-zinc-400" />
+          </div>
           <button
             onClick={() => setShowCalendarPicker(!showCalendarPicker)}
-            className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors"
+            className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors bg-zinc-50 dark:bg-zinc-800 px-3 py-1.5 rounded-md"
           >
             <span>{currentCalendar?.name || 'Personal'}</span>
             <ChevronDown className={`size-3.5 text-zinc-400 transition-transform ${showCalendarPicker ? 'rotate-180' : ''}`} />
           </button>
 
           {showCalendarPicker && (
-            <div className="absolute left-7 top-full mt-1 w-40 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1 z-50">
+            <div className="absolute left-14 top-full mt-1 w-40 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1 z-50">
               {calendars.map((calendar) => (
                 <button
                   key={calendar.id}

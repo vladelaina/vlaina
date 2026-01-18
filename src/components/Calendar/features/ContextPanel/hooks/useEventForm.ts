@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
-import { useUIStore } from '@/stores/uiSlice';
+import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconPreview';
 import type { ItemColor } from '@/lib/colors';
 
 export function useEventForm(event: NekoEvent) {
     const { updateEvent, updateEventIcon, closeEditingEvent, calendars, deleteEvent } = useCalendarStore();
-    const { setPreviewIcon, setPreviewColor } = useUIStore();
+    
+    // Use unified preview hook
+    const { handlePreview, handlePreviewColor } = useIconPreview(event.uid);
 
     const [localSummary, setLocalSummary] = useState(event.summary || '');
     const [showCalendarPicker, setShowCalendarPicker] = useState(false);
@@ -39,10 +41,10 @@ export function useEventForm(event: NekoEvent) {
             saveSummary(localSummary);
         }
 
-        setPreviewIcon(null, null);
-        setPreviewColor(null, null);
+        handlePreview(null);
+        handlePreviewColor(null);
         closeEditingEvent();
-    }, [event.uid, event.summary, localSummary, deleteEvent, closeEditingEvent, setPreviewIcon, setPreviewColor, saveSummary]);
+    }, [event.uid, event.summary, localSummary, deleteEvent, closeEditingEvent, handlePreview, handlePreviewColor, saveSummary]);
 
     // Input handlers
     const handleSummaryChange = (newSummary: string) => {
@@ -66,22 +68,6 @@ export function useEventForm(event: NekoEvent) {
         }
     };
 
-    const handleIconHover = useCallback((icon: string | undefined | null) => {
-        if (icon === null) {
-            setPreviewIcon(null, null);
-        } else {
-            setPreviewIcon(event.uid, icon);
-        }
-    }, [event.uid, setPreviewIcon]);
-
-    const handleColorHover = useCallback((color: ItemColor | null) => {
-        if (color === null) {
-            setPreviewColor(null, null);
-        } else {
-            setPreviewColor(event.uid, color);
-        }
-    }, [event.uid, setPreviewColor]);
-
     const handleCalendarChange = (calendarId: string) => {
         updateEvent(event.uid, { calendarId });
         setShowCalendarPicker(false);
@@ -92,9 +78,7 @@ export function useEventForm(event: NekoEvent) {
     };
 
     const handleIconChange = (icon: string | undefined) => {
-        if (icon) {
-            updateEventIcon(event.uid, icon);
-        }
+        updateEventIcon(event.uid, icon);
     };
 
 
@@ -103,8 +87,8 @@ export function useEventForm(event: NekoEvent) {
         handleSummaryChange,
         handleKeyDown,
         handleClose,
-        handleIconHover,
-        handleColorHover,
+        handleIconHover: handlePreview,
+        handleColorHover: handlePreviewColor,
         handleCalendarChange,
         handleColorChange,
         handleIconChange,

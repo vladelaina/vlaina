@@ -5,8 +5,7 @@
  * Supports preview state (via global UI store)
  */
 
-import { cn } from '@/lib/utils';
-import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
+import { AppIcon } from '@/components/common/AppIcon';
 import { useUIStore } from '@/stores/uiSlice';
 
 interface TaskIconProps {
@@ -14,10 +13,12 @@ interface TaskIconProps {
   itemId: string;
   /** Current icon name */
   icon?: string;
-  /** Icon color */
+  /** Icon color (legacy override, mostly for category colors) */
   color?: string;
-  /** Icon size class */
-  sizeClass?: string;
+  /** Icon size class or pixel value */
+  sizeClass?: string; // tailwind class like "size-4"
+  /** Icon size in pixels (if provided, overrides sizeClass somewhat) */
+  size?: number;
   /** Whether to enable preview (default true) */
   enablePreview?: boolean;
 }
@@ -27,28 +28,37 @@ export function TaskIcon({
   icon, 
   color, 
   sizeClass = 'size-4',
+  size,
   enablePreview = true 
 }: TaskIconProps) {
-  const { previewIconEventId, previewIcon } = useUIStore();
+  const { universalPreviewTarget, universalPreviewIcon, universalPreviewColor, universalPreviewTone } = useUIStore();
   
-  const displayIconName = enablePreview && previewIconEventId === itemId && previewIcon !== null
-    ? previewIcon 
-    : icon;
+  const isPreviewing = enablePreview && universalPreviewTarget === itemId;
   
-  if (!displayIconName) return null;
+  const displayIcon = isPreviewing && universalPreviewIcon ? universalPreviewIcon : icon;
+  const displayColor = isPreviewing && universalPreviewColor ? universalPreviewColor : color;
+  const displayTone = isPreviewing ? universalPreviewTone : undefined;
   
-  const IconComponent = getIconByName(displayIconName);
-  if (!IconComponent) return null;
+  if (!displayIcon) return null;
+
+  // Convert sizeClass to roughly pixel size if needed, or pass className
+  // UniversalIcon uses style={{width: size, height: size}} if size provided.
+  // If only className provided, it works via CSS.
   
   return (
-    <div 
-      className="flex-shrink-0"
-      style={{ color: color || undefined }}
-    >
-      <IconComponent 
-        className={cn(sizeClass, !color && "text-zinc-400 dark:text-zinc-500")} 
-        strokeWidth={1.5} 
-      />
-    </div>
+    <AppIcon
+        icon={displayIcon}
+        className={sizeClass}
+        size={size} // if undefined, relies on className
+        
+        // Use the explicit color prop for forced overrides (e.g. priority color)
+        color={displayColor}
+        
+        // Pass preview overrides directly (UniversalIcon handles the priority logic usually, 
+        // but here we already resolved `displayIcon`. 
+        // However, UniversalIcon's internal Emoji renderer needs the tone.)
+        previewColor={isPreviewing ? universalPreviewColor : null}
+        previewTone={isPreviewing ? universalPreviewTone : null}
+    />
   );
 }

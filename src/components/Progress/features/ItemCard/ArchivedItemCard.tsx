@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { RefreshCw, Trash2 } from 'lucide-react';
-import { getIconByName } from '../IconPicker';
+import { AppIcon } from '@/components/common/AppIcon';
 import { ItemCardProps } from './types';
 
 export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previewIcon, previewTitle, compact }: ItemCardProps) {
@@ -43,11 +43,12 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
             <div className={`flex items-center ${compact ? 'gap-3' : 'gap-4'} w-full`}>
                 {/* Icon - Natural Flex Item */}
                 {(() => {
-                  const Icon = displayIcon ? getIconByName(displayIcon) : null;
-                  return Icon ? (
+                  return displayIcon ? (
                     <div className="flex-shrink-0 transition-transform duration-700 ease-out group-hover:scale-110 group-hover:-rotate-12 group-hover:translate-x-1">
-                      <Icon 
-                          className={`${compact ? 'size-10' : 'size-16'} text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] mix-blend-multiply dark:mix-blend-overlay transition-colors duration-300`} 
+                      <AppIcon 
+                          icon={displayIcon} 
+                          size={compact ? 40 : 64}
+                          className="text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] mix-blend-multiply dark:mix-blend-overlay transition-colors duration-300 block"
                       />
                     </div>
                   ) : (

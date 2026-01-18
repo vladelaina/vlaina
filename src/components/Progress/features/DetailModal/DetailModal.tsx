@@ -1,13 +1,16 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { ProgressOrCounter } from '@/stores/useProgressStore';
-import { IconSelectionView, getIconByName } from '../IconPicker';
+import { AppIcon } from '@/components/common/AppIcon';
 import { useDetailModal } from './useDetailModal';
-import { DetailModalHeader } from './DetailModalHeader';
+import { DetailActions } from './DetailActions';
 import { DetailModalContent } from './DetailModalContent';
 import { DetailModalFooter } from './DetailModalFooter';
-import { SPRING_SNAPPY, SPRING_GENTLE, SLIDE_FROM_BOTTOM } from '@/lib/animations';
+import { SPRING_SNAPPY, SPRING_GENTLE } from '@/lib/animations';
+import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
+import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { HeroIconHeader } from '@/components/common/HeroIconHeader';
 
 // Get window dynamically for multi-window support
 const getWindow = () => getCurrentWindow();
@@ -31,10 +34,12 @@ export function DetailModal({
   const {
     isEditing,
     focusTarget,
-    isPickingIcon,
+    isPickingIcon, // Still needed for backdrop "peel" logic? 
+    // HeroIconHeader handles picker internally, so `isPickingIcon` won't track that. 
+    // We can ignore it for picker purposes.
     showMenu,
     displayItem,
-    setIsPickingIcon,
+    setIsPickingIcon, // Unused
     setShowMenu,
     handleClose,
     handleCommit,
@@ -44,6 +49,13 @@ export function DetailModal({
     handleQuickUpdate,
     startEditing,
   } = useDetailModal({ item, onClose, onUpdate, onPreviewChange });
+
+  // Global Icon Upload
+  const { customIcons, onUploadFile, onDeleteCustomIcon } = useGlobalIconUpload();
+  const imageLoader = useCallback(async (src: string) => {
+      if (!src.startsWith('img:')) return src;
+      return await loadImageAsBlob(src.substring(4));
+  }, []);
 
   // Adaptive Scaling Logic (Direct DOM for Performance)
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -71,18 +83,17 @@ export function DetailModal({
   // Global Keyboard Shortcuts (Enter to Close when not editing)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && !isEditing && item && !isPickingIcon) {
+      if (e.key === 'Enter' && !isEditing && item) {
         handleClose();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isEditing, item, isPickingIcon, handleClose]);
+  }, [isEditing, item, handleClose]);
 
   if (!displayItem) return null;
 
-  const DisplayIcon = displayItem.icon ? getIconByName(displayItem.icon) : null;
   const percentage =
     displayItem.type === 'progress'
       ? Math.min(100, Math.max(0, (displayItem.current / displayItem.total) * 100))
@@ -110,6 +121,11 @@ export function DetailModal({
     handleClose();
   };
 
+  const adjustHeight = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  };
+
   return (
     <AnimatePresence>
       {item && (
@@ -123,11 +139,6 @@ export function DetailModal({
             className="fixed -inset-[50%] bg-zinc-100/60 dark:bg-black/80 backdrop-blur-xl z-50"
             onClick={(e) => {
               e.stopPropagation();
-              // Layered Dismissal: Peel the onion
-              if (isPickingIcon) {
-                setIsPickingIcon(false);
-                return;
-              }
               if (isEditing) {
                 handleCancelEdit();
                 return;
@@ -176,26 +187,68 @@ export function DetailModal({
                 {/* --- 1. The Liquid Soul (Background Fill) --- */}
                 <LiquidBackground
                   fillHeight={fillHeight}
-                  DisplayIcon={DisplayIcon}
+                  iconName={displayItem.icon}
                 />
 
-                {/* --- 2. Top Bar --- */}
-                <DetailModalHeader
-                  displayIcon={DisplayIcon}
-                  isEditing={isEditing}
+                {/* --- 2. Top Actions --- */}
+                <DetailActions
                   showMenu={showMenu}
                   isArchived={item.archived || false}
-                  onIconClick={() => {
-                    setIsPickingIcon(true);
-                    setShowMenu(false);
-                  }}
                   onMenuToggle={setShowMenu}
                   onArchive={handleArchive}
                   onReset={handleReset}
                   onDelete={handleDeleteItem}
+                  onClose={handleClose}
                 />
 
-                {/* --- 3. Center Zone (The Tuning Engine) --- */}
+                {/* --- 3. Hero Header (Icon + Title) --- */}
+                <HeroIconHeader
+                    id={displayItem.id}
+                    icon={displayItem.icon}
+                    onIconChange={handleIconChange}
+                    className="px-8 pt-12"
+                    
+                    // Title Logic
+                    renderTitle={() => (
+                        <div className="w-full flex justify-center">
+                          {isEditing ? (
+                            <textarea
+                              autoFocus={focusTarget === 'title'}
+                              value={displayItem.title}
+                              rows={1}
+                              ref={(el) => { if (el) adjustHeight(el); }}
+                              onChange={(e) => {
+                                updateDraft('title', e.target.value);
+                                adjustHeight(e.target);
+                              }}
+                              className="text-center text-3xl font-medium bg-transparent border-none outline-none p-0 text-zinc-900 dark:text-zinc-100 w-full resize-none overflow-hidden placeholder:text-zinc-200 dark:placeholder:text-zinc-700 caret-zinc-400"
+                              placeholder="Untitled"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleCommit();
+                                }
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          ) : (
+                            <h2
+                              onClick={() => startEditing('title')}
+                              className="text-3xl font-medium tracking-tight text-center text-zinc-900 dark:text-zinc-100 cursor-pointer hover:opacity-70 transition-opacity whitespace-pre-wrap break-words w-full"
+                            >
+                              {displayItem.title}
+                            </h2>
+                          )}
+                        </div>
+                    )}
+
+                    customIcons={customIcons}
+                    onUploadFile={onUploadFile}
+                    onDeleteCustomIcon={onDeleteCustomIcon}
+                    imageLoader={imageLoader}
+                />
+
+                {/* --- 4. Center Zone (The Tuning Engine) --- */}
                 <DetailModalContent
                   displayItem={displayItem}
                   isEditing={isEditing}
@@ -207,35 +260,12 @@ export function DetailModal({
                   onDirectUpdate={(data) => item && onUpdate(item.id, data)}
                 />
 
-                {/* --- 4. Footer: History Waveform --- */}
+                {/* --- 5. Footer: History Waveform --- */}
                 <DetailModalFooter
                   displayItem={displayItem}
                   isEditing={isEditing}
                   onCommit={handleCommit}
                 />
-
-                {/* Icon Picker Overlay */}
-                <AnimatePresence>
-                  {isPickingIcon && (
-                    <motion.div
-                      variants={SLIDE_FROM_BOTTOM}
-                      initial="hidden"
-                      animate="visible"
-                      exit="hidden"
-                      transition={SPRING_SNAPPY}
-                      className="absolute inset-0 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl flex flex-col p-6"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="flex-1 overflow-hidden">
-                        <IconSelectionView
-                          value={displayItem.icon}
-                          onChange={handleIconChange}
-                          onCancel={() => setIsPickingIcon(false)}
-                        />
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </motion.div>
             </div>
           </div>
@@ -249,10 +279,10 @@ export function DetailModal({
 
 interface LiquidBackgroundProps {
   fillHeight: string;
-  DisplayIcon: ReturnType<typeof getIconByName> | null;
+  iconName: string | undefined;
 }
 
-function LiquidBackground({ fillHeight, DisplayIcon }: LiquidBackgroundProps) {
+function LiquidBackground({ fillHeight, iconName }: LiquidBackgroundProps) {
   return (
     <div className="absolute inset-0 pointer-events-none z-0">
       {/* Base with Radial Glow */}
@@ -267,11 +297,12 @@ function LiquidBackground({ fillHeight, DisplayIcon }: LiquidBackgroundProps) {
       />
 
       {/* The Watermark Icon - Deeper & Larger */}
-      {DisplayIcon && (
+      {iconName && (
         <div className="absolute inset-0 flex items-center justify-center opacity-[0.04] dark:opacity-[0.06] pointer-events-none scale-125 mix-blend-multiply dark:mix-blend-overlay">
-          <DisplayIcon
-            strokeWidth={2}
-            className="size-80 text-zinc-900 dark:text-zinc-100"
+          <AppIcon
+            icon={iconName}
+            size={320}
+            className="text-zinc-900 dark:text-zinc-100 block"
           />
         </div>
       )}

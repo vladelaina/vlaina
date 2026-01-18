@@ -1,9 +1,13 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { Ellipsis, Plus, Archive, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { parseDuration, formatDuration } from '@/lib/time';
-import { IconSelector, ColorPicker } from '@/components/common';
+import { IconSelector } from '@/components/common/IconSelector';
+import { ColorPicker } from '@/components/common/ColorPicker';
+import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconPreview';
+import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
+import { loadImageAsBlob } from '@/lib/assets/imageLoader';
 import type { Task } from '@/stores/useGroupStore';
 
 function formatEstimatedTimeForInput(minutes: number | undefined): string {
@@ -29,6 +33,13 @@ export function TaskItemMenu({
     const menuRef = useRef<HTMLDivElement>(null);
 
     const { updateTaskColor, updateTaskIcon, updateTaskEstimation } = useGroupStore();
+    const { handlePreview } = useIconPreview(task.id);
+
+    const { customIcons, onUploadFile, onDeleteCustomIcon } = useGlobalIconUpload();
+    const imageLoader = useCallback(async (src: string) => {
+        if (!src.startsWith('img:')) return src;
+        return await loadImageAsBlob(src.substring(4));
+    }, []);
 
     useEffect(() => {
         if (showMenu) {
@@ -85,6 +96,11 @@ export function TaskItemMenu({
                             updateTaskIcon(task.id, icon);
                             setShowMenu(false);
                         }}
+                        onHover={handlePreview}
+                        customIcons={customIcons}
+                        onUploadFile={onUploadFile}
+                        onDeleteCustomIcon={onDeleteCustomIcon}
+                        imageLoader={imageLoader}
                     />
                     <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
 

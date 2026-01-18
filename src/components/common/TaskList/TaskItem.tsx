@@ -13,7 +13,7 @@ import type { Task } from '@/stores/useGroupStore';
 import { useUIStore } from '@/stores/useGroupStore';
 import { formatDuration } from '@/lib/time';
 import { getColorHex } from '@/lib/colors';
-import { TaskIcon } from '@/components/common';
+import { TaskIcon } from '@/components/common/TaskIcon';
 import { TaskItemMenu } from './TaskItemMenu';
 
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
@@ -205,7 +205,6 @@ export function TaskItem({
                         icon={task.icon}
                         color={colorValue}
                         sizeClass="h-3.5 w-3.5"
-                        enablePreview={false}
                     />
                 </div>
 

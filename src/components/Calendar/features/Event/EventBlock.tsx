@@ -13,7 +13,7 @@ import { type EventLayoutInfo } from '../../utils/eventLayout';
 import type { NekoEvent } from '@/lib/ics/types';
 import { calculateEventTop, calculateEventHeight, CALENDAR_CONSTANTS, DEFAULT_DAY_START_MINUTES } from '../../utils/timeUtils';
 import { getEventInlineStyles } from '@/lib/colors';
-import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
+import { AppIcon } from '@/components/common/AppIcon';
 import { useEventTimer, formatElapsedTime, getHeightLevel } from './hooks/useEventTimer';
 
 const GAP = CALENDAR_CONSTANTS.GAP as number;
@@ -34,8 +34,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
     setEditingEventId, editingEventId,
     setSelectedEventId, closeEditingEvent,
     use24Hour, deleteEvent, allEvents,
-    previewIconEventId, previewIcon,
-    previewColorEventId, previewColor
+    universalPreviewTarget, universalPreviewIcon, universalPreviewColor
   } = useCalendarStore();
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -66,8 +65,8 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   const heightLevel = getHeightLevel(height);
 
   // Color - use preview color when hovering, otherwise use event color
-  const displayColor = (previewColorEventId === event.uid && previewColor !== null)
-    ? previewColor
+  const displayColor = (universalPreviewTarget === event.uid && universalPreviewColor !== null)
+    ? universalPreviewColor
     : event.color;
   const colorStyles = getEventInlineStyles(displayColor);
   const isDark = typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
@@ -196,8 +195,6 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
     ? Math.min((elapsedMs / plannedDuration) * 100, 100)
     : 0;
 
-
-
   return (
     <>
       <div
@@ -274,12 +271,11 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
 
           {/* Icon watermark */}
           {heightLevel !== 'micro' && heightLevel !== 'tiny' && (() => {
-            const displayIconName = (previewIconEventId === event.uid && previewIcon !== null)
-              ? previewIcon
+            const displayIconName = (universalPreviewTarget === event.uid && universalPreviewIcon !== null)
+              ? universalPreviewIcon
               : event.icon;
             if (!displayIconName) return null;
-            const IconComponent = getIconByName(displayIconName);
-            if (!IconComponent) return null;
+            
             const iconSize = Math.min(Math.max(hourHeight * 0.7, 24), 80);
             return (
               <div
@@ -289,9 +285,11 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
                   color: colorStyles.accent,
                 }}
               >
-                <IconComponent
-                  style={{ width: iconSize, height: iconSize }}
-                  strokeWidth={1.5}
+                <AppIcon
+                  icon={displayIconName}
+                  size={iconSize}
+                  className="stroke-[1.5px]" // Try to enforce stroke width
+                  color={colorStyles.accent}
                 />
               </div>
             );

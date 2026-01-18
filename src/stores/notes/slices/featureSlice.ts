@@ -13,7 +13,7 @@ import {
   saveNoteMetadata,
   setNoteEntry,
 } from '../storage';
-import { EMOJI_MAP } from '@/components/Notes/features/IconPicker/constants';
+import { EMOJI_MAP } from "@/components/common/UniversalIconPicker/constants";
 
 export interface FeatureSlice {
   recentNotes: NotesStore['recentNotes'];

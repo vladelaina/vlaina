@@ -13,15 +13,15 @@ const validIcons = new Set(Object.keys(lucide).filter(name => {
 console.log('Valid icons count:', validIcons.size);
 
 // Files to fix
-const files = [
-  'src/components/Notes/features/IconPicker/icons/common.ts',
-  'src/components/Notes/features/IconPicker/icons/status.ts',
-  'src/components/Notes/features/IconPicker/icons/dev.ts',
-  'src/components/Notes/features/IconPicker/icons/user.ts',
-  'src/components/Notes/features/IconPicker/icons/doc.ts',
-  'src/components/Notes/features/IconPicker/icons/media.ts',
-  'src/components/Notes/features/IconPicker/icons/nature.ts',
-  'src/components/Notes/features/IconPicker/icons/place.ts'
+const filesToCheck = [
+  'src/components/common/UniversalIconPicker/icons/common.ts',
+  'src/components/common/UniversalIconPicker/icons/status.ts',
+  'src/components/common/UniversalIconPicker/icons/dev.ts',
+  'src/components/common/UniversalIconPicker/icons/user.ts',
+  'src/components/common/UniversalIconPicker/icons/doc.ts',
+  'src/components/common/UniversalIconPicker/icons/media.ts',
+  'src/components/common/UniversalIconPicker/icons/nature.ts',
+  'src/components/common/UniversalIconPicker/icons/place.ts'
 ];
 
 // Icon name mapping (wrong name -> correct name or delete)

@@ -104,6 +104,18 @@ interface UIStore {
   previewColorEventId: string | null;
   previewColor: ItemColor | null;
   setPreviewColor: (eventId: string | null, color: ItemColor | null) => void;
+
+  // Universal Preview State (Unifying Notes, Calendar, Todo)
+  universalPreviewTarget: string | null; // ID of the entity being previewed (e.g. note path, task ID)
+  universalPreviewIcon: string | null;
+  universalPreviewColor: string | null;
+  universalPreviewTone: number | null;
+  
+  setUniversalPreview: (targetId: string | null, state: {
+    icon?: string | null;
+    color?: string | null;
+    tone?: number | null;
+  }) => void;
 }
 
 function loadNumber(key: string, defaultValue: number): number {
@@ -337,4 +349,17 @@ export const useUIStore = create<UIStore>()((set, get) => ({
     previewColorEventId: eventId,
     previewColor: color
   }),
+
+  universalPreviewTarget: null,
+  universalPreviewIcon: null,
+  universalPreviewColor: null,
+  universalPreviewTone: null,
+
+  setUniversalPreview: (targetId, { icon, color, tone }) => set((state) => ({
+    universalPreviewTarget: targetId,
+    // Only update fields that are provided (undefined means "no change", null means "clear")
+    universalPreviewIcon: icon !== undefined ? icon : state.universalPreviewIcon,
+    universalPreviewColor: color !== undefined ? color : state.universalPreviewColor,
+    universalPreviewTone: tone !== undefined ? tone : state.universalPreviewTone,
+  })),
 }));

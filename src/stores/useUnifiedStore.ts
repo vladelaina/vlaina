@@ -9,7 +9,9 @@ import {
   type UnifiedGroup,
   type UnifiedProgress,
   type UnifiedArchiveSection,
+  type CustomIcon,
 } from '@/lib/storage/unifiedStorage';
+import { scanGlobalIcons } from '@/lib/storage/assetStorage';
 
 import { createGroupActions } from './actions/groupActions';
 import { createTaskActions } from './actions/taskActions';
@@ -30,6 +32,7 @@ export type {
   UnifiedGroup,
   UnifiedProgress,
   UnifiedArchiveSection,
+  CustomIcon,
 };
 
 export type { ItemColor, TimeView };
@@ -84,6 +87,11 @@ interface UnifiedStoreActions {
   setHourHeight: (height: number) => void;
   toggle24Hour: () => void;
   setDayStartTime: (minutes: number) => void;
+  
+  // Custom Icon Actions
+  addCustomIcon: (icon: CustomIcon) => void;
+  removeCustomIcon: (id: string) => void;
+  syncCustomIcons: () => Promise<void>;
 }
 
 type UnifiedStore = UnifiedStoreState & UnifiedStoreActions;
@@ -99,6 +107,7 @@ const initialState: UnifiedStoreState = {
     progress: [],
     archive: [],
     settings: { ...DEFAULT_SETTINGS },
+    customIcons: [],
   },
   loaded: false,
   activeGroupId: DEFAULT_GROUP_ID,
@@ -122,6 +131,51 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
     },
 
     setActiveGroup: (id: string) => set({ activeGroupId: id }),
+
+    addCustomIcon: (icon: CustomIcon) => {
+      const state = get();
+      const newData = {
+        ...state.data,
+        customIcons: [...(state.data.customIcons || []), icon]
+      };
+      set({ data: newData });
+      persist(newData);
+    },
+
+    removeCustomIcon: (id: string) => {
+      const state = get();
+      const newData = {
+        ...state.data,
+        customIcons: (state.data.customIcons || []).filter(i => i.id !== id)
+      };
+      set({ data: newData });
+      persist(newData);
+    },
+
+    syncCustomIcons: async () => {
+      const scanned = await scanGlobalIcons();
+      set(state => {
+        const currentIcons = state.data.customIcons || [];
+        const existingIds = new Set(currentIcons.map(i => i.id));
+        
+        // Find new icons
+        const newIcons = scanned.filter(i => !existingIds.has(i.id));
+        
+        // Optional: Filter out icons that no longer exist?
+        // For now, let's just ADD missing ones to avoid accidental data loss if scan fails
+        
+        if (newIcons.length === 0) return {};
+        
+        const updatedIcons = [...currentIcons, ...newIcons];
+        const newData = {
+          ...state.data,
+          customIcons: updatedIcons
+        };
+        
+        persist(newData);
+        return { data: newData };
+      });
+    },
 
     ...groupActions,
     ...taskActions,

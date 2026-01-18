@@ -1,12 +1,14 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { getIconByName } from '../IconPicker';
+import { AppIcon } from '@/components/common/AppIcon';
 import { CapsuleInput, CapsuleSelector } from './FormInputs';
 import { useCreateForm } from './useCreateForm';
 import { PreviewSection } from './PreviewSection';
 import { CreateModalProps } from './types';
+import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
+import { loadImageAsBlob } from '@/lib/assets/imageLoader';
 
 // Get window dynamically for multi-window support
 const getWindow = () => getCurrentWindow();
@@ -26,6 +28,13 @@ export function CreateModal({
     handleSubmit, isValid
   } = useCreateForm(open, onCreateProgress, onCreateCounter, onClose);
   
+  // Global Icon Upload
+  const { customIcons, onUploadFile, onDeleteCustomIcon } = useGlobalIconUpload();
+  const imageLoader = useCallback(async (src: string) => {
+      if (!src.startsWith('img:')) return src;
+      return await loadImageAsBlob(src.substring(4));
+  }, []);
+
   // Adaptive Scaling
   const wrapperRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -53,9 +62,6 @@ export function CreateModal({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose, isPickingIcon, setIsPickingIcon]);
-
-  // Icon for Input Button
-  const DisplayIcon = previewItem.icon ? getIconByName(previewItem.icon) : null;
 
   return (
     <AnimatePresence>
@@ -100,6 +106,10 @@ export function CreateModal({
                 setCounterForm={setCounterForm}
                 previewItem={previewItem}
                 handlePreviewUpdate={handlePreviewUpdate}
+                customIcons={customIcons}
+                onUploadFile={onUploadFile}
+                onDeleteCustomIcon={onDeleteCustomIcon}
+                imageLoader={imageLoader}
             />
 
             {/* 2. The Input Ritual */}
@@ -161,8 +171,8 @@ export function CreateModal({
                         }
                     `}
                   >
-                     {DisplayIcon ? (
-                         <DisplayIcon className="size-6" />
+                     {previewItem.icon ? (
+                         <AppIcon icon={previewItem.icon} size={24} className="block" />
                      ) : (
                          <div className="text-2xl font-light opacity-50">+</div>
                      )}

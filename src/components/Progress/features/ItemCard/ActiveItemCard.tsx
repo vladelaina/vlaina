@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Minus, RefreshCw } from 'lucide-react';
-import { getIconByName } from '../IconPicker';
+import { AppIcon } from '@/components/common/AppIcon';
 import { ItemCardProps } from './types';
 import { ProgressBar, CounterEffects, Ripple, DebrisField } from './VisualEffects';
 import { KineticAction } from './KineticAction';
@@ -139,12 +139,15 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
             >
               <motion.div className={`relative flex items-center w-full h-full ${compact ? 'gap-3' : 'gap-5'}`}>
                   {(() => {
-                    const Icon = displayIcon ? getIconByName(displayIcon) : null;
                     return (
                       <motion.div className={`flex-shrink-0 flex items-center justify-center ${compact ? 'w-10' : 'w-16'}`}>
-                          {Icon ? (
+                          {displayIcon ? (
                               <div className={`text-zinc-900 dark:text-zinc-100 opacity-[0.06] dark:opacity-[0.08] ${compact ? 'scale-[1.5]' : 'scale-[2.5]'} -rotate-12 mix-blend-multiply dark:mix-blend-overlay origin-center`}>
-                                  <Icon className={compact ? 'size-6' : 'size-10'} />
+                                  <AppIcon 
+                                      icon={displayIcon} 
+                                      size={compact ? 24 : 40}
+                                      className="block"
+                                  />
                               </div>
                           ) : (
                               <div className={compact ? 'w-10' : 'w-16'} /> 

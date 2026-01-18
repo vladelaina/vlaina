@@ -29,16 +29,6 @@ export function DetailModalContent({
 }: DetailModalContentProps) {
   return (
     <div className="relative z-10 flex-1 flex flex-col items-center justify-center gap-8 -mt-8">
-      {/* Title (The Crown - Borderless & Elegant) */}
-      <TitleSection
-        title={displayItem.title}
-        isEditing={isEditing}
-        autoFocus={focusTarget === 'title'}
-        onStartEdit={() => onStartEdit('title')}
-        onCommit={onCommit}
-        onChange={(value) => onUpdateDraft('title', value)}
-      />
-
       {/* Number & +/- Hotspots */}
       <div className="relative flex items-center justify-center w-full">
         {/* Left Hotspot (-1) */}
@@ -83,75 +73,6 @@ export function DetailModalContent({
 }
 
 // Sub-components
-
-interface TitleSectionProps {
-  title: string;
-  isEditing: boolean;
-  autoFocus: boolean;
-  onStartEdit: () => void;
-  onCommit: () => void;
-  onChange: (value: string) => void;
-}
-
-function TitleSection({
-  title,
-  isEditing,
-  autoFocus,
-  onStartEdit,
-  onCommit,
-  onChange,
-}: TitleSectionProps) {
-  // Simple auto-height for textarea
-  const adjustHeight = (el: HTMLTextAreaElement) => {
-    el.style.height = 'auto';
-    el.style.height = el.scrollHeight + 'px';
-  };
-
-  return (
-    <div className="relative z-20 w-full flex justify-center min-h-[40px] px-8">
-      {isEditing ? (
-        <textarea
-          autoFocus={autoFocus}
-          value={title}
-          rows={1}
-          ref={(el) => { if (el) adjustHeight(el); }}
-          onChange={(e) => {
-            onChange(e.target.value);
-            adjustHeight(e.target);
-          }}
-          className="
-            text-center text-3xl font-medium
-            bg-transparent border-none outline-none p-0
-            text-zinc-900 dark:text-zinc-100
-            w-full resize-none overflow-hidden
-            placeholder:text-zinc-200 dark:placeholder:text-zinc-700
-            caret-zinc-400
-          "
-          placeholder="Untitled"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault(); // Prevent newline in title
-              onCommit();
-            }
-          }}
-          onClick={(e) => e.stopPropagation()}
-        />
-      ) : (
-        <h2
-          onClick={onStartEdit}
-          className="
-            text-3xl font-medium tracking-tight text-center
-            text-zinc-900 dark:text-zinc-100
-            cursor-pointer hover:opacity-70 transition-opacity
-            whitespace-pre-wrap break-words w-full
-          "
-        >
-          {title}
-        </h2>
-      )}
-    </div>
-  );
-}
 
 interface ValueDisplayProps {
   value: number;

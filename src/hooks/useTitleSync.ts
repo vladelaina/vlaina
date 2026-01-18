@@ -37,9 +37,9 @@ export function useDisplayIcon(path: string | undefined): string | undefined {
     )
   );
 
-  const previewIcon = useUIStore((state) => state.notesPreviewIcon);
+  const { universalPreviewTarget, universalPreviewIcon } = useUIStore();
 
   if (!path) return undefined;
-  if (previewIcon?.path === path) return previewIcon.icon;
+  if (universalPreviewTarget === path && universalPreviewIcon) return universalPreviewIcon;
   return noteIcon;
 }

@@ -1,14 +1,12 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { HeartPulse } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { useUIStore } from '@/stores/uiSlice';
-import { useDisplayIcon } from '@/hooks/useTitleSync';
-import { IconPicker, NoteIcon } from '../IconPicker';
 import { TitleInput } from './TitleInput';
-import { getRandomEmoji, loadRecentIcons, addToRecentIcons, loadSkinTone } from '../IconPicker/constants';
+import { loadSkinTone } from '@/components/common/UniversalIconPicker/constants';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
+import { buildFullAssetPath } from '@/lib/assets/pathUtils';
+import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { HeroIconHeader } from '@/components/common/HeroIconHeader';
 
 interface NoteHeaderProps {
     coverUrl: string | null;
@@ -22,10 +20,7 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
     const setGlobalIconSize = useNotesStore(s => s.setGlobalIconSize);
     const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
 
-    const setNotesPreviewIcon = useUIStore(s => s.setNotesPreviewIcon);
-
-    const displayIcon = useDisplayIcon(currentNotePath);
-    // Reactive subscription to note icon (for the "hasIcon" check)
+    // Reactive subscription to note icon
     const noteIcon = useNotesStore(
         useCallback(state => {
             if (!currentNotePath) return undefined;
@@ -34,116 +29,50 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
     );
 
     // Reactive subscription to icon size
-    // Now sourced from global preference via featureSlice logic
     const iconSize = useNotesStore(
         useCallback(state => {
             return state.noteMetadata?.defaultIconSize ?? 60;
         }, [])
     );
 
-    // PERFORMANCE OPTIMIZATION:
-    // Instead of using React State for "Preview Size" (which causes full re-renders),
-    // We use a CSS Variable and Direct DOM manipulation.
-    // This allows the slider to update the size at 60fps+ without layout thrashing.
-    const headerRef = useRef<HTMLDivElement>(null);
+    // Custom Upload Handlers for Universal Picker
+    const workspaceEmojis = useNotesStore(s => s.workspaceEmojis);
+    const removeWorkspaceEmoji = useNotesStore(s => s.removeWorkspaceEmoji);
+    const loadWorkspaceEmojis = useNotesStore(s => s.loadWorkspaceEmojis);
+    const vaultPath = useNotesStore(s => s.notesPath);
 
-    // Sync CSS variable when real state changes (initial load or DB update)
+    // Auto-load workspace icons on mount
     useEffect(() => {
-        if (headerRef.current) {
-            headerRef.current.style.setProperty('--header-icon-size', `${iconSize}px`);
-        }
-    }, [iconSize]);
+        loadWorkspaceEmojis();
+    }, [loadWorkspaceEmojis]);
 
-    const [showIconPicker, setShowIconPicker] = useState(false);
-    const [isHoveringHeader, setIsHoveringHeader] = useState(false);
-    const iconButtonRef = useRef<HTMLButtonElement>(null);
-    const previewRafRef = useRef<number | null>(null);
-    const clearPreviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const imageLoader = useCallback(async (src: string) => {
+        if (!vaultPath) return src;
+        const relativePath = src.substring(4);
+        const fullPath = buildFullAssetPath(vaultPath, relativePath);
+        return await loadImageAsBlob(fullPath);
+    }, [vaultPath]);
 
-    const handleIconSelect = (emoji: string) => {
-        if (currentNotePath) {
-            setNoteIcon(currentNotePath, emoji);
-            setNotesPreviewIcon(null, null);
-        }
-    };
+    const handleUploadFile = useCallback(async (file: File) => {
+        const uploadAsset = useNotesStore.getState().uploadAsset;
+        const addWorkspaceEmoji = useNotesStore.getState().addWorkspaceEmoji;
 
-    const handleRemoveIcon = () => {
-        if (currentNotePath) {
-            setNoteIcon(currentNotePath, null);
-            setNotesPreviewIcon(null, null);
-        }
-    };
+        const result = await uploadAsset(file, 'icons');
+        if (!result.success || !result.path) return { success: false, error: result.error };
 
-    // Low-Overhead Handler: Updates CSS Variable Only
-    const handleIconSizeChange = useCallback((size: number) => {
-        if (headerRef.current) {
-            // CRITICAL PERFORMANCE FIX:
-            // Disable transitions during direct manipulation to prevent the browser from
-            // trying to interpolate/animate the layout changes 60fps.
-            // This eliminates the "fighting" between JS updates and CSS transitions.
-            headerRef.current.style.transition = 'none';
-            headerRef.current.style.setProperty('--header-icon-size', `${size}px`);
-        }
+        const assetUrl = `img:${result.path}`;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T');
+        const finalName = `icon_${timestamp[0]}_${timestamp[1].split('Z')[0]}`;
+
+        await addWorkspaceEmoji({
+            id: file.name,
+            name: finalName,
+            url: assetUrl,
+            createdAt: Date.now(),
+        });
+        return { success: true, url: assetUrl };
     }, []);
 
-    const handleIconSizeConfirm = useCallback((size: number) => {
-        if (currentNotePath) {
-            if (headerRef.current) {
-                // Restore transition for future state changes (like Cover toggle)
-                headerRef.current.style.transition = '';
-            }
-            setGlobalIconSize(size);
-        }
-    }, [currentNotePath, setGlobalIconSize]);
-
-    const handleIconPreview = useCallback((icon: string | null) => {
-        if (!currentNotePath) return;
-
-        if (clearPreviewTimerRef.current) {
-            clearTimeout(clearPreviewTimerRef.current);
-            clearPreviewTimerRef.current = null;
-        }
-
-        if (icon === null) {
-            clearPreviewTimerRef.current = setTimeout(() => {
-                setNotesPreviewIcon(null, null);
-            }, 80);
-        } else {
-            if (previewRafRef.current !== null) {
-                cancelAnimationFrame(previewRafRef.current);
-            }
-            previewRafRef.current = requestAnimationFrame(() => {
-                previewRafRef.current = null;
-                setNotesPreviewIcon(currentNotePath, icon);
-            });
-        }
-    }, [currentNotePath, setNotesPreviewIcon]);
-
-    const handleIconPickerClose = () => {
-        setShowIconPicker(false);
-        setIsHoveringHeader(false);
-        if (previewRafRef.current !== null) {
-            cancelAnimationFrame(previewRafRef.current);
-            previewRafRef.current = null;
-        }
-        if (clearPreviewTimerRef.current) {
-            clearTimeout(clearPreviewTimerRef.current);
-            clearPreviewTimerRef.current = null;
-        }
-        setNotesPreviewIcon(null, null);
-    };
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            if (previewRafRef.current !== null) {
-                cancelAnimationFrame(previewRafRef.current);
-            }
-            if (clearPreviewTimerRef.current) {
-                clearTimeout(clearPreviewTimerRef.current);
-            }
-        };
-    }, []);
 
     // Calculate display name for Title Input
     const noteName = useMemo(() => {
@@ -153,28 +82,52 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
         return fileName.replace(/\.md$/, '');
     }, [currentNotePath]);
 
+    const handleIconChange = (newIcon: string | null) => {
+        if (currentNotePath) {
+            setNoteIcon(currentNotePath, newIcon);
+        }
+    };
+
+    const handleSizeConfirm = (size: number) => {
+        if (currentNotePath) {
+            setGlobalIconSize(size);
+        }
+    };
+
     return (
-        <div
-            ref={headerRef}
-            className={cn(
-                EDITOR_LAYOUT_CLASS,
-                "z-10 relative transition-[margin-top] duration-75 ease-out",
-                "pointer-events-none"
-                // Removed will-change to let browser decide, and removed potential conflict
+        <HeroIconHeader
+            id={currentNotePath || 'note-header'}
+            className={EDITOR_LAYOUT_CLASS}
+            
+            icon={noteIcon || null}
+            onIconChange={handleIconChange}
+            
+            iconSize={iconSize}
+            onSizeConfirm={handleSizeConfirm}
+            
+            coverUrl={coverUrl}
+            
+            customIcons={workspaceEmojis}
+            onUploadFile={handleUploadFile}
+            onDeleteCustomIcon={removeWorkspaceEmoji}
+            imageLoader={imageLoader}
+            
+            renderTitle={() => currentNotePath && (
+                <TitleInput
+                    notePath={currentNotePath}
+                    initialTitle={noteName}
+                    onEnter={() => {
+                        const editor = document.querySelector('.milkdown .ProseMirror') as HTMLElement;
+                        editor?.focus();
+                    }}
+                    autoFocus={!!isNewlyCreated}
+                />
             )}
-            style={{
-                // Initialize variable for SSR/First Paint
-                '--header-icon-size': `${iconSize}px`,
-                // Use Calc with the Variable
-                marginTop: coverUrl ? `calc(var(--header-icon-size) * -0.618)` : undefined
-            } as React.CSSProperties}
         >
-            {/* Clickable area to add cover - entire top padding area */}
             {!coverUrl && (
                 <div
                     className="absolute top-0 left-0 right-0 h-20 cursor-pointer hover:bg-[var(--neko-hover)]/30 transition-colors pointer-events-auto"
                     onClick={() => {
-                        // Get all available covers
                         const allCovers = useNotesStore.getState().getAssetList('covers');
                         let randomCover: string;
 
@@ -182,7 +135,6 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
                             const randomIndex = Math.floor(Math.random() * allCovers.length);
                             randomCover = allCovers[randomIndex].filename;
                         } else {
-                            // Fallback to builtin
                             randomCover = getRandomBuiltinCover();
                         }
                         onCoverUpdate(randomCover, 50, 50, 200, 1);
@@ -190,101 +142,6 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
                     }}
                 />
             )}
-            <div
-                className={cn(
-                    "pb-4 duration-150 pointer-events-auto",
-                    // Optimize Transition: Only animate properties we care about for Cover Toggle
-                    // Avoid transition-all which catches the icon resize layout changes
-                    "transition-[padding,opacity]",
-                    coverUrl ? "pt-0" : "pt-20"
-                )}
-                onMouseEnter={() => setIsHoveringHeader(true)}
-                onMouseLeave={() => setIsHoveringHeader(false)}
-            >
-                {displayIcon ? (
-                    <div
-                        className="relative flex items-center"
-                        style={{ height: 'var(--header-icon-size)' }}
-                    >
-                        <button
-                            ref={iconButtonRef}
-                            onClick={() => setShowIconPicker(true)}
-                            className="hover:scale-105 transition-transform cursor-pointer flex items-center"
-                            style={{
-                                marginLeft: `calc(var(--header-icon-size) * -0.1)`
-                            }}
-                        >
-                            <NoteIcon icon={displayIcon} size="var(--header-icon-size)" />
-                        </button>
-                    </div>
-                ) : showIconPicker ? (
-                    <div className="h-14 flex items-center">
-                        <button
-                            ref={iconButtonRef}
-                            className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)] transition-colors")}
-                        >
-                            <HeartPulse className="size-4" />
-                            <span>Add icon</span>
-                        </button>
-                    </div>
-                ) : (
-                    <div className={cn(
-                        "flex items-center gap-2 transition-all duration-150",
-                        isHoveringHeader ? "opacity-100" : "opacity-0 pointer-events-none"
-                    )}>
-                        <button
-                            ref={iconButtonRef}
-                            onClick={() => {
-                                if (!noteIcon) {
-                                    const currentSkinTone = loadSkinTone();
-                                    const randomEmoji = getRandomEmoji(currentSkinTone);
-                                    handleIconSelect(randomEmoji);
-                                    const currentRecent = loadRecentIcons();
-                                    addToRecentIcons(randomEmoji, currentRecent);
-                                }
-                                setShowIconPicker(true);
-                            }}
-                            className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)] transition-colors")}
-                        >
-                            <HeartPulse className="size-4" />
-                            <span>Add icon</span>
-                        </button>
-                    </div>
-                )}
-
-                {showIconPicker && (
-                    <div className="relative">
-                        <div className="absolute top-2 left-0 z-50">
-                            <IconPicker
-                                onSelect={handleIconSelect}
-                                onPreview={handleIconPreview}
-                                onRemove={handleRemoveIcon}
-                                onClose={handleIconPickerClose}
-                                hasIcon={!!noteIcon}
-                                currentIcon={noteIcon}
-                                currentSize={iconSize} // Pass the committed size (number) to helper initialization
-                                onSizeChange={handleIconSizeChange}
-                                onSizeConfirm={handleIconSizeConfirm}
-                            />
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Title Input */}
-            {currentNotePath && (
-                <div className="mb-4 pointer-events-auto">
-                    <TitleInput
-                        notePath={currentNotePath}
-                        initialTitle={noteName}
-                        onEnter={() => {
-                            const editor = document.querySelector('.milkdown .ProseMirror') as HTMLElement;
-                            editor?.focus();
-                        }}
-                        autoFocus={!!isNewlyCreated}
-                    />
-                </div>
-            )}
-        </div>
+        </HeroIconHeader>
     );
 }

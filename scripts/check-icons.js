@@ -22,15 +22,14 @@ console.log(`Unique icons (excluding aliases): ${allIcons.length}`);
 
 // Read all icon files
 const files = [
-  { name: 'common.ts', path: 'src/components/Notes/features/IconPicker/icons/common.ts' },
-  { name: 'status.ts', path: 'src/components/Notes/features/IconPicker/icons/status.ts' },
-  { name: 'dev.ts', path: 'src/components/Notes/features/IconPicker/icons/dev.ts' },
-  { name: 'user.ts', path: 'src/components/Notes/features/IconPicker/icons/user.ts' },
-  { name: 'doc.ts', path: 'src/components/Notes/features/IconPicker/icons/doc.ts' },
-  { name: 'media.ts', path: 'src/components/Notes/features/IconPicker/icons/media.ts' },
-  { name: 'nature.ts', path: 'src/components/Notes/features/IconPicker/icons/nature.ts' },
-  { name: 'place.ts', path: 'src/components/Notes/features/IconPicker/icons/place.ts' }
-];
+      { name: 'common.ts', path: 'src/components/common/UniversalIconPicker/icons/common.ts' },
+      { name: 'status.ts', path: 'src/components/common/UniversalIconPicker/icons/status.ts' },
+      { name: 'dev.ts', path: 'src/components/common/UniversalIconPicker/icons/dev.ts' },
+      { name: 'user.ts', path: 'src/components/common/UniversalIconPicker/icons/user.ts' },
+      { name: 'doc.ts', path: 'src/components/common/UniversalIconPicker/icons/doc.ts' },
+      { name: 'media.ts', path: 'src/components/common/UniversalIconPicker/icons/media.ts' },
+      { name: 'nature.ts', path: 'src/components/common/UniversalIconPicker/icons/nature.ts' },
+      { name: 'place.ts', path: 'src/components/common/UniversalIconPicker/icons/place.ts' }];
 
 console.log('\n[2] ICONS PER FILE');
 console.log('-'.repeat(40));

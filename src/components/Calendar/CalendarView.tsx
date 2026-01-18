@@ -36,6 +36,7 @@ export function CalendarView({ onToggleTask }: CalendarViewProps) {
       if (target.closest('.event-block')) return;
       if (target.closest('[data-event-context-menu]')) return;
       if (target.closest('#time-grid-container')) return;
+      if (target.closest('[data-no-auto-close]')) return;
 
       const editingEvent = events.find(e => e.uid === editingEventId);
       if (editingEvent && !editingEvent.summary.trim()) {

@@ -101,10 +101,15 @@ export function useCalendarStore() {
     editingEventId: uiStore.editingEventId,
     editingEventPosition: uiStore.editingEventPosition,
     selectedEventId: uiStore.selectedEventId,
+    // Legacy preview state (deprecated)
     previewIconEventId: uiStore.previewIconEventId,
     previewIcon: uiStore.previewIcon,
     previewColorEventId: uiStore.previewColorEventId,
     previewColor: uiStore.previewColor,
+    // Universal preview state
+    universalPreviewTarget: uiStore.universalPreviewTarget,
+    universalPreviewIcon: uiStore.universalPreviewIcon,
+    universalPreviewColor: uiStore.universalPreviewColor,
 
     // Load
     load,
