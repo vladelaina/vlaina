@@ -6,20 +6,20 @@
  */
 
 import { useMemo, useCallback, useState, useRef } from 'react';
-import { startOfDay, differenceInDays } from 'date-fns';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useGroupStore } from '@/stores/useGroupStore';
 import type { NekoEvent } from '@/lib/ics/types';
 import { EventContextMenu } from '../Event/EventContextMenu';
-import { getAllDayInlineStyles, getColorPriority } from '@/lib/colors';
+import { getAllDayInlineStyles } from '@/lib/colors';
+import {
+  calculateAllDayLayout,
+  ALL_DAY_CONSTANTS,
+  type LayoutedEvent
+} from '../../utils/allDayLayout';
 
-const MAX_VISIBLE_ROWS = 3;
-const EVENT_HEIGHT = 22;
-const EVENT_GAP = 2;
-const MIN_AREA_HEIGHT = 28;
-const COLLAPSED_HEIGHT = 28; // Height when collapsed with chevron
+const { MAX_VISIBLE_ROWS, EVENT_HEIGHT, EVENT_GAP, MIN_AREA_HEIGHT, COLLAPSED_HEIGHT } = ALL_DAY_CONSTANTS;
 
 interface AllDayAreaProps {
   days: Date[];
@@ -30,108 +30,6 @@ interface AllDayAreaProps {
   onEventDragStart?: (eventId: string, clientY: number) => void;
 }
 
-interface LayoutedEvent {
-  event: NekoEvent;
-  row: number;
-  startCol: number;
-  endCol: number;
-}
-
-function calculateAllDayLayout(
-  events: NekoEvent[],
-  days: Date[]
-): { layoutedEvents: LayoutedEvent[]; totalRows: number; overflowByDay: Map<number, number> } {
-  if (events.length === 0 || days.length === 0) {
-    return { layoutedEvents: [], totalRows: 0, overflowByDay: new Map() };
-  }
-
-  const firstDay = startOfDay(days[0]);
-
-  // Sort events: by color priority first, then longer events, then by start date
-  const sortedEvents = [...events].sort((a, b) => {
-    // First by color priority
-    const colorOrderA = getColorPriority(a.color);
-    const colorOrderB = getColorPriority(b.color);
-    if (colorOrderA !== colorOrderB) return colorOrderA - colorOrderB;
-
-    // Then by duration (longer first)
-    const durationA = a.dtend.getTime() - a.dtstart.getTime();
-    const durationB = b.dtend.getTime() - b.dtstart.getTime();
-    if (durationA !== durationB) return durationB - durationA;
-
-    // Finally by start date
-    return a.dtstart.getTime() - b.dtstart.getTime();
-  });
-
-  const layoutedEvents: LayoutedEvent[] = [];
-  const rowOccupancy: boolean[][] = []; // rowOccupancy[row][col] = occupied
-
-  for (const event of sortedEvents) {
-    const eventStart = startOfDay(event.dtstart);
-    const eventEnd = startOfDay(event.dtend);
-
-    // Calculate column range (clipped to visible days)
-    let startCol = Math.max(0, differenceInDays(eventStart, firstDay));
-    let endCol = Math.min(days.length - 1, differenceInDays(eventEnd, firstDay));
-
-    // Skip if completely outside visible range
-    if (startCol > days.length - 1 || endCol < 0) continue;
-
-    // Find first available row
-    let row = 0;
-    while (true) {
-      if (!rowOccupancy[row]) {
-        rowOccupancy[row] = new Array(days.length).fill(false);
-      }
-
-      let canFit = true;
-      for (let col = startCol; col <= endCol; col++) {
-        if (rowOccupancy[row][col]) {
-          canFit = false;
-          break;
-        }
-      }
-
-      if (canFit) break;
-      row++;
-    }
-
-    // Mark columns as occupied
-    for (let col = startCol; col <= endCol; col++) {
-      if (!rowOccupancy[row]) {
-        rowOccupancy[row] = new Array(days.length).fill(false);
-      }
-      rowOccupancy[row][col] = true;
-    }
-
-    layoutedEvents.push({
-      event,
-      row,
-      startCol,
-      endCol,
-    });
-  }
-
-  // Calculate overflow for each day
-  const overflowByDay = new Map<number, number>();
-  for (let col = 0; col < days.length; col++) {
-    let eventsInCol = 0;
-    for (const le of layoutedEvents) {
-      if (le.startCol <= col && le.endCol >= col) {
-        eventsInCol++;
-      }
-    }
-    if (eventsInCol > MAX_VISIBLE_ROWS) {
-      overflowByDay.set(col, eventsInCol - MAX_VISIBLE_ROWS);
-    }
-  }
-
-  return {
-    layoutedEvents,
-    totalRows: rowOccupancy.length,
-    overflowByDay,
-  };
-}
 
 export function AllDayArea({
   days,

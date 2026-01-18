@@ -10,7 +10,7 @@ export function useEventForm(event: NekoEvent) {
     const [localSummary, setLocalSummary] = useState(event.summary || '');
     const [showCalendarPicker, setShowCalendarPicker] = useState(false);
     const isNewEvent = useRef(!(event.summary || '').trim());
-    const debouncedUpdateSummary = useRef<NodeJS.Timeout>();
+    const debouncedUpdateSummary = useRef<NodeJS.Timeout | undefined>(undefined);
 
     const currentCalendar = calendars.find(c => c.id === event.calendarId) || calendars[0];
 
@@ -91,8 +91,10 @@ export function useEventForm(event: NekoEvent) {
         updateEvent(event.uid, { color });
     };
 
-    const handleIconChange = (icon: string) => {
-        updateEventIcon(event.uid, icon);
+    const handleIconChange = (icon: string | undefined) => {
+        if (icon) {
+            updateEventIcon(event.uid, icon);
+        }
     };
 
 
@@ -109,6 +111,7 @@ export function useEventForm(event: NekoEvent) {
         showCalendarPicker,
         setShowCalendarPicker,
         currentCalendar,
+        calendars,
         isNewEvent,
     };
 }

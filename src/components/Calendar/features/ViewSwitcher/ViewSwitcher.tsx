@@ -5,25 +5,13 @@ import { useCalendarStore, type TimeView } from '@/stores/useCalendarStore';
 import { addDays, addMonths } from 'date-fns';
 import { SyncButton } from '@/components/common';
 
-// View mode labels
-const VIEW_MODE_LABELS: Record<TimeView, string> = {
-  day: 'Day',
-  week: 'Week',
-  month: 'Month',
-};
-
-// Keyboard shortcuts display
-const VIEW_MODE_SHORTCUTS: Record<TimeView, string> = {
-  day: '1 or D',
-  week: '0 or W',
-  month: 'M',
-};
-
-// View mode order for dropdown
-const VIEW_MODE_ORDER: TimeView[] = ['day', 'week', 'month'];
-
-// Day count options (2-9)
-const DAY_COUNT_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9];
+import { DayCountModal } from './DayCountModal';
+import {
+  VIEW_MODE_LABELS,
+  VIEW_MODE_SHORTCUTS,
+  VIEW_MODE_ORDER,
+  DAY_COUNT_OPTIONS,
+} from './constants';
 
 export function ViewSwitcher() {
   const {
@@ -42,7 +30,6 @@ export function ViewSwitcher() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const submenuRef = useRef<HTMLDivElement>(null);
   const dayCountItemRef = useRef<HTMLButtonElement>(null);
-  const customInputRef = useRef<HTMLInputElement>(null);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -77,12 +64,7 @@ export function ViewSwitcher() {
     }
   }, [isDropdownOpen]);
 
-  // Focus custom input when modal opens
-  useEffect(() => {
-    if (showCustomDayModal && customInputRef.current) {
-      customInputRef.current.focus();
-    }
-  }, [showCustomDayModal]);
+
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -321,68 +303,22 @@ export function ViewSwitcher() {
       </div>
 
       {/* Custom Day Count Modal */}
-      {showCustomDayModal && createPortal(
-        <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 100001 }}>
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/20"
-            onClick={() => {
-              setShowCustomDayModal(false);
-              setCustomDayInput('');
-            }}
-          />
-
-          {/* Modal */}
-          <div className="relative bg-white dark:bg-zinc-100 rounded-xl shadow-2xl w-80 overflow-hidden">
-            {/* Search Input */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-200">
-              <Search className="size-4 text-zinc-400" />
-              <input
-                ref={customInputRef}
-                type="text"
-                value={customDayInput}
-                onChange={(e) => setCustomDayInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleCustomDaySubmit();
-                  } else if (e.key === 'Escape') {
-                    setShowCustomDayModal(false);
-                    setCustomDayInput('');
-                  }
-                }}
-                placeholder="Set number of days..."
-                className="flex-1 bg-transparent text-sm text-zinc-900 placeholder-zinc-400 outline-none"
-              />
-            </div>
-
-            {/* Options List */}
-            <div className="max-h-80 overflow-y-auto">
-              {Array.from({ length: 11 }, (_, i) => i + 1).map((count) => (
-                <button
-                  key={count}
-                  onClick={() => {
-                    setDayCount(count);
-                    setViewMode('day');
-                    setShowCustomDayModal(false);
-                    setCustomDayInput('');
-                  }}
-                  className="w-full px-4 py-2.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 transition-colors"
-                >
-                  {count}
-                </button>
-              ))}
-            </div>
-
-            {/* Footer */}
-            <div className="px-4 py-2 border-t border-zinc-200 flex items-center gap-4 text-xs text-zinc-400">
-              <span>↑↓ Navigate</span>
-              <span>↵ Select</span>
-              <span>Esc Close</span>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <DayCountModal
+        isOpen={showCustomDayModal}
+        inputValue={customDayInput}
+        onInputChange={setCustomDayInput}
+        onSubmit={handleCustomDaySubmit}
+        onClose={() => {
+          setShowCustomDayModal(false);
+          setCustomDayInput('');
+        }}
+        onSelectCount={(count) => {
+          setDayCount(count);
+          setViewMode('day');
+          setShowCustomDayModal(false);
+          setCustomDayInput('');
+        }}
+      />
 
       {/* Navigation Arrows */}
       <div className="flex items-center">
