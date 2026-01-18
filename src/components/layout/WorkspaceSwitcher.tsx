@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useCallback } from "react";
 import {
     Settings,
     LogOut,
@@ -16,7 +16,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
 import { useProStatusStore } from "@/stores/useProStatusStore";
 import { useUIStore } from "@/stores/uiSlice";
-import { useUserAvatar } from "@/hooks/useUserAvatar"; // Import hook
+import { useUserAvatar } from "@/hooks/useUserAvatar";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { isTauri } from "@/lib/storage/adapter";
 
@@ -24,7 +24,7 @@ interface WorkspaceSwitcherProps {
     onOpenSettings?: () => void;
 }
 
-export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
+const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
     const {
         isConnected: isGithubConnected,
         username: githubUsername,
@@ -33,64 +33,74 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
         isConnecting,
         cancelConnect
     } = useGithubSyncStore();
+    
     const { isProUser, isChecking: isProChecking } = useProStatusStore();
     const { appViewMode, setAppViewMode } = useUIStore();
     const [isOpen, setIsOpen] = React.useState(false);
+    const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
 
-    // Fallback data
-    const displayName = githubUsername || "NekoTick";
+    // Cache static platform check
+    const isDesktop = useMemo(() => isTauri(), []);
 
-    // Use centralized hook for avatar logic
-    const userAvatar = useUserAvatar();
-    const displayAvatar = userAvatar || "/logo.png";
-
-    const handleLogout = async () => {
+    // Memoize handlers to prevent unnecessary re-renders
+    const handleLogout = useCallback(async () => {
         await disconnect();
         setIsOpen(false);
-    };
+    }, [disconnect]);
 
-    const handleLogin = async () => {
+    const handleLogin = useCallback(async () => {
         await connect();
-    };
+    }, [connect]);
 
-    const handleSwitchAccount = async () => {
+    const handleSwitchAccount = useCallback(async () => {
         setIsOpen(false);
         await connect();
-    };
+    }, [connect]);
 
-    const handleOpenSettings = () => {
+    const handleOpenSettings = useCallback(() => {
         onOpenSettings?.();
         setIsOpen(false);
-    };
+    }, [onOpenSettings]);
 
-    const handleUpgradePlan = async () => {
+    const handleUpgradePlan = useCallback(async () => {
         const url = "https://nekotick.com/pricing";
         if (isDesktop) {
-            const { openUrl } = await import('@tauri-apps/plugin-opener');
-            await openUrl(url);
+            try {
+                const { openUrl } = await import('@tauri-apps/plugin-opener');
+                await openUrl(url);
+            } catch (e) {
+                console.error("Failed to open URL:", e);
+                window.open(url, "_blank");
+            }
         } else {
             window.open(url, "_blank");
         }
-    };
+    }, [isDesktop]);
 
-
-
-    const handleOpenAppLink = async () => {
-        const isDesktop = isTauri();
+    const handleOpenAppLink = useCallback(async () => {
         const url = isDesktop ? "https://app.nekotick.com" : "https://nekotick.com";
-
         if (isDesktop) {
-            const { openUrl } = await import('@tauri-apps/plugin-opener');
-            await openUrl(url);
+            try {
+                const { openUrl } = await import('@tauri-apps/plugin-opener');
+                await openUrl(url);
+            } catch (e) {
+                window.open(url, "_blank");
+            }
         } else {
             window.open(url, "_blank");
         }
         setIsOpen(false);
-    };
+    }, [isDesktop]);
 
-    const isDesktop = isTauri();
-
-    const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
+    // Helper to prioritize menu closing over heavy view rendering
+    const handleViewSwitch = useCallback((mode: typeof appViewMode) => {
+        if (appViewMode === mode) return;
+        setIsOpen(false);
+        // Defer state update just enough to let the menu unmount first
+        setTimeout(() => {
+            setAppViewMode(mode);
+        }, 10);
+    }, [appViewMode, setAppViewMode]);
 
     // Reset user menu when popover closes
     React.useEffect(() => {
@@ -98,6 +108,11 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
             setIsUserMenuOpen(false);
         }
     }, [isOpen]);
+
+    // Fallback data
+    const displayName = githubUsername || "NekoTick";
+    const userAvatar = useUserAvatar();
+    const displayAvatar = userAvatar || "/logo.png";
 
     return (
         <Popover.Root open={isOpen} onOpenChange={setIsOpen}>
@@ -110,17 +125,14 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                         isOpen && "bg-[var(--neko-hover)]"
                     )}
                 >
-                    {/* Avatar */}
                     <img
                         src={displayAvatar}
                         alt={displayName}
                         className="w-5 h-5 rounded-sm object-cover shadow-sm"
                     />
-
                     <span className="text-[14px] font-medium truncate max-w-[120px]">
                         {displayName}
                     </span>
-
                     <ChevronDown className="w-3.5 h-3.5 text-[var(--neko-text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
             </Popover.Trigger>
@@ -131,19 +143,15 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                         "w-[260px] z-50 rounded-xl p-1.5 select-none",
                         "bg-[var(--neko-bg-primary)] dark:bg-zinc-900",
                         "border border-[var(--neko-border)] shadow-xl",
+                        // Enter animation only - instant exit for snappy feel
                         "animate-in fade-in-0 zoom-in-95 duration-200",
-                        "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-100",
                         "data-[side=bottom]:slide-in-from-top-2"
                     )}
                     sideOffset={8}
                     align="start"
                 >
-                    {/* Main Content Area */}
                     <div className="flex flex-col">
-
-                        {/* 1. Unauthenticated vs Authenticated Views */}
                         {!isGithubConnected ? (
-                            /* New "Apple-style" Login Banner (User likes this) */
                             <div className="p-2 pb-0">
                                 <div
                                     className={cn(
@@ -185,7 +193,6 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                                 <div className="h-[1px] bg-[var(--neko-border)] mx-2 mt-2 opacity-40" />
                             </div>
                         ) : (
-                            /* Old "Classic" Authenticated View (User wants this back) */
                             <div className="relative px-3 pt-3 pb-2.5 flex items-start gap-3 group select-none">
                                 <div className="relative">
                                     <img
@@ -280,14 +287,9 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                             </div>
                         )}
 
-                        {/* Divider for Authenticated View Only (if needed, but old design had structure gap) */}
                         {isGithubConnected && <div className="h-[1px] bg-[var(--neko-border)] mx-3 my-1 opacity-50" />}
 
-                        {/* 2. Menu Items (Settings removed as it's in the auth card, or only for unauth? User said 'Restore Auth', implying unauth stays new. Let's keep Settings implicit or remove.) */}
-                        {/* Actually, for Unauth, they might need settings? But let's follow the 'Old' pattern where Settings was Auth-only or hidden. */}
-
                         <div className="px-1.5 pb-1.5 pt-0.5 space-y-0.5">
-                            {/* Settings Option - Only for Unauthenticated Users (Auth users have it in card) */}
                             {!isGithubConnected && (
                                 <button
                                     onClick={handleOpenSettings}
@@ -302,13 +304,9 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
                             )}
 
                             <div className="flex flex-col gap-0.5 py-1">
-
                                 {appViewMode !== 'calendar' && (
                                     <button
-                                        onClick={() => {
-                                            setAppViewMode('calendar');
-                                            setIsOpen(false);
-                                        }}
+                                        onClick={() => handleViewSwitch('calendar')}
                                         className={cn(
                                             "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
                                             "hover:bg-[var(--neko-hover)]"
@@ -321,10 +319,7 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
 
                                 {appViewMode !== 'notes' && (
                                     <button
-                                        onClick={() => {
-                                            setAppViewMode('notes');
-                                            setIsOpen(false);
-                                        }}
+                                        onClick={() => handleViewSwitch('notes')}
                                         className={cn(
                                             "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
                                             "hover:bg-[var(--neko-hover)]"
@@ -337,10 +332,7 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
 
                                 {appViewMode !== 'todo' && (
                                     <button
-                                        onClick={() => {
-                                            setAppViewMode('todo');
-                                            setIsOpen(false);
-                                        }}
+                                        onClick={() => handleViewSwitch('todo')}
                                         className={cn(
                                             "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
                                             "hover:bg-[var(--neko-hover)]"
@@ -379,4 +371,7 @@ export function WorkspaceSwitcher({ onOpenSettings }: WorkspaceSwitcherProps) {
             </Popover.Portal>
         </Popover.Root >
     );
-}
+};
+
+export const WorkspaceSwitcher = React.memo(WorkspaceSwitcherBase);
+WorkspaceSwitcher.displayName = "WorkspaceSwitcher";
