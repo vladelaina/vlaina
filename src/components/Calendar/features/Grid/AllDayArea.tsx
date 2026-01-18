@@ -56,7 +56,7 @@ export function AllDayArea({
     [allDayEvents, days]
   );
 
-  // Notion-style: collapse when 2+ visible events, show directly when 0-1 event
+  // Collapse when 2+ visible events, show directly when 0-1 event
   // Use layoutedEvents.length (events in current view) instead of allDayEvents.length
   const shouldCollapse = layoutedEvents.length >= 2;
   const showEvents = !shouldCollapse || isExpanded;
@@ -212,7 +212,7 @@ export function AllDayArea({
       >
         {layoutedEvents.length > 0 && (
           shouldCollapse ? (
-            // Notion-style: chevron + count when collapsed
+            // Chevron + count when collapsed
             <div className="flex items-center gap-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">
               {isExpanded ? (
                 <ChevronUp className="w-3 h-3" />

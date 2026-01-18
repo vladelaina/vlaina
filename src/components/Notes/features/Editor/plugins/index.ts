@@ -33,6 +33,9 @@ export { highlightPlugin } from './highlight';
 export { autolinkPlugin } from './autolink';
 export { abbrPlugin } from './abbr';
 
+// Link Tooltip
+export { linkTooltipPlugin } from './link-tooltip';
+
 // Task list interaction
 export { taskListClickPlugin } from './task-list';
 

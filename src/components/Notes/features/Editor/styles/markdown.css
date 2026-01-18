@@ -9,12 +9,20 @@
   text-decoration: none;
   border-bottom: 1px solid transparent;
   transition: border-color 0.15s;
-  cursor: text;
-  /* Apple Design: Editor links should be editable by default */
+  cursor: pointer;
+  /* User Preference: Direct click mode */
 }
 
 .milkdown a:hover {
   border-bottom-color: var(--neko-accent);
+}
+
+/* Active state when tooltip is open */
+.milkdown a.link-active-state {
+  background-color: var(--neko-accent-subtle, rgba(59, 130, 246, 0.1));
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px var(--neko-accent-subtle, rgba(59, 130, 246, 0.1));
+  border-bottom-color: transparent;
 }
 
 /* Blockquote */
@@ -256,4 +264,21 @@
 .milkdown s {
   text-decoration: line-through;
   color: var(--neko-text-secondary);
+}
+
+/* Tooltip Animation */
+@keyframes tooltip-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tooltip-anim {
+  animation: tooltip-fade-in 0.2s ease;
 }

@@ -8,7 +8,7 @@ import { create } from 'zustand';
 import { getStorageAdapter, joinPath, isTauri } from '@/lib/storage/adapter';
 import { setCurrentVaultPath } from './useNotesStore';
 
-// .nekotick folder name (like Obsidian's .obsidian)
+// .nekotick folder name
 const NEKOTICK_CONFIG_FOLDER = '.nekotick';
 const STORE_FOLDER = 'store';
 
@@ -185,7 +185,7 @@ function setupBroadcastChannel() {
  */
 async function getCurrentWindowLabel(): Promise<string | null> {
   if (!isTauri()) return null;
-  
+
   try {
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     return getCurrentWindow().label;
@@ -280,13 +280,13 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
     try {
       const storage = getStorageAdapter();
-      
+
       // On web platform, reject native filesystem paths
       if (storage.platform === 'web' && isNativeFilesystemPath(path)) {
         set({ error: 'Invalid path for web platform', isLoading: false });
         return false;
       }
-      
+
       // Verify path exists
       const pathExists = await storage.exists(path);
       if (!pathExists) {
@@ -350,7 +350,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
     try {
       const storage = getStorageAdapter();
-      
+
       // Create directory if not exists
       const pathExists = await storage.exists(path);
       if (!pathExists) {

@@ -132,22 +132,23 @@ export const autolinkPlugin = $prose(() => {
         return this.getState(state);
       },
       handleTextInput(view, from, to, text) {
-        // LINK BREAKER: If user types a space at the end of a link, break out of the link mark.
+        // LINK BREAKER: If user types a space (or other whitespace) at the end of a link, break out of the link mark.
         // This prevents "greedy links" that eat the space and following text.
-        if (text === ' ') {
+        if (/\s/.test(text)) {
           const { state } = view;
           const { selection } = state;
           const $pos = selection.$from;
 
           // Check if we are inside a link mark
-          const hasLink = $pos.marks().some(m => m.type.name === 'link');
+          const linkMark = state.schema.marks.link;
+          const hasLink = linkMark && $pos.marks().some(m => m.type.name === linkMark.name);
 
           // And if we are at the end of that mark (or simply inside one, we want space to break it)
           if (hasLink) {
             // Dispatch a transaction that inserts the space WITHOUT the link mark
             // This effectively "turns off" the link for future typing
             const tr = state.tr.insertText(text, from, to);
-            tr.removeStoredMark(state.schema.marks.link);
+            tr.removeStoredMark(linkMark);
             view.dispatch(tr);
             return true; // We handled the input
           }
@@ -157,13 +158,7 @@ export const autolinkPlugin = $prose(() => {
       handleClick(_view, _pos, event) {
         const target = event.target as HTMLElement;
         if (target.classList.contains('autolink')) {
-          // APPLE DESIGN UX: In an editor, "Click" is for editing (placing cursor).
-          // "Action" (opening link) requires intent via Modifier Key (Ctrl/Cmd).
-          // This prevents jarring context switches when user just wants to fix a typo.
-          if (!event.ctrlKey && !event.metaKey) {
-            return false; // Let ProseMirror handle the click (place cursor)
-          }
-
+          // USER PREFERENCE: Direct click to open
           const href = target.getAttribute('data-href') || target.getAttribute('href');
           if (href) {
             window.open(href, '_blank', 'noopener,noreferrer');
