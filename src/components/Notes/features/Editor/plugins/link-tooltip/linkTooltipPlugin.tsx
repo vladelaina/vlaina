@@ -1,7 +1,6 @@
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
-import React from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import LinkTooltip from './LinkTooltip';
 
@@ -26,9 +25,38 @@ class LinkTooltipView {
 
         this.view.dom.addEventListener('mouseover', this.handleEditorMouseOver);
         this.view.dom.addEventListener('mouseout', this.handleEditorMouseOut);
+        // Use capture to ensure we intercept before editor internal selection logic
+        this.view.dom.addEventListener('mousedown', this.handleEditorMouseDown, true);
+
         this.dom.addEventListener('mouseenter', this.handleTooltipMouseEnter);
         this.dom.addEventListener('mouseleave', this.handleTooltipMouseLeave);
+
+        // Hide tooltip on scroll
+        window.addEventListener('scroll', this.handleScroll, true);
     }
+
+    handleScroll = () => {
+        if (this.activeLink) {
+            this.hide();
+        }
+    };
+
+    handleEditorMouseDown = (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        const link = target.closest('.autolink') || target.closest('a[href]');
+
+        if (link && (e.metaKey || e.ctrlKey)) {
+            // Aggressively prevent default selection AND open the link immediately
+            const href = link.getAttribute('href') || link.getAttribute('data-href');
+            if (href) {
+                window.open(href, '_blank', 'noopener,noreferrer');
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        }
+    };
 
     handleEditorMouseOver = (e: Event) => {
         const target = e.target as HTMLElement;
@@ -111,6 +139,50 @@ class LinkTooltipView {
         this.dom.style.left = `${rect.left + scrollLeft}px`;
     }
 
+    handleEdit = (link: HTMLElement, text: string, url: string) => {
+        const pos = this.view.posAtDOM(link, 0);
+        if (pos < 0) return;
+
+        const { state, dispatch } = this.view;
+        const $pos = state.doc.resolve(pos);
+
+        // Find the range of the link mark
+        const { parent, parentOffset } = $pos;
+        let start = parentOffset;
+        let end = parentOffset;
+
+        // Find the mark type for 'link'
+        const linkMarkType = state.schema.marks.link;
+        if (!linkMarkType) return;
+
+        // Search backwards for mark start
+        while (start > 0 && linkMarkType.isInSet(parent.child(start - 1).marks)) {
+            start--;
+        }
+
+        // Search forwards for mark end
+        while (end < parent.childCount && linkMarkType.isInSet(parent.child(end).marks)) {
+            end++;
+        }
+
+        const absoluteStart = $pos.start() + start;
+        const absoluteEnd = $pos.start() + end;
+
+        // Dispatch transaction to update:
+        // 1. Remove old link mark
+        // 2. Replace text
+        // 3. Add new link mark
+        const tr = state.tr
+            .removeMark(absoluteStart, absoluteEnd, linkMarkType)
+            .insertText(text, absoluteStart, absoluteEnd)
+            .addMark(absoluteStart, absoluteStart + text.length, linkMarkType.create({ href: url }));
+
+        dispatch(tr);
+
+        // Hide tooltip after edit
+        this.hide();
+    };
+
     show(link: HTMLElement) {
         if (this.activeLink && this.activeLink !== link) {
             this.activeLink.classList.remove('link-active-state');
@@ -126,7 +198,9 @@ class LinkTooltipView {
             <LinkTooltip
                 key={Date.now()}
                 href={href}
-                onClose={() => this.hide(true)}
+                initialText={link.textContent || ''}
+                onEdit={(text, url) => this.handleEdit(link, text, url)}
+                onClose={() => this.hide()}
             />
         );
 
@@ -135,7 +209,7 @@ class LinkTooltipView {
         requestAnimationFrame(() => this.updatePosition(link));
     }
 
-    hide(immediate = false) {
+    hide() {
         if (this.dom.hasAttribute('data-dropdown-open')) {
             return;
         }
@@ -151,8 +225,10 @@ class LinkTooltipView {
     destroy() {
         this.view.dom.removeEventListener('mouseover', this.handleEditorMouseOver);
         this.view.dom.removeEventListener('mouseout', this.handleEditorMouseOut);
+        this.view.dom.removeEventListener('mousedown', this.handleEditorMouseDown, true);
         this.dom.removeEventListener('mouseenter', this.handleTooltipMouseEnter);
         this.dom.removeEventListener('mouseleave', this.handleTooltipMouseLeave);
+        window.removeEventListener('scroll', this.handleScroll, true);
         this.dom.remove();
         this.root?.unmount();
     }

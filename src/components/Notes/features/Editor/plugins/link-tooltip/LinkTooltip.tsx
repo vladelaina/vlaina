@@ -10,16 +10,18 @@ import {
 
 export interface LinkTooltipProps {
     href: string;
+    initialText?: string;
+    onEdit: (text: string, url: string) => void;
     onClose: () => void;
 }
 
-const LinkTooltip = ({ href, onClose }: LinkTooltipProps) => {
+const LinkTooltip = ({ href, initialText = '', onEdit }: LinkTooltipProps) => {
     const [mode, setMode] = useState<'view' | 'edit'>('view');
     const [showCopied, setShowCopied] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
 
     const [editUrl, setEditUrl] = useState(href);
-    const [editText, setEditText] = useState('Link Text');
+    const [editText, setEditText] = useState(initialText || 'Link Text');
 
     useEffect(() => {
         setEditUrl(href);
@@ -58,7 +60,7 @@ const LinkTooltip = ({ href, onClose }: LinkTooltipProps) => {
     };
 
     const handleSaveEdit = () => {
-        // TODO: Implement actual save logic to update the link in the editor
+        onEdit(editText, editUrl);
         setMode('view');
     };
 
@@ -72,7 +74,8 @@ const LinkTooltip = ({ href, onClose }: LinkTooltipProps) => {
 
     const dynamicWidth = React.useMemo(() => {
         const maxLength = Math.max(editText.length, editUrl.length);
-        return Math.min(Math.max(320, maxLength * 9 + 100), 520);
+        // Base width 320px + approx 8px per char + extra padding
+        return Math.min(Math.max(320, maxLength * 8 + 80), 520);
     }, [editText, editUrl]);
 
     // --- EDIT MODE ---
@@ -108,7 +111,7 @@ const LinkTooltip = ({ href, onClose }: LinkTooltipProps) => {
                             value={editUrl}
                             onChange={(e) => setEditUrl(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            className="flex-1 bg-transparent border-none outline-none text-sm font-mono text-gray-600 dark:text-gray-300 placeholder:text-gray-400"
+                            className="flex-1 bg-transparent border-none outline-none text-sm font-medium text-gray-600 dark:text-gray-300 placeholder:text-gray-400"
                             placeholder="https://..."
                         />
                     </div>
