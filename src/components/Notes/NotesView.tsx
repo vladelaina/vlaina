@@ -24,7 +24,7 @@ export function NotesView() {
   const clearAssetUrlCache = useNotesStore(s => s.clearAssetUrlCache);
 
   const { currentVault } = useVaultStore();
-  const { sidebarWidth } = useUIStore(); // unified store
+  const { sidebarWidth, sidebarPeeking } = useUIStore(); // unified store
 
   const [showSearch, setShowSearch] = useState(false);
 
@@ -114,7 +114,7 @@ export function NotesView() {
          {currentNotePath ? (
            <MarkdownEditor 
              peekOffset={sidebarWidth}
-             // isPeeking is handled by Editor internally or we pass it if needed
+             isPeeking={sidebarPeeking}
            />
          ) : (
            <div className="flex-1" />
