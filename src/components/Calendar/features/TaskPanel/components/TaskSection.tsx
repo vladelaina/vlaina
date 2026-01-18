@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { Task } from '@/stores/types';
-import { PanelTaskItem } from '@/components/common/TaskList';
+import { TaskItem } from '@/components/common/TaskList';
 
 interface TaskSectionProps {
     tasks: Task[];
@@ -45,7 +45,7 @@ export function TaskSection({
 
         return (
             <div key={task.id}>
-                <PanelTaskItem
+                <TaskItem
                     task={task}
                     onToggle={onToggle}
                     onUpdate={onUpdate}

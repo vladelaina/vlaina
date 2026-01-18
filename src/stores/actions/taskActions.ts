@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid';
 import type { UnifiedData, UnifiedTask } from '@/lib/storage/unifiedStorage';
 import { type ItemColor, DEFAULT_COLOR } from '@/lib/colors';
 import { MS_PER_MINUTE } from '@/lib/time/constants';
+import { getDescendantIds, getChildren, reorderSiblings } from '../taskTreeUtils';
 
 type SetState = (fn: (state: { data: UnifiedData }) => Partial<{ data: UnifiedData }>) => void;
 type GetState = () => { data: UnifiedData };
@@ -12,6 +13,7 @@ type Persist = (data: UnifiedData) => void;
 export function createTaskActions(set: SetState, get: GetState, persist: Persist) {
   return {
     addTask: (content: string, groupId: string, color: ItemColor = DEFAULT_COLOR) => {
+      // Logic: New tasks go to the bottom of the list (incomplete, root level)
       const groupTasks = get().data.tasks.filter(t => t.groupId === groupId && !t.parentId && !t.startDate);
       const newTask: UnifiedTask = {
         id: nanoid(),
@@ -38,7 +40,7 @@ export function createTaskActions(set: SetState, get: GetState, persist: Persist
       const parent = get().data.tasks.find(t => t.id === parentId);
       if (!parent) return;
       
-      const siblings = get().data.tasks.filter(t => t.parentId === parentId);
+      const siblings = getChildren(get().data.tasks, parentId);
       const newTask: UnifiedTask = {
         id: nanoid(),
         content,
@@ -122,13 +124,17 @@ export function createTaskActions(set: SetState, get: GetState, persist: Persist
           t.id === id ? { ...t, parentId, order } : t
         );
         
+        // If parent changed, reorder old siblings
         if (oldParentId !== parentId) {
-          const oldSiblings = newTasks
-            .filter(t => t.parentId === oldParentId && t.id !== id)
-            .sort((a, b) => a.order - b.order);
-          oldSiblings.forEach((t, i) => {
-            const taskToUpdate = newTasks.find(nt => nt.id === t.id);
-            if (taskToUpdate) taskToUpdate.order = i;
+          const oldSiblings = getChildren(newTasks, oldParentId, task.groupId)
+            .filter(t => t.id !== id);
+          
+          const reorderedOldSiblings = reorderSiblings(oldSiblings, 0, 0); // Just triggers re-index logic effectively
+          
+          // Apply new orders
+          reorderedOldSiblings.forEach((t, i) => {
+             const target = newTasks.find(nt => nt.id === t.id);
+             if (target) target.order = i;
           });
         }
         
@@ -189,11 +195,8 @@ export function createTaskActions(set: SetState, get: GetState, persist: Persist
 
     deleteTask: (id: string) => {
       set((state) => {
-        const collectIds = (taskId: string): string[] => {
-          const children = state.data.tasks.filter(t => t.parentId === taskId);
-          return [taskId, ...children.flatMap(c => collectIds(c.id))];
-        };
-        const idsToDelete = new Set(collectIds(id));
+        // Use utility to safely find all descendants
+        const idsToDelete = new Set(getDescendantIds(state.data.tasks, id));
         
         const newData = {
           ...state.data,
@@ -217,27 +220,33 @@ export function createTaskActions(set: SetState, get: GetState, persist: Persist
 
     reorderTasks: (activeId: string, overId: string) => {
       set((state) => {
-        const activeTask = state.data.tasks.find(t => t.id === activeId);
-        const overTask = state.data.tasks.find(t => t.id === overId);
+        const tasks = state.data.tasks;
+        const activeTask = tasks.find(t => t.id === activeId);
+        const overTask = tasks.find(t => t.id === overId);
+        
         if (!activeTask || !overTask) return state;
         if (activeTask.groupId !== overTask.groupId) return state;
         if (activeTask.parentId !== overTask.parentId) return state;
         
-        const siblings = state.data.tasks
-          .filter(t => t.groupId === activeTask.groupId && t.parentId === activeTask.parentId)
-          .sort((a, b) => a.order - b.order);
+        // Get siblings sorted
+        const siblings = getChildren(tasks, activeTask.parentId, activeTask.groupId);
         
         const oldIndex = siblings.findIndex(t => t.id === activeId);
         const newIndex = siblings.findIndex(t => t.id === overId);
+        
         if (oldIndex === -1 || newIndex === -1) return state;
         
-        const [removed] = siblings.splice(oldIndex, 1);
-        siblings.splice(newIndex, 0, removed);
+        // Use utility to calculate new orders
+        const reorderedSiblings = reorderSiblings(siblings, oldIndex, newIndex);
         
-        const orderMap = new Map(siblings.map((t, i) => [t.id, i]));
-        const newTasks = state.data.tasks.map(t => {
-          const newOrder = orderMap.get(t.id);
-          return newOrder !== undefined ? { ...t, order: newOrder } : t;
+        // Apply updates to the main list
+        const orderMap = new Map(reorderedSiblings.map(t => [t.id, t.order]));
+        
+        const newTasks = tasks.map(t => {
+            if (orderMap.has(t.id)) {
+                return { ...t, order: orderMap.get(t.id)! };
+            }
+            return t;
         });
         
         const newData = { ...state.data, tasks: newTasks };
@@ -251,13 +260,11 @@ export function createTaskActions(set: SetState, get: GetState, persist: Persist
         const task = state.data.tasks.find(t => t.id === taskId);
         if (!task) return state;
         
-        const collectIds = (id: string): string[] => {
-          const children = state.data.tasks.filter(t => t.parentId === id);
-          return [id, ...children.flatMap(c => collectIds(c.id))];
-        };
-        const idsToMove = new Set(collectIds(taskId));
+        // Use utility to identify the whole subtree
+        const idsToMove = new Set(getDescendantIds(state.data.tasks, taskId));
         
-        const targetTasks = state.data.tasks.filter(t => t.groupId === targetGroupId && !t.parentId);
+        // Calculate new order in target group
+        const targetTasks = getChildren(state.data.tasks, null, targetGroupId);
         let newOrder = targetTasks.length;
         
         if (overTaskId) {

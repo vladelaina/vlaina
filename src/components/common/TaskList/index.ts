@@ -1,8 +1,6 @@
-/**
- * TaskList common components - Barrel export
- */
-
-export { TaskInput, PanelTaskInput } from './TaskInput';
-export { TaskItem, PanelTaskItem } from './TaskItem';
 export { SortableDivider } from './SortableDivider';
+export { TaskInput } from './TaskInput';
+export { TaskItem } from './TaskItem';
+export { TaskFilterMenu } from './TaskFilterMenu';
+export { TaskItemMenu } from './TaskItemMenu';
 export { useTaskDragAndDrop } from './useTaskDragAndDrop';

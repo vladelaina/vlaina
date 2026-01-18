@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { DndContext, DragOverlay, DragMoveEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { Task } from '@/stores/types';
-import { PanelTaskInput, SortableDivider } from '@/components/common/TaskList';
+import { TaskInput, SortableDivider } from '@/components/common/TaskList';
 import { TaskSection } from '../components/TaskSection';
 import { cn } from '@/lib/utils';
 import { getAllDayInlineStyles, getColorHex } from '@/lib/colors';
@@ -116,7 +116,7 @@ export function TaskListView({
             {/* Task input */}
             {activeGroupId !== '__archive__' && (
                 <div className="flex-shrink-0 px-3 pb-2">
-                    <PanelTaskInput compact={!isExpanded} />
+                    <TaskInput compact={!isExpanded} />
                 </div>
             )}
 
