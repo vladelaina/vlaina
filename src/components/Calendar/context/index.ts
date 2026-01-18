@@ -1,1 +1,1 @@
-export { CalendarInteractionProvider, useCalendarInteraction } from './CalendarInteractionContext';
+// Context exports - currently empty after cleanup

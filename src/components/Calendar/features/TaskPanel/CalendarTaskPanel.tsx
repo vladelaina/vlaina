@@ -60,7 +60,7 @@ export function CalendarTaskPanel({
     setDraggingToCalendarTaskId,
   } = useUIStore();
 
-  const { editingEventId, events, selectedDate, hourHeight, viewMode, dayCount } = useCalendarStore();
+  const { editingEventId, events, selectedDate, hourHeight, viewMode, dayCount, addEvent } = useCalendarStore();
 
   // Local state
   const [isOverCalendar, setIsOverCalendar] = useState(false);
@@ -95,6 +95,7 @@ export function CalendarTaskPanel({
     updateTaskTime,
     toggleTask,
     setDraggingTaskId,
+    onAddEvent: addEvent,
     calendarInfo: {
       selectedDate,
       hourHeight,
@@ -222,7 +223,7 @@ export function CalendarTaskPanel({
               }}
               showPicker={uiState.showGroupPicker}
               onTogglePicker={() => uiState.setShowGroupPicker(!uiState.showGroupPicker)}
-              pickerRef={groupPickerRef}
+              pickerRef={groupPickerRef as React.RefObject<HTMLDivElement>}
             />
           </div>
 
@@ -256,7 +257,10 @@ export function CalendarTaskPanel({
           onDragEnd={wrappedHandleDragEnd}
           isOverCalendar={isOverCalendar}
           onToggle={toggleTask}
-          onUpdate={updateTask}
+          onUpdate={(id, updates) => {
+            if (updates.content !== undefined) updateTask(id, updates.content);
+            // Add other updates if needed, currently TaskListView mainly triggers rename
+          }}
           onDelete={deleteTask}
           onAddSubTask={handleAddSubTask}
           onToggleCollapse={toggleCollapse}
@@ -268,7 +272,7 @@ export function CalendarTaskPanel({
           onToggleCompletedExpanded={() => uiState.setCompletedExpanded(!uiState.completedExpanded)}
           showCompletedMenu={uiState.showCompletedMenu}
           onToggleCompletedMenu={() => uiState.setShowCompletedMenu(!uiState.showCompletedMenu)}
-          completedMenuRef={completedMenuRef}
+          completedMenuRef={completedMenuRef as React.RefObject<HTMLDivElement>}
           activeGroupId={activeGroupId}
           isExpanded={isExpanded}
           hourHeight={hourHeight}

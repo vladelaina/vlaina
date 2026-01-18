@@ -24,7 +24,7 @@ import { useSyncInit } from '@/hooks/useSyncInit';
 
 
 function AppContent() {
-  const { loadData } = useGroupStore();
+  const { loadData, toggleTask } = useGroupStore();
   const { showContextPanel, selectedDate, hourHeight, viewMode, dayCount } = useCalendarStore();
   const { appViewMode, showSidebar } = useUIStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -122,7 +122,7 @@ function AppContent() {
           rightPanel={<CalendarDetailPanel />}
           showRightPanel={showContextPanel}
         >
-          <CalendarPage />
+          <CalendarPage onToggleTask={toggleTask} />
         </Layout>
       ) : appViewMode === 'todo' ? (
         /* Todo Page */

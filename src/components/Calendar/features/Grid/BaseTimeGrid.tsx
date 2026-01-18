@@ -9,7 +9,6 @@ import { useRef, useEffect, useState, useMemo } from 'react';
 import { getHours, getMinutes } from 'date-fns';
 
 import { useCalendarStore } from '@/stores/useCalendarStore';
-import { useGroupStore } from '@/stores/useGroupStore';
 import { useCalendarEvents } from '../../hooks/useCalendarEvents';
 import { AllDayArea } from './AllDayArea';
 import {
@@ -28,13 +27,13 @@ const GUTTER_WIDTH = CALENDAR_CONSTANTS.GUTTER_WIDTH as number;
 
 interface BaseTimeGridProps {
   days: Date[];
+  onToggle?: (id: string) => void;
 }
 
-export function BaseTimeGrid({ days }: BaseTimeGridProps) {
+export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
   const {
     hourHeight, use24Hour, dayStartTime,
   } = useCalendarStore();
-  const { toggleTask } = useGroupStore();
   const displayItems = useCalendarEvents();
 
   const [now, setNow] = useState(new Date());
@@ -120,6 +119,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
           isDropTarget={isAllDayDropTarget}
           onCreateAllDay={handleCreateAllDay}
           onEventDragStart={handleAllDayEventDragStart}
+          onToggle={onToggle}
         />
       </div>
 
@@ -155,7 +155,7 @@ export function BaseTimeGrid({ days }: BaseTimeGridProps) {
               columnCount={columnCount}
               hourHeight={hourHeight}
               dayStartMinutes={dayStartMinutes}
-              toggleTask={toggleTask}
+              onToggle={onToggle}
               isDragging={isDragging}
               dragStart={dragStart}
               dragEnd={dragEnd}

@@ -20,7 +20,12 @@ import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useCalendarKeyboard } from './hooks/useCalendarKeyboard';
 import { useCalendarZoom } from './hooks/useCalendarZoom';
 
-export function CalendarPage() {
+interface CalendarPageProps {
+  /** Optional callback for toggling task completion (injected from parent) */
+  onToggleTask?: (id: string) => void;
+}
+
+export function CalendarPage({ onToggleTask }: CalendarPageProps = {}) {
   const {
     load, viewMode, showContextPanel,
     editingEventId, editingEventPosition, closeEditingEvent, events,
@@ -80,13 +85,13 @@ export function CalendarPage() {
   const renderGrid = () => {
     switch (viewMode) {
       case 'day':
-        return <DayGrid />;
+        return <DayGrid onToggle={onToggleTask} />;
       case 'week':
-        return <TimeGrid />;
+        return <TimeGrid onToggle={onToggleTask} />;
       case 'month':
         return <MonthGrid />;
       default:
-        return <TimeGrid />;
+        return <TimeGrid onToggle={onToggleTask} />;
     }
   };
 

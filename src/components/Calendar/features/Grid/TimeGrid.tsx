@@ -9,7 +9,11 @@ import { startOfWeek, addDays } from 'date-fns';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { BaseTimeGrid } from './BaseTimeGrid';
 
-export function TimeGrid() {
+interface TimeGridProps {
+  onToggle?: (id: string) => void;
+}
+
+export function TimeGrid({ onToggle }: TimeGridProps = {}) {
   const { selectedDate } = useCalendarStore();
 
   const days = useMemo(() => {
@@ -17,5 +21,5 @@ export function TimeGrid() {
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   }, [selectedDate]);
 
-  return <BaseTimeGrid days={days} />;
+  return <BaseTimeGrid days={days} onToggle={onToggle} />;
 }

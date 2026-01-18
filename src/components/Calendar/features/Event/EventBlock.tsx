@@ -4,7 +4,7 @@
  * Responsibilities: Rendering + drag interaction dispatch
  */
 
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { Check, Pause } from 'lucide-react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
@@ -14,6 +14,7 @@ import type { NekoEvent } from '@/lib/ics/types';
 import { calculateEventTop, calculateEventHeight, CALENDAR_CONSTANTS, DEFAULT_DAY_START_MINUTES } from '../../utils/timeUtils';
 import { getEventInlineStyles } from '@/lib/colors';
 import { getIconByName } from '@/components/Progress/features/IconPicker/utils';
+import { useEventTimer, formatElapsedTime, getHeightLevel } from './hooks/useEventTimer';
 
 const GAP = CALENDAR_CONSTANTS.GAP as number;
 const RESIZE_HANDLE_HEIGHT = CALENDAR_CONSTANTS.RESIZE_HANDLE_HEIGHT as number;
@@ -32,7 +33,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   const {
     setEditingEventId, editingEventId,
     setSelectedEventId, closeEditingEvent,
-    use24Hour, deleteEvent,
+    use24Hour, deleteEvent, allEvents,
     previewIconEventId, previewIcon,
     previewColorEventId, previewColor
   } = useCalendarStore();
@@ -41,38 +42,10 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   const [isHovered, setIsHovered] = useState(false);
   const [resizeEdge, setResizeEdge] = useState<'top' | 'bottom' | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [elapsedMs, setElapsedMs] = useState(0);
   const blockRef = useRef<HTMLDivElement>(null);
 
   const isActive = editingEventId === event.uid;
   const isCompleted = event.completed;
-  const isTimerRunning = event.timerState === 'running';
-  const isTimerPaused = event.timerState === 'paused';
-  const isTimerActive = isTimerRunning || isTimerPaused;
-
-  useEffect(() => {
-    if (!isTimerRunning && !isTimerPaused) {
-      setElapsedMs(0);
-      return;
-    }
-
-    if (isTimerPaused) {
-      setElapsedMs(event.timerAccumulated || 0);
-      return;
-    }
-
-    const updateElapsed = () => {
-      const accumulated = event.timerAccumulated || 0;
-      const startedAt = event.timerStartedAt || Date.now();
-      const sinceStart = Date.now() - startedAt;
-      setElapsedMs(accumulated + sinceStart);
-    };
-
-    updateElapsed();
-
-    const interval = setInterval(updateElapsed, 100);
-    return () => clearInterval(interval);
-  }, [isTimerRunning, isTimerPaused, event.timerStartedAt, event.timerAccumulated]);
 
   // Calculate position and size
   const startDate = event.dtstart.getTime();
@@ -82,22 +55,15 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   const plannedDuration = endDate - startDate;
   const plannedHeight = calculateEventHeight(startDate, endDate, hourHeight);
 
-  const actualHeight = useMemo(() => {
-    if (!isTimerActive) return plannedHeight;
-    const elapsedHeight = (elapsedMs / 3600000) * hourHeight;
-    return Math.max(plannedHeight, elapsedHeight);
-  }, [isTimerActive, elapsedMs, plannedHeight, hourHeight]);
+  // Timer state management via hook
+  const { elapsedMs, isTimerActive, isTimerPaused, actualHeight } = useEventTimer({
+    event,
+    plannedHeight,
+    hourHeight,
+  });
 
   const height = actualHeight;
-
-  // Height level
-  const heightLevel = useMemo(() => {
-    if (height < 20) return 'micro';
-    if (height < 32) return 'tiny';
-    if (height < 48) return 'small';
-    if (height < 80) return 'medium';
-    return 'large';
-  }, [height]);
+  const heightLevel = getHeightLevel(height);
 
   // Color - use preview color when hovering, otherwise use event color
   const displayColor = (previewColorEventId === event.uid && previewColor !== null)
@@ -203,7 +169,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
     if (resizeEdge) return;
 
     if (editingEventId && editingEventId !== event.uid) {
-      const editingEvent = useCalendarStore.getState().events.find(ev => ev.uid === editingEventId);
+      const editingEvent = allEvents.find(ev => ev.uid === editingEventId);
       if (editingEvent && !editingEvent.summary.trim()) {
         deleteEvent(editingEventId);
       }
@@ -230,17 +196,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
     ? Math.min((elapsedMs / plannedDuration) * 100, 100)
     : 0;
 
-  const formatElapsed = (ms: number) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
 
-    if (hours > 0) {
-      return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   return (
     <>
@@ -382,9 +338,9 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
                   {isTimerActive ? (
                     <>
                       <span className={isOvertime ? 'text-red-500' : ''}>
-                        {formatElapsed(elapsedMs)}
+                        {formatElapsedTime(elapsedMs)}
                       </span>
-                      <span className="opacity-50"> / {formatElapsed(plannedDuration)}</span>
+                      <span className="opacity-50"> / {formatElapsedTime(plannedDuration)}</span>
                     </>
                   ) : (
                     <>
