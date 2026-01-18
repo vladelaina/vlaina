@@ -265,7 +265,7 @@ export function TodoPanel() {
                     {/* Task List - Centered Container for Focus */}
                     <div
                         ref={scrollRef}
-                        className="flex-1 overflow-y-auto px-6 pb-20 scroll-smooth"
+                        className="flex-1 overflow-y-auto px-6 pb-20 scroll-smooth neko-scrollbar"
                     >
                         <div className="max-w-3xl mx-auto w-full pb-10">
                             <DndContext

@@ -96,7 +96,7 @@ export function useCalendarStore() {
 
     // UI State
     selectedDate: uiStore.selectedDate,
-    showSidebar: uiStore.showSidebar,
+    showSidebar: !uiStore.sidebarCollapsed,
     showContextPanel: uiStore.showContextPanel,
     editingEventId: uiStore.editingEventId,
     editingEventPosition: uiStore.editingEventPosition,

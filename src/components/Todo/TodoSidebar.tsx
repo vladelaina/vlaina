@@ -1,6 +1,4 @@
 import React from 'react';
-import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
-import { useUIStore } from '@/stores/uiSlice';
 import {
     ClipboardList,
     CalendarDays,
@@ -12,7 +10,6 @@ import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
 
 export function TodoSidebar() {
-    const { toggleSidebar } = useUIStore();
     const { activeGroupId, setActiveGroup, groups } = useGroupStore();
 
     const navItems = [
@@ -23,9 +20,7 @@ export function TodoSidebar() {
     ];
 
     return (
-        <div className="flex flex-col h-full group bg-zinc-50/50 dark:bg-zinc-900/50">
-            <SidebarUserHeader toggleSidebar={toggleSidebar} />
-
+        <div className="flex flex-col h-full group">
             <div className="flex-1 overflow-y-auto px-3 py-2 space-y-6">
 
                 {/* Main Navigation */}

@@ -124,7 +124,7 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
       </div>
 
       {/* Main body */}
-      <div ref={scrollRef} id="time-grid-scroll" className="flex-1 overflow-y-auto relative scrollbar-hidden">
+      <div ref={scrollRef} id="time-grid-scroll" className="flex-1 overflow-y-auto relative neko-scrollbar">
         <div className="flex relative" style={{ minHeight: hourHeight * 24 }}>
           {/* Time labels column */}
           <TimeColumn
