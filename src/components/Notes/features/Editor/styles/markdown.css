@@ -45,7 +45,8 @@
 }
 
 .milkdown li {
-  margin: 4px 0;
+  margin: 6px 0;
+  /* Increase breathing room */
   line-height: calc(1em + 8px);
 }
 
@@ -107,13 +108,26 @@
 }
 
 /* Task List - Milkdown uses data-item-type="task" and data-checked attributes */
+
+/* Task list item */
 .milkdown li[data-item-type="task"] {
   list-style-type: none !important;
   display: flex;
   align-items: flex-start;
+  flex-wrap: wrap;
+  /* Allow nested list to wrap to next line */
   gap: 0.5rem;
   position: relative;
   padding-left: 0;
+}
+
+/* Ensure nested lists take full width to force wrap */
+.milkdown li[data-item-type="task"]>ul,
+.milkdown li[data-item-type="task"]>ol {
+  flex-basis: 100%;
+  width: 100%;
+  margin-left: 0;
+  /* Remove extra indentation, let ul padding handle it */
 }
 
 /* Custom checkbox using ::before pseudo-element */
@@ -123,9 +137,14 @@
   flex-shrink: 0;
   width: 16px;
   height: 16px;
-  margin-top: 0.25rem;
+  /* (Line height 23px - Checkbox 16px) / 2 = 3.5px */
+  margin-top: 3.5px;
+  /* Pull checkbox left to align with list markers (bullets/numbers)
+     while keeping the LI content box aligned for collapse buttons */
+  margin-left: -1.5rem;
   border: 2px solid var(--neko-text-tertiary);
-  border-radius: 3px;
+  border-radius: 4px;
+  /* Soften corners for Apple-like feel */
   background-color: transparent;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -151,6 +170,8 @@
 .milkdown li[data-item-type="task"]>p {
   flex: 1;
   min-width: 0;
+  margin: 0;
+  /* Remove potential margin to ensure perfect alignment */
 }
 
 /* Horizontal Rule */
@@ -182,16 +203,32 @@
 /* Tables */
 .milkdown table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  /* Required for border-radius */
+  border-spacing: 0;
   margin: 1rem 0;
   font-size: 14px;
+  border: 1px solid var(--neko-border);
+  border-radius: 0.5rem;
+  /* Unified 8px radius */
+  overflow: hidden;
 }
 
 .milkdown th,
 .milkdown td {
-  border: 1px solid var(--neko-border);
+  border-bottom: 1px solid var(--neko-border);
+  border-right: 1px solid var(--neko-border);
   padding: 0.5rem 0.75rem;
   text-align: left;
+}
+
+.milkdown th:last-child,
+.milkdown td:last-child {
+  border-right: none;
+}
+
+.milkdown tr:last-child td {
+  border-bottom: none;
 }
 
 .milkdown th {

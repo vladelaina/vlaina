@@ -41,7 +41,6 @@ import {
   tocPlugin,
   mermaidPlugin,
   codeEnhancePlugin,
-  deflistPlugin,
   videoPlugin,
   abbrPlugin,
   taskListClickPlugin,
@@ -74,7 +73,6 @@ const customPlugins = [
   ...tocPlugin,
   ...mermaidPlugin,
   codeEnhancePlugin,
-  ...deflistPlugin,
   ...videoPlugin,
   abbrPlugin,
   // Task list click interaction

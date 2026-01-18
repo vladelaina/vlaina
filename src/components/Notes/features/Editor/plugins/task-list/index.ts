@@ -10,7 +10,7 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 
 // Width of the checkbox area (CSS pseudo-element is 16px + 2px border + small margin)
-const CHECKBOX_WIDTH = 20;
+// const CHECKBOX_WIDTH = 20; // Deprecated due to negative margin layout
 
 export const taskListClickPluginKey = new PluginKey('taskListClick');
 
@@ -26,22 +26,29 @@ export const taskListClickPlugin = $prose(() => {
                     const taskLi = target.closest('li[data-item-type="task"]') as HTMLElement;
                     if (!taskLi) return false;
 
-                    // Check if the click is within the checkbox area (left side of the LI)
+                    // Check if the click is within the checkbox area
+                    // Since we shifted the checkbox using margin-left: -1.5rem (-24px),
+                    // the click will occur to the left of the LI's bounding box.
                     const liRect = taskLi.getBoundingClientRect();
                     const clickX = event.clientX - liRect.left;
 
-                    // Only toggle if clicking in the checkbox area
-                    if (clickX > CHECKBOX_WIDTH) return false;
+                    // Checkbox is at roughly -24px relative to LI left edge.
+                    // Allow a generous hit area from -30px to 10px (just in case)
+                    // The text content starts at padding-left: 0, effectively 0.
+                    if (clickX > 5 || clickX < -30) return false;
 
                     // Prevent default to stop cursor movement
                     event.preventDefault();
 
-                    // Find the position in the document
-                    const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
-                    if (!pos) return false;
+                    // Find the position in the document directly from the DOM node
+                    // posAtCoords is unreliable for negative margins/pseudo-elements
+                    const posInNode = view.posAtDOM(taskLi, 0);
+                    if (posInNode === null) return false;
 
                     const { state } = view;
-                    const $pos = state.doc.resolve(pos.pos);
+                    // posAtDOM returns a position *inside* the node usually.
+                    // We resolve it to walk up the tree.
+                    const $pos = state.doc.resolve(posInNode);
 
                     // Walk up to find the list_item node
                     for (let depth = $pos.depth; depth > 0; depth--) {

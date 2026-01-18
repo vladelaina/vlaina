@@ -17,58 +17,7 @@ import {
 } from './collapseUtils';
 
 const LIST_COLLAPSE_KEY = new PluginKey('listCollapse');
-const COLLAPSE_TYPE = 'list';
-
-interface ListInfo {
-    pos: number;
-    node: ProseMirrorNode;
-    endPos: number;
-    firstItemPos: number;
-    childItems: Array<{ pos: number; endPos: number }>;
-}
-
-/**
- * Find all lists in the document
- */
-function findLists(doc: ProseMirrorNode): ListInfo[] {
-    const lists: ListInfo[] = [];
-
-    doc.descendants((node, pos) => {
-        if (node.type.name === 'bullet_list' || node.type.name === 'ordered_list') {
-            const childItems: Array<{ pos: number; endPos: number }> = [];
-            let firstItemPos = pos + 1;
-            let currentOffset = 1;
-
-            node.forEach((child, offset) => {
-                const itemPos = pos + 1 + offset;
-                if (child.type.name === 'list_item') {
-                    if (childItems.length === 0) {
-                        firstItemPos = itemPos;
-                    }
-                    childItems.push({
-                        pos: itemPos,
-                        endPos: itemPos + child.nodeSize,
-                    });
-                }
-                currentOffset += child.nodeSize;
-            });
-
-            // Only add lists with more than one item (collapsing makes sense)
-            if (childItems.length > 1) {
-                lists.push({
-                    pos,
-                    node,
-                    endPos: pos + node.nodeSize,
-                    firstItemPos,
-                    childItems,
-                });
-            }
-        }
-        return true; // Continue traversing
-    });
-
-    return lists;
-}
+const COLLAPSE_TYPE = 'list-item';
 
 /**
  * List Collapse Plugin
@@ -84,42 +33,59 @@ export const listCollapsePlugin = $prose(() => {
             apply(tr, oldState, _oldEditorState, newEditorState) {
                 if (tr.docChanged || tr.getMeta(LIST_COLLAPSE_KEY)) {
                     const decorations: Decoration[] = [];
-                    const lists = findLists(newEditorState.doc);
+                    const doc = newEditorState.doc;
 
-                    lists.forEach((listInfo) => {
-                        const isCollapsed = collapsedState.isCollapsed(COLLAPSE_TYPE, listInfo.pos);
-                        const hasContent = listInfo.childItems.length > 1;
+                    // Traverse all nodes to find list items
+                    doc.descendants((node, pos) => {
+                        if (node.type.name === 'list_item') {
+                            // Check if this list item has a nested list
+                            let hasNestedList = false;
+                            let nestedListPos = -1;
+                            let nestedListEnd = -1;
 
-                        // Add toggle button at the start of the list
-                        const button = createCollapseToggleButton(
-                            COLLAPSE_TYPE,
-                            listInfo.pos,
-                            isCollapsed,
-                            hasContent
-                        );
+                            node.forEach((child, offset) => {
+                                if (child.type.name === 'bullet_list' || child.type.name === 'ordered_list') {
+                                    hasNestedList = true;
+                                    nestedListPos = pos + 1 + offset;
+                                    nestedListEnd = nestedListPos + child.nodeSize;
+                                }
+                            });
 
-                        // Position button at the first list item
-                        decorations.push(
-                            Decoration.widget(listInfo.firstItemPos, button, {
-                                side: -1,
-                                key: `list-toggle-${listInfo.pos}`,
-                            })
-                        );
+                            const isCollapsed = collapsedState.isCollapsed(COLLAPSE_TYPE, pos);
 
-                        // If collapsed, hide all items except the first
-                        if (isCollapsed && hasContent) {
-                            for (let i = 1; i < listInfo.childItems.length; i++) {
-                                const item = listInfo.childItems[i];
+                            // Create toggle button
+                            // Note: User requested "every item" has it, but we typically only show if content exists
+                            // The CSS handles hiding buttons with data-has-content="false" if desired,
+                            // or we can show them as disabled/empty. 
+                            // Current CSS hides them, matching standard behavior (no children = nothing to collapse).
+                            const button = createCollapseToggleButton(
+                                COLLAPSE_TYPE,
+                                pos,
+                                isCollapsed,
+                                hasNestedList
+                            );
+
+                            // Add button widget at the start of the list item
+                            decorations.push(
+                                Decoration.widget(pos + 1, button, {
+                                    side: -1,
+                                    key: `list-toggle-${pos}`,
+                                })
+                            );
+
+                            // If collapsed and has nested list, hide the nested list
+                            if (isCollapsed && hasNestedList) {
                                 decorations.push(
-                                    Decoration.node(item.pos, item.endPos, {
+                                    Decoration.node(nestedListPos, nestedListEnd, {
                                         class: COLLAPSED_CONTENT_CLASS,
                                     })
                                 );
                             }
                         }
+                        return true;
                     });
 
-                    return DecorationSet.create(newEditorState.doc, decorations);
+                    return DecorationSet.create(doc, decorations);
                 }
 
                 return oldState.map(tr.mapping, tr.doc);

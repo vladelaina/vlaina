@@ -3,6 +3,18 @@
  * Highlight, Scripts, Autolink, Footnotes, TOC, Mermaid
  */
 
+:root {
+  /* Unified Collapse Button Positioning System */
+  /* The "Control Gutter" - base distance from content to button */
+  --collapse-gutter-base: 22px;
+  /* Extra offset for lists to clear bullets/checkboxes */
+  --collapse-marker-gap: 24px;
+
+  /* Derived positions */
+  --collapse-pos-heading: calc(-1 * var(--collapse-gutter-base));
+  --collapse-pos-list: calc(-1 * (var(--collapse-gutter-base) + var(--collapse-marker-gap)));
+}
+
 /* Highlight */
 .milkdown mark.highlight,
 .milkdown .highlight {
@@ -262,43 +274,89 @@
 }
 
 /* === Collapse Toggle Button (shared by heading and list collapse) === */
-.milkdown .neko-collapse-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  margin-right: 4px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s, transform 0.15s;
-  color: var(--neko-text-tertiary);
-  user-select: none;
-  flex-shrink: 0;
+
+/* List items need position:relative for absolute positioning of toggle */
+.milkdown li {
+  position: relative !important;
 }
 
-/* Show button on hover */
-.milkdown li:hover>.neko-collapse-btn,
-.milkdown h1:hover>.neko-collapse-btn,
-.milkdown h2:hover>.neko-collapse-btn,
-.milkdown h3:hover>.neko-collapse-btn,
-.milkdown h4:hover>.neko-collapse-btn,
-.milkdown h5:hover>.neko-collapse-btn,
-.milkdown h6:hover>.neko-collapse-btn {
+.milkdown .neko-collapse-btn {
+  position: absolute;
+  left: var(--collapse-pos-list);
+  /* Use unified variable */
+  top: 0;
+  /* Align with top of line */
+  /* Remove translateY since we are aligning to top/line-height */
+  /* Center optically within the line height (approx 24px) */
+  margin-top: 4px;
+  /* Adjustment for visual center with bullet */
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background-color 0.15s, transform 0.15s;
+  border-radius: 4px;
+  color: var(--neko-text-tertiary);
+  user-select: none;
+}
+
+/* Show button more prominently on hover */
+.milkdown .neko-collapse-btn:hover {
+  opacity: 1;
+  color: var(--neko-text-secondary);
+}
+
+/* Heading hover alignment */
+.milkdown h1:hover .neko-collapse-btn,
+.milkdown h2:hover .neko-collapse-btn,
+.milkdown h3:hover .neko-collapse-btn,
+.milkdown h4:hover .neko-collapse-btn,
+.milkdown h5:hover .neko-collapse-btn,
+.milkdown h6:hover .neko-collapse-btn {
+  opacity: 1;
+}
+
+/* List Item Hover Logic:
+   1. Use > to only target the direct button of this LI (fixes hovering parent showing children)
+   2. Use :not(:has(...)) to avoid showing parent button when hovering its nested list child
+*/
+.milkdown li:hover>.neko-collapse-btn {
+  opacity: 1;
+}
+
+/* Refinement: If hovering nested list, hide parent button (requires :has support) */
+.milkdown li:has(> ul:hover)>.neko-collapse-btn,
+.milkdown li:has(> ol:hover)>.neko-collapse-btn {
+  opacity: 0;
+}
+
+/* Ensure button stays visible if we are hovering the button itself (overrides above) */
+.milkdown li>.neko-collapse-btn:hover {
   opacity: 1;
 }
 
 /* Rotate triangle when collapsed */
 .milkdown .neko-collapse-btn[data-collapsed="true"] {
+  opacity: 1 !important;
+}
+
+.milkdown .neko-collapse-btn[data-collapsed="true"] svg {
   transform: rotate(-90deg);
+}
+
+.milkdown .neko-collapse-btn svg {
+  transition: transform 0.15s ease;
 }
 
 /* Hide button when no content to collapse */
 .milkdown .neko-collapse-btn[data-has-content="false"] {
-  visibility: hidden;
+  display: none;
 }
 
-/* Collapsed content - hide with smooth animation */
+/* Collapsed content - hide */
 .milkdown .neko-collapsed-content {
   display: none !important;
 }

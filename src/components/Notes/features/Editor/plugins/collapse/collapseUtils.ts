@@ -60,6 +60,8 @@ export function createCollapseToggleButton(
     isCollapsed: boolean,
     hasContent: boolean
 ): HTMLElement {
+    console.log('[CollapseUtils] Creating button for', type, 'at pos', pos);
+
     const button = document.createElement('span');
     button.className = 'neko-collapse-btn';
     button.setAttribute('data-collapse-type', type);
@@ -88,6 +90,7 @@ export function createCollapseToggleButton(
         document.dispatchEvent(event);
     });
 
+    console.log('[CollapseUtils] Button created:', button.className, button.outerHTML.substring(0, 100));
     return button;
 }
 

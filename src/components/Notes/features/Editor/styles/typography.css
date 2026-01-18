@@ -113,7 +113,8 @@
 
 .heading-toggle-btn {
   position: absolute;
-  left: -20px;
+  left: var(--collapse-pos-heading);
+  /* Use unified variable from extended.css */
   top: 50%;
   transform: translateY(-50%);
   width: 18px;
