@@ -130,6 +130,14 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Ensure app takes full height and prevents body scroll */
+html, body, #root {
+  height: 100%;
+  overflow: hidden; /* Critical: Prevent window-level scrolling */
+  margin: 0;
+  padding: 0;
+}
+
 /* shadcn/ui Theme Variables */
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -342,32 +350,38 @@ body {
    Custom Scrollbar
    ============================================ */
 
-/* Thin custom scrollbar (no arrow buttons) */
-.neko-scrollbar {
-  overflow-y: auto;
-  overflow-x: hidden;
-}
+/* ============================================
+   Custom Scrollbar (Global)
+   ============================================ */
 
-.neko-scrollbar::-webkit-scrollbar {
+/* Force custom scrollbar globally for consistency */
+::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
-.neko-scrollbar::-webkit-scrollbar:horizontal {
-  display: none;
-  height: 0;
-}
-
-.neko-scrollbar::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.neko-scrollbar::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb {
   background-color: var(--neko-border);
   border-radius: 3px;
+  border: 1px solid transparent;
+  background-clip: content-box;
 }
 
-.neko-scrollbar::-webkit-scrollbar-thumb:hover {
+::-webkit-scrollbar-thumb:hover {
   background-color: var(--neko-text-tertiary);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Specific override for hidden scrollbars */
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
 }
 
 /* Scrollbar with rounded corner inset (for peek sidebar) */

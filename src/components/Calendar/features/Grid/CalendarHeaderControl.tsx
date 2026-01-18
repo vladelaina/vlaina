@@ -23,7 +23,7 @@ export function CalendarHeaderControl() {
   if (viewMode === 'month') {
     // For month view, just show Month/Year selector centered
     return (
-      <div className="flex items-center">
+      <div className="flex items-center" data-tauri-drag-region>
         <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
           <PopoverTrigger asChild>
             <button className="flex items-center gap-2 px-3 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group outline-none">
@@ -42,7 +42,7 @@ export function CalendarHeaderControl() {
   }
 
   return (
-    <div className="flex items-center h-full relative">
+    <div className="flex items-center h-full relative" data-tauri-drag-region>
       {/* Date Container */}
       <div className="flex items-center h-full relative group/container">
         <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>

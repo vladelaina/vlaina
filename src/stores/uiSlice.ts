@@ -10,6 +10,8 @@ import {
   STORAGE_KEY_SHOW_SIDEBAR
 } from '@/lib/config';
 
+const STORAGE_KEY_SIDEBAR_WIDTH = 'nekotick_sidebar_width';
+
 export type TaskStatus = 'todo' | 'scheduled' | 'completed';
 export const ALL_STATUSES: TaskStatus[] = ['todo', 'scheduled', 'completed'];
 
@@ -20,17 +22,16 @@ interface UIStore {
   setAppViewMode: (mode: AppViewMode) => void;
   toggleAppViewMode: () => void;
 
-  notesSidebarCollapsed: boolean;
-  notesSidebarWidth: number;
-  toggleNotesSidebar: () => void;
-  setNotesSidebarWidth: (width: number) => void;
+  sidebarCollapsed: boolean;
+  sidebarWidth: number;
+  toggleSidebar: () => void;
+  setSidebarWidth: (width: number) => void;
+  
+  // Specific to notes-style hover-peek behavior
   sidebarHeaderHovered: boolean;
   setSidebarHeaderHovered: (hovered: boolean) => void;
-  notesSidebarPeeking: boolean;
-  setNotesSidebarPeeking: (peeking: boolean) => void;
-
-  calendarSidebarWidth: number;
-  setCalendarSidebarWidth: (width: number) => void;
+  sidebarPeeking: boolean;
+  setSidebarPeeking: (peeking: boolean) => void;
 
   notesPreviewIcon: { path: string; icon: string } | null;
   setNotesPreviewIcon: (path: string | null, icon: string | null) => void;
@@ -80,7 +81,6 @@ interface UIStore {
   draggingToCalendarTaskId: string | null;
   setDraggingToCalendarTaskId: (id: string | null) => void;
 
-  showSidebar: boolean;
   toggleSidebar: () => void;
 
   showContextPanel: boolean;
@@ -104,6 +104,19 @@ interface UIStore {
   previewColorEventId: string | null;
   previewColor: ItemColor | null;
   setPreviewColor: (eventId: string | null, color: ItemColor | null) => void;
+}
+
+function loadNumber(key: string, defaultValue: number): number {
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved !== null) {
+      const parsed = parseFloat(saved);
+      return isNaN(parsed) ? defaultValue : parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return defaultValue;
 }
 
 function loadBoolean(key: string, defaultValue: boolean): boolean {
@@ -155,21 +168,21 @@ export const useUIStore = create<UIStore>()((set, get) => ({
     appViewMode: state.appViewMode === 'calendar' ? 'notes' : 'calendar'
   })),
 
-  notesSidebarCollapsed: loadBoolean(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, false),
-  notesSidebarWidth: 248,
-  toggleNotesSidebar: () => set((state) => {
-    const newState = !state.notesSidebarCollapsed;
+  sidebarCollapsed: loadBoolean(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, false),
+  sidebarWidth: loadNumber(STORAGE_KEY_SIDEBAR_WIDTH, 248),
+  toggleSidebar: () => set((state) => {
+    const newState = !state.sidebarCollapsed;
     localStorage.setItem(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, String(newState));
-    return { notesSidebarCollapsed: newState };
+    return { sidebarCollapsed: newState };
   }),
-  setNotesSidebarWidth: (width) => set({ notesSidebarWidth: width }),
+  setSidebarWidth: (width) => {
+    localStorage.setItem(STORAGE_KEY_SIDEBAR_WIDTH, String(width));
+    set({ sidebarWidth: width });
+  },
   sidebarHeaderHovered: false,
   setSidebarHeaderHovered: (hovered) => set({ sidebarHeaderHovered: hovered }),
-  notesSidebarPeeking: false,
-  setNotesSidebarPeeking: (peeking) => set({ notesSidebarPeeking: peeking }),
-
-  calendarSidebarWidth: 240,
-  setCalendarSidebarWidth: (width) => set({ calendarSidebarWidth: width }),
+  sidebarPeeking: false,
+  setSidebarPeeking: (peeking) => set({ sidebarPeeking: peeking }),
 
   notesPreviewIcon: null,
   setNotesPreviewIcon: (path, icon) => {
@@ -290,13 +303,6 @@ export const useUIStore = create<UIStore>()((set, get) => ({
 
   draggingToCalendarTaskId: null,
   setDraggingToCalendarTaskId: (id) => set({ draggingToCalendarTaskId: id }),
-
-  showSidebar: loadBoolean(STORAGE_KEY_SHOW_SIDEBAR, true),
-  toggleSidebar: () => set((state) => {
-    const newState = !state.showSidebar;
-    localStorage.setItem(STORAGE_KEY_SHOW_SIDEBAR, String(newState));
-    return { showSidebar: newState };
-  }),
 
   showContextPanel: true,
   toggleContextPanel: () => set((state) => ({ showContextPanel: !state.showContextPanel })),

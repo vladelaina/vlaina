@@ -1,2 +1,5 @@
-export { Layout } from './Layout';
-export { TitleBar } from './TitleBar';
+export { WindowControls } from './WindowControls';
+export { SidebarExpandButton } from './SidebarExpandButton';
+export { SidebarUserHeader } from './SidebarUserHeader';
+export { WorkspaceSwitcher } from './WorkspaceSwitcher';
+export { TitleBarButton } from './TitleBarButton';

@@ -1,7 +1,6 @@
 // Calendar module exports
-export { CalendarPage } from './CalendarPage';
+export { CalendarView } from './CalendarView';
 export { ViewSwitcher as CalendarToolbar } from './features/ViewSwitcher';
-// CalendarContextPanel removed in favor of CalendarTaskPanel
 // CalendarSidebar wrapper with proper padding
 export { CalendarSidebarWrapper as CalendarSidebar } from './features/Sidebar/CalendarSidebarWrapper';
 
