@@ -46,6 +46,8 @@ import {
   abbrPlugin,
   taskListClickPlugin,
   listCollapsePlugin,
+  markdownLinkPlugin,
+  debugPlugin,
 } from './plugins';
 import { GAP_SCALE, CONTENT_MAX_WIDTH, PADDING_DESKTOP, PADDING_MOBILE, EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { configureTheme } from './theme';
@@ -78,9 +80,12 @@ const customPlugins = [
   ...videoPlugin,
   abbrPlugin,
   // Task list click interaction
+  // Task list click interaction
   taskListClickPlugin,
   // List collapse
   listCollapsePlugin,
+  // Markdown Link Live Preview
+  markdownLinkPlugin,
 ];
 
 

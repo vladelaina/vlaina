@@ -83,7 +83,12 @@ function createAutolinkDecorations(doc: any): DecorationSet {
         const marks = $pos.marks();
         const hasLinkMark = marks.some((m: any) => m.type.name === 'link');
 
-        if (!hasLinkMark) {
+        // Check if this URL is inside a Markdown link syntax ](url)
+        // Look backwards from the match start to see if there's a ](
+        const textBefore = text.slice(0, match.start - pos);
+        const isInMarkdownLink = /\]\($/.test(textBefore);
+
+        if (!hasLinkMark && !isInMarkdownLink) {
           decorations.push(
             Decoration.inline(match.start, match.end, {
               class: 'autolink',

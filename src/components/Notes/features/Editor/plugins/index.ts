@@ -40,7 +40,12 @@ export { linkTooltipPlugin } from './link-tooltip';
 export { taskListClickPlugin } from './task-list';
 
 // List collapse
+// List collapse
 export { listCollapsePlugin } from './collapse';
+
+// Markdown Link Live Preview
+export { markdownLinkPlugin } from './markdown-link';
+export { debugPlugin } from './debug/debugPlugin';
 
 // Re-export types that are actually used
 export type { SlashMenuItem } from './slash/types';

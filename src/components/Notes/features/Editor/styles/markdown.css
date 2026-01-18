@@ -19,10 +19,7 @@
 
 /* Active state when tooltip is open */
 .milkdown a.link-active-state {
-  background-color: var(--neko-accent-subtle, rgba(59, 130, 246, 0.1));
-  border-radius: 4px;
-  box-shadow: 0 0 0 2px var(--neko-accent-subtle, rgba(59, 130, 246, 0.1));
-  border-bottom-color: transparent;
+  border-bottom-color: var(--neko-accent);
 }
 
 /* Blockquote */
