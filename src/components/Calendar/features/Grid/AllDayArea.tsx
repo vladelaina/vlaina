@@ -9,7 +9,6 @@ import { useMemo, useCallback, useState, useRef } from 'react';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 
 import { useCalendarStore } from '@/stores/useCalendarStore';
-import { useGroupStore } from '@/stores/useGroupStore';
 import type { NekoEvent } from '@/lib/ics/types';
 import { EventContextMenu } from '../Event/EventContextMenu';
 import { getAllDayInlineStyles } from '@/lib/colors';
@@ -28,6 +27,7 @@ interface AllDayAreaProps {
   isDropTarget?: boolean;
   onCreateAllDay?: (startDay: Date, endDay: Date) => void;
   onEventDragStart?: (eventId: string, clientY: number) => void;
+  onToggle?: (id: string) => void;
 }
 
 
@@ -38,9 +38,9 @@ export function AllDayArea({
   isDropTarget = false,
   onCreateAllDay,
   onEventDragStart,
+  onToggle,
 }: AllDayAreaProps) {
   const { setEditingEventId, editingEventId } = useCalendarStore();
-  const { toggleTask } = useGroupStore();
 
   const areaRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -157,8 +157,8 @@ export function AllDayArea({
   // Toggle completion
   const handleToggle = useCallback((e: React.MouseEvent, eventId: string) => {
     e.stopPropagation();
-    toggleTask(eventId);
-  }, [toggleTask]);
+    onToggle?.(eventId);
+  }, [onToggle]);
 
   // Right-click context menu
   const handleContextMenu = useCallback((e: React.MouseEvent, eventId: string) => {

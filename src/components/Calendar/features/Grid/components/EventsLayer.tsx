@@ -10,7 +10,7 @@ interface EventsLayerProps {
     columnCount: number;
     hourHeight: number;
     dayStartMinutes: number;
-    toggleTask: (id: string) => void;
+    onToggle?: (id: string) => void;
 
     // Drag state for Ghost Event
     isDragging: boolean;
@@ -28,7 +28,7 @@ export function EventsLayer({
     columnCount,
     hourHeight,
     dayStartMinutes,
-    toggleTask,
+    onToggle,
     isDragging,
     dragStart,
     dragEnd,
@@ -129,7 +129,7 @@ export function EventsLayer({
                                     event={item}
                                     layout={layoutMap.get(item.uid)}
                                     hourHeight={hourHeight}
-                                    onToggle={toggleTask}
+                                    onToggle={onToggle}
                                     onDragStart={onEventDragStart}
                                     onHover={onEventHover}
                                     dayStartMinutes={dayStartMinutes}

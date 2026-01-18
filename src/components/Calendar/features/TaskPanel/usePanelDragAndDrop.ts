@@ -27,6 +27,8 @@ interface UsePanelDragAndDropProps {
   updateTaskTime: (taskId: string, startDate?: number | null, endDate?: number | null) => void;
   toggleTask: (taskId: string) => void;
   setDraggingTaskId: (id: string | null) => void;
+  /** Optional callback for adding calendar events (injected from parent) */
+  onAddEvent?: (eventData: { summary: string; dtstart: Date; dtend: Date; allDay: boolean }) => string;
   calendarInfo?: {
     selectedDate: Date;
     hourHeight: number;
@@ -35,17 +37,15 @@ interface UsePanelDragAndDropProps {
   };
 }
 
-import { useCalendarStore } from '@/stores/useCalendarStore';
-
 export function usePanelDragAndDrop({
   tasks,
   reorderTasks,
   updateTaskTime,
   toggleTask,
   setDraggingTaskId,
+  onAddEvent,
   calendarInfo,
 }: UsePanelDragAndDropProps) {
-  const { addEvent } = useCalendarStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [dragIndent, setDragIndent] = useState(0);
@@ -154,7 +154,7 @@ export function usePanelDragAndDrop({
 
           // Create a new calendar event (NekoEvent) instead of updating the task
           // This ensures it appears on the calendar grid which now only shows ICS events
-          addEvent({
+          onAddEvent?.({
             summary: activeTask.content,
             dtstart: startDate,
             dtend: endDate,
