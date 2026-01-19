@@ -19,21 +19,37 @@ import {
 export interface LinkTooltipProps {
     href: string;
     initialText?: string;
-    onEdit: (text: string, url: string) => void;
+    onEdit: (text: string, url: string, shouldClose?: boolean) => void;
     onClose: () => void;
 }
 
-const LinkTooltip = ({ href, initialText = '', onEdit }: LinkTooltipProps) => {
-    const [mode, setMode] = useState<'view' | 'edit'>('view');
+const LinkTooltip = ({ href, initialText = '', onEdit, onClose }: LinkTooltipProps) => {
+    const isNewLink = !href;
+    const [mode, setMode] = useState<'view' | 'edit'>(isNewLink ? 'edit' : 'view');
     const [showCopied, setShowCopied] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
 
+    // Detect if this is an autolink (pure URL) vs a Markdown link [text](url)
+    // Autolink: initialText is empty, matches href, or is just the URL itself
+    const isAutolink = React.useMemo(() => {
+        if (!initialText || initialText.trim() === '') return true;
+        return initialText === href || initialText.trim() === href.trim();
+    }, [initialText, href]);
+
+    // For autolinks, start with empty text so user can optionally add a title
+    // For Markdown links, use the existing display text
+    const getInitialEditText = () => {
+        if (isAutolink) return '';
+        return initialText;
+    };
+
     const [editUrl, setEditUrl] = useState(href);
-    const [editText, setEditText] = useState(initialText || 'Link Text');
+    const [editText, setEditText] = useState(getInitialEditText);
 
     useEffect(() => {
         setEditUrl(href);
-    }, [href]);
+        setEditText(isAutolink ? '' : initialText);
+    }, [href, initialText, isAutolink]);
 
     // Sync dropdown state to parent container for plugin detection
     useEffect(() => {
@@ -47,6 +63,65 @@ const LinkTooltip = ({ href, initialText = '', onEdit }: LinkTooltipProps) => {
         }
     }, [dropdownOpen]);
 
+    // Sync edit mode to parent container to prevent hide during IME input
+    useEffect(() => {
+        const container = document.querySelector('.link-tooltip-container');
+        if (container) {
+            if (mode === 'edit') {
+                container.setAttribute('data-editing', 'true');
+            } else {
+                container.removeAttribute('data-editing');
+            }
+        }
+    }, [mode]);
+
+    const handleSaveEdit = (shouldClose: boolean = false) => {
+        // Only apply changes when Save is clicked or forced via click outside
+        const isEmptyOrMatchesUrl = !editText.trim() || editText.trim() === editUrl.trim();
+        const textToSave = isEmptyOrMatchesUrl ? editUrl : editText;
+
+        // Remove data-editing BEFORE calling onEdit so hide() in plugin is not blocked
+        const container = document.querySelector('.link-tooltip-container');
+        container?.removeAttribute('data-editing');
+
+        onEdit(textToSave, editUrl, shouldClose);
+        if (!shouldClose) {
+            setMode('view');
+        }
+    };
+
+    // Handle click outside to save/close
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const container = document.querySelector('.link-tooltip-container');
+            // Check if click is inside the tooltip container
+            if (container && container.contains(event.target as Node)) {
+                return;
+            }
+
+            // Check if click is inside a radix dropdown (portal)
+            const target = event.target as Element;
+            if (target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="menu"]')) {
+                return;
+            }
+
+            // Click is outside
+            console.log('[LinkTooltip] Click outside detected, mode:', mode);
+            if (mode === 'edit') {
+                handleSaveEdit(true); // Save and close
+            } else {
+                onClose();
+            }
+        };
+
+        // Use mousedown to capture before other handlers (like editor selection change)
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [mode, editText, editUrl, onClose]); // Dependencies including state for handleSaveEdit closure
+
+
     const displayUrl = React.useMemo(() => {
         try {
             const url = new URL(href);
@@ -58,7 +133,16 @@ const LinkTooltip = ({ href, initialText = '', onEdit }: LinkTooltipProps) => {
     }, [href]);
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(href);
+        // Smart copy: preserve original format
+        let copyText: string;
+        if (isAutolink) {
+            // Pure URL - just copy the URL
+            copyText = href;
+        } else {
+            // Markdown link - copy as [text](url)
+            copyText = `[${initialText}](${href})`;
+        }
+        navigator.clipboard.writeText(copyText);
         setShowCopied(true);
         setTimeout(() => setShowCopied(false), 2000);
     };
@@ -68,24 +152,44 @@ const LinkTooltip = ({ href, initialText = '', onEdit }: LinkTooltipProps) => {
         await openUrl(href);
     };
 
-    const handleSaveEdit = () => {
-        onEdit(editText, editUrl);
+    const handleCancel = () => {
+        // Remove data-editing before closing
+        const container = document.querySelector('.link-tooltip-container');
+        container?.removeAttribute('data-editing');
+
+        // Just close without saving - document remains unchanged
+        setEditText(isAutolink ? '' : initialText);
+        setEditUrl(href);
         setMode('view');
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
+        // Don't interfere with IME composition (Chinese/Japanese/Korean input)
+        if (e.nativeEvent.isComposing) {
+            return;
+        }
+
         if (e.key === 'Enter') {
-            handleSaveEdit();
+            e.preventDefault();
+            e.stopPropagation();
+            handleSaveEdit(false);
         } else if (e.key === 'Escape') {
-            setMode('view');
+            e.preventDefault();
+            e.stopPropagation();
+            handleCancel();
+        } else {
+            // For other keys like Space/Delete/Typing in inputs, 
+            // ensure we don't accidentally trigger editor hotkeys
+            e.stopPropagation();
         }
     };
 
     const dynamicWidth = React.useMemo(() => {
-        const maxLength = Math.max(editText.length, editUrl.length);
+        // For autolinks, only URL matters; for Markdown links, consider both
+        const maxLength = isAutolink ? editUrl.length : Math.max(editText.length, editUrl.length);
         // Base width 320px + approx 8px per char + extra padding
         return Math.min(Math.max(320, maxLength * 8 + 80), 520);
-    }, [editText, editUrl]);
+    }, [editText, editUrl, isAutolink]);
 
     // --- EDIT MODE ---
     if (mode === 'edit') {
@@ -98,6 +202,7 @@ const LinkTooltip = ({ href, initialText = '', onEdit }: LinkTooltipProps) => {
                     className="flex flex-col gap-2 transition-all duration-200 ease-out"
                     style={{ width: `${dynamicWidth}px` }}
                 >
+                    {/* Text input - always shown to allow users to add/edit display text */}
                     <div className="group flex items-center h-9 px-3 bg-white dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700 rounded-md focus-within:border-[var(--neko-accent)] focus-within:ring-1 focus-within:ring-[var(--neko-accent)] transition-all">
                         <span className="text-[11px] font-bold text-gray-400 group-focus-within:text-[var(--neko-accent)] uppercase tracking-widest mr-2 transition-colors select-none">
                             Text
@@ -108,7 +213,7 @@ const LinkTooltip = ({ href, initialText = '', onEdit }: LinkTooltipProps) => {
                             onChange={(e) => setEditText(e.target.value)}
                             onKeyDown={handleKeyDown}
                             className="flex-1 bg-transparent border-none outline-none text-sm font-medium text-gray-800 dark:text-gray-100 placeholder:text-gray-400"
-                            placeholder="Link text"
+                            placeholder="Display text (optional)"
                         />
                     </div>
 
@@ -176,13 +281,11 @@ const LinkTooltip = ({ href, initialText = '', onEdit }: LinkTooltipProps) => {
                 <IconButton
                     onClick={handleCopy}
                     icon={showCopied ? <Check className="size-4 text-green-500 scale-110" /> : <Copy className="size-4" />}
-                    tooltip="Copy link"
                 />
 
                 <IconButton
                     onClick={() => setMode('edit')}
                     icon={<Edit2 className="size-4" />}
-                    tooltip="Edit link"
                 />
 
                 <DropdownMenu modal={false} open={dropdownOpen} onOpenChange={setDropdownOpen}>

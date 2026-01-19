@@ -74,10 +74,10 @@ export function setLink(view: EditorView, url: string | null): void {
   const { state, dispatch } = view;
   const { from, to } = state.selection;
   const linkMark = state.schema.marks.link;
-  
+
   if (!linkMark) return;
 
-  if (url) {
+  if (url !== null) {
     dispatch(state.tr.addMark(from, to, linkMark.create({ href: url })));
   } else {
     dispatch(state.tr.removeMark(from, to, linkMark));
@@ -93,7 +93,7 @@ export function setTextColor(view: EditorView, color: string | null): void {
   const { state, dispatch } = view;
   const { from, to } = state.selection;
   const colorMark = state.schema.marks.textColor;
-  
+
   if (!colorMark) return;
 
   if (color) {
@@ -112,7 +112,7 @@ export function setBgColor(view: EditorView, color: string | null): void {
   const { state, dispatch } = view;
   const { from, to } = state.selection;
   const colorMark = state.schema.marks.bgColor;
-  
+
   if (!colorMark) return;
 
   if (color) {
@@ -130,7 +130,7 @@ export function setBgColor(view: EditorView, color: string | null): void {
 export function convertBlockType(view: EditorView, blockType: BlockType): void {
   const { state, dispatch } = view;
   const { $from } = state.selection;
-  
+
   switch (blockType) {
     case 'paragraph': {
       const paragraphType = state.schema.nodes.paragraph;
@@ -139,7 +139,7 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
       }
       break;
     }
-    
+
     case 'heading1':
     case 'heading2':
     case 'heading3':
@@ -153,7 +153,7 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
       }
       break;
     }
-    
+
     case 'blockquote': {
       const blockquoteType = state.schema.nodes.blockquote;
       if (blockquoteType) {
@@ -167,7 +167,7 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
       }
       break;
     }
-    
+
     case 'bulletList': {
       const bulletListType = state.schema.nodes.bullet_list;
       const listItemType = state.schema.nodes.list_item;
@@ -176,7 +176,7 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
       }
       break;
     }
-    
+
     case 'orderedList': {
       const orderedListType = state.schema.nodes.ordered_list;
       if (orderedListType) {
@@ -184,7 +184,7 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
       }
       break;
     }
-    
+
     case 'taskList': {
       // Task list handling depends on schema
       const taskListType = state.schema.nodes.task_list;
@@ -193,7 +193,7 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
       }
       break;
     }
-    
+
     case 'codeBlock': {
       const codeBlockType = state.schema.nodes.code_block;
       if (codeBlockType) {

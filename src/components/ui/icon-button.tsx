@@ -4,7 +4,7 @@ import { cn, iconButtonStyles } from '@/lib/utils';
 
 interface IconButtonProps {
   icon: React.ReactNode;
-  tooltip: string;
+  tooltip?: string;
   onClick: () => void;
   className?: string;
   side?: 'top' | 'right' | 'bottom' | 'left';
@@ -17,15 +17,24 @@ export function IconButton({
   className,
   side = 'bottom',
 }: IconButtonProps) {
+  const button = (
+    <button
+      onClick={onClick}
+      className={cn("p-1", iconButtonStyles, className)}
+    >
+      {icon}
+    </button>
+  );
+
+  // If no tooltip, just render the button
+  if (!tooltip) {
+    return button;
+  }
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
-          onClick={onClick}
-          className={cn("p-1", iconButtonStyles, className)}
-        >
-          {icon}
-        </button>
+        {button}
       </TooltipTrigger>
       <TooltipContent side={side} sideOffset={4}>{tooltip}</TooltipContent>
     </Tooltip>

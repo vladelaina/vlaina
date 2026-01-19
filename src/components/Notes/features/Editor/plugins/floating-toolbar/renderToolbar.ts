@@ -5,9 +5,11 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FloatingToolbarState, BlockType } from './types';
 import { TOOLBAR_ACTIONS } from './types';
 import { floatingToolbarKey } from './floatingToolbarPlugin';
-import { toggleMark } from './commands';
+import { toggleMark, setLink } from './commands';
 import { renderBlockDropdown } from './components/BlockDropdown';
 import { applyFormatPreview, clearFormatPreview, hasFormatPreview } from './previewStyles';
+import { getLinkUrl } from './selectionHelpers';
+import { linkTooltipPluginKey } from '../link-tooltip';
 
 // ============================================================================
 // Button Configuration
@@ -88,7 +90,7 @@ const EXTRA_BUTTONS: ToolbarButtonConfig[] = [
 function renderButton(config: ToolbarButtonConfig, activeMarks: Set<string>, extraContent?: string): string {
   const isActive = config.mark && activeMarks.has(config.mark);
   const shortcutAttr = config.shortcut ? `data-shortcut="${config.shortcut}"` : '';
-  
+
   return `
     <button class="toolbar-btn has-tooltip ${isActive ? 'active' : ''}" 
             data-action="${config.action}" 
@@ -166,8 +168,43 @@ function handleToolbarAction(view: EditorView, action: string, state: FloatingTo
     return;
   }
 
+
+  // Link toggle action
+  if (action === 'link') {
+    const linkUrl = getLinkUrl(view);
+
+    // Case 1: Link exists with a real URL - remove it
+    if (linkUrl !== null && linkUrl !== '') {
+      setLink(view, null);
+      return;
+    }
+
+    // Case 2: Link exists but URL is empty - just show tooltip
+    if (linkUrl === '') {
+      const { state, dispatch } = view;
+      const { from, to } = state.selection;
+      // Just dispatch the meta to show tooltip, don't add mark again
+      const tr = state.tr.setMeta(linkTooltipPluginKey, { type: 'SHOW_LINK_TOOLTIP', from, to });
+      dispatch(tr);
+      view.focus();
+      return;
+    }
+
+    // Case 3: No link exists - create new empty link and show tooltip
+    const { state, dispatch } = view;
+    const { from, to } = state.selection;
+
+    // Just show the tooltip without adding a mark yet
+    // The mark will be added when the user saves the link in the tooltip
+    const tr = state.tr.setMeta(linkTooltipPluginKey, { type: 'SHOW_LINK_TOOLTIP', from, to });
+    dispatch(tr);
+    view.focus();
+
+    return;
+  }
+
   // Sub-menu toggle actions
-  const subMenuActions = ['link', 'color', 'block'];
+  const subMenuActions = ['color', 'block'];
   if (subMenuActions.includes(action)) {
     view.dispatch(
       view.state.tr.setMeta(floatingToolbarKey, {
@@ -198,21 +235,21 @@ function showTooltip(button: HTMLElement) {
   const tooltip = getTooltipElement();
   const text = button.dataset.tooltip;
   const shortcut = button.dataset.shortcut;
-  
+
   if (!text) return;
-  
+
   let html = `<span class="toolbar-tooltip-text">${text}</span>`;
   if (shortcut) {
     const keys = shortcut.split('+').map(k => `<kbd>${k}</kbd>`).join('');
     html += `<span class="toolbar-tooltip-shortcut">${keys}</span>`;
   }
   tooltip.innerHTML = html;
-  
+
   const rect = button.getBoundingClientRect();
   tooltip.style.left = `${rect.left + rect.width / 2}px`;
   tooltip.style.top = `${rect.top - 8}px`;
   tooltip.style.transform = 'translate(-50%, -100%)';
-  
+
   tooltip.classList.add('visible');
 }
 
@@ -243,70 +280,70 @@ export function setupToolbarEventDelegation(
 ) {
   currentView = view;
   currentState = state;
-  
+
   if (!delegateHandler) {
     // Click handler
     delegateHandler = (e: Event) => {
       const target = e.target as HTMLElement;
       const button = target.closest('[data-action]') as HTMLElement | null;
-      
+
       if (button && currentView && currentState) {
         e.preventDefault();
         e.stopPropagation();
-        
+
         // Clear preview before applying
         clearFormatPreview(currentView);
-        
+
         const action = button.dataset.action;
         if (action) {
           handleToolbarAction(currentView, action, currentState);
         }
       }
     };
-    
+
     // Hover handler
     hoverHandler = (e: Event) => {
       const target = e.target as HTMLElement;
       const button = target.closest('[data-action]') as HTMLElement | null;
-      
+
       if (button && currentView) {
         const action = button.dataset.action;
-        
+
         // Apply format preview only for inactive formats
         const isActive = button.classList.contains('active');
         if (action && hasFormatPreview(action) && !isActive) {
           applyFormatPreview(currentView, action, false);
         }
-        
+
         if (button.dataset.tooltip) {
           hideTooltip();
           tooltipTimer = setTimeout(() => showTooltip(button), 500);
         }
       }
     };
-    
+
     // Leave handler
     leaveHandler = (e: Event) => {
       const mouseEvent = e as MouseEvent;
       const target = e.target as HTMLElement;
       const button = target.closest('[data-action]') as HTMLElement | null;
-      
+
       if (button && currentView) {
         const relatedTarget = mouseEvent.relatedTarget as HTMLElement | null;
         if (relatedTarget && button.contains(relatedTarget)) {
           return;
         }
-        
+
         // Clear format preview
         const action = button.dataset.action;
         if (action && hasFormatPreview(action)) {
           clearFormatPreview(currentView);
         }
-        
+
         hideTooltip();
       }
     };
-    
+
     toolbarElement.addEventListener('click', delegateHandler);
     toolbarElement.addEventListener('mouseover', hoverHandler);
     toolbarElement.addEventListener('mouseout', leaveHandler);
@@ -346,20 +383,20 @@ export function cleanupToolbarEventDelegation(toolbarElement: HTMLElement) {
 
 export function renderToolbarContent(
   toolbarElement: HTMLElement,
-  view: EditorView, 
+  view: EditorView,
   state: FloatingToolbarState
 ) {
   updateToolbarState(view, state);
-  
+
   if (!delegateHandler) {
     setupToolbarEventDelegation(toolbarElement, view, state);
   }
-  
+
   // Render color button with indicator
-  const colorButton = renderButton(EXTRA_BUTTONS[1], state.activeMarks, 
+  const colorButton = renderButton(EXTRA_BUTTONS[1], state.activeMarks,
     state.textColor ? `<span class="color-indicator" style="background-color: ${state.textColor}"></span>` : ''
   );
-  
+
   // Render block type button
   const blockButtonActive = state.subMenu === 'block' ? 'active' : '';
   const blockButton = `
@@ -370,7 +407,7 @@ export function renderToolbarContent(
       ${ICONS.chevronDown}
     </button>
   `;
-  
+
   toolbarElement.innerHTML = `
     <div class="floating-toolbar-inner">
       ${renderButtonGroup(FORMAT_BUTTONS, state.activeMarks, 'toolbar-format-group')}
@@ -385,7 +422,7 @@ export function renderToolbarContent(
       </div>
     </div>
   `;
-  
+
   // Render block dropdown if needed
   if (state.subMenu === 'block') {
     const blockGroup = toolbarElement.querySelector('.toolbar-block-group');

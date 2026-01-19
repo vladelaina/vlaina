@@ -36,6 +36,10 @@ class LinkTooltipView {
     }
 
     handleScroll = () => {
+        // Don't hide during edit mode (IME input can trigger scroll events)
+        if (this.dom.hasAttribute('data-editing')) {
+            return;
+        }
         if (this.activeLink) {
             this.hide();
         }
@@ -139,7 +143,7 @@ class LinkTooltipView {
         this.dom.style.left = `${rect.left + scrollLeft}px`;
     }
 
-    handleEdit = (link: HTMLElement, text: string, url: string) => {
+    handleEdit = (link: HTMLElement, text: string, url: string, shouldClose: boolean = false) => {
         const pos = this.view.posAtDOM(link, 0);
         if (pos < 0) return;
 
@@ -151,13 +155,10 @@ class LinkTooltipView {
         let absoluteStart = pos;
         let absoluteEnd = pos;
 
-        // Check if we are editing a real Mark or an Autolink decoration
         const hasMark = linkMarkType.isInSet($pos.marks()) ||
             ($pos.nodeAfter && linkMarkType.isInSet($pos.nodeAfter.marks));
 
         if (hasMark) {
-            // It's a Markdown Link [text](url) - Find the full mark range
-            // We scan forward from the position until the mark disappears
             let scanForwards = pos;
             while (scanForwards < state.doc.content.size) {
                 const $scan = state.doc.resolve(scanForwards);
@@ -167,14 +168,8 @@ class LinkTooltipView {
                 }
                 scanForwards++;
             }
-            // We scan backward just in case pos was in the middle (though usually it's at start)
             let scanBackwards = pos;
             while (scanBackwards > 0) {
-                const $scan = state.doc.resolve(scanBackwards);
-                // Check marks before position
-                const marks = $scan.marks(); // marks at position (left of cursor)
-                // Note: $scan.marks() gets marks *at* path.
-                // To check strictly before: 
                 const marksBefore = state.doc.resolve(scanBackwards - 1).marks();
                 if (!linkMarkType.isInSet(marksBefore)) {
                     break;
@@ -185,23 +180,16 @@ class LinkTooltipView {
             absoluteStart = scanBackwards;
             absoluteEnd = scanForwards;
         } else {
-            // It's an Autolink (Decoration) - No mark exists
-            // The link element text is the range we want to replace
             const length = link.textContent?.length || 0;
             absoluteStart = pos;
             absoluteEnd = pos + length;
         }
 
-        // Safety check to avoid zero-width replacement (duplication) if something goes wrong
         if (absoluteStart === absoluteEnd) {
             const length = link.textContent?.length || 0;
             absoluteEnd = absoluteStart + length;
         }
 
-        // Dispatch transaction to update:
-        // 1. Remove old link mark (if any)
-        // 2. Replace text
-        // 3. Add new link mark
         let tr = state.tr;
 
         if (hasMark) {
@@ -214,8 +202,35 @@ class LinkTooltipView {
 
         dispatch(tr);
 
-        // Hide tooltip after edit
-        this.hide();
+        if (shouldClose) {
+            this.hide();
+            return;
+        }
+
+        // Don't hide! Find the new link and keep showing it.
+        try {
+            const newStart = tr.mapping.map(absoluteStart);
+            const domInfo = this.view.domAtPos(newStart + 1);
+
+            let newLink = domInfo.node as HTMLElement;
+            if (newLink.nodeType === Node.TEXT_NODE) {
+                newLink = newLink.parentElement as HTMLElement;
+            }
+            if (newLink && newLink.tagName !== 'A') {
+                newLink = newLink.closest('a') as HTMLElement;
+            }
+
+            if (newLink) {
+                // Determine if we need to force a refresh even if it's arguably the "same" link
+                // Forcing show() will re-render React component with new props (href/text)
+                this.show(newLink);
+            } else {
+                this.hide();
+            }
+        } catch (e) {
+            console.warn('Failed to locate new link node after edit', e);
+            this.hide();
+        }
     };
 
     show(link: HTMLElement) {
@@ -227,14 +242,15 @@ class LinkTooltipView {
         link.classList.add('link-active-state');
 
         const href = link.getAttribute('href') || link.getAttribute('data-href');
-        if (!href) return;
+        // Allow empty string (newly created links), only return if null
+        if (href === null) return;
 
         this.root?.render(
             <LinkTooltip
                 key={Date.now()}
                 href={href}
                 initialText={link.textContent || ''}
-                onEdit={(text, url) => this.handleEdit(link, text, url)}
+                onEdit={(text, url, shouldClose) => this.handleEdit(link, text, url, shouldClose)}
                 onClose={() => this.hide()}
             />
         );
@@ -245,7 +261,8 @@ class LinkTooltipView {
     }
 
     hide() {
-        if (this.dom.hasAttribute('data-dropdown-open')) {
+        // Don't hide if dropdown menu is open or in editing mode
+        if (this.dom.hasAttribute('data-dropdown-open') || this.dom.hasAttribute('data-editing')) {
             return;
         }
 
@@ -257,13 +274,113 @@ class LinkTooltipView {
         this.activeLink = null;
     }
 
-    update(view: EditorView) {
+    update(_view: EditorView) {
         // Check if active link is still valid and in the document
-        // This handles cases where the link is deleted or reformatted (nuclear option)
         if (this.activeLink && !document.contains(this.activeLink)) {
             this.hide();
         }
     }
+
+    /**
+     * Show the tooltip at a specific position range, without requiring a DOM <a> element.
+     * This is used when creating new links (empty href) which may not render as <a> tags.
+     */
+    showAtPosition(from: number, to: number) {
+        // Get the selected text
+        const { state } = this.view;
+        const selectedText = state.doc.textBetween(from, to, '');
+
+        // Create a virtual element reference for positioning
+        this.activeLink = null; // We don't have a real link element
+
+        // Render the tooltip component
+        this.root?.render(
+            <LinkTooltip
+                key={Date.now()}
+                href=""
+                initialText={selectedText}
+                onEdit={(text, url, shouldClose) => this.handleEditAtPosition(from, to, text, url, shouldClose)}
+                onClose={() => this.hide()}
+            />
+        );
+
+        this.dom.classList.remove('hidden');
+        this.updatePositionFromCoords(from, to);
+    }
+
+    /**
+     * Update tooltip position using ProseMirror coordinates instead of DOM element.
+     */
+    updatePositionFromCoords(from: number, to: number) {
+        try {
+            const startCoords = this.view.coordsAtPos(from);
+            const endCoords = this.view.coordsAtPos(to);
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
+
+            // Position below the text, centered between start and end
+            const left = (startCoords.left + endCoords.right) / 2;
+            const bottom = Math.max(startCoords.bottom, endCoords.bottom);
+
+            this.dom.style.top = `${bottom + scrollTop + 8}px`;
+            this.dom.style.left = `${left + scrollLeft}px`;
+        } catch (e) {
+            console.warn('[LinkTooltipPlugin] Failed to get coords:', e);
+        }
+    }
+
+    /**
+     * Handle edit for a link at a specific position range (no DOM element).
+     */
+    handleEditAtPosition = (from: number, to: number, text: string, url: string, shouldClose: boolean = false) => {
+        const { state, dispatch } = this.view;
+        const linkMarkType = state.schema.marks.link;
+        if (!linkMarkType) return;
+
+        // Cancel if URL is empty
+        if (!url || url.trim() === '') {
+            // Remove the empty link mark if it exists
+            const tr = state.tr.removeMark(from, to, linkMarkType);
+            dispatch(tr);
+            this.hide();
+            return;
+        }
+
+        // Replace text and add link mark with the new URL
+        const tr = state.tr
+            .insertText(text, from, to)
+            .addMark(from, from + text.length, linkMarkType.create({ href: url }));
+
+        dispatch(tr);
+
+        if (shouldClose) {
+            this.hide();
+            return;
+        }
+
+        // Try to find and show the new link
+        try {
+            const newStart = tr.mapping.map(from);
+            const domInfo = this.view.domAtPos(newStart + 1);
+
+            let newLink = domInfo.node as HTMLElement;
+            if (newLink.nodeType === Node.TEXT_NODE) {
+                newLink = newLink.parentElement as HTMLElement;
+            }
+            if (newLink && newLink.tagName !== 'A') {
+                newLink = newLink.closest('a') as HTMLElement;
+            }
+
+            if (newLink) {
+                this.show(newLink);
+            } else {
+                this.hide();
+            }
+        } catch (e) {
+            console.warn('Failed to locate new link node after edit', e);
+            this.hide();
+        }
+    };
 
     destroy() {
         this.view.dom.removeEventListener('mouseover', this.handleEditorMouseOver);
@@ -280,6 +397,56 @@ class LinkTooltipView {
 export const linkTooltipPlugin = $prose(() => {
     return new Plugin({
         key: linkTooltipPluginKey,
-        view: (editorView) => new LinkTooltipView(editorView)
+        state: {
+            init: () => ({ shouldShow: false, from: 0, to: 0, handled: false }),
+            apply(tr, value) {
+                const meta = tr.getMeta(linkTooltipPluginKey);
+
+                // New show request
+                if (meta && meta.type === 'SHOW_LINK_TOOLTIP') {
+                    return { shouldShow: true, from: meta.from, to: meta.to, handled: false };
+                }
+
+                // Clear request
+                if (meta && meta.type === 'CLEAR_LINK_TOOLTIP') {
+                    return { shouldShow: false, from: 0, to: 0, handled: false };
+                }
+
+                // Preserve existing state for other transactions
+                return value;
+            }
+        },
+        view(editorView) {
+            const tooltipView = new LinkTooltipView(editorView);
+            return {
+                update(view) {
+                    tooltipView.update(view);
+
+                    const pluginState = linkTooltipPluginKey.getState(view.state);
+
+                    // Only process if shouldShow is true AND not already handled
+                    if (pluginState?.shouldShow && !pluginState.handled) {
+
+                        // Mark as handled immediately to prevent duplicate calls
+                        // We do this by dispatching a transaction that marks it handled
+                        const { from, to } = pluginState;
+
+                        // Use setTimeout to let any pending DOM updates complete
+                        setTimeout(() => {
+                            tooltipView.showAtPosition(from, to);
+                            // Clear the state after showing
+                            view.dispatch(view.state.tr.setMeta(linkTooltipPluginKey, { type: 'CLEAR_LINK_TOOLTIP' }));
+                        }, 50);
+
+                        // Temporarily mark as handled to prevent re-triggering during the timeout
+                        // This is a workaround since we can't mutate plugin state directly
+                        (pluginState as { handled: boolean }).handled = true;
+                    }
+                },
+                destroy() {
+                    tooltipView.destroy();
+                },
+            };
+        },
     });
 });
