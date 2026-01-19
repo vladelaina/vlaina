@@ -20,7 +20,7 @@ interface DetailModalProps {
   onClose: () => void;
   onUpdate: (id: string, data: Partial<ProgressOrCounter>) => void;
   onDelete: (id: string) => void;
-  onPreviewChange?: (icon?: string, title?: string) => void;
+  onPreviewChange?: (icon?: string, title?: string, iconSize?: number) => void;
 }
 
 export function DetailModal({

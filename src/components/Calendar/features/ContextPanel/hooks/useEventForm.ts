@@ -7,7 +7,7 @@ export function useEventForm(event: NekoEvent) {
     const { updateEvent, updateEventIcon, closeEditingEvent, calendars, deleteEvent } = useCalendarStore();
     
     // Use unified preview hook
-    const { handlePreview, handlePreviewColor } = useIconPreview(event.uid);
+    const { handlePreview, handlePreviewColor, handlePreviewSize } = useIconPreview(event.uid);
 
     const [localSummary, setLocalSummary] = useState(event.summary || '');
     const [showCalendarPicker, setShowCalendarPicker] = useState(false);
@@ -43,8 +43,9 @@ export function useEventForm(event: NekoEvent) {
 
         handlePreview(null);
         handlePreviewColor(null);
+        handlePreviewSize(null);
         closeEditingEvent();
-    }, [event.uid, event.summary, localSummary, deleteEvent, closeEditingEvent, handlePreview, handlePreviewColor, saveSummary]);
+    }, [event.uid, event.summary, localSummary, deleteEvent, closeEditingEvent, handlePreview, handlePreviewColor, handlePreviewSize, saveSummary]);
 
     // Input handlers
     const handleSummaryChange = (newSummary: string) => {
@@ -81,6 +82,10 @@ export function useEventForm(event: NekoEvent) {
         updateEventIcon(event.uid, icon);
     };
 
+    const handleIconSizeConfirm = (size: number) => {
+        updateEvent(event.uid, { iconSize: size });
+    };
+
 
     return {
         localSummary,
@@ -89,9 +94,11 @@ export function useEventForm(event: NekoEvent) {
         handleClose,
         handleIconHover: handlePreview,
         handleColorHover: handlePreviewColor,
+        handlePreviewSize,
         handleCalendarChange,
         handleColorChange,
         handleIconChange,
+        handleIconSizeConfirm,
         showCalendarPicker,
         setShowCalendarPicker,
         currentCalendar,

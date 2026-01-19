@@ -145,35 +145,70 @@ class LinkTooltipView {
 
         const { state, dispatch } = this.view;
         const $pos = state.doc.resolve(pos);
-
-        // Find the range of the link mark
-        const { parent, parentOffset } = $pos;
-        let start = parentOffset;
-        let end = parentOffset;
-
-        // Find the mark type for 'link'
         const linkMarkType = state.schema.marks.link;
         if (!linkMarkType) return;
 
-        // Search backwards for mark start
-        while (start > 0 && linkMarkType.isInSet(parent.child(start - 1).marks)) {
-            start--;
+        let absoluteStart = pos;
+        let absoluteEnd = pos;
+
+        // Check if we are editing a real Mark or an Autolink decoration
+        const hasMark = linkMarkType.isInSet($pos.marks()) ||
+            ($pos.nodeAfter && linkMarkType.isInSet($pos.nodeAfter.marks));
+
+        if (hasMark) {
+            // It's a Markdown Link [text](url) - Find the full mark range
+            // We scan forward from the position until the mark disappears
+            let scanForwards = pos;
+            while (scanForwards < state.doc.content.size) {
+                const $scan = state.doc.resolve(scanForwards);
+                const marks = $scan.marks().concat($scan.nodeAfter?.marks || []);
+                if (!linkMarkType.isInSet(marks)) {
+                    break;
+                }
+                scanForwards++;
+            }
+            // We scan backward just in case pos was in the middle (though usually it's at start)
+            let scanBackwards = pos;
+            while (scanBackwards > 0) {
+                const $scan = state.doc.resolve(scanBackwards);
+                // Check marks before position
+                const marks = $scan.marks(); // marks at position (left of cursor)
+                // Note: $scan.marks() gets marks *at* path.
+                // To check strictly before: 
+                const marksBefore = state.doc.resolve(scanBackwards - 1).marks();
+                if (!linkMarkType.isInSet(marksBefore)) {
+                    break;
+                }
+                scanBackwards--;
+            }
+
+            absoluteStart = scanBackwards;
+            absoluteEnd = scanForwards;
+        } else {
+            // It's an Autolink (Decoration) - No mark exists
+            // The link element text is the range we want to replace
+            const length = link.textContent?.length || 0;
+            absoluteStart = pos;
+            absoluteEnd = pos + length;
         }
 
-        // Search forwards for mark end
-        while (end < parent.childCount && linkMarkType.isInSet(parent.child(end).marks)) {
-            end++;
+        // Safety check to avoid zero-width replacement (duplication) if something goes wrong
+        if (absoluteStart === absoluteEnd) {
+            const length = link.textContent?.length || 0;
+            absoluteEnd = absoluteStart + length;
         }
-
-        const absoluteStart = $pos.start() + start;
-        const absoluteEnd = $pos.start() + end;
 
         // Dispatch transaction to update:
-        // 1. Remove old link mark
+        // 1. Remove old link mark (if any)
         // 2. Replace text
         // 3. Add new link mark
-        const tr = state.tr
-            .removeMark(absoluteStart, absoluteEnd, linkMarkType)
+        let tr = state.tr;
+
+        if (hasMark) {
+            tr = tr.removeMark(absoluteStart, absoluteEnd, linkMarkType);
+        }
+
+        tr = tr
             .insertText(text, absoluteStart, absoluteEnd)
             .addMark(absoluteStart, absoluteStart + text.length, linkMarkType.create({ href: url }));
 
@@ -220,6 +255,14 @@ class LinkTooltipView {
 
         this.dom.classList.add('hidden');
         this.activeLink = null;
+    }
+
+    update(view: EditorView) {
+        // Check if active link is still valid and in the document
+        // This handles cases where the link is deleted or reformatted (nuclear option)
+        if (this.activeLink && !document.contains(this.activeLink)) {
+            this.hide();
+        }
     }
 
     destroy() {

@@ -34,7 +34,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
     setEditingEventId, editingEventId,
     setSelectedEventId, closeEditingEvent,
     use24Hour, deleteEvent, allEvents,
-    universalPreviewTarget, universalPreviewIcon, universalPreviewColor
+    universalPreviewTarget, universalPreviewIcon, universalPreviewColor, universalPreviewIconSize
   } = useCalendarStore();
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -271,24 +271,36 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
 
           {/* Icon watermark */}
           {heightLevel !== 'micro' && heightLevel !== 'tiny' && (() => {
-            const displayIconName = (universalPreviewTarget === event.uid && universalPreviewIcon !== null)
+            const isPreviewing = universalPreviewTarget === event.uid;
+            
+            const displayIconName = (isPreviewing && universalPreviewIcon !== null)
               ? universalPreviewIcon
               : event.icon;
+            
             if (!displayIconName) return null;
             
-            const iconSize = Math.min(Math.max(hourHeight * 0.7, 24), 80);
+            // Size Logic: Absolute Pixels (Preview > Event > Auto)
+            let iconSize: number;
+            if (isPreviewing && universalPreviewIconSize) {
+                iconSize = universalPreviewIconSize;
+            } else if (event.iconSize) {
+                iconSize = event.iconSize;
+            } else {
+                // Default auto calculation
+                iconSize = Math.min(Math.max(hourHeight * 0.7, 24), 80);
+            }
+            
             return (
               <div
-                className="absolute right-1 bottom-0 pointer-events-none"
+                className="absolute right-1 bottom-0 pointer-events-none transition-all duration-200"
                 style={{
-                  opacity: 0.25,
-                  color: colorStyles.accent,
+                  opacity: 1, // Keep your "True Color" preference
+                  color: colorStyles.accent, 
                 }}
               >
                 <AppIcon
                   icon={displayIconName}
                   size={iconSize}
-                  className="stroke-[1.5px]" // Try to enforce stroke width
                   color={colorStyles.accent}
                 />
               </div>

@@ -29,6 +29,7 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
         // Get NekoTick custom properties
         const nekoColor = vevent.getFirstPropertyValue(NEKO_X_PROPS.COLOR) as ItemColor | null;
         const nekoIcon = vevent.getFirstPropertyValue(NEKO_X_PROPS.ICON) as string | null;
+        const nekoIconSize = vevent.getFirstPropertyValue(NEKO_X_PROPS.ICON_SIZE) as string | null;
         const nekoCalendarId = vevent.getFirstPropertyValue(NEKO_X_PROPS.CALENDAR_ID) as string | null;
         const nekoTimerState = vevent.getFirstPropertyValue(NEKO_X_PROPS.TIMER_STATE) as 'idle' | 'running' | 'paused' | null;
         const nekoTimerStarted = vevent.getFirstPropertyValue(NEKO_X_PROPS.TIMER_STARTED) as string | null;
@@ -46,6 +47,7 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
             calendarId: nekoCalendarId || defaultCalendarId,
             color: nekoColor || undefined,
             icon: nekoIcon || undefined,
+            iconSize: nekoIconSize ? parseInt(nekoIconSize, 10) : undefined,
             timerState: nekoTimerState || undefined,
             timerStartedAt: nekoTimerStarted ? parseInt(nekoTimerStarted, 10) : undefined,
             timerAccumulated: nekoTimerAccumulated ? parseInt(nekoTimerAccumulated, 10) : undefined,

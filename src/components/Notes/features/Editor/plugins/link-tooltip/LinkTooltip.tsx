@@ -7,6 +7,14 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
+import { IconButton } from '@/components/ui/icon-button';
+import { iconButtonStyles } from '@/lib/utils';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export interface LinkTooltipProps {
     href: string;
@@ -55,8 +63,9 @@ const LinkTooltip = ({ href, initialText = '', onEdit }: LinkTooltipProps) => {
         setTimeout(() => setShowCopied(false), 2000);
     };
 
-    const handleOpen = () => {
-        window.open(href, '_blank', 'noopener,noreferrer');
+    const handleOpen = async () => {
+        const { openUrl } = await import('@tauri-apps/plugin-opener');
+        await openUrl(href);
     };
 
     const handleSaveEdit = () => {
@@ -117,13 +126,19 @@ const LinkTooltip = ({ href, initialText = '', onEdit }: LinkTooltipProps) => {
                     </div>
                 </div>
 
-                <button
-                    onClick={handleSaveEdit}
-                    className="flex items-center justify-center size-8 text-[var(--neko-accent)] hover:opacity-80 rounded-full transition-all flex-shrink-0"
-                    title="Save changes"
-                >
-                    <Check className="size-5 stroke-[2.5]" />
-                </button>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                onClick={handleSaveEdit}
+                                className="flex items-center justify-center size-8 text-[var(--neko-accent)] hover:opacity-80 rounded-full transition-all flex-shrink-0"
+                            >
+                                <Check className="size-5 stroke-[2.5]" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">Save changes</TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </div>
         );
     }
@@ -134,41 +149,57 @@ const LinkTooltip = ({ href, initialText = '', onEdit }: LinkTooltipProps) => {
             className="flex items-center bg-white dark:bg-[#1e1e1e] border border-black/5 dark:border-white/10 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-1.5 gap-1 animate-in fade-in zoom-in-95 duration-200"
             onMouseDown={(e) => e.stopPropagation()}
         >
-            <button
-                onClick={handleOpen}
-                className="group flex items-center gap-2 pl-2 pr-3 py-1.5 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors max-w-[200px]"
-                title={href}
-            >
-                <div className="flex items-center justify-center size-5 rounded bg-blue-50 dark:bg-blue-500/10 text-blue-500">
-                    <ExternalLink className="size-3" />
-                </div>
-                <span className="truncate text-[13px] font-medium text-gray-700 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    {displayUrl}
-                </span>
-            </button>
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <button
+                            onClick={handleOpen}
+                            className="group flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg transition-colors max-w-[200px]"
+                        >
+                            <div className="flex items-center justify-center size-5 rounded text-gray-400 group-hover:text-blue-500 transition-colors">
+                                <ExternalLink className="size-3" />
+                            </div>
+                            <span className="truncate text-[13px] font-medium text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                                {displayUrl}
+                            </span>
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                        <p>{href}</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
 
             <div className="w-[1px] h-4 bg-gray-200 dark:bg-zinc-700 mx-1" />
 
             <div className="flex items-center gap-0.5">
-                <button
+                <IconButton
                     onClick={handleCopy}
-                    className="p-1.5 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-all"
-                    title="Copy link"
-                >
-                    {showCopied ? <Check className="size-4 text-green-500 scale-110" /> : <Copy className="size-4" />}
-                </button>
+                    icon={showCopied ? <Check className="size-4 text-green-500 scale-110" /> : <Copy className="size-4" />}
+                    tooltip="Copy link"
+                />
 
-                <button
+                <IconButton
                     onClick={() => setMode('edit')}
-                    className="p-1.5 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-all"
-                    title="Edit link"
-                >
-                    <Edit2 className="size-4" />
-                </button>
+                    icon={<Edit2 className="size-4" />}
+                    tooltip="Edit link"
+                />
 
                 <DropdownMenu modal={false} open={dropdownOpen} onOpenChange={setDropdownOpen}>
                     <DropdownMenuTrigger asChild>
-                        <button className="p-1.5 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md transition-all outline-none">
+                        {/* Wrapper div or just the button, but we need Tooltip. 
+                            IconButton has Tooltip built-in but might conflict with DropdownTrigger's asChild expectations if not careful.
+                            Actually, DropdownMenuTrigger asChild passes props to the immediate child. 
+                            If IconButton is the child, it receives trigger props. 
+                            IconButton implementation: returns <Tooltip><TooltipTrigger><button>...
+                            Radix Primitives: Trigger asChild should wrap the semantic button.
+                            Nesting: DropdownTrigger -> Tooltip -> TooltipTrigger -> Button.
+                            This is standard Radix composition. 
+                            However, `IconButton` component doesn't forward ref or ... let's check IconButton definition.
+                            It creates a Tooltip root. 
+                            Let's use manual tooltip for the dropdown trigger to be safe and `IconButton` for the others.
+                        */}
+                        <button className={`${iconButtonStyles} outline-none`}>
                             <MoreHorizontal className="size-4" />
                         </button>
                     </DropdownMenuTrigger>

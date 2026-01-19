@@ -29,6 +29,8 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     handleCalendarChange,
     handleColorChange,
     handleIconChange,
+    handlePreviewSize,
+    handleIconSizeConfirm,
     showCalendarPicker,
     setShowCalendarPicker,
     currentCalendar,
@@ -135,6 +137,16 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         icon={event.icon}
         onIconChange={handleIconChange}
         className="px-6 pb-0" // Adjust padding
+        
+        // Decoupled Size Control: 
+        // Header icon stays fixed at Hero size (60px), 
+        // while slider controls the absolute pixel size (20-150) of the event block icon.
+        iconSize={60} 
+        sliderValue={event.iconSize || 60} // Default 60px
+        minIconSize={20}
+        maxIconSize={150}
+        onSizeChange={handlePreviewSize}
+        onSizeConfirm={handleIconSizeConfirm}
         
         // Render Title with Color Indicator
         renderTitle={() => (
