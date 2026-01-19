@@ -10,6 +10,7 @@ export function useEventForm(event: NekoEvent) {
     const { handlePreview, handlePreviewColor, handlePreviewSize } = useIconPreview(event.uid);
 
     const [localSummary, setLocalSummary] = useState(event.summary || '');
+    const [localIcon, setLocalIcon] = useState(event.icon || null);
     const [showCalendarPicker, setShowCalendarPicker] = useState(false);
     const isNewEvent = useRef(!(event.summary || '').trim());
     const debouncedUpdateSummary = useRef<NodeJS.Timeout | undefined>(undefined);
@@ -19,8 +20,9 @@ export function useEventForm(event: NekoEvent) {
     // Sync state when switching events
     useEffect(() => {
         setLocalSummary(event.summary || '');
+        setLocalIcon(event.icon || null);
         isNewEvent.current = !(event.summary || '').trim();
-    }, [event.uid]); // Intentionally verify only on UID change
+    }, [event.uid, event.summary, event.icon]); // Sync on changes
 
     // Helper to save immediately
     const saveSummary = useCallback((value: string) => {
@@ -78,8 +80,9 @@ export function useEventForm(event: NekoEvent) {
         updateEvent(event.uid, { color });
     };
 
-    const handleIconChange = (icon: string | undefined) => {
-        updateEventIcon(event.uid, icon);
+    const handleIconChange = (icon: string | null) => {
+        setLocalIcon(icon);
+        updateEventIcon(event.uid, icon || undefined);
     };
 
     const handleIconSizeConfirm = (size: number) => {
@@ -89,6 +92,7 @@ export function useEventForm(event: NekoEvent) {
 
     return {
         localSummary,
+        localIcon,
         handleSummaryChange,
         handleKeyDown,
         handleClose,

@@ -28,7 +28,15 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
 
         // Get NekoTick custom properties
         const nekoColor = vevent.getFirstPropertyValue(NEKO_X_PROPS.COLOR) as ItemColor | null;
-        const nekoIcon = vevent.getFirstPropertyValue(NEKO_X_PROPS.ICON) as string | null;
+        let nekoIcon = vevent.getFirstPropertyValue(NEKO_X_PROPS.ICON) as string | null;
+        
+        if (nekoIcon) {
+            try {
+                nekoIcon = decodeURIComponent(nekoIcon);
+            } catch (e) {
+                // Fallback to raw value if decoding fails (legacy data)
+            }
+        }
         const nekoIconSize = vevent.getFirstPropertyValue(NEKO_X_PROPS.ICON_SIZE) as string | null;
         const nekoCalendarId = vevent.getFirstPropertyValue(NEKO_X_PROPS.CALENDAR_ID) as string | null;
         const nekoTimerState = vevent.getFirstPropertyValue(NEKO_X_PROPS.TIMER_STATE) as 'idle' | 'running' | 'paused' | null;

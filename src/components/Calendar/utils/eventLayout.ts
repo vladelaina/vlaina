@@ -106,10 +106,8 @@ function layoutGroup(events: LayoutEvent[]): Map<string, EventLayoutInfo> {
     const colorOrderB = getColorPriority(b.color);
     if (colorOrderA !== colorOrderB) return colorOrderA - colorOrderB;
     
-    // Finally by duration descending
-    const durationA = a.endDate - a.startDate;
-    const durationB = b.endDate - b.startDate;
-    return durationB - durationA;
+    // Finally by ID for stability
+    return a.id.localeCompare(b.id);
   });
   
   // Assign columns using a greedy algorithm

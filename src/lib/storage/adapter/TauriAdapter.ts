@@ -47,7 +47,17 @@ export class TauriAdapter implements StorageAdapter {
       await writeTextFile(path, existing + content);
     } else {
       // Atomic write: write to temp file then rename
-      const tempPath = `${path}.tmp`;
+      // Use unique temp path to avoid race conditions
+      const tempPath = `${path}.${Date.now()}_${Math.random().toString(36).slice(2)}.tmp`;
+      
+      if (content.includes('X-NEKO-ICON')) {
+          console.log('[TauriAdapter] Writing content with ICON to:', path);
+          const iconLines = content.split('\n').filter(l => l.includes('X-NEKO-ICON'));
+          console.log('[TauriAdapter] Icon lines:', iconLines);
+      } else {
+          console.log('[TauriAdapter] Writing content WITHOUT ICON to:', path);
+      }
+
       try {
         await writeTextFile(tempPath, content);
         await fsRename(tempPath, path);
@@ -75,7 +85,7 @@ export class TauriAdapter implements StorageAdapter {
       await writeBinary(path, combined);
     } else {
       // Atomic write for binary files
-      const tempPath = `${path}.tmp`;
+      const tempPath = `${path}.${Date.now()}_${Math.random().toString(36).slice(2)}.tmp`;
       try {
         await writeBinary(tempPath, content);
         await fsRename(tempPath, path);

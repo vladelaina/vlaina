@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronLeft, ChevronRight, Check, Search, PanelLeft } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Check, Search } from 'lucide-react';
 import { useCalendarStore, type TimeView } from '@/stores/useCalendarStore';
 import { addDays, addMonths } from 'date-fns';
 import { SyncButton } from '@/components/common';
@@ -16,7 +16,6 @@ import {
 export function ViewSwitcher() {
   const {
     viewMode, setViewMode, selectedDate, setSelectedDate, dayCount, setDayCount,
-    showContextPanel, toggleContextPanel
   } = useCalendarStore();
 
 
@@ -335,18 +334,6 @@ export function ViewSwitcher() {
           <ChevronRight className="size-4" />
         </button>
       </div>
-
-      {/* Context Panel Toggle */}
-      <button
-        onClick={toggleContextPanel}
-        className={`p-1.5 rounded-md transition-colors ${showContextPanel
-          ? 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        title={showContextPanel ? 'Hide sidebar' : 'Show sidebar'}
-      >
-        <PanelLeft className={`size-5 ${showContextPanel ? '' : 'opacity-50'}`} style={{ transform: 'scaleX(-1)' }} />
-      </button>
     </div>
   );
 }

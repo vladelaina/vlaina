@@ -73,12 +73,13 @@ export function useTimeGridDrag({
         closeEditingEvent();
     }, [editingEventId, displayItems, deleteEvent, closeEditingEvent]);
 
-    const handleEventCreated = useCallback((startDate: Date, endDate: Date, position: { x: number; y: number }) => {
+    const handleEventCreated = useCallback((startDate: Date, endDate: Date, position: { x: number; y: number }, uid?: string) => {
         const newEventId = addEvent({
             summary: '',
             dtstart: startDate,
             dtend: endDate,
             allDay: false,
+            uid, // Use pre-generated UID if available
         });
         setEditingEventId(newEventId, position);
     }, [addEvent, setEditingEventId]);
@@ -233,6 +234,7 @@ export function useTimeGridDrag({
         isDragging: dragToCreate.isDragging,
         dragStart: dragToCreate.dragStart,
         dragEnd: dragToCreate.dragEnd,
+        dragId: dragToCreate.dragId,
 
         // Event drag state
         eventDrag: eventDrag.eventDrag,
