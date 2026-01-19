@@ -35,7 +35,17 @@ interface HeroIconHeaderProps {
   children?: React.ReactNode;
 }
 
-function HeaderIcon({ itemId, originalIcon, sizeVar }: { itemId: string, originalIcon: string | null, sizeVar: string }) {
+function HeaderIcon({ 
+  itemId, 
+  originalIcon, 
+  sizeVar,
+  imageLoader
+}: { 
+  itemId: string, 
+  originalIcon: string | null, 
+  sizeVar: string,
+  imageLoader?: (src: string) => Promise<string>
+}) {
     const { universalPreviewTarget, universalPreviewIcon, universalPreviewColor } = useUIStore();
     
     const isPreviewing = universalPreviewTarget === itemId;
@@ -49,6 +59,7 @@ function HeaderIcon({ itemId, originalIcon, sizeVar }: { itemId: string, origina
           icon={finalIcon} 
           color={finalColor} // Pass preview color
           size={sizeVar} // Pass CSS variable string
+          imageLoader={imageLoader}
         />
     );
 }
@@ -158,6 +169,7 @@ export function HeroIconHeader({
                         itemId={id} 
                         originalIcon={icon} 
                         sizeVar="var(--header-icon-size)" 
+                        imageLoader={imageLoader}
                     />
                 </button>
             </div>
