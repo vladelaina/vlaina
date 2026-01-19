@@ -46,7 +46,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
   const renameNote = useNotesStore(s => s.renameNote);
   const renameFolder = useNotesStore(s => s.renameFolder);
   const createNote = useNotesStore(s => s.createNote);
-  // const createFolder = useNotesStore(s => s.createFolder);
+
   const moveItem = useNotesStore(s => s.moveItem);
   const newlyCreatedFolderPath = useNotesStore(s => s.newlyCreatedFolderPath);
   const clearNewlyCreatedFolder = useNotesStore(s => s.clearNewlyCreatedFolder);

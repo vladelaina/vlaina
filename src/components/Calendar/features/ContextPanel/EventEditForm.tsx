@@ -134,8 +134,8 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
       {/* Hero Header Section */}
       <HeroIconHeader
         id={event.uid}
-        icon={event.icon}
-        onIconChange={handleIconChange}
+        icon={event.icon ?? null}
+        onIconChange={(icon) => handleIconChange(icon ?? undefined)}
         className="px-6 pb-0" // Adjust padding
         
         // Decoupled Size Control: 

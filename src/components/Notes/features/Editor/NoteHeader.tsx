@@ -1,7 +1,6 @@
-import { useRef, useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { TitleInput } from './TitleInput';
-import { loadSkinTone } from '@/components/common/UniversalIconPicker/constants';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
 import { buildFullAssetPath } from '@/lib/assets/pathUtils';

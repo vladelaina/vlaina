@@ -6,13 +6,9 @@ import { useUIStore } from '@/stores/uiSlice';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
 import { VaultWelcome } from '@/components/VaultWelcome';
-import { WindowControls } from '@/components/layout/WindowControls';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 
 export function NotesView() {
-  const rootFolder = useNotesStore(s => s.rootFolder);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
-  const isLoading = useNotesStore(s => s.isLoading);
   const loadFileTree = useNotesStore(s => s.loadFileTree);
   const openTabs = useNotesStore(s => s.openTabs);
   const closeTab = useNotesStore(s => s.closeTab);

@@ -61,7 +61,7 @@ export const debugPlugin = $prose(() => {
         },
         state: {
             init() { },
-            apply(tr, _value, _oldState, newState) {
+            apply(tr, _value, _oldState) {
                 if (!tr.selectionSet) return;
 
 

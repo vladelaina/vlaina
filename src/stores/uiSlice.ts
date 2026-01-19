@@ -7,7 +7,6 @@ import {
   STORAGE_KEY_COLOR_FILTER,
   STORAGE_KEY_STATUS_FILTER,
   STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED,
-  STORAGE_KEY_SHOW_SIDEBAR
 } from '@/lib/config';
 
 const STORAGE_KEY_SIDEBAR_WIDTH = 'nekotick_sidebar_width';
@@ -80,8 +79,6 @@ interface UIStore {
 
   draggingToCalendarTaskId: string | null;
   setDraggingToCalendarTaskId: (id: string | null) => void;
-
-  toggleSidebar: () => void;
 
   showContextPanel: boolean;
   toggleContextPanel: () => void;

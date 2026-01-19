@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { displayPositionToHour, minutesToPixels, CALENDAR_CONSTANTS } from '../../../utils/timeUtils';
 
 const GUTTER_WIDTH = CALENDAR_CONSTANTS.GUTTER_WIDTH as number;

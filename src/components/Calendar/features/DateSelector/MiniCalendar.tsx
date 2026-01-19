@@ -4,7 +4,20 @@ import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useState } from 'react';
 import { ColorFilter } from '@/components/common/ColorFilter';
 
-export function MiniCalendar() {
+interface MiniCalendarProps {
+  onSelect?: (date: Date) => void;
+  // selectedDate is now managed globally, but we can accept it if we want to override or init (optional, but current code uses store)
+  // strict mode: remove unused props from call sites or add them here.
+  // The errors show: Type '{ selectedDate: Date; onSelect: ... }'
+  // So we should probably allow selectedDate in props too, even if we ignore it or sync it,
+  // OR update call sites to NOT pass selectedDate.
+  // Given the goal is "fix errors", adding it to props is safest if we want to keep call sites mostly same,
+  // BUT the store is the source of truth. Let's add it as optional to satisfy TS but ignore it or use it to init state if provided?
+  // Actually, better to clean up call sites. But to fix the "not assignable" error, we need to accept what's passed OR change what's passed.
+  // I will change what's passed in the other files. Here I just add onSelect.
+}
+
+export function MiniCalendar({ onSelect }: MiniCalendarProps) {
   const { selectedDate, setSelectedDate } = useCalendarStore();
   const [currentMonth, setCurrentMonth] = useState(selectedDate);
 
@@ -31,6 +44,7 @@ export function MiniCalendar() {
     if (!isSameMonth(day, currentMonth)) {
       setCurrentMonth(day);
     }
+    onSelect?.(day);
   };
 
   return (

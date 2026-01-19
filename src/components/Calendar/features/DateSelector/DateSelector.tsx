@@ -6,13 +6,8 @@ import { MiniCalendar } from './MiniCalendar';
 import { useState } from 'react';
 
 export function DateSelector() {
-  const { selectedDate, setSelectedDate } = useCalendarStore();
+  const { selectedDate } = useCalendarStore();
   const [open, setOpen] = useState(false);
-
-  const handleSelect = (date: Date) => {
-    setSelectedDate(date);
-    setOpen(false);
-  };
 
   const displayText = isSameYear(selectedDate, new Date()) 
     ? format(selectedDate, 'MMMM d') 
@@ -41,7 +36,7 @@ export function DateSelector() {
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2" align="center" sideOffset={8}>
-        <MiniCalendar selectedDate={selectedDate} onSelect={handleSelect} />
+        <MiniCalendar onSelect={() => setOpen(false)} />
       </PopoverContent>
     </Popover>
   );

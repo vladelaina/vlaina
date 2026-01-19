@@ -38,7 +38,7 @@ export function TaskSection({
         return false;
     }, [activeId, allTasks]);
 
-    const renderTaskItem = useCallback((task: Task, level: number = 0): JSX.Element => {
+    const renderTaskItem = useCallback((task: Task, level: number = 0) => {
         const children = getChildren(task.id);
         const hasChildren = children.length > 0;
         const isBeingDragged = checkAncestorDragged(task.id);
@@ -48,7 +48,7 @@ export function TaskSection({
                 <TaskItem
                     task={task}
                     onToggle={onToggle}
-                    onUpdate={onUpdate}
+                    onUpdate={(id, content) => onUpdate(id, { content })}
                     onDelete={onDelete}
                     onAddSubTask={onAddSubTask}
                     isBeingDragged={isBeingDragged}

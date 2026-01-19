@@ -4,7 +4,7 @@
 
 import { StateCreator } from 'zustand';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { NotesStore, FileTreeNode } from '../types';
+import { NotesStore } from '../types';
 import {
   buildFileTree,
   sortFileTree,
@@ -143,7 +143,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   createNote: async (folderPath?: string) => {
-    let { notesPath, openTabs, recentNotes /*, rootFolder */ } = get();
+    let { notesPath, openTabs, recentNotes } = get();
     const storage = getStorageAdapter();
 
     if (!notesPath) {
@@ -326,7 +326,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     const {
       notesPath,
       currentNote,
-      rootFolder,
       openTabs,
       starredNotes,
       starredFolders,

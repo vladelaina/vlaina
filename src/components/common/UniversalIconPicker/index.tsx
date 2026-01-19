@@ -6,16 +6,15 @@ import { EmojiTab } from './EmojiTab';
 import { IconsTab } from './IconsTab';
 import { UploadTab, type CustomIcon } from './UploadTab';
 import {
-  type TabType,
-  loadRecentIcons,
-  loadSkinTone,
+  TabType,
   loadActiveTab,
   saveActiveTab,
+  loadRecentIcons,
   addToRecentIcons,
+  MAX_RECENT_EMOJIS,
+  loadSkinTone,
   loadIconColor,
   saveIconColor,
-  ICON_COLORS,
-  MAX_RECENT_EMOJIS,
   EMOJI_CATEGORIES,
   ICON_CATEGORIES,
 } from './constants';

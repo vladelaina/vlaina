@@ -79,14 +79,13 @@ export function useDetailModal({
   // Prepare preview values
   const previewIcon = displayItem?.icon;
   const previewTitle = displayItem?.title;
-  const previewIconSize = displayItem?.iconSize;
 
   // Real-time preview sync
   useEffect(() => {
     if (onPreviewChange) {
-      onPreviewChange(previewIcon, previewTitle, previewIconSize);
+      onPreviewChange(previewIcon, previewTitle);
     }
-  }, [previewIcon, previewTitle, previewIconSize, onPreviewChange]);
+  }, [previewIcon, previewTitle, onPreviewChange]);
 
   // Handlers
   const handleClose = useCallback(() => {

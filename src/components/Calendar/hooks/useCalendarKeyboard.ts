@@ -6,20 +6,13 @@ import { useEffect } from 'react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 
 export function useCalendarKeyboard() {
-  const { selectedEventId, setSelectedEventId, deleteEvent, undo, editingEventId } = useCalendarStore();
+  const { selectedEventId, setSelectedEventId, deleteEvent, editingEventId } = useCalendarStore();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // If editing (input focused), don't handle shortcuts
       const activeElement = document.activeElement;
       if (activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA') {
-        return;
-      }
-
-      // Ctrl+Z / Cmd+Z undo
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        undo();
         return;
       }
 
@@ -40,5 +33,5 @@ export function useCalendarKeyboard() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedEventId, editingEventId, deleteEvent, setSelectedEventId, undo]);
+  }, [selectedEventId, editingEventId, deleteEvent, setSelectedEventId]);
 }

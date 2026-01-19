@@ -8,7 +8,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
-import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model';
 import {
     collapsedState,
     createCollapseToggleButton,

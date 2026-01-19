@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { format } from 'date-fns';
 import { CALENDAR_CONSTANTS } from '../../../utils/timeUtils';
 

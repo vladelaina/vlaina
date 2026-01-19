@@ -8,7 +8,6 @@ import { ResizablePanel } from '@/components/layout/ResizablePanel';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useCalendarKeyboard } from './hooks/useCalendarKeyboard';
 import { useCalendarZoom } from './hooks/useCalendarZoom';
-import { cn } from '@/lib/utils';
 
 interface CalendarViewProps {
   onToggleTask?: (id: string) => void;

@@ -34,12 +34,8 @@ export function DetailModal({
   const {
     isEditing,
     focusTarget,
-    isPickingIcon, // Still needed for backdrop "peel" logic? 
-    // HeroIconHeader handles picker internally, so `isPickingIcon` won't track that. 
-    // We can ignore it for picker purposes.
     showMenu,
     displayItem,
-    setIsPickingIcon, // Unused
     setShowMenu,
     handleClose,
     handleCommit,
@@ -204,8 +200,8 @@ export function DetailModal({
                 {/* --- 3. Hero Header (Icon + Title) --- */}
                 <HeroIconHeader
                     id={displayItem.id}
-                    icon={displayItem.icon}
-                    onIconChange={handleIconChange}
+                    icon={displayItem.icon ?? null}
+                    onIconChange={(icon) => handleIconChange(icon ?? undefined)}
                     className="px-8 pt-12"
                     
                     // Title Logic

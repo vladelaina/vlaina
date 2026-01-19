@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { DndContext, useSensor, useSensors, PointerSensor, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
+import { DndContext, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { windowCommands } from '@/lib/tauri/invoke';
 import { isTauri } from '@/lib/storage/adapter';
 
