@@ -6,7 +6,7 @@ import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconP
 import { AppIcon } from '@/components/common/AppIcon';
 import { type CustomIcon } from '@/lib/storage/unifiedStorage';
 import { useUIStore } from '@/stores/uiSlice';
-import { getRandomEmoji, loadRecentIcons, addToRecentIcons, loadSkinTone } from '@/components/common/UniversalIconPicker/constants';
+import { getRandomEmoji, loadSkinTone } from '@/components/common/UniversalIconPicker/constants';
 
 interface HeroIconHeaderProps {
   // Identity
@@ -20,6 +20,9 @@ interface HeroIconHeaderProps {
 
   // Size Control
   iconSize?: number;
+  minIconSize?: number;
+  maxIconSize?: number;
+  sliderValue?: number; // If provided, decouples slider from icon visual size
   onSizeChange?: (size: number) => void;
   onSizeConfirm?: (size: number) => void;
 
@@ -68,7 +71,10 @@ export function HeroIconHeader({
   id,
   icon,
   onIconChange,
-  iconSize = 60, // Default size
+  iconSize = 60, // Default visual size
+  minIconSize,
+  maxIconSize,
+  sliderValue,
   onSizeChange,
   onSizeConfirm,
   title,
@@ -90,7 +96,7 @@ export function HeroIconHeader({
   // We use the entity ID to namespace the preview
   const { handlePreview, handlePreviewTone, handlePreviewColor } = useIconPreview(id);
 
-  // Sync CSS variable for size
+  // Sync CSS variable for size (VISUAL ONLY)
   useEffect(() => {
     if (headerRef.current) {
       headerRef.current.style.setProperty('--header-icon-size', `${iconSize}px`);
@@ -115,20 +121,24 @@ export function HeroIconHeader({
 
   // High-performance size update (direct DOM)
   const handleLocalSizeChange = useCallback((newSize: number) => {
-    if (headerRef.current) {
+    // Only update visual size locally if we are NOT in decoupled mode
+    if (sliderValue === undefined && headerRef.current) {
       headerRef.current.style.transition = 'none';
       headerRef.current.style.setProperty('--header-icon-size', `${newSize}px`);
     }
-    // Notify parent if needed (e.g. for persisting, but usually onSizeConfirm is better)
+    // Notify parent
     onSizeChange?.(newSize);
-  }, [onSizeChange]);
+  }, [onSizeChange, sliderValue]);
 
   const handleLocalSizeConfirm = useCallback((newSize: number) => {
-    if (headerRef.current) {
+    if (sliderValue === undefined && headerRef.current) {
       headerRef.current.style.transition = '';
     }
     onSizeConfirm?.(newSize);
-  }, [onSizeConfirm]);
+  }, [onSizeConfirm, sliderValue]);
+
+  // Determine what value the slider should show
+  const currentSliderValue = sliderValue !== undefined ? sliderValue : iconSize;
 
   return (
     <div
@@ -189,9 +199,9 @@ export function HeroIconHeader({
                         // Apply immediately
                         onIconChange(randomEmoji);
                         
-                        // Track history
-                        const currentRecent = loadRecentIcons();
-                        addToRecentIcons(randomEmoji, currentRecent);
+                        // Note: We do NOT add to recent icons here.
+                        // Random placeholder icons shouldn't pollute the history.
+                        // Only explicit user selections inside the picker are tracked.
                         
                         setShowIconPicker(true);
                     }}
@@ -218,7 +228,9 @@ export function HeroIconHeader({
                         currentIcon={icon || undefined}
                         
                         // Slider props
-                        currentSize={iconSize}
+                        currentSize={currentSliderValue}
+                        minSize={minIconSize}
+                        maxSize={maxIconSize}
                         onSizeChange={handleLocalSizeChange}
                         onSizeConfirm={handleLocalSizeConfirm}
 

@@ -4,6 +4,7 @@ import { DayGrid } from './features/Grid/DayGrid';
 import { MonthGrid } from './features/Grid/MonthGrid';
 import { EventEditForm } from './features/ContextPanel/EventEditForm';
 import { CalendarDetailPanel } from './index';
+import { ResizablePanel } from '@/components/layout/ResizablePanel';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useCalendarKeyboard } from './hooks/useCalendarKeyboard';
 import { useCalendarZoom } from './hooks/useCalendarZoom';
@@ -66,12 +67,15 @@ export function CalendarView({ onToggleTask }: CalendarViewProps) {
 
       {/* Right Detail Panel */}
       {showContextPanel && (
-        <aside className={cn(
-          "w-[320px] border-l border-zinc-200 dark:border-zinc-800 flex flex-col bg-white/50 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden",
-          "transition-all duration-300"
-        )}>
+        <ResizablePanel
+          storageKey="calendar_panel_width"
+          minWidth={280}
+          maxWidth={800}
+          defaultWidth={320}
+          className="h-full"
+        >
            <CalendarDetailPanel />
-        </aside>
+        </ResizablePanel>
       )}
 
       {/* Floating editor */}

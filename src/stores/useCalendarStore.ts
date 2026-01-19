@@ -110,6 +110,7 @@ export function useCalendarStore() {
     universalPreviewTarget: uiStore.universalPreviewTarget,
     universalPreviewIcon: uiStore.universalPreviewIcon,
     universalPreviewColor: uiStore.universalPreviewColor,
+    universalPreviewIconSize: uiStore.universalPreviewIconSize,
 
     // Load
     load,

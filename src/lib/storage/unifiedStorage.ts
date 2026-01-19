@@ -56,6 +56,7 @@ export interface UnifiedTask {
 
   // Icon (Phosphor icon name, shared with Progress module)
   icon?: string;
+  iconSize?: number;
 
   // Calendar related (optional)
   location?: string;
