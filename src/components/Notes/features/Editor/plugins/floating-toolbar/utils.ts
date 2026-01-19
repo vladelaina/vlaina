@@ -1,30 +1,36 @@
 // Floating Toolbar Utility Functions
 import type { ColorOption, BlockTypeConfig, BlockType } from './types';
+import { COLOR_DEFINITIONS, getEventInlineStyles } from '@/lib/colors/index';
+
+// Helper to capitalize labels
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // Color palette for light mode
 export const COLOR_PALETTE: ColorOption[] = [
-  { id: 'default', label: 'Default' },
-  { id: 'gray', label: 'Gray', textColor: '#6b7280', bgColor: '#f3f4f6' },
-  { id: 'red', label: 'Red', textColor: '#dc2626', bgColor: '#fef2f2' },
-  { id: 'orange', label: 'Orange', textColor: '#ea580c', bgColor: '#fff7ed' },
-  { id: 'yellow', label: 'Yellow', textColor: '#ca8a04', bgColor: '#fefce8' },
-  { id: 'green', label: 'Green', textColor: '#16a34a', bgColor: '#f0fdf4' },
-  { id: 'blue', label: 'Blue', textColor: '#2563eb', bgColor: '#eff6ff' },
-  { id: 'purple', label: 'Purple', textColor: '#9333ea', bgColor: '#faf5ff' },
-  { id: 'pink', label: 'Pink', textColor: '#db2777', bgColor: '#fdf2f8' },
+  { id: 'default', label: 'Default' }, // Reset option
+  ...COLOR_DEFINITIONS.map(def => {
+    const styles = getEventInlineStyles(def.name);
+    return {
+      id: def.name === 'default' ? 'gray' : def.name,
+      label: capitalize(def.name === 'default' ? 'Gray' : def.name), // Map 'default' color to 'Gray' label to avoid confusion with reset
+      textColor: styles.text,
+      bgColor: styles.bg,
+    };
+  })
 ];
 
 // Color palette for dark mode
 export const COLOR_PALETTE_DARK: ColorOption[] = [
-  { id: 'default', label: 'Default' },
-  { id: 'gray', label: 'Gray', textColor: '#9ca3af', bgColor: '#374151' },
-  { id: 'red', label: 'Red', textColor: '#f87171', bgColor: '#450a0a' },
-  { id: 'orange', label: 'Orange', textColor: '#fb923c', bgColor: '#431407' },
-  { id: 'yellow', label: 'Yellow', textColor: '#facc15', bgColor: '#422006' },
-  { id: 'green', label: 'Green', textColor: '#4ade80', bgColor: '#052e16' },
-  { id: 'blue', label: 'Blue', textColor: '#60a5fa', bgColor: '#172554' },
-  { id: 'purple', label: 'Purple', textColor: '#c084fc', bgColor: '#3b0764' },
-  { id: 'pink', label: 'Pink', textColor: '#f472b6', bgColor: '#500724' },
+  { id: 'default', label: 'Default' }, // Reset option
+  ...COLOR_DEFINITIONS.map(def => {
+    const styles = getEventInlineStyles(def.name);
+    return {
+      id: def.name === 'default' ? 'gray' : def.name,
+      label: capitalize(def.name === 'default' ? 'Gray' : def.name),
+      textColor: styles.textDark,
+      bgColor: styles.bgDark,
+    };
+  })
 ];
 
 // Block type configurations

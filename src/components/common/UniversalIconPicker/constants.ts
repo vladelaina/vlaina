@@ -3,6 +3,7 @@
 import data from '@emoji-mart/data';
 import { ICON_LIST, ICON_CATEGORIES } from './icons';
 import type { IconItem } from './icons';
+import { COLOR_HEX, type ItemColor, COLOR_PICKER_OPTIONS } from '@/lib/colors/index';
 
 export { ICON_CATEGORIES }; // Re-export for convenience
 
@@ -10,7 +11,7 @@ export type TabType = 'emoji' | 'icons' | 'upload';
 
 export const RECENT_ICONS_KEY = 'nekotick-recent-icons';
 export const SKIN_TONE_KEY = 'nekotick-emoji-skin-tone';
-export const ICON_COLOR_KEY = 'nekotick-icon-color';
+export const ICON_COLOR_KEY = 'nekotick-icon-color-v2'; // Changed key to reset storage for new string format
 export const ACTIVE_TAB_KEY = 'nekotick-icon-picker-tab';
 export const MAX_RECENT_EMOJIS = 18;
 export const EMOJI_PER_ROW = 9;
@@ -37,17 +38,12 @@ export const SKIN_TONES = [
   { tone: 5, emoji: '\u{1F44B}\u{1F3FF}', label: 'Dark' },
 ];
 
-export const ICON_COLORS = [
-  { id: 0, color: '#f59e0b', label: 'Amber' },
-  { id: 1, color: '#ef4444', label: 'Red' },
-  { id: 2, color: '#f97316', label: 'Orange' },
-  { id: 3, color: '#22c55e', label: 'Green' },
-  { id: 4, color: '#3b82f6', label: 'Blue' },
-  { id: 5, color: '#8b5cf6', label: 'Purple' },
-  { id: 6, color: '#ec4899', label: 'Pink' },
-  { id: 7, color: '#71717a', label: 'Gray' },
-  { id: 8, color: '#18181b', label: 'Black' },
-];
+// Map global colors to the format expected by the picker UI, but simpler
+export const ICON_COLORS = COLOR_PICKER_OPTIONS.map(opt => ({
+  id: opt.name, // Use name as ID
+  color: opt.hex,
+  label: opt.label
+}));
 
 export const CATEGORY_NAMES: Record<string, string> = {
   frequent: 'Recent',
@@ -216,18 +212,18 @@ export function saveSkinTone(tone: number): void {
   } catch { }
 }
 
-export function loadIconColor(): number {
+export function loadIconColor(): ItemColor {
   try {
     const saved = localStorage.getItem(ICON_COLOR_KEY);
-    return saved ? parseInt(saved, 10) : 0;
+    return (saved && saved in COLOR_HEX) ? (saved as ItemColor) : 'amber';
   } catch {
-    return 0;
+    return 'amber';
   }
 }
 
-export function saveIconColor(colorId: number): void {
+export function saveIconColor(color: ItemColor): void {
   try {
-    localStorage.setItem(ICON_COLOR_KEY, colorId.toString());
+    localStorage.setItem(ICON_COLOR_KEY, color);
   } catch { }
 }
 

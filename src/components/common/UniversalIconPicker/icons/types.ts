@@ -1,4 +1,5 @@
 import * as LucideIcons from 'lucide-react';
+import { COLOR_HEX } from '@/lib/colors/index';
 
 export interface IconItem {
   name: string;
@@ -13,7 +14,7 @@ export interface IconCategory {
   icons: IconItem[];
 }
 
-export const DEFAULT_ICON_COLOR = '#f59e0b';
+export const DEFAULT_ICON_COLOR = COLOR_HEX.amber;
 
 // Helper: create IconItem array from icon names, filter out non-existent icons and duplicates
 export function createIconItems(iconNames: string[]): IconItem[] {

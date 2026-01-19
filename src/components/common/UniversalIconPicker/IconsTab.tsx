@@ -9,6 +9,8 @@ import { VirtualIconGrid, VirtualIconSearchResults } from './VirtualIconGrid';
 import { ICON_CATEGORIES, ICON_LIST } from './icons';
 import { ICON_COLORS, saveIconColor } from './constants';
 import type { IconItem } from './icons';
+import type { ItemColor } from '@/lib/colors/index';
+import { COLOR_HEX } from '@/lib/colors/index';
 
 interface IconsTabProps {
   recentIcons: string[];
@@ -16,8 +18,8 @@ interface IconsTabProps {
   onPreview?: (icon: string | null) => void;
   activeCategory: string;
   onCategoryChange: (categoryId: string) => void;
-  iconColor: number;
-  setIconColor: (colorId: number) => void;
+  iconColor: ItemColor;
+  setIconColor: (color: ItemColor) => void;
   currentIcon?: string;
   
   // Decoupled callbacks
@@ -41,10 +43,11 @@ export function IconsTab({
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [previewColor, setPreviewColor] = useState<number | null>(null);
+  const [previewColor, setPreviewColor] = useState<ItemColor | null>(null);
 
-  const effectiveColor = previewColor !== null ? previewColor : iconColor;
-  const currentColor = ICON_COLORS[effectiveColor]?.color || ICON_COLORS[0].color;
+  const effectiveColor = previewColor || iconColor;
+  // Get hex color directly from our unified system
+  const currentColor = COLOR_HEX[effectiveColor] || COLOR_HEX['default'];
 
   // Use ref to store callbacks and state to avoid dependency changes
   const onPreviewRef = useRef(onPreview);
@@ -57,7 +60,7 @@ export function IconsTab({
   onPreviewColorRef.current = onPreviewColor;
 
   // Track last previewed color to avoid duplicate updates
-  const lastPreviewColorRef = useRef<number | null>(null);
+  const lastPreviewColorRef = useRef<ItemColor | null>(null);
 
   const recentIconsList = useMemo(() =>
     recentIcons.filter(i => i.startsWith('icon:')),
@@ -95,11 +98,11 @@ export function IconsTab({
       const target = e.target as HTMLElement;
       const button = target.closest('[data-color-id]') as HTMLElement;
       if (button?.dataset.colorId) {
-        const colorId = parseInt(button.dataset.colorId, 10);
+        const colorId = button.dataset.colorId as ItemColor;
         if (colorId !== lastPreviewColorRef.current) {
           lastPreviewColorRef.current = colorId;
           setPreviewColor(colorId);
-          const color = ICON_COLORS[colorId]?.color || ICON_COLORS[0].color;
+          const color = COLOR_HEX[colorId] || COLOR_HEX['default'];
           
           onPreviewColorRef.current?.(color);
           
@@ -132,9 +135,9 @@ export function IconsTab({
     };
   }, [showColorPicker]);
 
-  const handleColorChange = useCallback((colorId: number) => {
-    setIconColor(colorId);
-    saveIconColor(colorId);
+  const handleColorChange = useCallback((color: ItemColor) => {
+    setIconColor(color);
+    saveIconColor(color);
     setShowColorPicker(false);
     setPreviewColor(null);
     lastPreviewColorRef.current = null;
@@ -143,8 +146,8 @@ export function IconsTab({
     onPreview?.(null);
     
     // Notify parent
-    const newColor = ICON_COLORS[colorId]?.color || ICON_COLORS[0].color;
-    onIconColorChange?.(newColor);
+    const hexColor = COLOR_HEX[color] || COLOR_HEX['default'];
+    onIconColorChange?.(hexColor);
   }, [setIconColor, onIconColorChange, onPreview, onPreviewColor]);
 
   return (
@@ -181,7 +184,7 @@ export function IconsTab({
             onClick={() => setShowColorPicker(!showColorPicker)}
             className="w-7 h-7 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity"
           >
-            <Candy size={18} style={{ color: ICON_COLORS[iconColor]?.color || ICON_COLORS[0].color }} />
+            <Candy size={18} style={{ color: currentColor }} />
           </button>
           {showColorPicker && (
             <div
@@ -196,8 +199,9 @@ export function IconsTab({
                 <button
                   key={ic.id}
                   data-color-id={ic.id}
-                  onClick={() => handleColorChange(ic.id)}
+                  onClick={() => handleColorChange(ic.id as ItemColor)}
                   className="w-7 h-7 flex items-center justify-center"
+                  title={ic.label}
                 >
                   <Candy size={18} style={{ color: ic.color }} />
                 </button>

@@ -19,6 +19,8 @@ import {
   EMOJI_CATEGORIES,
   ICON_CATEGORIES,
 } from './constants';
+import type { ItemColor } from '@/lib/colors/index';
+import { COLOR_HEX } from '@/lib/colors/index';
 
 export interface UniversalIconPickerProps {
   onSelect: (emoji: string) => void;
@@ -84,7 +86,7 @@ export function UniversalIconPicker({
   const [activeTab, setActiveTab] = useState<TabType>(loadActiveTab);
   const [recentIcons, setRecentIcons] = useState<string[]>(loadRecentIcons);
   const [skinTone, setSkinTone] = useState(loadSkinTone);
-  const [iconColor, setIconColor] = useState(loadIconColor);
+  const [iconColor, setIconColor] = useState<ItemColor>(loadIconColor);
 
   // Track active categories for random selection within current group
   const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('people');
@@ -124,13 +126,13 @@ export function UniversalIconPicker({
     onClose();
   }, [onSelect, onClose]);
 
-  const handleIconColorChangeInternal = useCallback((colorId: number) => {
-    setIconColor(colorId);
-    saveIconColor(colorId);
+  const handleIconColorChangeInternal = useCallback((color: ItemColor) => {
+    setIconColor(color);
+    saveIconColor(color);
     
     // Notify parent
-    const color = ICON_COLORS[colorId]?.color || ICON_COLORS[0].color;
-    onIconColorChange?.(color);
+    const hexColor = COLOR_HEX[color] || COLOR_HEX['default'];
+    onIconColorChange?.(hexColor);
   }, [onIconColorChange]);
   
   const handleSkinToneChangeInternal = useCallback((tone: number) => {
@@ -180,8 +182,8 @@ export function UniversalIconPicker({
       const icons = currentCategory?.icons || [];
       if (icons.length > 0) {
         const randomIcon = icons[Math.floor(Math.random() * icons.length)];
-        const currentColor = ICON_COLORS[iconColor]?.color || ICON_COLORS[0].color;
-        const iconValue = `icon:${randomIcon.name}:${currentColor}`;
+        const currentColorHex = COLOR_HEX[iconColor] || COLOR_HEX['default'];
+        const iconValue = `icon:${randomIcon.name}:${currentColorHex}`;
         lastRandomIconRef.current = iconValue;
         onSelect(iconValue);
       }

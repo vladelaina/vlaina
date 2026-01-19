@@ -1,6 +1,6 @@
 // Unified Color System - Apple style
 
-export type ItemColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'brown' | 'default';
+export type ItemColor = 'red' | 'amber' | 'yellow' | 'green' | 'blue' | 'purple' | 'brown' | 'default';
 
 interface ColorDefinition {
   name: ItemColor;
@@ -9,9 +9,9 @@ interface ColorDefinition {
   darkText?: string;
 }
 
-const COLOR_DEFINITIONS: readonly ColorDefinition[] = [
+export const COLOR_DEFINITIONS: readonly ColorDefinition[] = [
   { name: 'red',     hex: '#FE002D', priority: 0, darkText: '#FF6B6B' },
-  { name: 'orange',  hex: '#FF8500', priority: 1, darkText: '#FFB366' },
+  { name: 'amber',   hex: '#f59e0b', priority: 1, darkText: '#fbbf24' },
   { name: 'yellow',  hex: '#FEC900', priority: 2, darkText: '#FFE066' },
   { name: 'green',   hex: '#63DA38', priority: 3, darkText: '#8AE86B' },
   { name: 'blue',    hex: '#008BFE', priority: 4, darkText: '#66B3FF' },
@@ -130,46 +130,6 @@ export const ALL_DAY_INLINE_STYLES: Record<ItemColor, AllDayInlineStyles> = Obje
 
 export function getAllDayInlineStyles(color?: ItemColor | string): AllDayInlineStyles {
   return ALL_DAY_INLINE_STYLES[(color as ItemColor) || 'default'] || ALL_DAY_INLINE_STYLES.default;
-}
-
-/** @deprecated Use getEventInlineStyles instead */
-export interface EventColorStyles {
-  bg: string;
-  text: string;
-  border: string;
-  ring: string;
-  fill: string;
-  overtime: string;
-  accent: string;
-}
-
-/** @deprecated Use getEventInlineStyles instead */
-export function getEventColorStyles(_color?: ItemColor | string): EventColorStyles {
-  return {
-    bg: '',
-    text: '',
-    border: '',
-    ring: '',
-    fill: '',
-    overtime: '',
-    accent: '',
-  };
-}
-
-/** @deprecated Use getAllDayInlineStyles instead */
-export interface AllDayColorStyles {
-  bg: string;
-  text: string;
-  border: string;
-}
-
-/** @deprecated Use getAllDayInlineStyles instead */
-export function getAllDayColorStyles(_color?: ItemColor | string): AllDayColorStyles {
-  return {
-    bg: '',
-    text: '',
-    border: '',
-  };
 }
 
 export function getSimpleColorHex(color?: ItemColor | string): string {

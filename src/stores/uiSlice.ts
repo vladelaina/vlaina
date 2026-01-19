@@ -97,14 +97,6 @@ interface UIStore {
   selectedEventId: string | null;
   setSelectedEventId: (id: string | null) => void;
 
-  previewIconEventId: string | null;
-  previewIcon: string | undefined | null;
-  setPreviewIcon: (eventId: string | null, icon: string | undefined | null) => void;
-
-  previewColorEventId: string | null;
-  previewColor: ItemColor | null;
-  setPreviewColor: (eventId: string | null, color: ItemColor | null) => void;
-
   // Universal Preview State (Unifying Notes, Calendar, Todo)
   universalPreviewTarget: string | null; // ID of the entity being previewed (e.g. note path, task ID)
   universalPreviewIcon: string | null;
@@ -149,7 +141,14 @@ function loadColorFilter(): ItemColor[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_COLOR_FILTER);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved) as ItemColor[];
+      // Filter out any colors that are no longer in the valid list (e.g. 'orange')
+      const validColors = parsed.filter(c => ALL_COLORS.includes(c));
+      
+      // If we filtered out everything (or loaded empty), return default all selected
+      if (validColors.length === 0) return [...ALL_COLORS];
+      
+      return validColors;
     }
   } catch {
   }
@@ -337,20 +336,6 @@ export const useUIStore = create<UIStore>()((set, get) => ({
 
   selectedEventId: null,
   setSelectedEventId: (id) => set({ selectedEventId: id }),
-
-  previewIconEventId: null,
-  previewIcon: null,
-  setPreviewIcon: (eventId, icon) => set({
-    previewIconEventId: eventId,
-    previewIcon: icon
-  }),
-
-  previewColorEventId: null,
-  previewColor: null,
-  setPreviewColor: (eventId, color) => set({
-    previewColorEventId: eventId,
-    previewColor: color
-  }),
 
   universalPreviewTarget: null,
   universalPreviewIcon: null,
