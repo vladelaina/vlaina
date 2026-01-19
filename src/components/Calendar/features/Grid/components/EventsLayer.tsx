@@ -2,7 +2,8 @@
 import type { NekoEvent } from '@/stores/useCalendarStore';
 import { EventBlock } from '../../Event/EventBlock';
 import { calculateEventLayout } from '../../../utils/eventLayout';
-import { isEventInVisualDay, minutesToPixels } from '../../../utils/timeUtils';
+import { isEventInVisualDay, minutesToPixels, minutesToDisplayPosition } from '../../../utils/timeUtils';
+import { calculateDragEventTimes } from '../../../utils/dragUtils';
 
 interface EventsLayerProps {
     days: Date[];
@@ -16,6 +17,7 @@ interface EventsLayerProps {
     isDragging: boolean;
     dragStart: { dayIndex: number; minutes: number } | null;
     dragEnd: { minutes: number } | null;
+    ghostId?: string | null;
 
     // Handlers
     onEventDragStart: (id: string, edge: 'top' | 'bottom' | null, clientY: number) => void;
@@ -32,6 +34,7 @@ export function EventsLayer({
     isDragging,
     dragStart,
     dragEnd,
+    ghostId,
     onEventDragStart,
     onEventHover,
 }: EventsLayerProps) {
@@ -60,62 +63,48 @@ export function EventsLayer({
 
                 let layoutMap;
                 let ghostLayout;
+                let renderStartMin = 0;
+                let renderEndMin = 0;
 
                 if (isCreatingOnThisDay) {
-                    const actualStartMin = Math.min(dragStart!.minutes, dragEnd!.minutes);
-                    const actualEndMin = Math.max(dragStart!.minutes, dragEnd!.minutes);
+                    const dayDate = days[dragStart!.dayIndex];
+                    const { 
+                        actualStartMin, 
+                        actualEndMin, 
+                        startDate, 
+                        endDate, 
+                        isValid 
+                    } = calculateDragEventTimes(
+                        dragStart!.minutes, 
+                        dragEnd!.minutes, 
+                        dayDate, 
+                        dayStartMinutes
+                    );
+                    
+                    if (isValid) {
+                        renderStartMin = actualStartMin;
+                        renderEndMin = actualEndMin;
 
-                    // Check if the drag spans across the dayStartMinutes boundary
-                    const startBeforeDayStart = actualStartMin < dayStartMinutes;
-                    const endBeforeDayStart = actualEndMin < dayStartMinutes;
+                        const ghostStartTime = startDate.getTime();
+                        const ghostEndTime = endDate.getTime();
+                        
+                        const currentGhostId = ghostId || '__ghost__';
 
-                    // If drag spans across day boundary, don't show ghost (invalid selection)
-                    if (startBeforeDayStart && !endBeforeDayStart) {
-                        layoutMap = calculateEventLayout(layoutEvents);
+                        const ghostEvent = {
+                            id: currentGhostId,
+                            startDate: ghostStartTime,
+                            endDate: ghostEndTime,
+                            color: 'blue' as const,
+                            completed: false, // Ghost is always incomplete
+                        };
+                        
+                        // Always calculate layout including the ghost event
+                        // This prevents UI jumps when switching between overlap/non-overlap states
+                        // The layout algorithm handles non-overlapping events correctly (assigning full width)
+                        layoutMap = calculateEventLayout([...layoutEvents, ghostEvent]);
+                        ghostLayout = layoutMap.get(currentGhostId);
                     } else {
-                        // Calculate ghost event times considering visual day
-                        let ghostStartDate: Date;
-                        let ghostEndDate: Date;
-
-                        if (startBeforeDayStart) {
-                            ghostStartDate = new Date(day);
-                            ghostStartDate.setDate(ghostStartDate.getDate() + 1);
-                            ghostStartDate.setHours(Math.floor(actualStartMin / 60), actualStartMin % 60, 0, 0);
-                        } else {
-                            ghostStartDate = new Date(day);
-                            ghostStartDate.setHours(Math.floor(actualStartMin / 60), actualStartMin % 60, 0, 0);
-                        }
-
-                        if (endBeforeDayStart) {
-                            ghostEndDate = new Date(day);
-                            ghostEndDate.setDate(ghostEndDate.getDate() + 1);
-                            ghostEndDate.setHours(Math.floor(actualEndMin / 60), actualEndMin % 60, 0, 0);
-                        } else {
-                            ghostEndDate = new Date(day);
-                            ghostEndDate.setHours(Math.floor(actualEndMin / 60), actualEndMin % 60, 0, 0);
-                        }
-
-                        const ghostStartTime = ghostStartDate.getTime();
-                        const ghostEndTime = ghostEndDate.getTime();
-
-                        const hasOverlap = layoutEvents.some(event =>
-                            event.startDate < ghostEndTime && event.endDate > ghostStartTime
-                        );
-
-                        if (hasOverlap) {
-                            const ghostEvent = {
-                                id: '__ghost__',
-                                startDate: ghostStartTime,
-                                endDate: ghostEndTime,
-                                color: 'blue' as const,
-                                completed: false, // Ghost is always incomplete
-                            };
-                            layoutMap = calculateEventLayout([...layoutEvents, ghostEvent]);
-                            ghostLayout = layoutMap.get('__ghost__');
-                        } else {
-                            layoutMap = calculateEventLayout(layoutEvents);
-                            ghostLayout = { id: '__ghost__', column: 0, totalColumns: 1, leftPercent: 0, widthPercent: 100 };
-                        }
+                        layoutMap = calculateEventLayout(layoutEvents);
                     }
                 } else {
                     layoutMap = calculateEventLayout(layoutEvents);
@@ -142,12 +131,12 @@ export function EventsLayer({
                             <div
                                 style={{
                                     position: 'absolute',
-                                    top: `${minutesToPixels(Math.min(dragStart!.minutes, dragEnd!.minutes), hourHeight, dayStartMinutes)}px`,
-                                    height: `${(Math.abs(dragEnd!.minutes - dragStart!.minutes) / 60) * hourHeight}px`,
+                                    top: `${minutesToPixels(renderStartMin, hourHeight, dayStartMinutes)}px`,
+                                    height: `${minutesToPixels(renderEndMin, hourHeight, dayStartMinutes) - minutesToPixels(renderStartMin, hourHeight, dayStartMinutes)}px`,
                                     left: `${ghostLayout.leftPercent}%`,
                                     width: `${ghostLayout.widthPercent}%`,
                                 }}
-                                className="z-30 bg-zinc-400/20 border-2 border-zinc-400 rounded-md pointer-events-none"
+                                className="z-50 bg-zinc-400/20 border-2 border-zinc-400 rounded-md pointer-events-none"
                             />
                         )}
                     </div>

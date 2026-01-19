@@ -10,7 +10,9 @@ import type { DragPosition, TimeIndicator } from './timeGridDragTypes';
 import {
     getSnapMinutes,
     pixelsToMinutes,
+    minutesToDisplayPosition,
 } from '../../../utils/timeUtils';
+import { calculateDragEventTimes } from '../../../utils/dragUtils';
 
 interface UseDragToCreateProps {
     days: Date[];
@@ -50,6 +52,7 @@ export function useDragToCreate({
     const [dragStart, setDragStart] = useState<DragPosition | null>(null);
     const [dragEnd, setDragEnd] = useState<{ minutes: number } | null>(null);
     const [dragTimeIndicator, setDragTimeIndicator] = useState<TimeIndicator | null>(null);
+    const [dragId, setDragId] = useState<string | null>(null);
 
     // Helper: Get position from mouse coordinates
     const getPositionFromMouse = useCallback((clientX: number, clientY: number): DragPosition | null => {
@@ -84,6 +87,7 @@ export function useDragToCreate({
         setIsDragging(true);
         setDragStart(pos);
         setDragEnd({ minutes: pos.minutes });
+        setDragId(crypto.randomUUID());
         setDragTimeIndicator({
             startMinutes: pos.minutes,
             endMinutes: pos.minutes,
@@ -96,13 +100,25 @@ export function useDragToCreate({
         const scrollRect = scrollRef.current.getBoundingClientRect();
         const relativeY = e.clientY - scrollRect.top + scrollRef.current.scrollTop;
         const totalMinutes = pixelsToMinutes(relativeY, hourHeight, dayStartMinutes);
+        
         let snappedMinutes = Math.round(totalMinutes / snapMinutes) * snapMinutes;
         snappedMinutes = Math.max(0, Math.min(1439, snappedMinutes));
 
         setDragEnd({ minutes: snappedMinutes });
 
-        const startMin = Math.min(dragStart.minutes, snappedMinutes);
-        const endMin = Math.max(dragStart.minutes, snappedMinutes);
+        // Calculate visual start/end for indicator
+        const startPos = minutesToDisplayPosition(dragStart.minutes, dayStartMinutes);
+        const endPos = minutesToDisplayPosition(snappedMinutes, dayStartMinutes);
+        
+        let startMin, endMin;
+        if (startPos <= endPos) {
+            startMin = dragStart.minutes;
+            endMin = snappedMinutes;
+        } else {
+            startMin = snappedMinutes;
+            endMin = dragStart.minutes;
+        }
+
         setDragTimeIndicator({
             startMinutes: startMin,
             endMinutes: endMin,
@@ -120,49 +136,37 @@ export function useDragToCreate({
                 setDragStart(null);
                 setDragEnd(null);
                 setDragTimeIndicator(null);
+                setDragId(null);
                 return;
             }
 
-            const actualStartMinutes = Math.min(dragStart.minutes, dragEnd.minutes);
-            const actualEndMinutes = Math.max(dragStart.minutes, dragEnd.minutes);
-            let startDate: Date, endDate: Date;
+            const { startDate, endDate, isValid } = calculateDragEventTimes(
+                dragStart.minutes,
+                dragEnd.minutes,
+                dayDate,
+                dayStartMinutes
+            );
 
-            const startBeforeDayStart = actualStartMinutes < dayStartMinutes;
-            const endBeforeDayStart = actualEndMinutes < dayStartMinutes;
-
-            // Prevent spanning across day boundary
-            if (startBeforeDayStart && !endBeforeDayStart) {
+            if (!isValid) {
                 setDragStart(null);
                 setDragEnd(null);
                 setDragTimeIndicator(null);
+                setDragId(null);
                 return;
             }
 
-            if (startBeforeDayStart) {
-                startDate = new Date(dayDate);
-                startDate.setDate(startDate.getDate() + 1);
-                startDate.setHours(Math.floor(actualStartMinutes / 60), actualStartMinutes % 60, 0, 0);
-            } else {
-                startDate = new Date(dayDate);
-                startDate.setHours(Math.floor(actualStartMinutes / 60), actualStartMinutes % 60, 0, 0);
+            // Pass the pre-generated dragId to the creation callback
+            if (dragId) {
+                // @ts-ignore - Extending the callback signature locally, will fix parent type
+                onEventCreated(startDate, endDate, { x: e.clientX, y: e.clientY }, dragId);
             }
-
-            if (endBeforeDayStart) {
-                endDate = new Date(dayDate);
-                endDate.setDate(endDate.getDate() + 1);
-                endDate.setHours(Math.floor(actualEndMinutes / 60), actualEndMinutes % 60, 0, 0);
-            } else {
-                endDate = new Date(dayDate);
-                endDate.setHours(Math.floor(actualEndMinutes / 60), actualEndMinutes % 60, 0, 0);
-            }
-
-            onEventCreated(startDate, endDate, { x: e.clientX, y: e.clientY });
         }
 
         setDragStart(null);
         setDragEnd(null);
         setDragTimeIndicator(null);
-    }, [isDragging, dragStart, dragEnd, days, dayStartMinutes, onEventCreated]);
+        setDragId(null);
+    }, [isDragging, dragStart, dragEnd, dragId, days, dayStartMinutes, onEventCreated]);
 
     const handleEscape = useCallback(() => {
         if (isDragging) {
@@ -170,6 +174,7 @@ export function useDragToCreate({
             setDragStart(null);
             setDragEnd(null);
             setDragTimeIndicator(null);
+            setDragId(null);
         }
     }, [isDragging]);
 
@@ -177,6 +182,7 @@ export function useDragToCreate({
         isDragging,
         dragStart,
         dragEnd,
+        dragId, // Export dragId
         dragTimeIndicator,
         handleCanvasMouseDown,
         handleMouseMove,

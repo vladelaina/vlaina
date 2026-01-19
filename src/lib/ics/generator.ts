@@ -42,7 +42,7 @@ export function generateICS(events: NekoEvent[], calendar: NekoCalendar): string
         }
 
         if (event.icon) {
-            xProps.push({ key: NEKO_X_PROPS.ICON, value: event.icon });
+            xProps.push({ key: NEKO_X_PROPS.ICON, value: encodeURIComponent(event.icon) });
         }
 
         if (event.iconSize) {

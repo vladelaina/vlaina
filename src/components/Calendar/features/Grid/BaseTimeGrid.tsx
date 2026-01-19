@@ -66,6 +66,7 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
     isDragging,
     dragStart,
     dragEnd,
+    dragId,
     isAllDayDropTarget,
     dragTimeIndicator,
     hoverTimeIndicator,
@@ -159,6 +160,7 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
               isDragging={isDragging}
               dragStart={dragStart}
               dragEnd={dragEnd}
+              ghostId={dragId}
               onEventDragStart={handleEventDragStart}
               onEventHover={handleEventHover}
             />

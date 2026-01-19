@@ -5,6 +5,7 @@ import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
 import { cn } from '@/lib/utils';
 import { ALL_COLORS, COLOR_HEX, type ItemColor } from '@/lib/colors';
 import { ColorPicker } from '@/components/common';
+import { PremiumSlider } from '@/components/ui/premium-slider';
 import { useEventForm } from './hooks/useEventForm';
 import { EditableTime } from './components/EditableTime';
 import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
@@ -22,6 +23,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
 
   const {
     localSummary,
+    localIcon,
     handleSummaryChange,
     handleKeyDown,
     handleClose,
@@ -121,55 +123,33 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
       style={mode === 'floating' ? getFloatingStyle() : undefined}
       className={containerClass}
     >
-      {/* Header with close button - Overlay on top right */}
-      <div className="absolute top-2 right-2 z-50">
-        <button
-          onClick={handleClose}
-          className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-        >
-          <X className="size-4" />
-        </button>
-      </div>
-
       {/* Hero Header Section */}
       <HeroIconHeader
         id={event.uid}
-        icon={event.icon}
+        icon={localIcon}
         onIconChange={handleIconChange}
-        className="px-6 pb-0" // Adjust padding
+        className="px-3 pb-0 max-w-none mx-0" // Compact layout
+        compact={true}
         
-        // Decoupled Size Control: 
-        // Header icon stays fixed at Hero size (60px), 
-        // while slider controls the absolute pixel size (20-150) of the event block icon.
-        iconSize={60} 
-        sliderValue={event.iconSize || 60} // Default 60px
+        // Compact Icon Size
+        iconSize={32} 
         minIconSize={20}
         maxIconSize={150}
-        onSizeChange={handlePreviewSize}
-        onSizeConfirm={handleIconSizeConfirm}
         
         // Render Title with Color Indicator
         renderTitle={() => (
-            <div className="flex items-center gap-3 w-full">
-                <button
-                    onClick={handleColorToggle}
-                    className="flex-shrink-0 w-5 h-5 rounded-full border-2 transition-all hover:scale-110"
-                    style={{ borderColor: colorValue, backgroundColor: colorValue }}
-                    title="Change Color"
-                />
-                <input
-                    ref={inputRef}
-                    type="text"
-                    value={localSummary}
-                    onChange={(e) => handleSummaryChange(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Event title"
-                    className={cn(
-                        "flex-1 bg-transparent text-xl font-semibold outline-none py-1",
-                        "text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
-                    )}
-                />
-            </div>
+            <input
+                ref={inputRef}
+                type="text"
+                value={localSummary}
+                onChange={(e) => handleSummaryChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Event title"
+                className={cn(
+                    "w-full bg-transparent text-sm font-semibold outline-none py-1",
+                    "text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+                )}
+            />
         )}
 
         customIcons={customIcons}
@@ -179,25 +159,37 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
       />
 
       {/* Content Area */}
-      <div className={`px-6 pb-6 flex-1 overflow-y-auto neko-scrollbar`}>
+      <div className={`px-3 pb-3 flex-1 overflow-y-auto neko-scrollbar`}>
         
+        {/* Size Slider (between Header and Color) */}
+        <div className="mb-4 px-1">
+            <PremiumSlider
+                min={20}
+                max={150}
+                value={event.iconSize || 32}
+                onChange={handlePreviewSize}
+                onConfirm={handleIconSizeConfirm}
+            />
+        </div>
+
         {/* Color picker row */}
-        <div className="flex items-center gap-2 mb-6">
-          <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider w-12">Color</span>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider w-10">Color</span>
           <ColorPicker
             value={currentColor}
             onChange={handleColorChange}
             onHover={handleColorHover}
+            sizeClass="w-4 h-4"
           />
         </div>
 
         {/* Divider */}
-        <div className="h-px bg-zinc-100 dark:bg-zinc-800/50 my-4" />
+        <div className="h-px bg-zinc-100 dark:bg-zinc-800/50 my-2" />
 
         {/* All-day toggle */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 flex justify-center">
-             <Sun className="size-4 text-zinc-400" />
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-8 flex justify-center">
+             <Sun className="size-3.5 text-zinc-400" />
           </div>
           <button
             onClick={() => {
@@ -220,21 +212,21 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
               }
             }}
             className={cn(
-              "flex items-center gap-2 text-sm transition-colors",
+              "flex items-center gap-2 text-xs transition-colors",
               event.allDay
                 ? "text-blue-600 dark:text-blue-400"
                 : "text-zinc-600 dark:text-zinc-300 hover:text-zinc-800 dark:hover:text-zinc-100"
             )}
           >
             <div className={cn(
-              "w-8 h-4 rounded-full transition-colors relative",
+              "w-7 h-3.5 rounded-full transition-colors relative",
               event.allDay
                 ? "bg-blue-500"
                 : "bg-zinc-300 dark:bg-zinc-600"
             )}>
               <div className={cn(
-                "absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform",
-                event.allDay ? "translate-x-4" : "translate-x-0.5"
+                "absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white shadow-sm transition-transform",
+                event.allDay ? "translate-x-3.5" : "translate-x-0.5"
               )} />
             </div>
             <span>All Day</span>
@@ -243,11 +235,11 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
 
         {/* Time */}
         {!event.allDay && (
-          <div className="flex items-start gap-3 mb-4">
-            <div className="w-12 flex justify-center mt-0.5">
-                <Clock className="size-4 text-zinc-400" />
+          <div className="flex items-start gap-2 mb-3">
+            <div className="w-8 flex justify-center mt-0.5">
+                <Clock className="size-3.5 text-zinc-400" />
             </div>
-            <div className="flex items-center text-sm">
+            <div className="flex items-center text-xs">
               <EditableTime
                 date={startDate}
                 use24Hour={use24Hour}
@@ -259,7 +251,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
                   });
                 }}
               />
-              <span className="mx-2 text-zinc-400">→</span>
+              <span className="mx-1 text-zinc-400">→</span>
               <EditableTime
                 date={endDate}
                 use24Hour={use24Hour}
@@ -269,41 +261,10 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
                   }
                 }}
               />
-              <span className="ml-3 text-zinc-400 text-xs bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">{formatDuration()}</span>
+              <span className="ml-2 text-zinc-400 text-[10px] bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded">{formatDuration()}</span>
             </div>
           </div>
         )}
-
-        {/* Calendar picker */}
-        <div className="flex items-center gap-3 relative" ref={calendarPickerRef}>
-          <div className="w-12 flex justify-center">
-             <Folder className="size-4 text-zinc-400" />
-          </div>
-          <button
-            onClick={() => setShowCalendarPicker(!showCalendarPicker)}
-            className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors bg-zinc-50 dark:bg-zinc-800 px-3 py-1.5 rounded-md"
-          >
-            <span>{currentCalendar?.name || 'Personal'}</span>
-            <ChevronDown className={`size-3.5 text-zinc-400 transition-transform ${showCalendarPicker ? 'rotate-180' : ''}`} />
-          </button>
-
-          {showCalendarPicker && (
-            <div className="absolute left-14 top-full mt-1 w-40 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1 z-50">
-              {calendars.map((calendar) => (
-                <button
-                  key={calendar.id}
-                  onClick={() => handleCalendarChange(calendar.id)}
-                  className={`w-full px-3 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors ${calendar.id === event.calendarId
-                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                    : 'text-zinc-600 dark:text-zinc-300'
-                    }`}
-                >
-                  {calendar.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
