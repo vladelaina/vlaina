@@ -26,6 +26,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Get current time
+        id: date
+        shell: bash
+        run: echo "timestamp=$(date +'%Y-%m-%d_%H-%M')" >> $GITHUB_OUTPUT
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
@@ -61,11 +66,45 @@ jobs:
           OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
           OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
 
+      - name: Rename artifacts (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $ts = "${{ steps.date.outputs.timestamp }}"
+          # Rename MSI
+          $msi = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" | Select-Object -First 1
+          if ($msi) { Rename-Item $msi.FullName "Nekotick-$ts.msi" }
+          # Rename Setup EXE
+          $exe = Get-ChildItem "src-tauri/target/release/bundle/nsis/*.exe" | Select-Object -First 1
+          if ($exe) { Rename-Item $exe.FullName "Nekotick-$ts-Setup.exe" }
+          # Rename Portable
+          if (Test-Path "src-tauri/target/release/NekoTick.exe") {
+            Rename-Item "src-tauri/target/release/NekoTick.exe" "Nekotick-$ts-Portable.exe"
+          }
+
+      - name: Rename artifacts (macOS)
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        run: |
+          ts="${{ steps.date.outputs.timestamp }}"
+          cd src-tauri/target/release/bundle/dmg
+          for f in *.dmg; do mv "$f" "Nekotick-$ts.dmg"; done
+
+      - name: Rename artifacts (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          ts="${{ steps.date.outputs.timestamp }}"
+          cd src-tauri/target/release/bundle/deb
+          for f in *.deb; do mv "$f" "Nekotick-$ts.deb"; done
+          cd ../appimage
+          for f in *.AppImage; do mv "$f" "Nekotick-$ts.AppImage"; done
+
       - name: Upload Windows artifact
         if: matrix.platform == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: NekoTick-Windows
+          name: NekoTick-Windows-${{ steps.date.outputs.timestamp }}
           path: |
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/nsis/*.exe
@@ -74,14 +113,14 @@ jobs:
         if: matrix.platform == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: NekoTick-Windows-Portable
-          path: src-tauri/target/release/NekoTick.exe
+          name: NekoTick-Windows-Portable-${{ steps.date.outputs.timestamp }}
+          path: src-tauri/target/release/Nekotick-*-Portable.exe
 
       - name: Upload macOS artifact
         if: matrix.platform == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: NekoTick-macOS
+          name: NekoTick-macOS-${{ steps.date.outputs.timestamp }}
           path: |
             src-tauri/target/release/bundle/dmg/*.dmg
             src-tauri/target/release/bundle/macos/*.app
@@ -90,7 +129,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         uses: actions/upload-artifact@v4
         with:
-          name: NekoTick-Linux
+          name: NekoTick-Linux-${{ steps.date.outputs.timestamp }}
           path: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/appimage/*.AppImage

@@ -37,7 +37,6 @@ export function UnifiedSidebarContainer({
   });
 
   const [isPeeking, setIsPeeking] = useState(false);
-  const [isHoveringHeader, setIsHoveringHeader] = useState(false);
 
   // Sync peeking state to parent
   useEffect(() => {
@@ -81,8 +80,6 @@ export function UnifiedSidebarContainer({
           {/* Interactive resize handle */}
           <div
             onMouseDown={handleDragStart}
-            onMouseEnter={() => setIsHoveringHeader(true)}
-            onMouseLeave={() => setIsHoveringHeader(false)}
             className={cn(
               "w-2 cursor-col-resize group",
               "fixed top-0 bottom-0 z-30", // Higher z-index to sit above content

@@ -19,7 +19,7 @@ describe('UIStore Property Tests', () => {
     // Reset UIStore to initial state before each test
     useUIStore.setState({
       appViewMode: 'calendar',
-      showSidebar: true,
+      sidebarCollapsed: false,
       showContextPanel: true,
       selectedDate: new Date(),
       editingEventId: null,
@@ -97,7 +97,7 @@ describe('UIStore Property Tests', () => {
   describe('Property 1: UI State Toggle Idempotence', () => {
     /**
      * Property 1: Toggle Idempotence
-     * For any initial boolean UI state (showSidebar, showContextPanel), 
+     * For any initial boolean UI state (sidebarCollapsed, showContextPanel), 
      * toggling twice SHALL return to the original state.
      * 
      * **Validates: Requirements 1.2, 1.3**
@@ -108,14 +108,14 @@ describe('UIStore Property Tests', () => {
           fc.boolean(),
           (initialState) => {
             // Setup
-            useUIStore.setState({ showSidebar: initialState });
+            useUIStore.setState({ sidebarCollapsed: initialState });
             
             // Action: toggle twice
             useUIStore.getState().toggleSidebar();
             useUIStore.getState().toggleSidebar();
             
             // Assert: should return to original state
-            expect(useUIStore.getState().showSidebar).toBe(initialState);
+            expect(useUIStore.getState().sidebarCollapsed).toBe(initialState);
           }
         ),
         { numRuns: 100 }
@@ -150,13 +150,13 @@ describe('UIStore Property Tests', () => {
           (sidebarState, contextPanelState) => {
             // Setup
             useUIStore.setState({ 
-              showSidebar: sidebarState,
+              sidebarCollapsed: sidebarState,
               showContextPanel: contextPanelState 
             });
             
             // Action & Assert for sidebar
             useUIStore.getState().toggleSidebar();
-            expect(useUIStore.getState().showSidebar).toBe(!sidebarState);
+            expect(useUIStore.getState().sidebarCollapsed).toBe(!sidebarState);
             
             // Action & Assert for context panel
             useUIStore.getState().toggleContextPanel();
@@ -302,10 +302,10 @@ describe('UIStore Property Tests', () => {
             { nil: null }
           ),
           fc.oneof(fc.constant(null), fc.string({ minLength: 1, maxLength: 50 })),
-          (showSidebar, showContextPanel, selectedDate, editingEventId, editingEventPosition, selectedEventId) => {
+          (sidebarCollapsed, showContextPanel, selectedDate, editingEventId, editingEventPosition, selectedEventId) => {
             // Setup: set all calendar UI state
             useUIStore.setState({
-              showSidebar,
+              sidebarCollapsed,
               showContextPanel,
               selectedDate,
               editingEventId,
@@ -315,7 +315,7 @@ describe('UIStore Property Tests', () => {
             
             // Assert: all state is retrievable with exact values
             const state = useUIStore.getState();
-            expect(state.showSidebar).toBe(showSidebar);
+            expect(state.sidebarCollapsed).toBe(sidebarCollapsed);
             expect(state.showContextPanel).toBe(showContextPanel);
             expect(state.selectedDate.getTime()).toBe(selectedDate.getTime());
             expect(state.editingEventId).toBe(editingEventId);
@@ -335,7 +335,7 @@ describe('UIStore Property Tests', () => {
           (initialSidebar, initialContextPanel) => {
             // Setup
             useUIStore.setState({
-              showSidebar: initialSidebar,
+              sidebarCollapsed: initialSidebar,
               showContextPanel: initialContextPanel,
             });
             
@@ -345,7 +345,7 @@ describe('UIStore Property Tests', () => {
             
             // Assert: state is correctly modified
             const state = useUIStore.getState();
-            expect(state.showSidebar).toBe(!initialSidebar);
+            expect(state.sidebarCollapsed).toBe(!initialSidebar);
             expect(state.showContextPanel).toBe(!initialContextPanel);
           }
         ),

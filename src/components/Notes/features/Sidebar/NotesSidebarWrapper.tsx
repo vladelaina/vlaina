@@ -1,7 +1,5 @@
-import { useMemo, useState } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { SidebarContent } from './SidebarContent';
-import { NoteSearch } from '../../Search';
 
 export function NotesSidebarWrapper({ isPeeking = false }: { isPeeking?: boolean }) {
   const rootFolder = useNotesStore(s => s.rootFolder);

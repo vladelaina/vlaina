@@ -37,7 +37,6 @@ export function TaskIcon({
   
   const displayIcon = isPreviewing && universalPreviewIcon ? universalPreviewIcon : icon;
   const displayColor = isPreviewing && universalPreviewColor ? universalPreviewColor : color;
-  const displayTone = isPreviewing ? universalPreviewTone : undefined;
   
   if (!displayIcon) return null;
 

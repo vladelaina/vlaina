@@ -15,10 +15,9 @@ import { getAllDayInlineStyles } from '@/lib/colors';
 import {
   calculateAllDayLayout,
   ALL_DAY_CONSTANTS,
-  type LayoutedEvent
 } from '../../utils/allDayLayout';
 
-const { MAX_VISIBLE_ROWS, EVENT_HEIGHT, EVENT_GAP, MIN_AREA_HEIGHT, COLLAPSED_HEIGHT } = ALL_DAY_CONSTANTS;
+const { EVENT_HEIGHT, EVENT_GAP, MIN_AREA_HEIGHT, COLLAPSED_HEIGHT } = ALL_DAY_CONSTANTS;
 
 interface AllDayAreaProps {
   days: Date[];

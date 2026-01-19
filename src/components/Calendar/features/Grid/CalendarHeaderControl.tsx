@@ -34,7 +34,7 @@ export function CalendarHeaderControl() {
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-2" align="center" sideOffset={8}>
-            <MiniCalendar selectedDate={selectedDate} onSelect={(date) => { setSelectedDate(date); setDatePickerOpen(false); }} />
+            <MiniCalendar onSelect={() => setDatePickerOpen(false)} />
           </PopoverContent>
         </Popover>
       </div>
@@ -64,7 +64,7 @@ export function CalendarHeaderControl() {
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-2" align="center" sideOffset={8}>
-            <MiniCalendar selectedDate={selectedDate} onSelect={(date) => { setSelectedDate(date); setDatePickerOpen(false); }} />
+            <MiniCalendar onSelect={() => setDatePickerOpen(false)} />
           </PopoverContent>
         </Popover>
 
