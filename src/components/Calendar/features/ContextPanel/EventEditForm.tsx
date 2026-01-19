@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { startOfDay, endOfDay } from 'date-fns';
-import { Clock, Folder, ChevronDown, X, Sun } from 'lucide-react';
+import { Clock, Sun } from 'lucide-react';
 import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
 import { cn } from '@/lib/utils';
 import { ALL_COLORS, COLOR_HEX, type ItemColor } from '@/lib/colors';
@@ -26,22 +26,15 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     localIcon,
     handleSummaryChange,
     handleKeyDown,
-    handleClose,
     handleColorHover,
-    handleCalendarChange,
     handleColorChange,
     handleIconChange,
     handlePreviewSize,
     handleIconSizeConfirm,
-    showCalendarPicker,
-    setShowCalendarPicker,
-    currentCalendar,
-    calendars,
     isNewEvent,
   } = useEventForm(event);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const calendarPickerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Global Icon Upload
@@ -57,19 +50,6 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
       inputRef.current.focus();
     }
   }, []);
-
-  // Close calendar picker when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (calendarPickerRef.current && !calendarPickerRef.current.contains(e.target as Node)) {
-        setShowCalendarPicker(false);
-      }
-    };
-    if (showCalendarPicker) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showCalendarPicker]);
 
   // Time formatting
   const startDate = event.dtstart;
@@ -107,14 +87,6 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     : 'h-full flex flex-col bg-white dark:bg-zinc-900';
 
   const currentColor = event.color || 'default';
-  const colorValue = COLOR_HEX[currentColor as ItemColor];
-
-  // Toggle to next color when clicking the checkbox
-  const handleColorToggle = () => {
-    const currentIndex = ALL_COLORS.indexOf(currentColor);
-    const nextIndex = (currentIndex + 1) % ALL_COLORS.length;
-    handleColorChange(ALL_COLORS[nextIndex]);
-  };
 
   return (
     <div
@@ -138,18 +110,27 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         
         // Render Title with Color Indicator
         renderTitle={() => (
-            <input
-                ref={inputRef}
-                type="text"
-                value={localSummary}
-                onChange={(e) => handleSummaryChange(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Event title"
-                className={cn(
-                    "w-full bg-transparent text-sm font-semibold outline-none py-1",
-                    "text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
-                )}
-            />
+            <div className="flex items-center gap-2 w-full">
+                <div
+                    className="flex-shrink-0 w-4 h-4 rounded-full border-2"
+                    style={{ 
+                        borderColor: COLOR_HEX[currentColor as ItemColor], 
+                        backgroundColor: COLOR_HEX[currentColor as ItemColor] 
+                    }}
+                />
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={localSummary}
+                    onChange={(e) => handleSummaryChange(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Event title"
+                    className={cn(
+                        "w-full bg-transparent text-sm font-semibold outline-none py-1",
+                        "text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+                    )}
+                />
+            </div>
         )}
 
         customIcons={customIcons}

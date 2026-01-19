@@ -2,7 +2,7 @@
 import type { NekoEvent } from '@/stores/useCalendarStore';
 import { EventBlock } from '../../Event/EventBlock';
 import { calculateEventLayout } from '../../../utils/eventLayout';
-import { isEventInVisualDay, minutesToPixels, minutesToDisplayPosition } from '../../../utils/timeUtils';
+import { isEventInVisualDay, minutesToPixels } from '../../../utils/timeUtils';
 import { calculateDragEventTimes } from '../../../utils/dragUtils';
 
 interface EventsLayerProps {
