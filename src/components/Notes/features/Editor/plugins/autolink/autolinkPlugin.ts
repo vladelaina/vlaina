@@ -5,12 +5,12 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 
-// URL patterns to match (Strict Whitelist Approach)
+// URL patterns to match
 const URL_PATTERNS = [
-  // Full URLs with protocol
-  /https?:\/\/[\w\-\._~:/?#[\]@!$&'*+,;=%()]+/g,
+  // Full URLs with protocol: Limit length and avoid nested quantifiers
+  /https?:\/\/[\w\-\._~:/?#[\]@!$&'*+,;=%()]{1,2000}/g,
   // URLs starting with www.
-  /www\.[\w\-\._~:/?#[\]@!$&'*+,;=%()]+/g,
+  /www\.[\w\-\._~:/?#[\]@!$&'*+,;=%()]{1,2000}/g,
   // Email addresses
   /[\w\-\._%+-]+@[\w\-\._]+\.[a-zA-Z]{2,}/g
 ];
@@ -156,18 +156,6 @@ export const autolinkPlugin = $prose(() => {
             tr.removeStoredMark(linkMark);
             view.dispatch(tr);
             return true; // We handled the input
-          }
-        }
-        return false;
-      },
-      handleClick(_view, _pos, event) {
-        const target = event.target as HTMLElement;
-        if (target.classList.contains('autolink')) {
-          // USER PREFERENCE: Direct click to open
-          const href = target.getAttribute('data-href') || target.getAttribute('href');
-          if (href) {
-            window.open(href, '_blank', 'noopener,noreferrer');
-            return true;
           }
         }
         return false;

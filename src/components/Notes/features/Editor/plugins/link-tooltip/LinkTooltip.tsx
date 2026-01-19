@@ -87,7 +87,6 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
             }
 
             // Click is outside
-            console.log('[LinkTooltip] Click outside detected, mode:', mode);
             if (mode === 'edit') {
                 handleSaveEdit(true); // Save and close
             } else {
@@ -129,8 +128,13 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
     };
 
     const handleOpen = async () => {
-        const { openUrl } = await import('@tauri-apps/plugin-opener');
-        await openUrl(href);
+        try {
+            const { openUrl } = await import('@tauri-apps/plugin-opener');
+            await openUrl(href);
+        } catch (err) {
+            console.warn('[LinkTooltip] Failed to open URL:', err);
+            window.open(href, '_blank', 'noopener,noreferrer');
+        }
     };
 
     const handleCancel = () => {
@@ -217,7 +221,7 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <button
-                                onClick={handleSaveEdit}
+                                onClick={() => handleSaveEdit(false)}
                                 className="flex items-center justify-center size-8 text-[var(--neko-accent)] hover:opacity-80 rounded-full transition-all flex-shrink-0"
                             >
                                 <Check className="size-5 stroke-[2.5]" />

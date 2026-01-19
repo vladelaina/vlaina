@@ -27,6 +27,7 @@ class LinkTooltipView {
         this.view.dom.addEventListener('mouseover', this.handleEditorMouseOver);
         this.view.dom.addEventListener('mouseout', this.handleEditorMouseOut);
         // Use capture to ensure we intercept before editor internal selection logic
+        // mousedown executes the navigation and prevents editor cursor movement
         this.view.dom.addEventListener('mousedown', this.handleEditorMouseDown, true);
 
         this.dom.addEventListener('mouseenter', this.handleTooltipMouseEnter);
@@ -49,20 +50,29 @@ class LinkTooltipView {
         }
     };
 
-    handleEditorMouseDown = (e: MouseEvent) => {
+    handleEditorMouseDown = async (e: MouseEvent) => {
         const target = e.target as HTMLElement;
         const link = target.closest('.autolink') || target.closest('a[href]');
 
-        // Direct click opens the link (no modifier needed)
+        // Direct click on link: open it immediately and prevent editor cursor movement
+        // Note: We must call preventDefault/stopPropagation BEFORE async operations
+        // to prevent Ctrl+Click from triggering block selection
         if (link) {
-            const href = link.getAttribute('href') || link.getAttribute('data-href');
-            if (href) {
-                window.open(href, '_blank', 'noopener,noreferrer');
-            }
-
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
+
+            const href = link.getAttribute('href') || link.getAttribute('data-href');
+            if (href) {
+                try {
+                    const { openUrl } = await import('@tauri-apps/plugin-opener');
+                    await openUrl(href);
+                } catch (err) {
+                    // Fallback to window.open if Tauri API fails
+                    console.warn('[LinkClick] Tauri openUrl failed, using fallback:', err);
+                    window.open(href, '_blank', 'noopener,noreferrer');
+                }
+            }
         } else {
             // Regular click inside editor, treat as mouse interaction
             this.isKeyboardInteraction = false;
@@ -287,20 +297,17 @@ class LinkTooltipView {
     }
 
     /**
-     * Remove link mark but keep the text content
+     * Helper to find the full range of a link mark at a given position within the DOM
      */
-    handleUnlink = (link: HTMLElement) => {
+    findLinkRange(link: HTMLElement): { start: number, end: number, linkMarkType: any } | null {
         const pos = this.view.posAtDOM(link, 0);
-        if (pos < 0) return;
+        if (pos < 0) return null;
 
-        const { state, dispatch } = this.view;
+        const { state } = this.view;
         const linkMarkType = state.schema.marks.link;
-        if (!linkMarkType) return;
+        if (!linkMarkType) return null;
 
         // Find the link mark range
-        let start = pos;
-        let end = pos;
-
         // Scan to find the full extent of the link mark
         let scanForwards = pos;
         while (scanForwards < state.doc.content.size) {
@@ -315,8 +322,23 @@ class LinkTooltipView {
             if (!linkMarkType.isInSet(marksBefore)) break;
             scanBackwards--;
         }
-        start = scanBackwards;
-        end = scanForwards;
+
+        return {
+            start: scanBackwards,
+            end: scanForwards,
+            linkMarkType
+        };
+    }
+
+    /**
+     * Remove link mark but keep the text content
+     */
+    handleUnlink = (link: HTMLElement) => {
+        const result = this.findLinkRange(link);
+        if (!result) return;
+
+        const { start, end, linkMarkType } = result;
+        const { state, dispatch } = this.view;
 
         // Remove just the link mark, keep the text
         const tr = state.tr.removeMark(start, end, linkMarkType);
@@ -328,32 +350,11 @@ class LinkTooltipView {
      * Remove the entire link element (both text and mark)
      */
     handleRemove = (link: HTMLElement) => {
-        const pos = this.view.posAtDOM(link, 0);
-        if (pos < 0) return;
+        const result = this.findLinkRange(link);
+        if (!result) return;
 
+        const { start, end } = result;
         const { state, dispatch } = this.view;
-        const linkMarkType = state.schema.marks.link;
-        if (!linkMarkType) return;
-
-        // Find the link mark range
-        let start = pos;
-        let end = pos;
-
-        let scanForwards = pos;
-        while (scanForwards < state.doc.content.size) {
-            const $scan = state.doc.resolve(scanForwards);
-            const marks = $scan.marks().concat($scan.nodeAfter?.marks || []);
-            if (!linkMarkType.isInSet(marks)) break;
-            scanForwards++;
-        }
-        let scanBackwards = pos;
-        while (scanBackwards > 0) {
-            const marksBefore = state.doc.resolve(scanBackwards - 1).marks();
-            if (!linkMarkType.isInSet(marksBefore)) break;
-            scanBackwards--;
-        }
-        start = scanBackwards;
-        end = scanForwards;
 
         // Delete the entire range
         const tr = state.tr.delete(start, end);
@@ -584,6 +585,8 @@ class LinkTooltipView {
     };
 
     destroy() {
+        this.clearShowTimer();
+        this.clearHideTimer();
         this.view.dom.removeEventListener('mouseover', this.handleEditorMouseOver);
         this.view.dom.removeEventListener('mouseout', this.handleEditorMouseOut);
         this.view.dom.removeEventListener('mousedown', this.handleEditorMouseDown, true);
@@ -634,16 +637,13 @@ export const linkTooltipPlugin = $prose(() => {
                         // We do this by dispatching a transaction that marks it handled
                         const { from, to } = pluginState;
 
+                        // Dispatch immediately to clean the state and mark as handled
+                        view.dispatch(view.state.tr.setMeta(linkTooltipPluginKey, { type: 'CLEAR_LINK_TOOLTIP' }));
+
                         // Use setTimeout to let any pending DOM updates complete
                         setTimeout(() => {
                             tooltipView.showAtPosition(from, to);
-                            // Clear the state after showing
-                            view.dispatch(view.state.tr.setMeta(linkTooltipPluginKey, { type: 'CLEAR_LINK_TOOLTIP' }));
                         }, 50);
-
-                        // Temporarily mark as handled to prevent re-triggering during the timeout
-                        // This is a workaround since we can't mutate plugin state directly
-                        (pluginState as { handled: boolean }).handled = true;
                     }
                 },
                 destroy() {

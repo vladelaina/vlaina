@@ -29,9 +29,6 @@ export const markdownLinkPlugin = $prose(() => {
             let hasChanges = false;
             const schema = newState.schema;
             const linkMarkType = schema.marks.link;
-            const codeMarkType = schema.marks.code;
-            const strongMarkType = schema.marks.strong;
-            const emMarkType = schema.marks.em;
 
             if (!linkMarkType) return null;
 
