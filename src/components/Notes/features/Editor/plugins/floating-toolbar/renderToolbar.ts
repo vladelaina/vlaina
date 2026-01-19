@@ -9,7 +9,7 @@ import { toggleMark, setLink } from './commands';
 import { renderBlockDropdown } from './components/BlockDropdown';
 import { applyFormatPreview, clearFormatPreview, hasFormatPreview } from './previewStyles';
 import { getLinkUrl } from './selectionHelpers';
-import { linkTooltipPluginKey } from '../link-tooltip';
+import { linkTooltipPluginKey } from '../links';
 
 // ============================================================================
 // Button Configuration

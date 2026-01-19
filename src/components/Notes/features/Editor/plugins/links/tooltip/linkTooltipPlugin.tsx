@@ -1,8 +1,9 @@
-import { Plugin, PluginKey, EditorState } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, EditorState, TextSelection } from '@milkdown/kit/prose/state';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 import { createRoot, Root } from 'react-dom/client';
 import LinkTooltip from './LinkTooltip';
+import { findLinkRange } from '../utils/helpers';
 
 export const linkTooltipPluginKey = new PluginKey('link-tooltip');
 
@@ -36,9 +37,19 @@ class LinkTooltipView {
         // Hide tooltip on scroll
         window.addEventListener('scroll', this.handleScroll, true);
 
-        // Tab key to focus into tooltip
         this.view.dom.addEventListener('keydown', this.handleEditorKeyDown, true);
+        document.addEventListener('keydown', this.handleGlobalKeyDown, true);
     }
+
+    handleGlobalKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Escape' && !this.dom.classList.contains('hidden')) {
+            event.preventDefault();
+            event.stopPropagation();
+            this.hide();
+            // Restore focus with a slight delay to allow UI to update
+            setTimeout(() => this.view.focus(), 10);
+        }
+    };
 
     handleScroll = () => {
         // Don't hide during edit mode (IME input can trigger scroll events)
@@ -231,10 +242,15 @@ class LinkTooltipView {
             .insertText(text, absoluteStart, absoluteEnd)
             .addMark(absoluteStart, absoluteStart + text.length, linkMarkType.create({ href: url }));
 
+        // Ensure cursor is placed at the end of the link
+        const newLinkEnd = absoluteStart + text.length;
+        tr.setSelection(TextSelection.create(tr.doc, newLinkEnd));
+
         dispatch(tr);
 
         if (shouldClose) {
             this.hide();
+            setTimeout(() => this.view.focus(), 10); // Restore focus with delay
             return;
         }
 
@@ -297,44 +313,10 @@ class LinkTooltipView {
     }
 
     /**
-     * Helper to find the full range of a link mark at a given position within the DOM
-     */
-    findLinkRange(link: HTMLElement): { start: number, end: number, linkMarkType: any } | null {
-        const pos = this.view.posAtDOM(link, 0);
-        if (pos < 0) return null;
-
-        const { state } = this.view;
-        const linkMarkType = state.schema.marks.link;
-        if (!linkMarkType) return null;
-
-        // Find the link mark range
-        // Scan to find the full extent of the link mark
-        let scanForwards = pos;
-        while (scanForwards < state.doc.content.size) {
-            const $scan = state.doc.resolve(scanForwards);
-            const marks = $scan.marks().concat($scan.nodeAfter?.marks || []);
-            if (!linkMarkType.isInSet(marks)) break;
-            scanForwards++;
-        }
-        let scanBackwards = pos;
-        while (scanBackwards > 0) {
-            const marksBefore = state.doc.resolve(scanBackwards - 1).marks();
-            if (!linkMarkType.isInSet(marksBefore)) break;
-            scanBackwards--;
-        }
-
-        return {
-            start: scanBackwards,
-            end: scanForwards,
-            linkMarkType
-        };
-    }
-
-    /**
      * Remove link mark but keep the text content
      */
     handleUnlink = (link: HTMLElement) => {
-        const result = this.findLinkRange(link);
+        const result = findLinkRange(this.view, link);
         if (!result) return;
 
         const { start, end, linkMarkType } = result;
@@ -350,7 +332,7 @@ class LinkTooltipView {
      * Remove the entire link element (both text and mark)
      */
     handleRemove = (link: HTMLElement) => {
-        const result = this.findLinkRange(link);
+        const result = findLinkRange(this.view, link);
         if (!result) return;
 
         const { start, end } = result;
@@ -550,10 +532,15 @@ class LinkTooltipView {
             .insertText(text, from, to)
             .addMark(from, from + text.length, linkMarkType.create({ href: url }));
 
+        // Ensure cursor is placed at the end of the link
+        const newLinkEnd = from + text.length;
+        tr.setSelection(TextSelection.create(tr.doc, newLinkEnd));
+
         dispatch(tr);
 
         if (shouldClose) {
             this.hide();
+            setTimeout(() => this.view.focus(), 10);
             return;
         }
 
@@ -594,6 +581,7 @@ class LinkTooltipView {
         this.dom.removeEventListener('mouseleave', this.handleTooltipMouseLeave);
         window.removeEventListener('scroll', this.handleScroll, true);
         this.view.dom.removeEventListener('keydown', this.handleEditorKeyDown);
+        document.removeEventListener('keydown', this.handleGlobalKeyDown, true);
         this.dom.remove();
         this.root?.unmount();
     }

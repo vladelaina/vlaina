@@ -30,21 +30,16 @@ export { codePlugin, codeEnhancePlugin } from './code';
 export { highlightPlugin } from './highlight';
 
 // Decorations (visual enhancements)
-export { autolinkPlugin } from './autolink';
 export { abbrPlugin } from './abbr';
 
-// Link Tooltip
-export { linkTooltipPlugin } from './link-tooltip';
+// Link plugins (aggregated)
+export { autolinkPlugin, linkTooltipPlugin, markdownLinkPlugin } from './links';
 
 // Task list interaction
 export { taskListClickPlugin } from './task-list';
 
 // List collapse
-// List collapse
 export { listCollapsePlugin } from './collapse';
-
-// Markdown Link Live Preview
-export { markdownLinkPlugin } from './markdown-link';
 
 // Clipboard (clean text serialization)
 export { clipboardPlugin } from './clipboard';

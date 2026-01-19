@@ -137,16 +137,7 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
         }
     };
 
-    const handleCancel = () => {
-        // Remove data-editing before closing
-        const container = document.querySelector('.link-tooltip-container');
-        container?.removeAttribute('data-editing');
 
-        // Just close without saving - document remains unchanged
-        setEditText(isAutolink ? '' : initialText);
-        setEditUrl(href);
-        setMode('view');
-    };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         // Don't interfere with IME composition (Chinese/Japanese/Korean input)
@@ -157,11 +148,7 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
         if (e.key === 'Enter') {
             e.preventDefault();
             e.stopPropagation();
-            handleSaveEdit(false);
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            e.stopPropagation();
-            handleCancel();
+            handleSaveEdit(true);
         } else {
             // For other keys like Space/Delete/Typing in inputs, 
             // ensure we don't accidentally trigger editor hotkeys
