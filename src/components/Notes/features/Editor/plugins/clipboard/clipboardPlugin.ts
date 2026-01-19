@@ -21,8 +21,14 @@ function serializeSliceToText(slice: any): string {
         if (node.isText && node.text) {
             const linkMark = node.marks?.find((m: any) => m.type.name === 'link');
             if (linkMark) {
-                // 将链接序列化为 Markdown 格式
-                result += '[' + node.text + '](' + linkMark.attrs.href + ')';
+                // Check if it's an autolink (text matches href)
+                // In this case, we prefer plain URL over [url](url) syntax
+                if (node.text === linkMark.attrs.href) {
+                    result += node.text;
+                } else {
+                    // Serialize regular links as Markdown
+                    result += '[' + node.text + '](' + linkMark.attrs.href + ')';
+                }
             } else {
                 result += node.text;
             }
