@@ -5,6 +5,7 @@ import {
     PieChart,
     ClipboardList,
 } from 'lucide-react';
+import { ColorFilter } from '@/components/common/ColorFilter';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { DEFAULT_GROUP_ID } from '@/lib/config';
@@ -20,9 +21,14 @@ export function TodoSidebar() {
         { id: DEFAULT_GROUP_ID, label: 'Inbox', icon: Inbox },
     ];
 
-    const NavButton = ({ item }: { item: { id: string, label: string, icon: React.ElementType } }) => {
+    const NavButton = ({ item }: { item: { id: string, label: string, icon: React.ElementType, color?: string } }) => {
         const isActive = activeGroupId === item.id;
         const Icon = item.icon;
+
+        // Use custom color if provided, otherwise fall back to default styling
+        const iconColorClass = item.color
+            ? item.color
+            : (isActive ? '' : '');
 
         return (
             <button
@@ -34,7 +40,11 @@ export function TodoSidebar() {
                         : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200"
                 )}
             >
-                <Icon className={cn("w-4 h-4", isActive ? "stroke-[2]" : "stroke-[1.5]")} />
+                <Icon className={cn(
+                    "w-4 h-4",
+                    isActive ? "stroke-[2]" : "stroke-[1.5]",
+                    iconColorClass
+                )} />
                 <span>{item.label}</span>
             </button>
         );
@@ -46,6 +56,10 @@ export function TodoSidebar() {
                 {navItems.map(item => (
                     <NavButton key={item.id} item={item} />
                 ))}
+
+                <div className="pt-4">
+                    <ColorFilter />
+                </div>
             </div>
         </div>
     );

@@ -36,16 +36,16 @@ import { useSyncInit } from '@/hooks/useSyncInit';
 
 function AppContent() {
   const { loadData, toggleTask } = useGroupStore();
-  const { 
-    appViewMode, 
-    sidebarCollapsed, 
-    sidebarWidth, 
-    setSidebarWidth, 
-    toggleSidebar, 
-    setSidebarPeeking 
+  const {
+    appViewMode,
+    sidebarCollapsed,
+    sidebarWidth,
+    setSidebarWidth,
+    toggleSidebar,
+    setSidebarPeeking
   } = useUIStore();
   const { currentVault } = useVaultStore();
-  
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const toggleSettings = useCallback(() => setSettingsOpen(prev => !prev), []);
 
@@ -59,7 +59,7 @@ function AppContent() {
   // --- Init ---
   useSyncInit();
   const loadCalendarEvents = useCalendarEventsStore(state => state.load);
-  
+
   useEffect(() => {
     loadData();
     loadCalendarEvents();
@@ -102,11 +102,11 @@ function AppContent() {
   );
 
   // --- View Logic ---
-  
+
   // 1. Sidebar
   let sidebarContent = null;
   let sidebarPeekContent = null;
-  
+
   if (appViewMode === 'calendar') {
     sidebarContent = <CalendarSidebarWrapper />;
   } else if (appViewMode === 'todo') {
@@ -124,13 +124,7 @@ function AppContent() {
     centerSlot = <CalendarHeaderControl />;
     rightSlot = <CalendarToolbar />;
   } else if (appViewMode === 'todo') {
-    centerSlot = (
-       <div className="flex items-center px-4 h-full" data-tauri-drag-region>
-          <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200" data-tauri-drag-region>
-              All Tasks
-          </span>
-       </div>
-    );
+    // No center slot for Todo view
   } else if (appViewMode === 'notes' && currentVault) {
     centerSlot = <NotesTabRow />;
   }
@@ -143,13 +137,13 @@ function AppContent() {
     mainContent = <TodoView />;
   } else {
     // Notes view handles "No Vault" internally
-    mainContent = <NotesView />; 
+    mainContent = <NotesView />;
   }
 
   return (
     <DndContext sensors={sensors}>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      
+
       <AppShell
         // Sidebar Configuration
         sidebarWidth={sidebarWidth}
@@ -157,10 +151,10 @@ function AppContent() {
         onSidebarWidthChange={setSidebarWidth}
         onSidebarToggle={toggleSidebar}
         onPeekChange={setSidebarPeeking}
-        
+
         sidebarContent={sidebarContent}
         sidebarPeekContent={sidebarPeekContent || sidebarContent}
-        
+
         // TitleBar Configuration
         titleBarLeft={
           // SidebarUserHeader is persistent across all views (unless we are in No-Vault Notes mode)
@@ -171,15 +165,15 @@ function AppContent() {
           // If we hide it, we lose the window controls? No, window controls are in Right slot/Auto.
           // Let's hide SidebarUserHeader if no sidebar is shown (e.g. Welcome Screen).
           (appViewMode !== 'notes' || currentVault) ? (
-            <SidebarUserHeader 
-              onOpenSettings={() => setSettingsOpen(true)} 
-              toggleSidebar={toggleSidebar} 
+            <SidebarUserHeader
+              onOpenSettings={() => setSettingsOpen(true)}
+              toggleSidebar={toggleSidebar}
             />
           ) : null
         }
         titleBarCenter={centerSlot}
         titleBarRight={rightSlot}
-        
+
         // Styles
         backgroundColor="var(--neko-bg-primary)"
       >

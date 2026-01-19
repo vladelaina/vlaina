@@ -2,7 +2,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Ellipsis, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
-import { ALL_COLORS, COLOR_HEX, RAINBOW_GRADIENT } from '@/lib/colors';
 import { ALL_STATUSES } from '@/stores/uiSlice';
 import type { TaskStatus } from '@/stores/uiSlice';
 import { useState, useRef, useEffect } from 'react';
@@ -21,7 +20,6 @@ export function TaskFilterMenu() {
     const {
         hideCompleted, setHideCompleted,
         hideActualTime, setHideActualTime,
-        selectedColors, toggleColor, toggleAllColors,
         selectedStatuses, toggleStatus, toggleAllStatuses
     } = useUIStore();
 
@@ -73,42 +71,7 @@ export function TaskFilterMenu() {
                         exit={{ opacity: 0, y: -4 }}
                         className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50"
                     >
-                        {/* Color filter */}
-                        <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-700">
-                            <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">Color Filter</div>
-                            <div className="flex items-center gap-1.5">
-                                {ALL_COLORS.map(c => (
-                                    <button
-                                        key={c}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            toggleColor(c);
-                                        }}
-                                        className={cn(
-                                            "w-5 h-5 rounded-sm border-2 transition-all hover:scale-110",
-                                            selectedColors.includes(c) && "ring-2 ring-zinc-400 dark:ring-zinc-500 ring-offset-1"
-                                        )}
-                                        style={{
-                                            borderColor: COLOR_HEX[c],
-                                            backgroundColor: c === 'default' ? 'transparent' : undefined,
-                                        }}
-                                    />
-                                ))}
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleAllColors();
-                                    }}
-                                    className={cn(
-                                        "w-5 h-5 rounded-sm transition-all hover:scale-110 p-[2px]",
-                                        selectedColors.length === ALL_COLORS.length && "ring-2 ring-zinc-400 ring-offset-1"
-                                    )}
-                                    style={{ background: RAINBOW_GRADIENT }}
-                                >
-                                    <span className="block w-full h-full bg-white dark:bg-zinc-900 rounded-sm" />
-                                </button>
-                            </div>
-                        </div>
+                        {/* Color filter removed - moved to sidebar */}
 
                         {/* Status filter */}
                         <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-700">
