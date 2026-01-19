@@ -19,6 +19,9 @@ class LinkTooltipView {
     constructor(view: EditorView) {
         this.view = view;
 
+        // Fix ProseMirror warning: requires white-space to be set
+        this.view.dom.style.whiteSpace = 'pre-wrap';
+
         this.dom = document.createElement('div');
         this.dom.className = 'link-tooltip-container absolute hidden z-50 transition-all duration-200 ease-out';
         document.body.appendChild(this.dom);

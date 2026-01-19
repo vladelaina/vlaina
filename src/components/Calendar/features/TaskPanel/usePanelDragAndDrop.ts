@@ -62,7 +62,7 @@ export function usePanelDragAndDrop({
   const customCollisionDetection: CollisionDetection = useCallback(
     (args) => {
       // Log collision detection inputs
-      // console.log('[DnD] Detect:', { y: args.pointerCoordinates?.y, active: args.active.id });
+
 
       // 1. Check Grid
       if (calendarInfo) {
@@ -78,7 +78,7 @@ export function usePanelDragAndDrop({
             y <= rect.bottom - EDGE_BUFFER;
 
           if (inGrid) {
-            console.log('[DnD] In Grid Buffer');
+
             return [];
           }
         }
@@ -86,14 +86,14 @@ export function usePanelDragAndDrop({
 
       // 2. List Check
       const collisions = closestCenter(args);
-      console.log('[DnD] List Collisions:', collisions.length, collisions[0]?.id);
+
       return collisions;
     },
     [calendarInfo]
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    console.log('[DnD] Start:', event.active.id);
+
     setActiveId(event.active.id as string);
     setDraggingTaskId(event.active.id as string);
     dragStartX.current = event.active.rect.current.initial?.left ?? 0;
@@ -105,12 +105,14 @@ export function usePanelDragAndDrop({
     const currentLeft = active.rect.current.translated?.left ?? 0;
     const deltaX = currentLeft - activeInitialLeft;
 
-    // console.log('[DnD] Move:', { active: active.id, over: over?.id, deltaX });
+
 
     setDragIndent(deltaX);
 
     if (!over) {
-      if (overId) console.log('[DnD] Lost Over');
+      if (overId) {
+        // Lost over
+      }
       setOverId(null);
       return;
     }
@@ -118,12 +120,12 @@ export function usePanelDragAndDrop({
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
     const { over } = event;
-    // console.log('[DnD] Over:', over?.id);
+
     setOverId(over?.id as string || null);
   }, []);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
-    console.log('[DnD] End:', { active: event.active.id, over: event.over?.id });
+
     const { active, over } = event;
 
     // Reset drag state
@@ -134,7 +136,7 @@ export function usePanelDragAndDrop({
 
     const activeTask = tasks.find(t => t.id === active.id);
     if (!activeTask) {
-      console.log('[DnD] Active task not found in list');
+
       return;
     }
 
@@ -148,7 +150,7 @@ export function usePanelDragAndDrop({
         const y = dropRect.top + 20;
 
         if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-          console.log('[DnD] Dropped on Grid (Rect check passed)');
+
           const { selectedDate, hourHeight, viewMode, dayCount } = calendarInfo;
           const GUTTER_WIDTH = CALENDAR_CONSTANTS.GUTTER_WIDTH;
           const SNAP_MINUTES = getSnapMinutes(hourHeight); // Use snap utility

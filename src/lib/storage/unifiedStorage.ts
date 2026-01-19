@@ -189,12 +189,12 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
       const parsed = JSON.parse(content) as DataFile;
 
       if (parsed.version === 2 && parsed.data) {
-        console.log('[UnifiedStorage] Loaded data from JSON');
+
         return parsed.data;
       }
     }
 
-    console.log('[UnifiedStorage] No existing data, returning defaults');
+
     return getDefaultData();
   } catch (error) {
     console.error('[UnifiedStorage] Failed to load:', error);
@@ -235,7 +235,7 @@ export async function saveUnifiedData(data: UnifiedData): Promise<void> {
       const markdown = generateMarkdown(pendingData);
       await storage.writeFile(mdPath, markdown);
 
-      console.log('[UnifiedStorage] Saved data');
+
       pendingData = null;
 
       // Trigger auto-sync for PRO users
@@ -285,7 +285,7 @@ export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void>
     const markdown = generateMarkdown(data);
     await storage.writeFile(mdPath, markdown);
 
-    console.log('[UnifiedStorage] Saved data (immediate)');
+
   } catch (error) {
     console.error('[UnifiedStorage] Failed to save:', error);
   }

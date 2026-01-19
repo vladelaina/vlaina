@@ -130,7 +130,7 @@ export function CoverImage({
     // This prevents the preview from inheriting the OLD cover's positioning.
     useLayoutEffect(() => {
         if (previewSrc) {
-            console.log('[CoverDebug] previewSrc changed, resetting (LayoutEffect):', previewSrc);
+
             // Reset to default: centered, no zoom
             setCrop({ x: 0, y: 0 });
             setZoom(1);
@@ -744,13 +744,7 @@ export function CoverImage({
                             const dims = { width: media.naturalWidth, height: media.naturalHeight };
                             setMediaSize(dims);
 
-                            console.log('[CoverDebug] onMediaLoaded:', {
-                                previewSrc: !!previewSrc,
-                                isImageReady,
-                                effectiveContainerSize: !!effectiveContainerSize,
-                                positionX,
-                                positionY,
-                            });
+
 
                             // Pre-calculate crop to prevent "Center -> Position" flash
                             // We must ensure the first visible frame has the correct crop
@@ -762,13 +756,7 @@ export function CoverImage({
                                 const targetY = previewSrc ? 50 : positionY;
                                 const targetZoom = previewSrc ? 1 : zoom;
 
-                                console.log('[CoverDebug] Calculating crop with:', {
-                                    targetX,
-                                    targetY,
-                                    targetZoom,
-                                    mediaSize: dims,
-                                    containerSize: effectiveContainerSize
-                                });
+
 
                                 const pixels = calculateCropPixels(
                                     { x: targetX, y: targetY },
@@ -776,11 +764,11 @@ export function CoverImage({
                                     effectiveContainerSize,
                                     targetZoom
                                 );
-                                console.log('[CoverDebug] Setting crop to:', pixels);
+
                                 setCrop(pixels);
                                 setZoom(targetZoom);
                             } else if (!isImageReady) {
-                                console.log('[CoverDebug] Container not ready, using default center');
+
                                 // Container not ready yet, but image is loaded.
                                 // Use default center position (crop=0,0, zoom=1)
                                 setCrop({ x: 0, y: 0 });
@@ -790,7 +778,7 @@ export function CoverImage({
                             // ALWAYS mark image as ready when it loads
                             // This ensures visibility even if crop calculation is deferred
                             if (!isImageReady) {
-                                console.log('[CoverDebug] Setting isImageReady = true');
+
                                 setIsImageReady(true);
                             }
                         }}

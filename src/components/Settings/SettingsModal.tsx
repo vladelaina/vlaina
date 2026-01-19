@@ -96,7 +96,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   const startDrag = async () => {
     isDraggingRef.current = true;
-    // console.log('startDrag executed (Movement Trigger)');
+
     try {
       await getCurrentWindow().startDragging();
     } catch (e) {

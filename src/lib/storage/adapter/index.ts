@@ -21,12 +21,12 @@ let adapterInstance: StorageAdapter | null = null;
  */
 export function getPlatform(): 'tauri' | 'web' {
   if (typeof window === 'undefined') return 'web';
-  
+
   // Check for Tauri 2.x first, then fallback to 1.x
   if ('__TAURI_INTERNALS__' in window || '__TAURI__' in window) {
     return 'tauri';
   }
-  
+
   return 'web';
 }
 
@@ -51,11 +51,11 @@ export function isWeb(): boolean {
 export function getStorageAdapter(): StorageAdapter {
   if (!adapterInstance) {
     const platform = getPlatform();
-    adapterInstance = platform === 'tauri' 
-      ? new TauriAdapter() 
+    adapterInstance = platform === 'tauri'
+      ? new TauriAdapter()
       : new WebAdapter();
-    
-    console.log(`[Storage] Initialized ${platform} adapter`);
+
+
   }
   return adapterInstance;
 }
@@ -77,7 +77,7 @@ export async function joinPath(...segments: string[]): Promise<string> {
     const { join } = await import('@tauri-apps/api/path');
     return join(...segments);
   }
-  
+
   const { joinPath: simpleJoin } = await import('./pathUtils');
   return simpleJoin(...segments);
 }

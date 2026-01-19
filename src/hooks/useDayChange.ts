@@ -15,21 +15,21 @@ export function useDayChange() {
       if (document.visibilityState === 'visible') {
         const today = new Date().toDateString();
         if (today !== lastCheck.current) {
-           console.log('[Midnight Watchman] Waking up... New day detected.');
-           lastCheck.current = today;
-           validateDailyState();
+
+          lastCheck.current = today;
+          validateDailyState();
         }
       }
     };
 
     // 3. Setup Interval (Midnight check for active sessions)
     const intervalId = setInterval(() => {
-        const today = new Date().toDateString();
-        if (today !== lastCheck.current) {
-            console.log('[Midnight Watchman] Midnight struck. Resetting daily state.');
-            lastCheck.current = today;
-            validateDailyState();
-        }
+      const today = new Date().toDateString();
+      if (today !== lastCheck.current) {
+
+        lastCheck.current = today;
+        validateDailyState();
+      }
     }, 60 * 1000);
 
     document.addEventListener('visibilitychange', handleVisibilityChange);

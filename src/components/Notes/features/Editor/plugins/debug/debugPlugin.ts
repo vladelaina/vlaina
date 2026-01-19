@@ -49,7 +49,7 @@ export const debugPlugin = $prose(() => {
                     const slice = view.state.doc.slice(from, to);
                     const text = serializeSliceToText(slice);
 
-                    console.log('📋 Custom Copy:', JSON.stringify(text));
+
 
                     // 手动设置剪贴板内容
                     event.preventDefault();
@@ -64,27 +64,10 @@ export const debugPlugin = $prose(() => {
             apply(tr, _value, _oldState, newState) {
                 if (!tr.selectionSet) return;
 
-                const { from } = newState.selection;
-                const $pos = newState.doc.resolve(from);
 
-                console.group('🔍 Editor Debug: Cursor at ' + from);
 
-                // 1. Check Node
-                console.log('Node:', $pos.parent.type.name);
 
-                // 2. Check Marks
-                const marks = $pos.marks();
-                if (marks.length > 0) {
-                    console.log('Marks:', marks.map(m => m.type.name).join(', '));
-                    marks.forEach(m => console.log('Mark Details:', m));
-                } else {
-                    console.log('Marks: None');
-                }
 
-                // 3. Check Parent Node Attributes (maybe it's a code block?)
-                console.log('Parent Attributes:', $pos.parent.attrs);
-
-                console.groupEnd();
 
                 return;
             }

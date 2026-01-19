@@ -63,7 +63,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             const events = await loadAllEvents();
 
             set({ calendars, events, loaded: true });
-            console.log('[CalendarEventsStore] Loaded events:', events.length);
+
         } catch (error) {
             console.error('[CalendarEventsStore] Failed to load:', error);
             set({ loaded: true });
@@ -89,7 +89,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             color: eventData.color || DEFAULT_COLOR,
         };
 
-        console.log('[CalendarEventsStore] Adding event:', newEvent.uid, newEvent);
+
 
         set(state => ({
             events: [...state.events, newEvent],
@@ -109,8 +109,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
     },
 
     deleteEvent: async (uid) => {
-        console.log('[CalendarEventsStore] Deleting event:', uid);
-        console.log('[CalendarEventsStore] Stack trace:', new Error().stack);
+
 
         set(state => ({
             events: state.events.filter(e => e.uid !== uid),

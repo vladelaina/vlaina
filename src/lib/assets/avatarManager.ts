@@ -55,7 +55,7 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
             const avatarPath = await joinPath(systemDir, filename);
             await storage.writeBinaryFile(avatarPath, uint8Array);
 
-            console.log('[AvatarManager] Avatar saved locally to:', avatarPath);
+
             return avatarPath;
         } catch (error) {
             console.error('[AvatarManager] Failed to save avatar locally:', error);

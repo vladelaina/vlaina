@@ -48,7 +48,7 @@ class AutoSyncManagerImpl {
 
     // Check if we can sync
     if (!this.canSync()) {
-      console.log('[AutoSync] Cannot sync - conditions not met');
+
       return;
     }
 
@@ -60,7 +60,7 @@ class AutoSyncManagerImpl {
       this.executeSync();
     }, this.config.debounceMs);
 
-    console.log('[AutoSync] Sync scheduled in', this.config.debounceMs, 'ms');
+
   }
 
   /**
@@ -118,29 +118,29 @@ class AutoSyncManagerImpl {
     // Check cooldown
     if (!this.isCooldownPassed()) {
       const remainingCooldown = this.config.cooldownMs - (Date.now() - this.lastSyncTime);
-      console.log('[AutoSync] In cooldown, scheduling retry in', remainingCooldown, 'ms');
-      
+
+
       // Schedule sync after cooldown
       this.debounceTimer = setTimeout(() => {
         this.executeSync();
       }, remainingCooldown);
-      
+
       return false;
     }
 
     // Double check conditions
     if (!this.canSync()) {
-      console.log('[AutoSync] Conditions no longer met, skipping sync');
+
       return false;
     }
 
-    console.log('[AutoSync] Executing sync...');
-    
+
+
     const success = await useGithubSyncStore.getState().syncBidirectional();
-    
+
     if (success) {
       this.lastSyncTime = Date.now();
-      console.log('[AutoSync] Sync successful');
+
       return true;
     } else {
       // Handle failure - schedule retry
@@ -156,7 +156,7 @@ class AutoSyncManagerImpl {
     const retryCount = this.retryCount;
 
     if (retryCount >= this.config.maxRetries) {
-      console.log('[AutoSync] Max retries reached, stopping auto-retry');
+
       useGithubSyncStore.getState().setSyncStatus('error');
       return;
     }
@@ -166,8 +166,8 @@ class AutoSyncManagerImpl {
 
     // Get delay for this retry
     const delay = this.config.retryDelays[Math.min(retryCount, this.config.retryDelays.length - 1)];
-    
-    console.log('[AutoSync] Scheduling retry', retryCount + 1, 'in', delay, 'ms');
+
+
 
     this.retryTimer = setTimeout(() => {
       this.executeSync();

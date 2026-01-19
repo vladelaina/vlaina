@@ -479,7 +479,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         });
 
         if (result.pulledFromCloud) {
-          console.log('[GitHub Sync] Pulled data from cloud, reloading...');
+
           window.location.reload();
         }
 
