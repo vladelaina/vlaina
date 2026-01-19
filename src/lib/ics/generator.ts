@@ -45,6 +45,10 @@ export function generateICS(events: NekoEvent[], calendar: NekoCalendar): string
             xProps.push({ key: NEKO_X_PROPS.ICON, value: event.icon });
         }
 
+        if (event.iconSize) {
+            xProps.push({ key: NEKO_X_PROPS.ICON_SIZE, value: String(event.iconSize) });
+        }
+
         if (event.timerState) {
             xProps.push({ key: NEKO_X_PROPS.TIMER_STATE, value: event.timerState });
         }

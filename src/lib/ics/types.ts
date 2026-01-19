@@ -45,6 +45,9 @@ export interface NekoEvent {
     /** Event icon (emoji or icon name) */
     icon?: string;
 
+    /** Event icon size */
+    iconSize?: number;
+
     /** Timer state for time-tracking */
     timerState?: 'idle' | 'running' | 'paused';
 
@@ -81,6 +84,7 @@ export interface NekoCalendar {
 export const NEKO_X_PROPS = {
     COLOR: 'X-NEKO-COLOR',
     ICON: 'X-NEKO-ICON',
+    ICON_SIZE: 'X-NEKO-ICON-SIZE',
     CALENDAR_ID: 'X-NEKO-CALENDAR-ID',
     TIMER_STATE: 'X-NEKO-TIMER-STATE',
     TIMER_STARTED: 'X-NEKO-TIMER-STARTED',

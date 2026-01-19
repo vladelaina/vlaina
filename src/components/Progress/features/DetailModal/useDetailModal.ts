@@ -7,7 +7,7 @@ interface UseDetailModalProps {
   item: ProgressOrCounter | null;
   onClose: () => void;
   onUpdate: (id: string, data: Partial<ProgressOrCounter>) => void;
-  onPreviewChange?: (icon?: string, title?: string) => void;
+  onPreviewChange?: (icon?: string, title?: string, iconSize?: number) => void;
 }
 
 interface UseDetailModalReturn {
@@ -79,17 +79,18 @@ export function useDetailModal({
   // Prepare preview values
   const previewIcon = displayItem?.icon;
   const previewTitle = displayItem?.title;
+  const previewIconSize = displayItem?.iconSize;
 
   // Real-time preview sync
   useEffect(() => {
     if (onPreviewChange) {
-      onPreviewChange(previewIcon, previewTitle);
+      onPreviewChange(previewIcon, previewTitle, previewIconSize);
     }
-  }, [previewIcon, previewTitle, onPreviewChange]);
+  }, [previewIcon, previewTitle, previewIconSize, onPreviewChange]);
 
   // Handlers
   const handleClose = useCallback(() => {
-    onPreviewChange?.(undefined, undefined);
+    onPreviewChange?.(undefined, undefined, undefined);
     onClose();
     setIsEditing(false);
     setIsPickingIcon(false);

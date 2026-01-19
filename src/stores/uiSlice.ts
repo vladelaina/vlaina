@@ -110,11 +110,13 @@ interface UIStore {
   universalPreviewIcon: string | null;
   universalPreviewColor: string | null;
   universalPreviewTone: number | null;
+  universalPreviewIconSize: number | null;
   
   setUniversalPreview: (targetId: string | null, state: {
     icon?: string | null;
     color?: string | null;
     tone?: number | null;
+    size?: number | null;
   }) => void;
 }
 
@@ -354,12 +356,14 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   universalPreviewIcon: null,
   universalPreviewColor: null,
   universalPreviewTone: null,
+  universalPreviewIconSize: null,
 
-  setUniversalPreview: (targetId, { icon, color, tone }) => set((state) => ({
+  setUniversalPreview: (targetId, { icon, color, tone, size }) => set((state) => ({
     universalPreviewTarget: targetId,
     // Only update fields that are provided (undefined means "no change", null means "clear")
     universalPreviewIcon: icon !== undefined ? icon : state.universalPreviewIcon,
     universalPreviewColor: color !== undefined ? color : state.universalPreviewColor,
     universalPreviewTone: tone !== undefined ? tone : state.universalPreviewTone,
+    universalPreviewIconSize: size !== undefined ? size : state.universalPreviewIconSize,
   })),
 }));

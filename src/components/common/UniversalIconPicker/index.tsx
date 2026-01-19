@@ -30,6 +30,8 @@ export interface UniversalIconPickerProps {
   
   // Icon Resizing
   currentSize?: number;
+  minSize?: number;
+  maxSize?: number;
   onSizeChange?: (size: number) => void;
   onSizeConfirm?: (size: number) => void;
   
@@ -61,6 +63,8 @@ export function UniversalIconPicker({
   hasIcon = false,
   currentIcon,
   currentSize,
+  minSize = 20,
+  maxSize = 150,
   onSizeChange,
   onSizeConfirm,
   
@@ -245,8 +249,8 @@ export function UniversalIconPicker({
           style={{ '--track-color': 'var(--neko-bg-tertiary)' } as React.CSSProperties}
         >
           <PremiumSlider
-            min={20}
-            max={150}
+            min={minSize}
+            max={maxSize}
             value={currentSize}
             onChange={(newVal: number) => {
               // DIRECT UPDATE: Do NOT set local state here.

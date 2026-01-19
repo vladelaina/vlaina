@@ -44,6 +44,11 @@ export function useIconPreview(targetId: string | undefined) {
       setUniversalPreview(targetId, { tone });
   }, [targetId, setUniversalPreview]);
 
+  const handlePreviewSize = useCallback((size: number | null) => {
+      if (!targetId) return;
+      setUniversalPreview(targetId, { size });
+  }, [targetId, setUniversalPreview]);
+
 
   // Cleanup
   useEffect(() => {
@@ -56,7 +61,7 @@ export function useIconPreview(targetId: string | undefined) {
       }
       // Clear preview state on unmount if it was us
       if (useUIStore.getState().universalPreviewTarget === targetId) {
-          setUniversalPreview(null, { icon: null, color: null, tone: null });
+          setUniversalPreview(null, { icon: null, color: null, tone: null, size: null });
       }
     };
   }, [targetId, setUniversalPreview]);
@@ -64,6 +69,7 @@ export function useIconPreview(targetId: string | undefined) {
   return {
     handlePreview,
     handlePreviewColor,
-    handlePreviewTone
+    handlePreviewTone,
+    handlePreviewSize
   };
 }
