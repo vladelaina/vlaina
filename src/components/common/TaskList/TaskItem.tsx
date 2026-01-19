@@ -148,7 +148,7 @@ export function TaskItem({
                 style={style}
                 data-task-id={task.id}
                 className={cn(
-                    'group flex items-start gap-1.5 px-1.5 py-1.5 rounded-md',
+                    'group flex items-start gap-3 px-3 py-2 rounded-xl', // Gap 1.5 -> 3, Padding 1.5 -> 3/2, rounded-md -> rounded-xl
                     'border border-transparent',
                     isBeingDragged
                         ? 'opacity-0'
@@ -159,16 +159,16 @@ export function TaskItem({
                 {hasChildren ? (
                     <button
                         onClick={onToggleCollapse}
-                        className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
+                        className="p-1 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0 mt-0.5"
                     >
                         {collapsed ? (
-                            <ChevronRight className="h-3.5 w-3.5 text-zinc-400" />
+                            <ChevronRight className="h-4 w-4 text-zinc-400" />
                         ) : (
-                            <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
+                            <ChevronDown className="h-4 w-4 text-zinc-400" />
                         )}
                     </button>
                 ) : (
-                    <div className="w-4" />
+                    <div className="w-6" /> // Match button width + padding
                 )}
 
                 {/* Drag handle */}
@@ -177,11 +177,11 @@ export function TaskItem({
                     {...listeners}
                     className={cn(
                         'opacity-0 group-hover:opacity-100 cursor-move',
-                        'p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-opacity duration-150',
-                        'touch-none flex-shrink-0'
+                        'p-1 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-opacity duration-150',
+                        'touch-none flex-shrink-0 mt-0.5'
                     )}
                 >
-                    <GripVertical className="h-3.5 w-3.5 text-zinc-400" />
+                    <GripVertical className="h-4 w-4 text-zinc-400" />
                 </button>
 
                 {/* Checkbox */}
@@ -191,8 +191,8 @@ export function TaskItem({
                         onCheckedChange={() => onToggle(task.id)}
                         checkmarkColor={task.completed && colorValue ? colorValue : undefined}
                         className={cn(
-                            "h-3.5 w-3.5 rounded-sm transition-none",
-                            colorValue ? "border-2" : "border border-zinc-400/40"
+                            "h-5 w-5 rounded-[6px] transition-none", // 3.5 -> 5, rounded-sm -> rounded-[6px] (Apple style)
+                            colorValue ? "border-2" : "border-2 border-zinc-300 dark:border-zinc-600" // Thicker border
                         )}
                         style={colorValue ? { borderColor: colorValue } : undefined}
                     />
@@ -204,12 +204,12 @@ export function TaskItem({
                         itemId={task.id}
                         icon={task.icon}
                         color={colorValue}
-                        sizeClass="h-3.5 w-3.5"
+                        sizeClass="h-5 w-5" // 3.5 -> 5
                     />
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 pt-[1px]"> {/* Optical alignment */}
                     {isEditing ? (
                         <textarea
                             ref={inputRef}
@@ -220,18 +220,18 @@ export function TaskItem({
                             rows={1}
                             className={cn(
                                 'w-full bg-transparent border-none outline-none resize-none',
-                                'text-[13px] text-foreground placeholder:text-muted-foreground',
-                                'focus:ring-0 leading-relaxed min-h-[18px] max-h-[120px]'
+                                'text-[15px] text-foreground placeholder:text-muted-foreground', // 13px -> 15px
+                                'focus:ring-0 leading-relaxed min-h-[24px] max-h-[160px]'
                             )}
                         />
                     ) : (
                         <div
                             onClick={() => setIsEditing(true)}
                             className={cn(
-                                'w-full text-[13px] cursor-text select-none whitespace-pre-wrap break-words',
+                                'w-full text-[15px] cursor-text select-none whitespace-pre-wrap break-words', // 13px -> 15px
                                 task.completed
                                     ? 'text-zinc-400 line-through'
-                                    : 'text-zinc-700 dark:text-zinc-200',
+                                    : 'text-zinc-900 dark:text-zinc-100 font-normal',
                                 'leading-relaxed'
                             )}
                         >
@@ -241,7 +241,7 @@ export function TaskItem({
 
                     {/* Time info */}
                     {!hideActualTime && (task.estimatedMinutes || task.actualMinutes) && (
-                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-zinc-400 dark:text-zinc-600">
+                        <div className="flex items-center gap-2 mt-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium"> {/* 10px -> xs, mt-0.5 -> 1 */}
                             {task.estimatedMinutes && (
                                 <span>Est. {formatMinutes(task.estimatedMinutes)}</span>
                             )}
@@ -253,7 +253,7 @@ export function TaskItem({
 
                     {/* Scheduled time */}
                     {task.startDate && !task.isAllDay && (
-                        <div className="mt-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">
+                        <div className="mt-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium"> {/* 10px -> xs, mt-0.5 -> 1 */}
                             {formatScheduledTime(task.startDate, task.endDate)}
                         </div>
                     )}
