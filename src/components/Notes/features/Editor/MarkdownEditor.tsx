@@ -48,7 +48,7 @@ import {
   taskListClickPlugin,
   listCollapsePlugin,
   markdownLinkPlugin,
-  debugPlugin,
+  clipboardPlugin,
 } from './plugins';
 import { GAP_SCALE, CONTENT_MAX_WIDTH, PADDING_DESKTOP, PADDING_MOBILE, EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { configureTheme } from './theme';
@@ -87,6 +87,8 @@ const customPlugins = [
   listCollapsePlugin,
   // Markdown Link Live Preview
   markdownLinkPlugin,
+  // Clipboard (clean text serialization)
+  clipboardPlugin,
 ];
 
 

@@ -188,33 +188,6 @@ export const markdownLinkPlugin = $prose(() => {
 
                 event.preventDefault();
                 return true;
-            },
-
-            clipboardTextSerializer(slice) {
-                let result = '';
-                slice.content.forEach((node) => {
-                    if (node.isText && node.text) {
-                        const linkMark = node.marks.find(m => m.type.name === 'link');
-                        if (linkMark) {
-                            result += '[' + node.text + '](' + linkMark.attrs.href + ')';
-                        } else {
-                            result += node.text;
-                        }
-                    } else if (node.isTextblock) {
-                        node.content.forEach(child => {
-                            if (child.isText && child.text) {
-                                const childLinkMark = child.marks.find(m => m.type.name === 'link');
-                                if (childLinkMark) {
-                                    result += '[' + child.text + '](' + childLinkMark.attrs.href + ')';
-                                } else {
-                                    result += child.text;
-                                }
-                            }
-                        });
-                        result += '\n';
-                    }
-                });
-                return result;
             }
         }
     });

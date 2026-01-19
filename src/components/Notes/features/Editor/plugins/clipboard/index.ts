@@ -1,0 +1,1 @@
+export { clipboardPlugin, clipboardPluginKey } from './clipboardPlugin';

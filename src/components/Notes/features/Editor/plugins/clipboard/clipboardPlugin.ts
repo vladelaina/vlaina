@@ -1,11 +1,18 @@
+/**
+ * Clipboard Plugin - 处理复制粘贴时的文本序列化
+ * 
+ * 解决问题：Milkdown 默认的复制行为会将空段落序列化为 <br /> HTML 标签
+ * 解决方案：拦截复制事件，手动将内容序列化为纯净的文本格式
+ */
+
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 
-export const debugPluginKey = new PluginKey('debug-cursor');
+export const clipboardPluginKey = new PluginKey('neko-clipboard');
 
 /**
  * 将 ProseMirror Slice 序列化为纯净的文本格式
- * 不包含任何 HTML 标签
+ * 不包含任何 HTML 标签，只保留纯文本和换行符
  */
 function serializeSliceToText(slice: any): string {
     let result = '';
@@ -14,18 +21,22 @@ function serializeSliceToText(slice: any): string {
         if (node.isText && node.text) {
             const linkMark = node.marks?.find((m: any) => m.type.name === 'link');
             if (linkMark) {
+                // 将链接序列化为 Markdown 格式
                 result += '[' + node.text + '](' + linkMark.attrs.href + ')';
             } else {
                 result += node.text;
             }
         } else if (node.type.name === 'hard_break') {
+            // 将 hard_break 节点转换为换行符
             result += '\n';
         }
     };
 
     slice.content.forEach((node: any) => {
         if (node.isTextblock) {
+            // 段落内的所有节点
             node.content.forEach(processNode);
+            // 每个段落后添加换行
             result += '\n';
         } else {
             processNode(node);
@@ -36,11 +47,10 @@ function serializeSliceToText(slice: any): string {
     return result.replace(/\n+$/, '');
 }
 
-export const debugPlugin = $prose(() => {
+export const clipboardPlugin = $prose(() => {
     return new Plugin({
-        key: debugPluginKey,
+        key: clipboardPluginKey,
         props: {
-            // 拦截复制事件，手动设置剪贴板内容
             handleDOMEvents: {
                 copy(view, event) {
                     const { from, to } = view.state.selection;
@@ -49,44 +59,12 @@ export const debugPlugin = $prose(() => {
                     const slice = view.state.doc.slice(from, to);
                     const text = serializeSliceToText(slice);
 
-                    console.log('📋 Custom Copy:', JSON.stringify(text));
-
                     // 手动设置剪贴板内容
                     event.preventDefault();
                     event.clipboardData?.setData('text/plain', text);
 
                     return true; // 阻止默认行为
                 }
-            }
-        },
-        state: {
-            init() { },
-            apply(tr, _value, _oldState, newState) {
-                if (!tr.selectionSet) return;
-
-                const { from } = newState.selection;
-                const $pos = newState.doc.resolve(from);
-
-                console.group('🔍 Editor Debug: Cursor at ' + from);
-
-                // 1. Check Node
-                console.log('Node:', $pos.parent.type.name);
-
-                // 2. Check Marks
-                const marks = $pos.marks();
-                if (marks.length > 0) {
-                    console.log('Marks:', marks.map(m => m.type.name).join(', '));
-                    marks.forEach(m => console.log('Mark Details:', m));
-                } else {
-                    console.log('Marks: None');
-                }
-
-                // 3. Check Parent Node Attributes (maybe it's a code block?)
-                console.log('Parent Attributes:', $pos.parent.attrs);
-
-                console.groupEnd();
-
-                return;
             }
         }
     });

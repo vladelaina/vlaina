@@ -45,7 +45,9 @@ export { listCollapsePlugin } from './collapse';
 
 // Markdown Link Live Preview
 export { markdownLinkPlugin } from './markdown-link';
-export { debugPlugin } from './debug/debugPlugin';
+
+// Clipboard (clean text serialization)
+export { clipboardPlugin } from './clipboard';
 
 // Re-export types that are actually used
 export type { SlashMenuItem } from './slash/types';
