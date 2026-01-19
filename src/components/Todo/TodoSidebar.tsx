@@ -13,7 +13,6 @@ import { DEFAULT_GROUP_ID } from '@/lib/config';
 export function TodoSidebar() {
     const { activeGroupId, setActiveGroup } = useGroupStore();
 
-    // Define the exact navigation structure requested: Tasks -> Progress -> Today -> Inbox
     const navItems = [
         { id: 'all', label: 'Tasks', icon: ClipboardList },
         { id: 'progress', label: 'Progress', icon: PieChart },
@@ -21,30 +20,26 @@ export function TodoSidebar() {
         { id: DEFAULT_GROUP_ID, label: 'Inbox', icon: Inbox },
     ];
 
-    const NavButton = ({ item }: { item: { id: string, label: string, icon: React.ElementType, color?: string } }) => {
+    const NavButton = ({ item }: { item: { id: string, label: string, icon: React.ElementType } }) => {
         const isActive = activeGroupId === item.id;
         const Icon = item.icon;
-
-        // Use custom color if provided, otherwise fall back to default styling
-        const iconColorClass = item.color
-            ? item.color
-            : (isActive ? '' : '');
 
         return (
             <button
                 onClick={() => setActiveGroup(item.id)}
                 className={cn(
-                    "w-full flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg transition-all duration-200",
+                    "w-full flex items-center gap-3 px-3 py-2.5 text-[15px] rounded-lg transition-colors duration-200",
                     isActive
-                        ? "bg-zinc-200/60 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium"
-                        : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200"
+                        ? "text-zinc-900 dark:text-zinc-100 font-medium" // Active: Dark/Bold, No BG
+                        : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" // Default: Light -> Hover: Dark
                 )}
             >
-                <Icon className={cn(
-                    "w-4 h-4",
-                    isActive ? "stroke-[2]" : "stroke-[1.5]",
-                    iconColorClass
-                )} />
+                <Icon
+                    className={cn(
+                        "w-5 h-5",
+                        isActive ? "stroke-[2]" : "stroke-[1.5]"
+                    )}
+                />
                 <span>{item.label}</span>
             </button>
         );
