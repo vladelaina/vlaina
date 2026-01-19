@@ -44,17 +44,16 @@
   line-height: 0;
 }
 
-/* Autolink */
+/* Autolink - 自动识别的链接（与普通链接样式一致） */
 .milkdown .autolink {
   color: var(--neko-accent);
-  text-decoration: none;
-  border-bottom: 1px dashed var(--neko-accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
   cursor: pointer;
-  transition: border-color 0.15s;
 }
 
 .milkdown .autolink:hover {
-  border-bottom-style: solid;
+  opacity: 0.8;
 }
 
 /* Footnotes */
