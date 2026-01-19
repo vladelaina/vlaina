@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Edit2, MoreHorizontal, Check, Trash2, Unlink, ExternalLink } from 'lucide-react';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-    DropdownMenuSeparator
-} from '@/components/ui/dropdown-menu';
+import { Copy, Edit2, Check, Trash2, Unlink, ExternalLink } from 'lucide-react';
 import { IconButton } from '@/components/ui/icon-button';
-import { iconButtonStyles } from '@/lib/utils';
 import {
     Tooltip,
     TooltipContent,
@@ -20,14 +12,15 @@ export interface LinkTooltipProps {
     href: string;
     initialText?: string;
     onEdit: (text: string, url: string, shouldClose?: boolean) => void;
+    onUnlink: () => void;
+    onRemove: () => void;
     onClose: () => void;
 }
 
-const LinkTooltip = ({ href, initialText = '', onEdit, onClose }: LinkTooltipProps) => {
+const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClose }: LinkTooltipProps) => {
     const isNewLink = !href;
     const [mode, setMode] = useState<'view' | 'edit'>(isNewLink ? 'edit' : 'view');
     const [showCopied, setShowCopied] = useState(false);
-    const [dropdownOpen, setDropdownOpen] = useState(false);
 
     // Detect if this is an autolink (pure URL) vs a Markdown link [text](url)
     // Autolink: initialText is empty, matches href, or is just the URL itself
@@ -50,18 +43,6 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onClose }: LinkTooltipPro
         setEditUrl(href);
         setEditText(isAutolink ? '' : initialText);
     }, [href, initialText, isAutolink]);
-
-    // Sync dropdown state to parent container for plugin detection
-    useEffect(() => {
-        const container = document.querySelector('.link-tooltip-container');
-        if (container) {
-            if (dropdownOpen) {
-                container.setAttribute('data-dropdown-open', 'true');
-            } else {
-                container.removeAttribute('data-dropdown-open');
-            }
-        }
-    }, [dropdownOpen]);
 
     // Sync edit mode to parent container to prevent hide during IME input
     useEffect(() => {
@@ -208,7 +189,7 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onClose }: LinkTooltipPro
                             Text
                         </span>
                         <input
-                            autoFocus
+                            autoFocus={!isNewLink || !initialText}
                             value={editText}
                             onChange={(e) => setEditText(e.target.value)}
                             onKeyDown={handleKeyDown}
@@ -222,6 +203,7 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onClose }: LinkTooltipPro
                             Link
                         </span>
                         <input
+                            autoFocus={isNewLink && !!initialText}
                             value={editUrl}
                             onChange={(e) => setEditUrl(e.target.value)}
                             onKeyDown={handleKeyDown}
@@ -287,37 +269,24 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onClose }: LinkTooltipPro
                     onClick={() => setMode('edit')}
                     icon={<Edit2 className="size-4" />}
                 />
+            </div>
 
-                <DropdownMenu modal={false} open={dropdownOpen} onOpenChange={setDropdownOpen}>
-                    <DropdownMenuTrigger asChild>
-                        {/* Wrapper div or just the button, but we need Tooltip. 
-                            IconButton has Tooltip built-in but might conflict with DropdownTrigger's asChild expectations if not careful.
-                            Actually, DropdownMenuTrigger asChild passes props to the immediate child. 
-                            If IconButton is the child, it receives trigger props. 
-                            IconButton implementation: returns <Tooltip><TooltipTrigger><button>...
-                            Radix Primitives: Trigger asChild should wrap the semantic button.
-                            Nesting: DropdownTrigger -> Tooltip -> TooltipTrigger -> Button.
-                            This is standard Radix composition. 
-                            However, `IconButton` component doesn't forward ref or ... let's check IconButton definition.
-                            It creates a Tooltip root. 
-                            Let's use manual tooltip for the dropdown trigger to be safe and `IconButton` for the others.
-                        */}
-                        <button className={`${iconButtonStyles} outline-none`}>
-                            <MoreHorizontal className="size-4" />
-                        </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" sideOffset={8} className="w-40 p-1">
-                        <DropdownMenuItem onClick={() => { /* TODO: Unlink */ }} className="text-xs font-medium">
-                            <Unlink className="mr-2 size-3.5" />
-                            <span>Unlink</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator className="my-1" />
-                        <DropdownMenuItem className="text-xs font-medium text-red-600 focus:text-red-700 dark:text-red-400" onClick={() => { /* TODO: Delete */ }}>
-                            <Trash2 className="mr-2 size-3.5" />
-                            <span>Remove</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+            <div className="w-[1px] h-4 bg-gray-200 dark:bg-zinc-700 mx-1" />
+
+            <div className="flex items-center gap-0.5">
+                {/* Unlink button - only show for Markdown links (not autolinks) */}
+                {!isAutolink && (
+                    <IconButton
+                        onClick={onUnlink}
+                        icon={<Unlink className="size-4" />}
+                    />
+                )}
+
+                <IconButton
+                    onClick={onRemove}
+                    icon={<Trash2 className="size-4" />}
+                    className="hover:text-red-500"
+                />
             </div>
         </div>
     );

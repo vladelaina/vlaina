@@ -62,6 +62,12 @@ const ICONS = {
   chevronDown: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <polyline points="6 9 12 15 18 9"></polyline>
   </svg>`,
+  trash: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M3 6h18"></path>
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+    <line x1="10" y1="11" x2="10" y2="17"></line>
+    <line x1="14" y1="11" x2="14" y2="17"></line>
+  </svg>`,
 };
 
 // Format buttons configuration (first group)
@@ -78,6 +84,7 @@ const FORMAT_BUTTONS: ToolbarButtonConfig[] = [
 const EXTRA_BUTTONS: ToolbarButtonConfig[] = [
   { action: 'link', icon: ICONS.link, tooltip: 'Add Link', shortcut: 'Ctrl+K' },
   { action: 'color', icon: ICONS.color, tooltip: 'Text Color' },
+  { action: 'delete', icon: ICONS.trash, tooltip: 'Delete' },
 ];
 
 // ============================================================================
@@ -200,6 +207,18 @@ function handleToolbarAction(view: EditorView, action: string, state: FloatingTo
     dispatch(tr);
     view.focus();
 
+    return;
+  }
+
+  // Delete action
+  if (action === 'delete') {
+    const { state, dispatch } = view;
+    const { from, to } = state.selection;
+    if (from < to) {
+      const tr = state.tr.delete(from, to);
+      dispatch(tr);
+    }
+    view.focus();
     return;
   }
 
@@ -419,6 +438,10 @@ export function renderToolbarContent(
       <div class="toolbar-divider"></div>
       <div class="toolbar-group toolbar-block-group">
         ${blockButton}
+      </div>
+      <div class="toolbar-divider"></div>
+      <div class="toolbar-group">
+        ${renderButton(EXTRA_BUTTONS[2], state.activeMarks)}
       </div>
     </div>
   `;

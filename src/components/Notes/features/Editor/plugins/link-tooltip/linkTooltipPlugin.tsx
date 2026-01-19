@@ -1,4 +1,4 @@
-import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, EditorState } from '@milkdown/kit/prose/state';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 import { createRoot, Root } from 'react-dom/client';
@@ -13,6 +13,7 @@ class LinkTooltipView {
     activeLink: HTMLElement | null = null;
     hideTimer: number | null = null;
     showTimer: number | null = null;
+    isKeyboardInteraction: boolean = false;
 
     constructor(view: EditorView) {
         this.view = view;
@@ -33,6 +34,9 @@ class LinkTooltipView {
 
         // Hide tooltip on scroll
         window.addEventListener('scroll', this.handleScroll, true);
+
+        // Tab key to focus into tooltip
+        this.view.dom.addEventListener('keydown', this.handleEditorKeyDown, true);
     }
 
     handleScroll = () => {
@@ -49,8 +53,8 @@ class LinkTooltipView {
         const target = e.target as HTMLElement;
         const link = target.closest('.autolink') || target.closest('a[href]');
 
-        if (link && (e.metaKey || e.ctrlKey)) {
-            // Aggressively prevent default selection AND open the link immediately
+        // Direct click opens the link (no modifier needed)
+        if (link) {
             const href = link.getAttribute('href') || link.getAttribute('data-href');
             if (href) {
                 window.open(href, '_blank', 'noopener,noreferrer');
@@ -59,6 +63,9 @@ class LinkTooltipView {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
+        } else {
+            // Regular click inside editor, treat as mouse interaction
+            this.isKeyboardInteraction = false;
         }
     };
 
@@ -69,7 +76,8 @@ class LinkTooltipView {
         if (link) {
             this.clearHideTimer();
             if (this.activeLink === link) return;
-            this.startShowTimer(link as HTMLElement);
+            // Hover trigger - skip cursor validation
+            this.startShowTimer(link as HTMLElement, false);
         }
     };
 
@@ -106,10 +114,23 @@ class LinkTooltipView {
         this.startHideTimer();
     };
 
-    startShowTimer(link: HTMLElement) {
+    startShowTimer(link: HTMLElement, shouldValidateCursor: boolean = true) {
         this.clearShowTimer();
         this.showTimer = window.setTimeout(() => {
-            this.show(link);
+            if (!shouldValidateCursor) {
+                this.show(link);
+                return;
+            }
+
+            // Re-validate: check if cursor is still inside a link
+            const { selection } = this.view.state;
+            const { $from } = selection;
+            const nodeBeforeHasLink = $from.nodeBefore?.marks?.some(m => m.type.name === 'link') === true;
+            const nodeAfterHasLink = $from.nodeAfter?.marks?.some(m => m.type.name === 'link') === true;
+
+            if (nodeBeforeHasLink && nodeAfterHasLink) {
+                this.show(link);
+            }
         }, 500);
     }
 
@@ -208,29 +229,32 @@ class LinkTooltipView {
         }
 
         // Don't hide! Find the new link and keep showing it.
-        try {
-            const newStart = tr.mapping.map(absoluteStart);
-            const domInfo = this.view.domAtPos(newStart + 1);
+        // Use RAF to ensure DOM is fully updated before reading textContent
+        requestAnimationFrame(() => {
+            try {
+                const newStart = tr.mapping.map(absoluteStart);
+                const domInfo = this.view.domAtPos(newStart + 1);
 
-            let newLink = domInfo.node as HTMLElement;
-            if (newLink.nodeType === Node.TEXT_NODE) {
-                newLink = newLink.parentElement as HTMLElement;
-            }
-            if (newLink && newLink.tagName !== 'A') {
-                newLink = newLink.closest('a') as HTMLElement;
-            }
+                let newLink = domInfo.node as HTMLElement;
+                if (newLink.nodeType === Node.TEXT_NODE) {
+                    newLink = newLink.parentElement as HTMLElement;
+                }
+                if (newLink && newLink.tagName !== 'A') {
+                    newLink = newLink.closest('a') as HTMLElement;
+                }
 
-            if (newLink) {
-                // Determine if we need to force a refresh even if it's arguably the "same" link
-                // Forcing show() will re-render React component with new props (href/text)
-                this.show(newLink);
-            } else {
+                if (newLink) {
+                    // Determine if we need to force a refresh even if it's arguably the "same" link
+                    // Forcing show() will re-render React component with new props (href/text)
+                    this.show(newLink);
+                } else {
+                    this.hide();
+                }
+            } catch (e) {
+                console.warn('Failed to locate new link node after edit', e);
                 this.hide();
             }
-        } catch (e) {
-            console.warn('Failed to locate new link node after edit', e);
-            this.hide();
-        }
+        });
     };
 
     show(link: HTMLElement) {
@@ -251,6 +275,8 @@ class LinkTooltipView {
                 href={href}
                 initialText={link.textContent || ''}
                 onEdit={(text, url, shouldClose) => this.handleEdit(link, text, url, shouldClose)}
+                onUnlink={() => this.handleUnlink(link)}
+                onRemove={() => this.handleRemove(link)}
                 onClose={() => this.hide()}
             />
         );
@@ -259,6 +285,81 @@ class LinkTooltipView {
         this.updatePosition(link);
         requestAnimationFrame(() => this.updatePosition(link));
     }
+
+    /**
+     * Remove link mark but keep the text content
+     */
+    handleUnlink = (link: HTMLElement) => {
+        const pos = this.view.posAtDOM(link, 0);
+        if (pos < 0) return;
+
+        const { state, dispatch } = this.view;
+        const linkMarkType = state.schema.marks.link;
+        if (!linkMarkType) return;
+
+        // Find the link mark range
+        let start = pos;
+        let end = pos;
+
+        // Scan to find the full extent of the link mark
+        let scanForwards = pos;
+        while (scanForwards < state.doc.content.size) {
+            const $scan = state.doc.resolve(scanForwards);
+            const marks = $scan.marks().concat($scan.nodeAfter?.marks || []);
+            if (!linkMarkType.isInSet(marks)) break;
+            scanForwards++;
+        }
+        let scanBackwards = pos;
+        while (scanBackwards > 0) {
+            const marksBefore = state.doc.resolve(scanBackwards - 1).marks();
+            if (!linkMarkType.isInSet(marksBefore)) break;
+            scanBackwards--;
+        }
+        start = scanBackwards;
+        end = scanForwards;
+
+        // Remove just the link mark, keep the text
+        const tr = state.tr.removeMark(start, end, linkMarkType);
+        dispatch(tr);
+        this.hide();
+    };
+
+    /**
+     * Remove the entire link element (both text and mark)
+     */
+    handleRemove = (link: HTMLElement) => {
+        const pos = this.view.posAtDOM(link, 0);
+        if (pos < 0) return;
+
+        const { state, dispatch } = this.view;
+        const linkMarkType = state.schema.marks.link;
+        if (!linkMarkType) return;
+
+        // Find the link mark range
+        let start = pos;
+        let end = pos;
+
+        let scanForwards = pos;
+        while (scanForwards < state.doc.content.size) {
+            const $scan = state.doc.resolve(scanForwards);
+            const marks = $scan.marks().concat($scan.nodeAfter?.marks || []);
+            if (!linkMarkType.isInSet(marks)) break;
+            scanForwards++;
+        }
+        let scanBackwards = pos;
+        while (scanBackwards > 0) {
+            const marksBefore = state.doc.resolve(scanBackwards - 1).marks();
+            if (!linkMarkType.isInSet(marksBefore)) break;
+            scanBackwards--;
+        }
+        start = scanBackwards;
+        end = scanForwards;
+
+        // Delete the entire range
+        const tr = state.tr.delete(start, end);
+        dispatch(tr);
+        this.hide();
+    };
 
     hide() {
         // Don't hide if dropdown menu is open or in editing mode
@@ -274,12 +375,107 @@ class LinkTooltipView {
         this.activeLink = null;
     }
 
-    update(_view: EditorView) {
+    update(view: EditorView, prevState?: EditorState) {
         // Check if active link is still valid and in the document
         if (this.activeLink && !document.contains(this.activeLink)) {
             this.hide();
         }
+
+        // Auto-show tooltip when caret enters a link
+        // Only trigger if interaction was via keyboard (to avoid annoying popups on click)
+        if (this.isKeyboardInteraction && prevState && !view.state.selection.eq(prevState.selection)) {
+            const { selection } = view.state;
+            const { $from } = selection;
+
+            // Check marks on the characters before and after cursor
+            const nodeBeforeHasLink = $from.nodeBefore?.marks?.some(m => m.type.name === 'link') === true;
+            const nodeAfterHasLink = $from.nodeAfter?.marks?.some(m => m.type.name === 'link') === true;
+
+            // Initial check: must be physically inside or at boundary of a link
+            if (nodeBeforeHasLink || nodeAfterHasLink) {
+                // Find the full extent of the link to handle whitespace
+                const linkMarkType = view.state.schema.marks.link;
+                if (!linkMarkType) return;
+
+                const pos = $from.pos;
+                let start = pos;
+                let end = pos;
+
+                // Scan backwards
+                let scanBack = pos;
+                while (scanBack > 0) {
+                    const prevNode = view.state.doc.resolve(scanBack - 1);
+                    const marks = prevNode.marks();
+                    if (!linkMarkType.isInSet(marks)) break;
+                    scanBack--;
+                }
+                start = scanBack;
+
+                // Scan forwards
+                let scanForward = pos;
+                while (scanForward < view.state.doc.content.size) {
+                    const nextNode = view.state.doc.resolve(scanForward);
+                    const marks = nextNode.marks().concat(nextNode.nodeAfter?.marks || []);
+                    if (!linkMarkType.isInSet(marks)) break;
+                    scanForward++;
+                }
+                end = scanForward;
+
+                // Get the full link text
+                const linkText = view.state.doc.textBetween(start, end, ' ');
+
+                // Calculate effective boundaries (ignoring whitespace)
+                const trimStart = linkText.search(/\S|$/); // First non-whitespace
+                const trimEnd = linkText.search(/\S\s*$/) + 1; // End of last non-whitespace
+
+                const relativePos = pos - start;
+
+                // Show ONLY if cursor is strictly inside the non-whitespace content
+                // If text is all whitespace, trimStart=0, trimEnd=1 (empty found at 0).
+                const isInsideTrimmed = relativePos > trimStart && relativePos < trimEnd;
+
+                if (isInsideTrimmed) {
+                    // One final check: ensure we can find the DOM node
+                    const domInfo = view.domAtPos(pos);
+                    let node = domInfo.node as HTMLElement;
+                    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement as HTMLElement;
+                    if (node && node.tagName !== 'A') node = node.closest('a') as HTMLElement;
+
+                    if (node) {
+                        this.startShowTimer(node, true);
+                    }
+                } else {
+                    // Inside link track but outside meaningful content (e.g. trailing space)
+                    // Treat as boundary -> clear/hide
+                    this.clearShowTimer();
+                    if (this.activeLink && !this.dom.contains(document.activeElement)) {
+                        this.startHideTimer();
+                    }
+                }
+            } else {
+                // Completely outside link
+                this.clearShowTimer();
+                if (this.activeLink && !this.dom.contains(document.activeElement)) {
+                    this.startHideTimer();
+                }
+            }
+        }
     }
+
+    handleEditorKeyDown = (event: KeyboardEvent): void => {
+        // Any key press in editor counts as keyboard interaction
+        this.isKeyboardInteraction = true;
+
+        // Tab key to enter toolbar
+        if (event.key === 'Tab' && !this.dom.classList.contains('hidden')) {
+            event.preventDefault();
+            // Focus the first actionable item
+            const firstFocusable = this.dom.querySelector('button, input') as HTMLElement;
+            if (firstFocusable) {
+                firstFocusable.focus();
+            }
+        }
+    };
 
     /**
      * Show the tooltip at a specific position range, without requiring a DOM <a> element.
@@ -300,6 +496,8 @@ class LinkTooltipView {
                 href=""
                 initialText={selectedText}
                 onEdit={(text, url, shouldClose) => this.handleEditAtPosition(from, to, text, url, shouldClose)}
+                onUnlink={() => { /* New links have no href to unlink */ }}
+                onRemove={() => this.hide()}
                 onClose={() => this.hide()}
             />
         );
@@ -359,27 +557,30 @@ class LinkTooltipView {
         }
 
         // Try to find and show the new link
-        try {
-            const newStart = tr.mapping.map(from);
-            const domInfo = this.view.domAtPos(newStart + 1);
+        // Use RAF to ensure DOM is fully updated before reading textContent
+        requestAnimationFrame(() => {
+            try {
+                const newStart = tr.mapping.map(from);
+                const domInfo = this.view.domAtPos(newStart + 1);
 
-            let newLink = domInfo.node as HTMLElement;
-            if (newLink.nodeType === Node.TEXT_NODE) {
-                newLink = newLink.parentElement as HTMLElement;
-            }
-            if (newLink && newLink.tagName !== 'A') {
-                newLink = newLink.closest('a') as HTMLElement;
-            }
+                let newLink = domInfo.node as HTMLElement;
+                if (newLink.nodeType === Node.TEXT_NODE) {
+                    newLink = newLink.parentElement as HTMLElement;
+                }
+                if (newLink && newLink.tagName !== 'A') {
+                    newLink = newLink.closest('a') as HTMLElement;
+                }
 
-            if (newLink) {
-                this.show(newLink);
-            } else {
+                if (newLink) {
+                    this.show(newLink);
+                } else {
+                    this.hide();
+                }
+            } catch (e) {
+                console.warn('Failed to locate new link node after edit', e);
                 this.hide();
             }
-        } catch (e) {
-            console.warn('Failed to locate new link node after edit', e);
-            this.hide();
-        }
+        });
     };
 
     destroy() {
@@ -389,6 +590,7 @@ class LinkTooltipView {
         this.dom.removeEventListener('mouseenter', this.handleTooltipMouseEnter);
         this.dom.removeEventListener('mouseleave', this.handleTooltipMouseLeave);
         window.removeEventListener('scroll', this.handleScroll, true);
+        this.view.dom.removeEventListener('keydown', this.handleEditorKeyDown);
         this.dom.remove();
         this.root?.unmount();
     }
@@ -418,9 +620,10 @@ export const linkTooltipPlugin = $prose(() => {
         },
         view(editorView) {
             const tooltipView = new LinkTooltipView(editorView);
+
             return {
-                update(view) {
-                    tooltipView.update(view);
+                update(view, prevState) {
+                    tooltipView.update(view, prevState);
 
                     const pluginState = linkTooltipPluginKey.getState(view.state);
 
