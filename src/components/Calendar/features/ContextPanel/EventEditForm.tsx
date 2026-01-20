@@ -168,20 +168,40 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
           <button
             onClick={() => {
               if (event.allDay) {
-                const dayStart = new Date(event.dtstart);
-                dayStart.setHours(9, 0, 0, 0);
-                const dayEnd = new Date(dayStart);
-                dayEnd.setHours(10, 0, 0, 0);
+                // Switch to Timed: Try to restore original time
+                let newStart = new Date(event.dtstart);
+                let newEnd = new Date(event.dtstart);
+                
+                if (event.originalDtStart && event.originalDtEnd) {
+                    const originalStart = new Date(event.originalDtStart);
+                    const originalEnd = new Date(event.originalDtEnd);
+                    const duration = originalEnd.getTime() - originalStart.getTime();
+                    
+                    // Apply original TIME to current DATE
+                    newStart.setHours(originalStart.getHours(), originalStart.getMinutes(), 0, 0);
+                    newEnd = new Date(newStart.getTime() + duration);
+                } else {
+                    // Fallback default
+                    newStart.setHours(9, 0, 0, 0);
+                    newEnd = new Date(newStart);
+                    newEnd.setHours(10, 0, 0, 0);
+                }
+
                 updateEvent(event.uid, {
                   allDay: false,
-                  dtstart: dayStart,
-                  dtend: dayEnd,
+                  dtstart: newStart,
+                  dtend: newEnd,
+                  originalDtStart: undefined,
+                  originalDtEnd: undefined,
                 });
               } else {
+                // Switch to All Day: Backup current time
                 updateEvent(event.uid, {
                   allDay: true,
                   dtstart: startOfDay(startDate),
                   dtend: endOfDay(startDate),
+                  originalDtStart: event.dtstart.getTime(),
+                  originalDtEnd: event.dtend.getTime(),
                 });
               }
             }}

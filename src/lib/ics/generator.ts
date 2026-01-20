@@ -65,6 +65,14 @@ export function generateICS(events: NekoEvent[], calendar: NekoCalendar): string
             xProps.push({ key: NEKO_X_PROPS.COMPLETED, value: 'TRUE' });
         }
 
+        if (event.originalDtStart !== undefined) {
+            xProps.push({ key: NEKO_X_PROPS.ORIGINAL_DTSTART, value: String(event.originalDtStart) });
+        }
+
+        if (event.originalDtEnd !== undefined) {
+            xProps.push({ key: NEKO_X_PROPS.ORIGINAL_DTEND, value: String(event.originalDtEnd) });
+        }
+
         // Add all X-properties
         if (xProps.length > 0) {
             calEvent.x(xProps);

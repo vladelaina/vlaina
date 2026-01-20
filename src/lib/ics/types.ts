@@ -59,6 +59,12 @@ export interface NekoEvent {
 
     /** Whether this event is completed/done */
     completed?: boolean;
+
+    /** Original start time (timestamp) before switching to all-day */
+    originalDtStart?: number;
+
+    /** Original end time (timestamp) before switching to all-day */
+    originalDtEnd?: number;
 }
 
 /**
@@ -90,4 +96,6 @@ export const NEKO_X_PROPS = {
     TIMER_STARTED: 'X-NEKO-TIMER-STARTED',
     TIMER_ACCUMULATED: 'X-NEKO-TIMER-ACCUMULATED',
     COMPLETED: 'X-NEKO-COMPLETED',
+    ORIGINAL_DTSTART: 'X-NEKO-ORIGINAL-DTSTART',
+    ORIGINAL_DTEND: 'X-NEKO-ORIGINAL-DTEND',
 } as const;
