@@ -27,8 +27,9 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
         if (!dtstart) continue; // Skip invalid events
 
         // Get NekoTick custom properties
-        const nekoColor = vevent.getFirstPropertyValue(NEKO_X_PROPS.COLOR) as ItemColor | null;
-        let nekoIcon = vevent.getFirstPropertyValue(NEKO_X_PROPS.ICON) as string | null;
+        // Note: ical.js normalizes X- properties to lowercase, so we must query with lowercase keys
+        const nekoColor = vevent.getFirstPropertyValue(NEKO_X_PROPS.COLOR.toLowerCase()) as ItemColor | null;
+        let nekoIcon = vevent.getFirstPropertyValue(NEKO_X_PROPS.ICON.toLowerCase()) as string | null;
         
         if (nekoIcon) {
             try {
@@ -37,12 +38,12 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
                 // Fallback to raw value if decoding fails (legacy data)
             }
         }
-        const nekoIconSize = vevent.getFirstPropertyValue(NEKO_X_PROPS.ICON_SIZE) as string | null;
-        const nekoCalendarId = vevent.getFirstPropertyValue(NEKO_X_PROPS.CALENDAR_ID) as string | null;
-        const nekoTimerState = vevent.getFirstPropertyValue(NEKO_X_PROPS.TIMER_STATE) as 'idle' | 'running' | 'paused' | null;
-        const nekoTimerStarted = vevent.getFirstPropertyValue(NEKO_X_PROPS.TIMER_STARTED) as string | null;
-        const nekoTimerAccumulated = vevent.getFirstPropertyValue(NEKO_X_PROPS.TIMER_ACCUMULATED) as string | null;
-        const nekoCompleted = vevent.getFirstPropertyValue(NEKO_X_PROPS.COMPLETED) as string | null;
+        const nekoIconSize = vevent.getFirstPropertyValue(NEKO_X_PROPS.ICON_SIZE.toLowerCase()) as string | null;
+        const nekoCalendarId = vevent.getFirstPropertyValue(NEKO_X_PROPS.CALENDAR_ID.toLowerCase()) as string | null;
+        const nekoTimerState = vevent.getFirstPropertyValue(NEKO_X_PROPS.TIMER_STATE.toLowerCase()) as 'idle' | 'running' | 'paused' | null;
+        const nekoTimerStarted = vevent.getFirstPropertyValue(NEKO_X_PROPS.TIMER_STARTED.toLowerCase()) as string | null;
+        const nekoTimerAccumulated = vevent.getFirstPropertyValue(NEKO_X_PROPS.TIMER_ACCUMULATED.toLowerCase()) as string | null;
+        const nekoCompleted = vevent.getFirstPropertyValue(NEKO_X_PROPS.COMPLETED.toLowerCase()) as string | null;
 
         const nekoEvent: NekoEvent = {
             uid: event.uid || crypto.randomUUID(),

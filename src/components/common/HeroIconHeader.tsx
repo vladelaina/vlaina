@@ -244,6 +244,7 @@ export function HeroIconHeader({
               <div 
                 className="fixed z-[9999]"
                 style={{ top: pickerPosition.top, left: pickerPosition.left }}
+                data-no-auto-close="true"
               >
                   <IconPicker
                       onSelect={handleIconSelect}
