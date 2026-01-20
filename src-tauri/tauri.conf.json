@@ -19,7 +19,7 @@
         "minHeight": 300,
         "center": true,
         "decorations": false,
-        "transparent": true,
+        "transparent": false,
         "backgroundColor": "#00000000",
         "zoomHotkeysEnabled": false,
         "resizable": true,
