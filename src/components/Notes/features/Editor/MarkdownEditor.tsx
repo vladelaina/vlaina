@@ -168,7 +168,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       .use(commonmark)
       .use(gfm)
       .use(history)
-      .use(clipboard)
+      // .use(clipboard) // Removed to avoid conflict with custom clipboardPlugin
       .use(listener)
       .use(configureTheme)
       .use(customPlugins),
