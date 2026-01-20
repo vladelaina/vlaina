@@ -22,6 +22,7 @@ import { TimeColumn } from './components/TimeColumn';
 import { GridLines } from './components/GridLines';
 import { CurrentTimeLine } from './components/CurrentTimeLine';
 import { EventsLayer } from './components/EventsLayer';
+import { SunLinesLayer } from './components/SunLinesLayer';
 
 const GUTTER_WIDTH = CALENDAR_CONSTANTS.GUTTER_WIDTH as number;
 
@@ -144,12 +145,6 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
               days={days}
             />
 
-            <CurrentTimeLine
-              nowTop={nowTop}
-              use24Hour={use24Hour}
-              now={now}
-            />
-
             <EventsLayer
               days={days}
               timedEvents={timedEvents}
@@ -164,6 +159,20 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
               onEventDragStart={handleEventDragStart}
               onEventHover={handleEventHover}
             />
+
+            <SunLinesLayer
+              days={days}
+              hourHeight={hourHeight}
+              dayStartMinutes={dayStartMinutes}
+              columnCount={columnCount}
+            />
+
+            <CurrentTimeLine
+              nowTop={nowTop}
+              now={now}
+              use24Hour={use24Hour}
+            />
+
           </div>
         </div>
       </div>
