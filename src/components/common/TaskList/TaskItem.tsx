@@ -164,7 +164,7 @@ export function TaskItem({
                     {...attributes} 
                     {...listeners}
                     className={cn(
-                        "flex-shrink-0 mt-0.5 cursor-grab active:cursor-grabbing p-1 -ml-1 rounded-md hover:bg-zinc-200/50 dark:hover:bg-zinc-700/50 transition-colors",
+                        "flex-shrink-0 mt-0.5 cursor-grab active:cursor-grabbing transition-colors",
                         "flex items-center justify-center h-6 w-6"
                     )}
                 >
@@ -172,7 +172,7 @@ export function TaskItem({
                         <button
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={onToggleCollapse}
-                            className="p-0.5 rounded-sm hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors"
+                            className="p-0.5 transition-colors"
                         >
                             {collapsed ? (
                                 <ChevronRight className="h-4 w-4 text-zinc-400" />
