@@ -43,7 +43,7 @@ export interface UniversalIconPickerProps {
   
   // Callbacks for global preferences (optional)
   onSkinToneChange?: (tone: number) => void;
-  onIconColorChange?: (color: string) => void;
+  onIconColorChange?: (color: ItemColor) => void;
   
   // Preview State Notifications (optional)
   onPreviewSkinTone?: (tone: number | null) => void;
@@ -51,6 +51,7 @@ export interface UniversalIconPickerProps {
 
   // Style overrides
   embedded?: boolean;
+  defaultColor?: ItemColor;
   
   // Image Loading
   imageLoader?: (src: string) => Promise<string>;
@@ -79,13 +80,14 @@ export function UniversalIconPicker({
   onPreviewColor,
 
   embedded = false,
+  defaultColor,
   imageLoader,
 }: UniversalIconPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<TabType>(loadActiveTab);
   const [recentIcons, setRecentIcons] = useState<string[]>(loadRecentIcons);
   const [skinTone, setSkinTone] = useState(loadSkinTone);
-  const [iconColor, setIconColor] = useState<ItemColor>(loadIconColor);
+  const [iconColor, setIconColor] = useState<ItemColor>(() => defaultColor || loadIconColor());
 
   // Track active categories for random selection within current group
   const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('people');
@@ -130,8 +132,7 @@ export function UniversalIconPicker({
     saveIconColor(color);
     
     // Notify parent
-    const hexColor = COLOR_HEX[color] || COLOR_HEX['default'];
-    onIconColorChange?.(hexColor);
+    onIconColorChange?.(color);
   }, [onIconColorChange]);
   
   const handleSkinToneChangeInternal = useCallback((tone: number) => {
@@ -200,9 +201,13 @@ export function UniversalIconPicker({
     if (embedded) return;
 
     const onClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Don't close if interacting with elements marked to prevent closing (e.g. external slider)
+      if (target.closest('[data-prevent-picker-close]')) return;
+
       // Don't close if interacting with the cropper or sliders (which might portal or just look outside)
       // But standard logic usually applies.
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(target as Node)) {
         onPreview?.(null);
         handleClose();
       }

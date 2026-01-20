@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
 import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconPreview';
-import type { ItemColor } from '@/lib/colors';
+import { type ItemColor, COLOR_HEX } from '@/lib/colors';
 
 export function useEventForm(event: NekoEvent) {
     const { updateEvent, updateEventIcon, closeEditingEvent, calendars, deleteEvent } = useCalendarStore();
@@ -77,12 +77,47 @@ export function useEventForm(event: NekoEvent) {
     };
 
     const handleColorChange = (color: ItemColor) => {
-        updateEvent(event.uid, { color });
+        const updates: Partial<NekoEvent> = { color };
+
+        // If current icon is a vector icon (icon:name:color), sync its color too
+        if (localIcon && localIcon.startsWith('icon:')) {
+            const parts = localIcon.split(':');
+            if (parts.length >= 2) {
+                const hex = COLOR_HEX[color];
+                
+                if (hex) {
+                    const newIcon = `icon:${parts[1]}:${hex}`;
+                    setLocalIcon(newIcon);
+                    updates.icon = newIcon;
+                }
+            }
+        }
+        
+        updateEvent(event.uid, updates);
     };
 
     const handleIconChange = (icon: string | null) => {
         setLocalIcon(icon);
-        updateEventIcon(event.uid, icon || undefined);
+        
+        const updates: Partial<NekoEvent> = { icon: icon || undefined };
+
+        // Check for color sync: if icon string contains a color (icon:name:hex), try to sync event color
+        if (icon && icon.startsWith('icon:')) {
+            const parts = icon.split(':');
+            if (parts.length >= 3) {
+                const hexColor = parts[2];
+                // Reverse lookup color name from hex
+                const colorEntry = Object.entries(COLOR_HEX).find(([_, hex]) => hex.toLowerCase() === hexColor.toLowerCase());
+                if (colorEntry) {
+                    const colorName = colorEntry[0] as ItemColor;
+                    if (colorName !== event.color) {
+                        updates.color = colorName;
+                    }
+                }
+            }
+        }
+
+        updateEvent(event.uid, updates);
     };
 
     const handleIconSizeConfirm = (size: number) => {
