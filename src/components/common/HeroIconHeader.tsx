@@ -121,7 +121,7 @@ export function HeroIconHeader({
     if (iconButtonRef.current) {
       const rect = iconButtonRef.current.getBoundingClientRect();
       setPickerPosition({
-        top: rect.bottom + 8,
+        top: rect.bottom + 40, // Fine-tuned offset
         left: rect.left,
       });
     }
