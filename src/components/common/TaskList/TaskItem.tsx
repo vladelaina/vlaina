@@ -50,6 +50,7 @@ interface TaskItemProps {
     onDelete: (id: string) => void;
     onAddSubTask?: (parentId: string) => void;
     isBeingDragged?: boolean;
+    isOverlay?: boolean;
     level?: number;
     hasChildren?: boolean;
     collapsed?: boolean;
@@ -63,6 +64,7 @@ export function TaskItem({
     onDelete,
     onAddSubTask,
     isBeingDragged,
+    isOverlay,
     level = 0,
     hasChildren = false,
     collapsed = false,
@@ -90,7 +92,7 @@ export function TaskItem({
 
     const style = {
         transform: CSS.Transform.toString(transform),
-        transition,
+        transition: isOverlay ? undefined : transition, // No transition for overlay to snap instantly
     };
 
     useEffect(() => {
@@ -148,41 +150,41 @@ export function TaskItem({
                 style={style}
                 data-task-id={task.id}
                 className={cn(
-                    'group flex items-start gap-3 px-3 py-2 rounded-xl', // Gap 1.5 -> 3, Padding 1.5 -> 3/2, rounded-md -> rounded-xl
-                    'border border-transparent',
-                    isBeingDragged
-                        ? 'opacity-0'
-                        : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
+                    'group flex items-start gap-3 px-3 py-2 rounded-xl transition-all',
+                    'border',
+                    isOverlay
+                        ? 'bg-white dark:bg-zinc-800 shadow-xl scale-[1.02] border-zinc-200 dark:border-zinc-700 cursor-grabbing z-50'
+                        : isBeingDragged
+                            ? 'opacity-0 border-transparent'
+                            : 'border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
                 )}
             >
-                {/* Collapse/Expand icon */}
-                {hasChildren ? (
-                    <button
-                        onClick={onToggleCollapse}
-                        className="p-1 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0 mt-0.5"
-                    >
-                        {collapsed ? (
-                            <ChevronRight className="h-4 w-4 text-zinc-400" />
-                        ) : (
-                            <ChevronDown className="h-4 w-4 text-zinc-400" />
-                        )}
-                    </button>
-                ) : (
-                    <div className="w-6" /> // Match button width + padding
-                )}
-
-                {/* Drag handle */}
-                <button
-                    {...attributes}
+                {/* Drag Zone (Left Side) */}
+                <div 
+                    {...attributes} 
                     {...listeners}
                     className={cn(
-                        'opacity-0 group-hover:opacity-100 cursor-move',
-                        'p-1 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-opacity duration-150',
-                        'touch-none flex-shrink-0 mt-0.5'
+                        "flex-shrink-0 mt-0.5 cursor-grab active:cursor-grabbing p-1 -ml-1 rounded-md hover:bg-zinc-200/50 dark:hover:bg-zinc-700/50 transition-colors",
+                        "flex items-center justify-center h-6 w-6"
                     )}
                 >
-                    <GripVertical className="h-4 w-4 text-zinc-400" />
-                </button>
+                    {hasChildren ? (
+                        <button
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={onToggleCollapse}
+                            className="p-0.5 rounded-sm hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors"
+                        >
+                            {collapsed ? (
+                                <ChevronRight className="h-4 w-4 text-zinc-400" />
+                            ) : (
+                                <ChevronDown className="h-4 w-4 text-zinc-400" />
+                            )}
+                        </button>
+                    ) : (
+                        // Invisible hit area for pure drag
+                        <div className="w-full h-full" />
+                    )}
+                </div>
 
                 {/* Checkbox */}
                 <div className="mt-0.5 flex-shrink-0">

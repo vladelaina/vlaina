@@ -1,12 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Search, X } from 'lucide-react';
-import { DndContext, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
-import { TaskInput, TaskItem } from '@/components/common/TaskList';
-import { useTaskDragAndDrop } from '@/components/common/TaskList/useTaskDragAndDrop';
+import { TaskInput, TaskItem, TaskDragContext } from '@/components/common/TaskList';
 import { TodoListSection } from './components/TodoListSection';
 
 interface TaskListViewProps {
@@ -43,7 +41,15 @@ export function TaskListView({
         activeGroupId,
     } = useGroupStore();
 
-    const { setDraggingTaskId, hideCompleted } = useUIStore();
+    const { setDraggingTaskId, hideCompleted, activeId } = useUIStore(); // Note: activeId is not in UIStore usually, checking context... actually drag logic manages activeId internally or via hook.
+    // Wait, useTaskDragAndDrop managed activeId locally.
+    // In the refactor, TaskDragContext manages it internally. 
+    // We only need 'isBeingDragged' for the item rendering.
+    // HOWEVER, the `renderTaskItem` needs to know if an item is being dragged to set opacity-0.
+    // The `TaskDragContext` uses `useTaskDragAndDrop` which calls `setDraggingTaskId` (from store).
+    // So we should use `useUIStore().draggingTaskId` to check for drag state.
+
+    const { draggingTaskId } = useUIStore();
 
     const [scheduledExpanded, setScheduledExpanded] = useState(true);
     const [completedExpanded, setCompletedExpanded] = useState(false);
@@ -55,23 +61,6 @@ export function TaskListView({
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const completedMenuRef = useRef<HTMLDivElement>(null);
-
-    // Drag and Drop Logic
-    const {
-        sensors,
-        customCollisionDetection,
-        activeId,
-        handleDragStart,
-        handleDragMove,
-        handleDragOver,
-        handleDragEnd,
-    } = useTaskDragAndDrop({
-        tasks: allTasks,
-        reorderTasks,
-        updateTaskTime,
-        toggleTask,
-        setDraggingTaskId,
-    });
 
     // Handlers
     const handleAddSubTask = useCallback((parentId: string) => {
@@ -114,7 +103,7 @@ export function TaskListView({
     const renderTaskItem = useCallback((task: any, level: number = 0) => {
         const children = getChildren(task.id);
         const hasChildren = children.length > 0;
-        const isBeingDragged = activeId === task.id;
+        const isBeingDragged = draggingTaskId === task.id;
 
         return (
             <div key={task.id}>
@@ -137,7 +126,7 @@ export function TaskListView({
                 )}
             </div>
         );
-    }, [activeId, getChildren, toggleTask, updateTask, deleteTask, handleAddSubTask, toggleCollapse]);
+    }, [draggingTaskId, getChildren, toggleTask, updateTask, deleteTask, handleAddSubTask, toggleCollapse]);
 
     return (
         <div className="h-full flex flex-col bg-white dark:bg-zinc-900 overflow-hidden relative">
@@ -175,13 +164,13 @@ export function TaskListView({
                     className="flex-1 overflow-y-auto px-8 pb-20 scroll-smooth neko-scrollbar"
                 >
                     <div className="max-w-3xl mx-auto w-full pb-10">
-                        <DndContext
-                            sensors={sensors}
-                            collisionDetection={customCollisionDetection}
-                            onDragStart={handleDragStart}
-                            onDragMove={handleDragMove}
-                            onDragOver={handleDragOver}
-                            onDragEnd={handleDragEnd}
+                        <TaskDragContext
+                            allTasks={allTasks}
+                            reorderTasks={reorderTasks}
+                            updateTaskTime={updateTaskTime}
+                            toggleTask={toggleTask}
+                            setDraggingTaskId={setDraggingTaskId}
+                            getChildCount={(id) => getChildren(id).length}
                         >
                             <SortableContext
                                 items={allSortableIds}
@@ -253,15 +242,7 @@ export function TaskListView({
                                     />
                                 )}
                             </SortableContext>
-
-                            <DragOverlay dropAnimation={null} className="cursor-grabbing" style={{ zIndex: 999999 }}>
-                                {activeId ? (
-                                    <div className="p-3 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-700 opacity-90">
-                                        Dragging item...
-                                    </div>
-                                ) : null}
-                            </DragOverlay>
-                        </DndContext>
+                        </TaskDragContext>
                     </div>
                 </div>
             </div>
