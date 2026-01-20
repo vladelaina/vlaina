@@ -29,6 +29,7 @@ interface UseDragToCreateReturn {
     isDragging: boolean;
     dragStart: DragPosition | null;
     dragEnd: { minutes: number } | null;
+    dragId: string | null;
     dragTimeIndicator: TimeIndicator | null;
     handleCanvasMouseDown: (e: React.MouseEvent) => void;
     handleMouseMove: (e: MouseEvent) => void;

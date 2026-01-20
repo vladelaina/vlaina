@@ -3,7 +3,7 @@ import { startOfDay, endOfDay } from 'date-fns';
 import { Clock, Sun } from 'lucide-react';
 import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
 import { cn } from '@/lib/utils';
-import { ALL_COLORS, COLOR_HEX, type ItemColor } from '@/lib/colors';
+import { COLOR_HEX, type ItemColor } from '@/lib/colors';
 import { ColorPicker } from '@/components/common';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 import { useEventForm } from './hooks/useEventForm';
