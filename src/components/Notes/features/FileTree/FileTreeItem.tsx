@@ -1,6 +1,6 @@
 // FileTreeItem - Individual file or folder item
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -38,7 +38,7 @@ interface FileTreeItemProps {
   currentNotePath?: string;
 }
 
-export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps) {
+export const FileTreeItem = React.memo(function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps) {
   const openNote = useNotesStore(s => s.openNote);
   const toggleFolder = useNotesStore(s => s.toggleFolder);
   const deleteNote = useNotesStore(s => s.deleteNote);
@@ -90,37 +90,37 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
   const isActive = !node.isFolder && node.path === currentNotePath;
   const paddingLeft = 8 + depth * 16;
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = useCallback((e: React.MouseEvent) => {
     if (node.isFolder) {
       toggleFolder(node.path);
     } else {
       openNote(node.path, e.ctrlKey || e.metaKey);
     }
-  };
+  }, [node.isFolder, node.path, toggleFolder, openNote]);
 
-  const handleContextMenu = (e: React.MouseEvent) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setShowMenu(true);
-  };
+  }, []);
 
-  const handleDeleteClick = () => {
+  const handleDeleteClick = useCallback(() => {
     setShowMenu(false);
     setShowDeleteDialog(true);
-  };
+  }, []);
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (node.isFolder) {
       await deleteFolder(node.path);
     } else {
       await deleteNote(node.path);
     }
     setShowDeleteDialog(false);
-  };
+  }, [node.isFolder, node.path, deleteFolder, deleteNote]);
 
-  const handleRename = () => {
+  const handleRename = useCallback(() => {
     setIsRenaming(true);
     setShowMenu(false);
-  };
+  }, []);
 
   const handleRenameSubmit = async () => {
     const trimmedValue = renameValue.trim();
@@ -134,12 +134,12 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
     setIsRenaming(false);
   };
 
-  const handleNewNoteInFolder = async () => {
+  const handleNewNoteInFolder = useCallback(async () => {
     if (node.isFolder) {
       await createNote(node.path);
     }
     setShowMenu(false);
-  };
+  }, [node.isFolder, node.path, createNote]);
 
   /* const handleNewFolderInFolder = async () => {
     if (node.isFolder) {
@@ -148,33 +148,33 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
     setShowMenu(false);
   }; */
 
-  const handleToggleStar = () => {
+  const handleToggleStar = useCallback(() => {
     if (node.isFolder) {
       toggleFolderStarred(node.path);
     } else {
       toggleStarred(node.path);
     }
     setShowMenu(false);
-  };
+  }, [node.isFolder, node.path, toggleFolderStarred, toggleStarred]);
 
-  const handleDragStart = (e: React.DragEvent) => {
+  const handleDragStart = useCallback((e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', node.path);
     e.dataTransfer.effectAllowed = 'move';
-  };
+  }, [node.path]);
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: React.DragEvent) => {
     if (node.isFolder) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
       setIsDragOver(true);
     }
-  };
+  }, [node.isFolder]);
 
-  const handleDragLeave = () => {
+  const handleDragLeave = useCallback(() => {
     setIsDragOver(false);
-  };
+  }, []);
 
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
 
@@ -184,7 +184,7 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
     if (sourcePath && sourcePath !== node.path && !sourcePath.startsWith(node.path + '/')) {
       await moveItem(sourcePath, node.path);
     }
-  };
+  }, [node.isFolder, node.path, moveItem]);
 
   return (
     <div className="relative">
@@ -433,9 +433,28 @@ export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps
       </Dialog>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison for memo: only re-render if key props changed
+  const prevNode = prevProps.node;
+  const nextNode = nextProps.node;
 
-function MenuItem({
+  // Basic checks
+  if (prevNode.id !== nextNode.id) return false;
+  if (prevNode.name !== nextNode.name) return false;
+  if (prevNode.isFolder !== nextNode.isFolder) return false;
+  if (prevProps.depth !== nextProps.depth) return false;
+  if (prevProps.currentNotePath !== nextProps.currentNotePath) return false;
+
+  // Folder-specific checks
+  if (prevNode.isFolder && nextNode.isFolder) {
+    if (prevNode.expanded !== nextNode.expanded) return false;
+    if (prevNode.children?.length !== nextNode.children?.length) return false;
+  }
+
+  return true;
+});
+
+const MenuItem = React.memo(function MenuItem({
   icon,
   label,
   onClick,
@@ -465,4 +484,4 @@ function MenuItem({
       {label}
     </button>
   );
-}
+});
