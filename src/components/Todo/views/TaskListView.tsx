@@ -20,7 +20,7 @@ interface TaskListViewProps {
     onUpdateTask?: (id: string, content: string) => void;
     onDeleteTask?: (id: string) => void;
     onUpdateTaskIcon?: (id: string, icon: string) => void;
-    bottomActions?: React.ReactNode;
+    headerControls?: React.ReactNode;
 }
 
 /**
@@ -38,7 +38,7 @@ export function TaskListView({
     onUpdateTask,
     onDeleteTask,
     onUpdateTaskIcon,
-    bottomActions,
+    headerControls,
 }: TaskListViewProps) {
     const groupStore = useGroupStore();
     
@@ -168,6 +168,13 @@ export function TaskListView({
         <div className="h-full flex flex-col bg-white dark:bg-zinc-900 overflow-hidden relative">
             {/* Header - Minimalist & Expandable */}
             <div className="flex-shrink-0 px-8 py-3 flex items-center justify-end z-10 min-h-[52px]">
+                {/* Header Controls (Date Picker, etc.) */}
+                {headerControls && (
+                    <div className="mr-auto">
+                        {headerControls}
+                    </div>
+                )}
+
                 <motion.div 
                     initial={false}
                     animate={{ 
@@ -352,13 +359,6 @@ export function TaskListView({
                     </motion.div>
                 )}
             </AnimatePresence>
-
-            {/* Bottom Actions */}
-            {bottomActions && (
-                <div className="absolute left-6 bottom-6 z-20">
-                    {bottomActions}
-                </div>
-            )}
         </div>
     );
 }

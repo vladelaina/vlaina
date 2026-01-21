@@ -133,27 +133,27 @@ export function TodayView() {
         }
     }, [updateEvent, updateTaskIcon]);
 
-    // 5. Bottom Actions (Date Picker + Jump)
-    const bottomActions = (
+    // 5. Header Actions (Date Picker + Jump)
+    const headerActions = (
         <div className="flex items-center gap-2">
             <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
                 <PopoverTrigger asChild>
                     <button 
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors text-zinc-600 dark:text-zinc-300 text-sm font-medium"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-transparent transition-colors text-zinc-600 dark:text-zinc-300 text-sm font-medium group"
                         title="Change Date"
                     >
-                        <Calendar className="w-4 h-4 text-zinc-400" />
+                        <Calendar className="w-4 h-4 text-zinc-400 group-hover:text-zinc-500 dark:text-zinc-500 dark:group-hover:text-zinc-400 transition-colors" />
                         <span>{isTodayView ? "Today" : format(selectedDate, "MMM d")}</span>
                     </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-2 mb-2" align="start" sideOffset={8}>
+                <PopoverContent className="w-auto p-2" align="start" sideOffset={8}>
                     <MiniCalendar onSelect={() => setDatePickerOpen(false)} />
                 </PopoverContent>
             </Popover>
 
             <button
                 onClick={() => setAppViewMode('calendar')}
-                className="p-2 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-transparent transition-colors text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
                 title="Open in Calendar View"
             >
                 <ArrowUpRight className="w-4 h-4" />
@@ -176,8 +176,8 @@ export function TodayView() {
             onDeleteTask={handleDelete}
             onUpdateTaskIcon={handleUpdateIcon}
 
-            // Pass bottom actions
-            bottomActions={bottomActions}
+            // Pass header controls
+            headerControls={headerActions}
         />
     );
 }
