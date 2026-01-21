@@ -22,7 +22,7 @@ import { useTaskPanelState } from './hooks/useTaskPanelState';
 // Components
 import { PanelHeader } from './components/PanelHeader';
 import { SearchBar } from './components/SearchBar';
-import { GroupSelector } from './components/GroupSelector';
+import { GroupSelector } from '@/components/common/TaskList';
 import { SubTaskModal } from './components/SubTaskModal';
 import { TaskListView } from './views/TaskListView';
 
@@ -217,7 +217,7 @@ export function CalendarTaskPanel({
             <GroupSelector
               groups={groups}
               activeGroupId={activeGroupId}
-              onSelectGroup={(id) => {
+              onSelectGroup={(id: string) => {
                 setActiveGroup(id);
                 uiState.setShowGroupPicker(false);
               }}
