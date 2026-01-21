@@ -22,6 +22,7 @@ export { tocPlugin } from './toc';
 export { mermaidPlugin } from './mermaid';
 export { videoPlugin } from './video';
 export { footnotePlugin } from './footnote';
+export { imageBlockPlugin } from './image-block';
 
 // Code
 export { codePlugin, codeEnhancePlugin } from './code';
