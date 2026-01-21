@@ -1,13 +1,22 @@
 import { useMemo, useState, useEffect } from 'react';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ListTodo } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MiniCalendar } from '../DateSelector/MiniCalendar';
 import { WeatherWidget } from '../Header/WeatherWidget';
 import { useCalendarStore } from '@/stores/useCalendarStore';
+import { useUIStore } from '@/stores/uiSlice';
+import { useGroupStore } from '@/stores/useGroupStore';
 
 export function CalendarHeaderControl() {
   const { selectedDate, setSelectedDate, viewMode, dayCount } = useCalendarStore();
+  const { setAppViewMode } = useUIStore();
+  const { setActiveGroup } = useGroupStore();
+
+  const handleJumpToTodo = () => {
+    setActiveGroup('today');
+    setAppViewMode('todo');
+  };
 
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
@@ -41,6 +50,14 @@ export function CalendarHeaderControl() {
         </Popover>
 
         <WeatherWidget />
+
+        <button
+          onClick={handleJumpToTodo}
+          className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+          title="Open in Today List"
+        >
+          <ListTodo className="size-4" />
+        </button>
 
         {/* Today Button - Appears if selected date is not today */}
         {!isSameDay(selectedDate, new Date()) && (
@@ -90,6 +107,14 @@ export function CalendarHeaderControl() {
         </Popover>
 
         <WeatherWidget />
+
+        <button
+          onClick={handleJumpToTodo}
+          className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+          title="Open in Today List"
+        >
+          <ListTodo className="size-4" />
+        </button>
 
         {/* Today Button - Appears next to the date group */}
         {!days.some(day => isSameDay(day, new Date())) && (

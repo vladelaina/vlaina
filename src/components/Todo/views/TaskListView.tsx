@@ -15,6 +15,12 @@ interface TaskListViewProps {
     searchQuery: string;
     setSearchQuery: (q: string) => void;
     showScheduledSection?: boolean;
+    // Action overrides
+    onToggleTask?: (id: string) => void;
+    onUpdateTask?: (id: string, content: string) => void;
+    onDeleteTask?: (id: string) => void;
+    onUpdateTaskIcon?: (id: string, icon: string) => void;
+    bottomActions?: React.ReactNode;
 }
 
 /**
@@ -28,11 +34,21 @@ export function TaskListView({
     searchQuery,
     setSearchQuery,
     showScheduledSection = true,
+    onToggleTask,
+    onUpdateTask,
+    onDeleteTask,
+    onUpdateTaskIcon,
+    bottomActions,
 }: TaskListViewProps) {
+    const groupStore = useGroupStore();
+    
+    // Use provided handlers or fallback to store
+    const toggleTask = onToggleTask || groupStore.toggleTask;
+    const updateTask = onUpdateTask || groupStore.updateTask;
+    const deleteTask = onDeleteTask || groupStore.deleteTask;
+    const updateTaskIcon = onUpdateTaskIcon; // TaskItem defaults to store if this is undefined, but we need to pass it explicitly if we want to override
+
     const {
-        toggleTask,
-        updateTask,
-        deleteTask,
         reorderTasks,
         addSubTask,
         toggleCollapse,
@@ -40,7 +56,7 @@ export function TaskListView({
         archiveCompletedTasks,
         deleteCompletedTasks,
         activeGroupId,
-    } = useGroupStore();
+    } = groupStore;
 
     const { setDraggingTaskId, hideCompleted, draggingTaskId } = useUIStore();
 
@@ -86,7 +102,13 @@ export function TaskListView({
     }, [addingSubTaskFor, subTaskContent, addSubTask]);
 
     // Categorize tasks
-    const incompleteTasks = filteredTasks.filter(t => !t.completed && !t.startDate);
+    const incompleteTasks = filteredTasks.filter(t => {
+        if (t.completed) return false;
+        // If showing scheduled section, filter out scheduled tasks from here.
+        // Otherwise (Today view), include them in the main list.
+        if (showScheduledSection && t.startDate) return false;
+        return true;
+    });
     const scheduledTasks = showScheduledSection
         ? filteredTasks.filter(t => !t.completed && t.startDate)
         : [];
@@ -113,6 +135,7 @@ export function TaskListView({
         const children = getChildren(task.id);
         const hasChildren = children.length > 0;
         const isBeingDragged = draggingTaskId === task.id;
+        const isCalendarEvent = !!task.isCalendarEvent;
 
         return (
             <div key={task.id}>
@@ -121,12 +144,16 @@ export function TaskListView({
                     onToggle={toggleTask}
                     onUpdate={updateTask}
                     onDelete={deleteTask}
+                    onUpdateIcon={updateTaskIcon}
                     onAddSubTask={handleAddSubTask}
                     isBeingDragged={isBeingDragged}
                     level={level}
                     hasChildren={hasChildren}
                     collapsed={task.collapsed}
                     onToggleCollapse={() => toggleCollapse(task.id)}
+                    // Disable drag and subtasks for calendar events
+                    draggable={!isCalendarEvent}
+                    allowSubtasks={!isCalendarEvent}
                 />
                 {hasChildren && !task.collapsed && (
                     <div className="ml-4">
@@ -325,6 +352,13 @@ export function TaskListView({
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Bottom Actions */}
+            {bottomActions && (
+                <div className="absolute left-6 bottom-6 z-20">
+                    {bottomActions}
+                </div>
+            )}
         </div>
     );
 }

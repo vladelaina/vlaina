@@ -6,11 +6,7 @@ import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useCalendarKeyboard } from './hooks/useCalendarKeyboard';
 import { useCalendarZoom } from './hooks/useCalendarZoom';
 
-interface CalendarViewProps {
-  onToggleTask?: (id: string) => void;
-}
-
-export function CalendarView({ onToggleTask }: CalendarViewProps) {
+export function CalendarView() {
   const {
     load, viewMode,
     editingEventId, closeEditingEvent, events,

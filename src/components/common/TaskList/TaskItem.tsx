@@ -54,12 +54,16 @@ interface TaskItemProps {
     onUpdate: (id: string, content: string) => void;
     onDelete: (id: string) => void;
     onAddSubTask?: (parentId: string) => void;
+    onUpdateIcon?: (id: string, icon: string) => void;
     isBeingDragged?: boolean;
     isOverlay?: boolean;
     level?: number;
     hasChildren?: boolean;
     collapsed?: boolean;
     onToggleCollapse?: () => void;
+    // Feature flags
+    draggable?: boolean;
+    allowSubtasks?: boolean;
 }
 
 export function TaskItem({
@@ -68,21 +72,25 @@ export function TaskItem({
     onUpdate,
     onDelete,
     onAddSubTask,
+    onUpdateIcon,
     isBeingDragged,
     isOverlay,
     level = 0,
     hasChildren = false,
     collapsed = false,
     onToggleCollapse,
+    draggable = true,
+    allowSubtasks = true,
 }: TaskItemProps) {
     const MAX_LEVEL = 3;
-    const canAddSubTask = level < MAX_LEVEL;
+    const canAddSubTask = allowSubtasks && level < MAX_LEVEL;
     const itemRef = useRef<HTMLDivElement>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [content, setContent] = useState(task.content);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { hideActualTime } = useUIStore();
-    const { updateTaskIcon } = useGroupStore();
+    const groupStore = useGroupStore();
+    const updateTaskIcon = onUpdateIcon || groupStore.updateTaskIcon;
 
     const { handlePreview } = useIconPreview(task.id);
     const { customIcons, onUploadFile, onDeleteCustomIcon } = useGlobalIconUpload();
@@ -176,10 +184,11 @@ export function TaskItem({
                 {/* Drag Zone (Left Side) */}
                 <div 
                     {...attributes} 
-                    {...listeners}
+                    {...(draggable ? listeners : {})}
                     className={cn(
-                        "flex-shrink-0 mt-0.5 cursor-grab active:cursor-grabbing transition-colors",
-                        "flex items-center justify-center h-6 w-6"
+                        "flex-shrink-0 mt-0.5 transition-colors",
+                        "flex items-center justify-center h-6 w-6",
+                        draggable ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-50"
                     )}
                 >
                     {hasChildren ? (
@@ -205,7 +214,11 @@ export function TaskItem({
                     <Checkbox
                         checked={task.completed}
                         onCheckedChange={() => onToggle(task.id)}
-                        checkmarkColor={task.completed && colorValue ? colorValue : undefined}
+                        checkmarkColor={
+                            task.completed 
+                                ? (colorValue || '#a1a1aa') // Default to zinc-400 to match border/text style, preventing blue bg
+                                : undefined
+                        }
                         className={cn(
                             "h-5 w-5 rounded-[6px] transition-none", // 3.5 -> 5, rounded-sm -> rounded-[6px] (Apple style)
                             colorValue ? "border-2" : "border-2 border-zinc-300 dark:border-zinc-600" // Thicker border

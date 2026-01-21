@@ -35,7 +35,7 @@ import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
 
 function AppContent() {
-  const { loadData, toggleTask } = useGroupStore();
+  const { loadData } = useGroupStore();
   const {
     appViewMode,
     sidebarCollapsed,
@@ -132,7 +132,7 @@ function AppContent() {
   // 3. Main Content
   let mainContent = null;
   if (appViewMode === 'calendar') {
-    mainContent = <CalendarView onToggleTask={toggleTask} />;
+    mainContent = <CalendarView />;
   } else if (appViewMode === 'todo') {
     mainContent = <TodoView />;
   } else {
