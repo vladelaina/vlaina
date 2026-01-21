@@ -101,13 +101,16 @@ function layoutGroup(events: LayoutEvent[]): Map<string, EventLayoutInfo> {
     const completedB = b.completed ? 1 : 0;
     if (completedA !== completedB) return completedA - completedB;
     
-    // Then by color
+    // Then by ID for visual stability (so changing color/duration doesn't cause jumps)
+    const idSort = a.id.localeCompare(b.id);
+    if (idSort !== 0) return idSort;
+
+    // Finally by color (optional grouping)
     const colorOrderA = getColorPriority(a.color);
     const colorOrderB = getColorPriority(b.color);
     if (colorOrderA !== colorOrderB) return colorOrderA - colorOrderB;
     
-    // Finally by ID for stability
-    return a.id.localeCompare(b.id);
+    return 0;
   });
   
   // Assign columns using a greedy algorithm

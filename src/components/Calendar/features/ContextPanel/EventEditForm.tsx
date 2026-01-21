@@ -3,7 +3,7 @@ import { startOfDay, endOfDay } from 'date-fns';
 import { Clock, Sun } from 'lucide-react';
 import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
 import { cn } from '@/lib/utils';
-import { COLOR_HEX, type ItemColor } from '@/lib/colors';
+import { type ItemColor } from '@/lib/colors';
 import { ColorPicker } from '@/components/common';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 import { useEventForm } from './hooks/useEventForm';
@@ -35,7 +35,6 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
   } = useEventForm(event);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // Global Icon Upload
   const { customIcons, onUploadFile, onDeleteCustomIcon } = useGlobalIconUpload();
@@ -90,7 +89,6 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
 
   return (
     <div
-      ref={containerRef}
       data-context-panel
       style={mode === 'floating' ? getFloatingStyle() : undefined}
       className={containerClass}
@@ -100,6 +98,8 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         id={event.uid}
         icon={localIcon}
         onIconChange={handleIconChange}
+        onColorChange={handleColorChange}
+        initialColor={currentColor as ItemColor}
         className="px-3 pb-0 max-w-none mx-0" // Compact layout
         compact={true}
         
@@ -111,13 +111,6 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         // Render Title with Color Indicator
         renderTitle={() => (
             <div className="flex items-center gap-2 w-full">
-                <div
-                    className="flex-shrink-0 w-4 h-4 rounded-full border-2"
-                    style={{ 
-                        borderColor: COLOR_HEX[currentColor as ItemColor], 
-                        backgroundColor: COLOR_HEX[currentColor as ItemColor] 
-                    }}
-                />
                 <input
                     ref={inputRef}
                     type="text"
@@ -143,7 +136,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
       <div className={`px-3 pb-3 flex-1 overflow-y-auto neko-scrollbar`}>
         
         {/* Size Slider (between Header and Color) */}
-        <div className="mb-4 px-1">
+        <div className="mb-4 px-1" data-prevent-picker-close="true">
             <PremiumSlider
                 min={20}
                 max={150}
@@ -175,20 +168,40 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
           <button
             onClick={() => {
               if (event.allDay) {
-                const dayStart = new Date(event.dtstart);
-                dayStart.setHours(9, 0, 0, 0);
-                const dayEnd = new Date(dayStart);
-                dayEnd.setHours(10, 0, 0, 0);
+                // Switch to Timed: Try to restore original time
+                let newStart = new Date(event.dtstart);
+                let newEnd = new Date(event.dtstart);
+                
+                if (event.originalDtStart && event.originalDtEnd) {
+                    const originalStart = new Date(event.originalDtStart);
+                    const originalEnd = new Date(event.originalDtEnd);
+                    const duration = originalEnd.getTime() - originalStart.getTime();
+                    
+                    // Apply original TIME to current DATE
+                    newStart.setHours(originalStart.getHours(), originalStart.getMinutes(), 0, 0);
+                    newEnd = new Date(newStart.getTime() + duration);
+                } else {
+                    // Fallback default
+                    newStart.setHours(9, 0, 0, 0);
+                    newEnd = new Date(newStart);
+                    newEnd.setHours(10, 0, 0, 0);
+                }
+
                 updateEvent(event.uid, {
                   allDay: false,
-                  dtstart: dayStart,
-                  dtend: dayEnd,
+                  dtstart: newStart,
+                  dtend: newEnd,
+                  originalDtStart: undefined,
+                  originalDtEnd: undefined,
                 });
               } else {
+                // Switch to All Day: Backup current time
                 updateEvent(event.uid, {
                   allDay: true,
                   dtstart: startOfDay(startDate),
                   dtend: endOfDay(startDate),
+                  originalDtStart: event.dtstart.getTime(),
+                  originalDtEnd: event.dtend.getTime(),
                 });
               }
             }}

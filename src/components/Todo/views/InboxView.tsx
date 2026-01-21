@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useUIStore } from '@/stores/uiSlice';
-import { getColorPriority } from '@/lib/colors';
+import { sortTasks } from '@/components/common/TaskList';
 import { DEFAULT_GROUP_ID } from '@/lib/config';
 import { TaskListView } from './TaskListView';
 
@@ -10,11 +10,11 @@ import { TaskListView } from './TaskListView';
  */
 export function InboxView() {
     const { tasks } = useGroupStore();
-    const { selectedColors } = useUIStore();
+    const { selectedColors, taskSortMode } = useUIStore();
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredTasks = useMemo(() => {
-        return tasks
+        const filtered = tasks
             .filter(t => {
                 if (t.parentId) return false;
                 if (t.groupId !== DEFAULT_GROUP_ID) return false;
@@ -24,14 +24,10 @@ export function InboxView() {
                     if (!t.content.toLowerCase().includes(query)) return false;
                 }
                 return true;
-            })
-            .sort((a, b) => {
-                const aColor = getColorPriority(a.color);
-                const bColor = getColorPriority(b.color);
-                if (aColor !== bColor) return aColor - bColor;
-                return a.order - b.order;
             });
-    }, [tasks, selectedColors, searchQuery]);
+        
+        return sortTasks(filtered, taskSortMode);
+    }, [tasks, selectedColors, searchQuery, taskSortMode]);
 
     return (
         <TaskListView

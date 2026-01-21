@@ -114,7 +114,10 @@ export async function loadAllEvents(): Promise<NekoEvent[]> {
 
             if (await storage.exists(icsPath)) {
                 const content = await storage.readFile(icsPath);
-                const events = parseICS(content, calendar.id);
+                
+                // Sanitize content: remove \r to ensure consistent parsing
+                const cleanContent = content.replace(/\r/g, '');
+                const events = parseICS(cleanContent, calendar.id);
 
                 // Apply calendar's default color to events without color
                 for (const event of events) {

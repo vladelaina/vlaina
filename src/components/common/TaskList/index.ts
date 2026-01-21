@@ -4,3 +4,6 @@ export { TaskItem } from './TaskItem';
 export { TaskFilterMenu } from './TaskFilterMenu';
 export { TaskItemMenu } from './TaskItemMenu';
 export { useTaskDragAndDrop } from './useTaskDragAndDrop';
+export { TaskDragContext } from './TaskDragContext';
+export { TaskSortMenu } from './TaskSortMenu';
+export { sortTasks } from './sortUtils';

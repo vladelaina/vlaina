@@ -1,12 +1,11 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Search, X } from 'lucide-react';
-import { DndContext, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
+import { cn } from '@/lib/utils';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
-import { TaskInput, TaskItem } from '@/components/common/TaskList';
-import { useTaskDragAndDrop } from '@/components/common/TaskList/useTaskDragAndDrop';
+import { TaskInput, TaskItem, TaskDragContext } from '@/components/common/TaskList';
 import { TodoListSection } from './components/TodoListSection';
 
 interface TaskListViewProps {
@@ -43,11 +42,15 @@ export function TaskListView({
         activeGroupId,
     } = useGroupStore();
 
-    const { setDraggingTaskId, hideCompleted } = useUIStore();
+    const { setDraggingTaskId, hideCompleted, draggingTaskId } = useUIStore();
 
     const [scheduledExpanded, setScheduledExpanded] = useState(true);
     const [completedExpanded, setCompletedExpanded] = useState(false);
     const [showCompletedMenu, setShowCompletedMenu] = useState(false);
+    
+    // Search State
+    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     // Subtask Modal State
     const [addingSubTaskFor, setAddingSubTaskFor] = useState<string | null>(null);
@@ -56,22 +59,17 @@ export function TaskListView({
     const scrollRef = useRef<HTMLDivElement>(null);
     const completedMenuRef = useRef<HTMLDivElement>(null);
 
-    // Drag and Drop Logic
-    const {
-        sensors,
-        customCollisionDetection,
-        activeId,
-        handleDragStart,
-        handleDragMove,
-        handleDragOver,
-        handleDragEnd,
-    } = useTaskDragAndDrop({
-        tasks: allTasks,
-        reorderTasks,
-        updateTaskTime,
-        toggleTask,
-        setDraggingTaskId,
-    });
+    // Search Handlers
+    const handleSearchClick = () => {
+        setIsSearchExpanded(true);
+        setTimeout(() => searchInputRef.current?.focus(), 100);
+    };
+
+    const handleSearchBlur = () => {
+        if (!searchQuery) {
+            setIsSearchExpanded(false);
+        }
+    };
 
     // Handlers
     const handleAddSubTask = useCallback((parentId: string) => {
@@ -114,7 +112,7 @@ export function TaskListView({
     const renderTaskItem = useCallback((task: any, level: number = 0) => {
         const children = getChildren(task.id);
         const hasChildren = children.length > 0;
-        const isBeingDragged = activeId === task.id;
+        const isBeingDragged = draggingTaskId === task.id;
 
         return (
             <div key={task.id}>
@@ -137,31 +135,62 @@ export function TaskListView({
                 )}
             </div>
         );
-    }, [activeId, getChildren, toggleTask, updateTask, deleteTask, handleAddSubTask, toggleCollapse]);
+    }, [draggingTaskId, getChildren, toggleTask, updateTask, deleteTask, handleAddSubTask, toggleCollapse]);
 
     return (
         <div className="h-full flex flex-col bg-white dark:bg-zinc-900 overflow-hidden relative">
-            {/* Header */}
-            <div className="flex-shrink-0 px-8 py-5 flex items-center justify-between z-10">
-                <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-                    {title}
-                </h1>
+            {/* Header - Minimalist & Expandable */}
+            <div className="flex-shrink-0 px-8 py-3 flex items-center justify-end z-10 min-h-[52px]">
+                <motion.div 
+                    initial={false}
+                    animate={{ 
+                        width: isSearchExpanded || searchQuery ? 240 : 40,
+                    }}
+                    transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+                    className={cn(
+                        "flex items-center overflow-hidden rounded-full transition-colors relative h-10",
+                        isSearchExpanded || searchQuery 
+                            ? "bg-zinc-100 dark:bg-zinc-800/50" 
+                            : "bg-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800/50"
+                    )}
+                >
+                    {/* Search Icon / Toggle */}
+                    <div 
+                        className="flex-shrink-0 w-10 h-10 flex items-center justify-center cursor-pointer z-10"
+                        onClick={handleSearchClick}
+                    >
+                        <Search className="w-4 h-4 text-zinc-500" />
+                    </div>
 
-                <div className="relative w-64 group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-focus-within:text-zinc-600 dark:group-focus-within:text-zinc-300 transition-colors" />
+                    {/* Input Field */}
                     <input
+                        ref={searchInputRef}
                         type="text"
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
+                        onBlur={handleSearchBlur}
                         placeholder="Search..."
-                        className="w-full bg-zinc-100 dark:bg-zinc-800/50 pl-9 pr-3 py-2 rounded-xl text-sm outline-none focus:ring-1 focus:ring-zinc-200 dark:focus:ring-zinc-700 transition-all placeholder:text-zinc-400"
+                        className={cn(
+                            "w-full bg-transparent border-none outline-none text-sm pr-2 placeholder:text-zinc-400 transition-opacity duration-300",
+                            isSearchExpanded || searchQuery ? "opacity-100" : "opacity-0 pointer-events-none"
+                        )}
                     />
-                    {searchQuery && (
-                        <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
-                            <X className="w-3 h-3" />
-                        </button>
-                    )}
-                </div>
+                    
+                    {/* Clear Button */}
+                    <AnimatePresence>
+                        {searchQuery && (
+                            <motion.button 
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
+                                className="flex-shrink-0 w-8 h-10 flex items-center justify-center text-zinc-400 hover:text-zinc-600 z-10 mr-1"
+                            >
+                                <X className="w-3 h-3" />
+                            </motion.button>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
             </div>
 
             {/* Content Area */}
@@ -175,13 +204,13 @@ export function TaskListView({
                     className="flex-1 overflow-y-auto px-8 pb-20 scroll-smooth neko-scrollbar"
                 >
                     <div className="max-w-3xl mx-auto w-full pb-10">
-                        <DndContext
-                            sensors={sensors}
-                            collisionDetection={customCollisionDetection}
-                            onDragStart={handleDragStart}
-                            onDragMove={handleDragMove}
-                            onDragOver={handleDragOver}
-                            onDragEnd={handleDragEnd}
+                        <TaskDragContext
+                            allTasks={allTasks}
+                            reorderTasks={reorderTasks}
+                            updateTaskTime={updateTaskTime}
+                            toggleTask={toggleTask}
+                            setDraggingTaskId={setDraggingTaskId}
+                            getChildCount={(id) => getChildren(id).length}
                         >
                             <SortableContext
                                 items={allSortableIds}
@@ -253,15 +282,7 @@ export function TaskListView({
                                     />
                                 )}
                             </SortableContext>
-
-                            <DragOverlay dropAnimation={null} className="cursor-grabbing" style={{ zIndex: 999999 }}>
-                                {activeId ? (
-                                    <div className="p-3 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-700 opacity-90">
-                                        Dragging item...
-                                    </div>
-                                ) : null}
-                            </DragOverlay>
-                        </DndContext>
+                        </TaskDragContext>
                     </div>
                 </div>
             </div>

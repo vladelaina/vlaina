@@ -3,17 +3,22 @@
  * Migrated from Calendar/features/TaskPanel/PanelTaskItem.tsx
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSortable, defaultAnimateLayoutChanges, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
-import { GripVertical, ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, HeartPulse } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/stores/useGroupStore';
-import { useUIStore } from '@/stores/useGroupStore';
+import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
 import { formatDuration } from '@/lib/time';
 import { getColorHex } from '@/lib/colors';
+import { IconSelector } from '@/components/common/IconSelector';
 import { TaskIcon } from '@/components/common/TaskIcon';
+import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconPreview';
+import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
+import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { loadSkinTone, getRandomEmoji } from '@/components/common/UniversalIconPicker/constants';
 import { TaskItemMenu } from './TaskItemMenu';
 
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
@@ -50,6 +55,7 @@ interface TaskItemProps {
     onDelete: (id: string) => void;
     onAddSubTask?: (parentId: string) => void;
     isBeingDragged?: boolean;
+    isOverlay?: boolean;
     level?: number;
     hasChildren?: boolean;
     collapsed?: boolean;
@@ -63,6 +69,7 @@ export function TaskItem({
     onDelete,
     onAddSubTask,
     isBeingDragged,
+    isOverlay,
     level = 0,
     hasChildren = false,
     collapsed = false,
@@ -75,6 +82,15 @@ export function TaskItem({
     const [content, setContent] = useState(task.content);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { hideActualTime } = useUIStore();
+    const { updateTaskIcon } = useGroupStore();
+
+    const { handlePreview } = useIconPreview(task.id);
+    const { customIcons, onUploadFile, onDeleteCustomIcon } = useGlobalIconUpload();
+    
+    const imageLoader = useCallback(async (src: string) => {
+        if (!src.startsWith('img:')) return src;
+        return await loadImageAsBlob(src.substring(4));
+    }, []);
 
     const {
         attributes,
@@ -90,7 +106,7 @@ export function TaskItem({
 
     const style = {
         transform: CSS.Transform.toString(transform),
-        transition,
+        transition: isOverlay ? undefined : transition, // No transition for overlay to snap instantly
     };
 
     useEffect(() => {
@@ -148,41 +164,41 @@ export function TaskItem({
                 style={style}
                 data-task-id={task.id}
                 className={cn(
-                    'group flex items-start gap-3 px-3 py-2 rounded-xl', // Gap 1.5 -> 3, Padding 1.5 -> 3/2, rounded-md -> rounded-xl
-                    'border border-transparent',
-                    isBeingDragged
-                        ? 'opacity-0'
-                        : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
+                    'group flex items-start gap-3 px-3 py-2 rounded-xl transition-all',
+                    'border',
+                    isOverlay
+                        ? 'bg-white dark:bg-zinc-800 shadow-xl scale-[1.02] border-zinc-200 dark:border-zinc-700 cursor-grabbing z-50'
+                        : isBeingDragged
+                            ? 'opacity-0 border-transparent'
+                            : 'border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
                 )}
             >
-                {/* Collapse/Expand icon */}
-                {hasChildren ? (
-                    <button
-                        onClick={onToggleCollapse}
-                        className="p-1 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0 mt-0.5"
-                    >
-                        {collapsed ? (
-                            <ChevronRight className="h-4 w-4 text-zinc-400" />
-                        ) : (
-                            <ChevronDown className="h-4 w-4 text-zinc-400" />
-                        )}
-                    </button>
-                ) : (
-                    <div className="w-6" /> // Match button width + padding
-                )}
-
-                {/* Drag handle */}
-                <button
-                    {...attributes}
+                {/* Drag Zone (Left Side) */}
+                <div 
+                    {...attributes} 
                     {...listeners}
                     className={cn(
-                        'opacity-0 group-hover:opacity-100 cursor-move',
-                        'p-1 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-opacity duration-150',
-                        'touch-none flex-shrink-0 mt-0.5'
+                        "flex-shrink-0 mt-0.5 cursor-grab active:cursor-grabbing transition-colors",
+                        "flex items-center justify-center h-6 w-6"
                     )}
                 >
-                    <GripVertical className="h-4 w-4 text-zinc-400" />
-                </button>
+                    {hasChildren ? (
+                        <button
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={onToggleCollapse}
+                            className="p-0.5 transition-colors"
+                        >
+                            {collapsed ? (
+                                <ChevronRight className="h-4 w-4 text-zinc-400" />
+                            ) : (
+                                <ChevronDown className="h-4 w-4 text-zinc-400" />
+                            )}
+                        </button>
+                    ) : (
+                        // Invisible hit area for pure drag
+                        <div className="w-full h-full" />
+                    )}
+                </div>
 
                 {/* Checkbox */}
                 <div className="mt-0.5 flex-shrink-0">
@@ -198,13 +214,41 @@ export function TaskItem({
                     />
                 </div>
 
-                {/* Icon */}
-                <div className="mt-0.5">
-                    <TaskIcon
-                        itemId={task.id}
-                        icon={task.icon}
-                        color={colorValue}
-                        sizeClass="h-5 w-5" // 3.5 -> 5
+                {/* Icon Selector (Direct Access) */}
+                <div className="mt-0.5 flex-shrink-0" onPointerDown={(e) => e.stopPropagation()}>
+                    <IconSelector
+                        value={task.icon}
+                        onChange={(icon) => updateTaskIcon(task.id, icon)}
+                        onHover={handlePreview}
+                        compact
+                        closeOnSelect={false}
+                        hideColorPicker={true}
+                        color={task.color}
+                        customIcons={customIcons}
+                        onUploadFile={onUploadFile}
+                        onDeleteCustomIcon={onDeleteCustomIcon}
+                        imageLoader={imageLoader}
+                        trigger={
+                            <button 
+                                className="flex items-center justify-center p-0.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors w-6 h-6"
+                                title="Change icon"
+                                onClick={() => {
+                                    if (!task.icon) {
+                                        const currentSkinTone = loadSkinTone();
+                                        const randomEmoji = getRandomEmoji(currentSkinTone);
+                                        updateTaskIcon(task.id, randomEmoji);
+                                    }
+                                }}
+                            >
+                                <TaskIcon
+                                    itemId={task.id}
+                                    icon={task.icon}
+                                    color={colorValue}
+                                    sizeClass="h-5 w-5"
+                                    fallback={<HeartPulse className="h-4.5 w-4.5 text-zinc-400 opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity" />}
+                                />
+                            </button>
+                        }
                     />
                 </div>
 

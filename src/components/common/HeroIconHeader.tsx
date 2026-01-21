@@ -8,12 +8,15 @@ import { AppIcon } from '@/components/common/AppIcon';
 import { type CustomIcon } from '@/lib/storage/unifiedStorage';
 import { useUIStore } from '@/stores/uiSlice';
 import { getRandomEmoji, loadSkinTone } from '@/components/common/UniversalIconPicker/constants';
+import { type ItemColor, COLOR_HEX } from '@/lib/colors';
 
 interface HeroIconHeaderProps {
   // Identity
   id: string; // Used for preview targeting
   icon: string | null;
   onIconChange: (icon: string | null) => void;
+  onColorChange?: (color: ItemColor) => void;
+  initialColor?: ItemColor;
   
   // Title (Optional rendering)
   title?: string;
@@ -58,14 +61,19 @@ function HeaderIcon({
     
     // Priority: Preview > Original (Store/Local)
     const finalIcon = previewIcon ?? originalIcon;
-    const finalColor = (isPreviewing && universalPreviewColor) ? universalPreviewColor : undefined;
+    
+    // Resolve color: Preview (ItemColor -> Hex) > Undefined (Let AppIcon parse from string)
+    let finalColorHex: string | undefined;
+    if (isPreviewing && universalPreviewColor) {
+        finalColorHex = COLOR_HEX[universalPreviewColor] || COLOR_HEX['default'];
+    }
 
     if (!finalIcon) return null;
 
     return (
         <AppIcon 
           icon={finalIcon} 
-          color={finalColor} // Pass preview color
+          color={finalColorHex} // Pass hex color
           size={sizeVar} // Pass CSS variable string
           imageLoader={imageLoader}
         />
@@ -76,6 +84,8 @@ export function HeroIconHeader({
   id,
   icon,
   onIconChange,
+  onColorChange,
+  initialColor,
   iconSize = 60, // Default visual size
   minIconSize,
   maxIconSize,
@@ -121,7 +131,7 @@ export function HeroIconHeader({
     if (iconButtonRef.current) {
       const rect = iconButtonRef.current.getBoundingClientRect();
       setPickerPosition({
-        top: rect.bottom + 8,
+        top: rect.bottom + 40, // Fine-tuned offset
         left: rect.left,
       });
     }
@@ -244,17 +254,20 @@ export function HeroIconHeader({
               <div 
                 className="fixed z-[9999]"
                 style={{ top: pickerPosition.top, left: pickerPosition.left }}
+                data-no-auto-close="true"
               >
                   <IconPicker
                       onSelect={handleIconSelect}
                       onPreview={handlePreview}
                       onPreviewSkinTone={handlePreviewTone}
                       onPreviewColor={handlePreviewColor}
+                      onIconColorChange={onColorChange}
                       onRemove={handleRemoveIcon}
                       onClose={handlePickerClose}
                       
                       hasIcon={!!icon}
                       currentIcon={icon || undefined}
+                      defaultColor={initialColor}
                       
                       // Slider props (Hidden in compact mode as it's provided externally)
                       currentSize={!compact ? currentSliderValue : undefined}
