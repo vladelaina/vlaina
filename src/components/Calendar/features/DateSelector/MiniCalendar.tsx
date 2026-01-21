@@ -1,7 +1,6 @@
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { ChevronUp, ChevronDown, Undo2 } from 'lucide-react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
-import { useHolidayStore } from '@/stores/useHolidayStore';
 import { useState, useEffect } from 'react';
 import { ColorFilter } from '@/components/common/ColorFilter';
 
@@ -20,7 +19,6 @@ interface MiniCalendarProps {
 
 export function MiniCalendar({ onSelect }: MiniCalendarProps) {
   const { selectedDate, setSelectedDate } = useCalendarStore();
-  const { holidays } = useHolidayStore();
   const [currentMonth, setCurrentMonth] = useState(selectedDate);
 
   // Sync current month when selected date changes (e.g. via "Today" button in header)
@@ -42,10 +40,6 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
     const today = new Date();
     setCurrentMonth(today);
     setSelectedDate(today);
-  };
-
-  const getHolidayForDay = (day: Date) => {
-    return holidays.find(h => isSameDay(h.dtstart, day));
   };
 
   const isCurrentMonthDisplayed = isSameMonth(currentMonth, new Date());
@@ -107,7 +101,6 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
             const isToday = isSameDay(day, new Date());
             const isSelected = isSameDay(day, selectedDate);
             const isCurrentMonth = isSameMonth(day, currentMonth);
-            const holiday = getHolidayForDay(day);
 
             return (
               <div
@@ -128,11 +121,6 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
                   <span className="h-6 flex items-center justify-center shrink-0">{format(day, 'd')}</span>
                 )}
                 
-                {holiday && (
-                  <span className="text-[8px] leading-none text-red-500 dark:text-red-400 truncate max-w-full px-0.5 scale-90 origin-top">
-                    {holiday.summary}
-                  </span>
-                )}
               </div>
             );
           })}

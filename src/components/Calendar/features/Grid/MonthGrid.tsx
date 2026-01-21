@@ -1,17 +1,5 @@
 import { useMemo } from 'react';
-import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
-  addDays,
-  isSameMonth,
-  isSameDay,
-  isToday,
-} from 'date-fns';
 
-import { useHolidayStore } from '@/stores/useHolidayStore';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -37,7 +25,6 @@ function sortEventsByColor(events: NekoEvent[]): NekoEvent[] {
 
 export function MonthGrid() {
   const { selectedDate, setSelectedDate, dayStartTime } = useCalendarStore();
-  const { holidays } = useHolidayStore();
   const displayItems = useCalendarEvents();
   const dayStartMinutes = dayStartTime ?? DEFAULT_DAY_START_MINUTES;
   // No need for now state in month view
@@ -71,10 +58,6 @@ export function MonthGrid() {
     };
   }, [displayItems, dayStartMinutes]);
 
-  const getHolidayForDay = (day: Date) => {
-    return holidays.find(h => isSameDay(h.dtstart, day));
-  };
-
   const handleDayClick = (date: Date) => {
     setSelectedDate(date);
   };
@@ -102,7 +85,6 @@ export function MonthGrid() {
               const isTodayDate = isToday(date);
               const isSelected = isSameDay(date, selectedDate);
               const dayEvents = getEventsForDay(date);
-              const holiday = getHolidayForDay(date);
 
               return (
                 <div
@@ -123,11 +105,6 @@ export function MonthGrid() {
                       <span className={`text-xs mr-auto ${isCurrentMonth ? 'text-zinc-600 dark:text-zinc-400' : 'text-zinc-400 dark:text-zinc-600'}`}>
                         {format(date, 'MMM')}
                       </span>
-                    )}
-                    {holiday && (
-                        <span className="text-[10px] font-medium text-red-500 dark:text-red-400 truncate max-w-[80px] self-center">
-                          {holiday.summary}
-                        </span>
                     )}
                     <span
                       className={`

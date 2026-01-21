@@ -4,20 +4,10 @@ import { ChevronDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MiniCalendar } from '../DateSelector/MiniCalendar';
 import { WeatherWidget } from '../Header/WeatherWidget';
-import { HolidayPicker } from '../Header/HolidayPicker';
 import { useCalendarStore } from '@/stores/useCalendarStore';
-import { useHolidayStore } from '@/stores/useHolidayStore';
 
 export function CalendarHeaderControl() {
   const { selectedDate, setSelectedDate, viewMode, dayCount } = useCalendarStore();
-  const { holidays, subscribedRegionId, refresh, isLoading } = useHolidayStore();
-  
-  // Auto-refresh holidays on mount if subscribed but empty
-  useEffect(() => {
-      if (subscribedRegionId && holidays.length === 0 && !isLoading) {
-          refresh();
-      }
-  }, [subscribedRegionId, holidays.length, isLoading, refresh]);
 
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
@@ -31,10 +21,6 @@ export function CalendarHeaderControl() {
     }
     return [];
   }, [viewMode, selectedDate, dayCount]);
-
-  const getHolidayForDay = (day: Date) => {
-    return holidays.find(h => isSameDay(h.dtstart, day));
-  };
 
   if (viewMode === 'month') {
     // For month view, just show Month/Year selector centered
@@ -55,7 +41,6 @@ export function CalendarHeaderControl() {
         </Popover>
 
         <WeatherWidget />
-        <HolidayPicker />
 
         {/* Today Button - Appears if selected date is not today */}
         {!isSameDay(selectedDate, new Date()) && (
@@ -81,7 +66,6 @@ export function CalendarHeaderControl() {
             <button className="h-full flex items-center gap-4 px-4 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group outline-none">
               <div className="flex items-center gap-6">
                 {days.map((day) => {
-                  const holiday = getHolidayForDay(day);
                   return (
                     <div key={day.toString()} className="flex flex-col items-center justify-center min-w-[32px]">
                       <div className="flex items-center gap-1.5">
@@ -92,11 +76,6 @@ export function CalendarHeaderControl() {
                           {format(day, 'd')}
                         </span>
                       </div>
-                      {holiday && (
-                        <span className="text-[9px] font-medium text-red-500/90 dark:text-red-400/90 leading-tight max-w-[60px] truncate -mb-1">
-                          {holiday.summary}
-                        </span>
-                      )}
                     </div>
                   );
                 })}
@@ -111,7 +90,6 @@ export function CalendarHeaderControl() {
         </Popover>
 
         <WeatherWidget />
-        <HolidayPicker />
 
         {/* Today Button - Appears next to the date group */}
         {!days.some(day => isSameDay(day, new Date())) && (
