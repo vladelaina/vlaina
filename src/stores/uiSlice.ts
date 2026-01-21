@@ -14,12 +14,17 @@ const STORAGE_KEY_SIDEBAR_WIDTH = 'nekotick_sidebar_width';
 export type TaskStatus = 'todo' | 'scheduled' | 'completed';
 export const ALL_STATUSES: TaskStatus[] = ['todo', 'scheduled', 'completed'];
 
+export type TaskSortMode = 'default' | 'time' | 'priority';
+
 export type AppViewMode = 'calendar' | 'notes' | 'todo';
 
 interface UIStore {
   appViewMode: AppViewMode;
   setAppViewMode: (mode: AppViewMode) => void;
   toggleAppViewMode: () => void;
+
+  taskSortMode: TaskSortMode;
+  setTaskSortMode: (mode: TaskSortMode) => void;
 
   sidebarCollapsed: boolean;
   sidebarWidth: number;
@@ -177,6 +182,9 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   toggleAppViewMode: () => set((state) => ({
     appViewMode: state.appViewMode === 'calendar' ? 'notes' : 'calendar'
   })),
+
+  taskSortMode: 'default',
+  setTaskSortMode: (mode) => set({ taskSortMode: mode }),
 
   sidebarCollapsed: loadBoolean(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, false),
   sidebarWidth: loadNumber(STORAGE_KEY_SIDEBAR_WIDTH, 248),

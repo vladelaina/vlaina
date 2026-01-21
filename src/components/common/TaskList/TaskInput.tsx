@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { ALL_COLORS, SIMPLE_COLOR_STYLES, type ItemColor } from '@/lib/colors';
 import { TaskFilterMenu } from './TaskFilterMenu';
+import { TaskSortMenu } from './TaskSortMenu';
 
 interface TaskInputProps {
     compact?: boolean;
@@ -74,18 +75,24 @@ export function TaskInput({ compact = false }: TaskInputProps) {
                 )}
             >
                 {/* Color picker */}
-                <div className="relative shrink-0 pt-1" ref={colorMenuRef}>
+                <div className="relative shrink-0 pt-0.5" ref={colorMenuRef}>
                     <button
                         onClick={() => setShowColorMenu(!showColorMenu)}
-                        className="flex items-center justify-center w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-600 hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors"
+                        className={cn(
+                            "flex items-center justify-center w-5 h-5 rounded-[6px] transition-colors border-2",
+                            color && color !== 'default'
+                                ? "bg-transparent" // Use inline style for border color
+                                : "border-zinc-300 dark:border-zinc-600 hover:border-zinc-400 dark:hover:border-zinc-500 bg-transparent"
+                        )}
+                        style={color && color !== 'default'
+                            ? { 
+                                borderColor: SIMPLE_COLOR_STYLES[color].hex,
+                                backgroundColor: `${SIMPLE_COLOR_STYLES[color].hex}20` // 12% opacity background
+                              }
+                            : undefined
+                        }
                     >
-                        <div
-                            className="w-2.5 h-2.5 rounded-full transition-colors"
-                            style={color && color !== 'default'
-                                ? { backgroundColor: SIMPLE_COLOR_STYLES[color].hex }
-                                : undefined
-                            }
-                        />
+                        {/* Optional: Inner indicator or just keep it as a colored box */}
                     </button>
 
                     <AnimatePresence>
@@ -96,7 +103,7 @@ export function TaskInput({ compact = false }: TaskInputProps) {
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 className="absolute left-0 top-full mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1.5 px-1.5 z-50 flex flex-col gap-0.5"
                             >
-                                {ALL_COLORS.map((c) => (
+                                {[...ALL_COLORS].reverse().map((c) => (
                                     <button
                                         key={c}
                                         onClick={() => {
@@ -106,10 +113,10 @@ export function TaskInput({ compact = false }: TaskInputProps) {
                                         className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
                                     >
                                         <div
-                                            className="w-3 h-3 rounded-full"
+                                            className="w-4 h-4 rounded-[4px] transition-transform active:scale-90"
                                             style={c && c !== 'default'
                                                 ? { backgroundColor: SIMPLE_COLOR_STYLES[c].hex }
-                                                : { border: '1px solid' }
+                                                : { border: '1px solid currentColor', opacity: 0.5 }
                                             }
                                         />
                                     </button>
@@ -155,6 +162,9 @@ export function TaskInput({ compact = false }: TaskInputProps) {
 
             {/* Filter Menu */}
             <TaskFilterMenu />
+            
+            {/* Sort Menu */}
+            <TaskSortMenu />
         </div>
     );
 }

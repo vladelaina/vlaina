@@ -3,20 +3,23 @@
  */
 
 import { useState } from 'react';
-import { Ban, MoreHorizontal } from 'lucide-react';
+import { Ban, MoreHorizontal, HeartPulse } from 'lucide-react';
 import { UniversalIconPicker } from '@/components/common/UniversalIconPicker';
 import { AppIcon } from '@/components/common/AppIcon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { type CustomIcon } from '@/lib/storage/unifiedStorage';
+import { type ItemColor, getColorHex } from '@/lib/colors';
 
 interface IconSelectorProps {
   value?: string;
   onChange: (icon: string | undefined) => void;
   onHover?: (icon: string | null) => void;
   closeOnSelect?: boolean;
-  color?: string; // Force color for icon
+  color?: ItemColor; // Force color for icon
   compact?: boolean;
+  trigger?: React.ReactNode;
+  hideColorPicker?: boolean;
   
   // Upload & Custom Icons
   customIcons?: CustomIcon[];
@@ -30,13 +33,15 @@ const QUICK_ICONS = [
   'music', 'gamepad', 'home', 'car', 'plane', 'wallet',
 ];
 
-export function IconSelector({ 
-  value, 
-  onChange, 
-  onHover, 
-  closeOnSelect = true, 
-  color, 
+export function IconSelector({
+  value,
+  onChange,
+  onHover,
+  closeOnSelect = true,
+  color,
   compact = false,
+  trigger,
+  hideColorPicker,
   customIcons,
   onUploadFile,
   onDeleteCustomIcon,
@@ -55,25 +60,29 @@ export function IconSelector({
       onHover?.(icon);
   };
 
+  const colorHex = color ? getColorHex(color) : undefined;
+
   if (compact) {
      return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
-              <button
-                className="w-4 h-4 flex items-center justify-center rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                title="Change icon"
-                onMouseEnter={() => handlePreview(value || null)}
-                onMouseLeave={() => handlePreview(null)}
-              >
-                {value ? (
-                  <AppIcon icon={value} size={14} color={color} />
-                ) : (
-                  <span className="size-3.5 text-zinc-400 dark:text-zinc-500">✦</span>
-                )}
-              </button>
+              {trigger ? trigger : (
+                <button
+                  className="w-4 h-4 flex items-center justify-center rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  title="Change icon"
+                  onMouseEnter={() => handlePreview(value || null)}
+                  onMouseLeave={() => handlePreview(null)}
+                >
+                  {value ? (
+                    <AppIcon icon={value} size={14} color={colorHex} />
+                  ) : (
+                    <HeartPulse className="size-3.5 text-zinc-400" />
+                  )}
+                </button>
+              )}
             </PopoverTrigger>
             <PopoverContent 
-                className="w-auto p-0 border-none bg-transparent shadow-none" 
+                className="w-auto p-0 border-none bg-transparent shadow-none animate-none transition-none data-[state=open]:animate-none data-[state=closed]:animate-none data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100" 
                 side="bottom" 
                 align="start"
                 data-no-auto-close
@@ -82,9 +91,12 @@ export function IconSelector({
                     onSelect={handleSelect}
                     onPreview={handlePreview}
                     onClose={() => setIsOpen(false)}
+                    onRemove={() => handleSelect(undefined)}
+                    hasIcon={!!value}
+                    defaultColor={color}
+                    hideColorPicker={hideColorPicker}
                     currentIcon={value}
-                    embedded
-                    customIcons={compact ? undefined : customIcons}
+                    customIcons={customIcons}
                     onUploadFile={onUploadFile}
                     onDeleteCustomIcon={onDeleteCustomIcon}
                     imageLoader={imageLoader}
@@ -124,7 +136,7 @@ export function IconSelector({
                   : "text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               )}
             >
-               <AppIcon icon={name} size={14} color={color} />
+               <AppIcon icon={name} size={14} color={colorHex} />
             </button>
         ))}
         
