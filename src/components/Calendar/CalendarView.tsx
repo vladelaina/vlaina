@@ -14,7 +14,7 @@ export function CalendarView({ onToggleTask }: CalendarViewProps) {
   const {
     load, viewMode,
     editingEventId, closeEditingEvent, events,
-    deleteEvent
+    deleteEvent, toggleComplete
   } = useCalendarStore();
 
   // Initialize & Hooks
@@ -45,10 +45,10 @@ export function CalendarView({ onToggleTask }: CalendarViewProps) {
 
   const renderGrid = () => {
     switch (viewMode) {
-      case 'day': return <DayGrid onToggle={onToggleTask} />;
-      case 'week': return <TimeGrid onToggle={onToggleTask} />;
+      case 'day': return <DayGrid onToggle={toggleComplete} />;
+      case 'week': return <TimeGrid onToggle={toggleComplete} />;
       case 'month': return <MonthGrid />;
-      default: return <TimeGrid onToggle={onToggleTask} />;
+      default: return <TimeGrid onToggle={toggleComplete} />;
     }
   };
 
