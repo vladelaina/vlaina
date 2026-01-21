@@ -10,6 +10,10 @@ import {
 } from '@/lib/config';
 
 const STORAGE_KEY_SIDEBAR_WIDTH = 'nekotick_sidebar_width';
+const STORAGE_KEY_IMAGE_STORAGE_MODE = 'nekotick_image_storage_mode';
+const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'nekotick_image_subfolder_name';
+const STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME = 'nekotick_image_vault_subfolder_name';
+const STORAGE_KEY_IMAGE_FILENAME_FORMAT = 'nekotick_image_filename_format';
 
 export type TaskStatus = 'todo' | 'scheduled' | 'completed';
 export const ALL_STATUSES: TaskStatus[] = ['todo', 'scheduled', 'completed'];
@@ -17,6 +21,10 @@ export const ALL_STATUSES: TaskStatus[] = ['todo', 'scheduled', 'completed'];
 export type TaskSortMode = 'default' | 'time' | 'priority';
 
 export type AppViewMode = 'calendar' | 'notes' | 'todo';
+
+export type ImageStorageMode = 'vault' | 'vaultSubfolder' | 'currentFolder' | 'subfolder';
+
+export type ImageFilenameFormat = 'original' | 'timestamp' | 'sequence';
 
 interface UIStore {
   appViewMode: AppViewMode;
@@ -30,7 +38,7 @@ interface UIStore {
   sidebarWidth: number;
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
-  
+
   // Specific to notes-style hover-peek behavior
   sidebarHeaderHovered: boolean;
   setSidebarHeaderHovered: (hovered: boolean) => void;
@@ -105,13 +113,23 @@ interface UIStore {
   universalPreviewColor: string | null;
   universalPreviewTone: number | null;
   universalPreviewIconSize: number | null;
-  
+
   setUniversalPreview: (targetId: string | null, state: {
     icon?: string | null;
     color?: string | null;
     tone?: number | null;
     size?: number | null;
   }) => void;
+
+  // Image Storage Settings
+  imageStorageMode: ImageStorageMode;
+  imageSubfolderName: string;
+  setImageStorageMode: (mode: ImageStorageMode) => void;
+  setImageSubfolderName: (name: string) => void;
+  imageVaultSubfolderName: string;
+  setImageVaultSubfolderName: (name: string) => void;
+  imageFilenameFormat: ImageFilenameFormat;
+  setImageFilenameFormat: (format: ImageFilenameFormat) => void;
 }
 
 function loadNumber(key: string, defaultValue: number): number {
@@ -146,10 +164,10 @@ function loadColorFilter(): ItemColor[] {
       const parsed = JSON.parse(saved) as ItemColor[];
       // Filter out any colors that are no longer in the valid list (e.g. 'orange')
       const validColors = parsed.filter(c => ALL_COLORS.includes(c));
-      
+
       // If we filtered out everything (or loaded empty), return default all selected
       if (validColors.length === 0) return [...ALL_COLORS];
-      
+
       return validColors;
     }
   } catch {
@@ -174,6 +192,50 @@ function loadStatusFilter(): TaskStatus[] {
 
 function saveStatusFilter(statuses: TaskStatus[]): void {
   localStorage.setItem(STORAGE_KEY_STATUS_FILTER, JSON.stringify(statuses));
+}
+
+function loadImageStorageMode(): ImageStorageMode {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_IMAGE_STORAGE_MODE);
+    if (saved === 'vault' || saved === 'vaultSubfolder' || saved === 'currentFolder' || saved === 'subfolder') {
+      return saved;
+    }
+  } catch {
+    // ignore
+  }
+  return 'subfolder'; // Default: save to note subfolder
+}
+
+function loadImageSubfolderName(): string {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_IMAGE_SUBFOLDER_NAME);
+    if (saved) return saved;
+  } catch {
+    // ignore
+  }
+  return 'assets'; // Default subfolder name
+}
+
+function loadImageVaultSubfolderName(): string {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME);
+    if (saved) return saved;
+  } catch {
+    // ignore
+  }
+  return 'assets'; // Default vault subfolder name
+}
+
+function loadImageFilenameFormat(): ImageFilenameFormat {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_IMAGE_FILENAME_FORMAT);
+    if (saved === 'original' || saved === 'timestamp' || saved === 'sequence') {
+      return saved;
+    }
+  } catch {
+    // ignore
+  }
+  return 'original'; // Default: use original filename
 }
 
 export const useUIStore = create<UIStore>()((set, get) => ({
@@ -356,4 +418,29 @@ export const useUIStore = create<UIStore>()((set, get) => ({
     universalPreviewTone: tone !== undefined ? tone : state.universalPreviewTone,
     universalPreviewIconSize: size !== undefined ? size : state.universalPreviewIconSize,
   })),
+
+  // Image Storage Settings
+  imageStorageMode: loadImageStorageMode(),
+  imageSubfolderName: loadImageSubfolderName(),
+  setImageStorageMode: (mode) => {
+    localStorage.setItem(STORAGE_KEY_IMAGE_STORAGE_MODE, mode);
+    set({ imageStorageMode: mode });
+  },
+  setImageSubfolderName: (name) => {
+    // Sanitize: allow only alphanumeric, underscores, hyphens, and spaces
+    const sanitized = name.replace(/[<>:"/\\|?*]/g, '').trim();
+    localStorage.setItem(STORAGE_KEY_IMAGE_SUBFOLDER_NAME, sanitized);
+    set({ imageSubfolderName: sanitized });
+  },
+  imageVaultSubfolderName: loadImageVaultSubfolderName(),
+  setImageVaultSubfolderName: (name) => {
+    const sanitized = name.replace(/[<>:"/\\|?*]/g, '').trim();
+    localStorage.setItem(STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME, sanitized);
+    set({ imageVaultSubfolderName: sanitized });
+  },
+  imageFilenameFormat: loadImageFilenameFormat(),
+  setImageFilenameFormat: (format) => {
+    localStorage.setItem(STORAGE_KEY_IMAGE_FILENAME_FORMAT, format);
+    set({ imageFilenameFormat: format });
+  },
 }));

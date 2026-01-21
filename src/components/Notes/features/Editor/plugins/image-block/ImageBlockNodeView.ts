@@ -13,7 +13,6 @@ export class ImageBlockNodeView implements NodeView {
     root: Root;
 
     constructor(node: Node, view: EditorView, getPos: () => number | undefined) {
-        console.log('[ImageBlockNodeView] Constructor called!', node.attrs);
         this.node = node;
         this.view = view;
         this.getPos = getPos;

@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Palette, Keyboard, Info, Database, User } from 'lucide-react';
+import { X, Palette, Keyboard, Info, Database, User, Image } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
@@ -10,6 +10,7 @@ import { AboutTab } from './tabs/AboutTab';
 import { AppearanceTab } from './tabs/AppearanceTab';
 import { ShortcutsTab } from './tabs/ShortcutsTab';
 import { StorageTab } from './tabs/StorageTab';
+import { ImagesTab } from './tabs/ImagesTab';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useProStatusStore } from '@/stores/useProStatusStore';
 import { useUserAvatar } from '@/hooks/useUserAvatar';
@@ -20,7 +21,7 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type SettingsTab = 'appearance' | 'shortcuts' | 'storage' | 'about';
+type SettingsTab = 'appearance' | 'shortcuts' | 'storage' | 'images' | 'about';
 
 interface SidebarItem {
   id: SettingsTab;
@@ -46,6 +47,7 @@ const sidebarGroups: SidebarGroup[] = [
     title: 'Workspace',
     items: [
       { id: 'storage', label: 'Storage', icon: Database },
+      { id: 'images', label: 'Images', icon: Image },
     ]
   }
 ];
@@ -109,6 +111,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       case 'appearance': return 'Appearance settings';
       case 'shortcuts': return 'Keyboard shortcuts';
       case 'storage': return 'Storage & Usage';
+      case 'images': return 'Image Settings';
       case 'about': return 'About NekoTick';
       default: return 'Settings';
     }
@@ -119,6 +122,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       case 'appearance': return 'Customize your NekoTick appearance';
       case 'shortcuts': return 'View and customize keyboard shortcuts';
       case 'storage': return 'Manage local data and cloud sync';
+      case 'images': return 'Configure image storage location';
       case 'about': return 'Version info and acknowledgments';
       default: return '';
     }
@@ -314,6 +318,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                         />
                       )}
                       {activeTab === 'storage' && <StorageTab />}
+                      {activeTab === 'images' && <ImagesTab />}
                     </div>
                   </div>
                 </div>

@@ -10,7 +10,13 @@ import { UploadZoneProps } from './types';
 
 type UploadStatus = 'idle' | 'dragging' | 'uploading' | 'success' | 'duplicate' | 'error';
 
-export function UploadZone({ onUploadComplete, onDuplicateDetected, compact }: UploadZoneProps) {
+// Extended props to include currentNotePath
+interface ExtendedUploadZoneProps extends UploadZoneProps {
+  currentNotePath?: string;
+}
+
+export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, currentNotePath }: ExtendedUploadZoneProps) {
+
   const { uploadAsset, uploadProgress } = useNotesStore();
   const [status, setStatus] = useState<UploadStatus>('idle');
   const [message, setMessage] = useState<string>('');
@@ -42,7 +48,7 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact }: U
     setStatus('uploading');
     setMessage('Uploading...');
 
-    const result = await uploadAsset(file);
+    const result = await uploadAsset(file, 'covers', currentNotePath);
 
     if (result.success) {
       if (result.isDuplicate) {
@@ -53,7 +59,7 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact }: U
         setStatus('success');
         setMessage('Upload complete!');
       }
-      
+
       if (result.path) {
         onUploadComplete(result.path);
       }
@@ -152,7 +158,7 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact }: U
       )}
     >
       {getStatusIcon()}
-      
+
       <p className={cn(
         "text-center",
         compact ? "mt-2 text-xs" : "mt-4 text-sm",

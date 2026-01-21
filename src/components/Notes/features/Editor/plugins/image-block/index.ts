@@ -15,7 +15,6 @@ export const imageNodeViewPlugin = $prose(() => {
             nodeViews: {
                 // Target the 'image' node from commonmark preset
                 image: (node: Node, view: EditorView, getPos: () => number | undefined) => {
-                    console.log('[ImageNodeView] Creating view for image:', node.attrs.src);
                     return new ImageBlockNodeView(node, view, getPos);
                 }
             }

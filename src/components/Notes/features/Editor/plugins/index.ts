@@ -45,6 +45,9 @@ export { listCollapsePlugin } from './collapse';
 // Clipboard (clean text serialization)
 export { clipboardPlugin } from './clipboard';
 
+// Image upload (paste/drop handling)
+export { imageUploadPlugin } from './image-upload';
+
 // Re-export types that are actually used
 export type { SlashMenuItem } from './slash/types';
 export type { CalloutBlockAttrs, IconData } from './callout/types';

@@ -8,10 +8,11 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { NotesStore } from '../types';
 import { getNotesBasePath } from '../storage';
 import { AssetEntry, UploadResult } from '@/lib/assets/types';
-import { processFilename, getMimeType } from '@/lib/assets/filenameService';
+import { getMimeType, generateFilename } from '@/lib/assets/filenameService';
 import { writeAssetAtomic, cleanupTempFiles } from '@/lib/assets/atomicWrite';
 import { clearImageCache } from '@/lib/assets/imageLoader';
 import { getBuiltinCovers, toBuiltinAssetPath } from '@/lib/assets/builtinCovers';
+import { useUIStore } from '@/stores/uiSlice';
 
 // ASSETS_DIR removed, now using dynamic paths
 const MAX_ASSET_SIZE = 10 * 1024 * 1024; // 10MB Limit
@@ -132,9 +133,12 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     }
   },
 
-  uploadAsset: async (file: File, category: 'covers' | 'icons' = 'covers'): Promise<UploadResult> => {
+  uploadAsset: async (file: File, category: 'covers' | 'icons' = 'covers', currentNotePath?: string): Promise<UploadResult> => {
     const { notesPath, assetList } = get();
     const storage = getStorageAdapter();
+
+    // Read image storage settings from UI store
+    const { imageStorageMode, imageSubfolderName } = useUIStore.getState();
 
     // --- Validation Gate ---
     if (file.size > MAX_ASSET_SIZE) {
@@ -150,47 +154,138 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
     try {
       const vaultPath = notesPath || await getNotesBasePath();
-      const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
+      let targetDir: string;
+      let storedPathPrefix = ''; // For relative path in markdown
 
-      // Target Directory based on category
-      const targetDirName = category === 'icons' ? 'icons' : 'covers';
-      const targetDir = await joinPath(assetsBaseDir, targetDirName);
+      // Determine target directory based on category and settings
+      if (category === 'icons') {
+        // Icons always go to vault root (.nekotick/assets/icons/)
+        const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
+        targetDir = await joinPath(assetsBaseDir, 'icons');
+        storedPathPrefix = 'icons/';
+      } else if (category === 'covers' && !currentNotePath) {
+        // Covers without note context go to vault root
+        const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
+        targetDir = await joinPath(assetsBaseDir, 'covers');
+        storedPathPrefix = '';
+      } else {
+        // Images with note context - use settings
+        switch (imageStorageMode) {
+          case 'vault':
+          default:
+            // Save to vault root directory directly
+            targetDir = vaultPath;
+            storedPathPrefix = '';
+            break;
 
+          case 'vaultSubfolder':
+            // Save to a specific subfolder in the vault root
+            const { imageVaultSubfolderName } = useUIStore.getState();
+            const vaultSubfolderName = imageVaultSubfolderName || 'assets';
+            targetDir = await joinPath(vaultPath, vaultSubfolderName);
+            storedPathPrefix = `${vaultSubfolderName}/`;
+            break;
+
+          case 'currentFolder':
+            // Save to same folder as current note
+            if (currentNotePath) {
+              // Get parent directory of current note
+              const pathParts = currentNotePath.replace(/\\/g, '/').split('/');
+              pathParts.pop(); // Remove filename
+              targetDir = pathParts.join('/') || vaultPath;
+              storedPathPrefix = './';
+            } else {
+              // Fallback to vault root
+              targetDir = await joinPath(vaultPath, '.nekotick', 'assets', 'covers');
+              storedPathPrefix = '';
+            }
+            break;
+          case 'subfolder':
+            // Save to subfolder in current note's directory
+            if (currentNotePath) {
+              const pathParts = currentNotePath.replace(/\\/g, '/').split('/');
+              pathParts.pop(); // Remove filename
+              const noteDir = pathParts.join('/') || vaultPath;
+              const subfolderName = imageSubfolderName || 'assets';
+              targetDir = await joinPath(noteDir, subfolderName);
+              storedPathPrefix = `./${subfolderName}/`;
+            } else {
+              // Fallback to vault root
+              targetDir = await joinPath(vaultPath, '.nekotick', 'assets', 'covers');
+              storedPathPrefix = '';
+            }
+            break;
+        }
+      }
+
+      // Ensure target directory exists
       if (!await storage.exists(targetDir)) {
         await storage.mkdir(targetDir, true);
       }
 
       set({ uploadProgress: 20 });
 
-      // Process filename
-      // IMPORTANT: check duplicates against assets of SAME category
-      // If we use 'icons/' prefix for icons in list, we must match that logic.
-      const existingNames = new Set(assetList.map(a => a.filename));
+      // Read file content to calculate hash
+      const buffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-      // If uploading icon, we should check against 'icons/filename'
-      // processFilename expects just the name part generally.
-      // Let's generate a unique NAME first.
+      // Check for duplicate content
+      // We only duplicate-check against assets that actually have a hash
+      const existingAsset = assetList.find(a => a.hash === fileHash);
+      if (existingAsset) {
+        return {
+          success: true,
+          path: existingAsset.filename,
+          isDuplicate: true,
+          existingFilename: existingAsset.filename
+        };
+      }
 
-      const filename = processFilename(file.name, existingNames);
-      // Note: processFilename might not be category-aware if we pass mixed list.
-      // But adding a timestamp usually avoids collision.
+      // Process filename based on user settings
+      // Get actual file list from target directory for accurate conflict resolution
+      let existingFiles: string[] = [];
+      try {
+        const files = await storage.listDir(targetDir);
+        existingFiles = files.filter(f => f.isFile).map(f => f.name);
+      } catch (error) {
+        console.warn('Failed to list directory for conflict resolution:', error);
+        // Fallback to assetList if listing fails, though less accurate for specific folder
+        existingFiles = assetList.map(a => a.filename.split('/').pop() || '');
+      }
+
+      const existingNames = new Set(existingFiles);
+      let { imageFilenameFormat } = useUIStore.getState();
+
+      // Smart Detection: If format is 'original' but file looks like a clipboard paste
+      // (generic name 'image.png' AND created within last 2 seconds),
+      // fallback to timestamp to avoid generic naming.
+      // Real files named 'image.png' usually have older modification times.
+      const isGenericName = file.name.toLowerCase() === 'image.png';
+      const isClipboardTimestamp = Math.abs(Date.now() - file.lastModified) < 2000;
+
+      if (imageFilenameFormat === 'original' && isGenericName && isClipboardTimestamp) {
+        imageFilenameFormat = 'timestamp';
+      }
+
+      const filename = generateFilename(file.name, imageFilenameFormat, existingNames);
 
       set({ uploadProgress: 50 });
 
-      // Write file
-      const buffer = await file.arrayBuffer();
+      // Write file (using the buffer we already read)
       const data = new Uint8Array(buffer);
       const filePath = await joinPath(targetDir, filename);
 
       await writeAssetAtomic(filePath, data);
       set({ uploadProgress: 80 });
 
-      // Determine stored filename (prefix for icons)
-      const storedFilename = category === 'icons' ? `icons/${filename}` : filename;
+      // Determine stored filename/path for markdown reference
+      const storedFilename = storedPathPrefix + filename;
 
       const newEntry: AssetEntry = {
         filename: storedFilename,
-        hash: '',
+        hash: fileHash, // Store the calculated hash
         size: file.size,
         mimeType: getMimeType(filename),
         uploadedAt: new Date().toISOString(),
@@ -219,6 +314,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
       };
     }
   },
+
 
   deleteAsset: async (filename: string) => {
     const { notesPath, assetList } = get();

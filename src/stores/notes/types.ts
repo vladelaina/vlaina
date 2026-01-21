@@ -112,7 +112,7 @@ export interface NotesActions {
   setNoteCover: (path: string, cover: string | null, coverX?: number, coverY?: number, coverH?: number, coverScale?: number) => void;
   // Asset library actions
   loadAssets: (vaultPath: string) => Promise<void>;
-  uploadAsset: (file: File, category?: 'covers' | 'icons') => Promise<UploadResult>;
+  uploadAsset: (file: File, category?: 'covers' | 'icons', currentNotePath?: string) => Promise<UploadResult>;
   deleteAsset: (filename: string) => Promise<void>;
   cleanupAssetTempFiles: () => Promise<void>;
   getAssetList: (category?: 'covers' | 'icons') => AssetEntry[];

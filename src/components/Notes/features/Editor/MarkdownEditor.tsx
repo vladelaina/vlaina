@@ -50,6 +50,7 @@ import {
   markdownLinkPlugin,
   clipboardPlugin,
   imageBlockPlugin,
+  imageUploadPlugin,
 } from './plugins';
 import { GAP_SCALE, CONTENT_MAX_WIDTH, PADDING_DESKTOP, PADDING_MOBILE, EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { configureTheme } from './theme';
@@ -90,9 +91,12 @@ const customPlugins = [
   markdownLinkPlugin,
   // Clipboard (clean text serialization)
   clipboardPlugin,
+  // Image paste/drop upload
+  imageUploadPlugin,
   // Custom Image NodeView
   ...imageBlockPlugin,
 ];
+
 
 
 

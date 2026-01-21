@@ -143,7 +143,8 @@ export function getCachedBlobUrl(fullPath: string): string | undefined {
  */
 export async function getCroppedImg(
   imageSrc: string,
-  pixelCrop: { x: number; y: number; width: number; height: number }
+  pixelCrop: { x: number; y: number; width: number; height: number },
+  maxDimension: number = 256 // Default to 256 for backward compatibility (icons)
 ): Promise<Blob | null> {
   const image = await createImage(imageSrc);
   const canvas = document.createElement('canvas');
@@ -153,10 +154,12 @@ export async function getCroppedImg(
     return null;
   }
 
-  // Optimize: Resize to max 256x256 for icons
-  // This drastically reduces memory usage and disk space
-  const MAX_DIMENSION = 256;
-  const scale = Math.min(1, MAX_DIMENSION / Math.max(pixelCrop.width, pixelCrop.height));
+  // Calculate scale based on maxDimension (if provided)
+  // If maxDimension is 0 or Infinity, use original size
+  let scale = 1;
+  if (maxDimension > 0 && maxDimension < Infinity) {
+    scale = Math.min(1, maxDimension / Math.max(pixelCrop.width, pixelCrop.height));
+  }
 
   canvas.width = pixelCrop.width * scale;
   canvas.height = pixelCrop.height * scale;
