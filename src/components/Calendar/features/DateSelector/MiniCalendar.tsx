@@ -2,7 +2,7 @@ import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInte
 import { ChevronUp, ChevronDown, Undo2 } from 'lucide-react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useHolidayStore } from '@/stores/useHolidayStore';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ColorFilter } from '@/components/common/ColorFilter';
 
 interface MiniCalendarProps {
@@ -22,6 +22,11 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
   const { selectedDate, setSelectedDate } = useCalendarStore();
   const { holidays } = useHolidayStore();
   const [currentMonth, setCurrentMonth] = useState(selectedDate);
+
+  // Sync current month when selected date changes (e.g. via "Today" button in header)
+  useEffect(() => {
+    setCurrentMonth(selectedDate);
+  }, [selectedDate]);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);

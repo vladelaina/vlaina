@@ -31,6 +31,10 @@ export const HOLIDAY_REGIONS: HolidayRegion[] = [
  * Generate the Google Public ICS URL for a region
  */
 export function getGoogleHolidayUrl(region: HolidayRegion): string {
+  // Stability Fix: Use GitHub CDN for China to avoid proxy timeouts (522/403) accessing Google
+  if (region.id === 'cn') {
+      return 'https://cdn.jsdelivr.net/gh/yize/China-Holiday-Calender/ical/holiday.ics';
+  }
   // Format: https://calendar.google.com/calendar/ical/{lang}.{region}%23holiday@group.v.calendar.google.com/public/basic.ics
   return `https://calendar.google.com/calendar/ical/${region.lang}.${region.region}%23holiday@group.v.calendar.google.com/public/basic.ics`;
 }
