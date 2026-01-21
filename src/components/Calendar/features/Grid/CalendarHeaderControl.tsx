@@ -1,13 +1,24 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { ChevronDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MiniCalendar } from '../DateSelector/MiniCalendar';
 import { WeatherWidget } from '../Header/WeatherWidget';
+import { HolidayPicker } from '../Header/HolidayPicker';
 import { useCalendarStore } from '@/stores/useCalendarStore';
+import { useHolidayStore } from '@/stores/useHolidayStore';
 
 export function CalendarHeaderControl() {
   const { selectedDate, setSelectedDate, viewMode, dayCount } = useCalendarStore();
+  const { holidays, subscribedRegionId, refresh, isLoading } = useHolidayStore();
+  
+  // Auto-refresh holidays on mount if subscribed but empty
+  useEffect(() => {
+      if (subscribedRegionId && holidays.length === 0 && !isLoading) {
+          refresh();
+      }
+  }, [subscribedRegionId, holidays.length, isLoading, refresh]);
+
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const days = useMemo(() => {
@@ -20,6 +31,10 @@ export function CalendarHeaderControl() {
     }
     return [];
   }, [viewMode, selectedDate, dayCount]);
+
+  const getHolidayForDay = (day: Date) => {
+    return holidays.find(h => isSameDay(h.dtstart, day));
+  };
 
   if (viewMode === 'month') {
     // For month view, just show Month/Year selector centered
@@ -40,6 +55,7 @@ export function CalendarHeaderControl() {
         </Popover>
 
         <WeatherWidget />
+        <HolidayPicker />
       </div>
     );
   }
@@ -51,18 +67,29 @@ export function CalendarHeaderControl() {
         <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
           <PopoverTrigger asChild>
             <button className="h-full flex items-center gap-4 px-4 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group outline-none">
-              <div className="flex items-center gap-8">
-                {days.map((day) => (
-                  <div key={day.toString()} className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                      {format(day, 'EEE')}
-                    </span>
-                    <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-                      {format(day, 'd')}
-                    </span>
-                  </div>
-                ))}
+              <div className="flex items-center gap-6">
+                {days.map((day) => {
+                  const holiday = getHolidayForDay(day);
+                  return (
+                    <div key={day.toString()} className="flex flex-col items-center justify-center min-w-[32px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                          {format(day, 'EEE')}
+                        </span>
+                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+                          {format(day, 'd')}
+                        </span>
+                      </div>
+                      {holiday && (
+                        <span className="text-[9px] font-medium text-red-500/90 dark:text-red-400/90 leading-tight max-w-[60px] truncate -mb-1">
+                          {holiday.summary}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+
               <ChevronDown className={`size-3 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-transform duration-200 ${datePickerOpen ? 'rotate-180' : ''}`} />
             </button>
           </PopoverTrigger>
@@ -72,6 +99,7 @@ export function CalendarHeaderControl() {
         </Popover>
 
         <WeatherWidget />
+        <HolidayPicker />
 
         {/* Today Button - Appears next to the date group */}
         {!days.some(day => isSameDay(day, new Date())) && (

@@ -1,6 +1,7 @@
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { ChevronUp, ChevronDown, Undo2 } from 'lucide-react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
+import { useHolidayStore } from '@/stores/useHolidayStore';
 import { useState } from 'react';
 import { ColorFilter } from '@/components/common/ColorFilter';
 
@@ -19,6 +20,7 @@ interface MiniCalendarProps {
 
 export function MiniCalendar({ onSelect }: MiniCalendarProps) {
   const { selectedDate, setSelectedDate } = useCalendarStore();
+  const { holidays } = useHolidayStore();
   const [currentMonth, setCurrentMonth] = useState(selectedDate);
 
   const monthStart = startOfMonth(currentMonth);
@@ -35,6 +37,10 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
     const today = new Date();
     setCurrentMonth(today);
     setSelectedDate(today);
+  };
+
+  const getHolidayForDay = (day: Date) => {
+    return holidays.find(h => isSameDay(h.dtstart, day));
   };
 
   const isCurrentMonthDisplayed = isSameMonth(currentMonth, new Date());
@@ -96,24 +102,31 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
             const isToday = isSameDay(day, new Date());
             const isSelected = isSameDay(day, selectedDate);
             const isCurrentMonth = isSameMonth(day, currentMonth);
+            const holiday = getHolidayForDay(day);
 
             return (
               <div
                 key={day.toString()}
                 onClick={() => handleDayClick(day)}
                 className={`
-                  h-7 flex items-center justify-center text-xs cursor-pointer relative rounded-md transition-colors
+                  h-9 flex flex-col items-center justify-start pt-1 cursor-pointer relative rounded-md transition-colors
                   ${!isCurrentMonth ? 'text-zinc-300 dark:text-zinc-700' : 'text-zinc-700 dark:text-zinc-300'}
                   ${isSelected && !isToday ? 'bg-zinc-100 dark:bg-zinc-800 font-semibold' : ''}
                   ${!isSelected && !isToday && isCurrentMonth ? 'hover:bg-zinc-100 dark:hover:bg-zinc-800' : ''}
                 `}
               >
                 {isToday ? (
-                  <div className="w-6 h-6 bg-red-500 rounded flex items-center justify-center shadow-sm">
+                  <div className="w-6 h-6 bg-red-500 rounded flex items-center justify-center shadow-sm shrink-0">
                     <span className="text-white font-semibold text-[10px]">{format(day, 'd')}</span>
                   </div>
                 ) : (
-                  <span>{format(day, 'd')}</span>
+                  <span className="h-6 flex items-center justify-center shrink-0">{format(day, 'd')}</span>
+                )}
+                
+                {holiday && (
+                  <span className="text-[8px] leading-none text-red-500 dark:text-red-400 truncate max-w-full px-0.5 scale-90 origin-top">
+                    {holiday.summary}
+                  </span>
                 )}
               </div>
             );

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useUIStore } from '@/stores/uiSlice';
+import { useHolidayStore } from '@/stores/useHolidayStore';
 import type { NekoEvent } from '@/lib/ics/types';
 
 
@@ -12,6 +13,7 @@ import type { NekoEvent } from '@/lib/ics/types';
  */
 export function useCalendarEvents(): NekoEvent[] {
   const { events, allEvents } = useCalendarStore();
+  const holidays = useHolidayStore(state => state.holidays);
   const editingEventId = useUIStore(state => state.editingEventId);
   const selectedColors = useUIStore(state => state.selectedColors);
   const selectedStatuses = useUIStore(state => state.selectedStatuses);
@@ -46,8 +48,6 @@ export function useCalendarEvents(): NekoEvent[] {
       if (editingEvent) {
 
         return [editingEvent, ...filtered];
-      } else {
-
       }
     }
 
