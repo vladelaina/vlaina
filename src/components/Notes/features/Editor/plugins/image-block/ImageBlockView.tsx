@@ -27,12 +27,20 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const [captionInput, setCaptionInput] = useState(node.attrs.alt || '');
 
     // --- Image Source State ---
-    const [imageSrc, setImageSrc] = useState(node.attrs.src);
+    // Initialize without fragment to avoid broken links during first render
+    const [imageSrc, setImageSrc] = useState(() => {
+        const src = node.attrs.src || '';
+        return src.split('#')[0];
+    });
+    
+    // Track if the image has visually loaded in the browser
+    const [isLoaded, setIsLoaded] = useState(false);
 
     // --- Editor State ---
     const [isEditing, setIsEditing] = useState(false);
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
+    const [minZoomLimit, setMinZoomLimit] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -49,38 +57,57 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     // --- Path Resolution ---
+    const [cropParams, setCropParams] = useState<{ x: number, y: number, width: number, height: number } | null>(null);
+
     useEffect(() => {
         let isMounted = true;
         const resolveImage = async () => {
             const rawSrc = node.attrs.src;
             if (!rawSrc) return;
 
+            console.log('--- RESOLVE IMAGE ---');
+            console.log('Raw Src:', rawSrc);
+
+            // Extract crop parameters from URL fragment (e.g., #c=10,10,80,80)
+            const [baseSrc, fragment] = rawSrc.split('#');
+            if (fragment && fragment.startsWith('c=')) {
+                const parts = fragment.substring(2).split(',').map(Number);
+                if (parts.length === 4) {
+                    setCropParams({ x: parts[0], y: parts[1], width: parts[2], height: parts[3] });
+                }
+            } else {
+                setCropParams(null);
+            }
+
             // Direct URL/Blob Check
-            if (rawSrc.startsWith('http') || rawSrc.startsWith('data:') || rawSrc.startsWith('blob:')) {
-                if (isMounted) setImageSrc(rawSrc);
+            if (baseSrc.startsWith('http') || baseSrc.startsWith('data:') || baseSrc.startsWith('blob:')) {
+                if (isMounted) setImageSrc(baseSrc);
                 return;
             }
 
             // FS Path Resolution
             try {
                 let fullPath = '';
-                if (rawSrc.startsWith('./') || rawSrc.startsWith('../')) {
+                if (baseSrc.startsWith('./') || baseSrc.startsWith('../')) {
                     if (currentNotePath) {
                         const pathParts = currentNotePath.replace(/\\/g, '/').split('/');
                         pathParts.pop(); // Remove filename
-                        fullPath = await joinPath(pathParts.join('/') || notesPath, rawSrc);
+                        fullPath = await joinPath(pathParts.join('/') || notesPath, baseSrc);
                     }
                 } else {
-                    fullPath = await joinPath(notesPath, rawSrc);
+                    fullPath = await joinPath(notesPath, baseSrc);
                 }
+                
+                console.log('Resolving FS Path:', fullPath);
 
                 if (fullPath) {
                     const blobUrl = await loadImageAsBlob(fullPath);
+                    console.log('Blob URL generated:', blobUrl);
                     if (isMounted) setImageSrc(blobUrl);
                 }
             } catch (err) {
-                console.error('Failed to load image:', rawSrc, err);
-                if (isMounted) setImageSrc(rawSrc);
+                console.error('Failed to load image:', baseSrc, err);
+                if (isMounted) setImageSrc(baseSrc);
             }
         };
         resolveImage();
@@ -103,18 +130,52 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     // --- Handlers: Editor ---
 
     const onCropComplete = useCallback((_croppedArea: any, croppedAreaPixels: any) => {
+        // console.log('Raw Crop Data:', _croppedArea, croppedAreaPixels);
         setCroppedAreaPixels(croppedAreaPixels);
     }, []);
 
     const handleEditStart = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        
         if (containerRef.current) {
-            const { width, height } = containerRef.current.getBoundingClientRect();
-            setCropSize({ width, height });
+            const rect = containerRef.current.getBoundingClientRect();
+            // Set crop size to match the container exactly
+            // This makes the "viewport" equal to the element size
+            setCropSize({ width: rect.width, height: rect.height });
+
+            if (cropParams) {
+                // Restore Zoom:
+                // Visual Width = (100 / cropWidthPercent) * ContainerWidth
+                // So Zoom = 100 / cropWidthPercent
+                const initialZoom = 100 / cropParams.width;
+                setZoom(initialZoom);
+
+                // Restore Position (x, y):
+                // cropParams.x is percentage offset of the image relative to the viewport
+                // We need to convert this to pixels for react-easy-crop
+                // Note: react-easy-crop's (x, y) are pixels from the CENTER
+                
+                // Let's rely on the visual equivalence:
+                // CSS Transform: translate(-x%, -y%)
+                // This shifts the image LEFT and UP.
+                
+                // If cropParams.x = 10 (10%), it means the left 10% is hidden.
+                // In react-easy-crop, if x=0, image is centered.
+                // We need to shift it so that the point (10%, y%) is at top-left.
+                
+                // For now, let's just set zoom. Position restoration requires complex math
+                // involving the natural image size which we might not have yet.
+                // Resetting to center (0,0) is safer than a wrong guess.
+                setCrop({ x: 0, y: 0 });
+            } else {
+                setZoom(1);
+                setCrop({ x: 0, y: 0 });
+            }
         }
+
         setIsEditing(true);
-        setIsHovered(false); // Hide standard toolbar
+        setIsHovered(false); 
     };
 
     const handleEditCancel = (e: React.MouseEvent) => {
@@ -122,46 +183,51 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         e.stopPropagation();
         setIsEditing(false);
         setZoom(1);
+        setMinZoomLimit(1);
         setCrop({ x: 0, y: 0 });
     };
 
     const handleEditSave = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        
         if (!croppedAreaPixels) return;
 
         try {
             setIsSaving(true);
-            const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels, 0); // 0 = no resize/limit
-            if (!croppedBlob) throw new Error('Failed to crop');
-
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T');
-            const fileName = `edited_${timestamp[0]}_${timestamp[1].split('Z')[0]}.png`;
-            const file = new File([croppedBlob], fileName, { type: 'image/png' });
-
-            const result = await uploadAsset(file, 'covers', currentNotePath);
-
-            if (result.success && result.path) {
+            
+            const baseSrc = node.attrs.src.split('#')[0];
+            
+            // Use the percentage crop data from the ref
+            const c = lastPercentageCrop.current;
+            
+            if (c) {
+                // Use 2 decimal places for better precision to avoid gaps
+                const fragment = `c=${Number(c.x.toFixed(2))},${Number(c.y.toFixed(2))},${Number(c.width.toFixed(2))},${Number(c.height.toFixed(2))}`;
+                
                 const pos = getPos();
                 if (pos !== undefined) {
                     const tr = view.state.tr.setNodeMarkup(pos, undefined, {
                         ...node.attrs,
-                        src: result.path
+                        src: `${baseSrc}#${fragment}`
                     });
                     view.dispatch(tr);
                 }
-                setIsEditing(false);
-                // addToast('Image updated', 'success'); // Removed as per user request for quieter UI
-            } else {
-                throw new Error(result.error || 'Upload failed');
             }
+            setIsEditing(false);
         } catch (error) {
             console.error('Save failed:', error);
-            addToast('Failed to save image', 'error');
+            addToast('Failed to update view', 'error');
         } finally {
             setIsSaving(false);
         }
     };
+
+    const lastPercentageCrop = useRef<any>(null);
+    const onCropChangeComplete = useCallback((percentageCrop: any, pixelCrop: any) => {
+        lastPercentageCrop.current = percentageCrop;
+        setCroppedAreaPixels(pixelCrop);
+    }, []);
 
     // --- Handlers: Standard ---
     const handleMouseEnter = () => {
@@ -257,11 +323,41 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     const alignmentClasses = { left: 'mr-auto', center: 'mx-auto', right: 'ml-auto' };
 
+    const onMediaLoaded = useCallback((mediaSize: { width: number, height: number, naturalWidth: number, naturalHeight: number }) => {
+        if (!cropSize) return;
+
+        // Calculate the "Fit" ratio (what react-easy-crop uses for Zoom=1)
+        const fitRatio = Math.min(
+            cropSize.width / mediaSize.naturalWidth,
+            cropSize.height / mediaSize.naturalHeight
+        );
+
+        // Dimensions of the image when Zoom=1
+        const displayedWidthAtZoom1 = mediaSize.naturalWidth * fitRatio;
+        const displayedHeightAtZoom1 = mediaSize.naturalHeight * fitRatio;
+
+        // Calculate scale needed to match container dimensions
+        const widthScale = cropSize.width / displayedWidthAtZoom1;
+        const heightScale = cropSize.height / displayedHeightAtZoom1;
+
+        // To COVER, we need the larger of the two scales
+        const coverZoom = Math.max(widthScale, heightScale) * 1.001;
+
+        // Force set the minimum limit and update current zoom if it's a fresh edit
+        setMinZoomLimit(coverZoom);
+        if (!cropParams) {
+             setZoom(coverZoom);
+        }
+    }, [cropSize, cropParams]);
+
+    console.log('--- RENDER CROPPER ---');
+    console.log('Zoom:', zoom, 'MinZoom:', minZoomLimit, 'CropSize:', cropSize);
+
     return (
-        <div className="w-full flex my-6 group/image">
+        <div className="w-full flex my-2 justify-center group/image select-none">
             <div
                 className={cn(
-                    "relative select-none transition-all duration-200 ease-out",
+                    "relative flex flex-col leading-none text-[0px]",
                     alignmentClasses[alignment],
                     (isHovered || isEditingCaption || isEditing) ? "z-10" : ""
                 )}
@@ -278,25 +374,33 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 {/* --- RENDER CONTENT --- */}
                 {isEditing ? (
                     /* EDIT MODE: Inline Cropper */
-                    <div className="relative w-full h-full rounded-xl overflow-hidden shadow-sm border border-[var(--neko-accent)] bg-black/5 aspect-auto min-h-[200px]">
+                    <div 
+                        className="relative overflow-hidden bg-black/5"
+                        style={{
+                            width: cropSize?.width,
+                            height: cropSize?.height,
+                        }}
+                    >
                         <Cropper
                             image={imageSrc}
                             crop={crop}
                             zoom={zoom}
-                            cropSize={cropSize} // Force crop area to match container
+                            cropSize={cropSize} 
                             aspect={undefined}
                             onCropChange={setCrop}
-                            onCropComplete={onCropComplete}
+                            onCropComplete={onCropChangeComplete}
                             onZoomChange={setZoom}
+                            onMediaLoaded={onMediaLoaded}
                             showGrid={false}
                             zoomWithScroll={true}
                             zoomSpeed={0.5}
-                            minZoom={1}
+                            minZoom={minZoomLimit}
                             maxZoom={5}
-                            restrictPosition={false}
+                            restrictPosition={true} // Force fill the crop area
+                            objectFit="cover" // Automatically ensure image covers the area
                             style={{
-                                containerStyle: { borderRadius: '0.75rem' },
-                                mediaStyle: { borderRadius: '0.75rem' }
+                                containerStyle: { borderRadius: '0' },
+                                mediaStyle: { borderRadius: '0' }
                             }}
                         />
 
@@ -334,15 +438,30 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                         </div>
                     </div>
                 ) : (
-                    /* VIEW MODE: Normal Image */
-                    <img
-                        src={imageSrc}
-                        alt={node.attrs.alt}
+                    /* VIEW MODE: Non-destructive Viewfinder */
+                    <div 
                         className={cn(
-                            "w-full h-auto rounded-xl shadow-sm border border-[var(--neko-border)] bg-[var(--neko-bg-secondary)] transition-all duration-200",
+                            "w-full overflow-hidden transition-all duration-200",
+                            cropParams ? "relative" : ""
                         )}
-                        draggable={false}
-                    />
+                        style={cropParams ? {
+                            aspectRatio: `${cropParams.width} / ${cropParams.height}`,
+                        } : {}}
+                    >
+                        <img
+                            src={imageSrc}
+                            alt={node.attrs.alt}
+                            className={cn(
+                                "max-w-none transition-all duration-200 block !m-0", // !m-0 to override global .milkdown img margin
+                                !cropParams && "w-full h-auto"
+                            )}
+                            style={cropParams ? {
+                                width: `${100 * (100 / cropParams.width)}%`,
+                                transform: `translate(-${cropParams.x}%, -${cropParams.y}%)`,
+                            } : {}}
+                            draggable={false}
+                        />
+                    </div>
                 )}
 
                 {/* --- OVERLAYS (Only in View Mode) --- */}
@@ -363,18 +482,20 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                             />
                         </div>
 
-                        {/* Toolbar */}
+                        {/* Toolbar - Positioned strictly BELOW the image outside */}
                         <div className={cn(
-                            "absolute -bottom-9 right-0 z-20 transition-all duration-200 floating-toolbar-inner shadow-sm border border-[var(--neko-border)] bg-[var(--neko-bg-primary)] rounded-lg transform origin-top-right",
+                            "absolute top-full right-0 mt-1.5 z-20 transition-all duration-200",
+                            "flex items-center gap-0.5 p-1 bg-[var(--neko-bg-primary)]/95 backdrop-blur-sm border border-[var(--neko-border)] rounded-lg shadow-sm",
+                            "transform origin-top-right",
                             (isHovered || isEditingCaption) ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
                         )}>
-                            <div className="toolbar-group">
+                            <div className="flex items-center gap-0.5">
                                 <ToolbarButton icon={<AlignLeft size={16} />} onClick={handleAlign('left')} label="Left" active={alignment === 'left'} />
                                 <ToolbarButton icon={<AlignCenter size={16} />} onClick={handleAlign('center')} label="Center" active={alignment === 'center'} />
                                 <ToolbarButton icon={<AlignRight size={16} />} onClick={handleAlign('right')} label="Right" active={alignment === 'right'} />
                             </div>
-                            <div className="toolbar-divider" />
-                            <div className="toolbar-group">
+                            <div className="w-px h-4 bg-[var(--neko-border)] mx-0.5" />
+                            <div className="flex items-center gap-0.5">
                                 <ToolbarButton icon={<Pencil size={16} />} onClick={handleEditStart} label="Edit" />
                                 <ToolbarButton icon={<Copy size={16} />} onClick={handleCopy} label="Copy" />
                                 <ToolbarButton icon={<Download size={16} />} onClick={handleDownload} label="Download" />
@@ -382,9 +503,10 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                             </div>
                         </div>
 
-                        {/* Caption */}
+                        {/* Caption - Positioned strictly ABOVE the image outside */}
                         <div className={cn(
-                            "absolute -top-9 right-0 max-w-full z-20 transition-all duration-200 floating-toolbar-inner shadow-sm border border-[var(--neko-border)] bg-[var(--neko-bg-primary)] rounded-lg",
+                            "absolute bottom-full right-0 mb-1.5 max-w-full z-20 transition-all duration-200",
+                            "flex items-center gap-0.5 p-1 bg-[var(--neko-bg-primary)]/95 backdrop-blur-sm border border-[var(--neko-border)] rounded-lg shadow-sm",
                             (isHovered || isEditingCaption) ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-2 pointer-events-none"
                         )}>
                             {isEditingCaption ? (
