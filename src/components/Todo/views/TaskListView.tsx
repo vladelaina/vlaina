@@ -147,49 +147,56 @@ export function TaskListView({
                         width: isSearchExpanded || searchQuery ? 240 : 40,
                     }}
                     transition={{ type: "spring", bounce: 0, duration: 0.4 }}
-                    className={cn(
-                        "flex items-center overflow-hidden rounded-full transition-colors relative h-10",
-                        isSearchExpanded || searchQuery 
-                            ? "bg-zinc-100 dark:bg-zinc-800/50" 
-                            : "bg-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800/50"
-                    )}
+                    className="relative flex items-center justify-end"
                 >
-                    {/* Search Icon / Toggle */}
-                    <div 
-                        className="flex-shrink-0 w-10 h-10 flex items-center justify-center cursor-pointer z-10"
-                        onClick={handleSearchClick}
-                    >
-                        <Search className="w-4 h-4 text-zinc-500" />
-                    </div>
-
-                    {/* Input Field */}
-                    <input
-                        ref={searchInputRef}
-                        type="text"
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        onBlur={handleSearchBlur}
-                        placeholder="Search..."
+                    <motion.div
                         className={cn(
-                            "w-full bg-transparent border-none outline-none text-sm pr-2 placeholder:text-zinc-400 transition-opacity duration-300",
-                            isSearchExpanded || searchQuery ? "opacity-100" : "opacity-0 pointer-events-none"
+                            "flex items-center overflow-hidden rounded-full transition-colors relative h-10",
+                            isSearchExpanded || searchQuery 
+                                ? "bg-zinc-100 dark:bg-zinc-800/50" 
+                                : "bg-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800/50"
                         )}
-                    />
-                    
-                    {/* Clear Button */}
-                    <AnimatePresence>
-                        {searchQuery && (
-                            <motion.button 
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
-                                onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
-                                className="flex-shrink-0 w-8 h-10 flex items-center justify-center text-zinc-400 hover:text-zinc-600 z-10 mr-1"
-                            >
-                                <X className="w-3 h-3" />
-                            </motion.button>
-                        )}
-                    </AnimatePresence>
+                    >
+                        {/* Search Icon / Toggle */}
+                        <div 
+                            className={cn(
+                                "flex-shrink-0 w-10 h-10 flex items-center justify-center cursor-pointer z-10",
+                                !isSearchExpanded && !searchQuery && "absolute right-0"
+                            )}
+                            onClick={handleSearchClick}
+                        >
+                            <Search className="w-4 h-4 text-zinc-500" />
+                        </div>
+
+                        {/* Input Field */}
+                        <input
+                            ref={searchInputRef}
+                            type="text"
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            onBlur={handleSearchBlur}
+                            placeholder="Search..."
+                            className={cn(
+                                "w-full bg-transparent border-none outline-none text-sm pr-2 placeholder:text-zinc-400 transition-opacity duration-300",
+                                isSearchExpanded || searchQuery ? "opacity-100" : "opacity-0 pointer-events-none"
+                            )}
+                        />
+                        
+                        {/* Clear Button */}
+                        <AnimatePresence>
+                            {searchQuery && (
+                                <motion.button 
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
+                                    className="flex-shrink-0 w-8 h-10 flex items-center justify-center text-zinc-400 hover:text-zinc-600 z-10 mr-1"
+                                >
+                                    <X className="w-3 h-3" />
+                                </motion.button>
+                            )}
+                        </AnimatePresence>
+                    </motion.div>
                 </motion.div>
             </div>
 

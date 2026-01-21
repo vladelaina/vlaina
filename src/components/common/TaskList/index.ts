@@ -7,3 +7,4 @@ export { useTaskDragAndDrop } from './useTaskDragAndDrop';
 export { TaskDragContext } from './TaskDragContext';
 export { TaskSortMenu } from './TaskSortMenu';
 export { sortTasks } from './sortUtils';
+export { GroupSelector } from './GroupSelector';

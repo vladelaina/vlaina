@@ -66,6 +66,7 @@ export interface UnifiedTask {
 export interface UnifiedGroup {
   id: string;
   name: string;
+  icon?: string;
   pinned: boolean;
   createdAt: number;
   updatedAt?: number;

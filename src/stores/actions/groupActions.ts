@@ -12,10 +12,11 @@ type Persist = (data: UnifiedData) => void;
 
 export function createGroupActions(set: SetState, get: GetState, persist: Persist) {
   return {
-    addGroup: (name: string) => {
+    addGroup: (name: string, icon?: string) => {
       const newGroup: UnifiedGroup = {
         id: nanoid(),
         name,
+        icon,
         pinned: false,
         createdAt: Date.now(),
       };
@@ -29,12 +30,12 @@ export function createGroupActions(set: SetState, get: GetState, persist: Persis
       });
     },
 
-    updateGroup: (id: string, name: string) => {
+    updateGroup: (id: string, name: string, icon?: string) => {
       set((state) => {
         const newData = {
           ...state.data,
           groups: state.data.groups.map(g => 
-            g.id === id ? { ...g, name, updatedAt: Date.now() } : g
+            g.id === id ? { ...g, name, icon, updatedAt: Date.now() } : g
           ),
         };
         persist(newData);
