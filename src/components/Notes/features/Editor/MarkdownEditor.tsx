@@ -49,6 +49,7 @@ import {
   listCollapsePlugin,
   markdownLinkPlugin,
   clipboardPlugin,
+  imageBlockPlugin,
 } from './plugins';
 import { GAP_SCALE, CONTENT_MAX_WIDTH, PADDING_DESKTOP, PADDING_MOBILE, EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { configureTheme } from './theme';
@@ -89,6 +90,8 @@ const customPlugins = [
   markdownLinkPlugin,
   // Clipboard (clean text serialization)
   clipboardPlugin,
+  // Custom Image NodeView
+  ...imageBlockPlugin,
 ];
 
 
@@ -168,7 +171,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       .use(commonmark)
       .use(gfm)
       .use(history)
-      .use(clipboard)
+      // .use(clipboard) // Removed to avoid conflict with custom clipboardPlugin
       .use(listener)
       .use(configureTheme)
       .use(customPlugins),

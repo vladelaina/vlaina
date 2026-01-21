@@ -7,6 +7,7 @@
 
 import { AppIcon } from '@/components/common/AppIcon';
 import { useUIStore } from '@/stores/uiSlice';
+import { getColorHex } from '@/lib/colors';
 
 interface TaskIconProps {
   /** Task/event ID, used to match preview state */
@@ -21,6 +22,8 @@ interface TaskIconProps {
   size?: number;
   /** Whether to enable preview (default true) */
   enablePreview?: boolean;
+  /** Fallback content if no icon is set */
+  fallback?: React.ReactNode;
 }
 
 export function TaskIcon({ 
@@ -29,16 +32,28 @@ export function TaskIcon({
   color, 
   sizeClass = 'size-4',
   size,
-  enablePreview = true 
+  enablePreview = true,
+  fallback
 }: TaskIconProps) {
   const { universalPreviewTarget, universalPreviewIcon, universalPreviewColor, universalPreviewTone } = useUIStore();
   
   const isPreviewing = enablePreview && universalPreviewTarget === itemId;
   
-  const displayIcon = isPreviewing && universalPreviewIcon ? universalPreviewIcon : icon;
+  let displayIcon = isPreviewing && universalPreviewIcon ? universalPreviewIcon : icon;
   const displayColor = isPreviewing && universalPreviewColor ? universalPreviewColor : color;
   
-  if (!displayIcon) return null;
+  if (!displayIcon) {
+      return fallback || null;
+  }
+
+  // Force icon color to match task color if it's a vector icon
+  if (displayIcon.startsWith('icon:') && displayColor) {
+      const parts = displayIcon.split(':');
+      if (parts.length >= 2) {
+          const colorHex = getColorHex(displayColor);
+          displayIcon = `icon:${parts[1]}:${colorHex}`;
+      }
+  }
 
   // Convert sizeClass to roughly pixel size if needed, or pass className
   // UniversalIcon uses style={{width: size, height: size}} if size provided.

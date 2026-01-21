@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useUIStore } from '@/stores/uiSlice';
-import { getColorPriority } from '@/lib/colors';
+import { sortTasks } from '@/components/common/TaskList';
 import { getTodayKey, formatDateKey } from '@/lib/date';
 import { TaskListView } from './TaskListView';
 
@@ -10,13 +10,13 @@ import { TaskListView } from './TaskListView';
  */
 export function TodayView() {
     const { tasks } = useGroupStore();
-    const { selectedColors } = useUIStore();
+    const { selectedColors, taskSortMode } = useUIStore();
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredTasks = useMemo(() => {
         const todayKey = getTodayKey();
 
-        return tasks
+        const filtered = tasks
             .filter(t => {
                 if (t.parentId) return false;
                 if (!selectedColors.includes(t.color || 'default')) return false;
@@ -30,14 +30,10 @@ export function TodayView() {
                     if (!t.content.toLowerCase().includes(query)) return false;
                 }
                 return true;
-            })
-            .sort((a, b) => {
-                const aColor = getColorPriority(a.color);
-                const bColor = getColorPriority(b.color);
-                if (aColor !== bColor) return aColor - bColor;
-                return a.order - b.order;
             });
-    }, [tasks, selectedColors, searchQuery]);
+            
+        return sortTasks(filtered, taskSortMode);
+    }, [tasks, selectedColors, searchQuery, taskSortMode]);
 
     return (
         <TaskListView

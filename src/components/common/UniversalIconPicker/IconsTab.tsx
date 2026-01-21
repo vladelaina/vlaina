@@ -25,6 +25,7 @@ interface IconsTabProps {
   // Decoupled callbacks
   onIconColorChange?: (color: ItemColor) => void;
   onPreviewColor?: (color: string | null) => void;
+  hideColorPicker?: boolean;
 }
 
 export function IconsTab({
@@ -38,6 +39,7 @@ export function IconsTab({
   currentIcon,
   onIconColorChange,
   onPreviewColor,
+  hideColorPicker,
 }: IconsTabProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
@@ -179,36 +181,38 @@ export function IconsTab({
           )}
         </div>
 
-        <div className="relative">
-          <button
-            onClick={() => setShowColorPicker(!showColorPicker)}
-            className="w-7 h-7 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity"
-          >
-            <Candy size={18} style={{ color: currentColor }} />
-          </button>
-          {showColorPicker && (
-            <div
-              ref={colorPickerRef}
-              className={cn(
-                "absolute right-0 top-full mt-1 p-2 rounded-lg shadow-lg z-10",
-                "bg-white dark:bg-zinc-800 border border-[var(--neko-border)]",
-                "flex gap-1"
-              )}
+        {!hideColorPicker && (
+          <div className="relative">
+            <button
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              className="w-7 h-7 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity"
             >
-              {ICON_COLORS.map((ic) => (
-                <button
-                  key={ic.id}
-                  data-color-id={ic.id}
-                  onClick={() => handleColorChange(ic.id as ItemColor)}
-                  className="w-7 h-7 flex items-center justify-center"
-                  title={ic.label}
-                >
-                  <Candy size={18} style={{ color: ic.color }} />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+              <Candy size={18} style={{ color: currentColor }} />
+            </button>
+            {showColorPicker && (
+              <div
+                ref={colorPickerRef}
+                className={cn(
+                  "absolute right-0 top-full mt-1 p-2 rounded-lg shadow-lg z-10",
+                  "bg-white dark:bg-zinc-800 border border-[var(--neko-border)]",
+                  "flex gap-1"
+                )}
+              >
+                {ICON_COLORS.map((ic) => (
+                  <button
+                    key={ic.id}
+                    data-color-id={ic.id}
+                    onClick={() => handleColorChange(ic.id as ItemColor)}
+                    className="w-7 h-7 flex items-center justify-center"
+                    title={ic.label}
+                  >
+                    <Candy size={18} style={{ color: ic.color }} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {searchQuery && searchResults ? (

@@ -3,17 +3,22 @@
  * Migrated from Calendar/features/TaskPanel/PanelTaskItem.tsx
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSortable, defaultAnimateLayoutChanges, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
-import { GripVertical, ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, HeartPulse } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/stores/useGroupStore';
-import { useUIStore } from '@/stores/useGroupStore';
+import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
 import { formatDuration } from '@/lib/time';
 import { getColorHex } from '@/lib/colors';
+import { IconSelector } from '@/components/common/IconSelector';
 import { TaskIcon } from '@/components/common/TaskIcon';
+import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconPreview';
+import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
+import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { loadSkinTone, getRandomEmoji } from '@/components/common/UniversalIconPicker/constants';
 import { TaskItemMenu } from './TaskItemMenu';
 
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
@@ -77,6 +82,15 @@ export function TaskItem({
     const [content, setContent] = useState(task.content);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { hideActualTime } = useUIStore();
+    const { updateTaskIcon } = useGroupStore();
+
+    const { handlePreview } = useIconPreview(task.id);
+    const { customIcons, onUploadFile, onDeleteCustomIcon } = useGlobalIconUpload();
+    
+    const imageLoader = useCallback(async (src: string) => {
+        if (!src.startsWith('img:')) return src;
+        return await loadImageAsBlob(src.substring(4));
+    }, []);
 
     const {
         attributes,
@@ -200,13 +214,41 @@ export function TaskItem({
                     />
                 </div>
 
-                {/* Icon */}
-                <div className="mt-0.5">
-                    <TaskIcon
-                        itemId={task.id}
-                        icon={task.icon}
-                        color={colorValue}
-                        sizeClass="h-5 w-5" // 3.5 -> 5
+                {/* Icon Selector (Direct Access) */}
+                <div className="mt-0.5 flex-shrink-0" onPointerDown={(e) => e.stopPropagation()}>
+                    <IconSelector
+                        value={task.icon}
+                        onChange={(icon) => updateTaskIcon(task.id, icon)}
+                        onHover={handlePreview}
+                        compact
+                        closeOnSelect={false}
+                        hideColorPicker={true}
+                        color={task.color}
+                        customIcons={customIcons}
+                        onUploadFile={onUploadFile}
+                        onDeleteCustomIcon={onDeleteCustomIcon}
+                        imageLoader={imageLoader}
+                        trigger={
+                            <button 
+                                className="flex items-center justify-center p-0.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors w-6 h-6"
+                                title="Change icon"
+                                onClick={() => {
+                                    if (!task.icon) {
+                                        const currentSkinTone = loadSkinTone();
+                                        const randomEmoji = getRandomEmoji(currentSkinTone);
+                                        updateTaskIcon(task.id, randomEmoji);
+                                    }
+                                }}
+                            >
+                                <TaskIcon
+                                    itemId={task.id}
+                                    icon={task.icon}
+                                    color={colorValue}
+                                    sizeClass="h-5 w-5"
+                                    fallback={<HeartPulse className="h-4.5 w-4.5 text-zinc-400 opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity" />}
+                                />
+                            </button>
+                        }
                     />
                 </div>
 

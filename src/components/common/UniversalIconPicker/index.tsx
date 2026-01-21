@@ -52,6 +52,7 @@ export interface UniversalIconPickerProps {
   // Style overrides
   embedded?: boolean;
   defaultColor?: ItemColor;
+  hideColorPicker?: boolean;
   
   // Image Loading
   imageLoader?: (src: string) => Promise<string>;
@@ -81,6 +82,7 @@ export function UniversalIconPicker({
 
   embedded = false,
   defaultColor,
+  hideColorPicker,
   imageLoader,
 }: UniversalIconPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -92,6 +94,13 @@ export function UniversalIconPicker({
   // Track active categories for random selection within current group
   const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('people');
   const [activeIconCategory, setActiveIconCategory] = useState<string>('common');
+
+  // Sync iconColor with defaultColor prop changes (e.g. when task color changes)
+  useEffect(() => {
+    if (defaultColor) {
+      setIconColor(defaultColor);
+    }
+  }, [defaultColor]);
 
   // Track the last randomly selected icon (to add to recent on close)
   const lastRandomIconRef = useRef<string | null>(null);
@@ -182,7 +191,14 @@ export function UniversalIconPicker({
       const icons = currentCategory?.icons || [];
       if (icons.length > 0) {
         const randomIcon = icons[Math.floor(Math.random() * icons.length)];
-        const currentColorHex = COLOR_HEX[iconColor] || COLOR_HEX['default'];
+        
+        let currentColorHex: string;
+        if (hideColorPicker && defaultColor) {
+             currentColorHex = COLOR_HEX[defaultColor] || COLOR_HEX['default'];
+        } else {
+             currentColorHex = COLOR_HEX[iconColor] || COLOR_HEX['default'];
+        }
+        
         const iconValue = `icon:${randomIcon.name}:${currentColorHex}`;
         lastRandomIconRef.current = iconValue;
         onSelect(iconValue);
@@ -194,7 +210,7 @@ export function UniversalIconPicker({
         onSelect(randomEmoji.url);
       }
     }
-  }, [activeTab, activeEmojiCategory, activeIconCategory, iconColor, onSelect, customIcons]);
+  }, [activeTab, activeEmojiCategory, activeIconCategory, iconColor, onSelect, customIcons, hideColorPicker, defaultColor]);
 
   useEffect(() => {
     // If embedded, let the parent container (e.g. Popover) handle closing
@@ -376,6 +392,7 @@ export function UniversalIconPicker({
             currentIcon={currentIcon}
             onIconColorChange={onIconColorChange}
             onPreviewColor={onPreviewColor}
+            hideColorPicker={hideColorPicker}
           />
         ) : (
           <UploadTab
