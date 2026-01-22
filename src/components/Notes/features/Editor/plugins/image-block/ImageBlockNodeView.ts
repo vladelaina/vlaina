@@ -43,6 +43,29 @@ export class ImageBlockNodeView implements NodeView {
         return true;
     }
 
+    // Critical for interactive components inside NodeView
+    // Returns true if the event should be handled by the NodeView entirely
+    // and NOT passed to ProseMirror's editor state.
+    stopEvent(event: Event) {
+        const target = event.target as HTMLElement;
+        
+        // Block ProseMirror drag/selection for:
+        // 1. Sliders (.premium-slider and its children)
+        // 2. Inputs (Captions, etc)
+        // 3. Buttons (Toolbar actions)
+        // 4. Any element explicitly marked with data-no-drag
+        if (
+            target.closest('.premium-slider') || 
+            target.closest('input') || 
+            target.closest('button') ||
+            target.closest('[data-no-drag]')
+        ) {
+            return true;
+        }
+        
+        return false;
+    }
+
     ignoreMutation() {
         return true;
     }

@@ -23,7 +23,7 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
 }) => {
     return (
         <div className={cn(
-            "absolute top-full right-0 mt-1.5 z-20 transition-all duration-200",
+            "absolute top-full right-0 mt-1.5 z-[60] transition-all duration-200",
             "flex items-center gap-0.5 p-1 bg-[var(--neko-bg-primary)]/95 backdrop-blur-sm border border-[var(--neko-border)] rounded-lg shadow-sm",
             "transform origin-top-right",
             isVisible 

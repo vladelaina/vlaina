@@ -59,6 +59,7 @@ export function PremiumSlider({
     // Handle input change - update visuals directly, dispatch via RAF
     const handleInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = parseFloat(e.target.value);
+        console.log('[PremiumSlider] Input Change:', newValue); // Debug Log
         latestValueRef.current = newValue;
 
         // Instant visual feedback - direct DOM, no React
@@ -74,6 +75,7 @@ export function PremiumSlider({
 
     // Handle release - confirm the final value
     const handleRelease = useCallback(() => {
+        console.log('[PremiumSlider] Release'); // Debug Log
         // Flush any pending RAF
         if (rafRef.current) {
             cancelAnimationFrame(rafRef.current);
@@ -100,6 +102,14 @@ export function PremiumSlider({
             style={{
                 '--slider-percentage': `${initialPercentage}%`,
             } as React.CSSProperties}
+            // CRITICAL FIX: Prevent HTML5 Native Drag & Drop from hijacking the slider interaction
+            // This stops the "red forbidden icon" and allows mouse events to continue
+            draggable={true} // Must be true to capture the event reliably in some browsers
+            onDragStart={(e) => {
+                console.log('[PremiumSlider] Native DragStart Intercepted');
+                e.preventDefault();
+                e.stopPropagation();
+            }}
         >
             {/* Visual Track - driven by CSS variable, no React re-render needed */}
             <div
@@ -119,6 +129,14 @@ export function PremiumSlider({
                 step={step}
                 defaultValue={value}
                 onInput={handleInput}
+                onMouseDown={(e) => {
+                    console.log('[PremiumSlider] MouseDown triggered');
+                    e.stopPropagation();
+                }}
+                onPointerDown={(e) => {
+                    console.log('[PremiumSlider] PointerDown triggered');
+                    e.stopPropagation();
+                }}
                 onMouseUp={handleRelease}
                 onTouchEnd={handleRelease}
                 className={cn(

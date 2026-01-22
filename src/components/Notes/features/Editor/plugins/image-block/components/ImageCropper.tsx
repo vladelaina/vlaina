@@ -1,8 +1,10 @@
 import React, { useRef, useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import { X, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 import { CropParams, calculateRestoredCrop } from '../utils/cropUtils';
+import { InvisibleResizeHandles } from './InvisibleResizeHandles';
 
 interface ImageCropperProps {
     imageSrc: string;
@@ -11,6 +13,9 @@ interface ImageCropperProps {
     onSave: (percentageCrop: any, ratio: number) => void;
     onCancel: () => void;
     isSaving: boolean;
+    onResizeStart?: (direction: 'left' | 'right' | 'top' | 'bottom' | 'bottom-left' | 'bottom-right') => (e: React.MouseEvent) => void;
+    isActive: boolean;
+    onMediaLoaded?: (mediaSize: { width: number; height: number; naturalWidth: number; naturalHeight: number }) => void;
 }
 
 export const ImageCropper: React.FC<ImageCropperProps> = ({
@@ -19,7 +24,10 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     containerSize,
     onSave,
     onCancel,
-    isSaving
+    isSaving,
+    onResizeStart,
+    isActive,
+    onMediaLoaded: externalOnMediaLoaded
 }) => {
     // Editor State
     const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -31,11 +39,19 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     const originalAspectRatioRef = useRef<number>(1);
     const [isCropperReady, setIsCropperReady] = useState(false);
 
+    // Auto-save crop data when it changes if we are not "active" (i.e. just resizing container)
+    // Actually, react-easy-crop changes crop on resize automatically.
+    // We might need an imperative handle or ref to get current crop data for the parent.
+    // For now, let's keep the refs updated.
+
     const onCropChangeComplete = useCallback((percentageCrop: any, _pixelCrop: any) => {
         lastPercentageCrop.current = percentageCrop;
     }, []);
 
     const onMediaLoaded = useCallback((mediaSize: { width: number, height: number, naturalWidth: number, naturalHeight: number }) => {
+        if (externalOnMediaLoaded) {
+            externalOnMediaLoaded(mediaSize);
+        }
         originalAspectRatioRef.current = mediaSize.naturalWidth / mediaSize.naturalHeight;
 
         if (!containerSize.width || !containerSize.height) return;
@@ -80,9 +96,9 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         setIsCropperReady(true);
     }, [containerSize, initialCropParams]);
 
-    const handleSave = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
+    const handleSave = (e?: React.MouseEvent) => {
+        e?.preventDefault();
+        e?.stopPropagation();
         
         if (lastPercentageCrop.current) {
             const pc = lastPercentageCrop.current;
@@ -94,41 +110,83 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
             onSave(pc, cropRatio);
         }
     };
-
+    
+    // Expose handleSave to be called programmatically if needed?
+    // For now, parent passes us onSave, but we need to pass CURRENT crop state back.
+    // We can use an effect or expose a ref, but simple way: 
+    // If the parent wants to auto-save on resize end, it needs access to lastPercentageCrop.
+    // BUT, simpler approach: Parent handles the resize logic (width/height), 
+    // and Cropper updates the internal crop state.
+    // When resize ends (MouseUp in parent), parent needs to trigger a "Save" with the NEW crop data.
+    // Wait, onResizeStart is in Parent. onMouseUp is in Parent.
+    // Parent doesn't know about `lastPercentageCrop`.
+    // We need to lift `lastPercentageCrop` up or provide a way to get it.
+    
+    // Quick Fix: Call onSave (or a specific onCropUpdate) whenever crop completes? 
+    // No, that would spam.
+    
+    // Better: Allow parent to pass a ref to get the current crop state.
+    // OR: Just keep the "Check" button for explicit confirmation of ZOOM/PAN changes.
+    // For RESIZE changes, the parent updates the container, Cropper adapts, and `onCropChangeComplete` fires.
+    // We probably need to auto-save after resize?
+    
     return (
-        <div 
-            className="relative overflow-hidden bg-black/5"
-            style={{
-                width: containerSize.width,
-                height: containerSize.height,
-            }}
-        >
-            <Cropper
-                image={imageSrc}
-                crop={crop}
-                zoom={zoom}
-                cropSize={containerSize}
-                aspect={undefined}
-                onCropChange={setCrop}
-                onCropComplete={onCropChangeComplete}
-                onZoomChange={setZoom}
-                onMediaLoaded={onMediaLoaded}
-                showGrid={false}
-                zoomWithScroll={true}
-                zoomSpeed={0.5}
-                minZoom={minZoomLimit}
-                maxZoom={5}
-                restrictPosition={true}
-                objectFit="cover"
+        <>
+            <div 
+                className="relative overflow-hidden z-0"
                 style={{
-                    containerStyle: { borderRadius: '0' },
-                    mediaStyle: { borderRadius: '0' }
+                    width: containerSize.width,
+                    height: containerSize.height,
                 }}
-            />
+            >
+                <Cropper
+                    image={imageSrc}
+                    crop={crop}
+                    zoom={zoom}
+                    cropSize={containerSize}
+                    aspect={undefined}
+                    onCropChange={setCrop}
+                    onCropComplete={onCropChangeComplete}
+                    onZoomChange={setZoom}
+                    onMediaLoaded={onMediaLoaded}
+                    showGrid={false} // Never show grid
+                    zoomWithScroll={isActive} // Only zoom with scroll when active
+                    zoomSpeed={0.5}
+                    minZoom={minZoomLimit}
+                    maxZoom={5}
+                    restrictPosition={true}
+                    objectFit="cover"
+                    style={{
+                        containerStyle: { borderRadius: '0' },
+                        mediaStyle: { borderRadius: '0' }
+                    }}
+                />
+                
+                {/* Borderless Resize Handlers - Always Available */}
+                {onResizeStart && (
+                    <InvisibleResizeHandles 
+                        onResizeStart={onResizeStart} 
+                        verticalEnabled={isActive} 
+                    />
+                )}
+            </div>
 
-            {/* Floating HUD */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 bg-[var(--neko-bg-primary)]/80 backdrop-blur-md border border-[var(--neko-border)] rounded-full shadow-lg z-50">
-                <div className="w-32 flex items-center">
+            {/* Floating HUD - Only show when Active */}
+            <div 
+                className={cn(
+                    "absolute top-full left-1/2 -translate-x-1/2 mt-2 flex items-center gap-3 px-4 py-2 bg-[var(--neko-bg-primary)]/95 backdrop-blur-sm border border-[var(--neko-border)] rounded-full shadow-sm z-50",
+                    "transition-all duration-200 origin-top",
+                    isActive ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
+                )}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                draggable={false}
+            >
+                <div 
+                    className="w-32 flex items-center"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                >
                     <span className="text-[10px] font-bold text-[var(--neko-text-tertiary)] mr-2 uppercase tracking-wide">Zoom</span>
                     <PremiumSlider
                         min={minZoomLimit} // Should not go below cover
@@ -153,7 +211,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                         <X size={16} />
                     </button>
                     <button
-                        onClick={handleSave}
+                        onClick={(e) => handleSave(e)}
                         disabled={isSaving || !isCropperReady}
                         className="p-1.5 rounded-full bg-[var(--neko-accent)] hover:bg-[var(--neko-accent-hover)] text-white shadow-sm transition-all active:scale-95 disabled:opacity-50"
                         title="Save"
@@ -162,6 +220,6 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </>
     );
 };
