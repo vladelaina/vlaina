@@ -22,7 +22,6 @@ import { NotesSidebarWrapper } from '@/components/Notes/features/Sidebar/NotesSi
 
 // Header Contents
 import { CalendarHeaderControl } from '@/components/Calendar/features/Grid/CalendarHeaderControl';
-import { CalendarToolbar } from '@/components/Calendar'; // ViewSwitcher
 import { NotesTabRow } from '@/components/Notes/features/Tabs/NotesTabRow';
 
 // Stores & Hooks
@@ -122,7 +121,6 @@ function AppContent() {
 
   if (appViewMode === 'calendar') {
     centerSlot = <CalendarHeaderControl />;
-    rightSlot = <CalendarToolbar />;
   } else if (appViewMode === 'todo') {
     // No center slot for Todo view
   } else if (appViewMode === 'notes' && currentVault) {
