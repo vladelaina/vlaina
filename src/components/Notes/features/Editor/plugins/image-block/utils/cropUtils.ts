@@ -45,7 +45,8 @@ export function generateCropFragment(
     percentageCrop: { x: number; y: number; width: number; height: number },
     ratio: number
 ): string {
-    return `c=${Number(percentageCrop.x.toFixed(2))},${Number(percentageCrop.y.toFixed(2))},${Number(percentageCrop.width.toFixed(2))},${Number(percentageCrop.height.toFixed(2))},${ratio.toFixed(4)}`;
+    // Increase precision to 6 decimal places to prevent sub-pixel shifts
+    return `c=${Number(percentageCrop.x.toFixed(6))},${Number(percentageCrop.y.toFixed(6))},${Number(percentageCrop.width.toFixed(6))},${Number(percentageCrop.height.toFixed(6))},${ratio.toFixed(6)}`;
 }
 
 /**
@@ -63,8 +64,10 @@ export function getCropViewStyles(params: CropParams): { container: CSSPropertie
             top: 0,
             left: 0,
             width: '100%',
-            height: '100%',
-            objectFit: 'cover',
+            height: 'auto', // Allow height to be determined by aspect ratio
+            display: 'block', // Removes inline-block gaps
+            // transform order matters: translate first (move), then scale (zoom)
+            // percentages in translate are relative to the element itself
             transform: `scale(${100 / params.width}) translate(-${params.x}%, -${params.y}%)`,
             transformOrigin: 'top left',
         }

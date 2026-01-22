@@ -85,7 +85,13 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         e.stopPropagation();
         
         if (lastPercentageCrop.current) {
-            onSave(lastPercentageCrop.current, originalAspectRatioRef.current);
+            const pc = lastPercentageCrop.current;
+            // Calculate the ACTUAL aspect ratio of the cropped area
+            // Ratio = (Width% / Height%) * ImageRatio
+            // This ensures the container in View Mode matches the shape of the Crop Box
+            const cropRatio = (pc.width / pc.height) * originalAspectRatioRef.current;
+            
+            onSave(pc, cropRatio);
         }
     };
 
