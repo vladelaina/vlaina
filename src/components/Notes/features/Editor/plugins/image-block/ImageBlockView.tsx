@@ -32,9 +32,9 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         const src = node.attrs.src || '';
         return src.split('#')[0];
     });
-    
-    // Track if the image has visually loaded in the browser
-    const [isLoaded, setIsLoaded] = useState(false);
+
+    // Track if the cropper is ready (image loaded)
+    const [isCropperReady, setIsCropperReady] = useState(false);
 
     // --- Editor State ---
     const [isEditing, setIsEditing] = useState(false);
@@ -57,7 +57,8 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     // --- Path Resolution ---
-    const [cropParams, setCropParams] = useState<{ x: number, y: number, width: number, height: number } | null>(null);
+    const [cropParams, setCropParams] = useState<{ x: number, y: number, width: number, height: number, ratio: number } | null>(null);
+    const originalAspectRatioRef = useRef<number>(1);
 
     useEffect(() => {
         let isMounted = true;
@@ -72,8 +73,10 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             const [baseSrc, fragment] = rawSrc.split('#');
             if (fragment && fragment.startsWith('c=')) {
                 const parts = fragment.substring(2).split(',').map(Number);
-                if (parts.length === 4) {
-                    setCropParams({ x: parts[0], y: parts[1], width: parts[2], height: parts[3] });
+                if (parts.length >= 4) {
+                    // 5th value is the original aspect ratio (default to 1 for backward compat)
+                    const ratio = parts.length >= 5 ? parts[4] : 1;
+                    setCropParams({ x: parts[0], y: parts[1], width: parts[2], height: parts[3], ratio });
                 }
             } else {
                 setCropParams(null);
@@ -97,7 +100,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 } else {
                     fullPath = await joinPath(notesPath, baseSrc);
                 }
-                
+
                 console.log('Resolving FS Path:', fullPath);
 
                 if (fullPath) {
@@ -137,7 +140,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const handleEditStart = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         if (containerRef.current) {
             const rect = containerRef.current.getBoundingClientRect();
             // Set crop size to match the container exactly
@@ -146,28 +149,9 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
             if (cropParams) {
                 // Restore Zoom:
-                // Visual Width = (100 / cropWidthPercent) * ContainerWidth
-                // So Zoom = 100 / cropWidthPercent
                 const initialZoom = 100 / cropParams.width;
                 setZoom(initialZoom);
-
-                // Restore Position (x, y):
-                // cropParams.x is percentage offset of the image relative to the viewport
-                // We need to convert this to pixels for react-easy-crop
-                // Note: react-easy-crop's (x, y) are pixels from the CENTER
-                
-                // Let's rely on the visual equivalence:
-                // CSS Transform: translate(-x%, -y%)
-                // This shifts the image LEFT and UP.
-                
-                // If cropParams.x = 10 (10%), it means the left 10% is hidden.
-                // In react-easy-crop, if x=0, image is centered.
-                // We need to shift it so that the point (10%, y%) is at top-left.
-                
-                // For now, let's just set zoom. Position restoration requires complex math
-                // involving the natural image size which we might not have yet.
-                // Resetting to center (0,0) is safer than a wrong guess.
-                setCrop({ x: 0, y: 0 });
+                // Position will be restored in onMediaLoaded after image loads
             } else {
                 setZoom(1);
                 setCrop({ x: 0, y: 0 });
@@ -175,7 +159,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         }
 
         setIsEditing(true);
-        setIsHovered(false); 
+        setIsHovered(false);
     };
 
     const handleEditCancel = (e: React.MouseEvent) => {
@@ -190,21 +174,23 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const handleEditSave = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         if (!croppedAreaPixels) return;
 
         try {
             setIsSaving(true);
-            
+
             const baseSrc = node.attrs.src.split('#')[0];
-            
+
             // Use the percentage crop data from the ref
             const c = lastPercentageCrop.current;
-            
+
             if (c) {
                 // Use 2 decimal places for better precision to avoid gaps
-                const fragment = `c=${Number(c.x.toFixed(2))},${Number(c.y.toFixed(2))},${Number(c.width.toFixed(2))},${Number(c.height.toFixed(2))}`;
-                
+                // Include original aspect ratio as 5th parameter
+                const ratio = originalAspectRatioRef.current;
+                const fragment = `c=${Number(c.x.toFixed(2))},${Number(c.y.toFixed(2))},${Number(c.width.toFixed(2))},${Number(c.height.toFixed(2))},${ratio.toFixed(4)}`;
+
                 const pos = getPos();
                 if (pos !== undefined) {
                     const tr = view.state.tr.setNodeMarkup(pos, undefined, {
@@ -324,6 +310,9 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const alignmentClasses = { left: 'mr-auto', center: 'mx-auto', right: 'ml-auto' };
 
     const onMediaLoaded = useCallback((mediaSize: { width: number, height: number, naturalWidth: number, naturalHeight: number }) => {
+        // Save original aspect ratio for use when saving
+        originalAspectRatioRef.current = mediaSize.naturalWidth / mediaSize.naturalHeight;
+
         if (!cropSize) return;
 
         // Calculate the "Fit" ratio (what react-easy-crop uses for Zoom=1)
@@ -343,11 +332,34 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         // To COVER, we need the larger of the two scales
         const coverZoom = Math.max(widthScale, heightScale) * 1.001;
 
-        // Force set the minimum limit and update current zoom if it's a fresh edit
+        // Force set the minimum limit
         setMinZoomLimit(coverZoom);
-        if (!cropParams) {
-             setZoom(coverZoom);
+
+        if (cropParams) {
+            // Restore position from saved cropParams
+            // cropParams.x, y are percentages of the image that are offset
+            // react-easy-crop's crop is in pixels from center
+            const currentZoom = 100 / cropParams.width;
+            const scaledWidth = displayedWidthAtZoom1 * currentZoom;
+            const scaledHeight = displayedHeightAtZoom1 * currentZoom;
+
+            // Calculate the center offset in pixels
+            // cropParams.x% of the image is hidden on the left
+            // So the visible center is at (cropParams.x + cropParams.width/2)% of the image
+            // Image center is at 50%
+            // Offset = (50 - (cropParams.x + cropParams.width/2)) * scaledWidth / 100
+            const visibleCenterX = cropParams.x + cropParams.width / 2;
+            const visibleCenterY = cropParams.y + cropParams.height / 2;
+            const cropX = (50 - visibleCenterX) * scaledWidth / 100;
+            const cropY = (50 - visibleCenterY) * scaledHeight / 100;
+
+            setCrop({ x: cropX, y: cropY });
+        } else {
+            setZoom(coverZoom);
         }
+
+        // Mark cropper as ready after all calculations
+        setIsCropperReady(true);
     }, [cropSize, cropParams]);
 
     console.log('--- RENDER CROPPER ---');
@@ -374,7 +386,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 {/* --- RENDER CONTENT --- */}
                 {isEditing ? (
                     /* EDIT MODE: Inline Cropper */
-                    <div 
+                    <div
                         className="relative overflow-hidden bg-black/5"
                         style={{
                             width: cropSize?.width,
@@ -385,7 +397,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                             image={imageSrc}
                             crop={crop}
                             zoom={zoom}
-                            cropSize={cropSize} 
+                            cropSize={cropSize}
                             aspect={undefined}
                             onCropChange={setCrop}
                             onCropComplete={onCropChangeComplete}
@@ -439,25 +451,29 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     </div>
                 ) : (
                     /* VIEW MODE: Non-destructive Viewfinder */
-                    <div 
+                    <div
                         className={cn(
                             "w-full overflow-hidden transition-all duration-200",
                             cropParams ? "relative" : ""
                         )}
                         style={cropParams ? {
-                            aspectRatio: `${cropParams.width} / ${cropParams.height}`,
+                            // Use original aspect ratio to keep container size unchanged
+                            aspectRatio: `${cropParams.ratio}`,
                         } : {}}
                     >
                         <img
                             src={imageSrc}
                             alt={node.attrs.alt}
                             className={cn(
-                                "max-w-none transition-all duration-200 block !m-0", // !m-0 to override global .milkdown img margin
-                                !cropParams && "w-full h-auto"
+                                "block !m-0", // !m-0 to override global .milkdown img margin
+                                !cropParams && "w-full h-auto max-w-none transition-all duration-200",
+                                cropParams && "absolute w-full h-full object-cover"
                             )}
                             style={cropParams ? {
-                                width: `${100 * (100 / cropParams.width)}%`,
-                                transform: `translate(-${cropParams.x}%, -${cropParams.y}%)`,
+                                // Use transform scale to zoom in, and translate to pan
+                                // Scale factor: 100 / cropWidth (or cropHeight, they should be equal for same aspect ratio)
+                                transform: `scale(${100 / cropParams.width}) translate(-${cropParams.x}%, -${cropParams.y}%)`,
+                                transformOrigin: 'top left',
                             } : {}}
                             draggable={false}
                         />
