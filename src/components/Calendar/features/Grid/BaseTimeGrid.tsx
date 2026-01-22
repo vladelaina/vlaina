@@ -23,6 +23,7 @@ import { GridLines } from './components/GridLines';
 import { CurrentTimeLine } from './components/CurrentTimeLine';
 import { EventsLayer } from './components/EventsLayer';
 import { SunLinesLayer } from './components/SunLinesLayer';
+import { TimezoneHeader } from './components/TimezoneHeader';
 
 const GUTTER_WIDTH = CALENDAR_CONSTANTS.GUTTER_WIDTH as number;
 
@@ -110,8 +111,18 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
   const nowDisplayPosition = hourToDisplayPosition(nowHour, dayStartMinutes);
   const nowTop = nowDisplayPosition * hourHeight + (nowMinutes / 60) * hourHeight;
 
+  // Use the timezone from store or default
+  const { timezone } = useCalendarStore();
+
   return (
     <div className="flex flex-col h-full bg-white dark:bg-zinc-950 select-none relative">
+      
+      {/* Timezone Header */}
+      <TimezoneHeader timezone={timezone || 'GMT+8'} />
+
+      {/* Second Divider Line (Full Width) - Top of All Day Area */}
+      <div className="h-px bg-zinc-200 dark:bg-zinc-800 w-full flex-shrink-0" />
+
       {/* All-day events area */}
       <div ref={allDayAreaRef}>
         <AllDayArea
@@ -124,6 +135,9 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
           onToggle={onToggle}
         />
       </div>
+
+      {/* Third Divider Line (Full Width) - Bottom of All Day Area */}
+      <div className="h-px bg-zinc-200 dark:bg-zinc-800 w-full flex-shrink-0" />
 
       {/* Main body */}
       <div ref={scrollRef} id="time-grid-scroll" className="flex-1 overflow-y-auto relative neko-scrollbar">
