@@ -231,7 +231,7 @@ export function TaskItem({
                 <div className="mt-0.5 flex-shrink-0" onPointerDown={(e) => e.stopPropagation()}>
                     <IconSelector
                         value={task.icon}
-                        onChange={(icon) => updateTaskIcon(task.id, icon)}
+                        onChange={(icon) => updateTaskIcon(task.id, icon || '')}
                         onHover={handlePreview}
                         compact
                         closeOnSelect={false}

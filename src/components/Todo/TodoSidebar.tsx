@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import {
     Inbox,
     Calendar,
@@ -107,7 +107,7 @@ export function TodoSidebar() {
         if (editingGroupId && editInputRef.current) editInputRef.current.focus();
     }, [editingGroupId]);
 
-    const NavItem = ({ id, label, icon: Icon, count, onClick, active }: any) => (
+    const NavItem = ({ label, icon: Icon, count, onClick, active }: any) => (
         <button
             onClick={onClick}
             className={cn(

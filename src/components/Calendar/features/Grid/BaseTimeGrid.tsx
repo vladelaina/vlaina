@@ -118,7 +118,7 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
     <div className="flex flex-col h-full bg-white dark:bg-zinc-950 select-none relative">
       
       {/* Timezone Header */}
-      <TimezoneHeader timezone={timezone || 'GMT+8'} />
+      <TimezoneHeader timezone={String(timezone || 'GMT+8')} />
 
       {/* Second Divider Line (Full Width) - Top of All Day Area */}
       <div className="h-px bg-zinc-200 dark:bg-zinc-800 w-full flex-shrink-0" />
@@ -174,11 +174,10 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
               onEventHover={handleEventHover}
             />
 
-            <SunLinesLayer
+<SunLinesLayer
               days={days}
               hourHeight={hourHeight}
               dayStartMinutes={dayStartMinutes}
-              columnCount={columnCount}
             />
 
             <CurrentTimeLine

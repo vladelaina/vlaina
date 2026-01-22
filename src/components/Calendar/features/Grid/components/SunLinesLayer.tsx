@@ -8,10 +8,9 @@ interface SunLinesLayerProps {
     days: Date[];
     hourHeight: number;
     dayStartMinutes: number;
-    columnCount: number;
 }
 
-export function SunLinesLayer({ days, hourHeight, dayStartMinutes, columnCount }: SunLinesLayerProps) {
+export function SunLinesLayer({ days, hourHeight, dayStartMinutes }: SunLinesLayerProps) {
     const { weather } = useWeatherStore();
     const { use24Hour } = useCalendarStore();
     

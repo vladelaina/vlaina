@@ -1,5 +1,20 @@
 import { useMemo } from 'react';
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  addDays,
+  isSameMonth,
+  isSameDay,
+  isToday,
+} from 'date-fns';
 
+import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
+import { useCalendarEvents } from '../../hooks/useCalendarEvents';
+import { getColorHex, getColorPriority } from '@/lib/colors';
+import { isEventInVisualDay, DEFAULT_DAY_START_MINUTES } from '../../utils/timeUtils';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 

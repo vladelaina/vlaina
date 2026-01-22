@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
-  Cloud, Search, MapPin, X, Loader2, CloudSun
+  Search, MapPin, X, Loader2, CloudSun
 }
 from 'lucide-react';
 import { isSameDay } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useWeatherStore } from '@/lib/weather/weatherStore';
 import { searchCity, getWeatherDescription, getForecastForDate, type GeoLocation } from '@/lib/weather/openMeteo';
