@@ -1,38 +1,55 @@
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { ChevronUp, ChevronDown, Undo2 } from 'lucide-react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ColorFilter } from '@/components/common/ColorFilter';
+import { getColorHex, getColorPriority } from '@/lib/colors';
 
 interface MiniCalendarProps {
   onSelect?: (date: Date) => void;
-  // selectedDate is now managed globally, but we can accept it if we want to override or init (optional, but current code uses store)
-  // strict mode: remove unused props from call sites or add them here.
-  // The errors show: Type '{ selectedDate: Date; onSelect: ... }'
-  // So we should probably allow selectedDate in props too, even if we ignore it or sync it,
-  // OR update call sites to NOT pass selectedDate.
-  // Given the goal is "fix errors", adding it to props is safest if we want to keep call sites mostly same,
-  // BUT the store is the source of truth. Let's add it as optional to satisfy TS but ignore it or use it to init state if provided?
-  // Actually, better to clean up call sites. But to fix the "not assignable" error, we need to accept what's passed OR change what's passed.
-  // I will change what's passed in the other files. Here I just add onSelect.
 }
 
 export function MiniCalendar({ onSelect }: MiniCalendarProps) {
-  const { selectedDate, setSelectedDate } = useCalendarStore();
+  const { selectedDate, setSelectedDate, allEvents } = useCalendarStore();
   const [currentMonth, setCurrentMonth] = useState(selectedDate);
 
-  // Sync current month when selected date changes (e.g. via "Today" button in header)
+  // Sync current month when selected date changes
   useEffect(() => {
     setCurrentMonth(selectedDate);
   }, [selectedDate]);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
-  // Start from Sunday
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
+  // Pre-calculate incomplete events by date for density display
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, typeof allEvents>();
+    if (!allEvents) return map;
+
+    for (const event of allEvents) {
+      if (event.completed) continue; // Only show incomplete tasks
+      
+      const date = event.dtstart;
+      if (!date || isNaN(date.getTime())) continue; // Skip invalid dates
+
+      const dateStr = format(date, 'yyyy-MM-dd');
+      if (!map.has(dateStr)) {
+        map.set(dateStr, []);
+      }
+      map.get(dateStr)!.push(event);
+    }
+    
+    // Sort events by priority for consistent display order
+    for (const [_, events] of map) {
+      events.sort((a, b) => getColorPriority(a.color) - getColorPriority(b.color));
+    }
+    
+    return map;
+  }, [allEvents]);
 
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
@@ -50,6 +67,43 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
       setCurrentMonth(day);
     }
     onSelect?.(day);
+  };
+
+  const renderIndicators = (day: Date) => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    const events = eventsByDate.get(dateStr) || [];
+    const count = events.length;
+
+    if (count === 0) return null;
+
+    // 1-3 Events: Dots
+    if (count <= 3) {
+      return (
+        <div className="flex gap-0.5 mt-0.5">
+          {events.map((event) => (
+            <div
+              key={event.uid}
+              className="w-1 h-1 rounded-full"
+              style={{ backgroundColor: getColorHex(event.color) }}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    // >3 Events: Color Bar (Spectrum/Barcode style)
+    // Fixed length, every task is a slice. High density = thin slices.
+    return (
+      <div className="flex w-5 h-1 rounded-full overflow-hidden mt-0.5 min-w-[20px]">
+        {events.map((event) => (
+          <div
+            key={event.uid}
+            style={{ backgroundColor: getColorHex(event.color) }}
+            className="flex-1 h-full"
+          />
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -121,6 +175,9 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
                   <span className="h-6 flex items-center justify-center shrink-0">{format(day, 'd')}</span>
                 )}
                 
+                {/* Density Indicators */}
+                {renderIndicators(day)}
+                
               </div>
             );
           })}
@@ -132,5 +189,3 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
     </div>
   );
 }
-
-// Local ColorFilter removed
