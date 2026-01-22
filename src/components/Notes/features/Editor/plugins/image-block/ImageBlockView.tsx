@@ -191,6 +191,15 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 const ratio = originalAspectRatioRef.current;
                 const fragment = `c=${Number(c.x.toFixed(2))},${Number(c.y.toFixed(2))},${Number(c.width.toFixed(2))},${Number(c.height.toFixed(2))},${ratio.toFixed(4)}`;
 
+                // 关键：先更新本地 cropParams 状态，避免等待 useEffect 解析导致的闪烁
+                setCropParams({
+                    x: Number(c.x.toFixed(2)),
+                    y: Number(c.y.toFixed(2)),
+                    width: Number(c.width.toFixed(2)),
+                    height: Number(c.height.toFixed(2)),
+                    ratio: ratio
+                });
+
                 const pos = getPos();
                 if (pos !== undefined) {
                     const tr = view.state.tr.setNodeMarkup(pos, undefined, {
