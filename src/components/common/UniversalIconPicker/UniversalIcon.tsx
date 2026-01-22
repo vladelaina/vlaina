@@ -37,6 +37,8 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
   className?: string;
   rounding?: string;
 }) {
+  if (!src) return null;
+  
   return (
     <img
       src={src}

@@ -220,7 +220,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     <div className={cn("w-full overflow-hidden transition-all duration-200", cropParams ? "relative" : "")}
                          style={viewStyles?.container}>
                         <img
-                            src={resolvedSrc}
+                            src={resolvedSrc || undefined}
                             alt={node.attrs.alt}
                             className={cn(
                                 "block !m-0",
