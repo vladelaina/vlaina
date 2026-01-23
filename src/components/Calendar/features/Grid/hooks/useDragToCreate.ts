@@ -21,7 +21,7 @@ interface UseDragToCreateProps {
     dayStartMinutes: number;
     scrollRef: React.RefObject<HTMLDivElement | null>;
     canvasRef: React.RefObject<HTMLDivElement | null>;
-    onEventCreated: (startDate: Date, endDate: Date, position: { x: number; y: number }) => void;
+    onEventCreated: (startDate: Date, endDate: Date, position: { x: number; y: number }, dragId?: string) => void;
     onBeforeCreate?: () => void;
 }
 
@@ -156,9 +156,8 @@ export function useDragToCreate({
                 return;
             }
 
-            // Pass the pre-generated dragId to the creation callback
+// Pass the pre-generated dragId to the creation callback
             if (dragId) {
-                // @ts-ignore - Extending the callback signature locally, will fix parent type
                 onEventCreated(startDate, endDate, { x: e.clientX, y: e.clientY }, dragId);
             }
         }

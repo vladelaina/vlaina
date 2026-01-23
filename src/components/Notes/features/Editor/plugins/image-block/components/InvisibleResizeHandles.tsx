@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface InvisibleResizeHandlesProps {
-    onResizeStart: (direction: 'left' | 'right' | 'top' | 'bottom') => (e: React.MouseEvent) => void;
+    onResizeStart: (direction: 'left' | 'right' | 'top' | 'bottom' | 'bottom-left' | 'bottom-right') => (e: React.MouseEvent) => void;
     verticalEnabled?: boolean; // Only enable vertical resize (crop) when explicitly allowed
 }
 
