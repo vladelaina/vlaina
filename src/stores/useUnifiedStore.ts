@@ -48,7 +48,7 @@ interface UnifiedStoreActions {
   load: () => Promise<void>;
   setActiveGroup: (id: string) => void;
   addGroup: (name: string) => void;
-  updateGroup: (id: string, name: string) => void;
+  updateGroup: (id: string, name: string, icon?: string) => void;
   deleteGroup: (id: string) => void;
   toggleGroupPin: (id: string) => void;
   reorderGroups: (activeId: string, overId: string) => void;

@@ -4,7 +4,7 @@ import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconP
 import { type ItemColor, COLOR_HEX } from '@/lib/colors';
 
 export function useEventForm(event: NekoEvent) {
-    const { updateEvent, updateEventIcon, closeEditingEvent, calendars, deleteEvent } = useCalendarStore();
+    const { updateEvent, closeEditingEvent, calendars, deleteEvent } = useCalendarStore();
     
     // Use unified preview hook
     const { handlePreview, handlePreviewColor, handlePreviewSize } = useIconPreview(event.uid);

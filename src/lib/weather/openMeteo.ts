@@ -5,7 +5,7 @@
  * No API key required.
  */
 
-import { format, isSameDay } from 'date-fns';
+import { format } from 'date-fns';
 
 export interface GeoLocation {
   name: string;
@@ -47,7 +47,14 @@ export async function searchCity(name: string): Promise<GeoLocation[]> {
   
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=5&language=en&format=json`;
   try {
-    const res = await fetch(url);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
     const data = await res.json();
     if (!data.results) return [];
     
@@ -59,7 +66,9 @@ export async function searchCity(name: string): Promise<GeoLocation[]> {
       admin1: item.admin1
     }));
   } catch (e) {
-    console.error("Geocoding failed", e);
+    // Only log actual errors, not aborts if we want silence, but mostly we want to see it.
+    // However, to fix the user's issue, we can just log a warning for timeouts.
+    console.warn("Geocoding failed/timed out", e);
     return [];
   }
 }
@@ -72,10 +81,16 @@ export async function getWeather(lat: number, lon: number): Promise<WeatherData 
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,is_day,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto&past_days=92&forecast_days=16`;
   
   try {
-    const res = await fetch(url);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout for larger payload
+
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
     const data = await res.json();
     
-    // Check for errors
     if (data.error) return null;
 
     return {
@@ -94,7 +109,7 @@ export async function getWeather(lat: number, lon: number): Promise<WeatherData 
       }
     };
   } catch (e) {
-    console.error("Weather fetch failed", e);
+    console.warn("Weather fetch failed/timed out", e);
     return null;
   }
 }

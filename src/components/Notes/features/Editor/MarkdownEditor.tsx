@@ -13,7 +13,6 @@ import { Editor, rootCtx, defaultValueCtx, editorViewCtx } from '@milkdown/kit/c
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
-import { clipboard } from '@milkdown/kit/plugin/clipboard';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { Ellipsis, Star } from 'lucide-react';

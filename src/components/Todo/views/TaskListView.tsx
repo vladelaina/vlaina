@@ -28,7 +28,6 @@ interface TaskListViewProps {
  * Renders the common UI for Tasks, Today, and Inbox views.
  */
 export function TaskListView({
-    title,
     tasks: filteredTasks,
     allTasks,
     searchQuery,

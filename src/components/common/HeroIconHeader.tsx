@@ -65,7 +65,7 @@ function HeaderIcon({
     // Resolve color: Preview (ItemColor -> Hex) > Undefined (Let AppIcon parse from string)
     let finalColorHex: string | undefined;
     if (isPreviewing && universalPreviewColor) {
-        finalColorHex = COLOR_HEX[universalPreviewColor] || COLOR_HEX['default'];
+        finalColorHex = COLOR_HEX[universalPreviewColor as ItemColor] || COLOR_HEX['default'];
     }
 
     if (!finalIcon) return null;

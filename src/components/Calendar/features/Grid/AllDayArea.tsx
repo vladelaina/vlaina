@@ -191,8 +191,8 @@ export function AllDayArea({
     <div
       ref={areaRef}
       className={`
-        relative flex border-b transition-all duration-200
-        ${isDropTarget ? 'bg-blue-50/50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700' : 'border-zinc-200 dark:border-zinc-800'}
+        relative flex
+        ${isDropTarget ? 'bg-blue-50/50 dark:bg-blue-900/20' : ''}
       `}
       style={{ minHeight: areaHeight }}
       onMouseDown={handleMouseDown}

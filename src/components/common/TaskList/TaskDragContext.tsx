@@ -3,10 +3,7 @@ import { createPortal } from 'react-dom';
 import { 
     DndContext, 
     DragOverlay, 
-    type DragStartEvent, 
-    type DragMoveEvent, 
-    type DragOverEvent, 
-    type DragEndEvent 
+    type DragStartEvent
 } from '@dnd-kit/core';
 import type { Task } from '@/stores/useGroupStore';
 import { useTaskDragAndDrop } from './useTaskDragAndDrop';
