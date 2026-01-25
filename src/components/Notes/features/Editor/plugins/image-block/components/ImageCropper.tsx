@@ -39,10 +39,48 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     const originalAspectRatioRef = useRef<number>(1);
     const [isCropperReady, setIsCropperReady] = useState(false);
 
-    // Auto-save crop data when it changes if we are not "active" (i.e. just resizing container)
-    // Actually, react-easy-crop changes crop on resize automatically.
-    // We might need an imperative handle or ref to get current crop data for the parent.
-    // For now, let's keep the refs updated.
+    // Auto-save debouncer
+    const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Manual Wheel Handler for Ctrl+Scroll Zooming when NOT active
+    const handleWheel = (e: React.WheelEvent) => {
+        if (isActive) return; // If active, let react-easy-crop handle it if enabled, or user is using UI
+
+        if (e.ctrlKey) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const delta = -e.deltaY / 200; // Sensitivity
+            const newZoom = Math.min(5, Math.max(minZoomLimit, zoom + delta));
+            
+            setZoom(newZoom);
+            
+            // Trigger auto-save logic
+            if (autoSaveTimeoutRef.current) {
+                clearTimeout(autoSaveTimeoutRef.current);
+            }
+
+            autoSaveTimeoutRef.current = setTimeout(() => {
+                // We need to trigger save. 
+                // Note: lastPercentageCrop.current is updated by onCropComplete which fires after setZoom
+                // So this timeout should see the updated crop.
+                if (lastPercentageCrop.current) {
+                    const pc = lastPercentageCrop.current;
+                    const cropRatio = (pc.width / pc.height) * originalAspectRatioRef.current;
+                    onSave(pc, cropRatio);
+                }
+            }, 500); // 500ms debounce
+        }
+    };
+
+    // Cleanup timeout
+    React.useEffect(() => {
+        return () => {
+            if (autoSaveTimeoutRef.current) {
+                clearTimeout(autoSaveTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const onCropChangeComplete = useCallback((percentageCrop: any, _pixelCrop: any) => {
         lastPercentageCrop.current = percentageCrop;
@@ -138,6 +176,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                     width: containerSize.width,
                     height: containerSize.height,
                 }}
+                onWheel={handleWheel}
             >
                 <Cropper
                     image={imageSrc}
