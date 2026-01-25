@@ -43,8 +43,8 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
 
     return (
         <div className={cn(
-            "absolute bottom-full right-0 mb-1.5 max-w-full z-[60] transition-all duration-200",
-            "flex items-center gap-0.5 p-1 bg-[var(--neko-bg-primary)]/95 backdrop-blur-sm border border-[var(--neko-border)] rounded-lg shadow-sm",
+            "absolute bottom-2 right-2 mb-0 max-w-[calc(100%-16px)] z-[60] transition-all duration-200",
+            "flex items-center gap-0.5 p-1 bg-[var(--neko-bg-primary)]/80 backdrop-blur-md border border-[var(--neko-border)] rounded-lg shadow-sm",
             isVisible 
                 ? "opacity-100 scale-100 translate-y-0" 
                 : "opacity-0 scale-95 translate-y-2 pointer-events-none"

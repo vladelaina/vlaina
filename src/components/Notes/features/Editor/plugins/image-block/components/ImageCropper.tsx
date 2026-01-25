@@ -66,8 +66,22 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                 // So this timeout should see the updated crop.
                 if (lastPercentageCrop.current) {
                     const pc = lastPercentageCrop.current;
-                    const cropRatio = (pc.width / pc.height) * originalAspectRatioRef.current;
-                    onSave(pc, cropRatio);
+                    
+                    // Force keep the current aspect ratio during zoom to prevent container resizing/jitter
+                    // Use initialCropParams.ratio if available (which reflects current container state),
+                    // otherwise calculate from container size directly.
+                    let currentRatio = initialCropParams?.ratio;
+                    
+                    if (!currentRatio && containerSize.width && containerSize.height) {
+                        currentRatio = containerSize.width / containerSize.height;
+                    }
+                    
+                    // Fallback if somehow neither is available
+                    if (!currentRatio) {
+                        currentRatio = (pc.width / pc.height) * originalAspectRatioRef.current;
+                    }
+
+                    onSave(pc, currentRatio);
                 }
             }, 500); // 500ms debounce
         }
