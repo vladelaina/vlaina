@@ -110,8 +110,6 @@ async function getBasePath(): Promise<string> {
   }
   return basePath;
 }
-  return basePath;
-}
 
 async function ensureDirectories(): Promise<void> {
   const storage = getStorageAdapter();
