@@ -73,7 +73,28 @@ export function generateICS(events: NekoEvent[], calendar: NekoCalendar): string
             xProps.push({ key: NEKO_X_PROPS.ORIGINAL_DTEND, value: String(event.originalDtEnd) });
         }
 
+        if (event.groupId) {
+            xProps.push({ key: NEKO_X_PROPS.GROUP_ID, value: event.groupId });
+        }
+
+        if (event.order !== undefined) {
+            xProps.push({ key: NEKO_X_PROPS.ORDER, value: String(event.order) });
+        }
+
+        if (event.parentId) {
+            xProps.push({ key: NEKO_X_PROPS.PARENT_ID, value: event.parentId });
+        }
+
+        if (event.collapsed) {
+            xProps.push({ key: NEKO_X_PROPS.COLLAPSED, value: 'TRUE' });
+        }
+
+        if (event.estimatedMinutes !== undefined) {
+            xProps.push({ key: NEKO_X_PROPS.ESTIMATED_MINUTES, value: String(event.estimatedMinutes) });
+        }
+
         // Add all X-properties
+
         if (xProps.length > 0) {
             calEvent.x(xProps);
         }

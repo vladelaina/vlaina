@@ -65,6 +65,21 @@ export interface NekoEvent {
 
     /** Original end time (timestamp) before switching to all-day */
     originalDtEnd?: number;
+
+    /** Task Group ID (for board/list view) */
+    groupId?: string;
+
+    /** Sort order within the group */
+    order?: number;
+
+    /** Parent Task ID (for subtasks) */
+    parentId?: string;
+
+    /** Whether the task hierarchy is collapsed */
+    collapsed?: boolean;
+
+    /** Estimated duration in minutes */
+    estimatedMinutes?: number;
 }
 
 /**
@@ -98,4 +113,10 @@ export const NEKO_X_PROPS = {
     COMPLETED: 'X-NEKO-COMPLETED',
     ORIGINAL_DTSTART: 'X-NEKO-ORIGINAL-DTSTART',
     ORIGINAL_DTEND: 'X-NEKO-ORIGINAL-DTEND',
+    GROUP_ID: 'X-NEKO-GROUP-ID',
+    ORDER: 'X-NEKO-ORDER',
+    PARENT_ID: 'X-NEKO-PARENT-ID',
+    COLLAPSED: 'X-NEKO-COLLAPSED',
+    ESTIMATED_MINUTES: 'X-NEKO-ESTIMATED-MINUTES',
 } as const;
+

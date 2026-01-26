@@ -1,75 +1,35 @@
 /**
- * Unified Storage - Unified storage architecture
+ * Unified Storage - LEGACY / PARTIAL
  * 
- * Core concept: There is only one type of "item" (UnifiedTask)
- * - All items are stored in a single unified list
- * - Items with time properties appear in calendar view
- * - Items without time properties only appear in todo view
- * - Calendar and todo are just different views of the same data
- * 
- * Storage structure:
- * - .nekotick/store/data.json: Data source (JSON format, read/write by program)
- * - nekotick.md: Human-readable Markdown view (write-only, for backup and viewing)
+ * NOTE: Tasks and Groups have been migrated to ICS storage (calendarStorage.ts).
+ * This storage now only handles:
+ * - Progress (Habits)
+ * - Settings
+ * - Custom Icons
+ * - Archive (Legacy)
  */
 
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useProStatusStore } from '@/stores/useProStatusStore';
-import type { ItemColor } from '@/lib/colors';
 import type { TimeView } from '@/lib/date';
 import {
   DEFAULT_TIMEZONE,
   DEFAULT_VIEW_MODE,
   DEFAULT_DAY_COUNT,
-  DEFAULT_GROUP_ID,
-  DEFAULT_GROUP_NAME,
 } from '@/lib/config';
 
+// DEPRECATED TYPES - Kept for type safety in legacy code until fully removed
 export interface UnifiedTask {
-  id: string;
-  content: string;
-  completed: boolean;
-  createdAt: number;
-  completedAt?: number;
-  order: number;
-  groupId: string;
-  parentId: string | null;
-  collapsed: boolean;
-
-  // Unified color system - Apple style colors
-  color: ItemColor;
-
-  // Time properties (with time = calendar event, without time = pure todo)
-  startDate?: number;
-  endDate?: number;
-  isAllDay?: boolean;
-
-  // Time tracking
-  estimatedMinutes?: number;
-  actualMinutes?: number;
-
-  // Timer state
-  timerState?: 'idle' | 'running' | 'paused';
-  timerStartedAt?: number;
-  timerAccumulated?: number;
-
-  // Icon (Phosphor icon name, shared with Progress module)
-  icon?: string;
-  iconSize?: number;
-
-  // Calendar related (optional)
-  location?: string;
-  description?: string;
+    id: string;
+    // ... minimal stub or full type if still referenced by legacy types
+    [key: string]: any; 
 }
-
 export interface UnifiedGroup {
-  id: string;
-  name: string;
-  icon?: string;
-  pinned: boolean;
-  createdAt: number;
-  updatedAt?: number;
+    id: string;
+    // ... minimal stub
+    [key: string]: any;
 }
 
 export interface UnifiedProgress {
@@ -114,8 +74,11 @@ export interface CustomIcon {
 }
 
 export interface UnifiedData {
+  // Legacy fields - made optional or removed from active logic
   groups: UnifiedGroup[];
   tasks: UnifiedTask[];
+  
+  // Active fields
   progress: UnifiedProgress[];
   archive: UnifiedArchiveSection[];
   settings: {
@@ -141,9 +104,12 @@ async function getBasePath(): Promise<string> {
   if (basePath === null) {
     const storage = getStorageAdapter();
     const appData = await storage.getBasePath();
+    // Fix: Correctly escape backslash for Windows paths
     basePath =
-      appData.endsWith('\\') || appData.endsWith('/') ? appData.slice(0, -1) : appData;
+      appData.endsWith(String.fromCharCode(92)) || appData.endsWith('/') ? appData.slice(0, -1) : appData;
   }
+  return basePath;
+}
   return basePath;
 }
 
@@ -159,15 +125,8 @@ async function ensureDirectories(): Promise<void> {
 
 function getDefaultData(): UnifiedData {
   return {
-    groups: [
-      {
-        id: DEFAULT_GROUP_ID,
-        name: DEFAULT_GROUP_NAME,
-        pinned: false,
-        createdAt: Date.now(),
-      },
-    ],
-    tasks: [],
+    groups: [], // Empty
+    tasks: [],  // Empty
     progress: [],
     archive: [],
     settings: {
@@ -190,11 +149,9 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
       const parsed = JSON.parse(content) as DataFile;
 
       if (parsed.version === 2 && parsed.data) {
-
         return parsed.data;
       }
     }
-
 
     return getDefaultData();
   } catch (error) {
@@ -222,7 +179,7 @@ export async function saveUnifiedData(data: UnifiedData): Promise<void> {
       await ensureDirectories();
       const base = await getBasePath();
       const jsonPath = await joinPath(base, '.nekotick', 'store', 'data.json');
-      const mdPath = await joinPath(base, 'nekotick.md');
+      // MD file generation removed as it relied on Tasks
 
       // Save JSON (source of truth)
       const dataFile: DataFile = {
@@ -231,11 +188,6 @@ export async function saveUnifiedData(data: UnifiedData): Promise<void> {
         data: pendingData,
       };
       await storage.writeFile(jsonPath, JSON.stringify(dataFile, null, 2));
-
-      // Save MD (human-readable view)
-      const markdown = generateMarkdown(pendingData);
-      await storage.writeFile(mdPath, markdown);
-
 
       pendingData = null;
 
@@ -274,7 +226,6 @@ export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void>
     await ensureDirectories();
     const base = await getBasePath();
     const jsonPath = await joinPath(base, '.nekotick', 'store', 'data.json');
-    const mdPath = await joinPath(base, 'nekotick.md');
 
     const dataFile: DataFile = {
       version: 2,
@@ -283,127 +234,7 @@ export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void>
     };
     await storage.writeFile(jsonPath, JSON.stringify(dataFile, null, 2));
 
-    const markdown = generateMarkdown(data);
-    await storage.writeFile(mdPath, markdown);
-
-
   } catch (error) {
     console.error('[UnifiedStorage] Failed to save:', error);
   }
-}
-
-function generateMarkdown(data: UnifiedData): string {
-  const lines: string[] = [];
-
-  // Unified Items Section - Tasks and Calendar events are the same data
-  lines.push('# Items');
-  lines.push('');
-
-  for (const group of data.groups) {
-    const groupTasks = data.tasks.filter((t) => t.groupId === group.id);
-    if (groupTasks.length === 0 && group.id !== DEFAULT_GROUP_ID) continue;
-
-    lines.push(`## ${group.name}`);
-    lines.push('');
-
-    // Render top-level tasks with time info inline
-    const topLevel = groupTasks.filter((t) => !t.parentId).sort((a, b) => a.order - b.order);
-
-    for (const task of topLevel) {
-      renderTaskUnified(task, groupTasks, lines, '');
-    }
-
-    if (topLevel.length > 0) lines.push('');
-  }
-
-  // Progress Section
-  lines.push('# Progress');
-  lines.push('');
-
-  const activeProgress = data.progress.filter((p) => !p.archived);
-  const archivedProgress = data.progress.filter((p) => p.archived);
-
-  for (const item of activeProgress) {
-    const icon = item.icon || '○';
-    const resetInfo = item.resetFrequency === 'daily' ? ' (↻)' : '';
-
-    if (item.type === 'progress') {
-      const percent = item.total ? Math.round((item.current / item.total) * 100) : 0;
-      lines.push(`## ${icon} ${item.title}${resetInfo}`);
-      lines.push(`${item.current} / ${item.total} ${item.unit} (${percent}%)`);
-    } else {
-      lines.push(`## ${icon} ${item.title}${resetInfo}`);
-      lines.push(`${item.current} ${item.unit}`);
-    }
-    lines.push('');
-  }
-
-  if (archivedProgress.length > 0) {
-    lines.push('### Archived');
-    for (const item of archivedProgress) {
-      const icon = item.icon || '○';
-      lines.push(`- ~~${icon} ${item.title}~~`);
-    }
-    lines.push('');
-  }
-
-  // Archive Section
-  if (data.archive.length > 0) {
-    lines.push('# Archive');
-    lines.push('');
-
-    for (const section of data.archive) {
-      const date = new Date(section.timestamp).toISOString().split('T')[0];
-      lines.push(`## ${date}`);
-      for (const task of section.tasks) {
-        lines.push(`- [x] ${task.content}`);
-      }
-      lines.push('');
-    }
-  }
-
-  return lines.join('\n');
-}
-
-/**
- * Render a task with unified format
- * - Items with time show: `- [ ] 09:00-10:00 content [color]`
- * - Items without time show: `- [ ] content [color]`
- */
-function renderTaskUnified(
-  task: UnifiedTask,
-  allTasks: UnifiedTask[],
-  lines: string[],
-  indent: string
-): void {
-  const checkbox = task.completed ? '[x]' : '[ ]';
-  const color = task.color && task.color !== 'default' ? ` [${task.color}]` : '';
-
-  // Build time string if task has time properties
-  let timeStr = '';
-  if (task.startDate !== undefined) {
-    const start = new Date(task.startDate);
-    if (task.isAllDay) {
-      timeStr = `[${start.toISOString().split('T')[0]}] `;
-    } else {
-      const end = task.endDate ? new Date(task.endDate) : start;
-      const dateStr = start.toISOString().split('T')[0];
-      timeStr = `[${dateStr} ${formatTime(start)}-${formatTime(end)}] `;
-    }
-  }
-
-  lines.push(`${indent}- ${checkbox} ${timeStr}${task.content}${color}`);
-
-  // Render children
-  const children = allTasks.filter((t) => t.parentId === task.id).sort((a, b) => a.order - b.order);
-
-  for (const child of children) {
-    renderTaskUnified(child, allTasks, lines, indent + '  ');
-  }
-}
-
-function formatTime(date: Date): string {
-  const h = date.getHours().toString().padStart(2, '0');
-  const m = date.getMinutes().toString().padStart(2, '0');
-  return `${h}:${m}`;
 }
