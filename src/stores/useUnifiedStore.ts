@@ -1,4 +1,6 @@
-/** Unified Store - Single source of truth for data */
+// Unified Store - LEGACY / PARTIAL
+// Kept for Settings, Progress and Custom Icons.
+// Task/Group/Calendar logic has moved to CalendarEventsStore (ICS).
 
 import { create } from 'zustand';
 import {
@@ -13,9 +15,6 @@ import {
 } from '@/lib/storage/unifiedStorage';
 import { scanGlobalIcons } from '@/lib/storage/assetStorage';
 
-import { createGroupActions } from './actions/groupActions';
-import { createTaskActions } from './actions/taskActions';
-import { createCalendarActions } from './actions/calendarActions';
 import { createProgressActions } from './actions/progressActions';
 import { createSettingsActions } from './actions/settingsActions';
 import type { TimeView } from '@/lib/date';
@@ -47,40 +46,16 @@ interface UnifiedStoreState {
 interface UnifiedStoreActions {
   load: () => Promise<void>;
   setActiveGroup: (id: string) => void;
-  addGroup: (name: string) => void;
-  updateGroup: (id: string, name: string, icon?: string) => void;
-  deleteGroup: (id: string) => void;
-  toggleGroupPin: (id: string) => void;
-  reorderGroups: (activeId: string, overId: string) => void;
-  addTask: (content: string, groupId: string, color?: ItemColor) => void;
-  addSubTask: (parentId: string, content: string) => void;
-  updateTask: (id: string, content: string) => void;
-  updateTaskColor: (id: string, color: ItemColor) => void;
-  updateTaskEstimation: (id: string, estimatedMinutes?: number) => void;
-  updateTaskIcon: (id: string, icon?: string) => void;
-  updateTaskParent: (id: string, parentId: string | null, order: number) => void;
-  toggleTask: (id: string) => void;
-  toggleTaskCollapse: (id: string) => void;
-  deleteTask: (id: string) => void;
-  deleteCompletedTasks: (groupId: string) => void;
-  reorderTasks: (activeId: string, overId: string) => void;
-  moveTaskToGroup: (taskId: string, targetGroupId: string, overTaskId?: string | null) => void;
-  archiveCompletedTasks: (groupId: string) => void;
-  updateTaskTime: (id: string, startDate?: number | null, endDate?: number | null, isAllDay?: boolean) => void;
-  addEvent: (event: { content: string; startDate: number; endDate: number; isAllDay: boolean; color?: string; groupId?: string }) => string;
-  updateEvent: (id: string, updates: Partial<UnifiedTask>) => void;
-  deleteEvent: (id: string) => void;
-  undo: () => void;
-  startTimer: (id: string) => void;
-  pauseTimer: (id: string) => void;
-  resumeTimer: (id: string) => void;
-  stopTimer: (id: string) => void;
+  
+  // Progress Actions
   addProgress: (item: Omit<UnifiedProgress, 'id' | 'createdAt' | 'current' | 'todayCount'>) => void;
   updateProgress: (id: string, delta: number) => void;
   updateProgressItem: (id: string, updates: Partial<UnifiedProgress>) => void;
   deleteProgress: (id: string) => void;
   toggleProgressArchive: (id: string) => void;
   reorderProgress: (activeId: string, overId: string) => void;
+
+  // Settings Actions
   setTimezone: (tz: number) => void;
   setViewMode: (mode: TimeView) => void;
   setDayCount: (count: number) => void;
@@ -115,9 +90,6 @@ const initialState: UnifiedStoreState = {
 };
 
 export const useUnifiedStore = create<UnifiedStore>((set, get) => {
-  const groupActions = createGroupActions(set as any, get as any, persist);
-  const taskActions = createTaskActions(set as any, get as any, persist);
-  const calendarActions = createCalendarActions(set as any, get as any, persist);
   const progressActions = createProgressActions(set as any, persist);
   const settingsActions = createSettingsActions(set as any, persist);
 
@@ -177,9 +149,6 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
       });
     },
 
-    ...groupActions,
-    ...taskActions,
-    ...calendarActions,
     ...progressActions,
     ...settingsActions,
   };

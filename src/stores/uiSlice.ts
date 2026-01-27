@@ -7,6 +7,7 @@ import {
   STORAGE_KEY_COLOR_FILTER,
   STORAGE_KEY_STATUS_FILTER,
   STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED,
+  DEFAULT_GROUP_ID,
 } from '@/lib/config';
 
 const STORAGE_KEY_SIDEBAR_WIDTH = 'nekotick_sidebar_width';
@@ -30,6 +31,9 @@ interface UIStore {
   appViewMode: AppViewMode;
   setAppViewMode: (mode: AppViewMode) => void;
   toggleAppViewMode: () => void;
+
+  activeGroupId: string;
+  setActiveGroupId: (id: string) => void;
 
   taskSortMode: TaskSortMode;
   setTaskSortMode: (mode: TaskSortMode) => void;
@@ -244,6 +248,9 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   toggleAppViewMode: () => set((state) => ({
     appViewMode: state.appViewMode === 'calendar' ? 'notes' : 'calendar'
   })),
+
+  activeGroupId: DEFAULT_GROUP_ID,
+  setActiveGroupId: (id) => set({ activeGroupId: id }),
 
   taskSortMode: 'default',
   setTaskSortMode: (mode) => set({ taskSortMode: mode }),

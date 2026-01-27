@@ -46,6 +46,11 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
         const nekoCompleted = vevent.getFirstPropertyValue(NEKO_X_PROPS.COMPLETED.toLowerCase()) as string | null;
         const nekoOriginalDtStart = vevent.getFirstPropertyValue(NEKO_X_PROPS.ORIGINAL_DTSTART.toLowerCase()) as string | null;
         const nekoOriginalDtEnd = vevent.getFirstPropertyValue(NEKO_X_PROPS.ORIGINAL_DTEND.toLowerCase()) as string | null;
+        const nekoGroupId = vevent.getFirstPropertyValue(NEKO_X_PROPS.GROUP_ID.toLowerCase()) as string | null;
+        const nekoOrder = vevent.getFirstPropertyValue(NEKO_X_PROPS.ORDER.toLowerCase()) as string | null;
+        const nekoParentId = vevent.getFirstPropertyValue(NEKO_X_PROPS.PARENT_ID.toLowerCase()) as string | null;
+        const nekoCollapsed = vevent.getFirstPropertyValue(NEKO_X_PROPS.COLLAPSED.toLowerCase()) as string | null;
+        const nekoEstimatedMinutes = vevent.getFirstPropertyValue(NEKO_X_PROPS.ESTIMATED_MINUTES.toLowerCase()) as string | null;
 
         const nekoEvent: NekoEvent = {
             uid: event.uid || crypto.randomUUID(),
@@ -65,9 +70,15 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
             completed: nekoCompleted === 'TRUE',
             originalDtStart: nekoOriginalDtStart ? parseInt(nekoOriginalDtStart, 10) : undefined,
             originalDtEnd: nekoOriginalDtEnd ? parseInt(nekoOriginalDtEnd, 10) : undefined,
+            groupId: nekoGroupId || undefined,
+            order: nekoOrder ? parseFloat(nekoOrder) : undefined,
+            parentId: nekoParentId || undefined,
+            collapsed: nekoCollapsed === 'TRUE',
+            estimatedMinutes: nekoEstimatedMinutes ? parseInt(nekoEstimatedMinutes, 10) : undefined,
         };
 
         events.push(nekoEvent);
+
     }
 
     return events;

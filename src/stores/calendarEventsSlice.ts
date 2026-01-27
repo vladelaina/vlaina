@@ -8,6 +8,7 @@ import { create } from 'zustand';
 import type { NekoEvent, NekoCalendar } from '@/lib/ics/types';
 import type { ItemColor } from '@/lib/colors';
 import { DEFAULT_COLOR } from '@/lib/colors';
+import { getDescendantIds, getChildren, reorderSiblings } from './taskTreeUtils';
 import {
     loadCalendarsMeta,
     saveCalendarsMeta,
@@ -32,6 +33,13 @@ interface CalendarEventsState {
     addEvent: (event: Omit<NekoEvent, 'uid'> & { uid?: string }) => Promise<void>;
     updateEvent: (uid: string, updates: Partial<NekoEvent>) => Promise<void>;
     deleteEvent: (uid: string) => Promise<void>;
+
+    // Task Specific Actions
+    addTask: (content: string, groupId: string, calendarId?: string) => Promise<void>;
+    addSubTask: (parentId: string, content: string) => Promise<void>;
+    updateTaskOrder: (activeId: string, overId: string) => Promise<void>;
+    moveTaskToGroup: (taskId: string, targetGroupId: string, overTaskId?: string | null) => Promise<void>;
+    toggleTaskCollapse: (uid: string) => Promise<void>;
 
     // Calendar CRUD
     addCalendar: (name: string, color: ItemColor) => Promise<void>;
@@ -89,8 +97,6 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             color: eventData.color || DEFAULT_COLOR,
         };
 
-
-
         set(state => ({
             events: [...state.events, newEvent],
         }));
@@ -109,8 +115,6 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
     },
 
     deleteEvent: async (uid) => {
-
-
         set(state => ({
             events: state.events.filter(e => e.uid !== uid),
         }));
@@ -118,7 +122,133 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
         await get().save();
     },
 
+    // --- Task Specific Actions Implementation ---
+
+    addTask: async (content, groupId, calendarId) => {
+        const state = get();
+        const targetCalendarId = calendarId || state.calendars[0]?.id || 'personal';
+        
+        // Find order at the end of the group
+        const groupTasks = getChildren(state.events, null, groupId);
+        
+        const newEvent: NekoEvent = {
+            uid: crypto.randomUUID(),
+            summary: content,
+            dtstart: new Date(), // Tasks default to now
+            dtend: new Date(Date.now() + 30*60*1000),
+            allDay: false,
+            calendarId: targetCalendarId,
+            groupId: groupId,
+            order: groupTasks.length,
+            completed: false,
+        };
+
+        await get().addEvent(newEvent);
+    },
+
+    addSubTask: async (parentId, content) => {
+        const state = get();
+        const parent = state.events.find(e => e.uid === parentId);
+        if (!parent) return;
+
+        const siblings = getChildren(state.events, parentId);
+        
+        const newEvent: NekoEvent = {
+            uid: crypto.randomUUID(),
+            summary: content,
+            dtstart: new Date(),
+            dtend: new Date(Date.now() + 30*60*1000),
+            allDay: false,
+            calendarId: parent.calendarId,
+            groupId: parent.groupId,
+            parentId: parentId,
+            order: siblings.length,
+            color: parent.color,
+            completed: false,
+        };
+
+        await get().addEvent(newEvent);
+    },
+
+    updateTaskOrder: async (activeId, overId) => {
+        const state = get();
+        const activeEvent = state.events.find(e => e.uid === activeId);
+        const overEvent = state.events.find(e => e.uid === overId);
+
+        if (!activeEvent || !overEvent) return;
+        
+        // Must be in same group/parent context to reorder simply
+        if (activeEvent.groupId !== overEvent.groupId) return;
+        // Handle null vs undefined for parentId comparison
+        const activeParent = activeEvent.parentId || null;
+        const overParent = overEvent.parentId || null;
+        if (activeParent !== overParent) return;
+
+        const siblings = getChildren(state.events, activeParent, activeEvent.groupId);
+        const oldIndex = siblings.findIndex(e => e.uid === activeId);
+        const newIndex = siblings.findIndex(e => e.uid === overId);
+
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const reorderedSiblings = reorderSiblings(siblings, oldIndex, newIndex);
+        const orderMap = new Map(reorderedSiblings.map(e => [e.uid, e.order]));
+
+        set(state => ({
+            events: state.events.map(e => {
+                if (orderMap.has(e.uid)) {
+                    return { ...e, order: orderMap.get(e.uid) };
+                }
+                return e;
+            })
+        }));
+
+        await get().save();
+    },
+
+    moveTaskToGroup: async (taskId, targetGroupId, overTaskId) => {
+        const state = get();
+        const task = state.events.find(e => e.uid === taskId);
+        if (!task) return;
+
+        const idsToMove = new Set(getDescendantIds(state.events, taskId));
+        
+        // Calculate new order
+        const targetTasks = getChildren(state.events, null, targetGroupId);
+        let newOrder = targetTasks.length;
+
+        if (overTaskId) {
+            const overTask = state.events.find(e => e.uid === overTaskId);
+            if (overTask && overTask.groupId === targetGroupId) {
+                newOrder = overTask.order || 0;
+            }
+        }
+
+        set(state => ({
+            events: state.events.map(e => {
+                if (e.uid === taskId) {
+                    return { ...e, groupId: targetGroupId, order: newOrder, parentId: undefined };
+                }
+                if (idsToMove.has(e.uid)) {
+                    return { ...e, groupId: targetGroupId };
+                }
+                return e;
+            })
+        }));
+
+        await get().save();
+    },
+
+    toggleTaskCollapse: async (uid) => {
+        const event = get().events.find(e => e.uid === uid);
+        if (!event) return;
+        
+        await get().updateEvent(uid, { collapsed: !event.collapsed });
+    },
+
+    // --- End Task Actions ---
+
     addCalendar: async (name, color) => {
+
         const newCalendar = await addCalendarToStorage(name, color);
         set(state => ({
             calendars: [...state.calendars, newCalendar],
