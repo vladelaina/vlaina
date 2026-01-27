@@ -17,11 +17,7 @@ import { MiniCalendar } from '@/components/Calendar/features/DateSelector/MiniCa
 export function TodayView() {
     const { tasks, toggleTask, updateTask, deleteTask, updateTaskIcon } = useGroupStore();
     const { 
-        selectedDate,
-        events: calendarEvents, 
-        toggleComplete: toggleEventComplete,
-        updateEvent,
-        deleteEvent
+        selectedDate
     } = useCalendarStore();
 
     const { selectedColors, taskSortMode, setAppViewMode } = useUIStore();
@@ -31,13 +27,14 @@ export function TodayView() {
     const isTodayView = isSameDay(selectedDate, new Date());
     const viewTitle = isTodayView ? "Today" : format(selectedDate, "MMMM d");
 
-    // 1. Filter Regular Tasks
+    // 1. Filter Tasks (which now include Calendar Events via Adapter)
     const filteredTasks = useMemo(() => {
         const targetDateKey = formatDateKey(selectedDate);
 
         return tasks.filter(t => {
             if (t.parentId) return false;
             if (!selectedColors.includes(t.color || 'default')) return false;
+            // Only show items with a startDate that matches the selected date
             if (!t.startDate) return false;
 
             const taskDateKey = formatDateKey(new Date(t.startDate));
@@ -51,89 +48,15 @@ export function TodayView() {
         });
     }, [tasks, selectedColors, searchQuery, selectedDate]);
 
-    // 2. Filter & Adapt Calendar Events
-    const calendarTasks = useMemo(() => {
-        return calendarEvents
-            .filter(e => {
-                // Check date
-                if (!isSameDay(e.dtstart, selectedDate)) return false;
-
-                // Apply filters
-                if (!selectedColors.includes(e.color || 'default')) return false;
-                if (searchQuery.trim()) {
-                    const query = searchQuery.toLowerCase();
-                    if (!e.summary.toLowerCase().includes(query)) return false;
-                }
-                return true;
-            })
-            .map(e => ({
-                // Adapter: NekoEvent -> Task
-                id: `CAL_${e.uid}`,
-                originalId: e.uid,
-                content: e.summary || 'Untitled Event',
-                completed: e.completed,
-                color: e.color,
-                icon: e.icon,
-                
-                // Time
-                startDate: e.dtstart.getTime(),
-                endDate: e.dtend.getTime(),
-                isAllDay: e.allDay,
-                estimatedMinutes: 0,
-                
-                // Defaults
-                parentId: null,
-                order: -1, // Will be sorted by time anyway
-                createdAt: e.dtstart.getTime(),
-                updatedAt: Date.now(),
-                groupId: 'calendar',
-                collapsed: false,
-                
-                // Flag for UI customization if needed
-                isCalendarEvent: true,
-            }));
-    }, [calendarEvents, selectedColors, searchQuery, selectedDate]);
-
-    // 3. Merge & Sort
+    // 2. Sort
     const displayTasks = useMemo(() => {
-        const combined = [...calendarTasks, ...filteredTasks] as any[];
-        return sortTasks(combined, taskSortMode);
-    }, [calendarTasks, filteredTasks, taskSortMode]);
+        return sortTasks(filteredTasks, taskSortMode);
+    }, [filteredTasks, taskSortMode]);
 
-    // 4. Action Handlers
-    const handleToggle = useCallback((id: string) => {
-        if (id.startsWith('CAL_')) {
-            toggleEventComplete(id.replace('CAL_', ''));
-        } else {
-            toggleTask(id);
-        }
-    }, [toggleEventComplete, toggleTask]);
-
-    const handleUpdate = useCallback((id: string, content: string) => {
-        if (id.startsWith('CAL_')) {
-            updateEvent(id.replace('CAL_', ''), { summary: content });
-        } else {
-            updateTask(id, content);
-        }
-    }, [updateEvent, updateTask]);
-
-    const handleDelete = useCallback((id: string) => {
-        if (id.startsWith('CAL_')) {
-            deleteEvent(id.replace('CAL_', ''));
-        } else {
-            deleteTask(id);
-        }
-    }, [deleteEvent, deleteTask]);
-
-    const handleUpdateIcon = useCallback((id: string, icon: string) => {
-        if (id.startsWith('CAL_')) {
-            updateEvent(id.replace('CAL_', ''), { icon });
-        } else {
-            updateTaskIcon(id, icon);
-        }
-    }, [updateEvent, updateTaskIcon]);
-
-    // 5. Header Actions (Date Picker + Jump)
+    // 3. Action Handlers (Direct mapping to GroupStore actions)
+    // No need for 'CAL_' prefix handling as useGroupStore handles IDs natively
+    
+    // 4. Header Actions (Date Picker + Jump)
     const headerActions = (
         <div className="flex items-center gap-2">
             <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
@@ -170,11 +93,11 @@ export function TodayView() {
             setSearchQuery={setSearchQuery}
             showScheduledSection={false} 
             
-            // Pass action overrides
-            onToggleTask={handleToggle}
-            onUpdateTask={handleUpdate}
-            onDeleteTask={handleDelete}
-            onUpdateTaskIcon={handleUpdateIcon}
+            // Pass simple action handlers
+            onToggleTask={toggleTask}
+            onUpdateTask={updateTask}
+            onDeleteTask={deleteTask}
+            onUpdateTaskIcon={updateTaskIcon}
 
             // Pass header controls
             headerControls={headerActions}
