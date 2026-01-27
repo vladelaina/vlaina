@@ -229,7 +229,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     };
 
     return (
-        <div className="w-full flex my-2 justify-center group/image select-none">
+        <div className="w-full flex my-2 justify-center group/image">
             <div
                 ref={containerRef}
                 className={cn(

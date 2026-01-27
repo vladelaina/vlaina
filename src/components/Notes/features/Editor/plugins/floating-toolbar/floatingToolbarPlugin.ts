@@ -1,6 +1,6 @@
-﻿// Floating Toolbar Plugin - Core Plugin Logic
+// Floating Toolbar Plugin - Core Plugin Logic
 import { $prose } from '@milkdown/kit/utils';
-import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import type { FloatingToolbarState, ToolbarMeta } from './types';
 import { TOOLBAR_ACTIONS } from './types';
 import { getActiveMarks, getCurrentBlockType, getLinkUrl, getTextColor, getBgColor, calculatePosition } from './selectionHelpers';
@@ -112,7 +112,17 @@ export const floatingToolbarPlugin = $prose(() => {
       document.addEventListener('mouseup', handleMouseUp);
       const updateToolbar = () => {
         const { selection } = editorView.state;
-        if (selection.empty) { hideToolbar(); lastRenderState = ''; currentBlockElement = null; return; }
+        
+        // Only show toolbar for TextSelection
+        // This prevents it from showing on NodeSelections (like Images)
+        // or when selection is explicitly empty
+        if (selection.empty || !(selection instanceof TextSelection)) { 
+            hideToolbar(); 
+            lastRenderState = ''; 
+            currentBlockElement = null; 
+            return; 
+        }
+
         updateCurrentBlockElement(editorView);
         const state = floatingToolbarKey.getState(editorView.state);
         if (!state?.isVisible) { hideToolbar(); lastRenderState = ''; return; }

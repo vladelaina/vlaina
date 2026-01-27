@@ -22,6 +22,15 @@ export class ImageBlockNodeView implements NodeView {
         // Prevent ProseMirror off-limits issues when clicking inside
         this.dom.contentEditable = 'false';
 
+        // Explicitly prevent dragstart from inputs to allow text selection
+        // Use capture phase to ensure we stop it before ProseMirror or anyone else sees it
+        this.dom.addEventListener('dragstart', (e) => {
+            if ((e.target as HTMLElement).tagName === 'INPUT') {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+
         this.root = createRoot(this.dom);
         this.render();
     }

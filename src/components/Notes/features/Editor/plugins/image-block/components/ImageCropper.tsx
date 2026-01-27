@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import Cropper from 'react-easy-crop';
 import { X, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -38,52 +38,101 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     const lastPercentageCrop = useRef<any>(null);
     const originalAspectRatioRef = useRef<number>(1);
     const [isCropperReady, setIsCropperReady] = useState(false);
+    
+    // Ctrl key state for panning access
+    const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Control' || e.key === 'Meta') setIsCtrlPressed(true);
+        };
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.key === 'Control' || e.key === 'Meta') setIsCtrlPressed(false);
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, []);
+
+    const containerRef = useRef<HTMLDivElement>(null);
 
     // Auto-save debouncer
     const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Manual Wheel Handler for Ctrl+Scroll Zooming when NOT active
-    const handleWheel = (e: React.WheelEvent) => {
-        if (isActive) return; // If active, let react-easy-crop handle it if enabled, or user is using UI
-
-        if (e.ctrlKey) {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const delta = -e.deltaY / 200; // Sensitivity
-            const newZoom = Math.min(5, Math.max(minZoomLimit, zoom + delta));
+    const performSave = () => {
+        if (lastPercentageCrop.current) {
+            const pc = lastPercentageCrop.current;
             
-            setZoom(newZoom);
+            // Force keep the current aspect ratio during zoom/pan to prevent container resizing/jitter
+            // Use initialCropParams.ratio if available (which reflects current container state),
+            // otherwise calculate from container size directly.
+            let currentRatio = initialCropParams?.ratio;
             
-            // Trigger auto-save logic
-            if (autoSaveTimeoutRef.current) {
-                clearTimeout(autoSaveTimeoutRef.current);
+            if (!currentRatio && containerSize.width && containerSize.height) {
+                currentRatio = containerSize.width / containerSize.height;
+            }
+            
+            // Fallback if somehow neither is available
+            if (!currentRatio) {
+                currentRatio = (pc.width / pc.height) * originalAspectRatioRef.current;
             }
 
-            autoSaveTimeoutRef.current = setTimeout(() => {
-                // We need to trigger save. 
-                // Note: lastPercentageCrop.current is updated by onCropComplete which fires after setZoom
-                // So this timeout should see the updated crop.
-                if (lastPercentageCrop.current) {
-                    const pc = lastPercentageCrop.current;
-                    
-                    // Force keep the current aspect ratio during zoom to prevent container resizing/jitter
-                    // Use initialCropParams.ratio if available (which reflects current container state),
-                    // otherwise calculate from container size directly.
-                    let currentRatio = initialCropParams?.ratio;
-                    
-                    if (!currentRatio && containerSize.width && containerSize.height) {
-                        currentRatio = containerSize.width / containerSize.height;
-                    }
-                    
-                    // Fallback if somehow neither is available
-                    if (!currentRatio) {
-                        currentRatio = (pc.width / pc.height) * originalAspectRatioRef.current;
-                    }
+            onSave(pc, currentRatio);
+        }
+    };
 
-                    onSave(pc, currentRatio);
+    // Manual Wheel Handler for Ctrl+Scroll Zooming when NOT active
+    // Attached via useEffect to allow { passive: false }
+    useEffect(() => {
+        const currentRef = containerRef.current;
+        if (!currentRef) return;
+
+        const onWheel = (e: WheelEvent) => {
+            if (isActive) return;
+
+            if (e.ctrlKey) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const delta = -e.deltaY / 200;
+                // Use functional update to access latest state inside closure if needed, 
+                // BUT state inside useEffect closure is stale unless we add it to deps.
+                // However, adding 'zoom' to deps re-binds listener on every zoom, which is fine but maybe jerky?
+                // Actually, let's use a ref for current zoom to avoid re-binding or functional update.
+                // Or just rely on re-binding. React handles it fast enough usually.
+                
+                // Let's use functional state update for setZoom to ensure we have latest zoom
+                // But we also need minZoomLimit.
+                
+                setZoom(prevZoom => {
+                    const newZoom = Math.min(5, Math.max(minZoomLimit, prevZoom + delta));
+                    return newZoom;
+                });
+
+                // Trigger auto-save logic
+                if (autoSaveTimeoutRef.current) {
+                    clearTimeout(autoSaveTimeoutRef.current);
                 }
-            }, 500); // 500ms debounce
+
+                autoSaveTimeoutRef.current = setTimeout(() => {
+                    performSave();
+                }, 500);
+            }
+        };
+
+        currentRef.addEventListener('wheel', onWheel, { passive: false });
+
+        return () => {
+            currentRef.removeEventListener('wheel', onWheel);
+        };
+    }, [isActive, minZoomLimit, performSave]); // Re-bind when dependencies change
+
+    const handleInteractionEnd = () => {
+        if (!isActive) {
+            performSave();
         }
     };
 
@@ -185,12 +234,12 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     return (
         <>
             <div 
-                className="relative overflow-hidden z-0"
+                ref={containerRef}
+                className="relative overflow-hidden z-0 select-none"
                 style={{
                     width: containerSize.width,
                     height: containerSize.height,
                 }}
-                onWheel={handleWheel}
             >
                 <Cropper
                     image={imageSrc}
@@ -210,9 +259,16 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                     restrictPosition={true}
                     objectFit="cover"
                     style={{
-                        containerStyle: { borderRadius: '0' },
+                        containerStyle: { 
+                            borderRadius: '0',
+                            // Disable pointer events (panning) when not active and Ctrl is not pressed.
+                            // This allows Wheel events to bubble up to the parent for Zooming,
+                            // while preventing react-easy-crop from capturing dragging/panning.
+                            pointerEvents: (isActive || isCtrlPressed) ? 'auto' : 'none'
+                        },
                         mediaStyle: { borderRadius: '0' }
                     }}
+                    onInteractionEnd={handleInteractionEnd}
                 />
                 
                 {/* Borderless Resize Handlers - Always Available */}
