@@ -11,6 +11,10 @@ export const InvisibleResizeHandles: React.FC<InvisibleResizeHandlesProps> = ({ 
     const thickness = "12px"; // Hitbox thickness
     const offset = "-6px"; // Center the hitbox on the edge
 
+    const handleMouseDown = (direction: 'left' | 'right' | 'top' | 'bottom' | 'bottom-left' | 'bottom-right') => (e: React.MouseEvent) => {
+        onResizeStart(direction)(e);
+    };
+
     return (
         <>
             {/* Left Handle - Always enabled for Width Resize */}
@@ -22,7 +26,7 @@ export const InvisibleResizeHandles: React.FC<InvisibleResizeHandlesProps> = ({ 
                     bottom: 0,
                     width: thickness,
                 }}
-                onMouseDown={onResizeStart('left')}
+                onMouseDown={handleMouseDown('left')}
             />
 
             {/* Right Handle - Always enabled for Width Resize */}
@@ -34,7 +38,7 @@ export const InvisibleResizeHandles: React.FC<InvisibleResizeHandlesProps> = ({ 
                     bottom: 0,
                     width: thickness,
                 }}
-                onMouseDown={onResizeStart('right')}
+                onMouseDown={handleMouseDown('right')}
             />
 
             {/* Bottom Handle - Now ALWAYS enabled for quick cropping */}
@@ -46,7 +50,7 @@ export const InvisibleResizeHandles: React.FC<InvisibleResizeHandlesProps> = ({ 
                     right: 0,
                     height: thickness,
                 }}
-                onMouseDown={onResizeStart('bottom')}
+                onMouseDown={handleMouseDown('bottom')}
             />
             
             {/* Bottom-Left Corner Handle - Proportional Resize */}
@@ -59,7 +63,7 @@ export const InvisibleResizeHandles: React.FC<InvisibleResizeHandlesProps> = ({ 
                     height: '24px',
                     zIndex: 51, // Higher priority than edges
                 }}
-                onMouseDown={onResizeStart('bottom-left')}
+                onMouseDown={handleMouseDown('bottom-left')}
             />
 
             {/* Bottom-Right Corner Handle - Proportional Resize */}
@@ -72,7 +76,7 @@ export const InvisibleResizeHandles: React.FC<InvisibleResizeHandlesProps> = ({ 
                     height: '24px',
                     zIndex: 51,
                 }}
-                onMouseDown={onResizeStart('bottom-right')}
+                onMouseDown={handleMouseDown('bottom-right')}
             />
             
             {/* Top Handle - Only enabled in Edit Mode */}
@@ -85,7 +89,7 @@ export const InvisibleResizeHandles: React.FC<InvisibleResizeHandlesProps> = ({ 
                         right: 0,
                         height: thickness,
                     }}
-                    onMouseDown={onResizeStart('top')}
+                    onMouseDown={handleMouseDown('top')}
                 />
             )}
         </>

@@ -24,9 +24,19 @@ type Alignment = 'left' | 'center' | 'right';
 
 export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     // --- State ---
-    const [width, setWidth] = useState(node.attrs.width || '100%');
+    // Start with 'auto' so the image renders at its natural size (capped by max-width)
+    // instead of being forced to 100% width initially. This prevents the "jump" effect.
+    const [width, setWidth] = useState(node.attrs.width || 'auto');
     // Height state for vertical resizing
     const [height, setHeight] = useState<number | undefined>(undefined);
+    // Real-time dimensions during drag to prevent render lag
+    const [dragDimensions, setDragDimensions] = useState<{width: number, height: number} | null>(null);
+    // Track real DOM dimensions to handle auto-sizing updates correctly
+    const [observedSize, setObservedSize] = useState({ width: 0, height: 0 });
+    
+    // Visibility state: hide new images until auto-sizing is complete to prevent "jump"
+    const [isReady, setIsReady] = useState(!!node.attrs.width);
+
     // Natural aspect ratio of the loaded image (for initial rendering without crop params)
     const [naturalRatio, setNaturalRatio] = useState<number | null>(null);
     
@@ -50,6 +60,29 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     // --- Refs ---
     const containerRef = useRef<HTMLDivElement>(null);
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+    // --- Resize Observer ---
+    useEffect(() => {
+        if (!containerRef.current) return;
+        
+        const resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                // Use contentRect for precise sub-pixel measurements
+                const { width, height } = entry.contentRect;
+                
+                setObservedSize(prev => {
+                    // Only update if dimensions changed significantly to prevent render loops
+                    if (Math.abs(prev.width - width) > 0.5 || Math.abs(prev.height - height) > 0.5) {
+                        return { width, height };
+                    }
+                    return prev;
+                });
+            }
+        });
+
+        resizeObserver.observe(containerRef.current);
+        return () => resizeObserver.disconnect();
+    }, []);
 
     // --- Data Resolution ---
     const { baseSrc, params: initialParams } = useMemo(() => parseCropFragment(node.attrs.src || ''), [node.attrs.src]);
@@ -114,8 +147,11 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         e.preventDefault();
         e.stopPropagation();
         
+        const isProportional = direction === 'left' || direction === 'right' || direction === 'bottom-left' || direction === 'bottom-right';
+
         // Start manual resizing mode (set explicit height to lock current dimensions)
-        if (!height && containerRef.current) {
+        // Only set height if we're doing a non-proportional resize (vertical crop)
+        if (!isProportional && !height && containerRef.current) {
              setHeight(containerRef.current.offsetHeight);
         }
 
@@ -129,9 +165,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         const aspectRatio = startWidth / startHeight;
 
         const onMouseMove = (moveEvent: MouseEvent) => {
-            // Check if it's a proportional resize (Sides or Corners)
-            const isProportional = direction === 'left' || direction === 'right' || direction === 'bottom-left' || direction === 'bottom-right';
-            
             if (isProportional) {
                 // Horizontal Resize (Width %) -> Aspect Locked Height
                 const isLeftSided = direction === 'left' || direction === 'bottom-left';
@@ -141,15 +174,20 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 const newWidthPercent = Math.min(100, Math.max(10, (newWidthPx / parentWidth) * 100));
                 
                 setWidth(`${newWidthPercent}%`);
+                // Calculate expected pixel height for smooth cropper updates
+                const expectedHeight = newWidthPx / aspectRatio;
+                setDragDimensions({ width: newWidthPx, height: expectedHeight });
                 
-                const newHeight = newWidthPx / aspectRatio;
-                setHeight(newHeight);
+                // Let CSS aspect-ratio handle the height automatically to prevent sub-pixel gaps
+                // const newHeight = newWidthPx / aspectRatio;
+                // setHeight(newHeight);
                 
             } else {
                 // Vertical Resize (Height px) -> Change Aspect Ratio (Crop)
                 const delta = moveEvent.clientY - startY;
                 const newHeight = Math.max(50, startHeight + delta); 
                 setHeight(newHeight);
+                setDragDimensions({ width: startWidth, height: newHeight }); // Width roughly constant
             }
         };
 
@@ -157,6 +195,8 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
             
+            setDragDimensions(null); // Clear optimistic dimensions
+
             // Commit changes
             const isProportional = direction === 'left' || direction === 'right' || direction === 'bottom-left' || direction === 'bottom-right';
             
@@ -219,13 +259,21 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     // --- Styles ---
     const alignmentClasses = { left: 'mr-auto', center: 'mx-auto', right: 'ml-auto' };
     
+    const computedAspectRatio = height ? 'auto' : (cropParams ? `${cropParams.ratio}` : (naturalRatio ? `${naturalRatio}` : 'auto'));
+    
     const containerStyle = {
         width: width,
         maxWidth: '100%',
         height: height ? height : 'auto',
-        aspectRatio: height ? 'auto' : (cropParams ? `${cropParams.ratio}` : (naturalRatio ? `${naturalRatio}` : 'auto')),
-        transition: (isActive || height) ? 'none' : 'width 0.1s ease-out',
+        aspectRatio: computedAspectRatio,
+        transition: (isActive || height) ? 'none' : 'width 0.1s ease-out, opacity 0.2s ease-out',
         display: 'block', // Prevent inline-block whitespace issues
+        opacity: isReady ? 1 : 0,
+    };
+
+    const finalContainerSize = dragDimensions || {
+        width: observedSize.width || containerRef.current?.offsetWidth || 0,
+        height: height || observedSize.height || containerRef.current?.offsetHeight || 0
     };
 
     return (
@@ -244,10 +292,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 <ImageCropper
                     imageSrc={resolvedSrc}
                     initialCropParams={cropParams}
-                    containerSize={{
-                        width: containerRef.current?.offsetWidth || 0,
-                        height: height || containerRef.current?.offsetHeight || 0
-                    }}
+                    containerSize={finalContainerSize}
                     onSave={handleSave}
                     onCancel={() => {
                         setIsActive(false);
@@ -256,7 +301,28 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     isSaving={isSaving}
                     isActive={isActive}
                     onResizeStart={handleResizeStart}
-                    onMediaLoaded={(media) => setNaturalRatio(media.naturalWidth / media.naturalHeight)}
+                    onMediaLoaded={(media) => {
+                        setNaturalRatio(media.naturalWidth / media.naturalHeight);
+                        
+                        // Smart Default Sizing:
+                        // Convert the initial 'auto' width to a concrete percentage.
+                        // If the image is new (no width attribute), check its size relative to container.
+                        if (!node.attrs.width || width === 'auto') {
+                            const containerWidth = containerRef.current?.parentElement?.offsetWidth;
+                            
+                            if (containerWidth) {
+                                // If image is smaller than container, use its natural percentage.
+                                // If larger, cap at 100% (which max-width already enforces visually).
+                                const percent = (media.naturalWidth / containerWidth) * 100;
+                                const finalPercent = Math.min(100, percent);
+                                
+                                setWidth(`${finalPercent}%`);
+                                updateNodeAttrs({ width: `${finalPercent}%` });
+                            }
+                        }
+                        // Reveal image after sizing calculation is done
+                        setIsReady(true);
+                    }}
                 />
 
                 {/* Caption - Always visible on hover/active */}

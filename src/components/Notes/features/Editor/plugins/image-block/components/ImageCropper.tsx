@@ -37,10 +37,49 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     // Internal refs for crop data
     const lastPercentageCrop = useRef<any>(null);
     const originalAspectRatioRef = useRef<number>(1);
+    const mediaSizeRef = useRef<{ naturalWidth: number; naturalHeight: number } | null>(null);
     const [isCropperReady, setIsCropperReady] = useState(false);
     
     // Ctrl key state for panning access
     const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+
+    // Watch for container resize to update minZoomLimit and ensure cover
+    useEffect(() => {
+        if (mediaSizeRef.current && containerSize.width && containerSize.height) {
+            const mediaSize = mediaSizeRef.current;
+            
+            // Calculate fit ratio (what react-easy-crop uses for Zoom=1)
+            const fitRatio = Math.min(
+                containerSize.width / mediaSize.naturalWidth,
+                containerSize.height / mediaSize.naturalHeight
+            );
+
+            const displayedWidthAtZoom1 = mediaSize.naturalWidth * fitRatio;
+            const displayedHeightAtZoom1 = mediaSize.naturalHeight * fitRatio;
+
+            // Calculate minimum scale to cover the container
+            const widthScale = containerSize.width / displayedWidthAtZoom1;
+            const heightScale = containerSize.height / displayedHeightAtZoom1;
+            
+            // Add tiny buffer (1.001) to avoid sub-pixel gaps
+            const coverZoom = Math.max(widthScale, heightScale) * 1.001;
+            
+            setMinZoomLimit(coverZoom);
+            
+            // Force zoom to be at least coverZoom to prevent whitespace
+            setZoom(prev => {
+                const newZoom = Math.max(prev, coverZoom);
+                return newZoom;
+            });
+        }
+    }, [containerSize.width, containerSize.height]);
+
+    // Safety net: Ensure zoom never falls below minimum limit
+    useEffect(() => {
+        if (zoom < minZoomLimit) {
+            setZoom(minZoomLimit);
+        }
+    }, [zoom, minZoomLimit]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -150,6 +189,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     }, []);
 
     const onMediaLoaded = useCallback((mediaSize: { width: number, height: number, naturalWidth: number, naturalHeight: number }) => {
+        mediaSizeRef.current = mediaSize;
         if (externalOnMediaLoaded) {
             externalOnMediaLoaded(mediaSize);
         }
@@ -237,8 +277,8 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                 ref={containerRef}
                 className="relative overflow-hidden z-0 select-none"
                 style={{
-                    width: containerSize.width,
-                    height: containerSize.height,
+                    width: '100%',
+                    height: '100%',
                 }}
             >
                 <Cropper

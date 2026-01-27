@@ -84,7 +84,7 @@ function ToolbarButton({
             icon={icon}
             className={cn(
                 active ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400",
-                danger && "hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                danger && "hover:text-red-500"
             )}
         />
     );
