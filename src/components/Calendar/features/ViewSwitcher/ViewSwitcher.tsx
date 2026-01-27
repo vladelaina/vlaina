@@ -91,7 +91,7 @@ export function ViewSwitcher() {
         // Day count shortcuts
         e.preventDefault();
         setDayCount(numKey);
-        setViewMode('day');
+        setViewMode('week'); // Switch to week view to support custom days
       }
     };
 
@@ -113,7 +113,7 @@ export function ViewSwitcher() {
   // Handle day count selection
   const handleSelectDayCount = (count: number) => {
     setDayCount(count);
-    setViewMode('day');
+    setViewMode('week'); // Use week view for multi-day
     setIsDropdownOpen(false);
     setShowDayCountSubmenu(false);
   };
@@ -123,7 +123,7 @@ export function ViewSwitcher() {
     const count = parseInt(customDayInput);
     if (count >= 1 && count <= 14) {
       setDayCount(count);
-      setViewMode('day');
+      setViewMode('week'); // Use week view for multi-day
       setShowCustomDayModal(false);
       setIsDropdownOpen(false);
       setShowDayCountSubmenu(false);
@@ -138,14 +138,19 @@ export function ViewSwitcher() {
     let newDate: Date;
     switch (viewMode) {
       case 'day':
-        newDate = addDays(selectedDate, multiplier * (dayCount || 1));
+        newDate = addDays(selectedDate, multiplier * 1);
         break;
       case 'week':
-        newDate = addDays(selectedDate, multiplier * 7);
+        // If dayCount is 7, we jump by a week
+        // If custom day count, we jump by that count
+        const jump = (dayCount && dayCount !== 7) ? dayCount : 7;
+        newDate = addDays(selectedDate, multiplier * jump);
         break;
       case 'month':
         newDate = addMonths(selectedDate, multiplier * 1);
         break;
+      default:
+        newDate = addDays(selectedDate, multiplier);
     }
 
     setSelectedDate(newDate);
@@ -163,7 +168,7 @@ export function ViewSwitcher() {
 
   // Get display label for current view
   const getDisplayLabel = () => {
-    if (viewMode === 'day' && dayCount && dayCount > 1) {
+    if (viewMode === 'week' && dayCount && dayCount !== 7) {
       return `${dayCount} Days`;
     }
     return VIEW_MODE_LABELS[viewMode];

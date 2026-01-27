@@ -26,18 +26,19 @@ export function TimezoneHeader({ timezone }: TimezoneHeaderProps) {
     return tzStr;
   }, [timezone]);
 
-  const currentDayCount = dayCount || 1;
+  const currentDayCount = dayCount || 7; // Default to 7 if undefined, similar to TimeGrid logic
 
   const handleIncrement = () => {
     const next = Math.min(14, currentDayCount + 1);
     setDayCount(next);
-    setViewMode('day');
+    // Ensure we are using TimeGrid (mapped to 'week' view mode) which supports dynamic columns
+    setViewMode('week');
   };
 
   const handleDecrement = () => {
     const next = Math.max(1, currentDayCount - 1);
     setDayCount(next);
-    setViewMode('day');
+    setViewMode('week');
   };
 
   return (
@@ -55,20 +56,28 @@ export function TimezoneHeader({ timezone }: TimezoneHeaderProps) {
       {/* Spacer to push buttons to right */}
       <div className="flex-1" />
 
-      {/* Day Count Controls (Direct Operation) */}
-      <div className="flex items-center gap-1">
-        <button 
-          onClick={handleDecrement}
-          disabled={currentDayCount <= 1}
-          className="p-0.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 disabled:opacity-30 transition-colors"
-          title="Decrease days"
-        >
-          <Minus className="w-3 h-3" />
-        </button>
+      {/* Day Count Controls (Apple-style Progressive Disclosure) */}
+      <div className="flex items-center gap-0.5">
+        {currentDayCount > 1 && (
+          <>
+            <button 
+              onClick={handleDecrement}
+              className="p-0.5 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+              title="Decrease days"
+            >
+              <Minus className="w-3 h-3" />
+            </button>
+            <div className="min-w-[16px] flex justify-center items-center">
+                <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 select-none animate-in fade-in zoom-in duration-200">
+                    {currentDayCount}
+                </span>
+            </div>
+          </>
+        )}
         <button 
           onClick={handleIncrement}
           disabled={currentDayCount >= 14}
-          className="p-0.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 disabled:opacity-30 transition-colors"
+          className="p-0.5 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 disabled:opacity-30 transition-colors"
           title="Increase days"
         >
           <Plus className="w-3 h-3" />
