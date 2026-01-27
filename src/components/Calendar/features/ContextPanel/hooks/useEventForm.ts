@@ -65,7 +65,10 @@ export function useEventForm(event: NekoEvent) {
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
+        // Allow Enter to be default (newline)
+        // Only close on Escape if needed, but usually Global Hotkeys handle Esc?
+        // Let's keep Esc here just in case the global one doesn't catch focus in textarea
+        if (e.key === 'Escape') {
             e.preventDefault();
             handleClose();
         }

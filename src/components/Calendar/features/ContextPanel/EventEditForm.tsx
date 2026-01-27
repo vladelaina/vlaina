@@ -34,7 +34,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     isNewEvent,
   } = useEventForm(event);
 
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Global Icon Upload
   const { customIcons, onUploadFile, onDeleteCustomIcon } = useGlobalIconUpload();
@@ -43,12 +43,18 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
       return await loadImageAsBlob(src.substring(4));
   }, []);
 
-  // Auto-focus for new events
+  // Auto-focus for new events & Height Adjustment
   useEffect(() => {
-    if (isNewEvent.current && inputRef.current) {
-      inputRef.current.focus();
+    if (inputRef.current) {
+        // Reset height to auto to correctly calculate scrollHeight for shrinkage
+        inputRef.current.style.height = 'auto';
+        inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
+        
+        if (isNewEvent.current) {
+            inputRef.current.focus();
+        }
     }
-  }, []);
+  }, [localSummary]); // Re-run on summary change
 
   // Time formatting
   const startDate = event.dtstart;
@@ -111,17 +117,18 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         // Render Title with Color Indicator
         renderTitle={() => (
             <div className="flex items-center gap-2 w-full">
-                <input
+                <textarea
                     ref={inputRef}
-                    type="text"
+                    rows={1}
                     value={localSummary}
                     onChange={(e) => handleSummaryChange(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Event title"
                     className={cn(
-                        "w-full bg-transparent text-sm font-semibold outline-none py-1",
+                        "w-full bg-transparent text-sm font-semibold outline-none py-1 resize-none min-h-[28px] pb-2",
                         "text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
                     )}
+                    style={{ height: 'auto', overflowY: 'hidden' }}
                 />
             </div>
         )}
