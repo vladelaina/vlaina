@@ -34,7 +34,6 @@ import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
 
 function AppContent() {
-  const { loadData } = useGroupStore();
   const {
     appViewMode,
     sidebarCollapsed,
@@ -60,9 +59,8 @@ function AppContent() {
   const loadCalendarEvents = useCalendarEventsStore(state => state.load);
 
   useEffect(() => {
-    loadData();
     loadCalendarEvents();
-  }, [loadData, loadCalendarEvents]);
+  }, [loadCalendarEvents]);
 
   useEffect(() => {
     const handleNewWindow = async (e: KeyboardEvent) => {

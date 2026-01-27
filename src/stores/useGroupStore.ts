@@ -64,6 +64,7 @@ function calendarToGroup(cal: NekoCalendar): Group {
 
 export function useGroupStore() {
   const eventStore = useCalendarEventsStore();
+  const uiStore = useUIStore();
 
   // Create derived state
   // This might be slightly expensive on every render if event count is huge.
@@ -86,14 +87,12 @@ export function useGroupStore() {
     groups,
     tasks,
     loaded: eventStore.loaded,
-    activeGroupId: DEFAULT_GROUP_ID, // TODO: Manage active group state in UIStore or local state
+    activeGroupId: uiStore.activeGroupId,
 
     // --- Actions Mapping ---
 
-    setActiveGroup: (_id: string | null) => {
-        // This was previously in UnifiedStore. 
-        // We might need to handle this state if components rely on it being global.
-        // For now, let's just log it or no-op if it's purely visual.
+    setActiveGroup: (id: string | null) => {
+        uiStore.setActiveGroupId(id || DEFAULT_GROUP_ID);
     },
 
     addGroup: async (name: string) => {
