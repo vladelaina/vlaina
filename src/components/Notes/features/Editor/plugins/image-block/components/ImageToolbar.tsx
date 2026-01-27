@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlignLeft, AlignCenter, AlignRight, Pencil, Copy, Download, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { IconButton } from '@/components/ui/icon-button';
 
 interface ImageToolbarProps {
     alignment: 'left' | 'center' | 'right';
@@ -24,7 +25,7 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
     return (
         <div className={cn(
             "absolute top-2 right-2 mt-0 z-[60] transition-all duration-200",
-            "flex items-center gap-0.5 p-1 bg-[var(--neko-bg-primary)]/80 backdrop-blur-md border border-[var(--neko-border)] rounded-lg shadow-sm",
+            "flex items-center bg-white dark:bg-[#1e1e1e] border border-black/5 dark:border-white/10 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-1.5 gap-1",
             "transform origin-top-right",
             isVisible 
                 ? "opacity-100 scale-100 translate-y-0" 
@@ -32,30 +33,34 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
         )}>
             <div className="flex items-center gap-0.5">
                 <ToolbarButton 
-                    icon={<AlignLeft size={16} />} 
+                    icon={<AlignLeft className="size-4" />} 
                     onClick={() => onAlign('left')} 
-                    label="Left" 
                     active={alignment === 'left'} 
                 />
                 <ToolbarButton 
-                    icon={<AlignCenter size={16} />} 
+                    icon={<AlignCenter className="size-4" />} 
                     onClick={() => onAlign('center')} 
-                    label="Center" 
                     active={alignment === 'center'} 
                 />
                 <ToolbarButton 
-                    icon={<AlignRight size={16} />} 
+                    icon={<AlignRight className="size-4" />} 
                     onClick={() => onAlign('right')} 
-                    label="Right" 
                     active={alignment === 'right'} 
                 />
             </div>
-            <div className="w-px h-4 bg-[var(--neko-border)] mx-0.5" />
+            
+            <div className="w-[1px] h-4 bg-gray-200 dark:bg-zinc-700 mx-1" />
+            
             <div className="flex items-center gap-0.5">
-                <ToolbarButton icon={<Pencil size={16} />} onClick={onEdit} label="Edit" />
-                <ToolbarButton icon={<Copy size={16} />} onClick={onCopy} label="Copy" />
-                <ToolbarButton icon={<Download size={16} />} onClick={onDownload} label="Download" />
-                <ToolbarButton icon={<Trash2 size={16} />} onClick={onDelete} label="Delete" danger />
+                <ToolbarButton icon={<Pencil className="size-4" />} onClick={onEdit} />
+                <ToolbarButton icon={<Copy className="size-4" />} onClick={onCopy} />
+                <ToolbarButton icon={<Download className="size-4" />} onClick={onDownload} />
+            </div>
+
+            <div className="w-[1px] h-4 bg-gray-200 dark:bg-zinc-700 mx-1" />
+
+            <div className="flex items-center gap-0.5">
+                <ToolbarButton icon={<Trash2 className="size-4" />} onClick={onDelete} danger />
             </div>
         </div>
     );
@@ -64,32 +69,23 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
 function ToolbarButton({ 
     icon, 
     onClick, 
-    label, 
     danger, 
     active 
 }: {
     icon: React.ReactNode;
     onClick: (e: React.MouseEvent) => void;
-    label: string;
     danger?: boolean;
     active?: boolean;
 }) {
+    // IconButton without tooltip prop to remove hover labels
     return (
-        <button
-            onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onClick(e);
-            }}
+        <IconButton
+            onClick={() => onClick({ preventDefault: () => {}, stopPropagation: () => {} } as any)}
+            icon={icon}
             className={cn(
-                "p-1.5 rounded-md hover:bg-[var(--neko-hover)] transition-all",
-                "text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]",
-                active && "bg-[var(--neko-accent-light)] text-[var(--neko-accent)]",
-                danger && "hover:bg-red-50 text-red-400 hover:text-red-500"
+                active ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400",
+                danger && "hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
             )}
-            title={label}
-        >
-            {icon}
-        </button>
+        />
     );
 }
