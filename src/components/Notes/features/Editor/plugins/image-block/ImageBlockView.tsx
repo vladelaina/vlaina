@@ -86,12 +86,26 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     // --- Data Resolution ---
     const { baseSrc, params: initialParams } = useMemo(() => parseCropFragment(node.attrs.src || ''), [node.attrs.src]);
-    const { resolvedSrc } = useLocalImage(baseSrc, notesPath, currentNotePath);
+    const { resolvedSrc, error: loadError, isLoading } = useLocalImage(baseSrc, notesPath, currentNotePath);
 
     // Sync crop params state with URL changes
     useEffect(() => {
         setCropParams(initialParams);
     }, [initialParams]);
+
+    // Self-destruct if local image is missing (e.g. undo after file deletion)
+    useEffect(() => {
+        if (!isLoading && loadError && baseSrc && !baseSrc.startsWith('http')) {
+            // Use a small timeout to avoid conflict with mounting phases
+            const timer = setTimeout(() => {
+                const pos = getPos();
+                if (pos !== undefined) {
+                    view.dispatch(view.state.tr.delete(pos, pos + node.nodeSize));
+                }
+            }, 0);
+            return () => clearTimeout(timer);
+        }
+    }, [isLoading, loadError, baseSrc, view, getPos, node.nodeSize]);
 
     // --- Handlers ---
 
@@ -245,6 +259,9 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const handleDelete = () => {
         const pos = getPos();
         if (pos !== undefined) {
+            // Remove from Editor UI immediately
+            // The file deletion logic is now handled globally by the imageNodeViewPlugin
+            // which listens for ALL node removals (Backspace, Cut, Button Click)
             view.dispatch(view.state.tr.delete(pos, pos + node.nodeSize));
         }
     };
