@@ -113,7 +113,9 @@ export function ViewSwitcher() {
   // Handle day count selection
   const handleSelectDayCount = (count: number) => {
     setDayCount(count);
-    setViewMode('week'); // Use week view for multi-day
+    // If count > 1, use 'week' view (TimeGrid) for multi-day support
+    // If count === 1, use 'day' view (DayGrid) for single-day optimization
+    setViewMode(count > 1 ? 'week' : 'day');
     setIsDropdownOpen(false);
     setShowDayCountSubmenu(false);
   };
@@ -123,7 +125,7 @@ export function ViewSwitcher() {
     const count = parseInt(customDayInput);
     if (count >= 1 && count <= 14) {
       setDayCount(count);
-      setViewMode('week'); // Use week view for multi-day
+      setViewMode(count > 1 ? 'week' : 'day');
       setShowCustomDayModal(false);
       setIsDropdownOpen(false);
       setShowDayCountSubmenu(false);
@@ -318,7 +320,7 @@ export function ViewSwitcher() {
         }}
         onSelectCount={(count) => {
           setDayCount(count);
-          setViewMode('day');
+          setViewMode(count > 1 ? 'week' : 'day');
           setShowCustomDayModal(false);
           setCustomDayInput('');
         }}
