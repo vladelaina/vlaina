@@ -99,10 +99,15 @@ async function handleImageUpload(file: File, view: any) {
                 return;
             }
 
+            // Extract filename from the uploaded path for the caption
+            // This ensures we use the sanitized/timestamped name instead of generic "image.png"
+            const fileName = result.path.split('/').pop() || result.path;
+            const altText = fileName.replace(/\.[^/.]+$/, '');
+
             // Create image node with the uploaded path
             const imageNode = imageNodeType.create({
                 src: result.path,
-                alt: file.name.replace(/\.[^/.]+$/, ''), // Remove extension for alt text
+                alt: altText,
             });
 
             // Insert at current selection

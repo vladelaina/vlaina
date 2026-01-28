@@ -27,7 +27,13 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
-            inputRef.current.focus();
+            const input = inputRef.current;
+            // Use setTimeout to skip the current event loop
+            setTimeout(() => {
+                input.focus();
+                const len = input.value.length;
+                input.setSelectionRange(len, len);
+            }, 0);
         }
     }, [isEditing]);
 
@@ -56,7 +62,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
     return (
         <div className={cn(
             "absolute bottom-2 right-2 mb-0 max-w-[calc(100%-16px)] z-[60] transition-all duration-200 select-auto",
-            "flex items-center gap-0.5 p-1 bg-[var(--neko-bg-primary)]/80 backdrop-blur-md border border-[var(--neko-border)] rounded-lg shadow-sm",
+            "flex items-center gap-0.5 p-1 bg-white dark:bg-[#1e1e1e] border border-black/5 dark:border-white/10 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)]",
             isVisible 
                 ? "opacity-100 scale-100 translate-y-0" 
                 : "opacity-0 scale-95 translate-y-2 pointer-events-none"
@@ -77,13 +83,13 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                     onFocus={stopPropagation}
                     onDragStart={preventDrag}
                     draggable={false}
-                    className="bg-transparent text-[var(--neko-text-primary)] text-xs font-medium px-2 py-1.5 outline-none min-w-[120px] w-auto select-text cursor-text"
+                    className="bg-transparent text-[var(--neko-text-primary)] text-xs font-medium px-2 h-6 outline-none min-w-[120px] w-auto select-text cursor-text"
                     placeholder="Caption..."
                 />
             ) : (
                 <div
                     className={cn(
-                        "text-xs font-medium px-2 py-1.5 cursor-pointer hover:text-[var(--neko-text-primary)] transition-colors flex items-center gap-1.5 min-h-[28px]",
+                        "text-xs font-medium px-2 h-6 cursor-pointer hover:text-[var(--neko-text-primary)] transition-colors flex items-center gap-1.5 select-none",
                         !originalAlt ? "text-[var(--neko-text-tertiary)] italic" : "text-[var(--neko-text-secondary)]"
                     )}
                     onClick={(e) => {

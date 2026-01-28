@@ -25,7 +25,7 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
     return (
         <div className={cn(
             "absolute top-2 right-2 mt-0 z-[60] transition-all duration-200",
-            "flex items-center bg-white dark:bg-[#1e1e1e] border border-black/5 dark:border-white/10 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-1.5 gap-1",
+            "flex items-center bg-white dark:bg-[#1e1e1e] border border-black/5 dark:border-white/10 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-1 gap-1",
             "transform origin-top-right",
             isVisible 
                 ? "opacity-100 scale-100 translate-y-0" 
@@ -84,7 +84,7 @@ function ToolbarButton({
             icon={icon}
             className={cn(
                 active ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400",
-                danger && "hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                danger && "hover:text-red-500"
             )}
         />
     );

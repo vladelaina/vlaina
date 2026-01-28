@@ -42,7 +42,7 @@ function AppContent() {
     toggleSidebar,
     setSidebarPeeking
   } = useUIStore();
-  const { currentVault } = useVaultStore();
+  const { currentVault, initialize } = useVaultStore();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const toggleSettings = useCallback(() => setSettingsOpen(prev => !prev), []);
@@ -57,6 +57,11 @@ function AppContent() {
   // --- Init ---
   useSyncInit();
   const loadCalendarEvents = useCalendarEventsStore(state => state.load);
+
+  // Initialize Vault Store globally
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
 
   useEffect(() => {
     loadCalendarEvents();

@@ -229,6 +229,13 @@ async fn set_window_resizable(window: tauri::WebviewWindow, resizable: bool) -> 
     Ok(())
 }
 
+// Move file to system trash
+#[tauri::command]
+async fn move_to_trash(path: String) -> Result<(), String> {
+    trash::delete(&path).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -243,6 +250,7 @@ pub fn run() {
             create_new_window,
             set_window_resizable,
             focus_window,
+            move_to_trash,
             github::commands::github_auth,
             github::commands::github_disconnect,
             github::commands::get_github_sync_status,
