@@ -341,14 +341,10 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                             setNaturalRatio(media.naturalWidth / media.naturalHeight);
                             
                             // Smart Default Sizing:
-                            // Convert the initial 'auto' width to a concrete percentage.
-                            // If the image is new (no width attribute), check its size relative to container.
                             if (!node.attrs.width || width === 'auto') {
                                 const containerWidth = containerRef.current?.parentElement?.offsetWidth;
                                 
                                 if (containerWidth) {
-                                    // If image is smaller than container, use its natural percentage.
-                                    // If larger, cap at 100% (which max-width already enforces visually).
                                     const percent = (media.naturalWidth / containerWidth) * 100;
                                     const finalPercent = Math.min(100, percent);
                                     
@@ -356,7 +352,24 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                                     updateNodeAttrs({ width: `${finalPercent}%` });
                                 }
                             }
-                            // Reveal image after sizing calculation is done
+
+                            // Smart Default Caption:
+                            // If alt text is empty, initialize it with the filename (sans extension)
+                            if (!node.attrs.alt) {
+                                try {
+                                    const url = node.attrs.src.split('#')[0];
+                                    const filename = url.substring(url.lastIndexOf('/') + 1);
+                                    if (filename) {
+                                        const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+                                        // Update node attribute and local input state
+                                        updateNodeAttrs({ alt: nameWithoutExt });
+                                        setCaptionInput(nameWithoutExt);
+                                    }
+                                } catch (e) {
+                                    console.warn('Failed to parse filename for caption', e);
+                                }
+                            }
+
                             setIsReady(true);
                         }}
                     />
