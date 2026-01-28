@@ -1,19 +1,62 @@
 import { invoke } from '@tauri-apps/api/core';
-import { joinPath } from '@/lib/storage/adapter';
+import { joinPath, getStorageAdapter } from '@/lib/storage/adapter';
 
 // In-memory map to track pending deletions
-// Key: Image Source Path, Value: Timeout ID
+// Key: Absolute File Path, Value: Timeout ID
 const pendingDeletions = new Map<string, ReturnType<typeof setTimeout>>();
 
 const UNDO_GRACE_PERIOD_MS = 10000; // 10 seconds grace period
 
 /**
+ * Ensures that the image file exists on disk.
+ * If the file is missing (e.g. externally deleted) but we still have the blob in memory,
+ * this function will write the blob back to disk, restoring the file.
+ */
+export async function ensureImageFileExists(
+    src: string,
+    blobUrl: string,
+    notesPath: string,
+    currentNotePath?: string
+): Promise<void> {
+    if (!src || !blobUrl || !blobUrl.startsWith('blob:')) return;
+    
+    // Skip remote/data URLs
+    if (src.startsWith('http') || src.startsWith('data:')) return;
+
+    try {
+        const fullPath = await resolveImagePath(src, notesPath, currentNotePath);
+        if (!fullPath) return;
+
+        // CRITICAL: Cancel any pending deletion for this file
+        if (pendingDeletions.has(fullPath)) {
+            clearTimeout(pendingDeletions.get(fullPath)!);
+            pendingDeletions.delete(fullPath);
+        }
+
+        const storage = getStorageAdapter();
+        
+        // 1. Check if file exists
+        if (await storage.exists(fullPath)) {
+            return; // File is safe, nothing to do
+        }
+
+        // 2. Fetch blob data
+        const response = await fetch(blobUrl);
+        const blob = await response.blob();
+        const arrayBuffer = await blob.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+
+        // 3. Write back to disk
+        await storage.writeBinaryFile(fullPath, uint8Array);
+        
+    } catch (err) {
+        console.error('[ImageBlock] Failed to restore image file:', err);
+    }
+}
+
+/**
  * Marks a local image file for deletion with a grace period.
  * If user undoes the action within the grace period, deletion is cancelled.
- * 
- * @param src - The source URL from the image node
- * @param notesPath - The absolute path to the vault root
- * @param currentNotePath - The relative path of the current note
  */
 export async function moveImageToTrash(
     src: string, 
@@ -32,8 +75,8 @@ export async function moveImageToTrash(
         if (!fullPath) return false;
 
         // If already pending, clear old timer (reset clock)
-        if (pendingDeletions.has(src)) {
-            clearTimeout(pendingDeletions.get(src)!);
+        if (pendingDeletions.has(fullPath)) {
+            clearTimeout(pendingDeletions.get(fullPath)!);
         }
 
         // Set new timer
@@ -43,11 +86,11 @@ export async function moveImageToTrash(
             } catch (err) {
                 console.error('[ImageTrash] Failed to move to trash:', err);
             } finally {
-                pendingDeletions.delete(src);
+                pendingDeletions.delete(fullPath);
             }
         }, UNDO_GRACE_PERIOD_MS);
 
-        pendingDeletions.set(src, timerId);
+        pendingDeletions.set(fullPath, timerId);
         return true;
 
     } catch (err) {
@@ -63,14 +106,19 @@ export async function moveImageToTrash(
  */
 export async function restoreImageFromTrash(
     src: string,
-    _notesPath: string,
-    _currentNotePath?: string
+    notesPath: string,
+    currentNotePath?: string
 ): Promise<void> {
     if (!src) return;
 
-    if (pendingDeletions.has(src)) {
-        clearTimeout(pendingDeletions.get(src)!);
-        pendingDeletions.delete(src);
+    try {
+        const fullPath = await resolveImagePath(src, notesPath, currentNotePath);
+        if (fullPath && pendingDeletions.has(fullPath)) {
+            clearTimeout(pendingDeletions.get(fullPath)!);
+            pendingDeletions.delete(fullPath);
+        }
+    } catch (err) {
+        console.error('Failed to cancel deletion:', err);
     }
 }
 

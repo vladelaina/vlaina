@@ -4,6 +4,7 @@ import { Node } from '@milkdown/kit/prose/model';
 import { cn } from '@/lib/utils';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useToastStore } from '@/stores/useToastStore';
+import { ImageOff } from 'lucide-react';
 
 // Internal Components
 import { ImageToolbar } from './components/ImageToolbar';
@@ -13,6 +14,7 @@ import { ImageCropper } from './components/ImageCropper';
 // Hooks & Utils
 import { useLocalImage } from './hooks/useLocalImage';
 import { parseCropFragment, generateCropFragment, CropParams } from './utils/cropUtils';
+import { moveImageToTrash, ensureImageFileExists } from './utils/fileUtils';
 
 interface ImageBlockProps {
     node: Node;
@@ -93,21 +95,21 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         setCropParams(initialParams);
     }, [initialParams]);
 
-    // Self-destruct if local image is missing (e.g. undo after file deletion)
+    // Ensure placeholder is visible on error
     useEffect(() => {
-        if (!isLoading && loadError && baseSrc && !baseSrc.startsWith('http')) {
-            // Use a small timeout to avoid conflict with mounting phases
-            const timer = setTimeout(() => {
-                const pos = getPos();
-                if (pos !== undefined) {
-                    view.dispatch(view.state.tr.delete(pos, pos + node.nodeSize));
-                }
-            }, 0);
-            return () => clearTimeout(timer);
+        if (loadError) {
+            setIsReady(true);
         }
-    }, [isLoading, loadError, baseSrc, view, getPos, node.nodeSize]);
+    }, [loadError]);
 
     // --- Handlers ---
+
+    // Helper to restore file from memory if missing, ensuring actions like Copy/Download work
+    const restoreIfNeeded = async () => {
+        if (baseSrc && resolvedSrc) {
+            await ensureImageFileExists(baseSrc, resolvedSrc, notesPath, currentNotePath);
+        }
+    };
 
     const handleMouseEnter = () => {
         if (hoverTimeoutRef.current) {
@@ -135,6 +137,12 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const handleSave = async (percentageCrop: any, ratio: number) => {
         try {
             setIsSaving(true);
+
+            // Auto-restore: If file was externally deleted but we have it in memory, write it back.
+            if (baseSrc && resolvedSrc) {
+                await ensureImageFileExists(baseSrc, resolvedSrc, notesPath, currentNotePath);
+            }
+
             const fragment = generateCropFragment(percentageCrop, ratio);
             
             // Optimistic update of local state
@@ -205,11 +213,13 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             }
         };
 
-        const onMouseUp = () => {
+        const onMouseUp = async () => {
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
             
             setDragDimensions(null); // Clear optimistic dimensions
+
+            await restoreIfNeeded();
 
             // Commit changes
             const isProportional = direction === 'left' || direction === 'right' || direction === 'bottom-left' || direction === 'bottom-right';
@@ -228,6 +238,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     const handleCopy = async () => {
         try {
+            await restoreIfNeeded();
             await navigator.clipboard.writeText(node.attrs.src);
             addToast('Link copied to clipboard', 'success');
         } catch (err) {
@@ -237,6 +248,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     const handleDownload = async () => {
         try {
+            await restoreIfNeeded();
             const { save } = await import('@tauri-apps/plugin-dialog');
             const { writeFile } = await import('@tauri-apps/plugin-fs');
             const ext = baseSrc.split('.').pop()?.split('?')[0] || 'png';
@@ -266,9 +278,10 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         }
     };
 
-    const handleCaptionSubmit = () => {
+    const handleCaptionSubmit = async () => {
         setIsEditingCaption(false);
         if (captionInput !== node.attrs.alt) {
+            await restoreIfNeeded();
             updateNodeAttrs({ alt: captionInput });
         }
     };
@@ -306,44 +319,51 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
             >
-                <ImageCropper
-                    imageSrc={resolvedSrc}
-                    initialCropParams={cropParams}
-                    containerSize={finalContainerSize}
-                    onSave={handleSave}
-                    onCancel={() => {
-                        setIsActive(false);
-                        setHeight(undefined);
-                    }}
-                    isSaving={isSaving}
-                    isActive={isActive}
-                    onResizeStart={handleResizeStart}
-                    onMediaLoaded={(media) => {
-                        setNaturalRatio(media.naturalWidth / media.naturalHeight);
-                        
-                        // Smart Default Sizing:
-                        // Convert the initial 'auto' width to a concrete percentage.
-                        // If the image is new (no width attribute), check its size relative to container.
-                        if (!node.attrs.width || width === 'auto') {
-                            const containerWidth = containerRef.current?.parentElement?.offsetWidth;
+                {loadError ? (
+                    <div className="w-full h-full min-h-[100px] flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900 border border-dashed border-gray-200 dark:border-zinc-700 rounded-md text-gray-400 dark:text-zinc-500">
+                        <ImageOff className="w-8 h-8 mb-2 opacity-50" />
+                        <span className="text-xs font-medium">Image not found</span>
+                    </div>
+                ) : (
+                    <ImageCropper
+                        imageSrc={resolvedSrc}
+                        initialCropParams={cropParams}
+                        containerSize={finalContainerSize}
+                        onSave={handleSave}
+                        onCancel={() => {
+                            setIsActive(false);
+                            setHeight(undefined);
+                        }}
+                        isSaving={isSaving}
+                        isActive={isActive}
+                        onResizeStart={handleResizeStart}
+                        onMediaLoaded={(media) => {
+                            setNaturalRatio(media.naturalWidth / media.naturalHeight);
                             
-                            if (containerWidth) {
-                                // If image is smaller than container, use its natural percentage.
-                                // If larger, cap at 100% (which max-width already enforces visually).
-                                const percent = (media.naturalWidth / containerWidth) * 100;
-                                const finalPercent = Math.min(100, percent);
+                            // Smart Default Sizing:
+                            // Convert the initial 'auto' width to a concrete percentage.
+                            // If the image is new (no width attribute), check its size relative to container.
+                            if (!node.attrs.width || width === 'auto') {
+                                const containerWidth = containerRef.current?.parentElement?.offsetWidth;
                                 
-                                setWidth(`${finalPercent}%`);
-                                updateNodeAttrs({ width: `${finalPercent}%` });
+                                if (containerWidth) {
+                                    // If image is smaller than container, use its natural percentage.
+                                    // If larger, cap at 100% (which max-width already enforces visually).
+                                    const percent = (media.naturalWidth / containerWidth) * 100;
+                                    const finalPercent = Math.min(100, percent);
+                                    
+                                    setWidth(`${finalPercent}%`);
+                                    updateNodeAttrs({ width: `${finalPercent}%` });
+                                }
                             }
-                        }
-                        // Reveal image after sizing calculation is done
-                        setIsReady(true);
-                    }}
-                />
+                            // Reveal image after sizing calculation is done
+                            setIsReady(true);
+                        }}
+                    />
+                )}
 
                 {/* Caption - Always visible on hover/active */}
-                {(isHovered || isEditingCaption || isActive) && (
+                {(isHovered || isEditingCaption || isActive) && !loadError && (
                     <ImageCaption
                         originalAlt={node.attrs.alt || ''}
                         value={captionInput}
@@ -363,8 +383,14 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 {/* For now keeping toolbar visible on hover as before */}
                 <ImageToolbar
                     alignment={alignment}
-                    onAlign={(align) => setAlignment(align)}
-                    onEdit={() => setIsActive(true)} // Keep edit button as an explicit trigger too
+                    onAlign={async (align) => {
+                        await restoreIfNeeded();
+                        setAlignment(align);
+                    }}
+                    onEdit={async () => {
+                        await restoreIfNeeded();
+                        setIsActive(true);
+                    }}
                     onCopy={handleCopy}
                     onDownload={handleDownload}
                     onDelete={handleDelete}
