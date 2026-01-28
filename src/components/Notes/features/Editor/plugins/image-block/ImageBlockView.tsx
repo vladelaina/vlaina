@@ -239,10 +239,26 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const handleCopy = async () => {
         try {
             await restoreIfNeeded();
-            await navigator.clipboard.writeText(node.attrs.src);
-            addToast('Link copied to clipboard', 'success');
+            
+            if (resolvedSrc) {
+                const response = await fetch(resolvedSrc);
+                const blob = await response.blob();
+                
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        [blob.type]: blob
+                    })
+                ]);
+            } else {
+                // Fallback for missing resolved src (unlikely if restoreIfNeeded worked)
+                await navigator.clipboard.writeText(node.attrs.src);
+            }
         } catch (err) {
-            console.error(err);
+            console.error('Failed to copy image:', err);
+            // Fallback to text copy if image copy fails (e.g. format not supported)
+            try {
+                await navigator.clipboard.writeText(node.attrs.src);
+            } catch (e) { /* ignore */ }
         }
     };
 
