@@ -266,45 +266,49 @@ export function useEventDrag({
             // Apply vertical delta (in minutes)
             let newStartTotalMinutes = originalStartTotalMinutes + Math.round(deltaMs / 60000);
             
-            // Construct the proposed start date
+            // Construct the proposed start date on the TARGET day
             const proposedStart = new Date(targetDate);
             proposedStart.setHours(Math.floor(newStartTotalMinutes / 60), newStartTotalMinutes % 60, 0, 0);
             
-            // Also construct proposed end
-            const proposedEnd = new Date(proposedStart.getTime() + duration);
-            
             // Check if we are within the visual boundaries of the TARGET day
-            // We use the timestamp of our newly constructed proposedStart for boundary check
-            const boundaries = getVisualDayBoundaries(proposedStart.getTime(), dayStartMinutes);
+            // Manually calculate boundaries from targetDate (midnight) + dayStartMinutes
+            // This avoids ambiguity where getVisualDayBoundaries might think midnight belongs to the previous day.
             
-            // Clamp logic:
-            // If the calculated time is before the day start, clamp to day start
-            // If the calculated end time is after day end, clamp the start so the end fits (or clamp end)
+            const dayStartMs = dayStartMinutes * 60 * 1000;
+            const boundaryStart = targetDate.getTime() + dayStartMs;
+            const boundaryEnd = boundaryStart + (24 * 60 * 60 * 1000);
+            
+            const boundaries = { start: boundaryStart, end: boundaryEnd };
+            
+            // --- STRICT VERTICAL LOCKING ---
+            // We clamp the finalStart and finalEnd to the boundaries of the target day.
+            // This prevents an event from becoming "yesterday's 3 AM" if pushed too far up.
             
             let finalStart = proposedStart.getTime();
-            let finalEnd = proposedEnd.getTime();
+            let finalEnd = finalStart + duration;
             
+            // Clamp to day start
             if (finalStart < boundaries.start) {
                 finalStart = boundaries.start;
                 finalEnd = finalStart + duration;
-            } else if (finalEnd > boundaries.end) {
-                finalEnd = boundaries.end;
-                finalStart = finalEnd - duration;
             }
             
-            // Only update if we are effectively within the valid range
-            // (Double check to prevent weird jumps if duration is longer than day)
-            if (finalStart >= boundaries.start && finalEnd <= boundaries.end) {
-                 onUpdateEvent(eventDrag.eventId, {
-                    dtstart: new Date(finalStart),
-                    dtend: new Date(finalEnd),
-                });
-                
-                setDragTimeIndicator({
-                    startMinutes: new Date(finalStart).getHours() * 60 + new Date(finalStart).getMinutes(),
-                    endMinutes: new Date(finalEnd).getHours() * 60 + new Date(finalEnd).getMinutes(),
-                });
+            // Clamp to day end
+            if (finalEnd > boundaries.end) {
+                finalEnd = boundaries.end;
+                finalStart = Math.max(boundaries.start, finalEnd - duration);
             }
+            
+            // Only update if it's a valid movement within the day
+            onUpdateEvent(eventDrag.eventId, {
+                dtstart: new Date(finalStart),
+                dtend: new Date(finalEnd),
+            });
+            
+            setDragTimeIndicator({
+                startMinutes: new Date(finalStart).getHours() * 60 + new Date(finalStart).getMinutes(),
+                endMinutes: new Date(finalEnd).getHours() * 60 + new Date(finalEnd).getMinutes(),
+            });
         }
     }, [eventDrag, displayItems, onUpdateEvent, hourHeight, snapMinutes, dayStartMinutes,
         columnCount, days, scrollRef, canvasRef, allDayAreaRef]);
