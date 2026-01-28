@@ -57,12 +57,19 @@ export function useGridAutoScroll({
 
             const topEdge = allDayRect ? allDayRect.bottom : scrollRect.top;
 
-            if (mouseY < topEdge + EDGE_THRESHOLD && mouseY > topEdge - 20) {
+            if (mouseY < topEdge + EDGE_THRESHOLD) {
+                // Scroll Up
+                // Distance is how far into the "danger zone" we are
+                // If mouseY is way above topEdge, distance increases -> faster scroll
                 const distance = topEdge + EDGE_THRESHOLD - mouseY;
-                scrollAmount = -Math.ceil((distance / EDGE_THRESHOLD) * MAX_SCROLL_SPEED);
-            } else if (mouseY > scrollRect.bottom - EDGE_THRESHOLD && mouseY < scrollRect.bottom + 50) {
+                // Clamp distance to avoid infinite speed if mouse goes to monitor 2
+                const effectiveDistance = Math.min(distance, EDGE_THRESHOLD * 2); 
+                scrollAmount = -Math.ceil((effectiveDistance / EDGE_THRESHOLD) * MAX_SCROLL_SPEED);
+            } else if (mouseY > scrollRect.bottom - EDGE_THRESHOLD) {
+                // Scroll Down
                 const distance = mouseY - (scrollRect.bottom - EDGE_THRESHOLD);
-                scrollAmount = Math.ceil((distance / EDGE_THRESHOLD) * MAX_SCROLL_SPEED);
+                const effectiveDistance = Math.min(distance, EDGE_THRESHOLD * 2);
+                scrollAmount = Math.ceil((effectiveDistance / EDGE_THRESHOLD) * MAX_SCROLL_SPEED);
             }
 
             if (scrollAmount !== 0) {

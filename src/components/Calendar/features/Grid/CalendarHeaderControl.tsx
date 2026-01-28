@@ -7,7 +7,6 @@ import { WeatherWidget } from '../Header/WeatherWidget';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useGroupStore } from '@/stores/useGroupStore';
-import { ViewSwitcher } from '../ViewSwitcher/ViewSwitcher';
 
 export function CalendarHeaderControl() {
   const { selectedDate, setSelectedDate, viewMode, dayCount } = useCalendarStore();
@@ -23,11 +22,17 @@ export function CalendarHeaderControl() {
 
   const days = useMemo(() => {
     if (viewMode === 'week') {
-      const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
-      return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+      const count = dayCount || 7;
+      // Standard Week View: 7 days, locked to Monday
+      if (count === 7) {
+        const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+        return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+      }
+      // Custom Multi-Day View: 'count' days, starting from selectedDate
+      return Array.from({ length: count }, (_, i) => addDays(selectedDate, i));
     }
     if (viewMode === 'day') {
-      return Array.from({ length: dayCount || 1 }, (_, i) => addDays(selectedDate, i));
+      return Array.from({ length: 1 }, (_, i) => addDays(selectedDate, i));
     }
     return [];
   }, [viewMode, selectedDate, dayCount]);
@@ -73,10 +78,6 @@ export function CalendarHeaderControl() {
             </div>
           )}
         </div>
-
-        <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800" />
-
-        <ViewSwitcher />
       </div>
     );
   }
@@ -87,16 +88,16 @@ export function CalendarHeaderControl() {
       <div className="flex items-center gap-2 h-full relative group/container">
         <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
           <PopoverTrigger asChild>
-            <button className="h-full flex items-center gap-4 px-4 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group outline-none">
+            <button className="h-full flex items-center gap-4 px-4 rounded-md transition-colors group outline-none text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]">
               <div className="flex items-center gap-6">
                 {days.map((day) => {
                   return (
                     <div key={day.toString()} className="flex flex-col items-center justify-center min-w-[32px]">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                        <span className="text-xs font-medium text-current opacity-80">
                           {format(day, 'EEE')}
                         </span>
-                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+                        <span className="text-sm font-semibold text-current">
                           {format(day, 'd')}
                         </span>
                       </div>
@@ -105,7 +106,7 @@ export function CalendarHeaderControl() {
                 })}
               </div>
 
-              <ChevronDown className={`size-3 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-transform duration-200 ${datePickerOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`size-3 text-current opacity-60 group-hover:opacity-100 transition-all duration-200 ${datePickerOpen ? 'rotate-180' : ''}`} />
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-2" align="center" sideOffset={8}>
@@ -135,10 +136,6 @@ export function CalendarHeaderControl() {
           </div>
         )}
       </div>
-
-      <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800" />
-
-      <ViewSwitcher />
     </div>
   );
 }

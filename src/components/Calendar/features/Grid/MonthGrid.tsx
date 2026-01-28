@@ -15,6 +15,7 @@ import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
 import { useCalendarEvents } from '../../hooks/useCalendarEvents';
 import { getColorHex, getColorPriority } from '@/lib/colors';
 import { isEventInVisualDay, DEFAULT_DAY_START_MINUTES } from '../../utils/timeUtils';
+import { TimezoneHeader } from './components/TimezoneHeader';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -39,7 +40,7 @@ function sortEventsByColor(events: NekoEvent[]): NekoEvent[] {
 }
 
 export function MonthGrid() {
-  const { selectedDate, setSelectedDate, dayStartTime } = useCalendarStore();
+  const { selectedDate, setSelectedDate, dayStartTime, timezone } = useCalendarStore();
   const displayItems = useCalendarEvents();
   const dayStartMinutes = dayStartTime ?? DEFAULT_DAY_START_MINUTES;
   // No need for now state in month view
@@ -79,6 +80,10 @@ export function MonthGrid() {
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-zinc-950">
+      
+      {/* Universal Grid Header (Timezone + View Controller) */}
+      <TimezoneHeader timezone={String(timezone || 'GMT+8')} />
+
       {/* Weekday Headers */}
       <div className="flex-shrink-0 grid grid-cols-7 border-b border-zinc-200 dark:border-zinc-800">
         {WEEKDAYS.map((weekday) => (

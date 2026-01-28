@@ -90,7 +90,7 @@ export function useEventDrag({
     }, [displayItems, scrollRef]);
 
     const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (!eventDrag || !scrollRef.current) return;
+        if (!eventDrag || !scrollRef.current || !canvasRef.current) return;
 
         const clientX = e.clientX;
         const clientY = e.clientY;
@@ -99,74 +99,82 @@ export function useEventDrag({
         if (allDayAreaRef.current) {
             const allDayRect = allDayAreaRef.current.getBoundingClientRect();
             const isInAllDayArea = clientY >= allDayRect.top && clientY <= allDayRect.bottom;
-            setIsAllDayDropTarget(isInAllDayArea && eventDrag.edge === null && !eventDrag.originalIsAllDay);
+            if (isInAllDayArea && eventDrag.edge === null && !eventDrag.originalIsAllDay) {
+                setIsAllDayDropTarget(true);
+                return; // Stop processing grid drag if we are in all-day area
+            }
+            setIsAllDayDropTarget(false);
         }
 
-        // Handle all-day event being dragged
+        const event = displayItems.find(item => item.uid === eventDrag.eventId);
+        if (!event) return;
+
+        // Calculate target day column
+        const canvasRect = canvasRef.current.getBoundingClientRect();
+        const relativeX = clientX - canvasRect.left;
+        const dayWidth = canvasRect.width / columnCount;
+        const targetDayIndex = Math.max(0, Math.min(columnCount - 1, Math.floor(relativeX / dayWidth)));
+        const targetDate = days[targetDayIndex];
+
+        // Handle all-day event being dragged (Converting to Timed Event)
         if (eventDrag.originalIsAllDay) {
             const scrollRect = scrollRef.current.getBoundingClientRect();
             const allDayRect = allDayAreaRef.current?.getBoundingClientRect();
 
-            if (allDayRect && clientY > allDayRect.bottom && canvasRef.current) {
+            if (allDayRect && clientY > allDayRect.bottom) {
                 // Converting to timed event
                 const relativeY = clientY - scrollRect.top + scrollRef.current.scrollTop;
                 const totalMinutes = pixelsToMinutes(relativeY, hourHeight, dayStartMinutes);
                 let snappedMinutes = Math.round(totalMinutes / snapMinutes) * snapMinutes;
                 snappedMinutes = Math.max(0, Math.min(1439, snappedMinutes));
 
-                const canvasRect = canvasRef.current.getBoundingClientRect();
-                const relativeX = clientX - canvasRect.left;
-                const dayWidth = canvasRect.width / columnCount;
-                const dayIndex = Math.max(0, Math.min(columnCount - 1, Math.floor(relativeX / dayWidth)));
+                if (targetDate) {
+                    const newStartDate = new Date(targetDate);
+                    newStartDate.setHours(Math.floor(snappedMinutes / 60), snappedMinutes % 60, 0, 0);
+                    const newEndDate = new Date(newStartDate.getTime() + 60 * 60 * 1000); // Default 1 hour
 
-                const event = displayItems.find(item => item.uid === eventDrag.eventId);
-                if (event) {
-                    const targetDay = days[dayIndex];
-                    if (targetDay) {
-                        const newStartDate = new Date(targetDay);
-                        newStartDate.setHours(Math.floor(snappedMinutes / 60), snappedMinutes % 60, 0, 0);
-                        const newEndDate = new Date(newStartDate.getTime() + 60 * 60 * 1000);
-
-                        onUpdateEvent(eventDrag.eventId, {
-                            allDay: false,
-                            dtstart: newStartDate,
-                            dtend: newEndDate,
-                        });
-                        setDragTimeIndicator({
-                            startMinutes: snappedMinutes,
-                            endMinutes: snappedMinutes + 60,
-                        });
-                    }
-                }
-            } else if (allDayRect && clientY <= allDayRect.bottom) {
-                // Revert to all day
-                const event = displayItems.find(item => item.uid === eventDrag.eventId);
-                if (event && !event.allDay) {
                     onUpdateEvent(eventDrag.eventId, {
-                        allDay: true,
-                        dtstart: new Date(eventDrag.originalStart),
-                        dtend: new Date(eventDrag.originalEnd),
+                        allDay: false,
+                        dtstart: newStartDate,
+                        dtend: newEndDate,
+                    });
+                    setDragTimeIndicator({
+                        startMinutes: snappedMinutes,
+                        endMinutes: snappedMinutes + 60,
                     });
                 }
+            } else if (allDayRect && clientY <= allDayRect.bottom) {
+                // Revert to all day (or keep as all day)
+                 onUpdateEvent(eventDrag.eventId, {
+                    allDay: true,
+                    dtstart: new Date(eventDrag.originalStart),
+                    dtend: new Date(eventDrag.originalEnd),
+                });
                 setDragTimeIndicator(null);
             }
             return;
         }
 
-        // Standard event drag
+        // Standard event drag logic
         const scrollDelta = scrollRef.current.scrollTop - eventDrag.startScrollTop;
         const deltaY = clientY - eventDrag.startY + scrollDelta;
+        
+        // Calculate minutes delta
         const deltaMinutes = Math.round(pixelsDeltaToMinutes(deltaY, hourHeight) / snapMinutes) * snapMinutes;
         const deltaMs = deltaMinutes * 60 * 1000;
 
-        const event = displayItems.find(item => item.uid === eventDrag.eventId);
-        if (!event) return;
+        // Determine the effective day boundaries for the *target* day (or current event day for resizing)
+        // For resizing, we stick to the event's current day.
+        // For moving, we use the target column's day.
+        const effectiveDateBase = (eventDrag.edge === null && targetDate) 
+            ? targetDate.getTime() 
+            : event.dtstart.getTime();
 
-        const boundaries = getVisualDayBoundaries(event.dtstart.getTime(), dayStartMinutes);
+        const boundaries = getVisualDayBoundaries(effectiveDateBase, dayStartMinutes);
         const minDuration = Math.max(snapMinutes, 5) * 60 * 1000;
 
         if (eventDrag.edge === 'top') {
-            // Resize from top
+            // Resize from top (Vertical Only)
             const anchor = Math.max(boundaries.start, Math.min(boundaries.end, eventDrag.originalEnd));
             const draggedPosition = eventDrag.originalStart + deltaMs;
             const clampedPosition = Math.max(boundaries.start, Math.min(boundaries.end, draggedPosition));
@@ -203,8 +211,9 @@ export function useEventDrag({
                 startMinutes: new Date(newStart).getHours() * 60 + new Date(newStart).getMinutes(),
                 endMinutes: new Date(newEnd).getHours() * 60 + new Date(newEnd).getMinutes(),
             });
+
         } else if (eventDrag.edge === 'bottom') {
-            // Resize from bottom
+            // Resize from bottom (Vertical Only)
             const anchor = Math.max(boundaries.start, Math.min(boundaries.end, eventDrag.originalStart));
             const draggedPosition = eventDrag.originalEnd + deltaMs;
             const clampedPosition = Math.max(boundaries.start, Math.min(boundaries.end, draggedPosition));
@@ -218,7 +227,6 @@ export function useEventDrag({
                 newEnd = anchor;
             }
 
-            // Ensure minimum duration
             if (newEnd - newStart < minDuration) {
                 if (clampedPosition >= anchor) {
                     newEnd = Math.min(boundaries.end, newStart + minDuration);
@@ -241,33 +249,66 @@ export function useEventDrag({
                 startMinutes: new Date(newStart).getHours() * 60 + new Date(newStart).getMinutes(),
                 endMinutes: new Date(newEnd).getHours() * 60 + new Date(newEnd).getMinutes(),
             });
+
         } else {
-            // Move entire event
-            const newStart = eventDrag.originalStart + deltaMs;
-            const newEnd = eventDrag.originalEnd + deltaMs;
-            const eventDuration = eventDrag.originalEnd - eventDrag.originalStart;
+            // Move entire event (Horizontal + Vertical)
+            if (!targetDate) return;
 
-            let clampedStart = newStart;
-            let clampedEnd = newEnd;
-
-            if (newStart < boundaries.start) {
-                clampedStart = boundaries.start;
-                clampedEnd = boundaries.start + eventDuration;
-            } else if (newEnd > boundaries.end) {
-                clampedEnd = boundaries.end;
-                clampedStart = boundaries.end - eventDuration;
+            const duration = eventDrag.originalEnd - eventDrag.originalStart;
+            
+            // 1. Calculate the new start time
+            // Strategy: Reconstruct the date from scratch to avoid timestamp math issues
+            
+            // Get original time components
+            const originalStartDate = new Date(eventDrag.originalStart);
+            const originalStartTotalMinutes = originalStartDate.getHours() * 60 + originalStartDate.getMinutes();
+            
+            // Apply vertical delta (in minutes)
+            let newStartTotalMinutes = originalStartTotalMinutes + Math.round(deltaMs / 60000);
+            
+            // Construct the proposed start date on the TARGET day
+            const proposedStart = new Date(targetDate);
+            proposedStart.setHours(Math.floor(newStartTotalMinutes / 60), newStartTotalMinutes % 60, 0, 0);
+            
+            // Check if we are within the visual boundaries of the TARGET day
+            // Manually calculate boundaries from targetDate (midnight) + dayStartMinutes
+            // This avoids ambiguity where getVisualDayBoundaries might think midnight belongs to the previous day.
+            
+            const dayStartMs = dayStartMinutes * 60 * 1000;
+            const boundaryStart = targetDate.getTime() + dayStartMs;
+            const boundaryEnd = boundaryStart + (24 * 60 * 60 * 1000);
+            
+            const boundaries = { start: boundaryStart, end: boundaryEnd };
+            
+            // --- STRICT VERTICAL LOCKING ---
+            // We clamp the finalStart and finalEnd to the boundaries of the target day.
+            // This prevents an event from becoming "yesterday's 3 AM" if pushed too far up.
+            
+            let finalStart = proposedStart.getTime();
+            let finalEnd = finalStart + duration;
+            
+            // Clamp to day start
+            if (finalStart < boundaries.start) {
+                finalStart = boundaries.start;
+                finalEnd = finalStart + duration;
             }
-
-            if (clampedStart >= boundaries.start && clampedEnd <= boundaries.end) {
-                onUpdateEvent(eventDrag.eventId, {
-                    dtstart: new Date(clampedStart),
-                    dtend: new Date(clampedEnd),
-                });
-                setDragTimeIndicator({
-                    startMinutes: new Date(clampedStart).getHours() * 60 + new Date(clampedStart).getMinutes(),
-                    endMinutes: new Date(clampedEnd).getHours() * 60 + new Date(clampedEnd).getMinutes(),
-                });
+            
+            // Clamp to day end
+            if (finalEnd > boundaries.end) {
+                finalEnd = boundaries.end;
+                finalStart = Math.max(boundaries.start, finalEnd - duration);
             }
+            
+            // Only update if it's a valid movement within the day
+            onUpdateEvent(eventDrag.eventId, {
+                dtstart: new Date(finalStart),
+                dtend: new Date(finalEnd),
+            });
+            
+            setDragTimeIndicator({
+                startMinutes: new Date(finalStart).getHours() * 60 + new Date(finalStart).getMinutes(),
+                endMinutes: new Date(finalEnd).getHours() * 60 + new Date(finalEnd).getMinutes(),
+            });
         }
     }, [eventDrag, displayItems, onUpdateEvent, hourHeight, snapMinutes, dayStartMinutes,
         columnCount, days, scrollRef, canvasRef, allDayAreaRef]);

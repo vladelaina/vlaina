@@ -5,7 +5,7 @@
  */
 
 import { useMemo } from 'react';
-import { startOfWeek, addDays } from 'date-fns';
+import { startOfWeek, addDays, startOfDay } from 'date-fns';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { BaseTimeGrid } from './BaseTimeGrid';
 
@@ -14,12 +14,17 @@ interface TimeGridProps {
 }
 
 export function TimeGrid({ onToggle }: TimeGridProps = {}) {
-  const { selectedDate } = useCalendarStore();
+  const { selectedDate, dayCount = 7 } = useCalendarStore();
 
   const days = useMemo(() => {
-    const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
-    return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  }, [selectedDate]);
+    // If it's a standard week view (7 days), align to the start of the week
+    // Otherwise, start from the selected date
+    const startDate = dayCount === 7 
+      ? startOfWeek(selectedDate, { weekStartsOn: 1 }) 
+      : startOfDay(selectedDate);
+
+    return Array.from({ length: dayCount }, (_, i) => addDays(startDate, i));
+  }, [selectedDate, dayCount]);
 
   return <BaseTimeGrid days={days} onToggle={onToggle} />;
 }
