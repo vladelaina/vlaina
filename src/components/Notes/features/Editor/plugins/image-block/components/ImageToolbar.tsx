@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlignLeft, AlignCenter, AlignRight, Pencil, Copy, Download, Trash2 } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, Crop, Copy, Download, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { IconButton } from '@/components/ui/icon-button';
 
@@ -52,7 +52,7 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
             <div className="w-[1px] h-4 bg-gray-200 dark:bg-zinc-700 mx-1" />
             
             <div className="flex items-center gap-0.5">
-                <ToolbarButton icon={<Pencil className="size-4" />} onClick={onEdit} />
+                <ToolbarButton icon={<Crop className="size-4" />} onClick={onEdit} />
                 <ToolbarButton icon={<Copy className="size-4" />} onClick={onCopy} />
                 <ToolbarButton icon={<Download className="size-4" />} onClick={onDownload} />
             </div>

@@ -375,8 +375,8 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     />
                 )}
 
-                {/* Caption - Always visible on hover/active */}
-                {(isHovered || isEditingCaption || isActive) && !loadError && (
+                {/* Caption - Visible on hover/active but NOT during cropping */}
+                {(isHovered || isEditingCaption) && !isActive && !loadError && (
                     <ImageCaption
                         originalAlt={node.attrs.alt || ''}
                         value={captionInput}

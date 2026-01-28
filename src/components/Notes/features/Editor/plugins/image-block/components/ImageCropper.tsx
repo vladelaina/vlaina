@@ -137,14 +137,6 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                 e.stopPropagation();
 
                 const delta = -e.deltaY / 200;
-                // Use functional update to access latest state inside closure if needed, 
-                // BUT state inside useEffect closure is stale unless we add it to deps.
-                // However, adding 'zoom' to deps re-binds listener on every zoom, which is fine but maybe jerky?
-                // Actually, let's use a ref for current zoom to avoid re-binding or functional update.
-                // Or just rely on re-binding. React handles it fast enough usually.
-                
-                // Let's use functional state update for setZoom to ensure we have latest zoom
-                // But we also need minZoomLimit.
                 
                 setZoom(prevZoom => {
                     const newZoom = Math.min(5, Math.max(minZoomLimit, prevZoom + delta));
@@ -167,7 +159,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         return () => {
             currentRef.removeEventListener('wheel', onWheel);
         };
-    }, [isActive, minZoomLimit, performSave]); // Re-bind when dependencies change
+    }, [isActive, minZoomLimit, performSave]);
 
     const handleInteractionEnd = () => {
         if (!isActive) {
@@ -237,45 +229,42 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         setIsCropperReady(true);
     }, [containerSize, initialCropParams]);
 
+    const handleCancel = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Reset to initial state
+        if (initialCropParams) {
+            const restoredZoom = 100 / initialCropParams.width;
+            setZoom(restoredZoom);
+        } else {
+            setZoom(minZoomLimit);
+            setCrop({ x: 0, y: 0 });
+        }
+        
+        onCancel();
+    };
+
     const handleSave = (e?: React.MouseEvent) => {
         e?.preventDefault();
         e?.stopPropagation();
         
-        if (lastPercentageCrop.current) {
-            const pc = lastPercentageCrop.current;
-            // Calculate the ACTUAL aspect ratio of the cropped area
-            // Ratio = (Width% / Height%) * ImageRatio
-            // This ensures the container in View Mode matches the shape of the Crop Box
-            const cropRatio = (pc.width / pc.height) * originalAspectRatioRef.current;
-            
-            onSave(pc, cropRatio);
-        }
+        const pc = lastPercentageCrop.current || { x: 0, y: 0, width: 100, height: 100 };
+        // Calculate the ACTUAL aspect ratio of the cropped area
+        // Ratio = (Width% / Height%) * ImageRatio
+        const cropRatio = (pc.width / pc.height) * originalAspectRatioRef.current;
+        
+        onSave(pc, cropRatio);
     };
-    
-    // Expose handleSave to be called programmatically if needed?
-    // For now, parent passes us onSave, but we need to pass CURRENT crop state back.
-    // We can use an effect or expose a ref, but simple way: 
-    // If the parent wants to auto-save on resize end, it needs access to lastPercentageCrop.
-    // BUT, simpler approach: Parent handles the resize logic (width/height), 
-    // and Cropper updates the internal crop state.
-    // When resize ends (MouseUp in parent), parent needs to trigger a "Save" with the NEW crop data.
-    // Wait, onResizeStart is in Parent. onMouseUp is in Parent.
-    // Parent doesn't know about `lastPercentageCrop`.
-    // We need to lift `lastPercentageCrop` up or provide a way to get it.
-    
-    // Quick Fix: Call onSave (or a specific onCropUpdate) whenever crop completes? 
-    // No, that would spam.
-    
-    // Better: Allow parent to pass a ref to get the current crop state.
-    // OR: Just keep the "Check" button for explicit confirmation of ZOOM/PAN changes.
-    // For RESIZE changes, the parent updates the container, Cropper adapts, and `onCropChangeComplete` fires.
-    // We probably need to auto-save after resize?
     
     return (
         <>
             <div 
                 ref={containerRef}
-                className="relative overflow-hidden z-0 select-none"
+                className={cn(
+                    "relative overflow-hidden z-0 select-none",
+                    isCtrlPressed && "cursor-move"
+                )}
                 style={{
                     width: '100%',
                     height: '100%',
@@ -323,9 +312,9 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
             {/* Floating HUD - Only show when Active */}
             <div 
                 className={cn(
-                    "absolute top-full left-1/2 -translate-x-1/2 mt-2 flex items-center gap-3 px-4 py-2 bg-[var(--neko-bg-primary)]/95 backdrop-blur-sm border border-[var(--neko-border)] rounded-full shadow-sm z-50",
-                    "transition-all duration-200 origin-top",
-                    isActive ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
+                    "absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 px-3 py-1.5 bg-white dark:bg-[#1e1e1e] border border-black/5 dark:border-white/10 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-[60]",
+                    "transition-all duration-200 origin-bottom",
+                    isActive ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-2 pointer-events-none"
                 )}
                 onPointerDown={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
@@ -346,23 +335,19 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                         className="w-full"
                     />
                 </div>
-                <div className="h-4 w-px bg-[var(--neko-border)]" />
+                <div className="h-4 w-px bg-gray-200 dark:bg-zinc-700" />
                 <div className="flex items-center gap-1">
                     <button
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onCancel();
-                        }}
-                        className="p-1.5 rounded-full hover:bg-[var(--neko-hover)] text-[var(--neko-text-secondary)] transition-colors"
+                        onClick={handleCancel}
+                        className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-zinc-500 dark:text-zinc-400 transition-colors"
                         title="Cancel"
                     >
                         <X size={16} />
                     </button>
                     <button
                         onClick={(e) => handleSave(e)}
-                        disabled={isSaving || !isCropperReady}
-                        className="p-1.5 rounded-full bg-[var(--neko-accent)] hover:bg-[var(--neko-accent-hover)] text-white shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                        disabled={isSaving}
+                        className="p-1 rounded-lg bg-[var(--neko-accent)] hover:bg-[var(--neko-accent-hover)] text-white shadow-sm transition-all active:scale-95 disabled:opacity-50"
                         title="Save"
                     >
                         <Check size={16} />
