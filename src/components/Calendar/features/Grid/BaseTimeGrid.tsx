@@ -117,11 +117,14 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
   return (
     <div className="flex flex-col h-full bg-white dark:bg-zinc-950 select-none relative">
       
-      {/* Timezone Header */}
-      <TimezoneHeader timezone={String(timezone || 'GMT+8')} />
+      {/* Universal Header Row: Timezone + Dates + Controller */}
+      <TimezoneHeader 
+        timezone={String(timezone || 'GMT+8')} 
+        days={days}
+      />
 
-      {/* Second Divider Line (Full Width) - Top of All Day Area */}
-      <div className="h-px bg-zinc-200 dark:bg-zinc-800 w-full flex-shrink-0" />
+      {/* Full Width Divider */}
+      <div className="h-px bg-zinc-100 dark:bg-zinc-800 w-full flex-shrink-0" />
 
       {/* All-day events area */}
       <div ref={allDayAreaRef}>
