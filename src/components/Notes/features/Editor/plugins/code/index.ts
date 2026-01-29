@@ -1,4 +1,4 @@
 // Code plugin exports
 export { codePlugin, codeBlockSchema } from './codePlugin';
-export { codeEnhancePlugin, codeEnhancePluginKey } from './codeEnhancePlugin';
+export { codeBlockPlugins } from './codeKeymap';
 export type { CodeBlockAttrs, HighlightToken, LanguageInfo } from './types';

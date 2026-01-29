@@ -1,7 +1,11 @@
 // Code plugin for syntax highlighting
-import { $node, $nodeAttr } from '@milkdown/kit/utils';
+import { $node, $nodeAttr, $prose } from '@milkdown/kit/utils';
+import { Plugin } from '@milkdown/kit/prose/state';
+import { Node, DOMOutputSpec } from '@milkdown/kit/prose/model';
+import { EditorView } from '@milkdown/kit/prose/view';
 import { normalizeLanguage } from '../../utils/shiki';
 import type { CodeBlockAttrs } from './types';
+import { CodeBlockNodeView } from './CodeBlockNodeView';
 
 // Code block attributes
 export const codeBlockIdAttr = $nodeAttr('code_block', () => ({
@@ -28,6 +32,7 @@ export const codeBlockSchema = $node('code_block', () => ({
   group: 'block',
   code: true,
   defining: true,
+  isolating: true,
   marks: '',
   attrs: {
     language: { default: null },
@@ -37,7 +42,7 @@ export const codeBlockSchema = $node('code_block', () => ({
   parseDOM: [{
     tag: 'pre',
     preserveWhitespace: 'full' as const,
-    getAttrs: (dom) => {
+    getAttrs: (dom: any) => {
       const el = dom as HTMLElement;
       const code = el.querySelector('code');
       const className = code?.className || '';
@@ -49,7 +54,7 @@ export const codeBlockSchema = $node('code_block', () => ({
       };
     }
   }],
-  toDOM: (node) => {
+  toDOM: (node: Node): DOMOutputSpec => {
     const attrs = node.attrs as CodeBlockAttrs;
     return [
       'pre',
@@ -84,8 +89,20 @@ export const codeBlockSchema = $node('code_block', () => ({
   }
 }));
 
-// Combined code plugin (without custom view for now - using default rendering)
+// Plugin to attach the custom NodeView
+export const codeBlockNodeViewPlugin = $prose(() => {
+  return new Plugin({
+    props: {
+      nodeViews: {
+        code_block: (node: Node, view: EditorView, getPos: () => number | undefined) => new CodeBlockNodeView(node, view, getPos)
+      }
+    }
+  });
+});
+
+// Combined code plugin
 export const codePlugin = [
   codeBlockIdAttr,
-  codeBlockSchema
+  codeBlockSchema,
+  codeBlockNodeViewPlugin
 ];

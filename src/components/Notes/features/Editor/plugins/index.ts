@@ -25,7 +25,7 @@ export { footnotePlugin } from './footnote';
 export { imageBlockPlugin } from './image-block';
 
 // Code
-export { codePlugin, codeEnhancePlugin } from './code';
+export { codePlugin, codeBlockPlugins } from './code';
 
 // Marks (inline formatting)
 export { highlightPlugin } from './highlight';

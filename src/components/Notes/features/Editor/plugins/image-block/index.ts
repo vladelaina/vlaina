@@ -34,6 +34,10 @@ export const imageNodeViewPlugin = $prose(() => {
                 // Iterate steps to map changes back to old doc and find removed nodes
                 tr.steps.forEach(step => {
                     step.getMap().forEach((oldStart, oldEnd) => {
+                        // Safety check: ensure valid range
+                        if (oldStart >= oldEnd) return;
+                        if (oldEnd > oldState.doc.content.size) return;
+
                         oldState.doc.nodesBetween(oldStart, oldEnd, (node) => {
                             if (node.type.name === 'image') {
                                 const src = node.attrs.src;
