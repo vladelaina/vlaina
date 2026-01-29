@@ -128,11 +128,12 @@ export function MonthGrid() {
                     )}
                     <span
                       className={`
-                        w-6 h-6 flex items-center justify-center text-sm rounded-full
-                        ${isTodayDate ? 'bg-red-500 text-white font-medium' : ''}
+                        w-6 h-6 flex items-center justify-center text-sm rounded-sm
+                        ${isTodayDate ? 'text-white font-bold shadow-sm' : ''}
                         ${!isTodayDate && isCurrentMonth ? 'text-zinc-800 dark:text-zinc-200' : ''}
                         ${!isTodayDate && !isCurrentMonth ? 'text-zinc-400 dark:text-zinc-600' : ''}
                       `}
+                      style={isTodayDate ? { backgroundColor: '#f04842' } : undefined}
                     >
                       {format(date, 'd')}
                     </span>
