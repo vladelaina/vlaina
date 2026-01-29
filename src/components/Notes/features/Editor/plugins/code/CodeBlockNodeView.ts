@@ -20,7 +20,21 @@ export class CodeBlockNodeView implements NodeView {
         this.getPos = getPos;
 
         this.dom = document.createElement('div');
-        this.dom.classList.add('code-block-container', 'my-4', 'rounded-lg', 'border', 'border-[var(--neko-border)]', 'bg-[var(--neko-bg-secondary)]', 'overflow-hidden');
+        this.dom.classList.add(
+            'code-block-container', 
+            'my-4', 
+            'rounded-xl', 
+            'border', 
+            'border-gray-200', 
+            'dark:border-zinc-800', 
+            'bg-white', 
+            'dark:bg-[#1e1e1e]', 
+            'overflow-hidden', 
+            'group/code',
+            'transition-all'
+        );
+        // Prevent cursor from entering the UI parts
+        this.dom.contentEditable = 'false';
         
         // 1. Header container for React
         this.headerDOM = document.createElement('div');
@@ -28,7 +42,8 @@ export class CodeBlockNodeView implements NodeView {
 
         // 2. Editable content container
         this.contentDOM = document.createElement('pre');
-        this.contentDOM.className = 'm-0 p-4 overflow-x-auto text-sm font-mono leading-relaxed bg-transparent outline-none';
+        this.contentDOM.contentEditable = 'true';
+        this.contentDOM.className = 'code-block-editable m-0 px-4 pb-4 pt-1 overflow-x-auto text-sm font-mono leading-relaxed bg-transparent outline-none';
         this.dom.appendChild(this.contentDOM);
         
         this.root = createRoot(this.headerDOM);
@@ -49,11 +64,16 @@ export class CodeBlockNodeView implements NodeView {
         if (node.type !== this.node.type) return false;
         this.node = node;
         // Don't need to full re-render React if content is handled by ProseMirror
+        // But we might want to update the header if language changed
+        this.render();
         return true;
     }
 
+    // Only block specific UI interactions
     stopEvent(event: Event) {
         const target = event.target as HTMLElement;
+        // Allow buttons (copy/download/collapse) to work without triggering editor selection changes
+        // Dropdown menu items are in a portal, so they won't trigger this anyway.
         if (target.closest('button')) return true;
         return false;
     }
