@@ -97,7 +97,7 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
         )}
       </div>
 
-      {/* 2. Date Columns (Grid) - Takes full width to align with grid below */}
+      {/* 2. Date Columns (Grid) */}
       <div className="flex-1 min-w-0 h-full">
         {viewMode !== 'month' && days.length > 0 && (
           <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
@@ -106,14 +106,40 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
                         style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
                     {days.map((day) => {
                         const isToday = isSameDay(day, new Date());
+                        // Show inline controls ONLY in multi-day view and ONLY for today
+                        const showInlineControls = currentDayCount > 1 && isToday;
+
                         return (
-                            <div key={day.toString()} className="flex items-baseline justify-center gap-1">
-                                <span className={isToday ? "text-blue-500 text-[10px] font-bold" : "text-zinc-400 dark:text-zinc-500 text-[10px]"}>
-                                    {format(day, 'EEE')}
-                                </span>
-                                <span className={isToday ? "text-blue-600 dark:text-blue-400 text-xs font-bold" : "text-zinc-600 dark:text-zinc-300 text-xs font-semibold"}>
-                                    {format(day, 'd')}
-                                </span>
+                            <div key={day.toString()} className="flex items-center justify-center h-full px-0.5 overflow-hidden">
+                                <div className="flex items-center gap-1.5 max-w-full">
+                                    {/* Date Parts */}
+                                    <div className="flex items-baseline gap-1 flex-shrink-0">
+                                        <span className={isToday ? "text-zinc-900 dark:text-zinc-100 text-[10px] font-bold" : "text-zinc-400 dark:text-zinc-500 text-[10px]"}>
+                                            {format(day, 'EEE')}
+                                        </span>
+                                        <span className={isToday 
+                                            ? "flex items-center justify-center w-5 h-5 rounded-sm bg-[#f04842] text-white text-[11px] font-bold shadow-sm" 
+                                            : "text-zinc-600 dark:text-zinc-300 text-[11px] font-semibold"}>
+                                            {format(day, 'd')}
+                                        </span>
+                                    </div>
+
+                                    {/* Inline Controls (Weather, Todo) */}
+                                    {showInlineControls && (
+                                        <div className="flex items-center gap-1 flex-shrink min-w-0 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+                                            <div className="scale-90 flex items-center flex-shrink-0">
+                                                <WeatherWidget />
+                                            </div>
+                                            <div 
+                                                onClick={handleJumpToTodo}
+                                                className="p-0.5 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-sm transition-colors cursor-pointer flex-shrink-0"
+                                                title="Open in Today List"
+                                            >
+                                                <ListTodo className="size-3.5" />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         );
                     })}
@@ -126,33 +152,36 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
         )}
       </div>
 
-      {/* 3. Right Controls: Absolute Positioning to avoid layout shift */}
-      <div className="absolute right-2 top-0 bottom-0 flex items-center gap-2 z-20">
+      {/* 3. Right Controls: Absolute Positioning */}
+      <div className={`absolute right-2 top-0 bottom-0 flex items-center gap-2 z-20 ${currentDayCount > 1 ? 'pointer-events-auto' : ''}`}>
         
-        <WeatherWidget />
+        {/* Only show Weather/Todo/Today here in Single Day View */}
+        {currentDayCount === 1 && (
+            <>
+                <WeatherWidget />
 
-        {/* Today Button */}
-        {!isSameDay(selectedDate, new Date()) && (
-            <button
-              onClick={() => setSelectedDate(new Date())}
-              className="whitespace-nowrap px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-800/50 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-sm transition-all"
-            >
-              Today
-            </button>
+                {!isSameDay(selectedDate, new Date()) && (
+                    <button
+                    onClick={() => setSelectedDate(new Date())}
+                    className="whitespace-nowrap px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-800/50 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-sm transition-all"
+                    >
+                    Today
+                    </button>
+                )}
+
+                <button
+                onClick={handleJumpToTodo}
+                className="p-1 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-sm transition-colors"
+                title="Open in Today List"
+                >
+                <ListTodo className="size-3.5" />
+                </button>
+
+                <div className="h-3 w-px bg-zinc-200 dark:bg-zinc-800" />
+            </>
         )}
 
-        <button
-          onClick={handleJumpToTodo}
-          className="p-1 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-sm transition-colors"
-          title="Open in Today List"
-        >
-          <ListTodo className="size-3.5" />
-        </button>
-
-        {/* Divider */}
-        <div className="h-3 w-px bg-zinc-200 dark:bg-zinc-800" />
-
-        {/* View Scale Controller */}
+        {/* View Scale Controller - Always Visible */}
         <div className="flex items-center gap-0.5">
             <button 
             onClick={handleDecrement}
