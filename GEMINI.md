@@ -37,4 +37,10 @@ If the request would cause the code to violate these thresholds:
   * For components with a `size` prop (like `UniversalIcon` or `AppIcon`), use `size={18}`.
 * **Specific Exceptions:**
   * **Delete/Trash Icon:** MUST use the custom `<DeleteIcon />` component (`@/components/common/DeleteIcon`).
+
+**Button Styles: SHARED UTILITIES**
+* **Icon Buttons:** Use the shared `iconButtonStyles` constant from `@/lib/utils` for standard, borderless icon buttons (e.g., window controls, toolbar actions).
+  * **Style:** Transparent background, tertiary text color by default, primary text color on hover.
+  * **Usage:** `className={cn("...", iconButtonStyles)}`
+* **Rationale:** To ensure consistent hover states and interaction feedback across the application.
 * **Rationale:** To ensure visual consistency, accessibility, and professional appearance throughout the application.

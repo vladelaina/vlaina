@@ -87,7 +87,7 @@
   --font-serif: 'Source Serif 4', 'Noto Serif', 'Lora', 'Cambria', Georgia, serif, var(--font-fallback);
 
   /* Monospace Font - For code */
-  --font-mono: 'JetBrains Mono', 'Source Code Pro', 'IBM Plex Mono', 'Roboto Mono', 'Space Mono', Consolas, Menlo, Monaco, monospace;
+  --font-mono: 'JetBrains Mono', var(--font-sans), monospace;
 
   /* Number Font - For numeric display */
   --font-number: 'Roboto Mono', 'JetBrains Mono', var(--font-fallback);

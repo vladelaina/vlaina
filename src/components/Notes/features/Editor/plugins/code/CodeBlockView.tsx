@@ -4,7 +4,7 @@ import { EditorView } from '@milkdown/kit/prose/view';
 import { MdCheck, MdContentCopy, MdOutlineFileDownload, MdExpandMore, MdExpandLess, MdAutoAwesome, MdSearch, MdCode } from 'react-icons/md';
 import { SUPPORTED_LANGUAGES, normalizeLanguage } from '../../utils/shiki';
 import { guessLanguage } from '../../utils/languageGuesser';
-import { cn } from '@/lib/utils';
+import { cn, iconButtonStyles } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -96,15 +96,16 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
     // Traverse up: CodeBlockView div -> headerDOM -> code-block-container
     const container = headerRef.current?.parentElement?.parentElement;
     if (container) {
-       const pre = container.querySelector('.code-block-editable');
-       if (pre) {
-           if (isCollapsed) {
-               container.classList.add('collapsed');
-               (pre as HTMLElement).style.display = 'none';
-           } else {
-               container.classList.remove('collapsed');
-               (pre as HTMLElement).style.display = 'block';
-           }
+       // When collapsed, we only want to show the header (approx 35-40px)
+       // The container has the border and background.
+       if (isCollapsed) {
+           container.classList.add('collapsed');
+           container.style.height = '35px'; // Adjust this to match your exact header height if needed
+           container.style.overflow = 'hidden';
+       } else {
+           container.classList.remove('collapsed');
+           container.style.height = '';
+           container.style.overflow = '';
        }
     }
   }, [isCollapsed]);
@@ -112,13 +113,13 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
   return (
     <div 
       ref={headerRef} 
-      className="flex items-center justify-between px-4 py-2 bg-white dark:bg-[#1e1e1e] select-none rounded-t-xl transition-all"
+      className="flex items-center justify-between px-4 py-2 bg-white dark:bg-[#1e1e1e] select-none rounded-t-xl transition-all h-[40px]"
     >
-        <div className="flex items-center gap-2.5 text-gray-600 dark:text-zinc-400">
+        <div className="flex items-center gap-2.5 text-gray-600 dark:text-zinc-400 h-full">
           <DropdownMenu onOpenChange={(open) => !open && setSearchTerm('')}>
             <DropdownMenuTrigger asChild>
-              <div className="flex items-center gap-2 group/lang cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800/50 px-2 py-1 rounded-md transition-colors">
-                <MdCode size={18} className="text-gray-400 group-hover/lang:text-gray-700 dark:group-hover/lang:text-zinc-300 transition-colors" />
+              <div className="flex items-center gap-2 group/lang cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800/50 px-2 py-1 rounded-md transition-colors select-none">
+                <MdCode className="size-[18px] text-gray-400 group-hover/lang:text-gray-700 dark:group-hover/lang:text-zinc-300 transition-colors" />
                 <span className="text-sm font-medium text-gray-500 group-hover/lang:text-gray-900 dark:group-hover/lang:text-zinc-200 transition-colors">
                   {displayName}
                 </span>
@@ -144,7 +145,7 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
                   onClick={handleAutoDetect}
                   className="flex items-center gap-2 w-full px-2.5 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                 >
-                  <MdAutoAwesome size={18} className="shrink-0" />
+                  <MdAutoAwesome className="size-[18px] shrink-0" />
                   <span>Auto Detect Language</span>
                 </button>
               </div>
@@ -174,27 +175,24 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
           </DropdownMenu>
         </div>
         
-        <div className="flex items-center gap-1 opacity-0 group-hover/code:opacity-100 transition-opacity duration-200">
+        <div className="flex items-center gap-1">
             <button 
                 onClick={handleDownload}
-                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 transition-colors"
-                title="Download"
+                className={cn("flex items-center justify-center size-8 rounded-full p-0 leading-none", iconButtonStyles)}
             >
-                <MdOutlineFileDownload size={18} />
+                <MdOutlineFileDownload className="size-[18px] block" />
             </button>
             <button 
                 onClick={handleCopy}
-                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 transition-colors"
-                title="Copy code"
+                className={cn("flex items-center justify-center size-8 rounded-full p-0 leading-none", iconButtonStyles, copied && "text-green-500 hover:text-green-600")}
             >
-                {copied ? <MdCheck size={18} className="text-green-500" /> : <MdContentCopy size={18} />}
+                {copied ? <MdCheck className="size-[18px] block" /> : <MdContentCopy className="size-[18px] block" />}
             </button>
             <button 
                 onClick={toggleCollapse}
-                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 transition-colors"
-                title={isCollapsed ? "Expand" : "Collapse"}
+                className={cn("flex items-center justify-center size-8 rounded-full p-0 leading-none", iconButtonStyles)}
             >
-                {isCollapsed ? <MdExpandMore size={18} /> : <MdExpandLess size={18} />}
+                {isCollapsed ? <MdExpandMore className="size-[18px] block" /> : <MdExpandLess className="size-[18px] block" />}
             </button>
         </div>
     </div>

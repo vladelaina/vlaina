@@ -1,5 +1,6 @@
 // Code block enhancement plugin
-// Adds: line numbers, copy button, line highlighting
+// Adds: line numbers and syntax highlighting only.
+// REMOVED: Duplicate Copy Button & Toolbar (handled by React View now)
 
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
@@ -73,61 +74,21 @@ function findCodeBlocks(doc: any): CodeBlockInfo[] {
 
 /**
  * Create enhanced code block widget
+ * (Purely for visual decoration: line numbers & highlighting underlay)
  */
 function createCodeBlockWidget(info: CodeBlockInfo): HTMLElement {
   const wrapper = document.createElement('div');
   wrapper.className = 'code-block-enhanced';
   wrapper.setAttribute('data-language', info.language || '');
   
-  // Toolbar
-  const toolbar = document.createElement('div');
-  toolbar.className = 'code-block-toolbar';
-  toolbar.contentEditable = 'false';
+  // -- REMOVED: Duplicate JS-based Toolbar & Copy Button --
+  // The React Header (CodeBlockView.tsx) now handles all interaction.
   
-  // Language label
-  const langLabel = document.createElement('span');
-  langLabel.className = 'code-block-lang';
-  langLabel.textContent = info.language || 'plain text';
-  toolbar.appendChild(langLabel);
-  
-  // Spacer
-  const spacer = document.createElement('div');
-  spacer.style.flex = '1';
-  toolbar.appendChild(spacer);
-  
-  // Copy button
-  const copyBtn = document.createElement('button');
-  copyBtn.className = 'code-block-copy-btn';
-  copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-  </svg>`;
-  copyBtn.title = 'Copy code';
-  copyBtn.onclick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigator.clipboard.writeText(info.code).then(() => {
-      copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="20 6 9 17 4 12"></polyline>
-      </svg>`;
-      copyBtn.classList.add('copied');
-      setTimeout(() => {
-        copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-        </svg>`;
-        copyBtn.classList.remove('copied');
-      }, 2000);
-    });
-  };
-  toolbar.appendChild(copyBtn);
-  
-  wrapper.appendChild(toolbar);
-  
-  // Code content with line numbers
+  // Code content container
   const content = document.createElement('div');
   content.className = 'code-block-content';
   
+  // 1. Line Numbers
   if (info.lineNumbers) {
     const lines = info.code.split('\n');
     const lineNumbersEl = document.createElement('div');
@@ -146,7 +107,7 @@ function createCodeBlockWidget(info: CodeBlockInfo): HTMLElement {
     content.appendChild(lineNumbersEl);
   }
   
-  // Highlighted code
+  // 2. Syntax Highlighting (Visual Underlay)
   const codeEl = document.createElement('div');
   codeEl.className = 'code-block-code';
   
@@ -182,6 +143,8 @@ function createCodeDecorations(doc: any): DecorationSet {
   
   for (const block of blocks) {
     // Add widget decoration before the code block
+    // Using side: -1 to ensure it sits 'behind' or 'before' the editable content in ProseMirror structure logic
+    // But in CSS grid/stacking, we will layer them.
     const widget = Decoration.widget(block.pos, () => {
       return createCodeBlockWidget(block);
     }, {
