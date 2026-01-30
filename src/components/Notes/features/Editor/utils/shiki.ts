@@ -1,27 +1,15 @@
 // Shiki utility functions
-import { createHighlighter, type Highlighter, type BundledLanguage } from 'shiki';
+import { createHighlighter, bundledLanguagesInfo, type Highlighter, type BundledLanguage } from 'shiki';
 
 let highlighterInstance: Highlighter | null = null;
 let highlighterPromise: Promise<Highlighter> | null = null;
 
-// Supported languages
-export const SUPPORTED_LANGUAGES: { id: BundledLanguage; name: string; aliases?: string[] }[] = [
-  { id: 'javascript', name: 'JavaScript', aliases: ['js'] },
-  { id: 'typescript', name: 'TypeScript', aliases: ['ts'] },
-  { id: 'jsx', name: 'JSX' },
-  { id: 'tsx', name: 'TSX' },
-  { id: 'vue', name: 'Vue' },
-  { id: 'svelte', name: 'Svelte' },
+// The 20 mainstream languages in preferred order
+const MAINSTREAM_LANGS: { id: BundledLanguage; name: string; aliases?: string[] }[] = [
   { id: 'html', name: 'HTML' },
   { id: 'css', name: 'CSS' },
-  { id: 'scss', name: 'SCSS' },
-  { id: 'less', name: 'Less' },
-  { id: 'json', name: 'JSON' },
-  { id: 'jsonc', name: 'JSONC' },
-  { id: 'yaml', name: 'YAML', aliases: ['yml'] },
-  { id: 'toml', name: 'TOML' },
-  { id: 'xml', name: 'XML' },
-  { id: 'markdown', name: 'Markdown', aliases: ['md'] },
+  { id: 'javascript', name: 'JavaScript', aliases: ['js'] },
+  { id: 'typescript', name: 'TypeScript', aliases: ['ts'] },
   { id: 'python', name: 'Python', aliases: ['py'] },
   { id: 'java', name: 'Java' },
   { id: 'c', name: 'C' },
@@ -33,34 +21,24 @@ export const SUPPORTED_LANGUAGES: { id: BundledLanguage; name: string; aliases?:
   { id: 'ruby', name: 'Ruby', aliases: ['rb'] },
   { id: 'swift', name: 'Swift' },
   { id: 'kotlin', name: 'Kotlin', aliases: ['kt'] },
-  { id: 'dart', name: 'Dart' },
-  { id: 'lua', name: 'Lua' },
-  { id: 'r', name: 'R' },
   { id: 'sql', name: 'SQL' },
-  { id: 'bash', name: 'Bash', aliases: ['shell', 'sh'] },
-  { id: 'powershell', name: 'PowerShell', aliases: ['ps1', 'ps'] },
-  { id: 'batch', name: 'Batch', aliases: ['bat'] },
-  { id: 'dockerfile', name: 'Dockerfile', aliases: ['docker'] },
-  { id: 'makefile', name: 'Makefile', aliases: ['make'] },
-  { id: 'graphql', name: 'GraphQL', aliases: ['gql'] },
-  { id: 'perl', name: 'Perl', aliases: ['pl'] },
-  { id: 'haskell', name: 'Haskell', aliases: ['hs'] },
-  { id: 'scala', name: 'Scala' },
-  { id: 'elixir', name: 'Elixir', aliases: ['ex'] },
-  { id: 'erlang', name: 'Erlang', aliases: ['erl'] },
-  { id: 'clojure', name: 'Clojure', aliases: ['clj'] },
-  { id: 'lisp', name: 'Lisp' },
-  { id: 'julia', name: 'Julia', aliases: ['jl'] },
-  { id: 'matlab', name: 'Matlab' },
-  { id: 'objective-c', name: 'Objective-C', aliases: ['objc'] },
-  { id: 'swift', name: 'Swift' },
-  { id: 'groovy', name: 'Groovy' },
-  { id: 'diff', name: 'Diff' },
-  { id: 'ini', name: 'INI' },
-  { id: 'latex', name: 'LaTeX', aliases: ['tex'] },
-  { id: 'nginx', name: 'Nginx' },
-  { id: 'vim', name: 'Vim Script', aliases: ['vimscript'] },
-  { id: 'wasm', name: 'WebAssembly' },
+  { id: 'bash', name: 'Bash', aliases: ['shell', 'sh', 'bash'] },
+  { id: 'json', name: 'JSON' },
+  { id: 'yaml', name: 'YAML', aliases: ['yml'] },
+  { id: 'markdown', name: 'Markdown', aliases: ['md'] },
+];
+
+// Combine mainstream with all other available languages from Shiki
+// This provides comprehensive language support while keeping the top 20 prioritized
+export const SUPPORTED_LANGUAGES = [
+    ...MAINSTREAM_LANGS,
+    ...bundledLanguagesInfo
+        .filter(info => !MAINSTREAM_LANGS.some(m => m.id === info.id))
+        .map(info => ({
+            id: info.id as BundledLanguage,
+            name: info.name,
+            aliases: info.aliases as string[] | undefined
+        }))
 ];
 
 const INITIAL_LANGUAGES: BundledLanguage[] = [

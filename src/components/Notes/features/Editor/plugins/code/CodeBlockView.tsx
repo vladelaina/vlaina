@@ -4,6 +4,7 @@ import { EditorView } from '@milkdown/kit/prose/view';
 import { MdCheck, MdContentCopy, MdMoreHoriz, MdAutoAwesome, MdSearch, MdCode, MdShare } from 'react-icons/md';
 import { SUPPORTED_LANGUAGES, normalizeLanguage } from '../../utils/shiki';
 import { guessLanguage } from '../../utils/languageGuesser';
+import { getLanguageLogo } from '../../utils/languageLogos';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -23,11 +24,14 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
   const [copied, setCopied] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
 
   const langInfo = SUPPORTED_LANGUAGES.find(l => l.id === language);
   const displayName = langInfo ? langInfo.name : language;
 
   const filteredLanguages = useMemo(() => {
+    setActiveIndex(0); // Reset index when search term changes
     if (!searchTerm) return SUPPORTED_LANGUAGES;
     const term = searchTerm.toLowerCase();
     return SUPPORTED_LANGUAGES.filter(l => 
@@ -50,6 +54,30 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
           })
       );
       setSearchTerm(''); // Clear search on select
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // We want to stop propagation for most keys to avoid triggering editor shortcuts
+    // but handle specific navigation keys ourselves.
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        e.stopPropagation();
+        setActiveIndex(prev => Math.min(prev + 1, filteredLanguages.length - 1));
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopPropagation();
+        setActiveIndex(prev => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        const selected = filteredLanguages[activeIndex];
+        if (selected) {
+            updateLanguage(selected.id);
+            setIsLangMenuOpen(false);
+        }
+    } else {
+        e.stopPropagation();
+    }
   };
 
   const handleAutoDetect = () => {
@@ -82,6 +110,17 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
     setIsCollapsed(!isCollapsed);
   };
 
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  
+  React.useEffect(() => {
+    if (scrollRef.current) {
+        const activeItem = scrollRef.current.children[activeIndex] as HTMLElement;
+        if (activeItem) {
+            activeItem.scrollIntoView({ block: 'nearest' });
+        }
+    }
+  }, [activeIndex]);
+
   const headerRef = React.useRef<HTMLDivElement>(null);
   
   React.useEffect(() => {
@@ -92,7 +131,7 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
        // The container has the border and background.
        if (isCollapsed) {
            container.classList.add('collapsed');
-           container.style.height = '35px'; // Adjust this to match your exact header height if needed
+           container.style.height = '40px'; // Match the header's h-[40px]
            container.style.overflow = 'hidden';
        } else {
            container.classList.remove('collapsed');
@@ -108,56 +147,84 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
       onClick={toggleCollapse}
       className="flex items-center justify-between px-4 py-2 bg-white dark:bg-[#1e1e1e] select-none rounded-t-xl transition-all h-[40px] cursor-pointer"
     >
-        <div className="flex items-center gap-2.5 text-gray-600 dark:text-zinc-400 h-full" onClick={(e) => e.stopPropagation()}>
-          <DropdownMenu onOpenChange={(open) => !open && setSearchTerm('')}>
+        <div className="flex items-center gap-2.5 h-full" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenu 
+            open={isLangMenuOpen} 
+            onOpenChange={(open) => {
+                setIsLangMenuOpen(open);
+                if (!open) setSearchTerm('');
+            }}
+          >
             <DropdownMenuTrigger asChild>
-              <div className="flex items-center gap-2 group/lang cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800/50 px-2 py-1 rounded-md transition-colors select-none">
-                <MdCode className="size-[18px] text-gray-400 group-hover/lang:text-gray-700 dark:group-hover/lang:text-zinc-300 transition-colors" />
-                <span className="text-sm font-medium text-gray-500 group-hover/lang:text-gray-900 dark:group-hover/lang:text-zinc-200 transition-colors">
+              <div className="flex items-center gap-2 group/lang cursor-pointer py-1 transition-colors select-none">
+                {getLanguageLogo(language) ? (
+                  <img 
+                    src={getLanguageLogo(language)?.url} 
+                    className={cn("size-[18px] object-contain", getLanguageLogo(language)?.className)} 
+                    alt={displayName}
+                  />
+                ) : (
+                  <MdCode className="size-[18px] text-zinc-400 group-hover/lang:text-zinc-900 dark:group-hover/lang:text-zinc-100 transition-colors" />
+                )}
+                <span className="text-sm font-medium text-zinc-500 group-hover/lang:text-zinc-900 dark:group-hover/lang:text-zinc-100 transition-colors">
                   {displayName}
                 </span>
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-[220px] p-0 overflow-hidden flex flex-col border border-gray-200 dark:border-zinc-800 shadow-xl rounded-xl">
               {/* Search Bar & Auto-Detect Group */}
-              <div className="p-2 bg-gray-50/50 dark:bg-zinc-900/50 border-b border-gray-100 dark:border-zinc-800 flex flex-col gap-2">
-                <div className="relative">
+              <div className="p-2 bg-gray-50/50 dark:bg-zinc-900/50 border-b border-gray-100 dark:border-zinc-800">
+                <div className="relative flex items-center">
                   <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-[18px] text-gray-400" />
                   <input
                     autoFocus
-                    className="w-full bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg pl-8 pr-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                    className="w-full bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg pl-8 pr-10 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
                     placeholder="Search language..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
+                    onKeyDown={handleKeyDown}
                   />
+                  <button
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleAutoDetect();
+                    }}
+                    title="Auto Detect Language"
+                    className="absolute right-1.5 p-1 rounded-md text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                  >
+                    <MdAutoAwesome className="size-[18px]" />
+                  </button>
                 </div>
-                
-                <button
-                  onClick={handleAutoDetect}
-                  className="flex items-center gap-2 w-full px-2.5 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                >
-                  <MdAutoAwesome className="size-[18px] shrink-0" />
-                  <span>Auto Detect Language</span>
-                </button>
               </div>
 
               {/* Languages List */}
-              <div className="max-h-[240px] overflow-y-auto p-1 neko-scrollbar">
+              <div ref={scrollRef} className="max-h-[240px] overflow-y-auto p-1 neko-scrollbar">
                 {filteredLanguages.length > 0 ? (
-                  filteredLanguages.map(lang => (
-                    <DropdownMenuItem 
-                      key={lang.id} 
-                      onSelect={() => updateLanguage(lang.id)}
-                      className={cn(
-                        "text-xs px-3 py-2 rounded-lg cursor-pointer",
-                        language === lang.id ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-bold" : "text-gray-600 dark:text-zinc-400"
-                      )}
-                    >
-                      {lang.name}
-                    </DropdownMenuItem>
-                  ))
+                  filteredLanguages.map((lang, index) => {
+                    const logo = getLanguageLogo(lang.id);
+                    return (
+                      <DropdownMenuItem 
+                        key={lang.id} 
+                        onSelect={() => updateLanguage(lang.id)}
+                        className={cn(
+                          "text-xs px-3 py-2 rounded-lg cursor-pointer transition-colors flex items-center gap-2",
+                          index === activeIndex ? "bg-gray-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" : "text-gray-600 dark:text-zinc-400",
+                          language === lang.id && index !== activeIndex && "text-blue-600 dark:text-blue-400 font-bold"
+                        )}
+                      >
+                        {logo ? (
+                          <img src={logo.url} className={cn("size-4 object-contain", logo.className)} alt={lang.name} />
+                        ) : (
+                          <div className="size-4 flex items-center justify-center">
+                            <MdCode className="size-3.5 opacity-40" />
+                          </div>
+                        )}
+                        <span>{lang.name}</span>
+                      </DropdownMenuItem>
+                    );
+                  })
                 ) : (
                   <div className="px-4 py-8 text-center text-xs text-gray-400 italic">
                     No languages found
