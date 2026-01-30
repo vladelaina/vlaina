@@ -118,7 +118,7 @@ export function TodoSidebar() {
             )}
         >
             <div className="flex items-center gap-3">
-                <Icon className={cn("size-4.5", active ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500")} />
+                <Icon className={cn("size-[18px]", active ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500")} />
                 <span>{label}</span>
             </div>
             {count > 0 && (
@@ -181,8 +181,8 @@ export function TodoSidebar() {
                             onClick={() => setIsMyListsExpanded(!isMyListsExpanded)}
                             className="flex items-center gap-1 text-xs font-semibold text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors uppercase tracking-wider"
                         >
-                            <span className="w-4 flex justify-center">
-                                {isMyListsExpanded ? <MdExpandMore className="size-3" /> : <MdChevronRight className="size-3" />}
+                            <span className="w-[18px] flex justify-center">
+                                {isMyListsExpanded ? <MdExpandMore className="size-[18px]" /> : <MdChevronRight className="size-[18px]" />}
                             </span>
                             My Lists
                         </button>
@@ -190,7 +190,7 @@ export function TodoSidebar() {
                             onClick={() => { setIsMyListsExpanded(true); setIsCreating(true); }}
                             className="opacity-0 group-hover/header:opacity-100 p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all text-zinc-400"
                         >
-                            <MdAdd className="size-3.5" />
+                            <MdAdd className="size-[18px]" />
                         </button>
                     </div>
 
@@ -222,7 +222,7 @@ export function TodoSidebar() {
                                                         imageLoader={imageLoader}
                                                         trigger={
                                                             <button className="flex items-center justify-center w-5 h-5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors">
-                                                                <AppIcon icon={group.icon || 'icon:Folder:default'} size={14} className="text-zinc-500" />
+                                                                <AppIcon icon={group.icon || 'icon:Folder:default'} size={18} className="text-zinc-500" />
                                                             </button>
                                                         }
                                                     />
@@ -278,7 +278,7 @@ export function TodoSidebar() {
                                                             "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
                                                         )}
                                                     >
-                                                        <MdMoreHoriz className="size-3.5" />
+                                                        <MdMoreHoriz className="size-[18px]" />
                                                     </button>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-32 p-1" align="end">
@@ -295,7 +295,7 @@ export function TodoSidebar() {
                                                         onClick={() => deleteGroup(group.id)}
                                                         className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors text-left"
                                                     >
-                                                        <MdDelete className="size-3.5" />
+                                                        <MdDelete className="size-[18px]" />
                                                         Delete
                                                     </button>
                                                 </PopoverContent>
@@ -306,7 +306,7 @@ export function TodoSidebar() {
 
                                 {isCreating && (
                                     <div className="flex items-center gap-2 px-3 py-2 mx-2">
-                                        <div className="w-5 flex justify-center text-zinc-400"><MdFolder className="size-4" /></div>
+                                        <div className="w-5 flex justify-center text-zinc-400"><MdFolder className="size-[18px]" /></div>
                                         <input
                                             ref={createInputRef}
                                             value={newGroupName}

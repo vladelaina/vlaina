@@ -39,7 +39,7 @@ export function TaskSortMenu() {
                 )}
                 title="Sort tasks"
             >
-                <MdSwapVert className="size-4" />
+                <MdSwapVert className="size-[18px]" />
             </button>
 
             <AnimatePresence>
@@ -64,11 +64,11 @@ export function TaskSortMenu() {
                                     className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-between group"
                                 >
                                     <div className="flex items-center gap-2">
-                                        <option.icon className={cn("size-4", taskSortMode === option.mode ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400")} />
+                                        <option.icon className={cn("size-[18px]", taskSortMode === option.mode ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400")} />
                                         <span>{option.label}</span>
                                     </div>
                                     {taskSortMode === option.mode && (
-                                        <MdCheck className="size-3.5 text-blue-500" />
+                                        <MdCheck className="size-[18px] text-blue-500" />
                                     )}
                                 </button>
                             ))}

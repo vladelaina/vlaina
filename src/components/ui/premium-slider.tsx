@@ -154,7 +154,7 @@ export function PremiumSlider({
             >
                 <div
                     className={cn(
-                        'w-6 h-3 bg-[var(--neko-bg-primary)] rounded-full shadow-md border border-[var(--neko-border)]',
+                        'w-6 h-[18px] bg-[var(--neko-bg-primary)] rounded-full shadow-md border border-[var(--neko-border)]',
                         'group-active:scale-[0.9] transition-transform duration-100'
                     )}
                 />

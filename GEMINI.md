@@ -27,3 +27,12 @@ If the request would cause the code to violate these thresholds:
 ## Output Completeness **No "Lazy" Placeholders:** * Unless explicitly asked to "summarize" or "show diff only", you must output the **FULL, WORKING code**. * **Strictly Prohibited:** Do not use // ... existing code ... or // ... rest of implementation. * If modifying a large file, output the complete function or the complete file so it can be directly piped/copied.
 
 * **Magic Word:** If I type "Refactor This", you must essentially ignore the functional requirements and focus 100% on reducing complexity, splitting files, and improving readability.
+
+
+## UI & Visual Standards
+**Iconography: UNIFIED 18px Standard**
+* **Mandatory Size:** All functional and decorative icons MUST be sized at exactly **18px**.
+* **Implementation:** 
+  * Use Tailwind classes: `size-[18px]` or `w-[18px] h-[18px]`.
+  * For components with a `size` prop (like `UniversalIcon` or `AppIcon`), use `size={18}`.
+* **Rationale:** To ensure visual consistency, accessibility, and professional appearance throughout the application.

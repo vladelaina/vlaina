@@ -85,7 +85,7 @@ export function DeletableItem({
                             "scale-90 hover:scale-100"
                         )}
                     >
-                        <MdClose size={12} />
+                        <MdClose size={18} />
                     </button>
                 )
             )}

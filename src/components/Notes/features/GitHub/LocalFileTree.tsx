@@ -215,27 +215,27 @@ function LocalFileTreeItem({
                 >
                     {/* Icon - folder shows chevron on hover */}
                     {isFolder ? (
-                        <span className="w-4 h-4 flex items-center justify-center relative">
+                        <span className="w-[18px] h-[18px] flex items-center justify-center relative">
                             {/* Folder icon - hidden on hover */}
                             <span className="group-hover:hidden">
                                 {isExpanded ? (
-                                    <MdFolderOpen className="w-4 h-4 text-amber-500" />
+                                    <MdFolderOpen className="w-[18px] h-[18px] text-amber-500" />
                                 ) : (
-                                    <MdFolder className="w-4 h-4 text-amber-500" />
+                                    <MdFolder className="w-[18px] h-[18px] text-amber-500" />
                                 )}
                             </span>
                             {/* Chevron icon - shown on hover */}
                             <span className="hidden group-hover:block text-amber-500">
                                 {isExpanded ? (
-                                    <MdExpandMore className="w-4 h-4" />
+                                    <MdExpandMore className="w-[18px] h-[18px]" />
                                 ) : (
-                                    <MdChevronRight className="w-4 h-4" />
+                                    <MdChevronRight className="w-[18px] h-[18px]" />
                                 )}
                             </span>
                         </span>
                     ) : (
-                        <span className="w-4 h-4 flex items-center justify-center">
-                            <MdDescription className={cn("w-4 h-4 text-amber-500", getStatusColor())} />
+                        <span className="w-[18px] h-[18px] flex items-center justify-center">
+                            <MdDescription className={cn("w-[18px] h-[18px] text-amber-500", getStatusColor())} />
                         </span>
                     )}
 
@@ -276,7 +276,7 @@ function LocalFileTreeItem({
                             iconButtonStyles
                         )}
                     >
-                        <MdMoreHoriz className="w-4 h-4" />
+                        <MdMoreHoriz className="w-[18px] h-[18px]" />
                     </button>
                 </div>
             </div>
@@ -299,8 +299,8 @@ function LocalFileTreeItem({
                             onClick={handleOpenInGitHub}
                             className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)] transition-colors"
                         >
-                            <span className="w-4 h-4 flex items-center justify-center">
-                                <MdOpenInNew className="w-4 h-4" />
+                            <span className="w-[18px] h-[18px] flex items-center justify-center">
+                                <MdOpenInNew className="w-[18px] h-[18px]" />
                             </span>
                             Open in GitHub
                         </button>

@@ -138,7 +138,7 @@ const EmojiIconRenderer = memo(function EmojiIconRenderer({
 
 export function UniversalIcon({ 
   icon, 
-  size = 16, 
+  size = 18, 
   className, 
   rounding,
   color,

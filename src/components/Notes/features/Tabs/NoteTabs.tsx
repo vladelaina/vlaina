@@ -52,12 +52,12 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
 
       {icon ? (
         <span className="flex-shrink-0">
-          <NoteIcon icon={icon} size={14} />
+          <NoteIcon icon={icon} size={18} />
         </span>
       ) : (
         <MdDescription
           className={cn(
-            "w-3.5 h-3.5 flex-shrink-0",
+            "w-[18px] h-[18px] flex-shrink-0",
             isActive
               ? "text-[var(--neko-accent)]"
               : "text-amber-500"
@@ -88,7 +88,7 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
           "hover:bg-[var(--neko-hover-filled)] text-[var(--neko-icon-secondary)]"
         )}
       >
-        <MdClose className="w-3 h-3" />
+        <MdClose className="w-[18px] h-[18px]" />
       </button>
     </div>
   );

@@ -86,9 +86,9 @@ export function AppearanceTab() {
         <div className="w-64">
           <SegmentedControl
             options={[
-              { value: 'system', label: 'System', icon: <MdLaptop className="w-4 h-4" /> },
-              { value: 'light', label: 'Light', icon: <MdLightMode className="w-4 h-4" /> },
-              { value: 'dark', label: 'Dark', icon: <MdDarkMode className="w-4 h-4" /> },
+              { value: 'system', label: 'System', icon: <MdLaptop className="w-[18px] h-[18px]" /> },
+              { value: 'light', label: 'Light', icon: <MdLightMode className="w-[18px] h-[18px]" /> },
+              { value: 'dark', label: 'Dark', icon: <MdDarkMode className="w-[18px] h-[18px]" /> },
             ]}
             value={theme || 'system'}
             onChange={setTheme}
@@ -104,7 +104,7 @@ export function AppearanceTab() {
         description="Adjust the base font size for the application"
       >
         <div className="flex items-center gap-4">
-          <MdTextFields className="w-4 h-4 text-zinc-400" />
+          <MdTextFields className="w-[18px] h-[18px] text-zinc-400" />
           <input
             type="range"
             min="12"
@@ -159,7 +159,7 @@ export function AppearanceTab() {
       >
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-            <MdAccessTime className="w-4 h-4 text-zinc-400" />
+            <MdAccessTime className="w-[18px] h-[18px] text-zinc-400" />
           </div>
           <input
             type="text"

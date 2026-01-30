@@ -42,7 +42,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
         onClick={() => onClose(toast.id)}
         className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
       >
-        <MdClose className="h-4 w-4" />
+        <MdClose className="w-[18px] h-[18px]" />
       </button>
     </motion.div>
   );

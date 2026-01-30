@@ -98,7 +98,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                         onEditStart();
                     }}
                 >
-                    {!originalAlt && <MdEdit size={12} className="opacity-70" />}
+                    {!originalAlt && <MdEdit size={18} className="opacity-70" />}
                     {originalAlt || "Caption"}
                 </div>
             )}

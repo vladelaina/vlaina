@@ -113,7 +113,7 @@ export function TaskInput({ compact = false }: TaskInputProps) {
                                         className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
                                     >
                                         <div
-                                            className="w-4 h-4 rounded-[4px] transition-transform active:scale-90"
+                                            className="w-[18px] h-[18px] rounded-[4px] transition-transform active:scale-90"
                                             style={c && c !== 'default'
                                                 ? { backgroundColor: SIMPLE_COLOR_STYLES[c].hex }
                                                 : { border: '1px solid currentColor', opacity: 0.5 }
@@ -154,7 +154,7 @@ export function TaskInput({ compact = false }: TaskInputProps) {
                             onClick={handleSubmit}
                             className="shrink-0 p-1 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:opacity-90 transition-opacity mt-0.5"
                         >
-                            <MdAdd className="h-3 w-3" />
+                            <MdAdd className="w-[18px] h-[18px]" />
                         </motion.button>
                     )}
                 </AnimatePresence>

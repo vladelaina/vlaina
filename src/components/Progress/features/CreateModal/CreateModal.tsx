@@ -296,7 +296,7 @@ export function CreateModal({
                    >
                      <span className="relative z-10 flex items-center gap-2">
                        Begin Journey
-                       <MdCheck className="size-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+                       <MdCheck className="size-[18px] opacity-50 group-hover:opacity-100 transition-opacity" />
                      </span>
                      
                      <div className="absolute inset-0 rounded-full bg-zinc-900 dark:bg-zinc-100 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300" />

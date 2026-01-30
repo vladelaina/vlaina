@@ -46,7 +46,7 @@ export function FavoritesSection() {
             {showEmptyState ? (
                 <div className="flex flex-col items-center gap-2 py-4">
                     <div className="w-10 h-10 rounded-full bg-[var(--neko-bg-tertiary)] flex items-center justify-center">
-                        <MdStar className="w-4 h-4 text-[var(--neko-text-tertiary)]" />
+                        <MdStar className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)]" />
                     </div>
                     <span className="text-[13px] text-[var(--neko-text-tertiary)]">No favorites</span>
                 </div>

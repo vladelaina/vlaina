@@ -35,7 +35,7 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                     "transition-opacity"
                 )}
             >
-                <MdKeyboardDoubleArrowLeft className="w-4 h-4" />
+                <MdKeyboardDoubleArrowLeft className="w-[18px] h-[18px]" />
             </button>
         </div>
     );

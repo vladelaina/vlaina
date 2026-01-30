@@ -149,7 +149,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
             value={currentColor}
             onChange={handleColorChange}
             onHover={handleColorHover}
-            sizeClass="w-4 h-4"
+            sizeClass="w-[18px] h-[18px]"
           />
         </div>
 
@@ -157,7 +157,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
 
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 flex justify-center">
-             <MdWbSunny className="size-3.5 text-zinc-400" />
+             <MdWbSunny className="size-[18px] text-zinc-400" />
           </div>
           <button
             onClick={() => {
@@ -203,7 +203,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
             )}
           >
             <div className={cn(
-              "w-7 h-3.5 rounded-full transition-colors relative",
+              "w-7 h-[18px] rounded-full transition-colors relative",
               event.allDay
                 ? "bg-blue-500"
                 : "bg-zinc-300 dark:bg-zinc-600"
@@ -220,7 +220,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         {!event.allDay && (
           <div className="flex items-start gap-2 mb-3">
             <div className="w-8 flex justify-center mt-0.5">
-                <MdAccessTime className="size-3.5 text-zinc-400" />
+                <MdAccessTime className="size-[18px] text-zinc-400" />
             </div>
             <div className="flex items-center text-xs">
               <EditableTime

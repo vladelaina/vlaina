@@ -349,7 +349,7 @@ export function UniversalIconPicker({
               }}
               className={cn("p-1 -ml-1 flex items-center justify-center transition-all active:scale-90", iconButtonStyles)}
             >
-              <MdShuffle size={14} />
+              <MdShuffle size={18} />
             </button>
           </div>
           {hasIcon && onRemove && (

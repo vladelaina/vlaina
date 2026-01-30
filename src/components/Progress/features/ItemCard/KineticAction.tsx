@@ -387,14 +387,14 @@ export function KineticAction({
                     ">
                         {/* Speed Indicator (Visual Feedback for "Throttle") */}
                         <div className="flex flex-col items-center justify-center w-8 gap-0.5 opacity-80">
-                             <MdExpandLess className={`size-3 ${speedMultiplier > 2 ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-300 dark:text-zinc-700'}`} />
+                             <MdExpandLess className={`size-[18px] ${speedMultiplier > 2 ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-300 dark:text-zinc-700'}`} />
                              <div className="h-5 w-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden relative">
                                 <motion.div 
                                     className="absolute bottom-0 inset-x-0 bg-zinc-900 dark:bg-zinc-100"
                                     style={{ height: `${Math.min(100, (speedMultiplier - 0.5) * 20)}%` }}
                                 />
                              </div>
-                             <MdExpandMore className={`size-3 ${speedMultiplier < 0.8 ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-300 dark:text-zinc-700'}`} />
+                             <MdExpandMore className={`size-[18px] ${speedMultiplier < 0.8 ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-300 dark:text-zinc-700'}`} />
                         </div>
 
                         <div className="w-px h-8 bg-zinc-100 dark:bg-zinc-800" />

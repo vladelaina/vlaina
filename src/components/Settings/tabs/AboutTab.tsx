@@ -101,7 +101,7 @@ export function AboutTab() {
             </div>
             
             {isLoading ? (
-              <MdRefresh className="size-4 animate-spin text-zinc-400" />
+              <MdRefresh className="size-[18px] animate-spin text-zinc-400" />
             ) : isConnected ? (
               <button
                 onClick={handleDisconnect}
@@ -117,12 +117,12 @@ export function AboutTab() {
               >
                 {isConnecting ? (
                   <>
-                    <MdRefresh className="size-3.5 animate-spin" />
+                    <MdRefresh className="size-[18px] animate-spin" />
                     Connecting...
                   </>
                 ) : (
                   <>
-                    <MdCloud className="size-3.5" />
+                    <MdCloud className="size-[18px]" />
                     Connect GitHub
                   </>
                 )}
@@ -150,7 +150,7 @@ export function AboutTab() {
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 rounded-md transition-colors disabled:opacity-50"
                       title="Restore from cloud backup"
                     >
-                      <MdDownload className="size-3.5" />
+                      <MdDownload className="size-[18px]" />
                       Restore
                     </button>
                   )}
@@ -162,12 +162,12 @@ export function AboutTab() {
                   >
                     {isSyncing ? (
                       <>
-                        <MdRefresh className="size-3.5 animate-spin" />
+                        <MdRefresh className="size-[18px] animate-spin" />
                         Syncing...
                       </>
                     ) : (
                       <>
-                        <MdRefresh className="size-3.5" />
+                        <MdRefresh className="size-[18px]" />
                         Sync Now
                       </>
                     )}
@@ -180,7 +180,7 @@ export function AboutTab() {
           {/* Error Message */}
           {syncError && (
             <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
-              <MdError className="size-4 flex-shrink-0 mt-0.5" />
+              <MdError className="size-[18px] flex-shrink-0 mt-0.5" />
               <div className="text-xs">{syncError}</div>
             </div>
           )}
@@ -259,7 +259,7 @@ export function AboutTab() {
                 autoUpdate ? 'bg-zinc-400 dark:bg-zinc-500' : 'bg-zinc-300 dark:bg-zinc-600'
               }`}
             >
-              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+              <span className={`inline-block w-[18px] h-[18px] transform rounded-full bg-white transition-transform ${
                 autoUpdate ? 'translate-x-5' : 'translate-x-0.5'
               }`} />
             </button>
@@ -299,7 +299,7 @@ export function AboutTab() {
               onClick={openGitHub}
               className={`${settingsButtonClassName} flex items-center gap-1.5`}
             >
-              <MdOpenInNew className="size-3.5" />
+              <MdOpenInNew className="size-[18px]" />
               Open
             </button>
           </div>
@@ -320,7 +320,7 @@ export function AboutTab() {
               onClick={() => openUrl('https://discord.gg/TtUzNPqNJw')}
               className={`${settingsButtonClassName} flex items-center gap-1.5`}
             >
-              <MdOpenInNew className="size-3.5" />
+              <MdOpenInNew className="size-[18px]" />
               Join
             </button>
           </div>

@@ -235,7 +235,7 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
                             className="group flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg transition-colors max-w-[200px]"
                         >
                             <div className="flex items-center justify-center size-5 rounded text-gray-400 group-hover:text-blue-500 transition-colors">
-                                <MdOpenInNew className="size-3" />
+                                <MdOpenInNew className="size-[18px]" />
                             </div>
                             <span className="truncate text-[13px] font-medium text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
                                 {displayUrl}
@@ -248,34 +248,34 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
                 </Tooltip>
             </TooltipProvider>
 
-            <div className="w-[1px] h-4 bg-gray-200 dark:bg-zinc-700 mx-1" />
+            <div className="w-[1px] h-[18px] bg-gray-200 dark:bg-zinc-700 mx-1" />
 
             <div className="flex items-center gap-0.5">
                 <IconButton
                     onClick={handleCopy}
-                    icon={showCopied ? <MdCheck className="size-4 text-green-500 scale-110" /> : <MdContentCopy className="size-4" />}
+                    icon={showCopied ? <MdCheck className="size-[18px] text-green-500 scale-110" /> : <MdContentCopy className="size-[18px]" />}
                 />
 
                 <IconButton
                     onClick={() => setMode('edit')}
-                    icon={<MdEdit className="size-4" />}
+                    icon={<MdEdit className="size-[18px]" />}
                 />
             </div>
 
-            <div className="w-[1px] h-4 bg-gray-200 dark:bg-zinc-700 mx-1" />
+            <div className="w-[1px] h-[18px] bg-gray-200 dark:bg-zinc-700 mx-1" />
 
             <div className="flex items-center gap-0.5">
                 {/* Unlink button - only show for Markdown links (not autolinks) */}
                 {!isAutolink && (
                     <IconButton
                         onClick={onUnlink}
-                        icon={<MdLinkOff className="size-4" />}
+                        icon={<MdLinkOff className="size-[18px]" />}
                     />
                 )}
 
                 <IconButton
                     onClick={onRemove}
-                    icon={<MdDelete className="size-4" />}
+                    icon={<MdDelete className="size-[18px]" />}
                     className="hover:text-red-500"
                 />
             </div>

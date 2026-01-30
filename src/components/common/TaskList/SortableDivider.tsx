@@ -56,7 +56,7 @@ export function SortableDivider({
                 className="flex items-center gap-2 group hover:opacity-80 transition-opacity"
             >
                 <MdExpandMore className={cn(
-                    "size-3.5 text-zinc-400 transition-transform",
+                    "size-[18px] text-zinc-400 transition-transform",
                     !expanded && "-rotate-90"
                 )} />
                 <span className="text-xs text-zinc-400">
@@ -80,7 +80,7 @@ export function SortableDivider({
                                 : "text-zinc-300 hover:text-zinc-400 dark:text-zinc-600 dark:hover:text-zinc-500"
                         )}
                     >
-                        <MdMoreVert className="size-3.5" />
+                        <MdMoreVert className="size-[18px]" />
                     </button>
                     {showMenu && menuContent}
                 </div>

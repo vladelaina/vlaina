@@ -95,7 +95,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
               className="w-6 h-6 rounded-md flex items-center justify-center hover:scale-110 transition-transform"
               style={{ backgroundColor: color.hex }}
             >
-              {currentColor === color.name && <MdCheck className="size-4 text-white" />}
+              {currentColor === color.name && <MdCheck className="size-[18px] text-white" />}
             </button>
           ))}
         </div>
@@ -111,7 +111,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
             onClick={handleStartTimer}
             className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
           >
-            <MdPlayArrow className="size-4" />
+            <MdPlayArrow className="size-[18px]" />
             <span className="flex-1 text-left">Start Timer</span>
           </button>
         )}
@@ -122,14 +122,14 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
               onClick={handlePauseTimer}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
-              <MdPause className="size-4" />
+              <MdPause className="size-[18px]" />
               <span className="flex-1 text-left">Pause Timer</span>
             </button>
             <button
               onClick={handleStopTimer}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
-              <MdStop className="size-4" />
+              <MdStop className="size-[18px]" />
               <span className="flex-1 text-left">Stop Timer</span>
             </button>
           </>
@@ -141,14 +141,14 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
               onClick={handleResumeTimer}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
-              <MdPlayArrow className="size-4" />
+              <MdPlayArrow className="size-[18px]" />
               <span className="flex-1 text-left">Resume Timer</span>
             </button>
             <button
               onClick={handleStopTimer}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
-              <MdStop className="size-4" />
+              <MdStop className="size-[18px]" />
               <span className="flex-1 text-left">Stop Timer</span>
             </button>
           </>
@@ -158,13 +158,13 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
 
         {/* Actions */}
         <button className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800">
-          <MdContentCut className="size-4" />
+          <MdContentCut className="size-[18px]" />
           <span className="flex-1 text-left">Cut</span>
           <span className="text-zinc-500 text-xs">Ctrl X</span>
         </button>
 
         <button className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800">
-          <MdContentCopy className="size-4" />
+          <MdContentCopy className="size-[18px]" />
           <span className="flex-1 text-left">Copy</span>
           <span className="text-zinc-500 text-xs">Ctrl C</span>
         </button>
@@ -173,7 +173,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
           onClick={handleDuplicate}
           className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
         >
-          <MdAddToPhotos className="size-4" />
+          <MdAddToPhotos className="size-[18px]" />
           <span className="flex-1 text-left">Duplicate</span>
           <span className="text-zinc-500 text-xs">Ctrl D</span>
         </button>
@@ -184,7 +184,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
           onClick={handleDelete}
           className="w-full px-4 py-2 flex items-center gap-3 text-sm text-red-400 hover:bg-zinc-800"
         >
-          <MdDelete className="size-4" />
+          <MdDelete className="size-[18px]" />
           <span className="flex-1 text-left">Delete</span>
           <span className="text-zinc-500 text-xs">Del</span>
         </button>

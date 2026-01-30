@@ -306,7 +306,7 @@ export function TaskListView({
                                     <div className="flex items-start gap-2 px-3 py-2 bg-white dark:bg-zinc-800 rounded-lg shadow-xl ring-1 ring-black/5 dark:ring-white/10 max-w-[240px]">
                                         <div
                                             className={cn(
-                                                "flex-shrink-0 w-3.5 h-3.5 rounded-sm mt-0.5",
+                                                "flex-shrink-0 w-[18px] h-[18px] rounded-sm mt-0.5",
                                                 colorValue ? "border-2" : "border border-zinc-400/40"
                                             )}
                                             style={colorValue ? { borderColor: colorValue } : undefined}

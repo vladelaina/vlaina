@@ -135,7 +135,7 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
                                                 className="p-0.5 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-sm transition-colors cursor-pointer flex-shrink-0"
                                                 title="Open in Today List"
                                             >
-                                                <MdChecklist className="size-3.5" />
+                                                <MdChecklist className="size-[18px]" />
                                             </div>
                                         </div>
                                     )}
@@ -174,10 +174,10 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
                 className="p-1 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-sm transition-colors"
                 title="Open in Today List"
                 >
-                <MdChecklist className="size-3.5" />
+                <MdChecklist className="size-[18px]" />
                 </button>
 
-                <div className="h-3 w-px bg-zinc-200 dark:bg-zinc-800" />
+                <div className="h-[18px] w-px bg-zinc-200 dark:bg-zinc-800" />
             </>
         )}
 
@@ -188,7 +188,7 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
             disabled={isMaxZoomIn}
             className={`p-0.5 rounded-sm transition-colors ${isMaxZoomIn ? 'text-zinc-200 dark:text-zinc-800' : 'text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
             >
-            <MdRemove className="w-3 h-3" />
+            <MdRemove className="w-[18px] h-[18px]" />
             </button>
 
             <Popover open={open} onOpenChange={setOpen}>
@@ -205,7 +205,7 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
                         {['day', 'week', 'month'].map((m) => (
                             <button key={m} onClick={() => handleQuickSelect(m as any)} className="flex items-center justify-between px-2 py-1.5 text-xs rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
                                 <span className="capitalize">{m}</span>
-                                {((m === 'day' && currentDayCount === 1 && viewMode !== 'month') || (m === 'week' && currentDayCount === 7 && viewMode === 'week') || (m === 'month' && viewMode === 'month')) && <MdCheck className="w-3 h-3" />}
+                                {((m === 'day' && currentDayCount === 1 && viewMode !== 'month') || (m === 'week' && currentDayCount === 7 && viewMode === 'week') || (m === 'month' && viewMode === 'month')) && <MdCheck className="w-[18px] h-[18px]" />}
                             </button>
                         ))}
                     </div>
@@ -217,7 +217,7 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
             disabled={isMaxZoomOut}
             className={`p-0.5 rounded-sm transition-colors ${isMaxZoomOut ? 'text-zinc-200 dark:text-zinc-800' : 'text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
             >
-            <MdAdd className="w-3 h-3" />
+            <MdAdd className="w-[18px] h-[18px]" />
             </button>
         </div>
       </div>

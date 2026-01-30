@@ -38,11 +38,11 @@ function TabContent({ tab, isActive, icon, displayName }: TabContentProps) {
     <>
       {icon ? (
         <span className="flex-shrink-0 pointer-events-none">
-          <NoteIcon icon={icon} size={16} />
+          <NoteIcon icon={icon} size={18} />
         </span>
       ) : (
         <MdDescription
-          className="w-4 h-4 flex-shrink-0 pointer-events-none text-current opacity-70"
+          className="w-[18px] h-[18px] flex-shrink-0 pointer-events-none text-current opacity-70"
         />
       )}
 
@@ -125,7 +125,7 @@ const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick,
         >
           {/* Subtle separator line between tabs */}
           {showSeparator && (
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-3.5 bg-zinc-200 dark:bg-zinc-700" />
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-[18px] bg-zinc-200 dark:bg-zinc-700" />
           )}
           <TabContent tab={tab} isActive={isActive} icon={icon} displayName={displayName} />
 
@@ -142,7 +142,7 @@ const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick,
               "hover:text-zinc-500 dark:hover:text-zinc-400"
             )}
           >
-            <MdClose className="w-3.5 h-3.5" />
+            <MdClose className="w-[18px] h-[18px]" />
           </button>
         </div>
       </TooltipTrigger>
@@ -253,7 +253,7 @@ export function NotesTabRow() {
                                         "hover:text-zinc-500 dark:hover:text-zinc-400"
                                     )}
                                 >
-                                    <MdAdd className="w-4 h-4" />
+                                    <MdAdd className="w-[18px] h-[18px]" />
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" sideOffset={2}>

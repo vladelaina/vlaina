@@ -113,7 +113,7 @@ export function DetailActions({
                         <MdRefresh className="size-5" />
                       </button>
         
-                      <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700/50 mx-1" />
+                      <div className="w-px h-[18px] bg-zinc-200 dark:bg-zinc-700/50 mx-1" />
         
                       {/* Delete */}
                       <button
@@ -124,7 +124,7 @@ export function DetailActions({
                         <MdDelete className="size-5" />
                       </button>
         
-                      <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-700/50 mx-1" />
+                      <div className="w-px h-[18px] bg-zinc-200 dark:bg-zinc-700/50 mx-1" />
         
                       {/* Close */}
                       <button
@@ -135,7 +135,7 @@ export function DetailActions({
                         }}
                         className="p-2 rounded-full text-zinc-300 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                       >
-                        <MdClose className="size-4" />
+                        <MdClose className="size-[18px]" />
                       </button>
                     </motion.div>
                   </motion.div>

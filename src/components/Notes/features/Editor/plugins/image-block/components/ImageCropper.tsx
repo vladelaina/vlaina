@@ -332,14 +332,14 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                         className="w-full"
                     />
                 </div>
-                <div className="h-4 w-px bg-gray-200 dark:bg-zinc-700" />
+                <div className="h-[18px] w-px bg-gray-200 dark:bg-zinc-700" />
                 <div className="flex items-center gap-1">
                     <button
                         onClick={handleCancel}
                         className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-zinc-500 dark:text-zinc-400 transition-colors"
                         title="Cancel"
                     >
-                        <MdClose size={16} />
+                        <MdClose size={18} />
                     </button>
                     <button
                         onClick={(e) => handleSave(e)}
@@ -347,7 +347,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                         className="p-1 rounded-lg bg-[var(--neko-accent)] hover:bg-[var(--neko-accent-hover)] text-white shadow-sm transition-all active:scale-95 disabled:opacity-50"
                         title="Save"
                     >
-                        <MdCheck size={16} />
+                        <MdCheck size={18} />
                     </button>
                 </div>
             </div>

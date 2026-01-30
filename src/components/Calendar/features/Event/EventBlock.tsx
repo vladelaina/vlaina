@@ -316,7 +316,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
                   onToggle?.(event.uid);
                 }}
                 className={`
-                  flex-shrink-0 w-3.5 h-3.5 rounded-[4px] border-2 flex items-center justify-center mt-0.5
+                  flex-shrink-0 w-[18px] h-[18px] rounded-[4px] border-2 flex items-center justify-center mt-0.5
                   ${isCompleted
                     ? ''
                     : 'bg-white/50 dark:bg-zinc-800/50'

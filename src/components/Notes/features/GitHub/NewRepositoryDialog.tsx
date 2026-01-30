@@ -110,7 +110,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                         onClick={onClose}
                         className="p-1.5 rounded-md hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] transition-colors"
                     >
-                        <MdClose className="w-4 h-4" />
+                        <MdClose className="w-[18px] h-[18px]" />
                     </button>
                 </div>
 
@@ -186,7 +186,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                                 )}
                             >
                                 <MdLock className={cn(
-                                    "w-4 h-4",
+                                    "w-[18px] h-[18px]",
                                     isPrivate ? "text-[var(--neko-accent)]" : "text-[var(--neko-text-tertiary)]"
                                 )} />
                                 <div className="text-left">
@@ -215,7 +215,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                                 )}
                             >
                                 <MdPublic className={cn(
-                                    "w-4 h-4",
+                                    "w-[18px] h-[18px]",
                                     !isPrivate ? "text-[var(--neko-accent)]" : "text-[var(--neko-text-tertiary)]"
                                 )} />
                                 <div className="text-left">
@@ -265,7 +265,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                                 "transition-colors disabled:opacity-50"
                             )}
                         >
-                            {isCreating && <MdRefresh className="w-4 h-4 animate-spin" />}
+                            {isCreating && <MdRefresh className="w-[18px] h-[18px] animate-spin" />}
                             {isCreating ? 'Creating...' : 'Create Repository'}
                         </button>
                     </div>

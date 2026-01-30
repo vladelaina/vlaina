@@ -114,20 +114,20 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
                 className="p-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors mr-1"
                 title="Return to Today"
               >
-                <MdUndo className="size-3.5" />
+                <MdUndo className="size-[18px]" />
               </button>
             )}
             <button
               onClick={prevMonth}
               className="p-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
             >
-              <MdExpandLess className="size-4" />
+              <MdExpandLess className="size-[18px]" />
             </button>
             <button
               onClick={nextMonth}
               className="p-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
             >
-              <MdExpandMore className="size-4" />
+              <MdExpandMore className="size-[18px]" />
             </button>
           </div>
         </div>

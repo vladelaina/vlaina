@@ -212,30 +212,30 @@ export const FileTreeItem = React.memo(function FileTreeItem({ node, depth, curr
           style={isActive ? { backgroundColor: NOTES_COLORS.activeItem } : undefined}
         >
           {node.isFolder ? (
-            <span className="w-4 h-4 flex items-center justify-center relative">
+            <span className="w-[18px] h-[18px] flex items-center justify-center relative">
               {/* Folder icon - hidden on hover */}
               <span className="group-hover:hidden">
                 {node.expanded ? (
-                  <MdFolderOpen className="w-4 h-4 text-amber-500" />
+                  <MdFolderOpen className="w-[18px] h-[18px] text-amber-500" />
                 ) : (
-                  <MdFolder className="w-4 h-4 text-amber-500" />
+                  <MdFolder className="w-[18px] h-[18px] text-amber-500" />
                 )}
               </span>
               {/* Chevron icon - shown on hover */}
               <span className="hidden group-hover:block text-amber-500">
                 {node.expanded ? (
-                  <MdExpandMore className="w-4 h-4" />
+                  <MdExpandMore className="w-[18px] h-[18px]" />
                 ) : (
-                  <MdChevronRight className="w-4 h-4" />
+                  <MdChevronRight className="w-[18px] h-[18px]" />
                 )}
               </span>
             </span>
           ) : (
-            <span className="w-4 h-4 flex items-center justify-center">
+            <span className="w-[18px] h-[18px] flex items-center justify-center">
               {noteIcon ? (
-                <NoteIcon icon={noteIcon} size={16} />
+                <NoteIcon icon={noteIcon} size={18} />
               ) : (
-                <MdDescription className="w-4 h-4 text-amber-500" />
+                <MdDescription className="w-[18px] h-[18px] text-amber-500" />
               )}
             </span>
           )}
@@ -288,7 +288,7 @@ export const FileTreeItem = React.memo(function FileTreeItem({ node, depth, curr
               iconButtonStyles
             )}
           >
-            <MdMoreHoriz className="w-4 h-4" />
+            <MdMoreHoriz className="w-[18px] h-[18px]" />
           </button>
         </div>
       </div>
@@ -476,7 +476,7 @@ const MenuItem = React.memo(function MenuItem({
       )}
     >
       <span className={cn(
-        "w-[16px] h-[16px] flex items-center justify-center flex-shrink-0 [&>svg]:w-[14px] [&>svg]:h-[14px]",
+        "w-[18px] h-[18px] flex items-center justify-center flex-shrink-0 [&>svg]:w-[18px] [&>svg]:h-[18px]",
         danger ? "text-red-500" : "text-[var(--neko-text-secondary)]"
       )}>
         {icon}

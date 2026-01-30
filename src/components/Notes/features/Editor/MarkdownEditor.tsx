@@ -339,7 +339,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
               : `${iconButtonStyles} hover: text - yellow - 500`
           )}
         >
-          <MdStar className="size-4" style={{ fill: starred ? "currentColor" : "none" }} />
+          <MdStar className="size-[18px]" style={{ fill: starred ? "currentColor" : "none" }} />
         </button>
 
         <DropdownMenu>
@@ -351,7 +351,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
                 iconButtonStyles
               )}
             >
-              <MdMoreHoriz className="size-4" />
+              <MdMoreHoriz className="size-[18px]" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">

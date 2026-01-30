@@ -214,9 +214,9 @@ export function AllDayArea({
             // Chevron + count when collapsed
             <div className="flex items-center gap-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">
               {isExpanded ? (
-                <MdExpandLess className="w-3 h-3" />
+                <MdExpandLess className="w-[18px] h-[18px]" />
               ) : (
-                <MdExpandMore className="w-3 h-3" />
+                <MdExpandMore className="w-[18px] h-[18px]" />
               )}
               <span className="font-medium">{layoutedEvents.length}</span>
             </div>
@@ -278,7 +278,7 @@ export function AllDayArea({
               <button
                 onClick={(e) => handleToggle(e, event.uid)}
                 className={`
-                    flex-shrink-0 w-3 h-3 rounded-sm border flex items-center justify-center
+                    flex-shrink-0 w-[18px] h-[18px] rounded-sm border flex items-center justify-center
                     ${event.completed
                     ? 'bg-zinc-400 border-zinc-400 dark:bg-zinc-500 dark:border-zinc-500'
                     : 'border-current opacity-50 hover:opacity-80'

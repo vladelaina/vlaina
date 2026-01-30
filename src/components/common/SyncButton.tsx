@@ -59,12 +59,12 @@ export function SyncButton({ className }: SyncButtonProps) {
   // Get status info for tooltip
   const getStatusInfo = (): { text: string; icon: React.ReactNode } => {
     if (isSyncing || animating) {
-      return { text: 'Syncing...', icon: <MdRefresh className="size-4 animate-spin" /> };
+      return { text: 'Syncing...', icon: <MdRefresh className="size-[18px] animate-spin" /> };
     }
     if (syncStatus === 'error' || syncError) {
-      return { text: 'Sync failed, click to retry', icon: <MdCloudOff className="size-4" /> };
+      return { text: 'Sync failed, click to retry', icon: <MdCloudOff className="size-[18px]" /> };
     }
-    return { text: 'Synced', icon: <MdCloudDone className="size-4" /> };
+    return { text: 'Synced', icon: <MdCloudDone className="size-[18px]" /> };
   };
 
   const statusInfo = getStatusInfo();

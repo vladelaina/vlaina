@@ -30,11 +30,11 @@ export function SidebarExpandButton({
                 {/* When peeking: show ChevronsRight immediately. 
                     Otherwise: Show Menu icon, swapping to ChevronsRight on hover. */}
                 {isPeeking ? (
-                    <MdKeyboardDoubleArrowRight className="size-4" />
+                    <MdKeyboardDoubleArrowRight className="size-[18px]" />
                 ) : (
                     <>
-                        <MdMenu className="size-4 group-hover:hidden" />
-                        <MdKeyboardDoubleArrowRight className="size-4 hidden group-hover:block" />
+                        <MdMenu className="size-[18px] group-hover:hidden" />
+                        <MdKeyboardDoubleArrowRight className="size-[18px] hidden group-hover:block" />
                     </>
                 )}
             </button>

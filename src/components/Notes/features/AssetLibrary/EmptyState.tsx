@@ -30,7 +30,7 @@ export function EmptyState({ onUploadClick, compact }: EmptyStateProps) {
         onClick={onUploadClick}
         className="gap-1.5 text-xs"
       >
-        <MdAddPhotoAlternate className="w-3.5 h-3.5" />
+        <MdAddPhotoAlternate className="w-[18px] h-[18px]" />
         Upload
       </Button>
     </div>

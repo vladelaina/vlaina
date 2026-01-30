@@ -20,8 +20,8 @@ export function FileTree({ rootFolder, isLoading, currentNotePath }: FileTreePro
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex items-center gap-2 px-2">
-              <div className="w-4 h-4 rounded bg-[var(--neko-bg-tertiary)] animate-pulse" />
-              <div className="flex-1 h-4 rounded bg-[var(--neko-bg-tertiary)] animate-pulse" />
+              <div className="w-[18px] h-[18px] rounded bg-[var(--neko-bg-tertiary)] animate-pulse" />
+              <div className="flex-1 h-[18px] rounded bg-[var(--neko-bg-tertiary)] animate-pulse" />
             </div>
           ))}
         </div>

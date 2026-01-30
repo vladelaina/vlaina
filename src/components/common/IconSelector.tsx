@@ -68,15 +68,15 @@ export function IconSelector({
             <PopoverTrigger asChild>
               {trigger ? trigger : (
                 <button
-                  className="w-4 h-4 flex items-center justify-center rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                  className="w-[18px] h-[18px] flex items-center justify-center rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                   title="Change icon"
                   onMouseEnter={() => handlePreview(value || null)}
                   onMouseLeave={() => handlePreview(null)}
                 >
                   {value ? (
-                    <AppIcon icon={value} size={14} color={colorHex} />
+                    <AppIcon icon={value} size={18} color={colorHex} />
                   ) : (
-                    <MdMonitorHeart className="size-3.5 text-zinc-400" />
+                    <MdMonitorHeart className="size-[18px] text-zinc-400" />
                   )}
                 </button>
               )}
@@ -121,7 +121,7 @@ export function IconSelector({
           )}
           title="Clear icon"
         >
-          <MdBlock className="size-3.5" />
+          <MdBlock className="size-[18px]" />
         </button>
         
         {QUICK_ICONS.slice(0, 6).map((name) => (
@@ -136,7 +136,7 @@ export function IconSelector({
                   : "text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               )}
             >
-               <AppIcon icon={name} size={14} color={colorHex} />
+               <AppIcon icon={name} size={18} color={colorHex} />
             </button>
         ))}
         
@@ -149,7 +149,7 @@ export function IconSelector({
                   )}
                   title="More icons"
                 >
-                    <MdMoreHoriz className="size-3.5" />
+                    <MdMoreHoriz className="size-[18px]" />
                 </button>
             </PopoverTrigger>
             <PopoverContent 

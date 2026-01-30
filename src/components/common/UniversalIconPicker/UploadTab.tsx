@@ -181,7 +181,7 @@ export function UploadTab({
                                 "active:scale-95"
                             )}
                         >
-                            <MdUpload size={14} />
+                            <MdUpload size={18} />
                         </button>
                     </div>
 
@@ -216,7 +216,7 @@ export function UploadTab({
                             >
                                 {isUploading ? (
                                     <svg
-                                        className="animate-spin h-4 w-4 text-current"
+                                        className="animate-spin w-[18px] h-[18px] text-current"
                                         xmlns="http://www.w3.org/2000/svg"
                                         fill="none"
                                         viewBox="0 0 24 24"
@@ -254,7 +254,7 @@ export function UploadTab({
                             )}
                         >
                             <div className="p-1.5 bg-[var(--neko-bg-tertiary)] rounded-md transition-colors group-hover:bg-[#1e96eb]/10 group-hover:text-[#1e96eb] text-[var(--neko-text-tertiary)]">
-                                <MdUpload className="size-3.5" />
+                                <MdUpload className="size-[18px]" />
                             </div>
 
                             <div className="flex flex-col items-start gap-0.5">

@@ -42,7 +42,7 @@ export function SidebarContent({
                             "group"
                         )}
                     >
-                        <MdSearch className="w-4 h-4 text-inherit transition-colors" />
+                        <MdSearch className="w-[18px] h-[18px] text-inherit transition-colors" />
                         <span className="flex-1 text-left text-[13px] font-medium tracking-wide">Search</span>
                         <span className="text-[10px] uppercase font-bold text-[var(--neko-text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity">
                             Ctrl+K

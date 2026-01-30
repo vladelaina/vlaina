@@ -162,7 +162,7 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
                 </span>
                 <div className={`flex items-center gap-1.5 ${compact ? 'text-[9px]' : 'text-[10px]'} font-bold uppercase tracking-[0.2em] overflow-hidden text-zinc-400 dark:text-zinc-500`}>
                   {item.resetFrequency === 'daily' && (
-                    <MdRefresh className={compact ? 'size-2.5 opacity-70' : 'size-3 opacity-70'} />
+                    <MdRefresh className={compact ? 'size-2.5 opacity-70' : 'size-[18px] opacity-70'} />
                   )}
                   <span>
                     {item.todayCount > 0 ? `Today ${item.todayCount}` : "Tap to Start"}

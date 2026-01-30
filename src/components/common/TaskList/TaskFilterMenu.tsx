@@ -60,7 +60,7 @@ export function TaskFilterMenu() {
                         : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
                 )}
             >
-                <MdMoreHoriz className="size-4" />
+                <MdMoreHoriz className="size-[18px]" />
             </button>
 
             <AnimatePresence>
@@ -119,7 +119,7 @@ export function TaskFilterMenu() {
                             className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-between"
                         >
                             <span>Hide Completed</span>
-                            {hideCompleted && <MdCheck className="size-4 text-blue-500" />}
+                            {hideCompleted && <MdCheck className="size-[18px] text-blue-500" />}
                         </button>
 
                         <button
@@ -130,7 +130,7 @@ export function TaskFilterMenu() {
                             className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-between"
                         >
                             <span>Hide Time Info</span>
-                            {hideActualTime && <MdCheck className="size-4 text-blue-500" />}
+                            {hideActualTime && <MdCheck className="size-[18px] text-blue-500" />}
                         </button>
 
                         {activeGroupId !== '__archive__' && (

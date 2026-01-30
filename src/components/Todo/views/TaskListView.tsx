@@ -198,7 +198,7 @@ export function TaskListView({
                             )}
                             onClick={handleSearchClick}
                         >
-                            <MdSearch className="w-4 h-4 text-zinc-500" />
+                            <MdSearch className="w-[18px] h-[18px] text-zinc-500" />
                         </div>
 
                         {/* Input Field */}
@@ -225,7 +225,7 @@ export function TaskListView({
                                     onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
                                     className="flex-shrink-0 w-8 h-10 flex items-center justify-center text-zinc-400 hover:text-zinc-600 z-10 mr-1"
                                 >
-                                    <MdClose className="w-3 h-3" />
+                                    <MdClose className="w-[18px] h-[18px]" />
                                 </motion.button>
                             )}
                         </AnimatePresence>

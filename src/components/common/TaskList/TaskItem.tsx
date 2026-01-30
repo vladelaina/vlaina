@@ -198,9 +198,9 @@ export function TaskItem({
                             className="p-0.5 transition-colors"
                         >
                             {collapsed ? (
-                                <MdChevronRight className="h-4 w-4 text-zinc-400" />
+                                <MdChevronRight className="w-[18px] h-[18px] text-zinc-400" />
                             ) : (
-                                <MdExpandMore className="h-4 w-4 text-zinc-400" />
+                                <MdExpandMore className="w-[18px] h-[18px] text-zinc-400" />
                             )}
                         </button>
                     ) : (
@@ -258,7 +258,7 @@ export function TaskItem({
                                     icon={task.icon}
                                     color={colorValue}
                                     sizeClass="h-5 w-5"
-                                    fallback={<MdMonitorHeart className="h-4.5 w-4.5 text-zinc-400 opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity" />}
+                                    fallback={<MdMonitorHeart className="h-[18px].5 w-[18px].5 text-zinc-400 opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity" />}
                                 />
                             </button>
                         }

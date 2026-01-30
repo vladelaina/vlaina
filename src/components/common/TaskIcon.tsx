@@ -17,7 +17,7 @@ interface TaskIconProps {
   /** Icon color (legacy override, mostly for category colors) */
   color?: string;
   /** Icon size class or pixel value */
-  sizeClass?: string; // tailwind class like "size-4"
+  sizeClass?: string; // tailwind class like "size-[18px]"
   /** Icon size in pixels (if provided, overrides sizeClass somewhat) */
   size?: number;
   /** Whether to enable preview (default true) */
@@ -30,7 +30,7 @@ export function TaskIcon({
   itemId, 
   icon, 
   color, 
-  sizeClass = 'size-4',
+  sizeClass = 'size-[18px]',
   size,
   enablePreview = true,
   fallback

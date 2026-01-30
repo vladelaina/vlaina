@@ -56,7 +56,7 @@ export function ProgressContent({ compact = false }: ProgressContentProps) {
         {!isArchiveView && (
           <motion.div className={'absolute top-3 z-40 pointer-events-none flex items-center gap-3 ' + (compact ? 'right-3' : 'right-6')} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
             <motion.button layout onClick={() => setShowCreateModal(true)} className="pointer-events-auto group flex items-center justify-center w-8 h-8 rounded-full bg-white/80 dark:bg-zinc-800/80 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-sm hover:shadow-md text-zinc-600 dark:text-zinc-300">
-              <MdAdd className="size-4" />
+              <MdAdd className="size-[18px]" />
             </motion.button>
           </motion.div>
         )}
@@ -69,11 +69,11 @@ export function ProgressContent({ compact = false }: ProgressContentProps) {
                 {!compact && <div className="absolute -top-6 -left-4 text-[5rem] leading-none font-thin text-zinc-50 dark:text-zinc-800/30 select-none pointer-events-none tracking-tighter">{day}</div>}
                 <div className="relative z-10 flex flex-col gap-0">
                   <div onClick={() => setIsArchiveView(true)} className="flex items-center gap-1.5 mb-0.5 cursor-pointer">
-                    <motion.div onMouseEnter={() => setIsStatusHovered(true)} onMouseLeave={() => setIsStatusHovered(false)} className="group/status relative flex items-center justify-start h-4 overflow-hidden">
+                    <motion.div onMouseEnter={() => setIsStatusHovered(true)} onMouseLeave={() => setIsStatusHovered(false)} className="group/status relative flex items-center justify-start h-[18px] overflow-hidden">
                       <AnimatePresence mode="wait" initial={false}>
                         {isStatusHovered ? (
                           <motion.div key="archive-hint" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -10, opacity: 0 }} className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-300">
-                            <MdArchive className="size-3" /><span className="text-[9px] font-bold tracking-[0.2em] uppercase">HISTORY</span>
+                            <MdArchive className="size-[18px]" /><span className="text-[9px] font-bold tracking-[0.2em] uppercase">HISTORY</span>
                           </motion.div>
                         ) : (
                           <motion.div key="status-text" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -10, opacity: 0 }}>
@@ -88,7 +88,7 @@ export function ProgressContent({ compact = false }: ProgressContentProps) {
               </>
             ) : (
               <div className="relative z-10 flex items-center gap-2">
-                <button onClick={() => setIsArchiveView(false)} className="group flex items-center justify-center p-1 -ml-1"><MdArrowBack className="size-4 text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" /></button>
+                <button onClick={() => setIsArchiveView(false)} className="group flex items-center justify-center p-1 -ml-1"><MdArrowBack className="size-[18px] text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors" /></button>
                 <h1 className={'font-serif italic font-light text-zinc-800 dark:text-zinc-100 tracking-tight ' + (compact ? 'text-lg' : 'text-2xl')}>Archived</h1>
                 <span className="text-xs text-zinc-300 dark:text-zinc-600 font-serif italic">{archivedCount}</span>
               </div>

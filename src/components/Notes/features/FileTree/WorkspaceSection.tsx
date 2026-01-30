@@ -29,7 +29,7 @@ export function WorkspaceSection({
     const headerActions = (
         <>
             <IconButton
-                icon={<MdAdd className="w-3.5 h-3.5" />}
+                icon={<MdAdd className="w-[18px] h-[18px]" />}
                 tooltip="New Doc"
                 onClick={() => {
                     if (!expanded) setExpanded(true);
@@ -37,7 +37,7 @@ export function WorkspaceSection({
                 }}
             />
             <IconButton
-                icon={<MdFolder className="w-3.5 h-3.5" />}
+                icon={<MdFolder className="w-[18px] h-[18px]" />}
                 tooltip="New Folder"
                 onClick={() => {
                     if (!expanded) setExpanded(true);

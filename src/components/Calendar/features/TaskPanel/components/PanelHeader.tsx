@@ -64,7 +64,7 @@ export function PanelHeader({
                                     : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                             )}
                         >
-                            <MdSearch className="size-4" />
+                            <MdSearch className="size-[18px]" />
                         </button>
                     )}
 
@@ -74,7 +74,7 @@ export function PanelHeader({
                             onClick={onToggleExpand}
                             className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                         >
-                            {isExpanded ? <MdFullscreenExit className="size-4" /> : <MdFullscreen className="size-4" />}
+                            {isExpanded ? <MdFullscreenExit className="size-[18px]" /> : <MdFullscreen className="size-[18px]" />}
                         </button>
                     )}
                 </div>

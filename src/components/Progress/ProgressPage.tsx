@@ -205,7 +205,7 @@ export function ProgressPage() {
                 layout="position"
                 className="flex items-center justify-center shrink-0 relative z-10"
               >
-                <MdAdd className="size-4" />
+                <MdAdd className="size-[18px]" />
               </motion.div>
               
               {/* Text - Organic Reveal */}
@@ -278,7 +278,7 @@ export function ProgressPage() {
                         <motion.div 
                           onMouseEnter={() => setIsStatusHovered(true)}
                           onMouseLeave={() => setIsStatusHovered(false)}
-                          className="group/status relative flex items-center justify-start h-4 overflow-hidden"
+                          className="group/status relative flex items-center justify-start h-[18px] overflow-hidden"
                         >
                           <AnimatePresence mode="wait" initial={false}>
                           {isStatusHovered ? (
@@ -290,7 +290,7 @@ export function ProgressPage() {
                               transition={{ duration: 0.2, ease: "easeOut" }}
                               className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-300"
                             >
-                              <MdArchive className="size-3" />
+                              <MdArchive className="size-[18px]" />
                               <span className="text-[9px] font-bold tracking-[0.25em] uppercase">
                                 HISTORY
                               </span>

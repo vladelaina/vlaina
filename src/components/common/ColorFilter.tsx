@@ -19,7 +19,7 @@ export function ColorFilter() {
                             key={color}
                             onClick={() => toggleColor(color)}
                             className={cn(
-                                "w-4 h-4 rounded-full border-2 transition-all duration-200 hover:scale-110",
+                                "w-[18px] h-[18px] rounded-full border-2 transition-all duration-200 hover:scale-110",
                                 isSelected
                                     ? "border-transparent shadow-sm scale-110"
                                     : "bg-transparent border-current hover:bg-current/10"
@@ -35,7 +35,7 @@ export function ColorFilter() {
                 {/* Select all button */}
                 <button
                     onClick={() => toggleAllColors()}
-                    className={`w-4 h-4 rounded-full transition-all hover:scale-110 relative overflow-hidden ml-auto ${selectedColors.length === ALL_COLORS.length
+                    className={`w-[18px] h-[18px] rounded-full transition-all hover:scale-110 relative overflow-hidden ml-auto ${selectedColors.length === ALL_COLORS.length
                         ? 'ring-1 ring-zinc-400 dark:ring-zinc-500 ring-offset-1 dark:ring-offset-zinc-900 shadow-sm'
                         : 'opacity-70 hover:opacity-100'
                         }`}

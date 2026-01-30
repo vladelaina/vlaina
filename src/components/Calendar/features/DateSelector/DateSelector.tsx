@@ -30,7 +30,7 @@ export function DateSelector() {
               {displayText}
             </span>
             <MdExpandMore 
-              className={`size-3 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} 
+              className={`size-[18px] text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} 
             />
           </div>
         </button>

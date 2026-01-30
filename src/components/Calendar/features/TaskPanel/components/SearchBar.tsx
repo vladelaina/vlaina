@@ -33,7 +33,7 @@ export function SearchBar({ show, value, onChange, onClear }: SearchBarProps) {
                             onClick={onClear}
                             className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
                         >
-                            <MdClose className="size-3.5" />
+                            <MdClose className="size-[18px]" />
                         </button>
                     )}
                 </div>

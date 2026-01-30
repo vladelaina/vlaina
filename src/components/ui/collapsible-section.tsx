@@ -47,7 +47,7 @@ export function CollapsibleSection({
                         <span className="text-[11px] font-semibold text-[var(--neko-text-secondary)] group-hover:text-[var(--neko-text-primary)] tracking-wider transition-colors">
                             {title}
                         </span>
-                        <ToggleIcon expanded={expanded} size={12} className="text-[var(--neko-text-tertiary)] group-hover:text-[var(--neko-text-secondary)] transition-colors" />
+                        <ToggleIcon expanded={expanded} size={18} className="text-[var(--neko-text-tertiary)] group-hover:text-[var(--neko-text-secondary)] transition-colors" />
                     </div>
                     {actions && (
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

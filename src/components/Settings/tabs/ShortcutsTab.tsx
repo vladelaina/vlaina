@@ -50,7 +50,7 @@ export function ShortcutsTab({
                       onClearRecording();
                       onClearShortcut(shortcut.id);
                     }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-500 rounded-full transition-colors"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-[18px] h-[18px] flex items-center justify-center bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-500 rounded-full transition-colors"
                     aria-label="Clear"
                   >
                     <MdClose className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-300" />
@@ -71,7 +71,7 @@ export function ShortcutsTab({
                       e.stopPropagation();
                       onClearShortcut(shortcut.id);
                     }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 flex items-center justify-center bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-500 rounded-full"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity w-[18px] h-[18px] flex items-center justify-center bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-500 rounded-full"
                     aria-label="Clear shortcut"
                   >
                     <MdClose className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-300" />

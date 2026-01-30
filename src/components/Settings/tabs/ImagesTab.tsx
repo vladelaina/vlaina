@@ -83,7 +83,7 @@ export function ImagesTab() {
                             >
                                 {/* Radio Circle */}
                                 <div className={cn(
-                                    "mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                                    "mt-0.5 w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0",
                                     isSelected
                                         ? "border-blue-500 bg-blue-500"
                                         : "border-zinc-300 dark:border-zinc-600"
@@ -202,7 +202,7 @@ export function ImagesTab() {
                 )}
             >
                 <div className={cn(
-                    "w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                    "w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0",
                     isSelected
                         ? "border-blue-500 bg-blue-500"
                         : "border-zinc-300 dark:border-zinc-600"
@@ -212,7 +212,7 @@ export function ImagesTab() {
                     )}
                 </div>
                 <Icon className={cn(
-                    "size-4 flex-shrink-0",
+                    "size-[18px] flex-shrink-0",
                     isSelected ? "text-blue-600 dark:text-blue-400" : "text-zinc-400"
                 )} />
                 <div className="flex-1 min-w-0">

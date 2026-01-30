@@ -74,7 +74,7 @@ export function GitHubSection() {
                 className="p-1 rounded hover:bg-[var(--neko-hover-filled)] text-[var(--neko-text-tertiary)] transition-colors disabled:opacity-50"
                 title="Refresh"
             >
-                <MdRefresh className={cn("w-3.5 h-3.5", isLoadingRepos && "animate-spin")} />
+                <MdRefresh className={cn("w-[18px] h-[18px]", isLoadingRepos && "animate-spin")} />
             </button>
             <button
                 onClick={(e) => {
@@ -84,7 +84,7 @@ export function GitHubSection() {
                 className="p-1 rounded hover:bg-[var(--neko-hover-filled)] text-[var(--neko-text-tertiary)] transition-colors"
                 title="New Repository"
             >
-                <MdAdd className="w-3.5 h-3.5" />
+                <MdAdd className="w-[18px] h-[18px]" />
             </button>
         </>
     ) : undefined;
@@ -110,9 +110,9 @@ export function GitHubSection() {
                             )}
                         >
                             {isConnecting ? (
-                                <MdRefresh className="w-4 h-4 animate-spin" />
+                                <MdRefresh className="w-[18px] h-[18px] animate-spin" />
                             ) : (
-                                <GitHubIcon className="w-4 h-4" />
+                                <GitHubIcon className="w-[18px] h-[18px]" />
                             )}
                             {isConnecting ? 'Connecting...' : 'Connect GitHub'}
                         </button>
@@ -143,7 +143,7 @@ export function GitHubSection() {
                                 "transition-colors"
                             )}
                         >
-                            <MdAdd className="w-3.5 h-3.5" />
+                            <MdAdd className="w-[18px] h-[18px]" />
                             New Repository
                         </button>
                     </div>

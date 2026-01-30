@@ -58,7 +58,7 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
 
     // Get cloud icon based on sync status (all amber-500 like folder icons)
     const getCloudIcon = () => {
-        const iconClass = "w-4 h-4 text-amber-500";
+        const iconClass = "w-[18px] h-[18px] text-amber-500";
 
         // Show sync icon when refreshing, cloning, or syncing
         if (isRefreshing || isSyncing) {
@@ -147,16 +147,16 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
                     )}
                 >
                     {/* Chevron */}
-                    <span className="w-4 h-4 flex items-center justify-center">
+                    <span className="w-[18px] h-[18px] flex items-center justify-center">
                         <ToggleIcon
                             expanded={isExpanded}
-                            size={14}
+                            size={18}
                             className="text-[var(--neko-icon-secondary)]"
                         />
                     </span>
 
                     {/* Cloud icon - shows sync status */}
-                    <span className="w-4 h-4 flex items-center justify-center">
+                    <span className="w-[18px] h-[18px] flex items-center justify-center">
                         {getCloudIcon()}
                     </span>
 
@@ -184,7 +184,7 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
                             iconButtonStyles
                         )}
                     >
-                        <MdMoreHoriz className="w-4 h-4" />
+                        <MdMoreHoriz className="w-[18px] h-[18px]" />
                     </button>
                 </div>
             </div>
@@ -252,7 +252,7 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
             {/* Cloning indicator */}
             {isExpanded && !repoIsCloned && isCloning && (
                 <div className="flex items-center gap-2 px-4 py-3 text-[12px] text-[var(--neko-text-tertiary)]">
-                    <MdCloudSync className="w-4 h-4 animate-pulse" />
+                    <MdCloudSync className="w-[18px] h-[18px] animate-pulse" />
                     Cloning repository...
                 </div>
             )}
@@ -285,7 +285,7 @@ function MenuItem({
                 disabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
             )}
         >
-            <span className="w-4 h-4 flex items-center justify-center">
+            <span className="w-[18px] h-[18px] flex items-center justify-center">
                 {icon}
             </span>
             {label}

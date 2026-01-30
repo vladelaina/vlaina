@@ -47,38 +47,38 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
         )}>
             <div className="flex items-center gap-0.5">
                 <ToolbarButton 
-                    icon={<MdFormatAlignLeft className="size-4" />} 
+                    icon={<MdFormatAlignLeft className="size-[18px]" />} 
                     onClick={() => onAlign('left')} 
                     active={alignment === 'left'} 
                 />
                 <ToolbarButton 
-                    icon={<MdFormatAlignCenter className="size-4" />} 
+                    icon={<MdFormatAlignCenter className="size-[18px]" />} 
                     onClick={() => onAlign('center')} 
                     active={alignment === 'center'} 
                 />
                 <ToolbarButton 
-                    icon={<MdFormatAlignRight className="size-4" />} 
+                    icon={<MdFormatAlignRight className="size-[18px]" />} 
                     onClick={() => onAlign('right')} 
                     active={alignment === 'right'} 
                 />
             </div>
             
-            <div className="w-[1px] h-4 bg-gray-200 dark:bg-zinc-700 mx-1" />
+            <div className="w-[1px] h-[18px] bg-gray-200 dark:bg-zinc-700 mx-1" />
             
             <div className="flex items-center gap-0.5">
-                <ToolbarButton icon={<MdCrop className="size-4" />} onClick={onEdit} />
+                <ToolbarButton icon={<MdCrop className="size-[18px]" />} onClick={onEdit} />
                 <ToolbarButton 
-                    icon={copied ? <MdCheck className="size-4" /> : <MdContentCopy className="size-4" />} 
+                    icon={copied ? <MdCheck className="size-[18px]" /> : <MdContentCopy className="size-[18px]" />} 
                     onClick={handleCopy} 
                     success={copied}
                 />
-                <ToolbarButton icon={<MdDownload className="size-4" />} onClick={onDownload} />
+                <ToolbarButton icon={<MdDownload className="size-[18px]" />} onClick={onDownload} />
             </div>
 
-            <div className="w-[1px] h-4 bg-gray-200 dark:bg-zinc-700 mx-1" />
+            <div className="w-[1px] h-[18px] bg-gray-200 dark:bg-zinc-700 mx-1" />
 
             <div className="flex items-center gap-0.5">
-                <ToolbarButton icon={<MdDelete className="size-4" />} onClick={onDelete} danger />
+                <ToolbarButton icon={<MdDelete className="size-[18px]" />} onClick={onDelete} danger />
             </div>
         </div>
     );

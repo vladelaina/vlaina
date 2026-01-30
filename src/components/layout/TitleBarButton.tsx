@@ -20,7 +20,7 @@ export function TitleBarButton({ icon: Icon, onClick, isActive, className }: Tit
         className
       )}
     >
-      <Icon className="size-4" />
+      <Icon className="size-[18px]" />
     </button>
   );
 }

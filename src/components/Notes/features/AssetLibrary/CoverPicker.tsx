@@ -143,7 +143,7 @@ export function CoverPicker({
                   : "text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)]"
               )}
             >
-              <MdImage className="w-3.5 h-3.5 inline mr-1" />
+              <MdImage className="w-[18px] h-[18px] inline mr-1" />
               Library
             </button>
             <button
@@ -155,7 +155,7 @@ export function CoverPicker({
                   : "text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)]"
               )}
             >
-              <MdUpload className="w-3.5 h-3.5 inline mr-1" />
+              <MdUpload className="w-[18px] h-[18px] inline mr-1" />
               Upload
             </button>
           </div>

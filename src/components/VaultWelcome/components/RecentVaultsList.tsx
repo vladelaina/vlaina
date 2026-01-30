@@ -59,7 +59,7 @@ export function RecentVaultsList({ vaults, onOpen }: RecentVaultsListProps) {
                   className="vault-item__remove"
                   onClick={(e) => handleRemove(e, vault.id)}
                 >
-                  <MdClose size={12} />
+                  <MdClose size={18} />
                 </button>
               </div>
             </TooltipTrigger>

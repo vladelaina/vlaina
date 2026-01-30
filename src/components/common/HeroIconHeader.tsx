@@ -244,7 +244,7 @@ export function HeroIconHeader({
                       }}
                       className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)] transition-colors")}
                   >
-                      <MdMonitorHeart className="size-4" />
+                      <MdMonitorHeart className="size-[18px]" />
                       {!compact && <span>Add icon</span>}
                   </button>
               </div>

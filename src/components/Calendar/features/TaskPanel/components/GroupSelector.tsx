@@ -32,7 +32,7 @@ export function GroupSelector({
                     {currentGroup?.name || 'Inbox'}
                 </span>
                 <MdExpandMore className={cn(
-                    "size-3.5 text-zinc-400 transition-transform flex-shrink-0",
+                    "size-[18px] text-zinc-400 transition-transform flex-shrink-0",
                     showPicker && "rotate-180"
                 )} />
             </button>
@@ -63,7 +63,7 @@ export function GroupSelector({
                                 {group.pinned && <span className="text-[10px]">📌</span>}
                                 <span className="truncate">{group.name}</span>
                                 {group.id === activeGroupId && (
-                                    <MdCheck className="size-3.5 ml-auto flex-shrink-0" />
+                                    <MdCheck className="size-[18px] ml-auto flex-shrink-0" />
                                 )}
                             </button>
                         ))}
@@ -80,7 +80,7 @@ export function GroupSelector({
                                     : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                             )}
                         >
-                            <MdArchive className="size-3.5" />
+                            <MdArchive className="size-[18px]" />
                             <span>Archive</span>
                         </button>
                     </motion.div>
