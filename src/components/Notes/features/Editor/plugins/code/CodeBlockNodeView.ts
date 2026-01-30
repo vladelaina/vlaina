@@ -63,8 +63,6 @@ export class CodeBlockNodeView implements NodeView {
     update(node: Node) {
         if (node.type !== this.node.type) return false;
         this.node = node;
-        // Don't need to full re-render React if content is handled by ProseMirror
-        // But we might want to update the header if language changed
         this.render();
         return true;
     }
@@ -72,8 +70,6 @@ export class CodeBlockNodeView implements NodeView {
     // Only block specific UI interactions
     stopEvent(event: Event) {
         const target = event.target as HTMLElement;
-        // Allow buttons (copy/download/collapse) to work without triggering editor selection changes
-        // Dropdown menu items are in a portal, so they won't trigger this anyway.
         if (target.closest('button')) return true;
         return false;
     }

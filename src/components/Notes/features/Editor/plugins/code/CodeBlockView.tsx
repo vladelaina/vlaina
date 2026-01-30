@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Node } from '@milkdown/kit/prose/model';
 import { EditorView } from '@milkdown/kit/prose/view';
-import { MdCheck, MdContentCopy, MdOutlineFileDownload, MdExpandMore, MdExpandLess, MdAutoAwesome, MdSearch, MdCode } from 'react-icons/md';
+import { MdCheck, MdContentCopy, MdMoreHoriz, MdAutoAwesome, MdSearch, MdCode, MdShare } from 'react-icons/md';
 import { SUPPORTED_LANGUAGES, normalizeLanguage } from '../../utils/shiki';
 import { guessLanguage } from '../../utils/languageGuesser';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -69,19 +69,11 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownload = (e: React.MouseEvent) => {
+  const handleShare = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const code = node.textContent;
-    const blob = new Blob([code], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `snippet.${language}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Placeholder for share functionality
+    console.log('Share code block:', node.textContent);
   };
 
   const toggleCollapse = (e: React.MouseEvent) => {
@@ -113,9 +105,10 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
   return (
     <div 
       ref={headerRef} 
-      className="flex items-center justify-between px-4 py-2 bg-white dark:bg-[#1e1e1e] select-none rounded-t-xl transition-all h-[40px]"
+      onClick={toggleCollapse}
+      className="flex items-center justify-between px-4 py-2 bg-white dark:bg-[#1e1e1e] select-none rounded-t-xl transition-all h-[40px] cursor-pointer"
     >
-        <div className="flex items-center gap-2.5 text-gray-600 dark:text-zinc-400 h-full">
+        <div className="flex items-center gap-2.5 text-gray-600 dark:text-zinc-400 h-full" onClick={(e) => e.stopPropagation()}>
           <DropdownMenu onOpenChange={(open) => !open && setSearchTerm('')}>
             <DropdownMenuTrigger asChild>
               <div className="flex items-center gap-2 group/lang cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800/50 px-2 py-1 rounded-md transition-colors select-none">
@@ -177,23 +170,27 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
         
         <div className="flex items-center gap-1">
             <button 
-                onClick={handleDownload}
-                className={cn("flex items-center justify-center size-8 rounded-full p-0 leading-none", iconButtonStyles)}
-            >
-                <MdOutlineFileDownload className="size-[18px] block" />
-            </button>
-            <button 
                 onClick={handleCopy}
                 className={cn("flex items-center justify-center size-8 rounded-full p-0 leading-none", iconButtonStyles, copied && "text-green-500 hover:text-green-600")}
             >
                 {copied ? <MdCheck className="size-[18px] block" /> : <MdContentCopy className="size-[18px] block" />}
             </button>
-            <button 
-                onClick={toggleCollapse}
-                className={cn("flex items-center justify-center size-8 rounded-full p-0 leading-none", iconButtonStyles)}
-            >
-                {isCollapsed ? <MdExpandMore className="size-[18px] block" /> : <MdExpandLess className="size-[18px] block" />}
-            </button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <button 
+                        onClick={(e) => e.stopPropagation()}
+                        className={cn("flex items-center justify-center size-8 rounded-full p-0 leading-none", iconButtonStyles)}
+                    >
+                        <MdMoreHoriz className="size-[18px] block" />
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-32">
+                     <DropdownMenuItem onClick={handleShare} className="cursor-pointer text-xs">
+                        <MdShare className="mr-2 size-[18px]" />
+                        <span>Share</span>
+                     </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     </div>
   );
