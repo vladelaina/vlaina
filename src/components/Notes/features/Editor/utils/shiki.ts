@@ -50,7 +50,6 @@ export const SUPPORTED_LANGUAGES: { id: BundledLanguage; name: string; aliases?:
   { id: 'erlang', name: 'Erlang', aliases: ['erl'] },
   { id: 'clojure', name: 'Clojure', aliases: ['clj'] },
   { id: 'lisp', name: 'Lisp' },
-  { id: 'fortran', name: 'Fortran' },
   { id: 'julia', name: 'Julia', aliases: ['jl'] },
   { id: 'matlab', name: 'Matlab' },
   { id: 'objective-c', name: 'Objective-C', aliases: ['objc'] },

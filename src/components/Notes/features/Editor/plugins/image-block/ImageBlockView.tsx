@@ -14,7 +14,7 @@ import { ImageCropper } from './components/ImageCropper';
 // Hooks & Utils
 import { useLocalImage } from './hooks/useLocalImage';
 import { parseCropFragment, generateCropFragment, CropParams } from './utils/cropUtils';
-import { moveImageToTrash, ensureImageFileExists } from './utils/fileUtils';
+import { ensureImageFileExists } from './utils/fileUtils';
 
 interface ImageBlockProps {
     node: Node;
@@ -88,7 +88,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     // --- Data Resolution ---
     const { baseSrc, params: initialParams } = useMemo(() => parseCropFragment(node.attrs.src || ''), [node.attrs.src]);
-    const { resolvedSrc, error: loadError, isLoading } = useLocalImage(baseSrc, notesPath, currentNotePath);
+    const { resolvedSrc, error: loadError } = useLocalImage(baseSrc, notesPath, currentNotePath);
 
     // Sync crop params state with URL changes
     useEffect(() => {

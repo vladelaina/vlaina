@@ -1,6 +1,5 @@
 // Calendar module exports
 export { CalendarView } from './CalendarView';
-export { ViewSwitcher as CalendarToolbar } from './features/ViewSwitcher';
 // CalendarSidebar wrapper with proper padding
 export { CalendarSidebarWrapper as CalendarSidebar } from './features/Sidebar/CalendarSidebarWrapper';
 

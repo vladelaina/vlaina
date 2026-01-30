@@ -23,7 +23,7 @@ export const imageNodeViewPlugin = $prose(() => {
                 }
             }
         },
-        appendTransaction: (transactions, oldState, newState) => {
+        appendTransaction: (transactions, oldState) => {
             const { notesPath, currentNote } = useNotesStore.getState();
             if (!notesPath) return null;
 
@@ -122,7 +122,6 @@ export const imageKeymapPlugin = $prose(() => {
                     // 2. Select the image in the previous paragraph
                     // Position of image is: Start of Prev Paragraph + 1
                     // Start of Prev Paragraph = Start of Current Paragraph - Prev Node Size
-                    const currBlockStart = $from.start($from.depth); // pos inside start of P2
                     // Wait, $from.before() is pos BEFORE P2 (start of P2 node)
                     
                     const p2Pos = $from.before(); 

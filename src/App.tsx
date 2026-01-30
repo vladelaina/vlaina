@@ -25,7 +25,6 @@ import { CalendarHeaderControl } from '@/components/Calendar/features/Grid/Calen
 import { NotesTabRow } from '@/components/Notes/features/Tabs/NotesTabRow';
 
 // Stores & Hooks
-import { useGroupStore } from '@/stores/useGroupStore';
 import { useCalendarEventsStore } from '@/stores/calendarEventsSlice';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';

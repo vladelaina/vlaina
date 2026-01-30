@@ -38,7 +38,6 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     const lastPercentageCrop = useRef<any>(null);
     const originalAspectRatioRef = useRef<number>(1);
     const mediaSizeRef = useRef<{ naturalWidth: number; naturalHeight: number } | null>(null);
-    const [isCropperReady, setIsCropperReady] = useState(false);
     
     // Ctrl key state for panning access
     const [isCtrlPressed, setIsCtrlPressed] = useState(false);
@@ -225,8 +224,6 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
             setZoom(coverZoom);
             setCrop({ x: 0, y: 0 });
         }
-
-        setIsCropperReady(true);
     }, [containerSize, initialCropParams]);
 
     const handleCancel = (e: React.MouseEvent) => {

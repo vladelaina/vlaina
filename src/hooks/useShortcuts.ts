@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
-import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore as useAppUIStore } from '@/stores/uiSlice';
 import { getShortcuts, getKeysFromEvent, matchShortcut, ShortcutScope, ShortcutHandler } from '@/lib/shortcuts';
@@ -15,7 +14,6 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
   const { scope = 'global', handlers: extraHandlers = {} } = options;
   
   const { activeGroupId, archiveCompletedTasks, setActiveGroup } = useGroupStore();
-  const undoLastAction = useUnifiedStore(state => state.undo);
   const { toggleDrawer } = useUIStore();
   const { createNote, currentNote } = useNotesStore();
   const { appViewMode, toggleSidebar } = useAppUIStore();
@@ -50,16 +48,6 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
         return;
       }
       
-      if (e.ctrlKey && e.key === 'z' && !e.shiftKey && !e.altKey) {
-        const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-          return;
-        }
-        e.preventDefault();
-        undoLastAction();
-        return;
-      }
-
       const pressedKeys = getKeysFromEvent(e);
       if (pressedKeys.length < 2) return;
       
@@ -83,5 +71,5 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [scope, appViewMode, handlers, undoLastAction]);
+  }, [scope, appViewMode, handlers]);
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useCalendarStore } from '@/stores/useCalendarStore';
