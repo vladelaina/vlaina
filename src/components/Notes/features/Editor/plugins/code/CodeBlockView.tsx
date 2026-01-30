@@ -147,7 +147,7 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
       onClick={toggleCollapse}
       className="flex items-center justify-between px-4 py-2 bg-white dark:bg-[#1e1e1e] select-none rounded-t-xl transition-all h-[40px] cursor-pointer"
     >
-        <div className="flex items-center gap-2.5 h-full" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2.5" onClick={(e) => e.stopPropagation()}>
           <DropdownMenu 
             open={isLangMenuOpen} 
             onOpenChange={(open) => {
@@ -156,16 +156,19 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
             }}
           >
             <DropdownMenuTrigger asChild>
-              <div className="flex items-center gap-2 group/lang cursor-pointer py-1 transition-colors select-none">
-                {getLanguageLogo(language) ? (
-                  <img 
-                    src={getLanguageLogo(language)?.url} 
-                    className={cn("size-[18px] object-contain", getLanguageLogo(language)?.className)} 
-                    alt={displayName}
-                  />
-                ) : (
-                  <MdCode className="size-[18px] text-zinc-400 group-hover/lang:text-zinc-900 dark:group-hover/lang:text-zinc-100 transition-colors" />
-                )}
+              <div className="flex items-center gap-2 group/lang cursor-pointer transition-colors select-none">
+                <div className="size-[18px] flex items-center justify-center flex-shrink-0 overflow-hidden rounded-none">
+                  {getLanguageLogo(language) ? (
+                    <img 
+                      src={getLanguageLogo(language)?.url} 
+                      className={cn("w-full h-full object-contain block rounded-none", getLanguageLogo(language)?.className)} 
+                      alt={displayName}
+                      style={{ borderRadius: '0' }}
+                    />
+                  ) : (
+                    <MdCode className="size-[18px] text-zinc-400 group-hover/lang:text-zinc-900 dark:group-hover/lang:text-zinc-100 transition-colors" />
+                  )}
+                </div>
                 <span className="text-sm font-medium text-zinc-500 group-hover/lang:text-zinc-900 dark:group-hover/lang:text-zinc-100 transition-colors">
                   {displayName}
                 </span>
@@ -215,9 +218,9 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
                         )}
                       >
                         {logo ? (
-                          <img src={logo.url} className={cn("size-4 object-contain", logo.className)} alt={lang.name} />
+                          <img src={logo.url} className={cn("size-4 object-contain flex-shrink-0", logo.className)} alt={lang.name} />
                         ) : (
-                          <div className="size-4 flex items-center justify-center">
+                          <div className="size-4 flex items-center justify-center flex-shrink-0">
                             <MdCode className="size-3.5 opacity-40" />
                           </div>
                         )}
