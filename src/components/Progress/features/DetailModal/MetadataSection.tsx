@@ -264,7 +264,7 @@ function ResetField({
         >
           {resetFrequency === 'daily' ? (
             <MdRefresh
-              className="size-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors"
+              className="size-[18px] text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors"
             />
           ) : (
             <span className="text-xl font-medium text-zinc-200 dark:text-zinc-700 group-hover:text-zinc-400 transition-colors">

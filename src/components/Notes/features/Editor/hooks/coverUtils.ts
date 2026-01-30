@@ -175,4 +175,3 @@ export function calculateCropPercentage(
         y: Math.max(0, Math.min(100, percentY))
     };
 }
-

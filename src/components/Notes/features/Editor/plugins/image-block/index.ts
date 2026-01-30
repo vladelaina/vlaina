@@ -144,4 +144,3 @@ export const imageKeymapPlugin = $prose(() => {
 
 // Export as array for easy spreading in editor config
 export const imageBlockPlugin = [imageNodeViewPlugin, imageKeymapPlugin];
-

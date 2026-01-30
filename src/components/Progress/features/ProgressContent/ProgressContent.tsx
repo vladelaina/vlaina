@@ -123,4 +123,3 @@ export function ProgressContent({ compact = false }: ProgressContentProps) {
     </div>
   );
 }
-

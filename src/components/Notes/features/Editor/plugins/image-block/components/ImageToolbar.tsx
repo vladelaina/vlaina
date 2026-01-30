@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MdFormatAlignLeft, MdFormatAlignCenter, MdFormatAlignRight, MdCrop, MdContentCopy, MdCheck, MdDownload, MdDelete } from 'react-icons/md';
+import { MdFormatAlignLeft,  MdFormatAlignCenter,  MdFormatAlignRight,  MdCrop,  MdContentCopy,  MdCheck,  MdOutlineFileDownload  } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { IconButton } from '@/components/ui/icon-button';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 
 interface ImageToolbarProps {
     alignment: 'left' | 'center' | 'right';
@@ -72,13 +73,13 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
                     onClick={handleCopy} 
                     success={copied}
                 />
-                <ToolbarButton icon={<MdDownload className="size-[18px]" />} onClick={onDownload} />
+                <ToolbarButton icon={<MdOutlineFileDownload className="size-[18px]" />} onClick={onDownload} />
             </div>
 
             <div className="w-[1px] h-[18px] bg-gray-200 dark:bg-zinc-700 mx-1" />
 
             <div className="flex items-center gap-0.5">
-                <ToolbarButton icon={<MdDelete className="size-[18px]" />} onClick={onDelete} danger />
+                <ToolbarButton icon={<DeleteIcon className="size-[18px]" />} onClick={onDelete} danger />
             </div>
         </div>
     );

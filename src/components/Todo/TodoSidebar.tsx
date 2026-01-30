@@ -6,7 +6,6 @@ import {
     MdAssignment,
     MdAdd,
     MdMoreHoriz,
-    MdDelete,
     MdFolder,
     MdChevronRight,
     MdExpandMore,
@@ -22,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { getTodayKey, formatDateKey } from '@/lib/date';
 import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
 import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 
 export function TodoSidebar() {
     const { 
@@ -295,7 +295,7 @@ export function TodoSidebar() {
                                                         onClick={() => deleteGroup(group.id)}
                                                         className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors text-left"
                                                     >
-                                                        <MdDelete className="size-[18px]" />
+                                                        <DeleteIcon className="size-[18px]" />
                                                         Delete
                                                     </button>
                                                 </PopoverContent>

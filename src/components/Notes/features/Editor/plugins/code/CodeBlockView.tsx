@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Node } from '@milkdown/kit/prose/model';
 import { EditorView } from '@milkdown/kit/prose/view';
-import { MdCheck, MdContentCopy, MdDownload, MdExpandMore, MdExpandLess, MdAutoAwesome, MdSearch, MdCode } from 'react-icons/md';
+import { MdCheck, MdContentCopy, MdOutlineFileDownload, MdExpandMore, MdExpandLess, MdAutoAwesome, MdSearch, MdCode } from 'react-icons/md';
 import { SUPPORTED_LANGUAGES, normalizeLanguage } from '../../utils/shiki';
 import { guessLanguage } from '../../utils/languageGuesser';
 import { cn } from '@/lib/utils';
@@ -180,7 +180,7 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
                 className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 transition-colors"
                 title="Download"
             >
-                <MdDownload size={18} />
+                <MdOutlineFileDownload size={18} />
             </button>
             <button 
                 onClick={handleCopy}

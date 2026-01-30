@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MdContentCut, MdContentCopy, MdAddToPhotos, MdDelete, MdCheck, MdPlayArrow, MdPause, MdStop } from 'react-icons/md';
+import { MdContentCut,  MdContentCopy,  MdAddToPhotos,  MdCheck,  MdPlayArrow,  MdPause,  MdStop  } from 'react-icons/md';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { CONTEXT_MENU_COLORS, type ItemColor } from '@/lib/colors';
 import { IconSelector } from '@/components/common';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 
 interface EventContextMenuProps {
   eventId: string;
@@ -184,7 +185,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
           onClick={handleDelete}
           className="w-full px-4 py-2 flex items-center gap-3 text-sm text-red-400 hover:bg-zinc-800"
         >
-          <MdDelete className="size-[18px]" />
+          <DeleteIcon className="size-[18px]" />
           <span className="flex-1 text-left">Delete</span>
           <span className="text-zinc-500 text-xs">Del</span>
         </button>

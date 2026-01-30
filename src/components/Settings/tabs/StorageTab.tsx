@@ -36,7 +36,7 @@ export function StorageTab() {
         </label>
         
         <div className="flex items-center gap-3 p-3 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-          <MdMonitor className="size-5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" />
+          <MdMonitor className="size-[18px] text-zinc-500 dark:text-zinc-400 flex-shrink-0" />
           <code className="text-xs text-zinc-600 dark:text-zinc-300 break-all font-mono flex-1">
             {storagePath}
           </code>

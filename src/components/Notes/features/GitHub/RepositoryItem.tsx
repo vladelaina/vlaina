@@ -7,24 +7,22 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import {
-    MdMoreHoriz,
-    MdRefresh,
-    MdOpenInNew,
-    MdDelete,
-    MdUpload,
-    MdDownload,
-    MdCloud,
-    MdCloudUpload,
-    MdCloudSync,
-    MdError,
-    MdCloudOff,
-} from 'react-icons/md';
+import { MdMoreHoriz, 
+    MdRefresh, 
+    MdOpenInNew, 
+    MdUpload, 
+    MdOutlineFileDownload, 
+    MdCloud, 
+    MdCloudUpload, 
+    MdCloudSync, 
+    MdError, 
+    MdCloudOff } from 'react-icons/md';
 import { ToggleIcon } from '@/components/common/ToggleIcon';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { type RepositoryInfo } from '@/lib/tauri/invoke';
 import { LocalFileTree } from './LocalFileTree';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 
 interface RepositoryItemProps {
     repository: RepositoryInfo;
@@ -210,7 +208,7 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
                             disabled={isSyncing || !repoIsCloned}
                         />
                         <MenuItem
-                            icon={<MdDownload />}
+                            icon={<MdOutlineFileDownload />}
                             label="Pull from Remote"
                             onClick={handlePull}
                             disabled={isSyncing || !repoIsCloned}
@@ -229,7 +227,7 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
                         />
                         <div className="h-px bg-[var(--neko-divider)] my-1.5 mx-2" />
                         <MenuItem
-                            icon={<MdDelete />}
+                            icon={<DeleteIcon />}
                             label="Remove from List"
                             onClick={handleRemove}
                             danger
@@ -285,7 +283,7 @@ function MenuItem({
                 disabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
             )}
         >
-            <span className="w-[18px] h-[18px] flex items-center justify-center">
+            <span className="w-[18px] h-[18px] flex items-center justify-center [&>svg]:w-[18px] [&>svg]:h-[18px]">
                 {icon}
             </span>
             {label}

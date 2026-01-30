@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { MdClose, MdDelete } from 'react-icons/md';
+import { MdClose  } from 'react-icons/md';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 
 interface DeletableItemProps {
     id: string;
@@ -69,7 +70,7 @@ export function DeletableItem({
                 // But wrapper has onClick={handleClick} which handles the logic.
                 >
                     <div className="text-red-500 transition-all active:scale-90 pointer-events-none">
-                        <MdDelete size={24} />
+                        <DeleteIcon size={24} />
                     </div>
                 </div>
             ) : (

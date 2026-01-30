@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { MdContentCopy, MdEdit, MdCheck, MdDelete, MdLinkOff, MdOpenInNew } from 'react-icons/md';
+import { MdContentCopy, MdEdit, MdCheck, MdLinkOff, MdOpenInNew } from 'react-icons/md';
 import { IconButton } from '@/components/ui/icon-button';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 import {
     Tooltip,
     TooltipContent,
@@ -211,7 +212,7 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
                                 onClick={() => handleSaveEdit(false)}
                                 className="flex items-center justify-center size-8 text-[var(--neko-accent)] hover:opacity-80 rounded-full transition-all flex-shrink-0"
                             >
-                                <MdCheck className="size-5" />
+                                <MdCheck className="size-[18px]" />
                             </button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">Save changes</TooltipContent>
@@ -275,7 +276,7 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
 
                 <IconButton
                     onClick={onRemove}
-                    icon={<MdDelete className="size-[18px]" />}
+                    icon={<DeleteIcon className="size-[18px]" />}
                     className="hover:text-red-500"
                 />
             </div>

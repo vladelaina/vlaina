@@ -330,7 +330,7 @@ export function ProgressPage() {
                             title="Back to List"
                           >
                             <MdArrowBack 
-                              className="size-5 text-zinc-400 group-hover:text-zinc-900 dark:text-zinc-500 dark:group-hover:text-zinc-100 transition-colors duration-300 transform group-hover:-translate-x-1" 
+                              className="size-[18px] text-zinc-400 group-hover:text-zinc-900 dark:text-zinc-500 dark:group-hover:text-zinc-100 transition-colors duration-300 transform group-hover:-translate-x-1" 
                             />
                           </button>
 

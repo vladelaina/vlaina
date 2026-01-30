@@ -95,7 +95,7 @@ export function ImagesTab() {
 
                                 {/* Icon */}
                                 <Icon className={cn(
-                                    "size-5 flex-shrink-0 mt-0.5",
+                                    "size-[18px] flex-shrink-0 mt-0.5",
                                     isSelected ? "text-blue-600 dark:text-blue-400" : "text-zinc-400"
                                 )} />
 

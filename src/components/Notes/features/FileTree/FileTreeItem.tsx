@@ -7,7 +7,6 @@ import {
   MdChevronRight,
   MdExpandMore,
   MdMoreHoriz,
-  MdDelete,
   MdEdit,
   MdDescription,
   MdFolder,
@@ -23,6 +22,7 @@ import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { useDisplayName, useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn, iconButtonStyles, NOTES_COLORS } from '@/lib/utils';
 import { NoteIcon } from '../IconPicker/NoteIcon';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 import {
   Dialog,
   DialogContent,
@@ -370,7 +370,7 @@ export const FileTreeItem = React.memo(function FileTreeItem({ node, depth, curr
                 />
                 <div className="h-px bg-[var(--neko-border)] my-1 mx-1" />
                 <MenuItem
-                  icon={<MdDelete />}
+                  icon={<DeleteIcon />}
                   label="Move to trash"
                   onClick={handleDeleteClick}
                   danger

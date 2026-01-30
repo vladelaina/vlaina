@@ -89,11 +89,11 @@ export function SyncButton({ className }: SyncButtonProps) {
       >
         {/* Main icon */}
         {isSyncing || animating ? (
-          <MdRefresh className="size-5 animate-spin" />
+          <MdRefresh className="size-[18px] animate-spin" />
         ) : isError ? (
-          <MdCloudOff className="size-5" />
+          <MdCloudOff className="size-[18px]" />
         ) : (
-          <MdCloud className="size-5" />
+          <MdCloud className="size-[18px]" />
         )}
         
         {/* Error indicator dot */}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MdOpenInNew, MdCloud, MdCloudOff, MdRefresh, MdDownload, MdError } from 'react-icons/md';
+import { MdOpenInNew, MdCloud, MdCloudOff, MdRefresh, MdOutlineFileDownload, MdError } from 'react-icons/md';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
@@ -84,9 +84,9 @@ export function AboutTab() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {isConnected ? (
-                <MdCloud className="size-5 text-green-500" />
+                <MdCloud className="size-[18px] text-green-500" />
               ) : (
-                <MdCloudOff className="size-5 text-zinc-400" />
+                <MdCloudOff className="size-[18px] text-zinc-400" />
               )}
               <div>
                 <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
@@ -150,7 +150,7 @@ export function AboutTab() {
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 rounded-md transition-colors disabled:opacity-50"
                       title="Restore from cloud backup"
                     >
-                      <MdDownload className="size-[18px]" />
+                      <MdOutlineFileDownload className="size-[18px]" />
                       Restore
                     </button>
                   )}

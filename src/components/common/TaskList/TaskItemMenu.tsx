@@ -1,10 +1,11 @@
 import { useRef, useEffect, useState } from 'react';
-import { MdMoreHoriz, MdAdd, MdArchive, MdDelete } from 'react-icons/md';
+import { MdMoreHoriz,  MdAdd,  MdArchive  } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { parseDuration, formatDuration } from '@/lib/time';
 import { ColorPicker } from '@/components/common/ColorPicker';
 import type { Task } from '@/stores/useGroupStore';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 
 function formatEstimatedTimeForInput(minutes: number | undefined): string {
     if (!minutes) return '';
@@ -169,7 +170,7 @@ export function TaskItemMenu({
                         }}
                         className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
                     >
-                        <MdDelete className="w-[18px] h-[18px]" />
+                        <DeleteIcon className="w-[18px] h-[18px]" />
                         <span>Delete</span>
                     </button>
                 </div>

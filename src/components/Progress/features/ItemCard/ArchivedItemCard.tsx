@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
-import { MdRefresh, MdDelete } from 'react-icons/md';
+import { MdRefresh  } from 'react-icons/md';
 import { AppIcon } from '@/components/common/AppIcon';
 import { ItemCardProps } from './types';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 
 export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previewIcon, previewTitle, compact }: ItemCardProps) {
   const displayIcon = previewIcon !== undefined ? previewIcon : item.icon;
@@ -122,26 +123,17 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
               `}
               title="Restore to active list"
             >
-              <MdRefresh className={compact ? 'size-[18px]' : 'size-5'} />
+              <MdRefresh className="size-[18px]" />
             </button>
-
-            {/* Delete - The Final Release */}
             <button
               onClick={(e) => {
-                e.stopPropagation();
-                onDelete?.(item.id);
+                 e.stopPropagation();
+                 onDelete?.(item.id);
               }}
-              className={`
-                ${compact ? 'p-1.5' : 'p-2.5'} rounded-full
-                text-zinc-300 dark:text-zinc-600
-                hover:bg-red-50 dark:hover:bg-red-900/20
-                hover:text-red-500 dark:hover:text-red-400
-                hover:shadow-sm
-                transition-all duration-300
-              `}
-              title="Delete permanently"
+              className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+              title="Delete forever"
             >
-              <MdDelete className={compact ? 'size-[18px]' : 'size-5'} />
+              <DeleteIcon className="size-[18px]" />
             </button>
          </div>
       </motion.div>
