@@ -1,3 +1,8 @@
+
+
+<img width="2048" height="1152" alt="Gemini_Generated_Image_5y7o385y7o385y7o" src="https://github.com/user-attachments/assets/ec93951f-ace4-4af8-a5a2-e84225dfaf8c" />
+
+
 # NekoTick
 
 ## ⚖️ License & Copyright
@@ -32,5 +37,6 @@ If you are working on multiple features simultaneously using `git worktree` or o
 ```bash
 pnpm dev:dynamic
 ```
+
 
 This command automatically detects available ports to prevent conflicts and synchronizes configurations between Vite and Tauri. This is a recommended practice for maintaining a smooth development workflow across different environments and OS (Windows/macOS/Linux).
