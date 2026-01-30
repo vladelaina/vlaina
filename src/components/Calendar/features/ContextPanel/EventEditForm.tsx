@@ -36,17 +36,14 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Global Icon Upload
   const { customIcons, onUploadFile, onDeleteCustomIcon } = useGlobalIconUpload();
   const imageLoader = useCallback(async (src: string) => {
       if (!src.startsWith('img:')) return src;
       return await loadImageAsBlob(src.substring(4));
   }, []);
 
-  // Auto-focus for new events & Height Adjustment
   useEffect(() => {
     if (inputRef.current) {
-        // Reset height to auto to correctly calculate scrollHeight for shrinkage
         inputRef.current.style.height = 'auto';
         inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
         
@@ -54,9 +51,8 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
             inputRef.current.focus();
         }
     }
-  }, [localSummary]); // Re-run on summary change
+  }, [localSummary]);
 
-  // Time formatting
   const startDate = event.dtstart;
   const endDate = event.dtend;
   const durationMs = endDate.getTime() - startDate.getTime();
@@ -69,13 +65,12 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
     return `${durationMinutes}m`;
   };
 
-  // Floating mode position calculation
   const getFloatingStyle = () => {
     if (mode !== 'floating' || !position) return {};
     const windowHeight = window.innerHeight;
     const windowWidth = window.innerWidth;
     const panelWidth = 280;
-    const panelHeight = 400; // Increased height for new layout
+    const panelHeight = 400;
 
     let top = position.y;
     let left = position.x + 20;
@@ -99,22 +94,19 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
       style={mode === 'floating' ? getFloatingStyle() : undefined}
       className={containerClass}
     >
-      {/* Hero Header Section */}
       <HeroIconHeader
         id={event.uid}
         icon={localIcon}
         onIconChange={handleIconChange}
         onColorChange={handleColorChange}
         initialColor={currentColor as ItemColor}
-        className="px-3 pb-0 max-w-none mx-0" // Compact layout
+        className="px-3 pb-0 max-w-none mx-0"
         compact={true}
         
-        // Compact Icon Size
         iconSize={32} 
         minIconSize={20}
         maxIconSize={150}
         
-        // Render Title with Color Indicator
         renderTitle={() => (
             <div className="flex items-center gap-2 w-full">
                 <textarea
@@ -139,10 +131,8 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         imageLoader={imageLoader}
       />
 
-      {/* Content Area */}
       <div className={`px-3 pb-3 flex-1 overflow-y-auto neko-scrollbar`}>
         
-        {/* Size Slider (between Header and Color) */}
         <div className="mb-4 px-1" data-prevent-picker-close="true">
             <PremiumSlider
                 min={20}
@@ -153,7 +143,6 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
             />
         </div>
 
-        {/* Color picker row */}
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider w-10">Color</span>
           <ColorPicker
@@ -164,10 +153,8 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
           />
         </div>
 
-        {/* Divider */}
         <div className="h-px bg-zinc-100 dark:bg-zinc-800/50 my-2" />
 
-        {/* All-day toggle */}
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 flex justify-center">
              <MdWbSunny className="size-3.5 text-zinc-400" />
@@ -175,7 +162,6 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
           <button
             onClick={() => {
               if (event.allDay) {
-                // Switch to Timed: Try to restore original time
                 let newStart = new Date(event.dtstart);
                 let newEnd = new Date(event.dtstart);
                 
@@ -184,11 +170,9 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
                     const originalEnd = new Date(event.originalDtEnd);
                     const duration = originalEnd.getTime() - originalStart.getTime();
                     
-                    // Apply original TIME to current DATE
                     newStart.setHours(originalStart.getHours(), originalStart.getMinutes(), 0, 0);
                     newEnd = new Date(newStart.getTime() + duration);
                 } else {
-                    // Fallback default
                     newStart.setHours(9, 0, 0, 0);
                     newEnd = new Date(newStart);
                     newEnd.setHours(10, 0, 0, 0);
@@ -202,7 +186,6 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
                   originalDtEnd: undefined,
                 });
               } else {
-                // Switch to All Day: Backup current time
                 updateEvent(event.uid, {
                   allDay: true,
                   dtstart: startOfDay(startDate),
@@ -234,7 +217,6 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
           </button>
         </div>
 
-        {/* Time */}
         {!event.allDay && (
           <div className="flex items-start gap-2 mb-3">
             <div className="w-8 flex justify-center mt-0.5">

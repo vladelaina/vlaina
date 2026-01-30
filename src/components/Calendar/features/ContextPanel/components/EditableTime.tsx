@@ -1,10 +1,3 @@
-/**
- * EditableTime - Inline editable time input component
- * 
- * Displays time as a clickable button that transforms into an input field
- * for editing. Supports natural time parsing (e.g., "3p", "15:30").
- */
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { format, setHours, setMinutes } from 'date-fns';
 import { parseClockTime } from '@/lib/time';
@@ -78,7 +71,6 @@ export function EditableTime({
     if (isEditing) {
         return (
             <div className="relative">
-                {/* Parse preview */}
                 <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[10px] rounded whitespace-nowrap bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300">
                     {parsedPreview.text}
                 </div>

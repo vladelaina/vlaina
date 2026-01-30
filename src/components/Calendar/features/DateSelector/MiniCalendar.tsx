@@ -13,7 +13,6 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
   const { selectedDate, setSelectedDate, allEvents } = useCalendarStore();
   const [currentMonth, setCurrentMonth] = useState(selectedDate);
 
-  // Sync current month when selected date changes
   useEffect(() => {
     setCurrentMonth(selectedDate);
   }, [selectedDate]);
@@ -25,16 +24,15 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
 
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-  // Pre-calculate incomplete events by date for density display
   const eventsByDate = useMemo(() => {
     const map = new Map<string, typeof allEvents>();
     if (!allEvents) return map;
 
     for (const event of allEvents) {
-      if (event.completed) continue; // Only show incomplete tasks
+      if (event.completed) continue;
       
       const date = event.dtstart;
-      if (!date || isNaN(date.getTime())) continue; // Skip invalid dates
+      if (!date || isNaN(date.getTime())) continue;
 
       const dateStr = format(date, 'yyyy-MM-dd');
       if (!map.has(dateStr)) {
@@ -43,7 +41,6 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
       map.get(dateStr)!.push(event);
     }
     
-    // Sort events by priority for consistent display order
     for (const [_, events] of map) {
       events.sort((a, b) => getColorPriority(a.color) - getColorPriority(b.color));
     }
@@ -76,7 +73,6 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
 
     if (count === 0) return null;
 
-    // 1-3 Events: Dots
     if (count <= 3) {
       return (
         <div className="flex gap-0.5 mt-0.5">
@@ -91,8 +87,6 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
       );
     }
 
-    // >3 Events: Color Bar (Spectrum/Barcode style)
-    // Fixed length, every task is a slice. High density = thin slices.
     return (
       <div className="flex w-5 h-1 rounded-full overflow-hidden mt-0.5 min-w-[20px]">
         {events.map((event) => (
@@ -108,9 +102,7 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
 
   return (
     <div className="flex flex-col gap-4 font-sans">
-      {/* Calendar Widget */}
       <div className="select-none">
-        {/* Month/Year and Navigation */}
         <div className="flex items-center justify-between mb-3 pl-1">
           <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-300">
             {format(currentMonth, 'MMMM yyyy')}
@@ -140,7 +132,6 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
           </div>
         </div>
 
-        {/* Days Header - Weekday names */}
         <div className="grid grid-cols-7 text-center mb-1">
           {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
             <div key={i} className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500">
@@ -149,7 +140,6 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
           ))}
         </div>
 
-        {/* Days Grid */}
         <div className="grid grid-cols-7 gap-y-1">
           {days.map((day) => {
             const isToday = isSameDay(day, new Date());
@@ -175,7 +165,6 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
                   <span className="h-6 flex items-center justify-center shrink-0">{format(day, 'd')}</span>
                 )}
                 
-                {/* Density Indicators */}
                 {renderIndicators(day)}
                 
               </div>
@@ -184,7 +173,6 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
         </div>
       </div>
 
-      {/* Color Filter */}
       <ColorFilter />
     </div>
   );

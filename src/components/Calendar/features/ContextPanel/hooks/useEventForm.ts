@@ -6,7 +6,6 @@ import { type ItemColor, COLOR_HEX } from '@/lib/colors';
 export function useEventForm(event: NekoEvent) {
     const { updateEvent, closeEditingEvent, calendars, deleteEvent } = useCalendarStore();
     
-    // Use unified preview hook
     const { handlePreview, handlePreviewColor, handlePreviewSize } = useIconPreview(event.uid);
 
     const [localSummary, setLocalSummary] = useState(event.summary || '');
@@ -17,26 +16,21 @@ export function useEventForm(event: NekoEvent) {
 
     const currentCalendar = calendars.find(c => c.id === event.calendarId) || calendars[0];
 
-    // Sync state when switching events
     useEffect(() => {
         setLocalSummary(event.summary || '');
         setLocalIcon(event.icon || null);
         isNewEvent.current = !(event.summary || '').trim();
-    }, [event.uid, event.summary, event.icon]); // Sync on changes
+    }, [event.uid, event.summary, event.icon]);
 
-    // Helper to save immediately
     const saveSummary = useCallback((value: string) => {
         updateEvent(event.uid, { summary: value });
     }, [event.uid, updateEvent]);
 
-    // Handle close / completion logic
     const handleClose = useCallback(() => {
-        // Clear debounce
         if (debouncedUpdateSummary.current) {
             clearTimeout(debouncedUpdateSummary.current);
         }
 
-        // Check final state
         if (!localSummary.trim()) {
             deleteEvent(event.uid);
         } else if (localSummary !== event.summary) {
@@ -49,25 +43,19 @@ export function useEventForm(event: NekoEvent) {
         closeEditingEvent();
     }, [event.uid, event.summary, localSummary, deleteEvent, closeEditingEvent, handlePreview, handlePreviewColor, handlePreviewSize, saveSummary]);
 
-    // Input handlers
     const handleSummaryChange = (newSummary: string) => {
         setLocalSummary(newSummary);
 
-        // Clear previous
         if (debouncedUpdateSummary.current) {
             clearTimeout(debouncedUpdateSummary.current);
         }
 
-        // Set new
         debouncedUpdateSummary.current = setTimeout(() => {
             saveSummary(newSummary);
         }, 500);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        // Allow Enter to be default (newline)
-        // Only close on Escape if needed, but usually Global Hotkeys handle Esc?
-        // Let's keep Esc here just in case the global one doesn't catch focus in textarea
         if (e.key === 'Escape') {
             e.preventDefault();
             handleClose();
@@ -82,7 +70,6 @@ export function useEventForm(event: NekoEvent) {
     const handleColorChange = (color: ItemColor) => {
         const updates: Partial<NekoEvent> = { color };
 
-        // If current icon is a vector icon (icon:name:color), sync its color too
         if (localIcon && localIcon.startsWith('icon:')) {
             const parts = localIcon.split(':');
             if (parts.length >= 2) {
@@ -104,12 +91,10 @@ export function useEventForm(event: NekoEvent) {
         
         const updates: Partial<NekoEvent> = { icon: icon || undefined };
 
-        // Check for color sync: if icon string contains a color (icon:name:hex), try to sync event color
         if (icon && icon.startsWith('icon:')) {
             const parts = icon.split(':');
             if (parts.length >= 3) {
                 const hexColor = parts[2];
-                // Reverse lookup color name from hex
                 const colorEntry = Object.entries(COLOR_HEX).find(([_, hex]) => hex.toLowerCase() === hexColor.toLowerCase());
                 if (colorEntry) {
                     const colorName = colorEntry[0] as ItemColor;

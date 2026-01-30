@@ -13,12 +13,10 @@ export function CalendarView() {
     deleteEvent, toggleComplete
   } = useCalendarStore();
 
-  // Initialize & Hooks
   useEffect(() => { load(); }, [load]);
   useCalendarKeyboard();
   useCalendarZoom();
 
-  // Global click listener for calendar specific logic
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
       if (!editingEventId) return;
@@ -50,7 +48,6 @@ export function CalendarView() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Main Grid Area */}
       <main className="flex-1 min-w-0 flex flex-col relative neko-scrollbar" id="time-grid-container">
         {renderGrid()}
       </main>

@@ -3,28 +3,23 @@ import { DndContext, useSensor, useSensors, PointerSensor } from '@dnd-kit/core'
 import { windowCommands } from '@/lib/tauri/invoke';
 import { isTauri } from '@/lib/storage/adapter';
 
-// Shell & Layout
 import { AppShell } from '@/components/layout/shell/AppShell';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
 import { SettingsModal } from '@/components/Settings';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
 
-// Views
 import { CalendarView } from '@/components/Calendar/CalendarView';
 import { NotesView } from '@/components/Notes/NotesView';
 import { TodoView } from '@/components/Todo/TodoView';
 
-// Sidebar Contents
 import { CalendarSidebarWrapper } from '@/components/Calendar/features/Sidebar/CalendarSidebarWrapper';
 import { TodoSidebar } from '@/components/Todo/TodoSidebar';
 import { NotesSidebarWrapper } from '@/components/Notes/features/Sidebar/NotesSidebarWrapper';
 
-// Header Contents
 import { CalendarHeaderControl } from '@/components/Calendar/features/Grid/CalendarHeaderControl';
 import { NotesTabRow } from '@/components/Notes/features/Tabs/NotesTabRow';
 
-// Stores & Hooks
 import { useCalendarEventsStore } from '@/stores/calendarEventsSlice';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -46,18 +41,15 @@ function AppContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const toggleSettings = useCallback(() => setSettingsOpen(prev => !prev), []);
 
-  // --- Shortcuts ---
   const shortcutHandlers = useMemo(() => ({
     'open-settings': toggleSettings,
   }), [toggleSettings]);
   useShortcuts({ handlers: shortcutHandlers });
   useVimShortcuts();
 
-  // --- Init ---
   useSyncInit();
   const loadCalendarEvents = useCalendarEventsStore(state => state.load);
 
-  // Initialize Vault Store globally
   useEffect(() => {
     initialize();
   }, [initialize]);
@@ -78,7 +70,6 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handleNewWindow);
   }, []);
 
-  // --- Window Unlocker ---
   useEffect(() => {
     if (!isTauri()) return;
     const unlockWindow = async () => {
@@ -97,14 +88,10 @@ function AppContent() {
     unlockWindow();
   }, []);
 
-  // --- DnD Sensors ---
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  // --- View Logic ---
-
-  // 1. Sidebar
   let sidebarContent = null;
   let sidebarPeekContent = null;
 
@@ -117,7 +104,6 @@ function AppContent() {
     sidebarPeekContent = <NotesSidebarWrapper isPeeking={true} />;
   }
 
-  // 2. TitleBar Slots
   let centerSlot = null;
   let rightSlot = null;
 
@@ -129,7 +115,6 @@ function AppContent() {
     centerSlot = <NotesTabRow />;
   }
 
-  // 3. Main Content
   let mainContent = null;
   if (appViewMode === 'calendar') {
     mainContent = <CalendarView />;
@@ -145,7 +130,6 @@ function AppContent() {
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <AppShell
-        // Sidebar Configuration
         sidebarWidth={sidebarWidth}
         sidebarCollapsed={sidebarCollapsed}
         onSidebarWidthChange={setSidebarWidth}
@@ -155,15 +139,7 @@ function AppContent() {
         sidebarContent={sidebarContent}
         sidebarPeekContent={sidebarPeekContent || sidebarContent}
 
-        // TitleBar Configuration
         titleBarLeft={
-          // SidebarUserHeader is persistent across all views (unless we are in No-Vault Notes mode)
-          // But even in No-Vault mode, NotesView renders Welcome screen covering everything.
-          // Wait, AppShell renders TitleBar ON TOP of content.
-          // If !currentVault in Notes, we have sidebarContent = null.
-          // Should we hide TitleBarLeft? 
-          // If we hide it, we lose the window controls? No, window controls are in Right slot/Auto.
-          // Let's hide SidebarUserHeader if no sidebar is shown (e.g. Welcome Screen).
           (appViewMode !== 'notes' || currentVault) ? (
             <SidebarUserHeader
               onOpenSettings={() => setSettingsOpen(true)}
@@ -174,7 +150,6 @@ function AppContent() {
         titleBarCenter={centerSlot}
         titleBarRight={rightSlot}
 
-        // Styles
         backgroundColor="var(--neko-bg-primary)"
       >
         {mainContent}

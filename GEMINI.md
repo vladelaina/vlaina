@@ -23,4 +23,7 @@ If the request would cause the code to violate these thresholds:
     > ⚠️ **Refactoring Recommended**: The target file/function is becoming too complex. I suggest extracting logic into a new [Function/Class/File] named `X` before proceeding.
 * Wait for user confirmation OR provide the refactored solution structure immediately if the user implies autonomy.
 
+
+## Output Completeness **No "Lazy" Placeholders:** * Unless explicitly asked to "summarize" or "show diff only", you must output the **FULL, WORKING code**. * **Strictly Prohibited:** Do not use // ... existing code ... or // ... rest of implementation. * If modifying a large file, output the complete function or the complete file so it can be directly piped/copied.
+
 * **Magic Word:** If I type "Refactor This", you must essentially ignore the functional requirements and focus 100% on reducing complexity, splitting files, and improving readability.
