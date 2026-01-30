@@ -1,14 +1,14 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowDownUp, Check, Clock, Flag, List } from 'lucide-react';
+import { MdSwapVert, MdCheck, MdAccessTime, MdFlag, MdList } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/useGroupStore';
 import { useState, useRef, useEffect } from 'react';
 import type { TaskSortMode } from '@/stores/uiSlice';
 
 const sortOptions: { mode: TaskSortMode; label: string; icon: any }[] = [
-    { mode: 'default', label: 'Manual', icon: List },
-    { mode: 'time', label: 'Time', icon: Clock },
-    { mode: 'priority', label: 'Priority', icon: Flag },
+    { mode: 'default', label: 'Manual', icon: MdList },
+    { mode: 'time', label: 'Time', icon: MdAccessTime },
+    { mode: 'priority', label: 'Priority', icon: MdFlag },
 ];
 
 export function TaskSortMenu() {
@@ -39,7 +39,7 @@ export function TaskSortMenu() {
                 )}
                 title="Sort tasks"
             >
-                <ArrowDownUp className="size-4" />
+                <MdSwapVert className="size-4" />
             </button>
 
             <AnimatePresence>
@@ -68,7 +68,7 @@ export function TaskSortMenu() {
                                         <span>{option.label}</span>
                                     </div>
                                     {taskSortMode === option.mode && (
-                                        <Check className="size-3.5 text-blue-500" />
+                                        <MdCheck className="size-3.5 text-blue-500" />
                                     )}
                                 </button>
                             ))}

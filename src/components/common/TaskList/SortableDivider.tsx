@@ -5,7 +5,7 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ChevronDown, MoreVertical } from 'lucide-react';
+import { MdExpandMore, MdMoreVert } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 
 interface SortableDividerProps {
@@ -55,7 +55,7 @@ export function SortableDivider({
                 onClick={onToggleExpand}
                 className="flex items-center gap-2 group hover:opacity-80 transition-opacity"
             >
-                <ChevronDown className={cn(
+                <MdExpandMore className={cn(
                     "size-3.5 text-zinc-400 transition-transform",
                     !expanded && "-rotate-90"
                 )} />
@@ -80,7 +80,7 @@ export function SortableDivider({
                                 : "text-zinc-300 hover:text-zinc-400 dark:text-zinc-600 dark:hover:text-zinc-500"
                         )}
                     >
-                        <MoreVertical className="size-3.5" />
+                        <MdMoreVert className="size-3.5" />
                     </button>
                     {showMenu && menuContent}
                 </div>

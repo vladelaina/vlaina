@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { RefreshCw, Trash2 } from 'lucide-react';
+import { MdRefresh, MdDelete } from 'react-icons/md';
 import { AppIcon } from '@/components/common/AppIcon';
 import { ItemCardProps } from './types';
 
@@ -122,7 +122,7 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
               `}
               title="Restore to active list"
             >
-              <RefreshCw className={compact ? 'size-4' : 'size-5'} />
+              <MdRefresh className={compact ? 'size-4' : 'size-5'} />
             </button>
 
             {/* Delete - The Final Release */}
@@ -141,7 +141,7 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
               `}
               title="Delete permanently"
             >
-              <Trash2 className={compact ? 'size-4' : 'size-5'} />
+              <MdDelete className={compact ? 'size-4' : 'size-5'} />
             </button>
          </div>
       </motion.div>

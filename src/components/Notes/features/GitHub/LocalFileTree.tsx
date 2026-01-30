@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, Ellipsis, ExternalLink } from 'lucide-react';
+import { MdChevronRight, MdExpandMore, MdDescription, MdFolder, MdFolderOpen, MdMoreHoriz, MdOpenInNew } from 'react-icons/md';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles, NOTES_COLORS } from '@/lib/utils';
@@ -219,23 +219,23 @@ function LocalFileTreeItem({
                             {/* Folder icon - hidden on hover */}
                             <span className="group-hover:hidden">
                                 {isExpanded ? (
-                                    <FolderOpen className="w-4 h-4 text-amber-500" />
+                                    <MdFolderOpen className="w-4 h-4 text-amber-500" />
                                 ) : (
-                                    <Folder className="w-4 h-4 text-amber-500" />
+                                    <MdFolder className="w-4 h-4 text-amber-500" />
                                 )}
                             </span>
                             {/* Chevron icon - shown on hover */}
                             <span className="hidden group-hover:block text-amber-500">
                                 {isExpanded ? (
-                                    <ChevronDown className="w-4 h-4" />
+                                    <MdExpandMore className="w-4 h-4" />
                                 ) : (
-                                    <ChevronRight className="w-4 h-4" />
+                                    <MdChevronRight className="w-4 h-4" />
                                 )}
                             </span>
                         </span>
                     ) : (
                         <span className="w-4 h-4 flex items-center justify-center">
-                            <FileText className={cn("w-4 h-4 text-amber-500", getStatusColor())} />
+                            <MdDescription className={cn("w-4 h-4 text-amber-500", getStatusColor())} />
                         </span>
                     )}
 
@@ -276,7 +276,7 @@ function LocalFileTreeItem({
                             iconButtonStyles
                         )}
                     >
-                        <Ellipsis className="w-4 h-4" />
+                        <MdMoreHoriz className="w-4 h-4" />
                     </button>
                 </div>
             </div>
@@ -300,7 +300,7 @@ function LocalFileTreeItem({
                             className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)] transition-colors"
                         >
                             <span className="w-4 h-4 flex items-center justify-center">
-                                <ExternalLink className="w-4 h-4" />
+                                <MdOpenInNew className="w-4 h-4" />
                             </span>
                             Open in GitHub
                         </button>

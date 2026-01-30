@@ -4,21 +4,21 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  ChevronRight,
-  ChevronDown,
-  Ellipsis,
-  Trash2,
-  Pencil,
-  FileText,
-  Folder,
-  FolderOpen,
-  Star,
-  Info,
-  FilePlus2,
-  Copy,
-  ExternalLink,
-  SplitSquareHorizontal,
-} from 'lucide-react';
+  MdChevronRight,
+  MdExpandMore,
+  MdMoreHoriz,
+  MdDelete,
+  MdEdit,
+  MdDescription,
+  MdFolder,
+  MdFolderOpen,
+  MdStar,
+  MdInfo,
+  MdNoteAdd,
+  MdContentCopy,
+  MdOpenInNew,
+  MdVerticalSplit,
+} from 'react-icons/md';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { useDisplayName, useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn, iconButtonStyles, NOTES_COLORS } from '@/lib/utils';
@@ -216,17 +216,17 @@ export const FileTreeItem = React.memo(function FileTreeItem({ node, depth, curr
               {/* Folder icon - hidden on hover */}
               <span className="group-hover:hidden">
                 {node.expanded ? (
-                  <FolderOpen className="w-4 h-4 text-amber-500" />
+                  <MdFolderOpen className="w-4 h-4 text-amber-500" />
                 ) : (
-                  <Folder className="w-4 h-4 text-amber-500" />
+                  <MdFolder className="w-4 h-4 text-amber-500" />
                 )}
               </span>
               {/* Chevron icon - shown on hover */}
               <span className="hidden group-hover:block text-amber-500">
                 {node.expanded ? (
-                  <ChevronDown className="w-4 h-4" />
+                  <MdExpandMore className="w-4 h-4" />
                 ) : (
-                  <ChevronRight className="w-4 h-4" />
+                  <MdChevronRight className="w-4 h-4" />
                 )}
               </span>
             </span>
@@ -235,7 +235,7 @@ export const FileTreeItem = React.memo(function FileTreeItem({ node, depth, curr
               {noteIcon ? (
                 <NoteIcon icon={noteIcon} size={16} />
               ) : (
-                <FileText className="w-4 h-4 text-amber-500" />
+                <MdDescription className="w-4 h-4 text-amber-500" />
               )}
             </span>
           )}
@@ -288,7 +288,7 @@ export const FileTreeItem = React.memo(function FileTreeItem({ node, depth, curr
               iconButtonStyles
             )}
           >
-            <Ellipsis className="w-4 h-4" />
+            <MdMoreHoriz className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -329,29 +329,29 @@ export const FileTreeItem = React.memo(function FileTreeItem({ node, depth, curr
                 }}
               >
                 <MenuItem
-                  icon={<Pencil />}
+                  icon={<MdEdit />}
                   label="Rename"
                   onClick={handleRename}
                 />
                 <MenuItem
-                  icon={<Info />}
+                  icon={<MdInfo />}
                   label="View Info"
                   onClick={() => setShowMenu(false)}
                 />
                 {node.isFolder && (
                   <MenuItem
-                    icon={<FilePlus2 />}
+                    icon={<MdNoteAdd />}
                     label="Add linked doc"
                     onClick={handleNewNoteInFolder}
                   />
                 )}
                 <MenuItem
-                  icon={<Copy />}
+                  icon={<MdContentCopy />}
                   label="Duplicate"
                   onClick={() => setShowMenu(false)}
                 />
                 <MenuItem
-                  icon={<ExternalLink />}
+                  icon={<MdOpenInNew />}
                   label="Open in new tab"
                   onClick={() => {
                     openNote(node.path, true);
@@ -359,18 +359,18 @@ export const FileTreeItem = React.memo(function FileTreeItem({ node, depth, curr
                   }}
                 />
                 <MenuItem
-                  icon={<SplitSquareHorizontal />}
+                  icon={<MdVerticalSplit />}
                   label="Open in split view"
                   onClick={() => setShowMenu(false)}
                 />
                 <MenuItem
-                  icon={isItemStarred ? <Star className="text-amber-500 fill-amber-500" /> : <Star />}
+                  icon={isItemStarred ? <MdStar className="text-amber-500 fill-amber-500" /> : <MdStar />}
                   label={isItemStarred ? "Remove from favourites" : "Add to favourites"}
                   onClick={handleToggleStar}
                 />
                 <div className="h-px bg-[var(--neko-border)] my-1 mx-1" />
                 <MenuItem
-                  icon={<Trash2 />}
+                  icon={<MdDelete />}
                   label="Move to trash"
                   onClick={handleDeleteClick}
                   danger

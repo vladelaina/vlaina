@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { Ellipsis, Plus, Archive, Trash2 } from 'lucide-react';
+import { MdMoreHoriz, MdAdd, MdArchive, MdDelete } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { parseDuration, formatDuration } from '@/lib/time';
@@ -59,7 +59,7 @@ export function TaskItemMenu({
                         : 'opacity-0 group-hover:opacity-100 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                 )}
             >
-                <Ellipsis className="h-3.5 w-3.5 text-zinc-400" />
+                <MdMoreHoriz className="h-3.5 w-3.5 text-zinc-400" />
             </button>
 
             {showMenu && (
@@ -144,7 +144,7 @@ export function TaskItemMenu({
                                 : "text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
                         )}
                     >
-                        <Plus className="h-4 w-4" />
+                        <MdAdd className="h-4 w-4" />
                         <span>Add Subtask</span>
                         {!canAddSubTask && <span className="ml-auto text-xs">(Max)</span>}
                     </button>
@@ -156,7 +156,7 @@ export function TaskItemMenu({
                             onClick={() => setShowMenu(false)}
                             className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
                         >
-                            <Archive className="h-4 w-4" />
+                            <MdArchive className="h-4 w-4" />
                             <span>Archive</span>
                         </button>
                     )}
@@ -169,7 +169,7 @@ export function TaskItemMenu({
                         }}
                         className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
                     >
-                        <Trash2 className="h-4 w-4" />
+                        <MdDelete className="h-4 w-4" />
                         <span>Delete</span>
                     </button>
                 </div>

@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Palette, Keyboard, Info, Database, User, Image } from 'lucide-react';
+import { MdClose, MdPalette, MdKeyboard, MdInfo, MdStorage, MdPerson, MdImage } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
@@ -38,16 +38,16 @@ const sidebarGroups: SidebarGroup[] = [
   {
     title: 'General',
     items: [
-      { id: 'appearance', label: 'Appearance', icon: Palette },
-      { id: 'shortcuts', label: 'Shortcuts', icon: Keyboard },
-      { id: 'about', label: 'About NekoTick', icon: Info },
+      { id: 'appearance', label: 'Appearance', icon: MdPalette },
+      { id: 'shortcuts', label: 'Shortcuts', icon: MdKeyboard },
+      { id: 'about', label: 'About NekoTick', icon: MdInfo },
     ]
   },
   {
     title: 'Workspace',
     items: [
-      { id: 'storage', label: 'Storage', icon: Database },
-      { id: 'images', label: 'Images', icon: Image },
+      { id: 'storage', label: 'Storage', icon: MdStorage },
+      { id: 'images', label: 'Images', icon: MdImage },
     ]
   }
 ];
@@ -206,7 +206,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                         <img src={avatarUrl} alt={username || 'User'} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-zinc-400">
-                          <User className="w-5 h-5 text-zinc-400" />
+                          <MdPerson className="w-5 h-5 text-zinc-400" />
                         </div>
                       )}
                     </div>
@@ -286,7 +286,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     onClick={onClose}
                     className="p-2 rounded-full text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-all duration-200"
                   >
-                    <X className="w-5 h-5" />
+                    <MdClose className="w-5 h-5" />
                   </button>
                 </div>
 

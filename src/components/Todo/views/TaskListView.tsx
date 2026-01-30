@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Search, X } from 'lucide-react';
+import { MdCheck, MdSearch, MdClose } from 'react-icons/md';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { cn } from '@/lib/utils';
@@ -198,7 +198,7 @@ export function TaskListView({
                             )}
                             onClick={handleSearchClick}
                         >
-                            <Search className="w-4 h-4 text-zinc-500" />
+                            <MdSearch className="w-4 h-4 text-zinc-500" />
                         </div>
 
                         {/* Input Field */}
@@ -225,7 +225,7 @@ export function TaskListView({
                                     onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
                                     className="flex-shrink-0 w-8 h-10 flex items-center justify-center text-zinc-400 hover:text-zinc-600 z-10 mr-1"
                                 >
-                                    <X className="w-3 h-3" />
+                                    <MdClose className="w-3 h-3" />
                                 </motion.button>
                             )}
                         </AnimatePresence>
@@ -264,7 +264,7 @@ export function TaskListView({
                                         scheduledTasks.length === 0 && completedTasks.length === 0 && (
                                             <div className="py-24 text-center">
                                                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 mb-4">
-                                                    <Check className="w-6 h-6 text-zinc-300 dark:text-zinc-600" />
+                                                    <MdCheck className="w-6 h-6 text-zinc-300 dark:text-zinc-600" />
                                                 </div>
                                                 <p className="text-zinc-400 dark:text-zinc-600 font-medium">All clear for now</p>
                                                 <p className="text-sm text-zinc-400/60 dark:text-zinc-600/60 mt-1">Capture tasks above</p>

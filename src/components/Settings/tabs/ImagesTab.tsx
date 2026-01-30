@@ -1,5 +1,5 @@
 import { useUIStore, type ImageStorageMode } from '@/stores/uiSlice';
-import { FolderRoot, FolderOpen, FolderTree, Folders, CalendarClock, Tag, ListOrdered } from 'lucide-react';
+import { MdHome, MdFolderOpen, MdAccountTree, MdCollections, MdEditCalendar, MdLabel, MdFormatListNumbered } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 
 interface StorageOption {
@@ -14,25 +14,25 @@ const storageOptions: StorageOption[] = [
         id: 'vaultSubfolder',
         label: 'Vault Subfolder',
         description: 'Save to a specific folder in the vault root (e.g., assets/)',
-        icon: Folders,
+        icon: MdCollections,
     },
     {
         id: 'subfolder',
         label: 'Note Subfolder',
         description: 'Save to a subfolder in the current note\'s directory',
-        icon: FolderTree,
+        icon: MdAccountTree,
     },
     {
         id: 'vault',
         label: 'Vault Root',
         description: 'Save images directly to the vault root directory',
-        icon: FolderRoot,
+        icon: MdHome,
     },
     {
         id: 'currentFolder',
         label: 'Current Folder',
         description: 'Save to the same folder as the current note',
-        icon: FolderOpen,
+        icon: MdFolderOpen,
     },
 ];
 
@@ -166,19 +166,19 @@ export function ImagesTab() {
                         id="original"
                         label="Original Name"
                         description="Keep the original filename"
-                        icon={Tag}
+                        icon={MdLabel}
                     />
                     <FilenameFormatOption
                         id="sequence"
                         label="Numeric Sequence"
                         description="Use sequential numbers (e.g., 1.png, 2.png)"
-                        icon={ListOrdered}
+                        icon={MdFormatListNumbered}
                     />
                     <FilenameFormatOption
                         id="timestamp"
                         label="Timestamp"
                         description="Use date and time (e.g., 2024-01-21_14-30-52.png)"
-                        icon={CalendarClock}
+                        icon={MdEditCalendar}
                     />
                 </div>
             </div>

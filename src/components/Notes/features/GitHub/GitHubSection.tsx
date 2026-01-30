@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Plus, Loader2, Package, RefreshCw } from 'lucide-react';
+import { MdAdd, MdRefresh, MdInventory2 } from 'react-icons/md';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { hasBackendCommands } from '@/lib/tauri/invoke';
@@ -15,7 +15,7 @@ import { RepositoryItem } from './RepositoryItem';
 import { NewRepositoryDialog } from './NewRepositoryDialog';
 import { cn } from '@/lib/utils';
 
-// GitHub icon component (lucide-react Github is deprecated)
+// GitHub icon component (Custom SVG as react-icons/md doesn't have the exact brand icon)
 function GitHubIcon({ className }: { className?: string }) {
     return (
         <svg
@@ -74,7 +74,7 @@ export function GitHubSection() {
                 className="p-1 rounded hover:bg-[var(--neko-hover-filled)] text-[var(--neko-text-tertiary)] transition-colors disabled:opacity-50"
                 title="Refresh"
             >
-                <RefreshCw className={cn("w-3.5 h-3.5", isLoadingRepos && "animate-spin")} />
+                <MdRefresh className={cn("w-3.5 h-3.5", isLoadingRepos && "animate-spin")} />
             </button>
             <button
                 onClick={(e) => {
@@ -84,7 +84,7 @@ export function GitHubSection() {
                 className="p-1 rounded hover:bg-[var(--neko-hover-filled)] text-[var(--neko-text-tertiary)] transition-colors"
                 title="New Repository"
             >
-                <Plus className="w-3.5 h-3.5" />
+                <MdAdd className="w-3.5 h-3.5" />
             </button>
         </>
     ) : undefined;
@@ -110,7 +110,7 @@ export function GitHubSection() {
                             )}
                         >
                             {isConnecting ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <MdRefresh className="w-4 h-4 animate-spin" />
                             ) : (
                                 <GitHubIcon className="w-4 h-4" />
                             )}
@@ -124,12 +124,12 @@ export function GitHubSection() {
                     </div>
                 ) : isLoadingRepos && !hasRepos ? (
                     <div className="flex items-center justify-center py-8">
-                        <Loader2 className="w-5 h-5 animate-spin text-[var(--neko-text-tertiary)]" />
+                        <MdRefresh className="w-5 h-5 animate-spin text-[var(--neko-text-tertiary)]" />
                     </div>
                 ) : !hasRepos ? (
                     <div className="flex flex-col items-center gap-3 py-8">
                         <div className="w-14 h-14 rounded-full bg-[var(--neko-bg-tertiary)] flex items-center justify-center">
-                            <Package className="w-6 h-6 text-[var(--neko-text-tertiary)]" />
+                            <MdInventory2 className="w-6 h-6 text-[var(--neko-text-tertiary)]" />
                         </div>
                         <span className="text-[13px] text-[var(--neko-text-tertiary)]">
                             No repositories
@@ -143,7 +143,7 @@ export function GitHubSection() {
                                 "transition-colors"
                             )}
                         >
-                            <Plus className="w-3.5 h-3.5" />
+                            <MdAdd className="w-3.5 h-3.5" />
                             New Repository
                         </button>
                     </div>

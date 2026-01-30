@@ -1,5 +1,5 @@
 
-import { ChevronsRight, Menu } from 'lucide-react';
+import { MdKeyboardDoubleArrowRight, MdMenu } from 'react-icons/md';
 import { cn, iconButtonStyles } from '@/lib/utils';
 
 interface SidebarExpandButtonProps {
@@ -30,11 +30,11 @@ export function SidebarExpandButton({
                 {/* When peeking: show ChevronsRight immediately. 
                     Otherwise: Show Menu icon, swapping to ChevronsRight on hover. */}
                 {isPeeking ? (
-                    <ChevronsRight className="size-4" />
+                    <MdKeyboardDoubleArrowRight className="size-4" />
                 ) : (
                     <>
-                        <Menu className="size-4 group-hover:hidden" />
-                        <ChevronsRight className="size-4 hidden group-hover:block" />
+                        <MdMenu className="size-4 group-hover:hidden" />
+                        <MdKeyboardDoubleArrowRight className="size-4 hidden group-hover:block" />
                     </>
                 )}
             </button>

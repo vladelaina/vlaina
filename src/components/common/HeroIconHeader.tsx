@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { HeartPulse } from 'lucide-react';
+import { MdMonitorHeart } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { UniversalIconPicker as IconPicker } from '@/components/common/UniversalIconPicker';
 import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconPreview';
@@ -244,7 +244,7 @@ export function HeroIconHeader({
                       }}
                       className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)] transition-colors")}
                   >
-                      <HeartPulse className="size-4" />
+                      <MdMonitorHeart className="size-4" />
                       {!compact && <span>Add icon</span>}
                   </button>
               </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Edit2, Check, Trash2, Unlink, ExternalLink } from 'lucide-react';
+import { MdContentCopy, MdEdit, MdCheck, MdDelete, MdLinkOff, MdOpenInNew } from 'react-icons/md';
 import { IconButton } from '@/components/ui/icon-button';
 import {
     Tooltip,
@@ -211,7 +211,7 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
                                 onClick={() => handleSaveEdit(false)}
                                 className="flex items-center justify-center size-8 text-[var(--neko-accent)] hover:opacity-80 rounded-full transition-all flex-shrink-0"
                             >
-                                <Check className="size-5 stroke-[2.5]" />
+                                <MdCheck className="size-5" />
                             </button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">Save changes</TooltipContent>
@@ -235,7 +235,7 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
                             className="group flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg transition-colors max-w-[200px]"
                         >
                             <div className="flex items-center justify-center size-5 rounded text-gray-400 group-hover:text-blue-500 transition-colors">
-                                <ExternalLink className="size-3" />
+                                <MdOpenInNew className="size-3" />
                             </div>
                             <span className="truncate text-[13px] font-medium text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
                                 {displayUrl}
@@ -253,12 +253,12 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
             <div className="flex items-center gap-0.5">
                 <IconButton
                     onClick={handleCopy}
-                    icon={showCopied ? <Check className="size-4 text-green-500 scale-110" /> : <Copy className="size-4" />}
+                    icon={showCopied ? <MdCheck className="size-4 text-green-500 scale-110" /> : <MdContentCopy className="size-4" />}
                 />
 
                 <IconButton
                     onClick={() => setMode('edit')}
-                    icon={<Edit2 className="size-4" />}
+                    icon={<MdEdit className="size-4" />}
                 />
             </div>
 
@@ -269,13 +269,13 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
                 {!isAutolink && (
                     <IconButton
                         onClick={onUnlink}
-                        icon={<Unlink className="size-4" />}
+                        icon={<MdLinkOff className="size-4" />}
                     />
                 )}
 
                 <IconButton
                     onClick={onRemove}
-                    icon={<Trash2 className="size-4" />}
+                    icon={<MdDelete className="size-4" />}
                     className="hover:text-red-500"
                 />
             </div>

@@ -3,7 +3,7 @@
  */
 
 import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
-import { Search, X, Candy } from 'lucide-react';
+import { MdSearch, MdClose, MdPalette } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { VirtualIconGrid, VirtualIconSearchResults } from './VirtualIconGrid';
 import { ICON_CATEGORIES, ICON_LIST } from './icons';
@@ -156,7 +156,7 @@ export function IconsTab({
     <div>
       <div className="px-3 pt-3 pb-2 flex items-center gap-2">
         <div className="flex-1 relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-[var(--neko-text-tertiary)]" />
+          <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-[var(--neko-text-tertiary)]" />
           <input
             ref={searchInputRef}
             type="text"
@@ -176,7 +176,7 @@ export function IconsTab({
               onClick={() => setSearchQuery('')}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors"
             >
-              <X className="size-4" />
+              <MdClose className="size-4" />
             </button>
           )}
         </div>
@@ -187,7 +187,7 @@ export function IconsTab({
               onClick={() => setShowColorPicker(!showColorPicker)}
               className="w-7 h-7 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity"
             >
-              <Candy size={18} style={{ color: currentColor }} />
+              <MdPalette size={18} style={{ color: currentColor }} />
             </button>
             {showColorPicker && (
               <div
@@ -206,7 +206,7 @@ export function IconsTab({
                     className="w-7 h-7 flex items-center justify-center"
                     title={ic.label}
                   >
-                    <Candy size={18} style={{ color: ic.color }} />
+                    <MdPalette size={18} style={{ color: ic.color }} />
                   </button>
                 ))}
               </div>

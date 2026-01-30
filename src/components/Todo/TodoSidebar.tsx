@@ -1,16 +1,16 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import {
-    Inbox,
-    Calendar,
-    PieChart,
-    ClipboardList,
-    Plus,
-    MoreHorizontal,
-    Trash2,
-    Folder,
-    ChevronRight,
-    ChevronDown,
-} from 'lucide-react';
+    MdInbox,
+    MdCalendarToday,
+    MdPieChart,
+    MdAssignment,
+    MdAdd,
+    MdMoreHoriz,
+    MdDelete,
+    MdFolder,
+    MdChevronRight,
+    MdExpandMore,
+} from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ColorFilter } from '@/components/common/ColorFilter';
 import { cn } from '@/lib/utils';
@@ -143,7 +143,7 @@ export function TodoSidebar() {
                     <NavItem 
                         id={DEFAULT_GROUP_ID} 
                         label="Inbox" 
-                        icon={Inbox} 
+                        icon={MdInbox} 
                         count={counts.inbox}
                         active={activeGroupId === DEFAULT_GROUP_ID}
                         onClick={() => setActiveGroup(DEFAULT_GROUP_ID)}
@@ -151,7 +151,7 @@ export function TodoSidebar() {
                     <NavItem 
                         id="today" 
                         label="Today" 
-                        icon={Calendar} 
+                        icon={MdCalendarToday} 
                         count={counts.today}
                         active={activeGroupId === 'today'}
                         onClick={() => setActiveGroup('today')}
@@ -159,7 +159,7 @@ export function TodoSidebar() {
                     <NavItem 
                         id="all" 
                         label="All Tasks" 
-                        icon={ClipboardList} 
+                        icon={MdAssignment} 
                         count={counts.all}
                         active={activeGroupId === 'all'}
                         onClick={() => setActiveGroup('all')}
@@ -167,7 +167,7 @@ export function TodoSidebar() {
                     <NavItem 
                         id="progress" 
                         label="Progress" 
-                        icon={PieChart} 
+                        icon={MdPieChart} 
                         count={0} // Progress usually doesn't have a task count
                         active={activeGroupId === 'progress'}
                         onClick={() => setActiveGroup('progress')}
@@ -182,7 +182,7 @@ export function TodoSidebar() {
                             className="flex items-center gap-1 text-xs font-semibold text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors uppercase tracking-wider"
                         >
                             <span className="w-4 flex justify-center">
-                                {isMyListsExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+                                {isMyListsExpanded ? <MdExpandMore className="size-3" /> : <MdChevronRight className="size-3" />}
                             </span>
                             My Lists
                         </button>
@@ -190,7 +190,7 @@ export function TodoSidebar() {
                             onClick={() => { setIsMyListsExpanded(true); setIsCreating(true); }}
                             className="opacity-0 group-hover/header:opacity-100 p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all text-zinc-400"
                         >
-                            <Plus className="size-3.5" />
+                            <MdAdd className="size-3.5" />
                         </button>
                     </div>
 
@@ -278,7 +278,7 @@ export function TodoSidebar() {
                                                             "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
                                                         )}
                                                     >
-                                                        <MoreHorizontal className="size-3.5" />
+                                                        <MdMoreHoriz className="size-3.5" />
                                                     </button>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-32 p-1" align="end">
@@ -295,7 +295,7 @@ export function TodoSidebar() {
                                                         onClick={() => deleteGroup(group.id)}
                                                         className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors text-left"
                                                     >
-                                                        <Trash2 className="size-3.5" />
+                                                        <MdDelete className="size-3.5" />
                                                         Delete
                                                     </button>
                                                 </PopoverContent>
@@ -306,7 +306,7 @@ export function TodoSidebar() {
 
                                 {isCreating && (
                                     <div className="flex items-center gap-2 px-3 py-2 mx-2">
-                                        <div className="w-5 flex justify-center text-zinc-400"><Folder className="size-4" /></div>
+                                        <div className="w-5 flex justify-center text-zinc-400"><MdFolder className="size-4" /></div>
                                         <input
                                             ref={createInputRef}
                                             value={newGroupName}

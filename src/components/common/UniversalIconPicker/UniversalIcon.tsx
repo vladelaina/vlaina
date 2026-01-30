@@ -1,10 +1,10 @@
 /**
- * UniversalIcon - Renders either an emoji, a lucide icon, or a custom image
+ * UniversalIcon - Renders either an emoji, a Material Design icon, or a custom image
  * Performance optimized: uses memo and shallow comparison
  */
 
 import { memo, useMemo, useState, useEffect } from 'react';
-import { FileText } from 'lucide-react';
+import { MdDescription } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { ICON_MAP as ICON_ITEM_MAP, EMOJI_MAP } from './constants';
 
@@ -72,7 +72,7 @@ const IconIconRenderer = memo(function IconIconRenderer({
 }) {
   const color = previewColor || forcedColor || originalColor;
   const iconItem = ICON_ITEM_MAP.get(iconName);
-  const IconComponent = iconItem?.icon || FileText;
+  const IconComponent = iconItem?.icon || MdDescription;
 
   // Check if size is a CSS variable string
   const isCSSVariable = typeof size === 'string' && size.startsWith('var(');

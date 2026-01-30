@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { Check } from 'lucide-react';
+import { MdCheck } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { AppIcon } from '@/components/common/AppIcon';
@@ -296,7 +296,7 @@ export function CreateModal({
                    >
                      <span className="relative z-10 flex items-center gap-2">
                        Begin Journey
-                       <Check className="size-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+                       <MdCheck className="size-4 opacity-50 group-hover:opacity-100 transition-opacity" />
                      </span>
                      
                      <div className="absolute inset-0 rounded-full bg-zinc-900 dark:bg-zinc-100 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300" />

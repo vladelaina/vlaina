@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { MdRefresh } from 'react-icons/md';
 import { DeletableItem } from '@/components/ui/deletable-item';
 import { AssetGridProps } from './types';
 import { loadImageAsBlob } from '@/lib/assets/imageLoader';
@@ -130,7 +130,7 @@ const AssetThumbnail = memo(function AssetThumbnail({
           />
           {!isLoaded && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <Loader2 className="w-5 h-5 animate-spin text-[var(--neko-text-tertiary)]" />
+              <MdRefresh className="w-5 h-5 animate-spin text-[var(--neko-text-tertiary)]" />
             </div>
           )}
         </>

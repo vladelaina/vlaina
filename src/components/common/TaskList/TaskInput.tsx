@@ -5,7 +5,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus } from 'lucide-react';
+import { MdAdd } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { ALL_COLORS, SIMPLE_COLOR_STYLES, type ItemColor } from '@/lib/colors';
@@ -154,7 +154,7 @@ export function TaskInput({ compact = false }: TaskInputProps) {
                             onClick={handleSubmit}
                             className="shrink-0 p-1 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:opacity-90 transition-opacity mt-0.5"
                         >
-                            <Plus className="h-3 w-3" />
+                            <MdAdd className="h-3 w-3" />
                         </motion.button>
                     )}
                 </AnimatePresence>

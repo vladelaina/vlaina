@@ -6,7 +6,7 @@
  */
 
 import { useMemo, useCallback, useState, useRef } from 'react';
-import { Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { MdCheck, MdExpandMore, MdExpandLess } from 'react-icons/md';
 
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import type { NekoEvent } from '@/lib/ics/types';
@@ -214,9 +214,9 @@ export function AllDayArea({
             // Chevron + count when collapsed
             <div className="flex items-center gap-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">
               {isExpanded ? (
-                <ChevronUp className="w-3 h-3" />
+                <MdExpandLess className="w-3 h-3" />
               ) : (
-                <ChevronDown className="w-3 h-3" />
+                <MdExpandMore className="w-3 h-3" />
               )}
               <span className="font-medium">{layoutedEvents.length}</span>
             </div>
@@ -285,7 +285,7 @@ export function AllDayArea({
                   }
                   `}
               >
-                {event.completed && <Check className="w-2 h-2 text-white" strokeWidth={3} />}
+                {event.completed && <MdCheck className="w-2 h-2 text-white" />}
               </button>
 
               {/* Content */}

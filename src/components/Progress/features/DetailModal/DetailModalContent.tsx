@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus } from 'lucide-react';
+import { MdAdd, MdRemove } from 'react-icons/md';
 import type { ProgressOrCounter, ProgressItem, CounterItem } from '@/stores/useProgressStore';
 import { MetadataSection } from './MetadataSection';
 import type { FocusTarget } from './useDetailModal';
@@ -149,7 +149,7 @@ function QuickUpdateButton({
   onClick,
 }: QuickUpdateButtonProps) {
   const isLeft = direction === 'decrement';
-  const Icon = isLeft ? Minus : Plus;
+  const Icon = isLeft ? MdRemove : MdAdd;
 
   return (
     <AnimatePresence>

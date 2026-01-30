@@ -10,7 +10,7 @@ import {
   MeasuringStrategy,
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, Archive, ArrowLeft } from 'lucide-react';
+import { MdAdd, MdArchive, MdArrowBack } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProgressStore } from '@/stores/useProgressStore';
 import { useProgressDrag } from './hooks/useProgressDrag';
@@ -205,7 +205,7 @@ export function ProgressPage() {
                 layout="position"
                 className="flex items-center justify-center shrink-0 relative z-10"
               >
-                <Plus className="size-4" />
+                <MdAdd className="size-4" />
               </motion.div>
               
               {/* Text - Organic Reveal */}
@@ -290,7 +290,7 @@ export function ProgressPage() {
                               transition={{ duration: 0.2, ease: "easeOut" }}
                               className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-300"
                             >
-                              <Archive className="size-3" />
+                              <MdArchive className="size-3" />
                               <span className="text-[9px] font-bold tracking-[0.25em] uppercase">
                                 HISTORY
                               </span>
@@ -329,7 +329,7 @@ export function ProgressPage() {
                             className="group relative flex items-center justify-center py-2 pr-2 -ml-1 cursor-pointer outline-none"
                             title="Back to List"
                           >
-                            <ArrowLeft 
+                            <MdArrowBack 
                               className="size-5 text-zinc-400 group-hover:text-zinc-900 dark:text-zinc-500 dark:group-hover:text-zinc-100 transition-colors duration-300 transform group-hover:-translate-x-1" 
                             />
                           </button>
@@ -358,9 +358,9 @@ export function ProgressPage() {
             <div className="flex flex-col items-center justify-center py-20 opacity-50">
               <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-4">
                 {isArchiveView ? (
-                  <Archive className="size-8 text-zinc-300 dark:text-zinc-600" />
+                  <MdArchive className="size-8 text-zinc-300 dark:text-zinc-600" />
                 ) : (
-                  <Plus className="size-8 text-zinc-300 dark:text-zinc-600" />
+                  <MdAdd className="size-8 text-zinc-300 dark:text-zinc-600" />
                 )}
               </div>
               <p className="text-sm text-zinc-400 dark:text-zinc-500 font-medium">

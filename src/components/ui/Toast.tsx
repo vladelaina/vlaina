@@ -1,13 +1,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CircleCheck, CircleAlert, TriangleAlert, Info } from 'lucide-react';
+import { MdClose, MdCheckCircle, MdError, MdWarning, MdInfo } from 'react-icons/md';
 import { useToastStore, type Toast as ToastType } from '@/stores/useToastStore';
 import { cn } from '@/lib/utils';
 
 const iconMap = {
-  success: CircleCheck,
-  error: CircleAlert,
-  warning: TriangleAlert,
-  info: Info,
+  success: MdCheckCircle,
+  error: MdError,
+  warning: MdWarning,
+  info: MdInfo,
 };
 
 const colorMap = {
@@ -42,7 +42,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
         onClick={() => onClose(toast.id)}
         className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
       >
-        <X className="h-4 w-4" />
+        <MdClose className="h-4 w-4" />
       </button>
     </motion.div>
   );

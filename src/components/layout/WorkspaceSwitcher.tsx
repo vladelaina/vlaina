@@ -1,17 +1,17 @@
 import React, { useMemo, useCallback } from "react";
 import {
-    Settings,
-    LogOut,
-    Monitor,
-    ChevronDown,
-    Calendar,
-    StickyNote,
-    Globe,
-    MoreHorizontal,
-    Users,
-    ChevronRight,
-    ClipboardList,
-} from "lucide-react";
+    MdSettings,
+    MdLogout,
+    MdMonitor,
+    MdExpandMore,
+    MdCalendarToday,
+    MdDescription,
+    MdPublic,
+    MdMoreHoriz,
+    MdPeople,
+    MdChevronRight,
+    MdAssignment,
+} from "react-icons/md";
 import * as Popover from "@radix-ui/react-popover";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
 import { useProStatusStore } from "@/stores/useProStatusStore";
@@ -133,7 +133,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                     <span className="text-[14px] font-medium truncate max-w-[120px]">
                         {displayName}
                     </span>
-                    <ChevronDown className="w-3.5 h-3.5 text-[var(--neko-text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <MdExpandMore className="w-3.5 h-3.5 text-[var(--neko-text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
             </Popover.Trigger>
 
@@ -187,7 +187,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                             Cancel
                                         </button>
                                     ) : (
-                                        <ChevronRight className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover:text-[var(--neko-text-primary)] transition-colors opacity-50 group-hover:opacity-100" />
+                                        <MdChevronRight className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover:text-[var(--neko-text-primary)] transition-colors opacity-50 group-hover:opacity-100" />
                                     )}
                                 </div>
                                 <div className="h-[1px] bg-[var(--neko-border)] mx-2 mt-2 opacity-40" />
@@ -221,7 +221,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                 isUserMenuOpen && "text-[var(--neko-text-primary)] bg-[var(--neko-active)]"
                                             )}
                                         >
-                                            <MoreHorizontal className="w-3.5 h-3.5 text-[var(--neko-text-secondary)]" />
+                                            <MdMoreHoriz className="w-3.5 h-3.5 text-[var(--neko-text-secondary)]" />
                                         </button>
                                     </div>
 
@@ -251,7 +251,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                             }}
                                             className="flex items-center gap-1 text-[11px] font-medium text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors group/settings"
                                         >
-                                            <Settings className="w-3 h-3 opacity-60 group-hover/settings:opacity-100 transition-opacity" />
+                                            <MdSettings className="w-3 h-3 opacity-60 group-hover/settings:opacity-100 transition-opacity" />
                                             Settings
                                         </button>
                                     </div>
@@ -268,7 +268,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                     iconButtonStyles
                                                 )}
                                             >
-                                                <Users className="w-3.5 h-3.5" />
+                                                <MdPeople className="w-3.5 h-3.5" />
                                                 Switch Account
                                             </button>
                                             <button
@@ -278,7 +278,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                     iconButtonStyles
                                                 )}
                                             >
-                                                <LogOut className="w-3.5 h-3.5" />
+                                                <MdLogout className="w-3.5 h-3.5" />
                                                 Log out
                                             </button>
                                         </div>
@@ -298,7 +298,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                         "hover:bg-[var(--neko-hover)]"
                                     )}
                                 >
-                                    <Settings className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
+                                    <MdSettings className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
                                     <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Settings</span>
                                 </button>
                             )}
@@ -312,7 +312,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                             "hover:bg-[var(--neko-hover)]"
                                         )}
                                     >
-                                        <Calendar className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
+                                        <MdCalendarToday className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
                                         <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Calendar</span>
                                     </button>
                                 )}
@@ -325,7 +325,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                             "hover:bg-[var(--neko-hover)]"
                                         )}
                                     >
-                                        <StickyNote className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
+                                        <MdDescription className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
                                         <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Notes</span>
                                     </button>
                                 )}
@@ -338,7 +338,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                             "hover:bg-[var(--neko-hover)]"
                                         )}
                                     >
-                                        <ClipboardList className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
+                                        <MdAssignment className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
                                         <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Todos</span>
                                     </button>
                                 )}
@@ -355,12 +355,12 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                             >
                                 {isDesktop ? (
                                     <>
-                                        <Globe className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
+                                        <MdPublic className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
                                         <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Open Web Version</span>
                                     </>
                                 ) : (
                                     <>
-                                        <Monitor className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
+                                        <MdMonitor className="w-4 h-4 text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
                                         <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Get Desktop App</span>
                                     </>
                                 )}

@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { MdClose } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SearchBarProps {
@@ -33,7 +33,7 @@ export function SearchBar({ show, value, onChange, onClear }: SearchBarProps) {
                             onClick={onClear}
                             className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
                         >
-                            <X className="size-3.5" />
+                            <MdClose className="size-3.5" />
                         </button>
                     )}
                 </div>

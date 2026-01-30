@@ -1,4 +1,4 @@
-import { ChevronsLeft } from 'lucide-react';
+import { MdKeyboardDoubleArrowLeft } from 'react-icons/md';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { useUIStore } from '@/stores/uiSlice';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -35,7 +35,7 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                     "transition-opacity"
                 )}
             >
-                <ChevronsLeft className="w-4 h-4" />
+                <MdKeyboardDoubleArrowLeft className="w-4 h-4" />
             </button>
         </div>
     );

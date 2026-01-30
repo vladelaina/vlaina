@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ExternalLink, Cloud, CloudOff, RefreshCw, Download, Loader2, CircleAlert } from 'lucide-react';
+import { MdOpenInNew, MdCloud, MdCloudOff, MdRefresh, MdDownload, MdError } from 'react-icons/md';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
@@ -84,9 +84,9 @@ export function AboutTab() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {isConnected ? (
-                <Cloud className="size-5 text-green-500" />
+                <MdCloud className="size-5 text-green-500" />
               ) : (
-                <CloudOff className="size-5 text-zinc-400" />
+                <MdCloudOff className="size-5 text-zinc-400" />
               )}
               <div>
                 <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
@@ -101,7 +101,7 @@ export function AboutTab() {
             </div>
             
             {isLoading ? (
-              <Loader2 className="size-4 animate-spin text-zinc-400" />
+              <MdRefresh className="size-4 animate-spin text-zinc-400" />
             ) : isConnected ? (
               <button
                 onClick={handleDisconnect}
@@ -117,12 +117,12 @@ export function AboutTab() {
               >
                 {isConnecting ? (
                   <>
-                    <Loader2 className="size-3.5 animate-spin" />
+                    <MdRefresh className="size-3.5 animate-spin" />
                     Connecting...
                   </>
                 ) : (
                   <>
-                    <Cloud className="size-3.5" />
+                    <MdCloud className="size-3.5" />
                     Connect GitHub
                   </>
                 )}
@@ -150,7 +150,7 @@ export function AboutTab() {
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 rounded-md transition-colors disabled:opacity-50"
                       title="Restore from cloud backup"
                     >
-                      <Download className="size-3.5" />
+                      <MdDownload className="size-3.5" />
                       Restore
                     </button>
                   )}
@@ -162,12 +162,12 @@ export function AboutTab() {
                   >
                     {isSyncing ? (
                       <>
-                        <Loader2 className="size-3.5 animate-spin" />
+                        <MdRefresh className="size-3.5 animate-spin" />
                         Syncing...
                       </>
                     ) : (
                       <>
-                        <RefreshCw className="size-3.5" />
+                        <MdRefresh className="size-3.5" />
                         Sync Now
                       </>
                     )}
@@ -180,7 +180,7 @@ export function AboutTab() {
           {/* Error Message */}
           {syncError && (
             <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
-              <CircleAlert className="size-4 flex-shrink-0 mt-0.5" />
+              <MdError className="size-4 flex-shrink-0 mt-0.5" />
               <div className="text-xs">{syncError}</div>
             </div>
           )}
@@ -189,6 +189,31 @@ export function AboutTab() {
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
           Sync your data to GitHub Gist for backup and cross-device access
         </p>
+      </div>
+
+      {/* Open Source Licenses Section */}
+      <div className="mb-6">
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Open Source Licenses</h2>
+        
+        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50 overflow-hidden">
+          <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-700/50">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Material Design Icons</span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">Apache 2.0</span>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+              Google's Material Design Icons are used throughout this application.
+            </p>
+          </div>
+          <div className="px-4 py-3 bg-zinc-50 dark:bg-zinc-900/50">
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono leading-relaxed">
+              Licensed under the Apache License, Version 2.0 (the "License");
+              you may not use this file except in compliance with the License.
+              You may obtain a copy of the License at
+              http://www.apache.org/licenses/LICENSE-2.0
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* App Section */}
@@ -274,7 +299,7 @@ export function AboutTab() {
               onClick={openGitHub}
               className={`${settingsButtonClassName} flex items-center gap-1.5`}
             >
-              <ExternalLink className="size-3.5" />
+              <MdOpenInNew className="size-3.5" />
               Open
             </button>
           </div>
@@ -295,7 +320,7 @@ export function AboutTab() {
               onClick={() => openUrl('https://discord.gg/TtUzNPqNJw')}
               className={`${settingsButtonClassName} flex items-center gap-1.5`}
             >
-              <ExternalLink className="size-3.5" />
+              <MdOpenInNew className="size-3.5" />
               Join
             </button>
           </div>

@@ -1,9 +1,9 @@
 import React, { memo, useCallback } from 'react';
 import {
-  FileText,
-  X,
-  Plus,
-} from 'lucide-react';
+  MdDescription,
+  MdClose,
+  MdAdd,
+} from 'react-icons/md';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
@@ -41,7 +41,7 @@ function TabContent({ tab, isActive, icon, displayName }: TabContentProps) {
           <NoteIcon icon={icon} size={16} />
         </span>
       ) : (
-        <FileText
+        <MdDescription
           className="w-4 h-4 flex-shrink-0 pointer-events-none text-current opacity-70"
         />
       )}
@@ -142,7 +142,7 @@ const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick,
               "hover:text-zinc-500 dark:hover:text-zinc-400"
             )}
           >
-            <X className="w-3.5 h-3.5" />
+            <MdClose className="w-3.5 h-3.5" />
           </button>
         </div>
       </TooltipTrigger>
@@ -253,7 +253,7 @@ export function NotesTabRow() {
                                         "hover:text-zinc-500 dark:hover:text-zinc-400"
                                     )}
                                 >
-                                    <Plus className="w-4 h-4" />
+                                    <MdAdd className="w-4 h-4" />
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" sideOffset={2}>

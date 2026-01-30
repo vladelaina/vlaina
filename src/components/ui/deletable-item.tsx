@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { X, Trash2 } from 'lucide-react';
+import { MdClose, MdDelete } from 'react-icons/md';
 
 interface DeletableItemProps {
     id: string;
@@ -69,7 +69,7 @@ export function DeletableItem({
                 // But wrapper has onClick={handleClick} which handles the logic.
                 >
                     <div className="text-red-500 transition-all active:scale-90 pointer-events-none">
-                        <Trash2 size={24} strokeWidth={2} />
+                        <MdDelete size={24} />
                     </div>
                 </div>
             ) : (
@@ -85,7 +85,7 @@ export function DeletableItem({
                             "scale-90 hover:scale-100"
                         )}
                     >
-                        <X size={12} strokeWidth={2.5} />
+                        <MdClose size={12} />
                     </button>
                 )
             )}

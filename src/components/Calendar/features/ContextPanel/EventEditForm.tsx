@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { startOfDay, endOfDay } from 'date-fns';
-import { Clock, Sun } from 'lucide-react';
+import { MdAccessTime, MdWbSunny } from 'react-icons/md';
 import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
 import { cn } from '@/lib/utils';
 import { type ItemColor } from '@/lib/colors';
@@ -170,7 +170,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         {/* All-day toggle */}
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 flex justify-center">
-             <Sun className="size-3.5 text-zinc-400" />
+             <MdWbSunny className="size-3.5 text-zinc-400" />
           </div>
           <button
             onClick={() => {
@@ -238,7 +238,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         {!event.allDay && (
           <div className="flex items-start gap-2 mb-3">
             <div className="w-8 flex justify-center mt-0.5">
-                <Clock className="size-3.5 text-zinc-400" />
+                <MdAccessTime className="size-3.5 text-zinc-400" />
             </div>
             <div className="flex items-center text-xs">
               <EditableTime

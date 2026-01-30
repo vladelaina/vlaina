@@ -1,6 +1,6 @@
 import * as React from "react"
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
-import { Check } from "lucide-react"
+import { MdCheck } from "react-icons/md"
 
 import { cn } from "@/lib/utils"
 
@@ -31,13 +31,11 @@ function Checkbox({
         style={{ transition: 'none', animation: 'none' }}
         forceMount
       >
-        <Check 
+        <MdCheck 
           className="size-3.5" 
           style={{ 
             opacity: props.checked ? 1 : 0,
             color: checkmarkColor || 'currentColor',
-            stroke: checkmarkColor || 'currentColor',
-            strokeWidth: 2.5
           }} 
         />
       </CheckboxPrimitive.Indicator>

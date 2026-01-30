@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Pencil } from 'lucide-react';
+import { MdEdit } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 
 interface ImageCaptionProps {
@@ -98,7 +98,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                         onEditStart();
                     }}
                 >
-                    {!originalAlt && <Pencil size={12} className="opacity-70" />}
+                    {!originalAlt && <MdEdit size={12} className="opacity-70" />}
                     {originalAlt || "Caption"}
                 </div>
             )}

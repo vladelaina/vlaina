@@ -7,7 +7,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSortable, defaultAnimateLayoutChanges, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronRight, ChevronDown, HeartPulse } from 'lucide-react';
+import { MdChevronRight, MdExpandMore, MdMonitorHeart } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/stores/useGroupStore';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
@@ -198,9 +198,9 @@ export function TaskItem({
                             className="p-0.5 transition-colors"
                         >
                             {collapsed ? (
-                                <ChevronRight className="h-4 w-4 text-zinc-400" />
+                                <MdChevronRight className="h-4 w-4 text-zinc-400" />
                             ) : (
-                                <ChevronDown className="h-4 w-4 text-zinc-400" />
+                                <MdExpandMore className="h-4 w-4 text-zinc-400" />
                             )}
                         </button>
                     ) : (
@@ -258,7 +258,7 @@ export function TaskItem({
                                     icon={task.icon}
                                     color={colorValue}
                                     sizeClass="h-5 w-5"
-                                    fallback={<HeartPulse className="h-4.5 w-4.5 text-zinc-400 opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity" />}
+                                    fallback={<MdMonitorHeart className="h-4.5 w-4.5 text-zinc-400 opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity" />}
                                 />
                             </button>
                         }

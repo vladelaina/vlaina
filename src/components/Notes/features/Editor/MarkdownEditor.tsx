@@ -15,7 +15,7 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
-import { Ellipsis, Star } from 'lucide-react';
+import { MdMoreHoriz, MdStar } from 'react-icons/md';
 import { motion } from 'framer-motion';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -339,7 +339,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
               : `${iconButtonStyles} hover: text - yellow - 500`
           )}
         >
-          <Star className="size-4" fill={starred ? "currentColor" : "none"} />
+          <MdStar className="size-4" style={{ fill: starred ? "currentColor" : "none" }} />
         </button>
 
         <DropdownMenu>
@@ -351,7 +351,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
                 iconButtonStyles
               )}
             >
-              <Ellipsis className="size-4" />
+              <MdMoreHoriz className="size-4" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">

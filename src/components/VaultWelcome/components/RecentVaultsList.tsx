@@ -2,7 +2,7 @@
  * RecentVaultsList - Display recent vaults (IDEA style)
  */
 
-import { X } from 'lucide-react';
+import { MdClose } from 'react-icons/md';
 import { useVaultStore, type VaultInfo } from '@/stores/useVaultStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -59,7 +59,7 @@ export function RecentVaultsList({ vaults, onOpen }: RecentVaultsListProps) {
                   className="vault-item__remove"
                   onClick={(e) => handleRemove(e, vault.id)}
                 >
-                  <X size={12} />
+                  <MdClose size={12} />
                 </button>
               </div>
             </TooltipTrigger>

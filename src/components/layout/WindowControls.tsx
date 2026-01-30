@@ -1,5 +1,5 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Minus, Square, X } from 'lucide-react';
+import { MdRemove, MdCheckBoxOutlineBlank, MdClose } from 'react-icons/md';
 import { iconButtonStyles } from '@/lib/utils';
 
 interface WindowControlsProps {
@@ -18,7 +18,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
         onClick={() => getWindow().minimize()}
         className={`h-full w-12 flex items-center justify-center transition-colors ${iconButtonStyles}`}
       >
-        <Minus className="size-4" />
+        <MdRemove className="size-4" />
       </button>
 
       {!minimal && (
@@ -26,7 +26,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
           onClick={() => getWindow().toggleMaximize()}
           className={`h-full w-12 flex items-center justify-center transition-colors ${iconButtonStyles}`}
         >
-          <Square className="size-3.5" />
+          <MdCheckBoxOutlineBlank className="size-3.5" />
         </button>
       )}
 
@@ -34,7 +34,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
         onClick={() => getWindow().close()}
         className="h-full w-12 flex items-center justify-center hover:bg-red-500 transition-colors group"
       >
-        <X className="size-4 text-[var(--neko-text-tertiary)] group-hover:text-white" />
+        <MdClose className="size-4 text-[var(--neko-text-tertiary)] group-hover:text-white" />
       </button>
     </div>
   );

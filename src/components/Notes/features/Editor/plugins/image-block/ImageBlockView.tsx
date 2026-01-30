@@ -4,7 +4,7 @@ import { Node } from '@milkdown/kit/prose/model';
 import { cn } from '@/lib/utils';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useToastStore } from '@/stores/useToastStore';
-import { ImageOff } from 'lucide-react';
+import { MdBrokenImage } from 'react-icons/md';
 
 // Internal Components
 import { ImageToolbar } from './components/ImageToolbar';
@@ -337,7 +337,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             >
                 {loadError ? (
                     <div className="w-full h-full min-h-[100px] flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900 border border-dashed border-gray-200 dark:border-zinc-700 rounded-md text-gray-400 dark:text-zinc-500">
-                        <ImageOff className="w-8 h-8 mb-2 opacity-50" />
+                        <MdBrokenImage className="w-8 h-8 mb-2 opacity-50" />
                         <span className="text-xs font-medium">Image not found</span>
                     </div>
                 ) : (

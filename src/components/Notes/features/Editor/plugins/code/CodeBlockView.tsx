@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Node } from '@milkdown/kit/prose/model';
 import { EditorView } from '@milkdown/kit/prose/view';
-import { Check, Copy, Download, ChevronDown, ChevronUp, Sparkles, Search, Code2 } from 'lucide-react';
+import { MdCheck, MdContentCopy, MdDownload, MdExpandMore, MdExpandLess, MdAutoAwesome, MdSearch, MdCode } from 'react-icons/md';
 import { SUPPORTED_LANGUAGES, normalizeLanguage } from '../../utils/shiki';
 import { guessLanguage } from '../../utils/languageGuesser';
 import { cn } from '@/lib/utils';
@@ -118,7 +118,7 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
           <DropdownMenu onOpenChange={(open) => !open && setSearchTerm('')}>
             <DropdownMenuTrigger asChild>
               <div className="flex items-center gap-2 group/lang cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800/50 px-2 py-1 rounded-md transition-colors">
-                <Code2 size={16} className="text-gray-400 group-hover/lang:text-gray-700 dark:group-hover/lang:text-zinc-300 transition-colors" />
+                <MdCode size={16} className="text-gray-400 group-hover/lang:text-gray-700 dark:group-hover/lang:text-zinc-300 transition-colors" />
                 <span className="text-sm font-medium text-gray-500 group-hover/lang:text-gray-900 dark:group-hover/lang:text-zinc-200 transition-colors">
                   {displayName}
                 </span>
@@ -128,7 +128,7 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
               {/* Search Bar & Auto-Detect Group */}
               <div className="p-2 bg-gray-50/50 dark:bg-zinc-900/50 border-b border-gray-100 dark:border-zinc-800 flex flex-col gap-2">
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-gray-400" />
+                  <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-gray-400" />
                   <input
                     autoFocus
                     className="w-full bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg pl-8 pr-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
@@ -144,7 +144,7 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
                   onClick={handleAutoDetect}
                   className="flex items-center gap-2 w-full px-2.5 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                 >
-                  <Sparkles size={14} className="shrink-0" />
+                  <MdAutoAwesome size={14} className="shrink-0" />
                   <span>Auto Detect Language</span>
                 </button>
               </div>
@@ -180,21 +180,21 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
                 className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 transition-colors"
                 title="Download"
             >
-                <Download size={14} />
+                <MdDownload size={14} />
             </button>
             <button 
                 onClick={handleCopy}
                 className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 transition-colors"
                 title="Copy code"
             >
-                {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                {copied ? <MdCheck size={14} className="text-green-500" /> : <MdContentCopy size={14} />}
             </button>
             <button 
                 onClick={toggleCollapse}
                 className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 dark:text-zinc-400 transition-colors"
                 title={isCollapsed ? "Expand" : "Collapse"}
             >
-                {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                {isCollapsed ? <MdExpandMore size={14} /> : <MdExpandLess size={14} />}
             </button>
         </div>
     </div>

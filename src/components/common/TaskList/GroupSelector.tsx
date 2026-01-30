@@ -1,4 +1,4 @@
-import { ChevronDown, Check, Archive } from 'lucide-react';
+import { MdExpandMore, MdCheck, MdArchive } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { Group } from '@/stores/types';
@@ -31,7 +31,7 @@ export function GroupSelector({
                 <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 truncate">
                     {currentGroup?.name || 'Inbox'}
                 </span>
-                <ChevronDown className={cn(
+                <MdExpandMore className={cn(
                     "size-3.5 text-zinc-400 transition-transform flex-shrink-0",
                     showPicker && "rotate-180"
                 )} />
@@ -63,7 +63,7 @@ export function GroupSelector({
                                 {group.pinned && <span className="text-[10px]">📌</span>}
                                 <span className="truncate">{group.name}</span>
                                 {group.id === activeGroupId && (
-                                    <Check className="size-3.5 ml-auto flex-shrink-0" />
+                                    <MdCheck className="size-3.5 ml-auto flex-shrink-0" />
                                 )}
                             </button>
                         ))}
@@ -80,7 +80,7 @@ export function GroupSelector({
                                     : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                             )}
                         >
-                            <Archive className="size-3.5" />
+                            <MdArchive className="size-3.5" />
                             <span>Archive</span>
                         </button>
                     </motion.div>

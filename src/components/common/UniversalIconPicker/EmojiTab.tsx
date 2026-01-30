@@ -3,7 +3,7 @@
  */
 
 import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
+import { MdSearch, MdClose } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { VirtualEmojiGrid, VirtualSearchResults } from './VirtualEmojiGrid';
 import {
@@ -159,7 +159,7 @@ export function EmojiTab({
     <div>
       <div className="px-3 pt-3 pb-2 flex items-center gap-2">
         <div className="flex-1 relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-[var(--neko-text-tertiary)]" />
+          <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-[var(--neko-text-tertiary)]" />
           <input
             ref={searchInputRef}
             type="text"
@@ -179,7 +179,7 @@ export function EmojiTab({
               onClick={() => setSearchQuery('')}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors"
             >
-              <X className="size-4" />
+              <MdClose className="size-4" />
             </button>
           )}
         </div>

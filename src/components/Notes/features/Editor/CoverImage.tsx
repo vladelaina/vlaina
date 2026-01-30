@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo, useLayoutEffect } from 'react';
 import Cropper from 'react-easy-crop';
-import { ImageOff } from 'lucide-react';
+import { MdBrokenImage } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { CoverPicker } from '../AssetLibrary';
 import { loadImageAsBlob } from '@/lib/assets/imageLoader';
@@ -831,7 +831,7 @@ export function CoverImage({
                     )}
                     onMouseDown={() => !readOnly && setShowPicker(true)}
                 >
-                    <ImageOff className="w-8 h-8 mb-2 opacity-50" />
+                    <MdBrokenImage className="w-8 h-8 mb-2 opacity-50" />
                     <span className="text-xs font-medium opacity-70">Image failed to load</span>
                     {!readOnly && <span className="text-[10px] opacity-50 mt-1">Click to replace</span>}
                 </div>

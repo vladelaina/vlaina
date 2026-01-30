@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
-  Search, MapPin, X, Loader2, CloudSun
+  MdSearch, MdLocationOn, MdClose, MdRefresh, MdCloudQueue
 }
-from 'lucide-react';
+from 'react-icons/md';
 import { isSameDay } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCalendarStore } from '@/stores/useCalendarStore';
@@ -128,7 +128,7 @@ export function WeatherWidget() {
                     </span>
                   )}
                   {isInitialLoading && (
-                     <Loader2 className="size-3 animate-spin text-zinc-400" />
+                     <MdRefresh className="size-3 animate-spin text-zinc-400" />
                   )}
                 </>
               )}
@@ -139,7 +139,7 @@ export function WeatherWidget() {
         <PopoverContent className="w-64 p-0 overflow-hidden bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800" align="end" sideOffset={8}>
           <div className="p-3 border-b border-zinc-100 dark:border-zinc-800">
             <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-zinc-400" />
+              <MdSearch className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-zinc-400" />
               <input
                 autoFocus
                 type="text"
@@ -159,7 +159,7 @@ export function WeatherWidget() {
                   onClick={() => selectCity(loc)}
                   className="w-full flex items-start gap-3 px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-left group"
                 >
-                  <MapPin className="size-4 text-zinc-400 mt-0.5 group-hover:text-blue-500 transition-colors" />
+                  <MdLocationOn className="size-4 text-zinc-400 mt-0.5 group-hover:text-blue-500 transition-colors" />
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{loc.name}</span>
                     <span className="text-[10px] text-zinc-400">{loc.admin1 ? `${loc.admin1}, ` : ''}{loc.country}</span>
@@ -170,27 +170,27 @@ export function WeatherWidget() {
               <div className="p-4 text-center text-xs text-zinc-400">No cities found</div>
             ) : isSearching ? (
               <div className="p-4 flex justify-center">
-                <Loader2 className="size-4 animate-spin text-zinc-400" />
+                <MdRefresh className="size-4 animate-spin text-zinc-400" />
               </div>
             ) : city ? (
               <div className="p-2">
                 <div className="px-2 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Current</div>
                 <div className="flex items-center justify-between px-2 py-2 bg-zinc-50 dark:bg-zinc-800/50 rounded-md">
                   <div className="flex items-center gap-2">
-                    <MapPin className="size-3.5 text-blue-500" />
+                    <MdLocationOn className="size-3.5 text-blue-500" />
                     <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{city.name}</span>
                   </div>
                   <button 
                     onClick={removeCity}
                     className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors"
                   >
-                    <X className="size-3 text-zinc-400" />
+                    <MdClose className="size-3 text-zinc-400" />
                   </button>
                 </div>
               </div>
             ) : (
               <div className="p-8 text-center flex flex-col items-center gap-2">
-                <CloudSun className="size-8 text-zinc-200 dark:text-zinc-800" />
+                <MdCloudQueue className="size-8 text-zinc-200 dark:text-zinc-800" />
                 <p className="text-xs text-zinc-400">Search for a city to see local weather</p>
               </div>
             )}

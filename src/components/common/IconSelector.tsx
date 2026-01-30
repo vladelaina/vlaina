@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { Ban, MoreHorizontal, HeartPulse } from 'lucide-react';
+import { MdBlock, MdMoreHoriz, MdMonitorHeart } from 'react-icons/md';
 import { UniversalIconPicker } from '@/components/common/UniversalIconPicker';
 import { AppIcon } from '@/components/common/AppIcon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -76,7 +76,7 @@ export function IconSelector({
                   {value ? (
                     <AppIcon icon={value} size={14} color={colorHex} />
                   ) : (
-                    <HeartPulse className="size-3.5 text-zinc-400" />
+                    <MdMonitorHeart className="size-3.5 text-zinc-400" />
                   )}
                 </button>
               )}
@@ -121,7 +121,7 @@ export function IconSelector({
           )}
           title="Clear icon"
         >
-          <Ban className="size-3.5" strokeWidth={1.5} />
+          <MdBlock className="size-3.5" />
         </button>
         
         {QUICK_ICONS.slice(0, 6).map((name) => (
@@ -149,7 +149,7 @@ export function IconSelector({
                   )}
                   title="More icons"
                 >
-                    <MoreHorizontal className="size-3.5" />
+                    <MdMoreHoriz className="size-3.5" />
                 </button>
             </PopoverTrigger>
             <PopoverContent 

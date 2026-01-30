@@ -1,4 +1,4 @@
-import { Search, Maximize2, Minimize2 } from 'lucide-react';
+import { MdSearch, MdFullscreen, MdFullscreenExit } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 
 type PanelView = 'tasks' | 'progress';
@@ -64,7 +64,7 @@ export function PanelHeader({
                                     : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                             )}
                         >
-                            <Search className="size-4" />
+                            <MdSearch className="size-4" />
                         </button>
                     )}
 
@@ -74,7 +74,7 @@ export function PanelHeader({
                             onClick={onToggleExpand}
                             className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                         >
-                            {isExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+                            {isExpanded ? <MdFullscreenExit className="size-4" /> : <MdFullscreen className="size-4" />}
                         </button>
                     )}
                 </div>

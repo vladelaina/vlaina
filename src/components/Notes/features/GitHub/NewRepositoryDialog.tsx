@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { X, Loader2, Lock, Globe } from 'lucide-react';
+import { MdClose, MdRefresh, MdLock, MdPublic } from 'react-icons/md';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { cn } from '@/lib/utils';
 
@@ -110,7 +110,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                         onClick={onClose}
                         className="p-1.5 rounded-md hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] transition-colors"
                     >
-                        <X className="w-4 h-4" />
+                        <MdClose className="w-4 h-4" />
                     </button>
                 </div>
 
@@ -185,7 +185,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                                     "disabled:opacity-50"
                                 )}
                             >
-                                <Lock className={cn(
+                                <MdLock className={cn(
                                     "w-4 h-4",
                                     isPrivate ? "text-[var(--neko-accent)]" : "text-[var(--neko-text-tertiary)]"
                                 )} />
@@ -214,7 +214,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                                     "disabled:opacity-50"
                                 )}
                             >
-                                <Globe className={cn(
+                                <MdPublic className={cn(
                                     "w-4 h-4",
                                     !isPrivate ? "text-[var(--neko-accent)]" : "text-[var(--neko-text-tertiary)]"
                                 )} />
@@ -265,7 +265,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                                 "transition-colors disabled:opacity-50"
                             )}
                         >
-                            {isCreating && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {isCreating && <MdRefresh className="w-4 h-4 animate-spin" />}
                             {isCreating ? 'Creating...' : 'Create Repository'}
                         </button>
                     </div>

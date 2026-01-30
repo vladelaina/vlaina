@@ -8,18 +8,18 @@
 import { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    Ellipsis,
-    RefreshCw,
-    ExternalLink,
-    Trash2,
-    Upload,
-    Download,
-    Cloud,
-    CloudUpload,
-    CloudCog,
-    CloudAlert,
-    CloudOff,
-} from 'lucide-react';
+    MdMoreHoriz,
+    MdRefresh,
+    MdOpenInNew,
+    MdDelete,
+    MdUpload,
+    MdDownload,
+    MdCloud,
+    MdCloudUpload,
+    MdCloudSync,
+    MdError,
+    MdCloudOff,
+} from 'react-icons/md';
 import { ToggleIcon } from '@/components/common/ToggleIcon';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { type RepositoryInfo } from '@/lib/tauri/invoke';
@@ -62,28 +62,28 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
 
         // Show sync icon when refreshing, cloning, or syncing
         if (isRefreshing || isSyncing) {
-            return <CloudCog className={iconClass} />;
+            return <MdCloudSync className={iconClass} />;
         }
 
         // Not cloned yet
         if (!repoIsCloned) {
-            return <CloudOff className={iconClass} />;
+            return <MdCloudOff className={iconClass} />;
         }
 
         // Has local changes to push
         if (repoHasChanges) {
-            return <CloudUpload className={iconClass} />;
+            return <MdCloudUpload className={iconClass} />;
         }
 
         switch (status) {
             case 'synced':
-                return <Cloud className={iconClass} />;
+                return <MdCloud className={iconClass} />;
             case 'has_changes':
-                return <CloudUpload className={iconClass} />;
+                return <MdCloudUpload className={iconClass} />;
             case 'error':
-                return <CloudAlert className={iconClass} />;
+                return <MdError className={iconClass} />;
             default:
-                return <Cloud className={iconClass} />;
+                return <MdCloud className={iconClass} />;
         }
     };
 
@@ -184,7 +184,7 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
                             iconButtonStyles
                         )}
                     >
-                        <Ellipsis className="w-4 h-4" />
+                        <MdMoreHoriz className="w-4 h-4" />
                     </button>
                 </div>
             </div>
@@ -204,32 +204,32 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
                         )}
                     >
                         <MenuItem
-                            icon={<RefreshCw />}
+                            icon={<MdRefresh />}
                             label="Sync Now"
                             onClick={handleSyncNow}
                             disabled={isSyncing || !repoIsCloned}
                         />
                         <MenuItem
-                            icon={<Download />}
+                            icon={<MdDownload />}
                             label="Pull from Remote"
                             onClick={handlePull}
                             disabled={isSyncing || !repoIsCloned}
                         />
                         <MenuItem
-                            icon={<Upload />}
+                            icon={<MdUpload />}
                             label="Push to Remote"
                             onClick={handlePush}
                             disabled={isSyncing || !repoIsCloned || !repoHasChanges}
                         />
                         <div className="h-px bg-[var(--neko-divider)] my-1.5 mx-2" />
                         <MenuItem
-                            icon={<ExternalLink />}
+                            icon={<MdOpenInNew />}
                             label="Open in GitHub"
                             onClick={handleOpenInGitHub}
                         />
                         <div className="h-px bg-[var(--neko-divider)] my-1.5 mx-2" />
                         <MenuItem
-                            icon={<Trash2 />}
+                            icon={<MdDelete />}
                             label="Remove from List"
                             onClick={handleRemove}
                             danger
@@ -252,7 +252,7 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
             {/* Cloning indicator */}
             {isExpanded && !repoIsCloned && isCloning && (
                 <div className="flex items-center gap-2 px-4 py-3 text-[12px] text-[var(--neko-text-tertiary)]">
-                    <CloudCog className="w-4 h-4 animate-pulse" />
+                    <MdCloudSync className="w-4 h-4 animate-pulse" />
                     Cloning repository...
                 </div>
             )}

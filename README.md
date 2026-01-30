@@ -10,6 +10,17 @@ Please note that the **NekoTick name, Logo, and visual assets** are proprietary 
 If you wish to fork and redistribute this project, you must remove our branding assets.  
 👉 Please read our **[Trademark & Forking Policy](TRADEMARK.md)** for detailed guidelines.
 
+## ❤️ Open Source Credits
+
+NekoTick is built on the shoulders of giants. We gratefully acknowledge the following open-source projects:
+
+*   **[React](https://react.dev/)** - UI Library
+*   **[Tauri](https://tauri.app/)** - App Framework
+*   **[Milkdown](https://milkdown.dev/)** - WYSIWYG Markdown Editor
+*   **[Material Design Icons](https://github.com/google/material-design-icons)** - Iconography (Apache 2.0)
+*   **[Radix UI](https://www.radix-ui.com/)** - Accessible UI Primitives
+*   And many others listed in `package.json`.
+
 ## 🛠️ Development
 
 ### Getting Started

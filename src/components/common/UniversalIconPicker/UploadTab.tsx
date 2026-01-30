@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import Cropper from 'react-easy-crop';
 import { Button } from '@/components/ui/button';
-import { Upload } from 'lucide-react';
+import { MdUpload } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { getCroppedImg } from '@/lib/assets/imageLoader';
 import { useToastStore } from '@/stores/useToastStore';
@@ -181,7 +181,7 @@ export function UploadTab({
                                 "active:scale-95"
                             )}
                         >
-                            <Upload size={14} />
+                            <MdUpload size={14} />
                         </button>
                     </div>
 
@@ -254,7 +254,7 @@ export function UploadTab({
                             )}
                         >
                             <div className="p-1.5 bg-[var(--neko-bg-tertiary)] rounded-md transition-colors group-hover:bg-[#1e96eb]/10 group-hover:text-[#1e96eb] text-[var(--neko-text-tertiary)]">
-                                <Upload className="size-3.5" />
+                                <MdUpload className="size-3.5" />
                             </div>
 
                             <div className="flex flex-col items-start gap-0.5">

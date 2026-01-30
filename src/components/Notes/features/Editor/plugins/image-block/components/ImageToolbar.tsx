@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlignLeft, AlignCenter, AlignRight, Crop, Copy, Check, Download, Trash2 } from 'lucide-react';
+import { MdFormatAlignLeft, MdFormatAlignCenter, MdFormatAlignRight, MdCrop, MdContentCopy, MdCheck, MdDownload, MdDelete } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { IconButton } from '@/components/ui/icon-button';
 
@@ -47,17 +47,17 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
         )}>
             <div className="flex items-center gap-0.5">
                 <ToolbarButton 
-                    icon={<AlignLeft className="size-4" />} 
+                    icon={<MdFormatAlignLeft className="size-4" />} 
                     onClick={() => onAlign('left')} 
                     active={alignment === 'left'} 
                 />
                 <ToolbarButton 
-                    icon={<AlignCenter className="size-4" />} 
+                    icon={<MdFormatAlignCenter className="size-4" />} 
                     onClick={() => onAlign('center')} 
                     active={alignment === 'center'} 
                 />
                 <ToolbarButton 
-                    icon={<AlignRight className="size-4" />} 
+                    icon={<MdFormatAlignRight className="size-4" />} 
                     onClick={() => onAlign('right')} 
                     active={alignment === 'right'} 
                 />
@@ -66,19 +66,19 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
             <div className="w-[1px] h-4 bg-gray-200 dark:bg-zinc-700 mx-1" />
             
             <div className="flex items-center gap-0.5">
-                <ToolbarButton icon={<Crop className="size-4" />} onClick={onEdit} />
+                <ToolbarButton icon={<MdCrop className="size-4" />} onClick={onEdit} />
                 <ToolbarButton 
-                    icon={copied ? <Check className="size-4" /> : <Copy className="size-4" />} 
+                    icon={copied ? <MdCheck className="size-4" /> : <MdContentCopy className="size-4" />} 
                     onClick={handleCopy} 
                     success={copied}
                 />
-                <ToolbarButton icon={<Download className="size-4" />} onClick={onDownload} />
+                <ToolbarButton icon={<MdDownload className="size-4" />} onClick={onDownload} />
             </div>
 
             <div className="w-[1px] h-4 bg-gray-200 dark:bg-zinc-700 mx-1" />
 
             <div className="flex items-center gap-0.5">
-                <ToolbarButton icon={<Trash2 className="size-4" />} onClick={onDelete} danger />
+                <ToolbarButton icon={<MdDelete className="size-4" />} onClick={onDelete} danger />
             </div>
         </div>
     );
