@@ -123,6 +123,15 @@ export const floatingToolbarPlugin = $prose(() => {
             return; 
         }
 
+        // Don't show toolbar in code blocks
+        const { $from } = selection;
+        if ($from.parent.type.name === 'code_block') {
+            hideToolbar();
+            lastRenderState = '';
+            currentBlockElement = null;
+            return;
+        }
+
         updateCurrentBlockElement(editorView);
         const state = floatingToolbarKey.getState(editorView.state);
         if (!state?.isVisible) { hideToolbar(); lastRenderState = ''; return; }
