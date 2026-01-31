@@ -105,6 +105,8 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
     if (guessed) {
         console.log('Calling updateLanguage with:', guessed);
         updateLanguage(guessed);
+        // Auto-close the dropdown after successful detection
+        setIsLangMenuOpen(false);
     } else {
         console.log('No language detected - guessLanguage returned null');
     }

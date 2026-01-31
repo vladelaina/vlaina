@@ -1,5 +1,6 @@
 import { NodeView, EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import { createRoot, Root } from 'react-dom/client';
 import React from 'react';
 import { CodeBlockView } from './CodeBlockView';
@@ -44,6 +45,28 @@ export class CodeBlockNodeView implements NodeView {
         this.contentDOM = document.createElement('pre');
         this.contentDOM.contentEditable = 'true';
         this.contentDOM.className = 'code-block-editable m-0 px-4 pb-4 pt-1 overflow-x-auto text-sm font-mono leading-relaxed bg-transparent outline-none';
+        
+        // Handle Ctrl+A to select all code in the block
+        this.contentDOM.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const pos = this.getPos();
+                if (pos === undefined) return;
+                
+                // Update ProseMirror selection
+                const start = pos + 1; // +1 to skip the node itself
+                const end = pos + this.node.nodeSize - 1; // -1 to stay inside the node
+                
+                const tr = this.view.state.tr.setSelection(
+                    TextSelection.create(this.view.state.doc, start, end)
+                );
+                this.view.dispatch(tr);
+                this.view.focus();
+            }
+        });
+        
         this.dom.appendChild(this.contentDOM);
         
         this.root = createRoot(this.headerDOM);

@@ -34,7 +34,26 @@ export const codeEnterKeymap = $prose(() => {
     return keymap({
         'Enter': (state, dispatch) => {
             const { selection } = state;
-            if (!selection.empty) return false;
+            
+            // CRITICAL: If there's a selection (text is selected), don't handle it
+            // Let the default behavior handle it, but only within the code block
+            if (!selection.empty) {
+                const $from = selection.$from;
+                const $to = selection.$to;
+                
+                // Check if selection is within a code block
+                const inCodeBlock = $from.parent.type.name === 'code_block' && 
+                                   $to.parent.type.name === 'code_block' &&
+                                   $from.parent === $to.parent;
+                
+                if (inCodeBlock) {
+                    // Allow default behavior (delete selection and insert newline)
+                    return false;
+                }
+                
+                // If selection spans outside code block, prevent any action
+                return true;
+            }
 
             const $from = selection.$from;
             const parent = $from.parent;
