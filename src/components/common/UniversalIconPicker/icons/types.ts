@@ -1,4 +1,4 @@
-import * as MdIcons from 'react-icons/md';
+import * as LucideIcons from 'lucide-react';
 import { COLOR_HEX } from '@/lib/colors/index';
 
 export interface IconItem {
@@ -21,17 +21,13 @@ export function createIconItems(iconNames: string[]): IconItem[] {
   const seen = new Set<string>();
   return iconNames
     .map(name => {
-      // Try to find icon by name (e.g. "MdStar") or construct it ("Star" -> "MdStar")
-      const iconName = name.startsWith('Md') ? name : `Md${name}`;
-      const icon = (MdIcons as any)[iconName];
-      
+      const icon = (LucideIcons as any)[name];
       if (!icon) return null;
-      
       const lowerName = name.toLowerCase();
       if (seen.has(lowerName)) return null;
       seen.add(lowerName);
       return {
-        name: name, // Keep original name for display
+        name: name,
         icon,
         color: DEFAULT_ICON_COLOR,
       };
@@ -41,6 +37,5 @@ export function createIconItems(iconNames: string[]): IconItem[] {
 
 // Get icon component by name
 export function getIcon(name: string) {
-  const iconName = name.startsWith('Md') ? name : `Md${name}`;
-  return (MdIcons as any)[iconName];
+  return (LucideIcons as any)[name];
 }

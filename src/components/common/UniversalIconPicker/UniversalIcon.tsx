@@ -4,7 +4,8 @@
  */
 
 import { memo, useMemo, useState, useEffect } from 'react';
-import { MdDescription } from 'react-icons/md';
+import * as LucideIcons from 'lucide-react';
+import * as MdIcons from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { ICON_MAP as ICON_ITEM_MAP, EMOJI_MAP } from './constants';
 
@@ -13,19 +14,12 @@ export interface UniversalIconProps {
   size?: number | string;
   className?: string;
   rounding?: string;
-  
-  // Force override color (e.g. for task priority)
   color?: string;
-
-  // Preview states (passed from parent/context)
   previewColor?: string | null;
   previewTone?: number | null;
-  
-  // Optional image loader for custom protocols (e.g. "img:...")
   imageLoader?: (src: string) => Promise<string>;
 }
 
-// Custom Image renderer component
 const ImageIconRenderer = memo(function ImageIconRenderer({
   src,
   size,
@@ -38,23 +32,17 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
   rounding?: string;
 }) {
   if (!src) return null;
-  
   return (
     <img
       src={src}
       className={cn("object-cover select-none pointer-events-none", rounding || "rounded-sm", className)}
-      style={{
-        width: size,
-        height: size,
-        display: 'inline-block',
-      }}
+      style={{ width: size, height: size, display: 'inline-block' }}
       draggable={false}
       alt="icon"
     />
   );
 });
 
-// Icon renderer component
 const IconIconRenderer = memo(function IconIconRenderer({
   iconName,
   originalColor,
@@ -71,10 +59,16 @@ const IconIconRenderer = memo(function IconIconRenderer({
   previewColor?: string | null;
 }) {
   const color = previewColor || forcedColor || originalColor;
-  const iconItem = ICON_ITEM_MAP.get(iconName);
-  const IconComponent = iconItem?.icon || MdDescription;
+  
+  const IconComponent = useMemo(() => {
+    let Comp = (LucideIcons as any)[iconName];
+    if (!Comp) {
+      const mdName = iconName.startsWith('Md') ? iconName : `Md${iconName}`;
+      Comp = (MdIcons as any)[mdName] || (MdIcons as any)[iconName];
+    }
+    return Comp || MdIcons.MdDescription;
+  }, [iconName]);
 
-  // Check if size is a CSS variable string
   const isCSSVariable = typeof size === 'string' && size.startsWith('var(');
 
   return (
@@ -100,7 +94,6 @@ const IconIconRenderer = memo(function IconIconRenderer({
   );
 });
 
-// Emoji renderer component
 const EmojiIconRenderer = memo(function EmojiIconRenderer({
   emoji,
   size,
@@ -124,12 +117,7 @@ const EmojiIconRenderer = memo(function EmojiIconRenderer({
   return (
     <span
       className={className}
-      style={{
-        fontSize: size,
-        lineHeight: 1,
-        display: 'inline-block',
-        userSelect: 'none',
-      }}
+      style={{ fontSize: size, lineHeight: 1, display: 'inline-block', userSelect: 'none' }}
     >
       {displayEmoji}
     </span>
@@ -152,16 +140,8 @@ export function UniversalIcon({
     let active = true;
     if (icon && icon.startsWith('img:')) {
       if (imageLoader) {
-        imageLoader(icon)
-          .then(url => {
-            if (active) setImgSrc(url);
-          })
-          .catch(err => {
-            console.error('Failed to load icon image', err);
-            if (active) setImgSrc(null);
-          });
+        imageLoader(icon).then(url => { if (active) setImgSrc(url); }).catch(() => { if (active) setImgSrc(null); });
       } else {
-        // Fallback: assume the part after "img:" is a valid URL if no loader provided
         if (active) setImgSrc(icon.substring(4));
       }
     } else {
@@ -172,52 +152,20 @@ export function UniversalIcon({
 
   if (!icon) return null;
 
-  // Handle Image Icons
   if (icon.startsWith('img:')) {
-    if (!imgSrc) {
-      // Placeholder or null while loading
-      return <div style={{ width: size, height: size }} className={className} />;
-    }
-    return (
-      <ImageIconRenderer
-        src={imgSrc}
-        size={size}
-        className={className}
-        rounding={rounding}
-      />
-    );
+    return imgSrc ? <ImageIconRenderer src={imgSrc} size={size} className={className} rounding={rounding} /> : <div style={{ width: size, height: size }} className={className} />;
   }
 
-  // Handle Vector Icons (Standard format or Legacy plain name)
   if (icon.startsWith('icon:') || ICON_ITEM_MAP.has(icon)) {
     let iconName = icon;
     let originalColor = '#6b7280';
-
     if (icon.startsWith('icon:')) {
       const parts = icon.split(':');
       iconName = parts[1];
       originalColor = parts[2] || '#6b7280';
     }
-
-    return (
-      <IconIconRenderer
-        iconName={iconName}
-        originalColor={originalColor}
-        forcedColor={color}
-        size={size}
-        className={className}
-        previewColor={previewColor}
-      />
-    );
+    return <IconIconRenderer iconName={iconName} originalColor={originalColor} forcedColor={color} size={size} className={className} previewColor={previewColor} />;
   }
 
-  // Handle Emojis
-  return (
-    <EmojiIconRenderer
-      emoji={icon}
-      size={size}
-      className={className}
-      previewTone={previewTone}
-    />
-  );
+  return <EmojiIconRenderer emoji={icon} size={size} className={className} previewTone={previewTone} />;
 }
