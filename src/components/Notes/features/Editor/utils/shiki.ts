@@ -172,31 +172,24 @@ export async function getHighlighter(): Promise<Highlighter> {
  * Normalize language identifier
  */
 export function normalizeLanguage(lang: string | null): BundledLanguage | null {
-  console.log('[normalizeLanguage] Input:', lang);
-  
   if (!lang) {
-    console.log('[normalizeLanguage] Input is null/undefined');
     return null;
   }
   
   const normalized = lang.toLowerCase().trim();
-  console.log('[normalizeLanguage] Normalized string:', normalized);
   
   // Direct match
   const direct = SUPPORTED_LANGUAGES.find(l => l.id === normalized);
   if (direct) {
-    console.log('[normalizeLanguage] Direct match found:', direct.id);
     return direct.id;
   }
   
   // Alias match
   const aliased = SUPPORTED_LANGUAGES.find(l => l.aliases?.includes(normalized));
   if (aliased) {
-    console.log('[normalizeLanguage] Alias match found:', aliased.id, 'for alias:', normalized);
     return aliased.id;
   }
   
-  console.log('[normalizeLanguage] No match found, returning null');
   return null;
 }
 

@@ -62,5 +62,17 @@ export const detectCSharp: LanguageDetector = (ctx) => {
     return 'csharp';
   }
   
+  // Simple C# method signatures - int/string/void MethodName(params)
+  // This is a weak signal, so we need to be careful not to conflict with Java/C++
+  if (/\b(int|string|void|bool|double|float)\s+[A-Z]\w*\s*\([^)]*\)\s*\{/.test(first100Lines)) {
+    // Check if it's NOT Java (Java would have package/import statements)
+    if (!/^(package|import)\s+/m.test(first100Lines)) {
+      // Check if it's NOT C++ (C++ would have #include or std::)
+      if (!/#include\s*[<"]/.test(first100Lines) && !/std::/.test(first100Lines)) {
+        return 'csharp';
+      }
+    }
+  }
+  
   return null;
 };

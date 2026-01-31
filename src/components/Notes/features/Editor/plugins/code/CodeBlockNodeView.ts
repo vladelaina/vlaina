@@ -67,6 +67,38 @@ export class CodeBlockNodeView implements NodeView {
             }
         });
         
+        // Handle paste to trim trailing newlines
+        // Strategy: Intercept paste, insert trimmed text, let ProseMirror handle cursor naturally
+        this.contentDOM.addEventListener('paste', (e) => {
+            const clipboardData = e.clipboardData;
+            const pastedText = clipboardData?.getData('text/plain');
+            
+            if (!pastedText) return;
+            
+            // Check if we need to trim
+            const trimmedText = pastedText.replace(/\n+$/, '');
+            const needsTrimming = trimmedText !== pastedText;
+            
+            if (!needsTrimming) {
+                // No trimming needed, let ProseMirror handle naturally
+                return;
+            }
+            
+            // Prevent default paste behavior
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Insert trimmed text and let ProseMirror handle cursor positioning
+            const { from, to } = this.view.state.selection;
+            const tr = this.view.state.tr.insertText(trimmedText, from, to);
+            this.view.dispatch(tr);
+            
+            // Focus to ensure cursor is visible
+            requestAnimationFrame(() => {
+                this.view.focus();
+            });
+        });
+        
         this.dom.appendChild(this.contentDOM);
         
         this.root = createRoot(this.headerDOM);

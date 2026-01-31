@@ -41,34 +41,20 @@ const detectors: DetectorConfig[] = [
 ];
 
 export function guessLanguage(code: string): string | null {
-  console.log('[guessLanguage] Input code length:', code?.length);
-  console.log('[guessLanguage] Input code preview:', code?.slice(0, 100));
-  
   if (!code || !code.trim()) {
-    console.log('[guessLanguage] Code is empty or whitespace only');
     return null;
   }
   
   const ctx = createContext(code);
-  console.log('[guessLanguage] Context created:', {
-    lines: ctx.lines.length,
-    firstLine: ctx.firstLine,
-    hasCurlyBraces: ctx.hasCurlyBraces,
-    hasImport: ctx.hasImport,
-    hasFunction: ctx.hasFunction
-  });
-  
   const sortedDetectors = detectors.sort((a, b) => a.priority - b.priority);
   
-  for (const { name, detector } of sortedDetectors) {
+  for (const { detector } of sortedDetectors) {
     const result = detector(ctx);
     if (result) {
-      console.log(`[guessLanguage] Detected by ${name}:`, result);
       return result;
     }
   }
   
-  console.log('[guessLanguage] No language detected by any detector');
   return null;
 }
 
