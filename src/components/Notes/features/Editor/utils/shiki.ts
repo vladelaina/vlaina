@@ -1,6 +1,5 @@
 // Shiki utility functions
 import { createHighlighter, bundledLanguagesInfo, type Highlighter, type BundledLanguage } from 'shiki';
-import { getLanguageLogo } from './languageLogos';
 
 let highlighterInstance: Highlighter | null = null;
 let highlighterPromise: Promise<Highlighter> | null = null;
@@ -74,7 +73,6 @@ const LANGUAGES_WITH_ICONS: { id: BundledLanguage; name: string; aliases?: strin
   // DevOps & Config
   { id: 'docker', name: 'Dockerfile', aliases: ['dockerfile'] },
   { id: 'terraform', name: 'Terraform', aliases: ['tf'] },
-  { id: 'kubernetes', name: 'Kubernetes', aliases: ['k8s'] },
   { id: 'nginx', name: 'Nginx' },
   { id: 'apache', name: 'Apache' },
   { id: 'dotenv', name: 'dotEnv' },
@@ -107,7 +105,6 @@ const LANGUAGES_WITH_ICONS: { id: BundledLanguage; name: string; aliases?: strin
   { id: 'zig', name: 'Zig' },
   { id: 'nim', name: 'Nim' },
   { id: 'crystal', name: 'Crystal' },
-  { id: 'fortran', name: 'Fortran' },
   { id: 'fortran-fixed-form', name: 'Fortran (Fixed Form)', aliases: ['f', 'for', 'f77'] },
   { id: 'fortran-free-form', name: 'Fortran (Free Form)', aliases: ['f90', 'f95', 'f03', 'f08', 'f18'] },
   { id: 'objective-c', name: 'Objective-C', aliases: ['objc'] },
@@ -175,18 +172,31 @@ export async function getHighlighter(): Promise<Highlighter> {
  * Normalize language identifier
  */
 export function normalizeLanguage(lang: string | null): BundledLanguage | null {
-  if (!lang) return null;
+  console.log('[normalizeLanguage] Input:', lang);
+  
+  if (!lang) {
+    console.log('[normalizeLanguage] Input is null/undefined');
+    return null;
+  }
   
   const normalized = lang.toLowerCase().trim();
+  console.log('[normalizeLanguage] Normalized string:', normalized);
   
   // Direct match
   const direct = SUPPORTED_LANGUAGES.find(l => l.id === normalized);
-  if (direct) return direct.id;
+  if (direct) {
+    console.log('[normalizeLanguage] Direct match found:', direct.id);
+    return direct.id;
+  }
   
   // Alias match
   const aliased = SUPPORTED_LANGUAGES.find(l => l.aliases?.includes(normalized));
-  if (aliased) return aliased.id;
+  if (aliased) {
+    console.log('[normalizeLanguage] Alias match found:', aliased.id, 'for alias:', normalized);
+    return aliased.id;
+  }
   
+  console.log('[normalizeLanguage] No match found, returning null');
   return null;
 }
 

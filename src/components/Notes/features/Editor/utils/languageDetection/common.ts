@@ -42,12 +42,15 @@ export function checkShebang(ctx: DetectionContext): string | null {
   }
   
   if (firstLine.includes('/bash') || firstLine.includes('/sh')) {
-    if (firstLine.includes('/fish')) return 'fish';
-    if (firstLine.includes('/zsh')) return 'zsh';
+    // fish, zsh are shell variants - map to bash for Shiki compatibility
+    if (firstLine.includes('/fish')) return 'bash';
+    if (firstLine.includes('/zsh')) return 'bash';
     return 'bash';
   }
-  if (firstLine.includes('/awk')) return 'awk';
-  if (firstLine.includes('/expect')) return 'tcl';
+  // awk is not supported by Shiki - map to bash
+  if (firstLine.includes('/awk')) return 'bash';
+  // tcl/expect is not supported by Shiki - map to bash
+  if (firstLine.includes('/expect')) return 'bash';
   if (firstLine.includes('/python')) return 'python';
   if (firstLine.includes('/ruby')) return 'ruby';
   if (firstLine.includes('/node')) return 'javascript';

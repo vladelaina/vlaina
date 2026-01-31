@@ -34,8 +34,13 @@ export const detectHTML: LanguageDetector = (ctx) => {
   }
   
   // HTML tags - but need multiple to be confident
-  const htmlTagMatches = first100Lines.match(/<(div|span|p|a|img|table|form|input|button|h[1-6]|ul|ol|li)[\s>]/gi);
-  if (htmlTagMatches && htmlTagMatches.length >= 3) {
+  const htmlTagMatches = first100Lines.match(/<(div|span|p|a|img|table|form|input|button|h[1-6]|ul|ol|li)[\s>\/]/gi);
+  if (htmlTagMatches && htmlTagMatches.length >= 2) {
+    return 'html';
+  }
+  
+  // Single HTML tag with attributes (likely HTML) - more flexible matching
+  if (/<(a|img|div|span|input|button|link|meta|script)[^>]*(href|src|class|id|style|alt|width|height)=/i.test(first100Lines)) {
     return 'html';
   }
   

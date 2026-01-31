@@ -42,10 +42,20 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
   }, [searchTerm]);
 
   const updateLanguage = (newLang: string) => {
+      console.log('=== updateLanguage called ===');
+      console.log('Input language:', newLang);
+      
       const pos = getPos();
-      if (pos === undefined) return;
+      console.log('Node position:', pos);
+      
+      if (pos === undefined) {
+        console.log('ERROR: Position is undefined, cannot update');
+        return;
+      }
       
       const normalized = normalizeLanguage(newLang) || newLang;
+      console.log('Normalized language:', normalized);
+      console.log('Current node attrs:', node.attrs);
 
       view.dispatch(
           view.state.tr.setNodeMarkup(pos, undefined, {
@@ -53,7 +63,10 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
               language: normalized
           })
       );
+      
+      console.log('Transaction dispatched');
       setSearchTerm(''); // Clear search on select
+      console.log('=== updateLanguage finished ===');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -81,11 +94,21 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
   };
 
   const handleAutoDetect = () => {
+    console.log('=== Auto Detect Started ===');
     const code = node.textContent;
+    console.log('Code content:', code?.slice(0, 200));
+    console.log('Code length:', code?.length);
+    
     const guessed = guessLanguage(code);
+    console.log('Guessed language:', guessed);
+    
     if (guessed) {
+        console.log('Calling updateLanguage with:', guessed);
         updateLanguage(guessed);
+    } else {
+        console.log('No language detected - guessLanguage returned null');
     }
+    console.log('=== Auto Detect Finished ===');
   };
 
   const handleCopy = (e: React.MouseEvent) => {
