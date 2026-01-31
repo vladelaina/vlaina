@@ -87,7 +87,7 @@
   --font-serif: 'Source Serif 4', 'Noto Serif', 'Lora', 'Cambria', Georgia, serif, var(--font-fallback);
 
   /* Monospace Font - For code */
-  --font-mono: 'JetBrains Mono', var(--font-sans), monospace;
+  --font-mono: 'JetBrains Mono', var(--font-sans);
 
   /* Number Font - For numeric display */
   --font-number: 'Roboto Mono', 'JetBrains Mono', var(--font-fallback);
@@ -179,7 +179,7 @@ html, body, #root {
   /* Font Family Theme */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
   --font-serif: 'Source Serif 4', 'Noto Serif', 'Lora', 'Cambria', Georgia, serif;
-  --font-mono: 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Monaco', 'Consolas', monospace;
+  --font-mono: 'JetBrains Mono', 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
 }
 
 :root {
@@ -309,7 +309,7 @@ html, body, #root {
 
   /* Typography */
   --neko-font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --neko-font-mono-family: 'Roboto Mono', monospace;
+  --neko-font-mono-family: 'JetBrains Mono', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 
   --neko-font-base: 16px;
   --neko-line-height: 1.6;

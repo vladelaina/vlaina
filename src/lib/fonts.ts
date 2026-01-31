@@ -17,7 +17,7 @@ export const FontFamily = {
   Serif: `'Source Serif 4', 'Noto Serif', 'Lora', 'Cambria', Georgia, serif, ${FONT_FALLBACK}`,
   
   // Monospace font - For code
-  Mono: `'JetBrains Mono', 'Source Code Pro', 'IBM Plex Mono', 'Roboto Mono', 'Space Mono', Consolas, Menlo, Monaco, monospace`,
+  Mono: `'JetBrains Mono', 'Inter', 'Source Sans 3', 'Poppins', ${FONT_FALLBACK}`,
   
   // Number font
   Number: `'Roboto Mono', 'JetBrains Mono', ${FONT_FALLBACK}`,
