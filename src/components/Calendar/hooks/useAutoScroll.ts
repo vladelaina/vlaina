@@ -1,9 +1,3 @@
-/**
- * Auto Scroll Hook
- * 
- * Automatically scrolls when dragging element approaches container edge
- */
-
 import { useRef, useCallback } from 'react';
 import { CALENDAR_CONSTANTS } from '../utils/timeUtils';
 

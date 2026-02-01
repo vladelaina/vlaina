@@ -166,11 +166,11 @@ function loadColorFilter(): ItemColor[] {
     const saved = localStorage.getItem(STORAGE_KEY_COLOR_FILTER);
     if (saved) {
       const parsed = JSON.parse(saved) as ItemColor[];
-      // Filter out any colors that are no longer in the valid list (e.g. 'orange')
       const validColors = parsed.filter(c => ALL_COLORS.includes(c));
 
-      // If we filtered out everything (or loaded empty), return default all selected
-      if (validColors.length === 0) return [...ALL_COLORS];
+      if (validColors.length === 0) {
+        return [...ALL_COLORS];
+      }
 
       return validColors;
     }
@@ -187,7 +187,11 @@ function loadStatusFilter(): TaskStatus[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_STATUS_FILTER);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved) as TaskStatus[];
+      if (parsed.length === 0) {
+        return ALL_STATUSES;
+      }
+      return parsed;
     }
   } catch {
   }
