@@ -1,7 +1,3 @@
-/**
- * Calendar Zoom Hook
- */
-
 import { useEffect, useRef } from 'react';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { CALENDAR_CONSTANTS } from '../utils/timeUtils';
@@ -13,7 +9,6 @@ export function useCalendarZoom() {
   const hourHeightRef = useRef(hourHeight);
   hourHeightRef.current = hourHeight;
 
-  // Auto-adjust hourHeight to fill container when window size changes
   useEffect(() => {
     if (viewMode === 'month') return;
 
@@ -36,7 +31,6 @@ export function useCalendarZoom() {
     return () => window.removeEventListener('resize', handleResize);
   }, [viewMode, setHourHeight]);
 
-  // Ctrl+wheel to zoom time scale
   useEffect(() => {
     const handleZoomWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
@@ -63,7 +57,6 @@ export function useCalendarZoom() {
 
       if (Math.abs(newHourHeight - currentHourHeight) < 0.1) return;
 
-      // Anchor zoom: keep the time point under mouse cursor unchanged
       if (scrollContainer) {
         const rect = scrollContainer.getBoundingClientRect();
         const mouseY = e.clientY - rect.top;

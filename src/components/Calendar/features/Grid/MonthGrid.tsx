@@ -19,18 +19,12 @@ import { TimezoneHeader } from './components/TimezoneHeader';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-/**
- * Sort events by completion status and color
- * Incomplete events come first, completed events come last
- */
 function sortEventsByColor(events: NekoEvent[]): NekoEvent[] {
   return [...events].sort((a, b) => {
-    // First sort by completion status: incomplete first
     const completedA = a.completed ? 1 : 0;
     const completedB = b.completed ? 1 : 0;
     if (completedA !== completedB) return completedA - completedB;
 
-    // Then sort by color
     const colorOrderA = getColorPriority(a.color);
     const colorOrderB = getColorPriority(b.color);
     if (colorOrderA !== colorOrderB) return colorOrderA - colorOrderB;
@@ -43,15 +37,12 @@ export function MonthGrid() {
   const { selectedDate, setSelectedDate, dayStartTime, timezone } = useCalendarStore();
   const displayItems = useCalendarEvents();
   const dayStartMinutes = dayStartTime ?? DEFAULT_DAY_START_MINUTES;
-  // No need for now state in month view
 
-  // Calculate calendar grid
   const monthStart = startOfMonth(selectedDate);
   const monthEnd = endOfMonth(selectedDate);
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 }); // Sunday start
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
-  // Generate all days in the calendar view
   const days: Date[] = [];
   let day = calendarStart;
   while (day <= calendarEnd) {
@@ -59,14 +50,11 @@ export function MonthGrid() {
     day = addDays(day, 1);
   }
 
-  // Group days into weeks
   const weeks: Date[][] = [];
   for (let i = 0; i < days.length; i += 7) {
     weeks.push(days.slice(i, i + 7));
   }
 
-  // Get events for a specific day, sorted by completion status and color
-  // Uses visual day logic to match week/day view behavior
   const getEventsForDay = useMemo(() => {
     return (date: Date) => {
       const dayEvents = displayItems.filter((item) => isEventInVisualDay(item.dtstart.getTime(), date, dayStartMinutes));

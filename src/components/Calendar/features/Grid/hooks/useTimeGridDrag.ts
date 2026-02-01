@@ -1,15 +1,3 @@
-/**
- * useTimeGridDrag - Unified time grid drag controller
- * 
- * Composes smaller hooks for a complete drag experience:
- * - useDragToCreate: Drag on canvas to create events
- * - useEventDrag: Drag/resize existing events
- * - useGridAutoScroll: Auto-scroll during drag
- * 
- * This is a facade that coordinates between the specialized hooks
- * and provides a single interface for the grid component.
- */
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { startOfDay, endOfDay } from 'date-fns';
 import { useCalendarStore } from '@/stores/useCalendarStore';
@@ -54,15 +42,10 @@ export function useTimeGridDrag({
 
     const snapMinutes = getSnapMinutes(hourHeight);
 
-    // Hover time indicator (managed at this level for coordination)
     const [hoverTimeIndicator, setHoverTimeIndicator] = useState<TimeIndicator | null>(null);
 
-    // Ref to track when we need to update drag position during auto-scroll
     const triggerDragUpdateRef = useRef<(() => void) | null>(null);
 
-    // -------------------------------------------------------------------------
-    // Drag to Create Hook
-    // -------------------------------------------------------------------------
     const handleBeforeCreate = useCallback(() => {
         if (editingEventId) {
             const editingEvent = displayItems.find(ev => ev.uid === editingEventId);
@@ -95,9 +78,6 @@ export function useTimeGridDrag({
         onBeforeCreate: handleBeforeCreate,
     });
 
-    // -------------------------------------------------------------------------
-    // Event Drag Hook
-    // -------------------------------------------------------------------------
     const eventDragConfig: Omit<TimeGridDragConfig, 'use24Hour'> = {
         days,
         displayItems,
@@ -116,9 +96,6 @@ export function useTimeGridDrag({
         onUpdateEvent: updateEvent,
     });
 
-    // -------------------------------------------------------------------------
-    // Auto-scroll Hook
-    // -------------------------------------------------------------------------
     const isAnyDragging = dragToCreate.isDragging || eventDrag.eventDrag !== null;
 
     const handleScrollUpdate = useCallback(() => {
@@ -132,13 +109,9 @@ export function useTimeGridDrag({
         onScrollUpdate: handleScrollUpdate,
     });
 
-    // -------------------------------------------------------------------------
-    // Combined Mouse Move Handler
-    // -------------------------------------------------------------------------
     const handleMouseMove = useCallback((e: MouseEvent) => {
         autoScroll.updateMousePosition(e.clientX, e.clientY);
 
-        // Update the trigger ref for auto-scroll updates
         triggerDragUpdateRef.current = () => {
             if (dragToCreate.isDragging) {
                 dragToCreate.handleMouseMove(e);
@@ -148,7 +121,6 @@ export function useTimeGridDrag({
             }
         };
 
-        // Process actual movement
         if (dragToCreate.isDragging) {
             dragToCreate.handleMouseMove(e);
         }
@@ -157,9 +129,6 @@ export function useTimeGridDrag({
         }
     }, [autoScroll, dragToCreate, eventDrag]);
 
-    // -------------------------------------------------------------------------
-    // Combined Mouse Up Handler
-    // -------------------------------------------------------------------------
     const handleMouseUp = useCallback((e: MouseEvent) => {
         if (dragToCreate.isDragging) {
             dragToCreate.handleMouseUp(e);
@@ -169,9 +138,6 @@ export function useTimeGridDrag({
         }
     }, [dragToCreate, eventDrag]);
 
-    // -------------------------------------------------------------------------
-    // Combined Keyboard Handler
-    // -------------------------------------------------------------------------
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (e.key === 'Escape') {
             dragToCreate.handleEscape();
@@ -179,9 +145,6 @@ export function useTimeGridDrag({
         }
     }, [dragToCreate, eventDrag]);
 
-    // -------------------------------------------------------------------------
-    // Global Event Listeners
-    // -------------------------------------------------------------------------
     useEffect(() => {
         if (isAnyDragging) {
             window.addEventListener('mousemove', handleMouseMove);
@@ -195,9 +158,6 @@ export function useTimeGridDrag({
         };
     }, [isAnyDragging, handleMouseMove, handleMouseUp, handleKeyDown]);
 
-    // -------------------------------------------------------------------------
-    // Hover Time Indicator
-    // -------------------------------------------------------------------------
     const handleEventHover = useCallback((startMinutes: number | null, endMinutes: number | null) => {
         if (!eventDrag.eventDrag && !dragToCreate.isDragging) {
             if (startMinutes !== null && endMinutes !== null) {
@@ -208,9 +168,6 @@ export function useTimeGridDrag({
         }
     }, [eventDrag.eventDrag, dragToCreate.isDragging]);
 
-    // -------------------------------------------------------------------------
-    // All-day Event Creation
-    // -------------------------------------------------------------------------
     const handleCreateAllDay = useCallback((startDay: Date, endDay: Date) => {
         const newEventId = addEvent({
             summary: '',
@@ -221,14 +178,8 @@ export function useTimeGridDrag({
         setEditingEventId(newEventId);
     }, [addEvent, setEditingEventId]);
 
-    // -------------------------------------------------------------------------
-    // Combined Drag Time Indicator
-    // -------------------------------------------------------------------------
     const dragTimeIndicator = dragToCreate.dragTimeIndicator || eventDrag.dragTimeIndicator;
 
-    // -------------------------------------------------------------------------
-    // Return Value
-    // -------------------------------------------------------------------------
     return {
         // Drag to create state
         isDragging: dragToCreate.isDragging,

@@ -37,19 +37,14 @@ export function PremiumSlider({
     const rafRef = useRef<number | undefined>(undefined);
     const latestValueRef = useRef(value);
 
-    // Initialize visual state on mount and when value prop changes externally
-    // This handles external sync (e.g., switching notes, database updates)
     useEffect(() => {
         latestValueRef.current = value;
         updateVisuals(value);
-        // IMPORTANT: Also sync the native input's value
-        // Since we use defaultValue (uncontrolled), we need to manually update it
         if (inputRef.current) {
             inputRef.current.value = String(value);
         }
     }, [value, min, max]);
 
-    // Direct DOM update - NO React state, NO re-render
     const updateVisuals = useCallback((currentValue: number) => {
         if (!containerRef.current) return;
         const percentage = ((currentValue - min) / (max - min)) * 100;
@@ -59,13 +54,10 @@ export function PremiumSlider({
     // Handle input change - update visuals directly, dispatch via RAF
     const handleInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = parseFloat(e.target.value);
-        console.log('[PremiumSlider] Input Change:', newValue); // Debug Log
         latestValueRef.current = newValue;
 
-        // Instant visual feedback - direct DOM, no React
         updateVisuals(newValue);
 
-        // Throttled callback to parent - prevents overwhelming the main thread
         if (rafRef.current) return;
         rafRef.current = requestAnimationFrame(() => {
             onChange(latestValueRef.current);
@@ -73,19 +65,14 @@ export function PremiumSlider({
         });
     }, [onChange, updateVisuals]);
 
-    // Handle release - confirm the final value
     const handleRelease = useCallback(() => {
-        console.log('[PremiumSlider] Release'); // Debug Log
-        // Flush any pending RAF
         if (rafRef.current) {
             cancelAnimationFrame(rafRef.current);
             rafRef.current = undefined;
         }
-        // Emit final value
         onConfirm?.(latestValueRef.current);
     }, [onConfirm]);
 
-    // Cleanup on unmount
     useEffect(() => {
         return () => {
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -102,16 +89,12 @@ export function PremiumSlider({
             style={{
                 '--slider-percentage': `${initialPercentage}%`,
             } as React.CSSProperties}
-            // CRITICAL FIX: Prevent HTML5 Native Drag & Drop from hijacking the slider interaction
-            // This stops the "red forbidden icon" and allows mouse events to continue
-            draggable={true} // Must be true to capture the event reliably in some browsers
+            draggable={true}
             onDragStart={(e) => {
-                console.log('[PremiumSlider] Native DragStart Intercepted');
                 e.preventDefault();
                 e.stopPropagation();
             }}
         >
-            {/* Visual Track - driven by CSS variable, no React re-render needed */}
             <div
                 className="absolute w-full h-[3px] rounded-full pointer-events-none"
                 style={{
@@ -119,8 +102,6 @@ export function PremiumSlider({
                 }}
             />
 
-            {/* Native Range Input - UNCONTROLLED for performance */}
-            {/* Using defaultValue + ref for updates, NOT value prop */}
             <input
                 ref={inputRef}
                 type="range"
@@ -130,11 +111,9 @@ export function PremiumSlider({
                 defaultValue={value}
                 onInput={handleInput}
                 onMouseDown={(e) => {
-                    console.log('[PremiumSlider] MouseDown triggered');
                     e.stopPropagation();
                 }}
                 onPointerDown={(e) => {
-                    console.log('[PremiumSlider] PointerDown triggered');
                     e.stopPropagation();
                 }}
                 onMouseUp={handleRelease}
@@ -145,7 +124,6 @@ export function PremiumSlider({
                 )}
             />
 
-            {/* Premium Thumb - position driven by CSS variable */}
             <div
                 className="absolute pointer-events-none transition-none"
                 style={{
