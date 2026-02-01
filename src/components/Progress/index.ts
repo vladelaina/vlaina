@@ -1,4 +1,3 @@
-// Progress module exports
 export { ProgressPage } from './ProgressPage';
 export { ItemCard } from './features/ItemCard';
 export { CreateModal } from './features/CreateModal';

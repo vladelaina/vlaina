@@ -26,7 +26,6 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import type { Task } from '@/stores/useGroupStore';
 
-// Default duration when scheduling a task (25 minutes)
 const DEFAULT_DURATION_MS = 25 * 60 * 1000;
 
 interface UseTaskDragAndDropProps {
@@ -100,19 +99,14 @@ export function useTaskDragAndDrop({
         const activeTask = tasks.find(t => t.id === active.id);
         if (!activeTask) return;
 
-        // No Calendar grid detection in this standalone version
-
         if (!over || active.id === over.id) return;
 
         const overIdStr = over.id as string;
 
-        // Handle divider drops
         if (overIdStr === '__divider_scheduled__') {
             if (activeTask.startDate) {
-                // Already scheduled -> unschedule
                 updateTaskTime(activeTask.id, null, null);
             } else if (!activeTask.completed) {
-                // Unscheduled -> schedule for now
                 const startTime = Date.now();
                 const endTime = startTime + DEFAULT_DURATION_MS;
                 updateTaskTime(activeTask.id, startTime, endTime);
@@ -135,35 +129,29 @@ export function useTaskDragAndDrop({
         const isCrossSection = (activeIsScheduled !== overIsScheduled) || (activeIsCompleted !== overIsCompleted);
 
         if (isCrossSection) {
-            // Scheduled -> Unscheduled
             if (activeIsScheduled && !activeIsCompleted && !overIsScheduled && !overIsCompleted) {
                 updateTaskTime(activeTask.id, null, null);
                 return;
             }
-            // Unscheduled -> Scheduled
             if (!activeIsScheduled && !activeIsCompleted && overIsScheduled && !overIsCompleted) {
                 const startTime = Date.now();
                 const endTime = startTime + DEFAULT_DURATION_MS;
                 updateTaskTime(activeTask.id, startTime, endTime);
                 return;
             }
-            // Scheduled -> Completed
             if (activeIsScheduled && !activeIsCompleted && overIsCompleted) {
                 updateTaskTime(activeTask.id, null, null);
                 toggleTask(activeTask.id);
                 return;
             }
-            // Unscheduled -> Completed
             if (!activeIsScheduled && !activeIsCompleted && overIsCompleted) {
                 toggleTask(activeTask.id);
                 return;
             }
-            // Completed -> Unscheduled
             if (activeIsCompleted && !overIsScheduled && !overIsCompleted) {
                 toggleTask(activeTask.id);
                 return;
             }
-            // Completed -> Scheduled
             if (activeIsCompleted && overIsScheduled && !overIsCompleted) {
                 toggleTask(activeTask.id);
                 const startTime = Date.now();
@@ -174,7 +162,6 @@ export function useTaskDragAndDrop({
             return;
         }
 
-        // Same section reorder + potential subtask creation
         const INDENT_THRESHOLD = 28;
         const makeChild = dragIndent > INDENT_THRESHOLD;
         reorderTasks(active.id as string, over.id as string, makeChild);

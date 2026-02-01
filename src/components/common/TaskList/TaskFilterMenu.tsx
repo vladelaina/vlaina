@@ -39,7 +39,6 @@ export function TaskFilterMenu() {
             await archiveCompletedTasks(activeGroupId);
             setShowMoreMenu(false);
         } catch (error) {
-            console.error('Failed to archive:', error);
         }
     };
 

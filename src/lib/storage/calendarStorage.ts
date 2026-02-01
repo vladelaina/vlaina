@@ -76,7 +76,6 @@ export async function loadCalendarsMeta(): Promise<NekoCalendar[]> {
         // Return default calendar if no metadata exists
         return [getDefaultCalendar()];
     } catch (error) {
-        console.error('[CalendarStorage] Failed to load calendars meta:', error);
         return [getDefaultCalendar()];
     }
 }
@@ -93,7 +92,6 @@ export async function saveCalendarsMeta(calendars: NekoCalendar[]): Promise<void
         await storage.writeFile(metaPath, JSON.stringify({ calendars }, null, 2));
         // Log removed
     } catch (error) {
-        console.error('[CalendarStorage] Failed to save calendars meta:', error);
     }
 }
 
@@ -133,7 +131,6 @@ export async function loadAllEvents(): Promise<NekoEvent[]> {
         // Log removed
         return allEvents;
     } catch (error) {
-        console.error('[CalendarStorage] Failed to load events:', error);
         return [];
     }
 }
@@ -177,7 +174,6 @@ export async function saveAllEvents(events: NekoEvent[], calendars: NekoCalendar
 
         // Log removed
     } catch (error) {
-        console.error('[CalendarStorage] Failed to save events:', error);
     }
 }
 

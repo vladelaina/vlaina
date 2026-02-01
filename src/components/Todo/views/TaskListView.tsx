@@ -15,7 +15,6 @@ interface TaskListViewProps {
     searchQuery: string;
     setSearchQuery: (q: string) => void;
     showScheduledSection?: boolean;
-    // Action overrides
     onToggleTask?: (id: string) => void;
     onUpdateTask?: (id: string, content: string) => void;
     onDeleteTask?: (id: string) => void;
@@ -23,10 +22,6 @@ interface TaskListViewProps {
     headerControls?: React.ReactNode;
 }
 
-/**
- * Shared Task List View component.
- * Renders the common UI for Tasks, Today, and Inbox views.
- */
 export function TaskListView({
     tasks: filteredTasks,
     allTasks,
@@ -41,7 +36,6 @@ export function TaskListView({
 }: TaskListViewProps) {
     const groupStore = useGroupStore();
     
-    // Use provided handlers or fallback to store
     const toggleTask = onToggleTask || groupStore.toggleTask;
     const updateTask = onUpdateTask || groupStore.updateTask;
     const deleteTask = onDeleteTask || groupStore.deleteTask;
@@ -63,18 +57,15 @@ export function TaskListView({
     const [completedExpanded, setCompletedExpanded] = useState(false);
     const [showCompletedMenu, setShowCompletedMenu] = useState(false);
     
-    // Search State
     const [isSearchExpanded, setIsSearchExpanded] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    // Subtask Modal State
     const [addingSubTaskFor, setAddingSubTaskFor] = useState<string | null>(null);
     const [subTaskContent, setSubTaskContent] = useState('');
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const completedMenuRef = useRef<HTMLDivElement>(null);
 
-    // Search Handlers
     const handleSearchClick = () => {
         setIsSearchExpanded(true);
         setTimeout(() => searchInputRef.current?.focus(), 100);
@@ -86,7 +77,6 @@ export function TaskListView({
         }
     };
 
-    // Handlers
     const handleAddSubTask = useCallback((parentId: string) => {
         setAddingSubTaskFor(parentId);
         setSubTaskContent('');
@@ -100,11 +90,8 @@ export function TaskListView({
         setSubTaskContent('');
     }, [addingSubTaskFor, subTaskContent, addSubTask]);
 
-    // Categorize tasks
     const incompleteTasks = filteredTasks.filter(t => {
         if (t.completed) return false;
-        // If showing scheduled section, filter out scheduled tasks from here.
-        // Otherwise (Today view), include them in the main list.
         if (showScheduledSection && t.startDate) return false;
         return true;
     });
@@ -113,7 +100,6 @@ export function TaskListView({
         : [];
     const completedTasks = hideCompleted ? [] : filteredTasks.filter(t => t.completed);
 
-    // Generate sortable IDs
     const SCHEDULED_DIVIDER_ID = '__divider_scheduled__';
     const COMPLETED_DIVIDER_ID = '__divider_completed__';
 
@@ -129,7 +115,6 @@ export function TaskListView({
         ...(completedTasks.length > 0 ? [COMPLETED_DIVIDER_ID, ...(completedExpanded ? completedTasks.map(t => t.id) : [])] : []),
     ];
 
-    // Render Logic (Recursive)
     const renderTaskItem = useCallback((task: any, level: number = 0) => {
         const children = getChildren(task.id);
         const hasChildren = children.length > 0;
@@ -150,7 +135,6 @@ export function TaskListView({
                     hasChildren={hasChildren}
                     collapsed={task.collapsed}
                     onToggleCollapse={() => toggleCollapse(task.id)}
-                    // Disable drag and subtasks for calendar events
                     draggable={!isCalendarEvent}
                     allowSubtasks={!isCalendarEvent}
                 />

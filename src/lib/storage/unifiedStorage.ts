@@ -153,7 +153,6 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
 
     return getDefaultData();
   } catch (error) {
-    console.error('[UnifiedStorage] Failed to load:', error);
     return getDefaultData();
   }
 }
@@ -192,9 +191,8 @@ export async function saveUnifiedData(data: UnifiedData): Promise<void> {
       // Trigger auto-sync for PRO users
       triggerAutoSyncIfEligible();
     } catch (error) {
-      console.error('[UnifiedStorage] Failed to save:', error);
     }
-  }, 300); // 300ms debounce
+  }, 300);
 }
 
 /**
@@ -233,6 +231,5 @@ export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void>
     await storage.writeFile(jsonPath, JSON.stringify(dataFile, null, 2));
 
   } catch (error) {
-    console.error('[UnifiedStorage] Failed to save:', error);
   }
 }

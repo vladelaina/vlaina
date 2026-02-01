@@ -49,7 +49,6 @@ export function TodoSidebar() {
         return await loadImageAsBlob(src.substring(4));
     };
 
-    // Calculate counts
     const counts = useMemo(() => {
         const c = { inbox: 0, today: 0, all: 0, groups: {} as Record<string, number> };
         const todayKey = getTodayKey();
@@ -72,7 +71,6 @@ export function TodoSidebar() {
         return c;
     }, [tasks]);
 
-    // Handlers
     const handleCreate = () => {
         if (newGroupName.trim()) {
             addGroup(newGroupName.trim());
@@ -98,7 +96,6 @@ export function TodoSidebar() {
         }
     };
 
-    // Auto-focus
     useEffect(() => {
         if (isCreating && createInputRef.current) createInputRef.current.focus();
     }, [isCreating]);

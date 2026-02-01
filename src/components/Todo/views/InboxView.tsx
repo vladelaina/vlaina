@@ -5,9 +5,6 @@ import { sortTasks } from '@/components/common/TaskList';
 import { DEFAULT_GROUP_ID } from '@/lib/config';
 import { TaskListView } from './TaskListView';
 
-/**
- * InboxView - Shows tasks in the default 'Inbox' group.
- */
 export function InboxView() {
     const { tasks } = useGroupStore();
     const { selectedColors, taskSortMode } = useUIStore();

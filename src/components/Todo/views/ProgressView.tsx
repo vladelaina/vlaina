@@ -1,8 +1,5 @@
 import { ProgressContent } from '@/components/Progress/features/ProgressContent';
 
-/**
- * ProgressView - Wrapper for the Progress/Insights content.
- */
 export function ProgressView() {
     return (
         <div className="h-full flex flex-col bg-white dark:bg-zinc-900 overflow-hidden">

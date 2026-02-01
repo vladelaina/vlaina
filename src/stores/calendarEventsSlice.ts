@@ -73,7 +73,6 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             set({ calendars, events, loaded: true });
 
         } catch (error) {
-            console.error('[CalendarEventsStore] Failed to load:', error);
             set({ loaded: true });
         }
     },

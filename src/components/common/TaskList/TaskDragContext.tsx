@@ -16,7 +16,6 @@ interface TaskDragContextProps {
     updateTaskTime: (taskId: string, startDate?: number | null, endDate?: number | null) => void;
     toggleTask: (taskId: string) => void;
     setDraggingTaskId: (id: string | null) => void;
-    // Helper to get children count for the overlay item
     getChildCount?: (parentId: string) => number;
 }
 

@@ -5,9 +5,6 @@ interface UseProgressDragOptions {
   onReorder: (activeId: string, overId: string) => void;
 }
 
-/**
- * Hook for managing drag and drop state
- */
 export function useProgressDrag({ onReorder }: UseProgressDragOptions) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
@@ -17,7 +14,6 @@ export function useProgressDrag({ onReorder }: UseProgressDragOptions) {
   }, []);
 
   const handleDragMove = useCallback(() => {
-    // No-op for now, purely state driven
   }, []);
 
   const handleDragOver = useCallback((event: DragMoveEvent) => {

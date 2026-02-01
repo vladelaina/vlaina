@@ -108,11 +108,9 @@ export function useGroupStore() {
     },
 
     togglePin: (_id: string) => {
-        console.warn('Pinning groups not yet supported in ICS backend');
     },
 
     reorderGroups: (_activeId: string, _overId: string) => {
-        console.warn('Reordering groups not yet supported in ICS backend');
     },
 
     // --- Task Actions ---
@@ -179,7 +177,6 @@ export function useGroupStore() {
     },
 
     archiveCompletedTasks: async (groupId: string) => {
-        console.warn('Archive not yet implemented in ICS backend - deleting for now');
         await deleteCompletedTasks(groupId); 
     },
 

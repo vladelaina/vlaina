@@ -7,7 +7,6 @@ import { ProgressBar, CounterEffects, Ripple, DebrisField } from './VisualEffect
 import { KineticAction } from './KineticAction';
 
 export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragging, previewIcon, previewTitle, compact }: ItemCardProps) {
-  // Safe total access for TS - Moved to top
   const safeTotal = (item as any).total || 0;
 
   const displayIcon = previewIcon !== undefined ? previewIcon : item.icon;
@@ -31,7 +30,6 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
   const pendingArchiveRef = useRef(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // Counter Specific State
   const [ripples, setRipples] = useState<Ripple[]>([]);
   const [implosions, setImplosions] = useState<Ripple[]>([]);
   const rippleCount = useRef(0);
@@ -60,7 +58,6 @@ export function ActiveItemCard({ item, onUpdate, onClick, onAutoArchive, isDragg
     else triggerImplosion(centerX, centerY);
   };
 
-  // Immediate Shatter Sequence
   useEffect(() => {
     if (item.type !== 'progress' || item.archived) return;
 

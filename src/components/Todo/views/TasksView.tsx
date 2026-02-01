@@ -4,9 +4,6 @@ import { useUIStore } from '@/stores/uiSlice';
 import { sortTasks } from '@/components/common/TaskList';
 import { TaskListView } from './TaskListView';
 
-/**
- * TasksView - Shows ALL active tasks across all groups.
- */
 export function TasksView() {
     const { tasks } = useGroupStore();
     const { selectedColors, taskSortMode } = useUIStore();

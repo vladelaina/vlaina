@@ -17,31 +17,18 @@ const SCOPE_CONFIG: Record<TimeScope, { full: string, tiny: string }> = {
   '12M': { full: 'Year',    tiny: '1Y' },
 };
 
-/**
- * "Chrono-Rhythm" Visualization - The Masterpiece Edition
- * 
- * Design Philosophy:
- * - Liquid Physics: Pillars react organically to interaction.
- * - Optical Materials: Controls feel like crafted glass/crystal.
- * - Ambient Intelligence: Light and shadow guide the eye.
- */
 export function HistoryWaveform({ item }: HistoryWaveformProps) {
   const [scope, setScope] = useState<TimeScope>('14D');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isControlActive, setIsControlActive] = useState(false);
   
-  // Mouse position for ambient glow effect
   const mouseX = useMotionValue(0);
   const glowX = useSpring(mouseX, { stiffness: 150, damping: 25 });
   
-  // Tooltip horizontal position spring (The Sliding Cursor)
   const tooltipX = useSpring(0, { stiffness: 200, damping: 30 });
   const tooltipLeft = useTransform(tooltipX, (v) => `${v}%`);
-  // Smart clamping: Align Left at 0%, Center in middle, Align Right at 100%
-  // Widened safety zone (30%) to ensure even long tooltips don't clip on 2nd/2nd-to-last items
   const tooltipTranslateX = useTransform(tooltipX, [0, 30, 70, 100], ["0%", "-50%", "-50%", "-100%"]);
 
-  // 1. Data Processing (Must be defined BEFORE useEffect)
   const dataPoints = useMemo(() => {
     const points = [];
     const today = new Date();
@@ -123,12 +110,10 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
 
   }, [item, scope]);
 
-  // Reset tooltip when scope changes (Simpler, cleaner interaction)
   useEffect(() => {
     setHoveredIndex(null);
-  }, [dataPoints]); // Dependency on dataPoints ensures reset on any data change
+  }, [dataPoints]);
 
-  // Update tooltip position (Spring)
   useEffect(() => {
     if (hoveredIndex !== null) {
       const total = dataPoints.length;
@@ -146,7 +131,6 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
         className="w-full flex flex-col items-center justify-end h-full min-h-[160px] select-none relative pb-2 overflow-hidden group/chart"
         onMouseLeave={() => setHoveredIndex(null)}
         onMouseMove={(e) => {
-            // Normalize mouse X relative to container width for the glow effect
             const rect = e.currentTarget.getBoundingClientRect();
             const x = e.clientX - rect.left;
             mouseX.set(x);
@@ -251,7 +235,6 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
             }}
         >
             <motion.div 
-                // Always render content to ensure stable layout calculation for 'width: auto'
                 initial={{ opacity: 0, filter: 'blur(4px)' }}
                 animate={{ 
                     opacity: isControlActive ? 1 : 0, 
@@ -276,7 +259,6 @@ export function HistoryWaveform({ item }: HistoryWaveformProps) {
                                                         transition-all duration-300 outline-none
                                                         ${isActive ? 'px-3 py-1.5' : 'px-2 py-1.5'}
                                                     `}
-                                                    // Prevent tab focus when hidden
                                                     tabIndex={isControlActive ? 0 : -1} 
                                                 >
                                                     {isActive && (
@@ -325,7 +307,6 @@ interface WavePillProps {
 }
 
 function WavePill({ point, index, totalPoints, hoveredIndex, onHover }: WavePillProps) {
-  // Explicit width calculation for Framer Motion
   const targetMaxWidth = totalPoints > 20 ? 6 : (totalPoints <= 7 ? 16 : 10);
   const targetMinWidth = totalPoints > 20 ? 3 : 4;
 
@@ -337,7 +318,6 @@ function WavePill({ point, index, totalPoints, hoveredIndex, onHover }: WavePill
       layout
       className="group relative flex-1 h-full flex items-end justify-center cursor-pointer"
       onMouseEnter={onHover}
-      // Clean, Hydraulic Entry
       initial={{ opacity: 0, scaleY: 0, y: 20 }} 
       animate={{ opacity: 1, scaleY: 1, y: 0 }}
       exit={{ 
@@ -347,7 +327,6 @@ function WavePill({ point, index, totalPoints, hoveredIndex, onHover }: WavePill
           transition: { duration: 0.15 } 
       }}
       transition={{ 
-        // "Liquid Mercury" Physics: Heavy but fluid
         type: "spring", 
         stiffness: 450, 
         damping: 25,     
@@ -370,17 +349,12 @@ function WavePill({ point, index, totalPoints, hoveredIndex, onHover }: WavePill
                 minWidth: targetMinWidth 
             }}
             animate={{ 
-                // If zero:
-                // - Default: 4px dot (barely visible)
-                // - Hover: 16px "Seed" (visible feedback, but clearly not "full")
                 height: point.isZero ? (isHovered ? "16px" : "4px") : `${point.heightRatio * 100}%`,
                 maxWidth: targetMaxWidth,
                 minWidth: targetMinWidth,
-                // Zero pillars are invisible (opacity 0.1) unless hovered
                 opacity: isHovered 
                     ? 1 
                     : (isAnyHovered ? 0.1 : (point.isZero ? 0.1 : (point.isCurrentPeriod ? 1 : 0.6))),
-                // Color Logic
                 backgroundColor: isHovered
                     ? (point.isZero ? (document.documentElement.classList.contains('dark') ? '#3f3f46' : '#e4e4e7') : (document.documentElement.classList.contains('dark') ? '#fff' : '#000'))
                     : (point.isZero 

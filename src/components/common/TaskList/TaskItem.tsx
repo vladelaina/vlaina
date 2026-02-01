@@ -61,7 +61,6 @@ interface TaskItemProps {
     hasChildren?: boolean;
     collapsed?: boolean;
     onToggleCollapse?: () => void;
-    // Feature flags
     draggable?: boolean;
     allowSubtasks?: boolean;
 }
@@ -204,7 +203,6 @@ export function TaskItem({
                             )}
                         </button>
                     ) : (
-                        // Invisible hit area for pure drag
                         <div className="w-full h-full" />
                     )}
                 </div>

@@ -4,7 +4,6 @@ import { ItemCardProps } from './types';
 import { ArchivedItemCard } from './ArchivedItemCard';
 import { ActiveItemCard } from './ActiveItemCard';
 
-// Disable drop animation to prevent "snap back" effect
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
   const { isSorting, wasDragging } = args;
   if (isSorting || wasDragging) {

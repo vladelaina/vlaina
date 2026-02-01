@@ -13,21 +13,16 @@ interface KineticActionProps {
   icon: typeof MdAdd | typeof MdRemove;
   step: number;
   direction: 'left' | 'right';
-  onTrigger: () => void; // Single click
-  onCommit: (delta: number) => void; // Long press commit
+  onTrigger: () => void;
+  onCommit: (delta: number) => void;
   onHoverStart: () => void;
   onHoverEnd: () => void;
   isActive: boolean;
-  // Context for smarter display
   itemType?: 'progress' | 'counter';
   total?: number;
   current?: number; 
 }
 
-/**
- * KineticAction 3.0 - "The Deep Press"
- * ...
- */
 export function KineticAction({ 
   icon: Icon, 
   step, 
@@ -45,40 +40,30 @@ export function KineticAction({
   const [accumulatedValue, setAccumulatedValue] = useState(0);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   
-  // Physics: Anchor & Cursor
   const originRef = useRef<{ x: number, y: number } | null>(null);
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   
-  // Physics: Orb (Damped Follower)
-  // Tighter spring for stickier feel
   const springConfig = { stiffness: 400, damping: 28, mass: 0.5 };
   const orbX = useSpring(mouseX, springConfig);
   const orbY = useSpring(mouseY, springConfig);
 
-  // Velocity visuals
   const velocityY = useVelocity(orbY);
   const scale = useTransform(velocityY, [-1000, 1000], [0.9, 0.9]); 
 
-  // Logic Refs
   const rafRef = useRef<number | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const valueRef = useRef(0);
   const lastTimeRef = useRef(0);
-  const isChargingRef = useRef(false); // Ref for loop access
+  const isChargingRef = useRef(false);
 
-  // STABLE CALLBACKS PATTERN
-  // We use a ref to hold the latest callbacks so that handleGlobalPointerUp 
-  // doesn't need to be recreated (and listeners reset) when parent re-renders.
-  // This is critical for preventing "ghost interactions" when parent state (like ripples) updates.
   const callbacksRef = useRef({ onTrigger, onCommit, step });
   useEffect(() => {
     callbacksRef.current = { onTrigger, onCommit, step };
   }, [onTrigger, onCommit, step]);
 
-  const LONG_PRESS_DELAY = 300; // ms
+  const LONG_PRESS_DELAY = 300;
 
-  // Haptics
   const triggerHaptic = (strength: number = 1) => {
     if (navigator.vibrate) navigator.vibrate(strength);
   };
@@ -88,8 +73,6 @@ export function KineticAction({
     e.preventDefault();
     e.stopPropagation();
     
-    // CAPTURE POINTER: The magic fix for dragging outside/off-screen
-    // This ensures we receive events even if the mouse leaves the browser/screen
     (e.target as Element).setPointerCapture(e.pointerId);
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -98,18 +81,15 @@ export function KineticAction({
     
     originRef.current = { x: centerX, y: centerY };
     
-    // Init physics
     mouseX.set(e.clientX);
     mouseY.set(e.clientY);
-    orbX.set(e.clientX); // Fix: removed 2nd arg
-    orbY.set(e.clientY); // Fix: removed 2nd arg
+    orbX.set(e.clientX);
+    orbY.set(e.clientY);
     
-    // Bind global listeners immediately to catch early moves/ups
     window.addEventListener('pointermove', handleGlobalPointerMove);
     window.addEventListener('pointerup', handleGlobalPointerUp);
-    window.addEventListener('pointercancel', handleGlobalPointerUp); // Safety net
+    window.addEventListener('pointercancel', handleGlobalPointerUp);
     
-    // Start Long Press Timer
     timerRef.current = setTimeout(() => {
         startCharging();
     }, LONG_PRESS_DELAY);
@@ -118,19 +98,17 @@ export function KineticAction({
   const startCharging = () => {
     setMode('charging');
     isChargingRef.current = true;
-    document.body.style.cursor = 'ns-resize'; // Hint at vertical control
+    document.body.style.cursor = 'ns-resize';
     
     valueRef.current = 0;
     setAccumulatedValue(0);
     setSpeedMultiplier(1);
     
-    triggerHaptic(15); // Initial bump
+    triggerHaptic(15);
     startAccumulationLoop();
   };
 
   const handleGlobalPointerMove = useCallback((e: PointerEvent) => {
-    // Safety check: if button is not pressed, force stop
-    // (Handles cases where mouseup was missed)
     if (e.buttons === 0 && (mode === 'charging' || timerRef.current)) {
         handleGlobalPointerUp();
         return;
@@ -139,19 +117,14 @@ export function KineticAction({
     mouseX.set(e.clientX);
     mouseY.set(e.clientY);
 
-    // If charging, calculate vertical offset for speed control
     if (isChargingRef.current && originRef.current) {
-        const dy = originRef.current.y - e.clientY; // Positive = Moving Up
+        const dy = originRef.current.y - e.clientY;
         
-        // Map dy to speed multiplier
-        // 0px = 1x
-        // 200px Up = 10x
-        // 50px Down = 0.5x (Slow motion)
         let mult = 1;
         if (dy > 0) {
-            mult = 1 + (dy / 20); // 1x per 20px
+            mult = 1 + (dy / 20);
         } else {
-            mult = Math.max(0.1, 1 + (dy / 100)); // Slow down
+            mult = Math.max(0.1, 1 + (dy / 100));
         }
         setSpeedMultiplier(mult);
     }
@@ -165,55 +138,32 @@ export function KineticAction({
       const dt = Math.min(time - lastTimeRef.current, 64);
       lastTimeRef.current = time;
 
-      // ADAPTIVE SPEED ENGINE
-      // Goal: Ensure large totals feel as responsive as small ones.
-      // Target: At max throttle, fill the remaining gap in ~2 seconds.
-      
-      let adaptiveBaseSpeed = 5; // Default for small numbers/counters
+      let adaptiveBaseSpeed = 5;
 
       if (itemType === 'progress' && total > 0) {
-          // Calculate the "Scope" of the task
-          // If total is 1000, we want base speed to be higher than if total is 10.
-          // Let's say at 1x throttle (mult=1), we want to cover 10% of total per second? 
-          // Or maybe 5% per second is a good "cruising speed".
-          // So baseSpeed = total * 0.05
-          
           const cruiseSpeed = total * 0.05;
           adaptiveBaseSpeed = Math.max(5, cruiseSpeed);
       } else {
-          // For counters (infinite), we scale based on current accumulation
-          // The more you add, the faster it gets (Snowball effect)
-          // 0-10: speed 5
-          // 10-100: speed 20
-          // 100+: speed 100
           if (valueRef.current > 100) adaptiveBaseSpeed = 50;
           else if (valueRef.current > 20) adaptiveBaseSpeed = 15;
       }
       
       const currentY = mouseY.get();
       const originY = originRef.current?.y || 0;
-      const dy = originY - currentY; // Positive = Up
+      const dy = originY - currentY;
       
       let mult = 1;
       
       if (dy > 0) {
-          // Exponential Acceleration (The "Turbo" Curve)
-          // dy=50px  -> ~3.8x
-          // dy=100px -> ~9.0x
-          // dy=200px -> ~23x !!
           mult = 1 + Math.pow(dy / 25, 1.5);
       } else {
-          // Downward: Precision Braking
           mult = Math.max(0.1, 1 + (dy / 100));
       }
 
       const addition = adaptiveBaseSpeed * mult * (dt / 1000);
       
-      // Calculate potential new raw accumulation
       let newValue = valueRef.current + addition;
       
-      // CLAMP LOGIC:
-      // 1. If Progress and Adding, don't exceed total
       if (itemType === 'progress' && direction === 'right' && total > 0) {
           const maxAddableSteps = Math.max(0, (total - current) / step);
           if (newValue > maxAddableSteps) {
@@ -222,8 +172,6 @@ export function KineticAction({
           }
       }
       
-      // 2. If Removing (Left), don't go below zero (for any type)
-      // Since accumulatedValue is always positive magnitude in our logic:
       if (direction === 'left') {
           const maxRemovableSteps = Math.max(0, current / step);
           if (newValue > maxRemovableSteps) {
@@ -237,12 +185,7 @@ export function KineticAction({
       const currentInt = Math.floor(valueRef.current);
       setAccumulatedValue(currentInt);
       
-      // Dynamic Haptics
       if (currentInt !== lastInteger) {
-         // At high speeds (mult > 10), vibrate heavily
-         // At medium speeds (mult > 4), vibrate lightly
-         // At low speeds, vibrate only occasionally? No, distinct clicks are better.
-         
          const intensity = mult > 10 ? 15 : (mult > 4 ? 8 : 2);
          triggerHaptic(intensity);
          lastInteger = currentInt;
@@ -254,13 +197,11 @@ export function KineticAction({
   };
 
   const handleGlobalPointerUp = useCallback(() => {
-    // Clear timer
     if (timerRef.current) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
     }
     
-    // Stop loop
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -272,14 +213,11 @@ export function KineticAction({
     document.body.style.cursor = '';
 
     if (isChargingRef.current) {
-        // Was charging -> Commit
         const finalVal = Math.floor(valueRef.current);
         if (finalVal > 0) {
             callbacksRef.current.onCommit(finalVal * callbacksRef.current.step);
         }
     } else {
-        // Was short press -> Trigger
-        // Only trigger if we haven't already committed (extra safety)
         if (!isChargingRef.current) {
              callbacksRef.current.onTrigger();
         }
@@ -289,9 +227,8 @@ export function KineticAction({
     isChargingRef.current = false;
     originRef.current = null;
     setAccumulatedValue(0);
-  }, []); // Empty dependencies = Stable Listener!
+  }, []);
 
-  // Cleanup
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -303,7 +240,6 @@ export function KineticAction({
     };
   }, [handleGlobalPointerMove, handleGlobalPointerUp]);
 
-  // Elastic Line
   const ElasticLine = () => {
     if (!originRef.current || mode !== 'charging') return null;
     const x1 = originRef.current.x;
@@ -326,7 +262,6 @@ export function KineticAction({
 
   return (
     <>
-      {/* 1. Trigger Zone */}
       <div 
         className={`
           absolute inset-y-0 ${direction === 'left' ? 'left-0' : 'right-0'} 
@@ -335,7 +270,7 @@ export function KineticAction({
           outline-none select-none
         `}
         onPointerDown={handlePointerDown}
-        onClick={(e) => e.stopPropagation()} // Stop click propagation to parents (e.g. PreviewSection)
+        onClick={(e) => e.stopPropagation()}
         onMouseEnter={onHoverStart}
         onMouseLeave={onHoverEnd}
       >
@@ -353,10 +288,8 @@ export function KineticAction({
         </motion.div>
       </div>
 
-      {/* 2. The Portal Overlay */}
       {mode === 'charging' && createPortal(
         <div className="fixed inset-0 z-[9999] font-sans text-zinc-900 dark:text-zinc-100 pointer-events-auto" onPointerUp={handleGlobalPointerUp}>
-            {/* Darken Background for Focus */}
             <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -370,13 +303,11 @@ export function KineticAction({
                 style={{ x: orbX, y: orbY, scale }}
                 className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 will-change-transform flex items-center justify-center pointer-events-none"
             >
-                {/* HUD Container */}
                 <motion.div 
                     initial={{ scale: 0.8, opacity: 0, y: 20 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     className="relative flex flex-col items-center gap-6"
                 >
-                    {/* The Speedometer / Multiplier Gauge */}
                     <div className="
                         flex items-center justify-center gap-4
                         h-16 px-6
@@ -385,7 +316,6 @@ export function KineticAction({
                         border border-zinc-200 dark:border-zinc-700
                         shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)]
                     ">
-                        {/* Speed Indicator (Visual Feedback for "Throttle") */}
                         <div className="flex flex-col items-center justify-center w-8 gap-0.5 opacity-80">
                              <MdExpandLess className={`size-[18px] ${speedMultiplier > 2 ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-300 dark:text-zinc-700'}`} />
                              <div className="h-5 w-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden relative">
@@ -399,7 +329,6 @@ export function KineticAction({
 
                         <div className="w-px h-8 bg-zinc-100 dark:bg-zinc-800" />
                         
-                        {/* The Main Value Display */}
                         <div className="flex flex-col items-start min-w-[80px]">
                              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-0.5">
                                 {direction === 'left' ? 'Removing' : 'Adding'}
@@ -413,10 +342,8 @@ export function KineticAction({
                                 {/* The Projected Result */}
                                 <span className="text-sm font-bold text-zinc-400 dark:text-zinc-600">
                                     {itemType === 'progress' && total > 0 ? (
-                                        // Progress: Show Projected Percentage
                                         `→ ${Math.round((Math.max(0, Math.min(total, current + (direction === 'left' ? -accumulatedValue * step : accumulatedValue * step))) / total) * 100)}%`
                                     ) : (
-                                        // Counter: Show Projected Total
                                         `→ ${Math.max(0, current + (direction === 'left' ? -accumulatedValue * step : accumulatedValue * step))}`
                                     )}
                                 </span>

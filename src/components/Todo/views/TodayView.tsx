@@ -10,10 +10,6 @@ import { MdCalendarToday, MdArrowOutward } from 'react-icons/md';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MiniCalendar } from '@/components/Calendar/features/DateSelector/MiniCalendar';
 
-/**
- * TodayView - Shows tasks scheduled for a specific date (defaults to Today).
- * Integrates Calendar Events and allows date switching.
- */
 export function TodayView() {
     const { tasks, toggleTask, updateTask, deleteTask, updateTaskIcon } = useGroupStore();
     const { 
@@ -27,14 +23,12 @@ export function TodayView() {
     const isTodayView = isSameDay(selectedDate, new Date());
     const viewTitle = isTodayView ? "Today" : format(selectedDate, "MMMM d");
 
-    // 1. Filter Tasks (which now include Calendar Events via Adapter)
     const filteredTasks = useMemo(() => {
         const targetDateKey = formatDateKey(selectedDate);
 
         return tasks.filter(t => {
             if (t.parentId) return false;
             if (!selectedColors.includes(t.color || 'default')) return false;
-            // Only show items with a startDate that matches the selected date
             if (!t.startDate) return false;
 
             const taskDateKey = formatDateKey(new Date(t.startDate));
@@ -48,15 +42,10 @@ export function TodayView() {
         });
     }, [tasks, selectedColors, searchQuery, selectedDate]);
 
-    // 2. Sort
     const displayTasks = useMemo(() => {
         return sortTasks(filteredTasks, taskSortMode);
     }, [filteredTasks, taskSortMode]);
 
-    // 3. Action Handlers (Direct mapping to GroupStore actions)
-    // No need for 'CAL_' prefix handling as useGroupStore handles IDs natively
-    
-    // 4. Header Actions (Date Picker + Jump)
     const headerActions = (
         <div className="flex items-center gap-2">
             <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
@@ -92,14 +81,10 @@ export function TodayView() {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             showScheduledSection={false} 
-            
-            // Pass simple action handlers
             onToggleTask={toggleTask}
             onUpdateTask={updateTask}
             onDeleteTask={deleteTask}
             onUpdateTaskIcon={updateTaskIcon}
-
-            // Pass header controls
             headerControls={headerActions}
         />
     );

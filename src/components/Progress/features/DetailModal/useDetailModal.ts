@@ -11,7 +11,6 @@ interface UseDetailModalProps {
 }
 
 interface UseDetailModalReturn {
-  // State
   isEditing: boolean;
   focusTarget: FocusTarget;
   draft: Partial<ProgressOrCounter>;

@@ -9,13 +9,11 @@ interface TodoListSectionProps<T> {
     isExpanded?: boolean;
     onToggleExpand?: () => void;
 
-    // Optional Menu for the section header (e.g., "Archive All" for Completed)
     menuContent?: ReactNode;
     showMenu?: boolean;
     onMenuToggle?: () => void;
     menuRef?: React.RefObject<HTMLDivElement | null>;
 
-    // If no items
     emptyState?: ReactNode;
 }
 
@@ -33,7 +31,6 @@ export function TodoListSection<T>({
     emptyState
 }: TodoListSectionProps<T>) {
 
-    // Case 1: Simple list without divider (e.g., Incomplete tasks)
     if (!title) {
         if (items.length === 0 && emptyState) {
             return <>{emptyState}</>;
@@ -45,8 +42,6 @@ export function TodoListSection<T>({
         );
     }
 
-    // Case 2: Section with Divider (e.g., Scheduled, Completed)
-    // Only render if there are items (or we could choose to render empty sections, but current design hides them)
     if (items.length === 0) return null;
 
     return (
