@@ -465,13 +465,12 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     "relative flex flex-col leading-none text-[0px] select-none",
                     alignmentClasses[alignment],
                     (isHovered || isEditingCaption || isActive) ? "z-10" : "",
-                    isDragging && "z-50 shadow-2xl cursor-grabbing"
+                    isDragging && "z-50 cursor-grabbing"
                 )}
                 style={{
                     ...containerStyle,
-                    transform: isDragging ? `translateY(${dragOffsetY}px) scale(1.02)` : undefined,
+                    transform: isDragging ? `translateY(${dragOffsetY}px)` : undefined,
                     transition: isDragging ? 'none' : containerStyle.transition,
-                    opacity: isDragging ? 0.9 : containerStyle.opacity,
                 }}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
@@ -480,19 +479,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 onPointerCancel={handleDragHandlePointerCancel}
                 onDragStart={(e) => e.preventDefault()}
             >
-                {/* Direction Indicator */}
-                {isDragging && dragDirection && (
-                    <div
-                        className={cn(
-                            "absolute left-1/2 -translate-x-1/2 z-30",
-                            "px-3 py-1 rounded-full text-xs font-medium",
-                            "bg-blue-500 text-white shadow-lg",
-                            dragDirection === 'up' ? "-top-8" : "-bottom-8"
-                        )}
-                    >
-                        {dragDirection === 'up' ? '↑ Move Up' : '↓ Move Down'}
-                    </div>
-                )}
                 {loadError ? (
                     <div className="w-full h-full min-h-[100px] flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900 border border-dashed border-gray-200 dark:border-zinc-700 rounded-md text-gray-400 dark:text-zinc-500">
                         <MdBrokenImage className="size-8 mb-2 opacity-50" />
@@ -549,8 +535,8 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     />
                 )}
 
-                {/* Caption - Visible on hover/active but NOT during cropping */}
-                {(isHovered || isEditingCaption) && !isActive && !loadError && (
+                {/* Caption - Visible on hover/active but NOT during cropping or dragging */}
+                {(isHovered || isEditingCaption) && !isActive && !loadError && !isDragging && (
                     <ImageCaption
                         originalAlt={node.attrs.alt || ''}
                         value={captionInput}
@@ -581,7 +567,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     onCopy={handleCopy}
                     onDownload={handleDownload}
                     onDelete={handleDelete}
-                    isVisible={(isHovered || isEditingCaption) && !isActive} // Hide when active (clean view)
+                    isVisible={(isHovered || isEditingCaption) && !isActive && !isDragging}
                 />
             </div>
         </div>
