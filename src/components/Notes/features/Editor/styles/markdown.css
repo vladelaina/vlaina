@@ -200,11 +200,13 @@
 }
 
 /* Images */
-.milkdown img {
+.milkdown img,
+.milkdown .image-block-container {
   max-width: 100%;
   height: auto;
   border-radius: 0.5rem;
   margin: 1rem 0;
+  cursor: default;
 }
 
 /* Tables */
