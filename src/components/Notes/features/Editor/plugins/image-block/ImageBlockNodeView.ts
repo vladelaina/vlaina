@@ -19,16 +19,12 @@ export class ImageBlockNodeView implements NodeView {
 
         this.dom = document.createElement('div');
         this.dom.classList.add('image-block-container');
-        // Prevent ProseMirror off-limits issues when clicking inside
         this.dom.contentEditable = 'false';
+        this.dom.draggable = false;
 
-        // Explicitly prevent dragstart from inputs to allow text selection
-        // Use capture phase to ensure we stop it before ProseMirror or anyone else sees it
         this.dom.addEventListener('dragstart', (e) => {
-            if ((e.target as HTMLElement).tagName === 'INPUT') {
-                e.preventDefault();
-                e.stopPropagation();
-            }
+            e.preventDefault();
+            e.stopPropagation();
         }, true);
 
         this.root = createRoot(this.dom);
@@ -56,22 +52,24 @@ export class ImageBlockNodeView implements NodeView {
     // Returns true if the event should be handled by the NodeView entirely
     // and NOT passed to ProseMirror's editor state.
     stopEvent(event: Event) {
+        if (event.type.startsWith('pointer') || event.type.startsWith('mouse') || event.type === 'dragstart') {
+            const target = event.target as HTMLElement;
+            if (target.closest('[data-dragging="true"]')) {
+                return true;
+            }
+        }
+
         const target = event.target as HTMLElement;
-        
-        // Block ProseMirror drag/selection for:
-        // 1. Sliders (.premium-slider and its children)
-        // 2. Inputs (Captions, etc)
-        // 3. Buttons (Toolbar actions)
-        // 4. Any element explicitly marked with data-no-drag
+
         if (
-            target.closest('.premium-slider') || 
-            target.closest('input') || 
+            target.closest('.premium-slider') ||
+            target.closest('input') ||
             target.closest('button') ||
             target.closest('[data-no-drag]')
         ) {
             return true;
         }
-        
+
         return false;
     }
 

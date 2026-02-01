@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { cn } from '@/lib/utils';
@@ -54,6 +54,11 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const [isSaving, setIsSaving] = useState(false);
     const [cropParams, setCropParams] = useState<CropParams | null>(null);
 
+    // Drag State
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragDirection, setDragDirection] = useState<'up' | 'down' | null>(null);
+    const [dragOffsetY, setDragOffsetY] = useState(0);
+
     // --- Stores ---
     const notesPath = useNotesStore(s => s.notesPath);
     const currentNotePath = useNotesStore(s => s.currentNote?.path);
@@ -62,6 +67,9 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     // --- Refs ---
     const containerRef = useRef<HTMLDivElement>(null);
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const dragDirectionRef = useRef<'up' | 'down' | null>(null);
+    const dragCleanupRef = useRef<(() => void) | null>(null);
 
     // --- Resize Observer ---
     useEffect(() => {
@@ -302,6 +310,131 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         }
     };
 
+    // --- Drag Handlers ---
+    const LONG_PRESS_DELAY = 300;
+    const DRAG_THRESHOLD = 30;
+
+    const moveNodeInDirection = useCallback((direction: 'up' | 'down') => {
+        const pos = getPos();
+        if (pos === undefined) return;
+
+        const { state, dispatch } = view;
+        const $pos = state.doc.resolve(pos);
+        const parentDepth = $pos.depth;
+        const index = $pos.index(parentDepth);
+        const parent = $pos.node(parentDepth);
+
+        if (direction === 'up' && index > 0) {
+            const prevSibling = parent.child(index - 1);
+            const prevSiblingPos = pos - prevSibling.nodeSize;
+
+            const tr = state.tr;
+            const nodeToMove = state.doc.nodeAt(pos);
+            if (!nodeToMove) return;
+
+            tr.delete(pos, pos + nodeToMove.nodeSize);
+            tr.insert(prevSiblingPos, nodeToMove);
+            dispatch(tr.scrollIntoView());
+        } else if (direction === 'down' && index < parent.childCount - 1) {
+            const currentNode = parent.child(index);
+            const nextSibling = parent.child(index + 1);
+            const nextSiblingEndPos = pos + currentNode.nodeSize + nextSibling.nodeSize;
+
+            const tr = state.tr;
+            const nodeToMove = state.doc.nodeAt(pos);
+            if (!nodeToMove) return;
+
+            tr.insert(nextSiblingEndPos, nodeToMove);
+            tr.delete(pos, pos + nodeToMove.nodeSize);
+            dispatch(tr.scrollIntoView());
+        }
+    }, [view, getPos]);
+
+    const handleDragHandlePointerDown = (e: React.PointerEvent) => {
+        if (isActive || loadError) return;
+
+        const target = e.target as HTMLElement;
+        if (target.closest('button') || target.closest('input') || target.closest('[data-resize-handle]')) {
+            return;
+        }
+
+        const startY = e.clientY;
+        const startTime = Date.now();
+        let isLongPressTriggered = false;
+
+        const onPointerMove = (moveEvent: PointerEvent) => {
+            const elapsed = Date.now() - startTime;
+
+            if (!isLongPressTriggered && elapsed >= LONG_PRESS_DELAY) {
+                isLongPressTriggered = true;
+                setIsDragging(true);
+            }
+
+            if (isLongPressTriggered) {
+                const deltaY = moveEvent.clientY - startY;
+                setDragOffsetY(deltaY);
+
+                if (Math.abs(deltaY) > DRAG_THRESHOLD) {
+                    const newDirection = deltaY < 0 ? 'up' : 'down';
+                    dragDirectionRef.current = newDirection;
+                    setDragDirection(newDirection);
+                } else {
+                    dragDirectionRef.current = null;
+                    setDragDirection(null);
+                }
+            }
+        };
+
+        const onPointerUp = () => {
+            window.removeEventListener('pointermove', onPointerMove, true);
+            window.removeEventListener('pointerup', onPointerUp, true);
+
+            if (longPressTimeoutRef.current) {
+                clearTimeout(longPressTimeoutRef.current);
+                longPressTimeoutRef.current = undefined;
+            }
+
+            const shouldMove = isLongPressTriggered && dragDirectionRef.current;
+            const direction = dragDirectionRef.current;
+
+            setIsDragging(false);
+            setDragDirection(null);
+            setDragOffsetY(0);
+            dragDirectionRef.current = null;
+            dragCleanupRef.current = null;
+
+            if (shouldMove && direction) {
+                moveNodeInDirection(direction);
+            }
+        };
+
+        dragCleanupRef.current = onPointerUp;
+
+        longPressTimeoutRef.current = setTimeout(() => {
+            if (!isLongPressTriggered) {
+                isLongPressTriggered = true;
+                setIsDragging(true);
+            }
+        }, LONG_PRESS_DELAY);
+
+        window.addEventListener('pointermove', onPointerMove, true);
+        window.addEventListener('pointerup', onPointerUp, true);
+    };
+
+    const handleDragHandlePointerUp = () => {};
+    const handleDragHandlePointerCancel = () => {};
+
+    useEffect(() => {
+        return () => {
+            if (longPressTimeoutRef.current) {
+                clearTimeout(longPressTimeoutRef.current);
+            }
+            if (dragCleanupRef.current) {
+                dragCleanupRef.current();
+            }
+        };
+    }, []);
+
     // --- Styles ---
     const alignmentClasses = { left: 'mr-auto', center: 'mx-auto', right: 'ml-auto' };
     
@@ -326,15 +459,40 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         <div className="w-full flex my-2 justify-center group/image">
             <div
                 ref={containerRef}
+                data-dragging={isDragging ? "true" : undefined}
+                draggable={false}
                 className={cn(
-                    "relative flex flex-col leading-none text-[0px]",
+                    "relative flex flex-col leading-none text-[0px] select-none",
                     alignmentClasses[alignment],
-                    (isHovered || isEditingCaption || isActive) ? "z-10" : ""
+                    (isHovered || isEditingCaption || isActive) ? "z-10" : "",
+                    isDragging && "z-50 shadow-2xl cursor-grabbing"
                 )}
-                style={containerStyle}
+                style={{
+                    ...containerStyle,
+                    transform: isDragging ? `translateY(${dragOffsetY}px) scale(1.02)` : undefined,
+                    transition: isDragging ? 'none' : containerStyle.transition,
+                    opacity: isDragging ? 0.9 : containerStyle.opacity,
+                }}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
+                onPointerDown={handleDragHandlePointerDown}
+                onPointerUp={handleDragHandlePointerUp}
+                onPointerCancel={handleDragHandlePointerCancel}
+                onDragStart={(e) => e.preventDefault()}
             >
+                {/* Direction Indicator */}
+                {isDragging && dragDirection && (
+                    <div
+                        className={cn(
+                            "absolute left-1/2 -translate-x-1/2 z-30",
+                            "px-3 py-1 rounded-full text-xs font-medium",
+                            "bg-blue-500 text-white shadow-lg",
+                            dragDirection === 'up' ? "-top-8" : "-bottom-8"
+                        )}
+                    >
+                        {dragDirection === 'up' ? '↑ Move Up' : '↓ Move Down'}
+                    </div>
+                )}
                 {loadError ? (
                     <div className="w-full h-full min-h-[100px] flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900 border border-dashed border-gray-200 dark:border-zinc-700 rounded-md text-gray-400 dark:text-zinc-500">
                         <MdBrokenImage className="size-8 mb-2 opacity-50" />
