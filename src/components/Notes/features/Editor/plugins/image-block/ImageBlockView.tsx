@@ -42,6 +42,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     // Natural aspect ratio of the loaded image (for initial rendering without crop params)
     const [naturalRatio, setNaturalRatio] = useState<number | null>(null);
+    const [imageNaturalSize, setImageNaturalSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
     
     const [alignment, setAlignment] = useState<Alignment>('center');
     const [isHovered, setIsHovered] = useState(false);
@@ -318,39 +319,25 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     const moveNodeToPosition = useCallback((targetPos: number) => {
         const pos = getPos();
-        console.log('[ImageDrag] moveNodeToPosition called:', { targetPos, pos });
-
         if (pos === undefined || targetPos === null) return;
 
         const { state, dispatch } = view;
 
-        // Resolve pos to find the parent paragraph
-        // Images in Milkdown are P > Image, so we need to move the whole paragraph
         const $pos = state.doc.resolve(pos);
         const parentPos = $pos.before($pos.depth);
         const parentNode = $pos.node($pos.depth);
-
-        console.log('[ImageDrag] Moving:', { parentPos, depth: $pos.depth, nodeSize: parentNode?.nodeSize });
 
         if (!parentNode) return;
 
         const nodeSize = parentNode.nodeSize;
 
-        // Don't move if target is the same position or right after current node
-        if (targetPos === parentPos || targetPos === parentPos + nodeSize) {
-            console.log('[ImageDrag] Skip move - same position');
-            return;
-        }
+        if (targetPos === parentPos || targetPos === parentPos + nodeSize) return;
 
-        // Validate the target position can accept the node
         const $targetPos = state.doc.resolve(targetPos);
         const targetParent = $targetPos.parent;
         const targetIndex = $targetPos.index();
 
-        // Check if we can insert the paragraph at the target position
         if (!targetParent.canReplaceWith(targetIndex, targetIndex, parentNode.type)) {
-            console.log('[ImageDrag] Cannot insert at target position, finding valid position...');
-            // Try to find a valid position by moving up to the top level
             let validTargetPos: number | null = null;
             for (let d = $targetPos.depth; d >= 1; d--) {
                 const ancestorPos = $targetPos.before(d);
@@ -359,20 +346,14 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 const ancestorIndex = d > 1 ? $targetPos.index(d - 1) : $targetPos.index(0);
 
                 if (ancestorParent.canReplaceWith(ancestorIndex, ancestorIndex, parentNode.type)) {
-                    // Found a valid position - insert at the boundary of this ancestor
-                    const ancestorRect = view.nodeDOM(ancestorPos) as HTMLElement | null;
-                    if (ancestorRect) {
-                        // Insert after the ancestor
+                    const ancestorDom = view.nodeDOM(ancestorPos) as HTMLElement | null;
+                    if (ancestorDom) {
                         validTargetPos = ancestorPos + ancestor.nodeSize;
-                        console.log('[ImageDrag] Found valid position at depth', d, 'pos:', validTargetPos);
                         break;
                     }
                 }
             }
-            if (validTargetPos === null) {
-                console.log('[ImageDrag] No valid position found, aborting');
-                return;
-            }
+            if (validTargetPos === null) return;
             targetPos = validTargetPos;
         }
 
@@ -420,13 +401,13 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 setIsDragging(true);
                 setDragSize({ width: sourceWidth, height: sourceHeight });
 
-                // Initialize drag state in plugin
                 if (sourcePos !== undefined) {
                     setDragState(view, {
                         isDragging: true,
                         sourcePos: sourcePos,
                         targetPos: null,
-                        sourceHeight: sourceHeight,
+                        imageNaturalWidth: imageNaturalSize.width,
+                        imageNaturalHeight: imageNaturalSize.height,
                     });
                 }
             }
@@ -462,9 +443,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             }
 
             const targetPos = dragTargetPosRef.current;
-            console.log('[ImageDrag] onPointerUp:', { isLongPressTriggered, targetPos });
 
-            // Clear drag state in plugin
             clearDragState(view);
 
             setIsDragging(false);
@@ -493,13 +472,13 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     setDragPosition({ x: rect.left, y: rect.top });
                 }
 
-                // Initialize drag state in plugin
                 if (sourcePos !== undefined) {
                     setDragState(view, {
                         isDragging: true,
                         sourcePos: sourcePos,
                         targetPos: null,
-                        sourceHeight: sourceHeight,
+                        imageNaturalWidth: imageNaturalSize.width,
+                        imageNaturalHeight: imageNaturalSize.height,
                     });
                 }
             }
@@ -609,6 +588,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                         onResizeStart={handleResizeStart}
                         onMediaLoaded={(media) => {
                             setNaturalRatio(media.naturalWidth / media.naturalHeight);
+                            setImageNaturalSize({ width: media.naturalWidth, height: media.naturalHeight });
                             
                             // Smart Default Sizing:
                             if (!node.attrs.width || width === 'auto') {

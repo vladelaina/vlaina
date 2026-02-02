@@ -8,17 +8,22 @@ interface ImageDragState {
     sourcePos: number | null;
     targetPos: number | null;
     isDragging: boolean;
-    sourceHeight: number;
+    imageNaturalWidth: number;
+    imageNaturalHeight: number;
 }
 
 const initialState: ImageDragState = {
     sourcePos: null,
     targetPos: null,
     isDragging: false,
-    sourceHeight: 100,
+    imageNaturalWidth: 0,
+    imageNaturalHeight: 0,
 };
 
+let cachedView: EditorView | null = null;
+
 export function setDragState(view: EditorView, state: Partial<ImageDragState>) {
+    cachedView = view;
     const tr = view.state.tr.setMeta(imageDragPluginKey, state);
     view.dispatch(tr);
 }
@@ -160,12 +165,55 @@ export function calculateDropPosition(view: EditorView, clientY: number, sourceP
     return targetPos;
 }
 
-function createPlaceholderDecoration(pos: number, height: number): Decoration {
+function calculatePlaceholderSize(
+    pos: number,
+    view: EditorView,
+    imageNaturalWidth: number,
+    imageNaturalHeight: number
+): { width: number; height: number } {
+    const $pos = view.state.doc.resolve(pos);
+
+    let containerWidth = view.dom.clientWidth - 80;
+
+    for (let d = $pos.depth; d >= 1; d--) {
+        const ancestor = $pos.node(d);
+        const ancestorPos = $pos.before(d);
+        const ancestorDom = view.nodeDOM(ancestorPos) as HTMLElement | null;
+
+        if (ancestorDom && CONTAINER_TYPES.includes(ancestor.type.name)) {
+            containerWidth = ancestorDom.clientWidth - 60;
+            break;
+        }
+    }
+
+    if (imageNaturalWidth <= 0 || imageNaturalHeight <= 0) {
+        return { width: containerWidth, height: 100 };
+    }
+
+    if (imageNaturalWidth > containerWidth) {
+        return {
+            width: containerWidth,
+            height: (containerWidth / imageNaturalWidth) * imageNaturalHeight
+        };
+    }
+
+    return { width: imageNaturalWidth, height: imageNaturalHeight };
+}
+
+function createPlaceholderDecoration(
+    pos: number,
+    view: EditorView,
+    imageNaturalWidth: number,
+    imageNaturalHeight: number
+): Decoration {
+    const { width, height } = calculatePlaceholderSize(pos, view, imageNaturalWidth, imageNaturalHeight);
+
     const placeholder = document.createElement('div');
     placeholder.className = 'image-drag-placeholder';
     placeholder.style.cssText = `
         height: ${height}px;
-        margin: 8px 0;
+        width: ${width}px;
+        margin: 8px auto;
         border: 3px dashed var(--neko-accent, #3b82f6);
         border-radius: 8px;
         background: rgba(59, 130, 246, 0.1);
@@ -199,7 +247,7 @@ export const imageDragPlugin = $prose(() => {
             decorations(state) {
                 const pluginState = imageDragPluginKey.getState(state);
 
-                if (!pluginState?.isDragging || pluginState.targetPos === null) {
+                if (!pluginState?.isDragging || pluginState.targetPos === null || !cachedView) {
                     return DecorationSet.empty;
                 }
 
@@ -209,7 +257,9 @@ export const imageDragPlugin = $prose(() => {
 
                 const decoration = createPlaceholderDecoration(
                     pluginState.targetPos,
-                    pluginState.sourceHeight
+                    cachedView,
+                    pluginState.imageNaturalWidth,
+                    pluginState.imageNaturalHeight
                 );
 
                 return DecorationSet.create(state.doc, [decoration]);
