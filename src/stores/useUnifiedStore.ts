@@ -1,16 +1,9 @@
-// Unified Store - LEGACY / PARTIAL
-// Kept for Settings, Progress and Custom Icons.
-// Task/Group/Calendar logic has moved to CalendarEventsStore (ICS).
-
 import { create } from 'zustand';
 import {
   loadUnifiedData,
   saveUnifiedData,
   type UnifiedData,
-  type UnifiedTask,
-  type UnifiedGroup,
   type UnifiedProgress,
-  type UnifiedArchiveSection,
   type CustomIcon,
 } from '@/lib/storage/unifiedStorage';
 import { scanGlobalIcons } from '@/lib/storage/assetStorage';
@@ -21,16 +14,12 @@ import type { TimeView } from '@/lib/date';
 import type { ItemColor } from '@/lib/colors';
 import { 
   DEFAULT_GROUP_ID,
-  DEFAULT_GROUP_NAME,
   DEFAULT_SETTINGS,
 } from '@/lib/config';
 import type { UndoAction } from './types';
 
 export type {
-  UnifiedTask,
-  UnifiedGroup,
   UnifiedProgress,
-  UnifiedArchiveSection,
   CustomIcon,
 };
 
@@ -77,10 +66,8 @@ function persist(data: UnifiedData) {
 
 const initialState: UnifiedStoreState = {
   data: {
-    groups: [{ id: DEFAULT_GROUP_ID, name: DEFAULT_GROUP_NAME, pinned: false, createdAt: Date.now() }],
-    tasks: [],
+    calendars: [],
     progress: [],
-    archive: [],
     settings: { ...DEFAULT_SETTINGS },
     customIcons: [],
   },

@@ -1,7 +1,3 @@
-/**
- * Panel drag and drop logic
- */
-
 import { useState, useCallback, useRef } from 'react';
 import {
   useSensor,
@@ -16,17 +12,16 @@ import {
   closestCenter,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import type { Task } from '@/stores/useGroupStore';
+import type { NekoEvent } from '@/lib/ics/types';
 import { DEFAULT_EVENT_DURATION_MS } from '@/lib/calendar';
 import { CALENDAR_CONSTANTS, getSnapMinutes } from '@/components/Calendar/utils/timeUtils';
 
 interface UsePanelDragAndDropProps {
-  tasks: Task[];
+  tasks: NekoEvent[];
   reorderTasks: (activeId: string, overId: string, makeChild?: boolean) => void;
   updateTaskTime: (taskId: string, startDate?: number | null, endDate?: number | null) => void;
   toggleTask: (taskId: string) => void;
   setDraggingTaskId: (id: string | null) => void;
-  /** Optional callback for adding calendar events (injected from parent) */
   onAddEvent?: (eventData: { summary: string; dtstart: Date; dtend: Date; allDay: boolean }) => string;
   calendarInfo?: {
     selectedDate: Date;
@@ -128,19 +123,17 @@ export function usePanelDragAndDrop({
 
     const { active, over } = event;
 
-    // Reset drag state
     setActiveId(null);
     setOverId(null);
     setDragIndent(0);
     setDraggingTaskId(null);
 
-    const activeTask = tasks.find(t => t.id === active.id);
+    const activeTask = tasks.find(t => t.uid === active.id);
     if (!activeTask) {
 
       return;
     }
 
-    // Check if dropped on calendar grid
     const gridContainer = document.getElementById('time-grid-container');
     if (gridContainer && calendarInfo) {
       const rect = gridContainer.getBoundingClientRect();
@@ -153,12 +146,11 @@ export function usePanelDragAndDrop({
 
           const { selectedDate, hourHeight, viewMode, dayCount } = calendarInfo;
           const GUTTER_WIDTH = CALENDAR_CONSTANTS.GUTTER_WIDTH;
-          const SNAP_MINUTES = getSnapMinutes(hourHeight); // Use snap utility
+          const SNAP_MINUTES = getSnapMinutes(hourHeight);
 
           const scrollContainer = document.getElementById('time-grid-scroll');
           const scrollTop = scrollContainer?.scrollTop || 0;
 
-          // Calculate horizontal position (Day)
           const relativeX = x - rect.left - GUTTER_WIDTH;
           if (relativeX < 0) return;
 
@@ -167,12 +159,10 @@ export function usePanelDragAndDrop({
           const dayIndex = Math.floor(relativeX / dayWidth);
           if (dayIndex < 0 || dayIndex >= numDays) return;
 
-          // Calculate vertical position (Time)
           const relativeY = y - rect.top + scrollTop;
           const totalMinutes = (relativeY / hourHeight) * 60;
           const snappedMinutes = Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
 
-          // Determine date and time
           const selected = new Date(selectedDate);
           let weekStart: Date;
           if (viewMode === 'week') {
@@ -192,10 +182,8 @@ export function usePanelDragAndDrop({
 
           const endDate = new Date(startDate.getTime() + DEFAULT_EVENT_DURATION_MS);
 
-          // Create a new calendar event (NekoEvent) instead of updating the task
-          // This ensures it appears on the calendar grid which now only shows ICS events
           onAddEvent?.({
-            summary: activeTask.content,
+            summary: activeTask.summary,
             dtstart: startDate,
             dtend: endDate,
             allDay: false,
@@ -209,74 +197,56 @@ export function usePanelDragAndDrop({
 
     const overId = over.id as string;
 
-    // Handle dividers (moving to Scheduled or Completed sections)
     if (overId === '__divider_scheduled__') {
-      if (activeTask.startDate) {
-        // Was scheduled, staying scheduled (or moving between scheduled items) - handled by normal sort
-        // But if dragged specifically onto the divider, maybe we want to unset time? 
-        // Or if coming from unscheduled, set time.
-        // Assuming divider means "become scheduled" broadly, or just sort order.
-        // For simplicity, if dropping on scheduled divider and it wasn't scheduled, schedule it for today.
-        if (!activeTask.startDate && !activeTask.completed) {
-          const startTime = Date.now();
-          const endTime = startTime + DEFAULT_EVENT_DURATION_MS;
-          updateTaskTime(activeTask.id, startTime, endTime);
-        }
+      if (activeTask.dtstart) {
+
       } else if (!activeTask.completed) {
-        // From unscheduled to scheduled
         const startTime = Date.now();
         const endTime = startTime + DEFAULT_EVENT_DURATION_MS;
-        updateTaskTime(activeTask.id, startTime, endTime);
+        updateTaskTime(activeTask.uid, startTime, endTime);
       }
       return;
     }
 
     if (overId === '__divider_completed__') {
-      // If dropped on completed divider, mark complete?
       if (!activeTask.completed) {
-        toggleTask(activeTask.id);
+        toggleTask(activeTask.uid);
       }
       return;
     }
 
-    // Handle normal reorder
     if (active.id !== over.id) {
-      const overTask = tasks.find(t => t.id === over.id);
+      const overTask = tasks.find(t => t.uid === over.id);
       if (!overTask) {
-        // Maybe dragging over a divider processed above, or something else
         return;
       }
 
-      // Check for cross-section moves (e.g. Unscheduled -> Scheduled)
-      const activeIsScheduled = !!activeTask.startDate;
+      const activeIsScheduled = !!activeTask.dtstart;
       const activeIsCompleted = activeTask.completed;
-      const overIsScheduled = !!overTask.startDate;
+      const overIsScheduled = !!overTask.dtstart;
       const overIsCompleted = overTask.completed;
 
       const isCrossSection = (activeIsScheduled !== overIsScheduled) || (activeIsCompleted !== overIsCompleted);
 
       if (isCrossSection) {
-        // Handle property updates based on where we dropped
         if (overIsCompleted) {
-          if (!activeIsCompleted) toggleTask(activeTask.id);
+          if (!activeIsCompleted) toggleTask(activeTask.uid);
           return;
         }
         if (overIsScheduled) {
           if (!activeIsScheduled) {
             const startTime = Date.now();
             const endTime = startTime + DEFAULT_EVENT_DURATION_MS;
-            updateTaskTime(activeTask.id, startTime, endTime);
+            updateTaskTime(activeTask.uid, startTime, endTime);
           }
-          if (activeIsCompleted) toggleTask(activeTask.id);
+          if (activeIsCompleted) toggleTask(activeTask.uid);
           return;
         }
-        // Dropped in Unscheduled
-        if (activeIsScheduled) updateTaskTime(activeTask.id, null, null);
-        if (activeIsCompleted) toggleTask(activeTask.id);
+        if (activeIsScheduled) updateTaskTime(activeTask.uid, null, null);
+        if (activeIsCompleted) toggleTask(activeTask.uid);
         return;
       }
 
-      // Same section reorder
       const INDENT_THRESHOLD = 28;
       const makeChild = dragIndent > INDENT_THRESHOLD;
       reorderTasks(active.id as string, over.id as string, makeChild);

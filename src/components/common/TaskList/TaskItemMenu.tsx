@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { parseDuration, formatDuration } from '@/lib/time';
 import { ColorPicker } from '@/components/common/ColorPicker';
-import type { Task } from '@/stores/useGroupStore';
+import type { NekoEvent } from '@/stores/useGroupStore';
 import { DeleteIcon } from '@/components/common/DeleteIcon';
 
 function formatEstimatedTimeForInput(minutes: number | undefined): string {
@@ -13,10 +13,10 @@ function formatEstimatedTimeForInput(minutes: number | undefined): string {
 }
 
 interface TaskItemMenuProps {
-    task: Task;
+    task: NekoEvent;
     canAddSubTask: boolean;
     onAddSubTask?: (parentId: string) => void;
-    onDelete: (id: string) => void;
+    onDelete: (uid: string) => void;
 }
 
 export function TaskItemMenu({
@@ -73,7 +73,7 @@ export function TaskItemMenu({
                         <ColorPicker
                             value={task.color}
                             onChange={(color) => {
-                                updateTaskColor(task.id, color);
+                                updateTaskColor(task.uid, color);
                                 setShowMenu(false);
                             }}
                         />
@@ -93,13 +93,13 @@ export function TaskItemMenu({
                                     if (estimatedTime.trim()) {
                                         const newEstimation = parseDuration(estimatedTime.trim());
                                         if (newEstimation !== undefined) {
-                                            updateTaskEstimation(task.id, newEstimation);
+                                            updateTaskEstimation(task.uid, newEstimation);
                                             setShowMenu(false);
                                         } else {
                                             setEstimatedTime(formatEstimatedTimeForInput(task.estimatedMinutes));
                                         }
                                     } else {
-                                        updateTaskEstimation(task.id, undefined);
+                                        updateTaskEstimation(task.uid, undefined);
                                         setShowMenu(false);
                                     }
                                 } else if (e.key === 'Escape') {
@@ -113,12 +113,12 @@ export function TaskItemMenu({
                                     if (estimatedTime.trim()) {
                                         const newEstimation = parseDuration(estimatedTime.trim());
                                         if (newEstimation !== undefined) {
-                                            updateTaskEstimation(task.id, newEstimation);
+                                            updateTaskEstimation(task.uid, newEstimation);
                                         } else {
                                             setEstimatedTime(currentFormatted);
                                         }
                                     } else {
-                                        updateTaskEstimation(task.id, undefined);
+                                        updateTaskEstimation(task.uid, undefined);
                                     }
                                 }
                             }}
@@ -133,7 +133,7 @@ export function TaskItemMenu({
                     <button
                         onClick={() => {
                             if (canAddSubTask && onAddSubTask) {
-                                onAddSubTask(task.id);
+                                onAddSubTask(task.uid);
                                 setShowMenu(false);
                             }
                         }}
@@ -152,7 +152,7 @@ export function TaskItemMenu({
                     <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
 
                     {/* Archive - only for completed tasks */}
-                    {task.completed && task.groupId !== '__archive__' && (
+                    {task.completed && task.calendarId !== '__archive__' && (
                         <button
                             onClick={() => setShowMenu(false)}
                             className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
@@ -162,10 +162,9 @@ export function TaskItemMenu({
                         </button>
                     )}
 
-                    {/* Delete */}
                     <button
                         onClick={() => {
-                            onDelete(task.id);
+                            onDelete(task.uid);
                             setShowMenu(false);
                         }}
                         className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"

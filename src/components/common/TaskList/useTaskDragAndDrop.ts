@@ -1,14 +1,3 @@
-/**
- * useTaskDragAndDrop - Standalone drag and drop hook for task lists
- * 
- * This is a Calendar-independent version. It handles:
- * - Task reordering within a list
- * - Section transitions (todo <-> scheduled <-> completed)
- * - Subtask creation via horizontal drag
- * 
- * It does NOT handle: Calendar grid drop detection (that's Calendar-specific)
- */
-
 import { useState, useCallback, useRef } from 'react';
 import {
     useSensor,
@@ -24,12 +13,12 @@ import {
     rectIntersection,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import type { Task } from '@/stores/useGroupStore';
+import type { NekoEvent } from '@/stores/types';
 
 const DEFAULT_DURATION_MS = 25 * 60 * 1000;
 
 interface UseTaskDragAndDropProps {
-    tasks: Task[];
+    tasks: NekoEvent[];
     reorderTasks: (activeId: string, overId: string, makeChild?: boolean) => void;
     updateTaskTime: (taskId: string, startDate?: number | null, endDate?: number | null) => void;
     toggleTask: (taskId: string) => void;
@@ -96,7 +85,7 @@ export function useTaskDragAndDrop({
         setDragIndent(0);
         setDraggingTaskId(null);
 
-        const activeTask = tasks.find(t => t.id === active.id);
+        const activeTask = tasks.find(t => t.uid === active.id);
         if (!activeTask) return;
 
         if (!over || active.id === over.id) return;
@@ -104,12 +93,13 @@ export function useTaskDragAndDrop({
         const overIdStr = over.id as string;
 
         if (overIdStr === '__divider_scheduled__') {
-            if (activeTask.startDate) {
-                updateTaskTime(activeTask.id, null, null);
+            const startDate = activeTask.dtstart ? new Date(activeTask.dtstart).getTime() : null;
+            if (startDate) {
+                updateTaskTime(activeTask.uid, null, null);
             } else if (!activeTask.completed) {
                 const startTime = Date.now();
                 const endTime = startTime + DEFAULT_DURATION_MS;
-                updateTaskTime(activeTask.id, startTime, endTime);
+                updateTaskTime(activeTask.uid, startTime, endTime);
             }
             return;
         }
@@ -118,45 +108,47 @@ export function useTaskDragAndDrop({
             return;
         }
 
-        const overTask = tasks.find(t => t.id === over.id);
+        const overTask = tasks.find(t => t.uid === over.id);
         if (!overTask) return;
 
-        const activeIsScheduled = !!activeTask.startDate;
+        const activeStartDate = activeTask.dtstart ? new Date(activeTask.dtstart).getTime() : null;
+        const overStartDate = overTask.dtstart ? new Date(overTask.dtstart).getTime() : null;
+        const activeIsScheduled = !!activeStartDate;
         const activeIsCompleted = activeTask.completed;
-        const overIsScheduled = !!overTask.startDate;
+        const overIsScheduled = !!overStartDate;
         const overIsCompleted = overTask.completed;
 
         const isCrossSection = (activeIsScheduled !== overIsScheduled) || (activeIsCompleted !== overIsCompleted);
 
         if (isCrossSection) {
             if (activeIsScheduled && !activeIsCompleted && !overIsScheduled && !overIsCompleted) {
-                updateTaskTime(activeTask.id, null, null);
+                updateTaskTime(activeTask.uid, null, null);
                 return;
             }
             if (!activeIsScheduled && !activeIsCompleted && overIsScheduled && !overIsCompleted) {
                 const startTime = Date.now();
                 const endTime = startTime + DEFAULT_DURATION_MS;
-                updateTaskTime(activeTask.id, startTime, endTime);
+                updateTaskTime(activeTask.uid, startTime, endTime);
                 return;
             }
             if (activeIsScheduled && !activeIsCompleted && overIsCompleted) {
-                updateTaskTime(activeTask.id, null, null);
-                toggleTask(activeTask.id);
+                updateTaskTime(activeTask.uid, null, null);
+                toggleTask(activeTask.uid);
                 return;
             }
             if (!activeIsScheduled && !activeIsCompleted && overIsCompleted) {
-                toggleTask(activeTask.id);
+                toggleTask(activeTask.uid);
                 return;
             }
             if (activeIsCompleted && !overIsScheduled && !overIsCompleted) {
-                toggleTask(activeTask.id);
+                toggleTask(activeTask.uid);
                 return;
             }
             if (activeIsCompleted && overIsScheduled && !overIsCompleted) {
-                toggleTask(activeTask.id);
+                toggleTask(activeTask.uid);
                 const startTime = Date.now();
                 const endTime = startTime + DEFAULT_DURATION_MS;
-                updateTaskTime(activeTask.id, startTime, endTime);
+                updateTaskTime(activeTask.uid, startTime, endTime);
                 return;
             }
             return;

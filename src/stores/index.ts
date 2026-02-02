@@ -11,12 +11,7 @@ export { useProgressStore } from './useProgressStore';
 // UI stores
 export { useToastStore } from './useToastStore';
 
-// Types
 export type {
-  UnifiedTask,
-  Group,
-  StoreTask,
-  Task,
   NekoEvent,
   NekoCalendar,
   CalendarEvent,

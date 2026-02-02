@@ -2,21 +2,20 @@ import { useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { DndContext, DragOverlay, DragMoveEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import type { Task } from '@/stores/types';
+import type { NekoEvent } from '@/lib/ics/types';
 import { TaskInput, SortableDivider } from '@/components/common/TaskList';
 import { TaskSection } from '../components/TaskSection';
 import { cn } from '@/lib/utils';
 import { getAllDayInlineStyles, getColorHex } from '@/lib/colors';
 
 interface TaskListViewProps {
-    // Task data
-    incompleteTasks: Task[];
-    scheduledTasks: Task[];
-    completedTasks: Task[];
+    incompleteTasks: NekoEvent[];
+    scheduledTasks: NekoEvent[];
+    completedTasks: NekoEvent[];
     incompleteTaskIds: string[];
     scheduledTaskIds: string[];
     completedTaskIds: string[];
-    allTasks: Task[];
+    allTasks: NekoEvent[];
 
     // DnD
     sensors: any;
@@ -30,7 +29,7 @@ interface TaskListViewProps {
 
     // Actions
     onToggle: (id: string) => void;
-    onUpdate: (id: string, updates: Partial<Task>) => void;
+    onUpdate: (id: string, updates: Partial<NekoEvent>) => void;
     onDelete: (id: string) => void;
     onAddSubTask: (parentId: string) => void;
     onToggleCollapse: (id: string) => void;
@@ -252,7 +251,7 @@ export function TaskListView({
                     {createPortal(
                         <DragOverlay dropAnimation={null} className="cursor-grabbing" style={{ zIndex: 999999 }}>
                             {activeId ? (() => {
-                                const task = allTasks.find(t => t.id === activeId);
+                                const task = allTasks.find(t => t.uid === activeId);
                                 if (!task) return null;
 
                                 if (isOverCalendar) {
@@ -282,7 +281,7 @@ export function TaskListView({
                                                         className="font-medium leading-tight truncate text-[11px]"
                                                         style={{ color: textColor }}
                                                     >
-                                                        {task.content || 'Untitled'}
+                                                        {task.summary || 'Untitled'}
                                                     </p>
                                                     {eventHeight >= 32 && (
                                                         <p
@@ -312,7 +311,7 @@ export function TaskListView({
                                             style={colorValue ? { borderColor: colorValue } : undefined}
                                         />
                                         <span className="text-[13px] text-zinc-700 dark:text-zinc-200 line-clamp-2">
-                                            {task.content}
+                                            {task.summary}
                                         </span>
                                     </div>
                                 );

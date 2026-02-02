@@ -14,11 +14,11 @@ export function InboxView() {
         const filtered = tasks
             .filter(t => {
                 if (t.parentId) return false;
-                if (t.groupId !== DEFAULT_GROUP_ID) return false;
+                if (t.calendarId !== DEFAULT_GROUP_ID) return false;
                 if (!selectedColors.includes(t.color || 'default')) return false;
                 if (searchQuery.trim()) {
                     const query = searchQuery.toLowerCase();
-                    if (!t.content.toLowerCase().includes(query)) return false;
+                    if (!t.summary.toLowerCase().includes(query)) return false;
                 }
                 return true;
             });

@@ -38,7 +38,7 @@ export function CalendarTaskPanel({
   // Stores
   const {
     tasks,
-    groups,
+    calendars,
     activeGroupId,
     setActiveGroup,
     toggleTask,
@@ -128,9 +128,10 @@ export function CalendarTaskPanel({
       setIsOverCalendar(isOver);
 
       if (isOver) {
-        const task = tasks.find(t => t.id === active.id);
-        if (task?.startDate) {
-          setDraggingToCalendarTaskId(task.id);
+        const task = tasks.find(t => t.uid === active.id);
+        const startDate = task?.dtstart ? new Date(task.dtstart).getTime() : null;
+        if (startDate && task) {
+          setDraggingToCalendarTaskId(task.uid);
         }
       } else {
         setDraggingToCalendarTaskId(null);
@@ -215,7 +216,7 @@ export function CalendarTaskPanel({
         <div className="flex-shrink-0 px-3 pb-2">
           <div className="flex items-center gap-2">
             <GroupSelector
-              groups={groups}
+              groups={calendars}
               activeGroupId={activeGroupId}
               onSelectGroup={(id: string) => {
                 setActiveGroup(id);
@@ -258,8 +259,7 @@ export function CalendarTaskPanel({
           isOverCalendar={isOverCalendar}
           onToggle={toggleTask}
           onUpdate={(id, updates) => {
-            if (updates.content !== undefined) updateTask(id, updates.content);
-            // Add other updates if needed, currently TaskListView mainly triggers rename
+            if (updates.summary !== undefined) updateTask(id, updates.summary);
           }}
           onDelete={deleteTask}
           onAddSubTask={handleAddSubTask}

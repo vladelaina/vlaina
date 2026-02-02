@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import type { Task } from '@/stores/types';
+import type { NekoEvent } from '@/stores/types';
 import type { TaskStatus } from '@/stores/uiSlice';
 import { getColorPriority } from '@/lib/colors';
 
 interface UseTaskDataProps {
-    tasks: Task[];
+    tasks: NekoEvent[];
     activeGroupId: string;
     selectedColors: string[];
     selectedStatuses: TaskStatus[];
@@ -13,18 +13,14 @@ interface UseTaskDataProps {
 }
 
 interface UseTaskDataResult {
-    incompleteTasks: Task[];
-    scheduledTasks: Task[];
-    completedTasks: Task[];
+    incompleteTasks: NekoEvent[];
+    scheduledTasks: NekoEvent[];
+    completedTasks: NekoEvent[];
     incompleteTaskIds: string[];
     scheduledTaskIds: string[];
     completedTaskIds: string[];
 }
 
-/**
- * Custom hook for filtering, sorting, and grouping tasks
- * Extracted from CalendarTaskPanel for better separation of concerns
- */
 export function useTaskData({
     tasks,
     activeGroupId,
@@ -33,15 +29,14 @@ export function useTaskData({
     searchQuery,
     hideCompleted,
 }: UseTaskDataProps): UseTaskDataResult {
-    // Filter and sort top-level tasks
     const { incompleteTasks, scheduledTasks, completedTasks } = useMemo(() => {
         const topLevelTasks = tasks
             .filter((t) => {
-                if (t.groupId !== activeGroupId || t.parentId) return false;
+                if (t.calendarId !== activeGroupId || t.parentId) return false;
                 if (!selectedColors.includes(t.color || 'default')) return false;
                 if (searchQuery.trim()) {
                     const query = searchQuery.toLowerCase();
-                    if (!t.content.toLowerCase().includes(query)) return false;
+                    if (!t.summary.toLowerCase().includes(query)) return false;
                 }
                 return true;
             })
@@ -49,12 +44,13 @@ export function useTaskData({
                 const aColor = getColorPriority(a.color);
                 const bColor = getColorPriority(b.color);
                 if (aColor !== bColor) return aColor - bColor;
-                return a.order - b.order;
+                return (a.order || 0) - (b.order || 0);
             });
 
         const notCompleted = topLevelTasks.filter((t) => !t.completed);
-        const scheduled = notCompleted.filter((t) => t.startDate);
-        const unscheduled = notCompleted.filter((t) => !t.startDate);
+        const startDates = notCompleted.map(t => t.dtstart ? new Date(t.dtstart).getTime() : null);
+        const scheduled = notCompleted.filter((_t, i) => startDates[i] !== null);
+        const unscheduled = notCompleted.filter((_t, i) => startDates[i] === null);
 
         const showTodo = selectedStatuses.includes('todo' as TaskStatus);
         const showScheduled = selectedStatuses.includes('scheduled' as TaskStatus);
@@ -67,12 +63,11 @@ export function useTaskData({
         };
     }, [tasks, activeGroupId, selectedColors, selectedStatuses, searchQuery, hideCompleted]);
 
-    // Generate flattened task IDs including children (for DnD)
     const incompleteTaskIds = useMemo(() => {
         const ids: string[] = [];
-        const addTaskAndChildren = (task: Task) => {
-            ids.push(task.id);
-            const children = tasks.filter(t => t.parentId === task.id);
+        const addTaskAndChildren = (task: NekoEvent) => {
+            ids.push(task.uid);
+            const children = tasks.filter(t => t.parentId === task.uid);
             children.forEach(addTaskAndChildren);
         };
         incompleteTasks.forEach(addTaskAndChildren);
@@ -81,9 +76,9 @@ export function useTaskData({
 
     const scheduledTaskIds = useMemo(() => {
         const ids: string[] = [];
-        const addTaskAndChildren = (task: Task) => {
-            ids.push(task.id);
-            const children = tasks.filter(t => t.parentId === task.id);
+        const addTaskAndChildren = (task: NekoEvent) => {
+            ids.push(task.uid);
+            const children = tasks.filter(t => t.parentId === task.uid);
             children.forEach(addTaskAndChildren);
         };
         scheduledTasks.forEach(addTaskAndChildren);
@@ -92,9 +87,9 @@ export function useTaskData({
 
     const completedTaskIds = useMemo(() => {
         const ids: string[] = [];
-        const addTaskAndChildren = (task: Task) => {
-            ids.push(task.id);
-            const children = tasks.filter(t => t.parentId === task.id);
+        const addTaskAndChildren = (task: NekoEvent) => {
+            ids.push(task.uid);
+            const children = tasks.filter(t => t.parentId === task.uid);
             children.forEach(addTaskAndChildren);
         };
         completedTasks.forEach(addTaskAndChildren);

@@ -5,13 +5,13 @@ import {
     DragOverlay, 
     type DragStartEvent
 } from '@dnd-kit/core';
-import type { Task } from '@/stores/useGroupStore';
+import type { NekoEvent } from '@/stores/useGroupStore';
 import { useTaskDragAndDrop } from './useTaskDragAndDrop';
 import { TaskItem } from './TaskItem';
 
 interface TaskDragContextProps {
     children: React.ReactNode;
-    allTasks: Task[];
+    allTasks: NekoEvent[];
     reorderTasks: (activeId: string, overId: string, makeChild?: boolean) => void;
     updateTaskTime: (taskId: string, startDate?: number | null, endDate?: number | null) => void;
     toggleTask: (taskId: string) => void;
@@ -68,7 +68,7 @@ export function TaskDragContext({
             {createPortal(
                 <DragOverlay dropAnimation={null} className="cursor-grabbing" style={{ zIndex: 999999 }}>
                     {activeId ? (() => {
-                        const activeTask = allTasks.find(t => t.id === activeId);
+                        const activeTask = allTasks.find(t => t.uid === activeId);
                         if (!activeTask) return null;
                         
                         return (
@@ -79,7 +79,7 @@ export function TaskDragContext({
                                     onToggle={() => {}}
                                     onUpdate={() => {}}
                                     onDelete={() => {}}
-                                    hasChildren={getChildCount(activeTask.id) > 0}
+                                    hasChildren={getChildCount(activeTask.uid) > 0}
                                     collapsed={activeTask.collapsed}
                                 />
                             </div>

@@ -59,7 +59,7 @@ export function useCalendarStore() {
     const targetCalendarId = eventData.calendarId ||
       eventsStore.calendars.find(c => c.visible)?.id ||
       eventsStore.calendars[0]?.id ||
-      'personal';
+      'main';
 
     // Ensure the target calendar is visible so the user doesn't lose track of the new event
     const targetCalendar = eventsStore.calendars.find(c => c.id === targetCalendarId);
