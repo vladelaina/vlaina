@@ -7,6 +7,7 @@ import { NodeSelection } from '@milkdown/kit/prose/state';
 import { ImageBlockNodeView } from './ImageBlockNodeView';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { moveImageToTrash, restoreImageFromTrash } from './utils/fileUtils';
+import { imageDragPlugin } from './imageDragPlugin';
 
 // Plugin key for identification
 const imageNodeViewPluginKey = new PluginKey('imageNodeViewPlugin');
@@ -143,4 +144,7 @@ export const imageKeymapPlugin = $prose(() => {
 });
 
 // Export as array for easy spreading in editor config
-export const imageBlockPlugin = [imageNodeViewPlugin, imageKeymapPlugin];
+export const imageBlockPlugin = [imageNodeViewPlugin, imageKeymapPlugin, imageDragPlugin];
+
+// Re-export drag plugin utilities for use in ImageBlockView
+export { setDragState, clearDragState, getDragState, calculateDropPosition } from './imageDragPlugin';

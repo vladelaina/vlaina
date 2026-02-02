@@ -15,6 +15,7 @@ import { ImageCropper } from './components/ImageCropper';
 import { useLocalImage } from './hooks/useLocalImage';
 import { parseCropFragment, generateCropFragment, CropParams } from './utils/cropUtils';
 import { ensureImageFileExists } from './utils/fileUtils';
+import { setDragState, clearDragState, calculateDropPosition } from './imageDragPlugin';
 
 interface ImageBlockProps {
     node: Node;
@@ -56,7 +57,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     // Drag State
     const [isDragging, setIsDragging] = useState(false);
-    const [dragDirection, setDragDirection] = useState<'up' | 'down' | null>(null);
     const [dragOffsetY, setDragOffsetY] = useState(0);
 
     // --- Stores ---
@@ -68,7 +68,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-    const dragDirectionRef = useRef<'up' | 'down' | null>(null);
     const dragCleanupRef = useRef<(() => void) | null>(null);
 
     // --- Resize Observer ---
@@ -312,42 +311,54 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     // --- Drag Handlers ---
     const LONG_PRESS_DELAY = 300;
-    const DRAG_THRESHOLD = 30;
 
-    const moveNodeInDirection = useCallback((direction: 'up' | 'down') => {
+    // Reference to track target position during drag
+    const dragTargetPosRef = useRef<number | null>(null);
+
+    const moveNodeToPosition = useCallback((targetPos: number) => {
         const pos = getPos();
-        if (pos === undefined) return;
+        console.log('[ImageDrag] moveNodeToPosition called:', { targetPos, pos });
+
+        if (pos === undefined || targetPos === null) return;
 
         const { state, dispatch } = view;
+
+        // Resolve pos to find the parent paragraph
+        // Images in Milkdown are P > Image, so we need to move the whole paragraph
         const $pos = state.doc.resolve(pos);
-        const parentDepth = $pos.depth;
-        const index = $pos.index(parentDepth);
-        const parent = $pos.node(parentDepth);
+        const parentPos = $pos.before($pos.depth);
+        const parentNode = $pos.node($pos.depth);
 
-        if (direction === 'up' && index > 0) {
-            const prevSibling = parent.child(index - 1);
-            const prevSiblingPos = pos - prevSibling.nodeSize;
+        console.log('[ImageDrag] Moving:', { parentPos, depth: $pos.depth, nodeSize: parentNode?.nodeSize });
 
-            const tr = state.tr;
-            const nodeToMove = state.doc.nodeAt(pos);
-            if (!nodeToMove) return;
+        if (!parentNode) return;
 
-            tr.delete(pos, pos + nodeToMove.nodeSize);
-            tr.insert(prevSiblingPos, nodeToMove);
-            dispatch(tr.scrollIntoView());
-        } else if (direction === 'down' && index < parent.childCount - 1) {
-            const currentNode = parent.child(index);
-            const nextSibling = parent.child(index + 1);
-            const nextSiblingEndPos = pos + currentNode.nodeSize + nextSibling.nodeSize;
+        const nodeSize = parentNode.nodeSize;
 
-            const tr = state.tr;
-            const nodeToMove = state.doc.nodeAt(pos);
-            if (!nodeToMove) return;
-
-            tr.insert(nextSiblingEndPos, nodeToMove);
-            tr.delete(pos, pos + nodeToMove.nodeSize);
-            dispatch(tr.scrollIntoView());
+        // Don't move if target is the same position or right after current node
+        if (targetPos === parentPos || targetPos === parentPos + nodeSize) {
+            console.log('[ImageDrag] Skip move - same position');
+            return;
         }
+
+        const tr = state.tr;
+
+        // If moving forward (target > current position)
+        if (targetPos > parentPos) {
+            // Insert first, then delete (positions shift after insert)
+            console.log('[ImageDrag] Moving forward');
+            tr.insert(targetPos, parentNode);
+            tr.delete(parentPos, parentPos + nodeSize);
+        } else {
+            // If moving backward (target < current position)
+            // Delete first, then insert
+            console.log('[ImageDrag] Moving backward');
+            tr.delete(parentPos, parentPos + nodeSize);
+            tr.insert(targetPos, parentNode);
+        }
+
+        dispatch(tr);
+        console.log('[ImageDrag] Move completed');
     }, [view, getPos]);
 
     const handleDragHandlePointerDown = (e: React.PointerEvent) => {
@@ -361,6 +372,8 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         const startY = e.clientY;
         const startTime = Date.now();
         let isLongPressTriggered = false;
+        const sourcePos = getPos();
+        const sourceHeight = containerRef.current?.offsetHeight || 100;
 
         const onPointerMove = (moveEvent: PointerEvent) => {
             const elapsed = Date.now() - startTime;
@@ -368,19 +381,30 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             if (!isLongPressTriggered && elapsed >= LONG_PRESS_DELAY) {
                 isLongPressTriggered = true;
                 setIsDragging(true);
+
+                // Initialize drag state in plugin
+                if (sourcePos !== undefined) {
+                    setDragState(view, {
+                        isDragging: true,
+                        sourcePos: sourcePos,
+                        targetPos: null,
+                        sourceHeight: sourceHeight,
+                    });
+                }
             }
 
             if (isLongPressTriggered) {
                 const deltaY = moveEvent.clientY - startY;
                 setDragOffsetY(deltaY);
 
-                if (Math.abs(deltaY) > DRAG_THRESHOLD) {
-                    const newDirection = deltaY < 0 ? 'up' : 'down';
-                    dragDirectionRef.current = newDirection;
-                    setDragDirection(newDirection);
-                } else {
-                    dragDirectionRef.current = null;
-                    setDragDirection(null);
+                // Calculate and update drop position
+                if (sourcePos !== undefined) {
+                    const targetPos = calculateDropPosition(view, moveEvent.clientY, sourcePos);
+                    dragTargetPosRef.current = targetPos;
+
+                    setDragState(view, {
+                        targetPos: targetPos,
+                    });
                 }
             }
         };
@@ -394,17 +418,20 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 longPressTimeoutRef.current = undefined;
             }
 
-            const shouldMove = isLongPressTriggered && dragDirectionRef.current;
-            const direction = dragDirectionRef.current;
+            const targetPos = dragTargetPosRef.current;
+            console.log('[ImageDrag] onPointerUp:', { isLongPressTriggered, targetPos });
+
+            // Clear drag state in plugin
+            clearDragState(view);
 
             setIsDragging(false);
-            setDragDirection(null);
             setDragOffsetY(0);
-            dragDirectionRef.current = null;
+            dragTargetPosRef.current = null;
             dragCleanupRef.current = null;
 
-            if (shouldMove && direction) {
-                moveNodeInDirection(direction);
+            // Move node to target position if we have a valid target
+            if (isLongPressTriggered && targetPos !== null) {
+                moveNodeToPosition(targetPos);
             }
         };
 
@@ -414,6 +441,16 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             if (!isLongPressTriggered) {
                 isLongPressTriggered = true;
                 setIsDragging(true);
+
+                // Initialize drag state in plugin
+                if (sourcePos !== undefined) {
+                    setDragState(view, {
+                        isDragging: true,
+                        sourcePos: sourcePos,
+                        targetPos: null,
+                        sourceHeight: sourceHeight,
+                    });
+                }
             }
         }, LONG_PRESS_DELAY);
 
@@ -469,8 +506,10 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 )}
                 style={{
                     ...containerStyle,
-                    transform: isDragging ? `translateY(${dragOffsetY}px)` : undefined,
+                    transform: isDragging ? `translateY(${dragOffsetY}px) scale(0.98)` : undefined,
+                    opacity: isDragging ? 0.7 : containerStyle.opacity,
                     transition: isDragging ? 'none' : containerStyle.transition,
+                    boxShadow: isDragging ? '0 10px 40px rgba(0,0,0,0.15)' : undefined,
                 }}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
