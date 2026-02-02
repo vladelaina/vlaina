@@ -1,0 +1,47 @@
+import type { LanguageDetector } from '../types';
+
+export const detectHaml: LanguageDetector = (ctx) => {
+  const { code, first100Lines } = ctx;
+
+  if (/^%\s/m.test(first100Lines) && /\bfunction\b/.test(first100Lines)) {
+    return null;
+  }
+
+  if (/^use\s+(strict|warnings|v\d+|lib)\b/m.test(first100Lines) ||
+      /^package\s+[\w:]+;/m.test(first100Lines) ||
+      /^=head\d+\s+/m.test(first100Lines)) {
+    return null;
+  }
+
+  if (/@(interface|implementation|property)\b/.test(first100Lines) ||
+      /#import\s+["<]/.test(first100Lines)) {
+    return null;
+  }
+
+  if (/^%[\w-]+/m.test(code)) {
+
+    if (/^%[\w-]+[.#][\w-]+|^%[\w-]+\{/.test(code)) {
+      return 'haml';
+    }
+
+    if (/^%[a-z]+\s*$/m.test(code)) {
+      return 'haml';
+    }
+  }
+
+  if (/^[.#][\w-]+/m.test(code)) {
+
+    if (/%[\w-]+|^-\s*|^=\s*/.test(code)) {
+      return 'haml';
+    }
+  }
+
+  if (/^-\s*\w+|^=\s*\w+/.test(code)) {
+
+    if (/%[\w-]+/.test(code)) {
+      return 'haml';
+    }
+  }
+
+  return null;
+};
