@@ -66,6 +66,7 @@ function persist(data: UnifiedData) {
 
 const initialState: UnifiedStoreState = {
   data: {
+    calendars: [],
     progress: [],
     settings: { ...DEFAULT_SETTINGS },
     customIcons: [],

@@ -10,9 +10,9 @@ import { parseICS } from '@/lib/ics/parser';
 import { generateICS } from '@/lib/ics/generator';
 import type { NekoEvent, NekoCalendar } from '@/lib/ics/types';
 import type { ItemColor } from '@/lib/colors';
+import { loadUnifiedData, saveUnifiedDataImmediate } from './unifiedStorage';
 
 const CALENDARS_DIR = 'calendars';
-const CALENDARS_META_FILE = 'calendars.json';
 
 let basePath: string | null = null;
 
@@ -32,11 +32,6 @@ async function getCalendarsDir(): Promise<string> {
     return joinPath(base, '.nekotick', CALENDARS_DIR);
 }
 
-async function getCalendarsMetaPath(): Promise<string> {
-    const base = await getBasePath();
-    return joinPath(base, '.nekotick', CALENDARS_META_FILE);
-}
-
 async function ensureCalendarsDir(): Promise<void> {
     const storage = getStorageAdapter();
     const dir = await getCalendarsDir();
@@ -46,53 +41,22 @@ async function ensureCalendarsDir(): Promise<void> {
 }
 
 /**
- * Default calendar when none exists
- */
-function getDefaultCalendar(): NekoCalendar {
-    return {
-        id: 'personal',
-        name: '個人',
-        color: 'blue',
-        visible: true,
-    };
-}
-
-/**
  * Load calendar metadata (list of calendars)
  */
 export async function loadCalendarsMeta(): Promise<NekoCalendar[]> {
-    try {
-        const storage = getStorageAdapter();
-        const metaPath = await getCalendarsMetaPath();
-
-        if (await storage.exists(metaPath)) {
-            const content = await storage.readFile(metaPath);
-            const parsed = JSON.parse(content) as { calendars: NekoCalendar[] };
-            if (parsed.calendars && parsed.calendars.length > 0) {
-                return parsed.calendars;
-            }
-        }
-
-        // Return default calendar if no metadata exists
-        return [getDefaultCalendar()];
-    } catch (error) {
-        return [getDefaultCalendar()];
-    }
+    const data = await loadUnifiedData();
+    return data.calendars || [];
 }
 
 /**
  * Save calendar metadata
  */
 export async function saveCalendarsMeta(calendars: NekoCalendar[]): Promise<void> {
-    try {
-        const storage = getStorageAdapter();
-        await ensureCalendarsDir();
-        const metaPath = await getCalendarsMetaPath();
-
-        await storage.writeFile(metaPath, JSON.stringify({ calendars }, null, 2));
-        // Log removed
-    } catch (error) {
-    }
+    const data = await loadUnifiedData();
+    await saveUnifiedDataImmediate({
+        ...data,
+        calendars
+    });
 }
 
 /**

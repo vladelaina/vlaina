@@ -125,7 +125,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
 
     addTask: async (content, groupId, calendarId) => {
         const state = get();
-        const targetCalendarId = calendarId || state.calendars[0]?.id || 'personal';
+        const targetCalendarId = calendarId || state.calendars[0]?.id || 'main';
         
         // Find order at the end of the group
         const groupTasks = getChildren(state.events, null, groupId);

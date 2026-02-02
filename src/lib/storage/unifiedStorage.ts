@@ -3,6 +3,7 @@ import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useProStatusStore } from '@/stores/useProStatusStore';
 import type { TimeView } from '@/lib/date';
+import type { NekoCalendar } from '@/lib/ics/types';
 import {
   DEFAULT_TIMEZONE,
   DEFAULT_VIEW_MODE,
@@ -36,6 +37,7 @@ export interface CustomIcon {
 }
 
 export interface UnifiedData {
+  calendars: NekoCalendar[];
   progress: UnifiedProgress[];
   settings: {
     timezone: number;
@@ -67,18 +69,16 @@ async function getBasePath(): Promise<string> {
   return basePath;
 }
 
-async function ensureDirectories(): Promise<void> {
-  const storage = getStorageAdapter();
-  const base = await getBasePath();
-  const storeDir = await joinPath(base, '.nekotick', 'store');
-
-  if (!(await storage.exists(storeDir))) {
-    await storage.mkdir(storeDir, true);
-  }
-}
-
 function getDefaultData(): UnifiedData {
   return {
+    calendars: [
+      {
+        id: 'main',
+        name: 'Main',
+        color: 'blue',
+        visible: true,
+      }
+    ],
     progress: [],
     settings: {
       timezone: DEFAULT_TIMEZONE,
@@ -91,15 +91,18 @@ function getDefaultData(): UnifiedData {
 export async function loadUnifiedData(): Promise<UnifiedData> {
   try {
     const storage = getStorageAdapter();
-    await ensureDirectories();
     const base = await getBasePath();
-    const jsonPath = await joinPath(base, '.nekotick', 'store', 'data.json');
+    const jsonPath = await joinPath(base, '.nekotick', 'data.json');
 
     if (await storage.exists(jsonPath)) {
       const content = await storage.readFile(jsonPath);
       const parsed = JSON.parse(content) as DataFile;
 
       if (parsed.version === 2 && parsed.data) {
+        // Migration: ensure calendars exists
+        if (!parsed.data.calendars || parsed.data.calendars.length === 0) {
+            parsed.data.calendars = getDefaultData().calendars;
+        }
         return parsed.data;
       }
     }
@@ -126,9 +129,8 @@ export async function saveUnifiedData(data: UnifiedData): Promise<void> {
 
     try {
       const storage = getStorageAdapter();
-      await ensureDirectories();
       const base = await getBasePath();
-      const jsonPath = await joinPath(base, '.nekotick', 'store', 'data.json');
+      const jsonPath = await joinPath(base, '.nekotick', 'data.json');
       // MD file generation removed as it relied on Tasks
 
       // Save JSON (source of truth)
@@ -172,9 +174,8 @@ export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void>
 
   try {
     const storage = getStorageAdapter();
-    await ensureDirectories();
     const base = await getBasePath();
-    const jsonPath = await joinPath(base, '.nekotick', 'store', 'data.json');
+    const jsonPath = await joinPath(base, '.nekotick', 'data.json');
 
     const dataFile: DataFile = {
       version: 2,
