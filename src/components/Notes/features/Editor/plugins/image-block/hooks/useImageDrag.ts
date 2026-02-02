@@ -96,6 +96,7 @@ export function useImageDrag({
 
             if (!isLongPressTriggered && elapsed >= LONG_PRESS_DELAY) {
                 isLongPressTriggered = true;
+                document.documentElement.classList.add('dragging-image');
                 setIsDragging(true);
                 setDragPosition({ x: initialLeft, y: initialTop });
                 setDragSize({ width: sourceWidth, height: sourceHeight });
@@ -127,6 +128,7 @@ export function useImageDrag({
         const onPointerUp = () => {
             window.removeEventListener('pointermove', onPointerMove, true);
             window.removeEventListener('pointerup', onPointerUp, true);
+            document.documentElement.classList.remove('dragging-image');
 
             if (longPressTimeoutRef.current) {
                 clearTimeout(longPressTimeoutRef.current);
@@ -151,6 +153,7 @@ export function useImageDrag({
         longPressTimeoutRef.current = setTimeout(() => {
             if (!isLongPressTriggered) {
                 isLongPressTriggered = true;
+                document.documentElement.classList.add('dragging-image');
                 setIsDragging(true);
                 setDragPosition({ x: initialLeft, y: initialTop });
                 setDragSize({ width: sourceWidth, height: sourceHeight });

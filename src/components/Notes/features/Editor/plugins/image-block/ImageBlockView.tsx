@@ -206,35 +206,52 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     };
 
     return (
-        <div className="w-full flex my-2 justify-center group/image">
-            {isDragging && (
-                <div style={{
-                    width: dragSize?.width || 'auto',
-                    height: dragSize?.height || 100,
-                    opacity: 0.3,
-                    border: '2px dashed #ccc',
-                    borderRadius: '8px',
-                    backgroundColor: 'rgba(0,0,0,0.05)',
-                }} />
+        <>
+            {isDragging && dragPosition && dragSize && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        left: dragPosition.x,
+                        top: dragPosition.y,
+                        width: dragSize.width,
+                        height: dragSize.height,
+                        zIndex: 9999,
+                        pointerEvents: 'none',
+                        transform: 'scale(0.95)',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                    }}
+                >
+                    <ImageCropper
+                        imageSrc={resolvedSrc}
+                        initialCropParams={cropParams}
+                        containerSize={dragSize}
+                        onSave={() => {}}
+                        onCancel={() => {}}
+                        isSaving={false}
+                        isActive={false}
+                    />
+                </div>
             )}
-            <div
-                ref={containerRef}
-                data-dragging={isDragging ? "true" : undefined}
-                draggable={false}
-                className={cn(
-                    "relative flex flex-col leading-none text-[0px] select-none",
-                    !isDragging && ALIGNMENT_CLASSES[alignment],
-                    (isHovered || isEditingCaption || isActive) ? "z-10" : "",
-                    isDragging && "cursor-grabbing"
-                )}
-                style={containerStyle}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-                onPointerDown={handlePointerDown}
-                onPointerUp={handlePointerUp}
-                onPointerCancel={handlePointerCancel}
-                onDragStart={(e) => e.preventDefault()}
-            >
+            <div className={cn("w-full flex my-2 justify-center group/image", isDragging && "hidden")}>
+                <div
+                    ref={containerRef}
+                    data-dragging={isDragging ? "true" : undefined}
+                    draggable={false}
+                    className={cn(
+                        "relative flex flex-col leading-none text-[0px] select-none",
+                        ALIGNMENT_CLASSES[alignment],
+                        (isHovered || isEditingCaption || isActive) ? "z-10" : ""
+                    )}
+                    style={containerStyle}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    onPointerDown={handlePointerDown}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerCancel}
+                    onDragStart={(e) => e.preventDefault()}
+                >
                 {loadError ? (
                     <div className="w-full h-full min-h-[100px] flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900 border border-dashed border-gray-200 dark:border-zinc-700 rounded-md text-gray-400 dark:text-zinc-500">
                         <MdBrokenImage className="size-8 mb-2 opacity-50" />
@@ -305,5 +322,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 />
             </div>
         </div>
+        </>
     );
 };

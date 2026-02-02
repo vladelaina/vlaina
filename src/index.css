@@ -465,3 +465,8 @@ html, body, #root {
   color: var(--neko-text-disabled);
   cursor: not-allowed;
 }
+
+.dragging-image,
+.dragging-image * {
+  cursor: default !important;
+}
