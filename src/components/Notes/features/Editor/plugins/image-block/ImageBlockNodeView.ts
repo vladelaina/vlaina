@@ -48,9 +48,6 @@ export class ImageBlockNodeView implements NodeView {
         return true;
     }
 
-    // Critical for interactive components inside NodeView
-    // Returns true if the event should be handled by the NodeView entirely
-    // and NOT passed to ProseMirror's editor state.
     stopEvent(event: Event) {
         if (event.type.startsWith('pointer') || event.type.startsWith('mouse') || event.type === 'dragstart') {
             const target = event.target as HTMLElement;

@@ -43,54 +43,29 @@ export function useImageDrag({
         if (pos === undefined || targetPos === null) return;
 
         const { state, dispatch } = view;
-        const $pos = state.doc.resolve(pos);
-        const parentPos = $pos.before($pos.depth);
-        const parentNode = $pos.node($pos.depth);
+        const imageNode = state.doc.nodeAt(pos);
 
-        if (!parentNode) return;
+        if (!imageNode || imageNode.type.name !== 'image') return;
 
-        const nodeSize = parentNode.nodeSize;
-        if (targetPos === parentPos || targetPos === parentPos + nodeSize) return;
-
-        const $targetPos = state.doc.resolve(targetPos);
-        const targetParent = $targetPos.parent;
-        const targetIndex = $targetPos.index();
-
-        let finalTargetPos = targetPos;
-
-        if (!targetParent.canReplaceWith(targetIndex, targetIndex, parentNode.type)) {
-            let validTargetPos: number | null = null;
-            for (let d = $targetPos.depth; d >= 1; d--) {
-                const ancestorPos = $targetPos.before(d);
-                const ancestor = $targetPos.node(d);
-                const ancestorParent = d > 1 ? $targetPos.node(d - 1) : state.doc;
-                const ancestorIndex = d > 1 ? $targetPos.index(d - 1) : $targetPos.index(0);
-
-                if (ancestorParent.canReplaceWith(ancestorIndex, ancestorIndex, parentNode.type)) {
-                    const ancestorDom = view.nodeDOM(ancestorPos) as HTMLElement | null;
-                    if (ancestorDom) {
-                        validTargetPos = ancestorPos + ancestor.nodeSize;
-                        break;
-                    }
-                }
-            }
-            if (validTargetPos === null) return;
-            finalTargetPos = validTargetPos;
-        }
+        const imageNodeSize = imageNode.nodeSize;
+        if (targetPos === pos || targetPos === pos + imageNodeSize) return;
 
         const tr = state.tr;
         tr.setMeta('addToHistory', true);
         tr.setMeta('scrollIntoView', false);
         tr.setMeta('imageDragMove', true);
 
-        if (finalTargetPos > parentPos) {
-            tr.delete(parentPos, parentPos + nodeSize);
-            const adjustedTarget = tr.mapping.map(finalTargetPos);
-            tr.insert(adjustedTarget, parentNode);
+        const paragraphType = state.schema.nodes.paragraph;
+        const newParagraph = paragraphType.create(null, imageNode);
+
+        if (targetPos > pos) {
+            tr.delete(pos, pos + imageNodeSize);
+            const adjustedTarget = tr.mapping.map(targetPos);
+            tr.insert(adjustedTarget, newParagraph);
         } else {
-            tr.insert(finalTargetPos, parentNode);
-            const adjustedSource = tr.mapping.map(parentPos);
-            tr.delete(adjustedSource, adjustedSource + nodeSize);
+            tr.insert(targetPos, newParagraph);
+            const adjustedSource = tr.mapping.map(pos);
+            tr.delete(adjustedSource, adjustedSource + imageNodeSize);
         }
 
         dispatch(tr);

@@ -28,7 +28,6 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
     useEffect(() => {
         if (isEditing && inputRef.current) {
             const input = inputRef.current;
-            // Use setTimeout to skip the current event loop
             setTimeout(() => {
                 input.focus();
                 const len = input.value.length;
@@ -38,9 +37,8 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
     }, [isEditing]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        // Stop propagation to prevent editor from handling keys (e.g. Backspace deleting the node)
         e.stopPropagation();
-        
+
         if (e.key === 'Enter') {
             e.preventDefault();
             onSubmit();
@@ -63,8 +61,8 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
         <div className={cn(
             "absolute bottom-2 right-2 mb-0 max-w-[calc(100%-16px)] z-[60] transition-all duration-200 select-auto",
             "flex items-center gap-0.5 p-1 bg-white dark:bg-[#1e1e1e] border border-black/5 dark:border-white/10 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)]",
-            isVisible 
-                ? "opacity-100 scale-100 translate-y-0" 
+            isVisible
+                ? "opacity-100 scale-100 translate-y-0"
                 : "opacity-0 scale-95 translate-y-2 pointer-events-none"
         )}>
             {isEditing ? (

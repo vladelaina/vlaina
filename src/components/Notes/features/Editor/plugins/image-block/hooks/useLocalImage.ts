@@ -9,8 +9,8 @@ interface UseLocalImageResult {
 }
 
 export function useLocalImage(
-    rawSrc: string, 
-    notesPath: string, 
+    rawSrc: string,
+    notesPath: string,
     currentNotePath: string | undefined
 ): UseLocalImageResult {
     const [resolvedSrc, setResolvedSrc] = useState<string>('');
@@ -19,7 +19,7 @@ export function useLocalImage(
 
     useEffect(() => {
         let isMounted = true;
-        
+
         const resolveImage = async () => {
             if (!rawSrc) {
                 if (isMounted) {
@@ -35,7 +35,6 @@ export function useLocalImage(
             try {
                 const baseSrc = rawSrc.split('#')[0];
 
-                // Direct URL/Blob Check
                 if (baseSrc.startsWith('http') || baseSrc.startsWith('data:') || baseSrc.startsWith('blob:')) {
                     if (isMounted) {
                         setResolvedSrc(baseSrc);
@@ -44,15 +43,13 @@ export function useLocalImage(
                     return;
                 }
 
-                // FS Path Resolution
                 let fullPath = '';
                 if (baseSrc.startsWith('./') || baseSrc.startsWith('../')) {
                     if (currentNotePath) {
-                        // Handle Windows/Unix separators normalization
                         const normalizedPath = currentNotePath.replace(/\\/g, '/');
                         const pathParts = normalizedPath.split('/');
-                        pathParts.pop(); // Remove filename
-                        
+                        pathParts.pop();
+
                         const parentDir = pathParts.join('/') || notesPath;
                         fullPath = await joinPath(parentDir, baseSrc);
                     }
@@ -66,7 +63,6 @@ export function useLocalImage(
                         setResolvedSrc(blobUrl);
                     }
                 } else {
-                    // Fallback to original if path resolution failed (though unlikely if joinPath works)
                     if (isMounted) {
                         setResolvedSrc(baseSrc);
                     }
@@ -75,7 +71,6 @@ export function useLocalImage(
                 console.error('Failed to load image:', rawSrc, err);
                 if (isMounted) {
                     setError(err instanceof Error ? err : new Error('Unknown error loading image'));
-                    // Fallback to original src on error, so at least it tries to render (e.g. if it was a valid URL after all)
                     setResolvedSrc(rawSrc.split('#')[0]);
                 }
             } finally {
