@@ -24,50 +24,38 @@ export const imageNodeViewPlugin = $prose(() => {
                 }
             }
         },
-        appendTransaction: (transactions, oldState) => {
+        appendTransaction: (transactions, oldState, newState) => {
             const { notesPath, currentNote } = useNotesStore.getState();
             if (!notesPath) return null;
 
             for (const tr of transactions) {
                 if (!tr.docChanged) continue;
 
-                // 1. Detect Deleted Images
-                // Iterate steps to map changes back to old doc and find removed nodes
-                tr.steps.forEach(step => {
-                    step.getMap().forEach((oldStart, oldEnd) => {
-                        // Safety check: ensure valid range
-                        if (oldStart >= oldEnd) return;
-                        if (oldEnd > oldState.doc.content.size) return;
+                if (tr.getMeta('imageDragMove')) continue;
 
-                        oldState.doc.nodesBetween(oldStart, oldEnd, (node) => {
-                            if (node.type.name === 'image') {
-                                const src = node.attrs.src;
-                                if (src) {
-                                    // Schedule deletion (10s grace period)
-                                    moveImageToTrash(src, notesPath, currentNote?.path);
-                                }
-                            }
-                        });
-                    });
+                const deletedImages = new Set<string>();
+                const insertedImages = new Set<string>();
+
+                oldState.doc.descendants((node) => {
+                    if (node.type.name === 'image' && node.attrs.src) {
+                        deletedImages.add(node.attrs.src);
+                    }
                 });
 
-                // 2. Detect Restored/Inserted Images
-                // (e.g., Undo delete, Paste, Drag & Drop)
-                for (const step of tr.steps) {
-                    // @ts-ignore - access internal slice structure safely
-                    const slice = step.slice;
-                    if (slice && slice.content) {
-                        slice.content.forEach((node: Node) => {
-                            if (node.type.name === 'image') {
-                                const src = node.attrs.src;
-                                if (src) {
-                                    // Cancel deletion immediately
-                                    restoreImageFromTrash(src, notesPath, currentNote?.path);
-                                }
-                            }
-                        });
+                newState.doc.descendants((node) => {
+                    if (node.type.name === 'image' && node.attrs.src) {
+                        insertedImages.add(node.attrs.src);
+                        deletedImages.delete(node.attrs.src);
                     }
-                }
+                });
+
+                deletedImages.forEach(src => {
+                    moveImageToTrash(src, notesPath, currentNote?.path);
+                });
+
+                insertedImages.forEach(src => {
+                    restoreImageFromTrash(src, notesPath, currentNote?.path);
+                });
             }
             return null;
         }

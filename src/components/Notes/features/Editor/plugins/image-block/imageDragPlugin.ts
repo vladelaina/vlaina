@@ -10,6 +10,7 @@ interface ImageDragState {
     isDragging: boolean;
     imageNaturalWidth: number;
     imageNaturalHeight: number;
+    editorView: EditorView | null;
 }
 
 const initialState: ImageDragState = {
@@ -18,13 +19,11 @@ const initialState: ImageDragState = {
     isDragging: false,
     imageNaturalWidth: 0,
     imageNaturalHeight: 0,
+    editorView: null,
 };
 
-let cachedView: EditorView | null = null;
-
 export function setDragState(view: EditorView, state: Partial<ImageDragState>) {
-    cachedView = view;
-    const tr = view.state.tr.setMeta(imageDragPluginKey, state);
+    const tr = view.state.tr.setMeta(imageDragPluginKey, { ...state, editorView: view });
     view.dispatch(tr);
 }
 
@@ -33,6 +32,7 @@ export function clearDragState(view: EditorView) {
         sourcePos: null,
         targetPos: null,
         isDragging: false,
+        editorView: null,
     });
 }
 
@@ -247,7 +247,7 @@ export const imageDragPlugin = $prose(() => {
             decorations(state) {
                 const pluginState = imageDragPluginKey.getState(state);
 
-                if (!pluginState?.isDragging || pluginState.targetPos === null || !cachedView) {
+                if (!pluginState?.isDragging || pluginState.targetPos === null || !pluginState.editorView) {
                     return DecorationSet.empty;
                 }
 
@@ -257,7 +257,7 @@ export const imageDragPlugin = $prose(() => {
 
                 const decoration = createPlaceholderDecoration(
                     pluginState.targetPos,
-                    cachedView,
+                    pluginState.editorView,
                     pluginState.imageNaturalWidth,
                     pluginState.imageNaturalHeight
                 );
