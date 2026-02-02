@@ -4,7 +4,6 @@ import {
   saveUnifiedData,
   type UnifiedData,
   type UnifiedProgress,
-  type UnifiedArchiveSection,
   type CustomIcon,
 } from '@/lib/storage/unifiedStorage';
 import { scanGlobalIcons } from '@/lib/storage/assetStorage';
@@ -21,7 +20,6 @@ import type { UndoAction } from './types';
 
 export type {
   UnifiedProgress,
-  UnifiedArchiveSection,
   CustomIcon,
 };
 
@@ -69,7 +67,6 @@ function persist(data: UnifiedData) {
 const initialState: UnifiedStoreState = {
   data: {
     progress: [],
-    archive: [],
     settings: { ...DEFAULT_SETTINGS },
     customIcons: [],
   },

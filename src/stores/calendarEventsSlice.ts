@@ -134,12 +134,13 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             uid: crypto.randomUUID(),
             summary: content,
             dtstart: new Date(), // Tasks default to now
-            dtend: new Date(Date.now() + 30*60*1000),
+            dtend: new Date(Date.now() + 15*60*1000),
             allDay: false,
             calendarId: targetCalendarId,
             groupId: groupId,
             order: groupTasks.length,
             completed: false,
+            estimatedMinutes: 15,
         };
 
         await get().addEvent(newEvent);
@@ -156,7 +157,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             uid: crypto.randomUUID(),
             summary: content,
             dtstart: new Date(),
-            dtend: new Date(Date.now() + 30*60*1000),
+            dtend: new Date(Date.now() + 15*60*1000),
             allDay: false,
             calendarId: parent.calendarId,
             groupId: parent.groupId,
@@ -164,6 +165,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             order: siblings.length,
             color: parent.color,
             completed: false,
+            estimatedMinutes: 15,
         };
 
         await get().addEvent(newEvent);

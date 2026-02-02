@@ -1,11 +1,11 @@
 /**
  * Storage Module - Unified storage architecture
  * 
- * Core concept: There is only one type of "item" (UnifiedTask)
+ * Core concept: All tasks and events are stored as NekoEvents (ICS)
  * 
  * Storage locations:
- * - .nekotick/store/data.json (data source)
- * - nekotick.md (human-readable backup)
+ * - .nekotick/calendars/*.ics (Events & Tasks)
+ * - .nekotick/store/data.json (Settings & Progress)
  */
 
 export {
@@ -14,8 +14,6 @@ export {
   saveUnifiedDataImmediate,
   type UnifiedData,
   type UnifiedProgress,
-  type UnifiedArchiveSection,
-  type UnifiedArchiveEntry,
 } from './unifiedStorage';
 
 // Path utilities

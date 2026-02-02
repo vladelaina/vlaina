@@ -1,7 +1,5 @@
 import type {
   UnifiedProgress,
-  UnifiedArchiveSection,
-  UnifiedArchiveEntry,
 } from '@/lib/storage/unifiedStorage';
 
 import type { ItemColor } from '@/lib/colors';
@@ -11,8 +9,6 @@ import type { NekoEvent, NekoCalendar } from '@/lib/ics/types';
 
 export type {
   UnifiedProgress,
-  UnifiedArchiveSection,
-  UnifiedArchiveEntry,
 };
 
 export type { ItemColor };

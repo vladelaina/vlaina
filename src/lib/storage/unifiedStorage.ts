@@ -28,21 +28,6 @@ export interface UnifiedProgress {
   archived?: boolean;
 }
 
-export interface UnifiedArchiveEntry {
-  content: string;
-  completedAt?: number;
-  createdAt?: number;
-  color?: string;
-  estimatedMinutes?: number;
-  actualMinutes?: number;
-  groupId: string;
-}
-
-export interface UnifiedArchiveSection {
-  timestamp: number;
-  tasks: UnifiedArchiveEntry[];
-}
-
 export interface CustomIcon {
   id: string;
   url: string;
@@ -52,7 +37,6 @@ export interface CustomIcon {
 
 export interface UnifiedData {
   progress: UnifiedProgress[];
-  archive: UnifiedArchiveSection[];
   settings: {
     timezone: number;
     viewMode: TimeView;
@@ -96,7 +80,6 @@ async function ensureDirectories(): Promise<void> {
 function getDefaultData(): UnifiedData {
   return {
     progress: [],
-    archive: [],
     settings: {
       timezone: DEFAULT_TIMEZONE,
       viewMode: DEFAULT_VIEW_MODE,
