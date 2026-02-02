@@ -33,7 +33,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const [isReady, setIsReady] = useState(!!node.attrs.width);
     const [naturalRatio, setNaturalRatio] = useState<number | null>(null);
     const [imageNaturalSize, setImageNaturalSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
-    const [alignment, setAlignment] = useState<Alignment>('center');
+    const [alignment, setAlignment] = useState<Alignment>((node.attrs.align as Alignment) || 'center');
     const [isHovered, setIsHovered] = useState(false);
     const [isEditingCaption, setIsEditingCaption] = useState(false);
     const [captionInput, setCaptionInput] = useState(node.attrs.alt || '');
@@ -51,10 +51,29 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const { baseSrc, params: initialParams } = useMemo(() => parseCropFragment(node.attrs.src || ''), [node.attrs.src]);
     const { resolvedSrc, error: loadError } = useLocalImage(baseSrc, notesPath, currentNotePath);
 
+    const updateNodeAttrs = useCallback((attrs: Record<string, any>) => {
+        const pos = getPos();
+        if (pos !== undefined) {
+            view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...attrs }));
+        }
+    }, [view, getPos, node.attrs]);
+
+    const restoreIfNeeded = useCallback(async () => {
+        if (baseSrc && resolvedSrc) {
+            await ensureImageFileExists(baseSrc, resolvedSrc, notesPath, currentNotePath);
+        }
+    }, [baseSrc, resolvedSrc, notesPath, currentNotePath]);
+
+    const handleAlignmentChange = useCallback((newAlignment: Alignment) => {
+        setAlignment(newAlignment);
+        updateNodeAttrs({ align: newAlignment });
+    }, [updateNodeAttrs]);
+
     const {
         isDragging,
         dragPosition,
         dragSize,
+        dragAlignment,
         handlePointerDown,
         handlePointerUp,
         handlePointerCancel,
@@ -65,20 +84,8 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         imageNaturalSize,
         isActive,
         loadError: !!loadError,
+        onAlignmentChange: handleAlignmentChange,
     });
-
-    const restoreIfNeeded = useCallback(async () => {
-        if (baseSrc && resolvedSrc) {
-            await ensureImageFileExists(baseSrc, resolvedSrc, notesPath, currentNotePath);
-        }
-    }, [baseSrc, resolvedSrc, notesPath, currentNotePath]);
-
-    const updateNodeAttrs = useCallback((attrs: Record<string, any>) => {
-        const pos = getPos();
-        if (pos !== undefined) {
-            view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...attrs }));
-        }
-    }, [view, getPos, node.attrs]);
 
     const { handleResizeStart } = useImageResize({
         containerRef,
@@ -205,22 +212,27 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         height: height || observedSize.height || containerRef.current?.offsetHeight || 0
     };
 
+    const DRAG_ALIGNMENT_STYLES: Record<'left' | 'center' | 'right', React.CSSProperties> = {
+        left: { left: dragPosition?.x, transform: 'scale(0.95)' },
+        center: { left: dragPosition?.x, transform: 'scale(0.95)' },
+        right: { left: dragPosition?.x, transform: 'scale(0.95)' },
+    };
+
     return (
         <>
             {isDragging && dragPosition && dragSize && (
                 <div
                     style={{
                         position: 'fixed',
-                        left: dragPosition.x,
                         top: dragPosition.y,
                         width: dragSize.width,
                         height: dragSize.height,
                         zIndex: 9999,
                         pointerEvents: 'none',
-                        transform: 'scale(0.95)',
                         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
                         borderRadius: '8px',
                         overflow: 'hidden',
+                        ...DRAG_ALIGNMENT_STYLES[dragAlignment],
                     }}
                 >
                     <ImageCropper
@@ -313,7 +325,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
                 <ImageToolbar
                     alignment={alignment}
-                    onAlign={async (align) => { await restoreIfNeeded(); setAlignment(align); }}
+                    onAlign={async (align) => { await restoreIfNeeded(); handleAlignmentChange(align); }}
                     onEdit={async () => { await restoreIfNeeded(); setIsActive(true); }}
                     onCopy={handleCopy}
                     onDownload={handleDownload}

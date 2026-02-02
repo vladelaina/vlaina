@@ -4,6 +4,8 @@ import { Decoration, DecorationSet, EditorView } from '@milkdown/kit/prose/view'
 
 export const imageDragPluginKey = new PluginKey<ImageDragState>('imageDragPlugin');
 
+type Alignment = 'left' | 'center' | 'right';
+
 interface ImageDragState {
     sourcePos: number | null;
     targetPos: number | null;
@@ -11,6 +13,7 @@ interface ImageDragState {
     imageNaturalWidth: number;
     imageNaturalHeight: number;
     editorView: EditorView | null;
+    alignment: Alignment;
 }
 
 const initialState: ImageDragState = {
@@ -20,6 +23,7 @@ const initialState: ImageDragState = {
     imageNaturalWidth: 0,
     imageNaturalHeight: 0,
     editorView: null,
+    alignment: 'center',
 };
 
 export function setDragState(view: EditorView, state: Partial<ImageDragState>) {
@@ -33,11 +37,23 @@ export function clearDragState(view: EditorView) {
         targetPos: null,
         isDragging: false,
         editorView: null,
+        alignment: 'center',
     });
 }
 
 export function getDragState(view: EditorView): ImageDragState {
     return imageDragPluginKey.getState(view.state) || initialState;
+}
+
+export function calculateAlignmentFromPosition(view: EditorView, clientX: number): Alignment {
+    const editorRect = view.dom.getBoundingClientRect();
+    const relativeX = clientX - editorRect.left;
+    const editorWidth = editorRect.width;
+    const ratio = relativeX / editorWidth;
+
+    if (ratio < 0.33) return 'left';
+    if (ratio > 0.67) return 'right';
+    return 'center';
 }
 
 interface DropTarget {
@@ -204,16 +220,23 @@ function createPlaceholderDecoration(
     pos: number,
     view: EditorView,
     imageNaturalWidth: number,
-    imageNaturalHeight: number
+    imageNaturalHeight: number,
+    alignment: Alignment
 ): Decoration {
     const { width, height } = calculatePlaceholderSize(pos, view, imageNaturalWidth, imageNaturalHeight);
+
+    const marginMap = {
+        left: '8px auto 8px 0',
+        center: '8px auto',
+        right: '8px 0 8px auto',
+    };
 
     const placeholder = document.createElement('div');
     placeholder.className = 'image-drag-placeholder';
     placeholder.style.cssText = `
         height: ${height}px;
         width: ${width}px;
-        margin: 8px auto;
+        margin: ${marginMap[alignment]};
         border: 3px dashed var(--neko-accent, #3b82f6);
         border-radius: 8px;
         background: rgba(59, 130, 246, 0.1);
@@ -259,7 +282,8 @@ export const imageDragPlugin = $prose(() => {
                     pluginState.targetPos,
                     pluginState.editorView,
                     pluginState.imageNaturalWidth,
-                    pluginState.imageNaturalHeight
+                    pluginState.imageNaturalHeight,
+                    pluginState.alignment
                 );
 
                 return DecorationSet.create(state.doc, [decoration]);

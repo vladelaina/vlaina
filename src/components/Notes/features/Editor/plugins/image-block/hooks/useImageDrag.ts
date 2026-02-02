@@ -1,6 +1,8 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
-import { setDragState, clearDragState, calculateDropPosition } from '../imageDragPlugin';
+import { setDragState, clearDragState, calculateDropPosition, calculateAlignmentFromPosition } from '../imageDragPlugin';
+
+type Alignment = 'left' | 'center' | 'right';
 
 interface UseImageDragOptions {
     view: EditorView;
@@ -9,12 +11,14 @@ interface UseImageDragOptions {
     imageNaturalSize: { width: number; height: number };
     isActive: boolean;
     loadError: boolean;
+    onAlignmentChange?: (alignment: Alignment) => void;
 }
 
 interface UseImageDragReturn {
     isDragging: boolean;
     dragPosition: { x: number; y: number } | null;
     dragSize: { width: number; height: number } | null;
+    dragAlignment: Alignment;
     handlePointerDown: (e: React.PointerEvent) => void;
     handlePointerUp: () => void;
     handlePointerCancel: () => void;
@@ -29,12 +33,15 @@ export function useImageDrag({
     imageNaturalSize,
     isActive,
     loadError,
+    onAlignmentChange,
 }: UseImageDragOptions): UseImageDragReturn {
     const [isDragging, setIsDragging] = useState(false);
     const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
     const [dragSize, setDragSize] = useState<{ width: number; height: number } | null>(null);
+    const [dragAlignment, setDragAlignment] = useState<Alignment>('center');
 
     const dragTargetPosRef = useRef<number | null>(null);
+    const dragAlignmentRef = useRef<Alignment>('center');
     const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const dragCleanupRef = useRef<(() => void) | null>(null);
 
@@ -44,7 +51,6 @@ export function useImageDrag({
 
         const { state, dispatch } = view;
         const imageNode = state.doc.nodeAt(pos);
-
         if (!imageNode || imageNode.type.name !== 'image') return;
 
         const imageNodeSize = imageNode.nodeSize;
@@ -117,10 +123,14 @@ export function useImageDrag({
                 const deltaY = moveEvent.clientY - startY;
                 setDragPosition({ x: initialLeft + deltaX, y: initialTop + deltaY });
 
+                const alignment = calculateAlignmentFromPosition(view, moveEvent.clientX);
+                dragAlignmentRef.current = alignment;
+                setDragAlignment(alignment);
+
                 if (sourcePos !== undefined) {
                     const targetPos = calculateDropPosition(view, moveEvent.clientY, sourcePos);
                     dragTargetPosRef.current = targetPos;
-                    setDragState(view, { targetPos });
+                    setDragState(view, { targetPos, alignment });
                 }
             }
         };
@@ -136,15 +146,20 @@ export function useImageDrag({
             }
 
             const targetPos = dragTargetPosRef.current;
+            const finalAlignment = dragAlignmentRef.current;
+
             clearDragState(view);
             setIsDragging(false);
             setDragPosition(null);
             setDragSize(null);
+            setDragAlignment('center');
             dragTargetPosRef.current = null;
+            dragAlignmentRef.current = 'center';
             dragCleanupRef.current = null;
 
             if (isLongPressTriggered && targetPos !== null) {
                 moveNodeToPosition(targetPos);
+                onAlignmentChange?.(finalAlignment);
             }
         };
 
@@ -172,7 +187,7 @@ export function useImageDrag({
 
         window.addEventListener('pointermove', onPointerMove, true);
         window.addEventListener('pointerup', onPointerUp, true);
-    }, [view, getPos, containerRef, imageNaturalSize, isActive, loadError, moveNodeToPosition]);
+    }, [view, getPos, containerRef, imageNaturalSize, isActive, loadError, moveNodeToPosition, onAlignmentChange]);
 
     const handlePointerUp = useCallback(() => {}, []);
     const handlePointerCancel = useCallback(() => {}, []);
@@ -192,6 +207,7 @@ export function useImageDrag({
         isDragging,
         dragPosition,
         dragSize,
+        dragAlignment,
         handlePointerDown,
         handlePointerUp,
         handlePointerCancel,
