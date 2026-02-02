@@ -377,23 +377,18 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         }
 
         const tr = state.tr;
+        tr.setMeta('addToHistory', true);
+        tr.setMeta('scrollIntoView', false);
 
-        // If moving forward (target > current position)
         if (targetPos > parentPos) {
-            // Insert first, then delete (positions shift after insert)
-            console.log('[ImageDrag] Moving forward');
             tr.insert(targetPos, parentNode);
             tr.delete(parentPos, parentPos + nodeSize);
         } else {
-            // If moving backward (target < current position)
-            // Delete first, then insert
-            console.log('[ImageDrag] Moving backward');
             tr.delete(parentPos, parentPos + nodeSize);
             tr.insert(targetPos, parentNode);
         }
 
         dispatch(tr);
-        console.log('[ImageDrag] Move completed');
     }, [view, getPos]);
 
     const handleDragHandlePointerDown = (e: React.PointerEvent) => {

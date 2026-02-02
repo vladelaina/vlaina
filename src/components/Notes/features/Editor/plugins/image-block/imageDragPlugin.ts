@@ -164,12 +164,11 @@ function createPlaceholderDecoration(pos: number, height: number): Decoration {
     const placeholder = document.createElement('div');
     placeholder.className = 'image-drag-placeholder';
     placeholder.style.cssText = `
-        height: ${Math.min(height, 60)}px;
+        height: ${height}px;
         margin: 8px 0;
         border: 3px dashed var(--neko-accent, #3b82f6);
         border-radius: 8px;
-        background: rgba(59, 130, 246, 0.2);
-        transition: all 0.15s ease-out;
+        background: rgba(59, 130, 246, 0.1);
     `;
 
     return Decoration.widget(pos, placeholder, {
