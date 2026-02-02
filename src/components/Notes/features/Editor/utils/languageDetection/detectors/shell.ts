@@ -1,21 +1,50 @@
 import type { LanguageDetector } from '../types';
 
 export const detectShell: LanguageDetector = (ctx) => {
-  const { first100Lines, firstLine, lines } = ctx;
-  
-  // Shell set commands at the start
+  const { first100Lines, firstLine, lines, code } = ctx;
+
+  if (/^#'/m.test(first100Lines)) {
+    return null;
+  }
+
+  if (/^\\(name|alias|title|usage|arguments|value|description|details|docType)\{/m.test(first100Lines)) {
+    return null;
+  }
+
+  if (/^package\s+[\w.]+;/m.test(code) || /^import\s+java\./m.test(code)) {
+    return null;
+  }
+
+  if (/^function\s+\w+/.test(first100Lines)) {
+    if (/\$global:|@\{|@\(|\[datetime\]|\[array\]|\[string\]|\$now\s*=\s*\[datetime\]/.test(first100Lines) ||
+        /\b(Get|Set|New|Remove|Add|Test|Update)-[A-Z]\w+/.test(first100Lines) ||
+        /Test-Path|Get-Variable/.test(first100Lines)) {
+      return null;
+    }
+  }
+
+  if (/\b(Test-Path|Get-Variable|Add-\w+|Update-\w+)\b/.test(first100Lines)) {
+    return null;
+  }
+
+  if (/\b(proc\s+\w+|import\s+\w+|when\s+defined\(|task\s+\w+,|switch\()\b/.test(first100Lines)) {
+    return null;
+  }
+
+  if (/->|=>/.test(first100Lines)) {
+    return null;
+  }
+
   if (/^set\s+-[euxo]/.test(firstLine)) {
     return 'bash';
   }
-  
-  // Incomplete shebang (#!/usr/bin/env without interpreter) + shell commands
+
   if (/^#!\/usr\/bin\/env\s*$/m.test(firstLine)) {
     if (/\b(echo|export|source|cd|ls|grep|awk|sed)\b/.test(first100Lines)) {
       return 'bash';
     }
   }
-  
-  // Shell-specific patterns
+
   if (/\b(echo|export|source|alias|cd|ls|grep|awk|sed|chmod|chown)\b/.test(first100Lines)) {
     const shellScore = (
       (/\$\{?\w+\}?/.test(first100Lines) ? 2 : 0) +
@@ -24,11 +53,11 @@ export const detectShell: LanguageDetector = (ctx) => {
       (/\|\s*\w+|\w+\s*\|/.test(first100Lines) ? 1 : 0) +
       (/^(echo|cd|make|cmake)\s+/m.test(first100Lines) ? 1 : 0)
     );
-    
+
     if (shellScore >= 3) {
       return 'bash';
     }
   }
-  
+
   return null;
 };

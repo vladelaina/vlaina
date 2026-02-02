@@ -1,7 +1,8 @@
 import type { DetectionContext } from './types';
 
 export function createContext(code: string): DetectionContext {
-  const text = code.trim();
+  // Normalize line endings (Windows \r\n -> Unix \n)
+  const text = code.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const maxLength = 50000;
   const sample = text.length > maxLength ? text.slice(0, maxLength) : text;
   
@@ -41,6 +42,11 @@ export function checkShebang(ctx: DetectionContext): string | null {
     return 'scala';
   }
   
+  // R shebang
+  if (firstLine.includes('Rscript') || firstLine.includes('/R ')) {
+    return 'r';
+  }
+  
   if (firstLine.includes('/bash') || firstLine.includes('/sh')) {
     // fish, zsh are shell variants - map to bash for Shiki compatibility
     if (firstLine.includes('/fish')) return 'bash';
@@ -52,6 +58,7 @@ export function checkShebang(ctx: DetectionContext): string | null {
   // tcl/expect is not supported by Shiki - map to bash
   if (firstLine.includes('/expect')) return 'bash';
   if (firstLine.includes('/python')) return 'python';
+  if (firstLine.includes('python')) return 'python'; // env python
   if (firstLine.includes('/ruby')) return 'ruby';
   if (firstLine.includes('/node')) return 'javascript';
   if (firstLine.includes('perl')) return 'perl';

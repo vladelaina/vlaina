@@ -1,36 +1,91 @@
 import type { LanguageDetector } from '../types';
 
 export const detectCPP: LanguageDetector = (ctx) => {
-  const { first100Lines, sample, hasDoubleColon, hasClass } = ctx;
-  
-  // Exclude JavaScript/TypeScript files - must check before any C++ detection
+  const { first100Lines, sample, hasDoubleColon, hasClass, code } = ctx;
+
+  if (/^package\s+[\w.]+;/m.test(code) || /^import\s+java\./m.test(code)) {
+    return null;
+  }
+
+  if (/\b(val|def|var)\s+\w+/.test(first100Lines)) {
+    if (/\b(trans|Picture|draw|forward|right|repeat|import\s+scala)\b/.test(code)) {
+      return null;
+    }
+  }
+
+  if (/\b(proc|iterator|template|macro)\s+\w+/.test(first100Lines)) {
+    return null;
+  }
+
   if (/\b(console\.(log|error|warn)|alert\(|document\.|window\.|require\(|module\.exports|exports\.|import\s+.*from|export\s+(default|const|function)|Object\.defineProperty|var\s+\w+\s*=\s*function)\b/.test(first100Lines)) {
     return null;
   }
-  
-  // Exclude JavaScript files with many var declarations (e.g., generated parsers)
+
+  if (/\b(CREATE\s+TABLE|INSERT\s+INTO|SELECT\s+.*\s+FROM|DROP\s+TABLE|SHOW\s+WARNINGS)\b/i.test(first100Lines)) {
+    return null;
+  }
+
   const varCount = (first100Lines.match(/\bvar\s+\w+\s*=/g) || []).length;
   if (varCount >= 5) {
     return null;
   }
-  
-  // Exclude JavaScript files with function declarations
+
   if (/\bfunction\s+\w+\s*\(/.test(first100Lines)) {
-    // If it has function declarations but no strong C/C++ indicators, it's likely JavaScript
-    // NULL alone is not enough (could be in comments), need #include or actual C functions
-    if (!/#include\s*[<"]/.test(first100Lines) && 
+
+    if (!/#include\s*[<"]/.test(first100Lines) &&
         !/\b(printf|scanf|malloc|free|sizeof|std::|cout|cin)\b/.test(first100Lines)) {
       return null;
     }
   }
-  
-  // Exclude Dart files - check for Dart imports
-  if (/\b(import\s+['"]dart:|import\s+['"]package:|part\s+of\s+|part\s+['"])\b/.test(first100Lines)) {
+
+  if (/<-/.test(first100Lines) && /\bfunction\s*\(/.test(first100Lines)) {
     return null;
   }
-  
+
+  if (/^function\s+\w+\s*\(/m.test(first100Lines) && /\bend\b/.test(code)) {
+    return null;
+  }
+
+  if (/^(import\s+['"]dart:|import\s+['"]package:|part\s+of\s+\w+;|part\s+['"])/m.test(first100Lines)) {
+    return null;
+  }
+
+  if (/\b(let\s+\w+\s*=|module\s+\w+\s*=|open\s+\w+)\b/.test(first100Lines) && /\bin\b/.test(code)) {
+    return null;
+  }
+
+  if (/\b(datasource|model)\s+\w+\s*\{/.test(first100Lines)) {
+    if (/@(id|default|unique|relation)|provider\s*=|url\s*=/.test(code)) {
+      return null;
+    }
+  }
+
+  if (/^enum\s+\w+/m.test(first100Lines)) {
+
+    if (sample.includes('class') || sample.includes('namespace') || sample.includes('template') || hasDoubleColon) {
+      return 'cpp';
+    }
+
+    return 'c';
+  }
+
   if (/#include\s*[<"]/.test(first100Lines) || /\b(printf|scanf|malloc|free|sizeof|NULL)\b/.test(first100Lines)) {
-    // Check for C++ specific features (but not <string.h> which is C)
+    // Exclude Objective-C files (has @interface, @implementation, or NS types)
+    if (/@(interface|implementation|property|protocol)\b/.test(code) ||
+        /\bNS[A-Z]\w+\s*\*/.test(first100Lines) ||
+        /#import\s+<(Foundation|UIKit|CoreFoundation|CFNetwork)\//.test(first100Lines)) {
+      return null;
+    }
+    
+    // Detect Objective-C files with Apple frameworks (IOKit, CoreVideo, CoreGraphics, ApplicationServices)
+    // These files use .m extension but may not have Objective-C syntax
+    if (/#include\s+<(IOKit|CoreVideo|CoreGraphics|ApplicationServices)\//.test(first100Lines)) {
+      // Check for Apple C API calls (CF, CG, IO, CV prefixes)
+      if (/\b(CF|CG|IO|CV)[A-Z]\w+\s*\(/.test(code)) {
+        return 'objective-c';
+      }
+    }
+
     if (/\b(std::|cout|cin|vector|template|class|namespace|new\s+\w+|delete\s+\w+|using\s+namespace)\b/.test(first100Lines) ||
         (/\bstring\b/.test(first100Lines) && !/<string\.h>/.test(first100Lines))) {
       return 'cpp';
@@ -41,31 +96,39 @@ export const detectCPP: LanguageDetector = (ctx) => {
     if (/#include\s*<\w+\.h>/.test(first100Lines) && !sample.includes('std::') && !sample.includes('class')) {
       return 'c';
     }
-    // Check for typedef struct/enum (common in C headers)
+
     if (/\btypedef\s+(struct|enum)\b/.test(first100Lines) && !hasDoubleColon && !sample.includes('class') && !sample.includes('template')) {
       return 'c';
     }
-    // If has #include but no C++ features, likely C (especially for .h headers)
+
     if (!hasDoubleColon && !sample.includes('class') && !sample.includes('template') && !sample.includes('namespace')) {
       return 'c';
     }
     return 'cpp';
   }
-  
+
   if (/\b(struct|typedef|enum)\s+\w+/.test(first100Lines) && /\b(int|char|float|double|void)\s+\w+/.test(first100Lines)) {
     if (sample.includes('::') || sample.includes('class') || sample.includes('template')) {
       return 'cpp';
     }
     return 'c';
   }
-  
-  // Only detect C++ class if it's not JavaScript
+
+  if (/^enum\s+\w+/m.test(first100Lines) && /\{[\s\S]*?\}/.test(code)) {
+
+    if (sample.includes('::') || sample.includes('class') || sample.includes('template') || sample.includes('namespace')) {
+      return 'cpp';
+    }
+
+    return 'cpp';
+  }
+
   if (/\b(protected|private|public)\s*:/.test(first100Lines) && hasClass) {
-    // Make sure it's not JavaScript class with alert/super
+
     if (!sample.includes('alert(') && !sample.includes('super.')) {
       return 'cpp';
     }
   }
-  
+
   return null;
 };
