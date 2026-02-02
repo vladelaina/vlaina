@@ -8,14 +8,11 @@
  * - nekotick.md (human-readable backup)
  */
 
-// Main exports
 export {
   loadUnifiedData,
   saveUnifiedData,
   saveUnifiedDataImmediate,
   type UnifiedData,
-  type UnifiedTask,
-  type UnifiedGroup,
   type UnifiedProgress,
   type UnifiedArchiveSection,
   type UnifiedArchiveEntry,

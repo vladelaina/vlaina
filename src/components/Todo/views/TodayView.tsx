@@ -29,14 +29,14 @@ export function TodayView() {
         return tasks.filter(t => {
             if (t.parentId) return false;
             if (!selectedColors.includes(t.color || 'default')) return false;
-            if (!t.startDate) return false;
+            if (!t.dtstart) return false;
 
-            const taskDateKey = formatDateKey(new Date(t.startDate));
+            const taskDateKey = formatDateKey(new Date(t.dtstart));
             if (taskDateKey !== targetDateKey) return false;
 
             if (searchQuery.trim()) {
                 const query = searchQuery.toLowerCase();
-                if (!t.content.toLowerCase().includes(query)) return false;
+                if (!t.summary.toLowerCase().includes(query)) return false;
             }
             return true;
         });

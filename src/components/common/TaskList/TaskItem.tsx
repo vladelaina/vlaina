@@ -9,7 +9,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MdChevronRight, MdExpandMore, MdMonitorHeart } from 'react-icons/md';
 import { cn } from '@/lib/utils';
-import type { Task } from '@/stores/useGroupStore';
+import type { NekoEvent } from '@/lib/ics/types';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
 import { formatDuration } from '@/lib/time';
 import { getColorHex } from '@/lib/colors';
@@ -49,7 +49,7 @@ function formatScheduledTime(startDate: number, endDate?: number): string {
 }
 
 interface TaskItemProps {
-    task: Task;
+    task: NekoEvent;
     onToggle: (id: string) => void;
     onUpdate: (id: string, content: string) => void;
     onDelete: (id: string) => void;
@@ -85,13 +85,13 @@ export function TaskItem({
     const canAddSubTask = allowSubtasks && level < MAX_LEVEL;
     const itemRef = useRef<HTMLDivElement>(null);
     const [isEditing, setIsEditing] = useState(false);
-    const [content, setContent] = useState(task.content);
+    const [content, setContent] = useState(task.summary);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { hideActualTime } = useUIStore();
     const groupStore = useGroupStore();
     const updateTaskIcon = onUpdateIcon || groupStore.updateTaskIcon;
 
-    const { handlePreview } = useIconPreview(task.id);
+    const { handlePreview } = useIconPreview(task.uid);
     const { customIcons, onUploadFile, onDeleteCustomIcon } = useGlobalIconUpload();
     
     const imageLoader = useCallback(async (src: string) => {
@@ -106,7 +106,7 @@ export function TaskItem({
         transform,
         transition,
     } = useSortable({
-        id: task.id,
+        id: task.uid,
         animateLayoutChanges,
         data: { task },
     });
@@ -125,15 +125,15 @@ export function TaskItem({
     }, [isEditing]);
 
     useEffect(() => {
-        setContent(task.content);
-    }, [task.content]);
+        setContent(task.summary);
+    }, [task.summary]);
 
     const handleBlur = () => {
         setIsEditing(false);
-        if (content.trim() && content !== task.content) {
-            onUpdate(task.id, content.trim());
+        if (content.trim() && content !== task.summary) {
+            onUpdate(task.uid, content.trim());
         } else {
-            setContent(task.content);
+            setContent(task.summary);
         }
     };
 
@@ -142,7 +142,7 @@ export function TaskItem({
             e.preventDefault();
             handleBlur();
         } else if (e.key === 'Escape') {
-            setContent(task.content);
+            setContent(task.summary);
             setIsEditing(false);
         }
     };
@@ -164,12 +164,16 @@ export function TaskItem({
         ? getColorHex(task.color)
         : undefined;
 
+    const startDate = task.dtstart ? new Date(task.dtstart).getTime() : undefined;
+    const endDate = task.dtend ? new Date(task.dtend).getTime() : undefined;
+
+
     return (
         <>
             <div
                 ref={combinedRef}
                 style={style}
-                data-task-id={task.id}
+                data-task-id={task.uid}
                 className={cn(
                     'group flex items-start gap-3 px-3 py-2 rounded-xl transition-all',
                     'border',
@@ -211,7 +215,7 @@ export function TaskItem({
                 <div className="mt-0.5 flex-shrink-0">
                     <Checkbox
                         checked={task.completed}
-                        onCheckedChange={() => onToggle(task.id)}
+                        onCheckedChange={() => onToggle(task.uid)}
                         checkmarkColor={
                             task.completed 
                                 ? (colorValue || '#a1a1aa') // Default to zinc-400 to match border/text style, preventing blue bg
@@ -229,7 +233,7 @@ export function TaskItem({
                 <div className="mt-0.5 flex-shrink-0" onPointerDown={(e) => e.stopPropagation()}>
                     <IconSelector
                         value={task.icon}
-                        onChange={(icon) => updateTaskIcon(task.id, icon || '')}
+                        onChange={(icon) => updateTaskIcon(task.uid, icon || '')}
                         onHover={handlePreview}
                         compact
                         closeOnSelect={false}
@@ -247,12 +251,12 @@ export function TaskItem({
                                     if (!task.icon) {
                                         const currentSkinTone = loadSkinTone();
                                         const randomEmoji = getRandomEmoji(currentSkinTone);
-                                        updateTaskIcon(task.id, randomEmoji);
+                                        updateTaskIcon(task.uid, randomEmoji);
                                     }
                                 }}
                             >
                                 <TaskIcon
-                                    itemId={task.id}
+                                    itemId={task.uid}
                                     icon={task.icon}
                                     color={colorValue}
                                     sizeClass="h-5 w-5"
@@ -290,26 +294,26 @@ export function TaskItem({
                                 'leading-relaxed'
                             )}
                         >
-                            {task.content}
+                            {task.summary}
                         </div>
                     )}
 
                     {/* Time info */}
-                    {!hideActualTime && (task.estimatedMinutes || task.actualMinutes) && (
+                    {!hideActualTime && task.estimatedMinutes && (
                         <div className="flex items-center gap-2 mt-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium"> {/* 10px -> xs, mt-0.5 -> 1 */}
                             {task.estimatedMinutes && (
                                 <span>Est. {formatMinutes(task.estimatedMinutes)}</span>
-                            )}
-                            {task.actualMinutes && (
-                                <span>Act. {formatMinutes(task.actualMinutes)}</span>
+
+
+
                             )}
                         </div>
                     )}
 
                     {/* Scheduled time */}
-                    {task.startDate && !task.isAllDay && (
+                    {startDate && !task.allDay && (
                         <div className="mt-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium"> {/* 10px -> xs, mt-0.5 -> 1 */}
-                            {formatScheduledTime(task.startDate, task.endDate)}
+                            {formatScheduledTime(startDate, endDate)}
                         </div>
                     )}
                 </div>

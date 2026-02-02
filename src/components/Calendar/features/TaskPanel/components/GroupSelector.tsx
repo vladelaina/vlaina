@@ -1,10 +1,10 @@
 import { MdExpandMore, MdCheck, MdArchive } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import type { Group } from '@/stores/types';
+import type { NekoCalendar } from '@/stores/types';
 
 interface GroupSelectorProps {
-    groups: Group[];
+    groups: NekoCalendar[];
     activeGroupId: string;
     onSelectGroup: (groupId: string) => void;
     showPicker: boolean;
@@ -60,7 +60,6 @@ export function GroupSelector({
                                         : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                                 )}
                             >
-                                {group.pinned && <span className="text-[10px]">📌</span>}
                                 <span className="truncate">{group.name}</span>
                                 {group.id === activeGroupId && (
                                     <MdCheck className="size-[18px] ml-auto flex-shrink-0" />

@@ -16,7 +16,7 @@ export function TasksView() {
                 if (!selectedColors.includes(t.color || 'default')) return false;
                 if (searchQuery.trim()) {
                     const query = searchQuery.toLowerCase();
-                    if (!t.content.toLowerCase().includes(query)) return false;
+                    if (!t.summary.toLowerCase().includes(query)) return false;
                 }
                 return true;
             });

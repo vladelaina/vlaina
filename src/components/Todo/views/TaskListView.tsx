@@ -92,11 +92,11 @@ export function TaskListView({
 
     const incompleteTasks = filteredTasks.filter(t => {
         if (t.completed) return false;
-        if (showScheduledSection && t.startDate) return false;
+        if (showScheduledSection && t.dtstart) return false;
         return true;
     });
     const scheduledTasks = showScheduledSection
-        ? filteredTasks.filter(t => !t.completed && t.startDate)
+        ? filteredTasks.filter(t => !t.completed && t.dtstart)
         : [];
     const completedTasks = hideCompleted ? [] : filteredTasks.filter(t => t.completed);
 
@@ -110,19 +110,19 @@ export function TaskListView({
     }, [allTasks]);
 
     const allSortableIds = [
-        ...incompleteTasks.map(t => t.id),
-        ...(scheduledTasks.length > 0 ? [SCHEDULED_DIVIDER_ID, ...(scheduledExpanded ? scheduledTasks.map(t => t.id) : [])] : []),
-        ...(completedTasks.length > 0 ? [COMPLETED_DIVIDER_ID, ...(completedExpanded ? completedTasks.map(t => t.id) : [])] : []),
+        ...incompleteTasks.map(t => t.uid),
+        ...(scheduledTasks.length > 0 ? [SCHEDULED_DIVIDER_ID, ...(scheduledExpanded ? scheduledTasks.map(t => t.uid) : [])] : []),
+        ...(completedTasks.length > 0 ? [COMPLETED_DIVIDER_ID, ...(completedExpanded ? completedTasks.map(t => t.uid) : [])] : []),
     ];
 
     const renderTaskItem = useCallback((task: any, level: number = 0) => {
-        const children = getChildren(task.id);
+        const children = getChildren(task.uid);
         const hasChildren = children.length > 0;
-        const isBeingDragged = draggingTaskId === task.id;
+        const isBeingDragged = draggingTaskId === task.uid;
         const isCalendarEvent = !!task.isCalendarEvent;
 
         return (
-            <div key={task.id}>
+            <div key={task.uid}>
                 <TaskItem
                     task={task}
                     onToggle={toggleTask}
@@ -134,7 +134,7 @@ export function TaskListView({
                     level={level}
                     hasChildren={hasChildren}
                     collapsed={task.collapsed}
-                    onToggleCollapse={() => toggleCollapse(task.id)}
+                    onToggleCollapse={() => toggleCollapse(task.uid)}
                     draggable={!isCalendarEvent}
                     allowSubtasks={!isCalendarEvent}
                 />
@@ -145,7 +145,7 @@ export function TaskListView({
                 )}
             </div>
         );
-    }, [draggingTaskId, getChildren, toggleTask, updateTask, deleteTask, handleAddSubTask, toggleCollapse]);
+    }, [draggingTaskId, getChildren, toggleTask, updateTask, deleteTask, handleAddSubTask, toggleCollapse, updateTaskIcon]);
 
     return (
         <div className="h-full flex flex-col bg-white dark:bg-zinc-900 overflow-hidden relative">

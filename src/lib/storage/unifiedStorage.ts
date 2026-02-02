@@ -1,14 +1,3 @@
-/**
- * Unified Storage - LEGACY / PARTIAL
- * 
- * NOTE: Tasks and Groups have been migrated to ICS storage (calendarStorage.ts).
- * This storage now only handles:
- * - Progress (Habits)
- * - Settings
- * - Custom Icons
- * - Archive (Legacy)
- */
-
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
@@ -19,18 +8,6 @@ import {
   DEFAULT_VIEW_MODE,
   DEFAULT_DAY_COUNT,
 } from '@/lib/config';
-
-// DEPRECATED TYPES - Kept for type safety in legacy code until fully removed
-export interface UnifiedTask {
-    id: string;
-    // ... minimal stub or full type if still referenced by legacy types
-    [key: string]: any; 
-}
-export interface UnifiedGroup {
-    id: string;
-    // ... minimal stub
-    [key: string]: any;
-}
 
 export interface UnifiedProgress {
   id: string;
@@ -74,11 +51,6 @@ export interface CustomIcon {
 }
 
 export interface UnifiedData {
-  // Legacy fields - made optional or removed from active logic
-  groups: UnifiedGroup[];
-  tasks: UnifiedTask[];
-  
-  // Active fields
   progress: UnifiedProgress[];
   archive: UnifiedArchiveSection[];
   settings: {
@@ -123,8 +95,6 @@ async function ensureDirectories(): Promise<void> {
 
 function getDefaultData(): UnifiedData {
   return {
-    groups: [], // Empty
-    tasks: [],  // Empty
     progress: [],
     archive: [],
     settings: {

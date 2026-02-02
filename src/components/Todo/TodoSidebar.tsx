@@ -25,7 +25,7 @@ import { DeleteIcon } from '@/components/common/DeleteIcon';
 
 export function TodoSidebar() {
     const { 
-        groups, 
+        calendars, 
         tasks, 
         activeGroupId, 
         setActiveGroup, 
@@ -53,18 +53,18 @@ export function TodoSidebar() {
         const c = { inbox: 0, today: 0, all: 0, groups: {} as Record<string, number> };
         const todayKey = getTodayKey();
 
-        tasks.forEach(t => {
+        tasks.forEach((t: any) => {
             if (t.completed) return;
             
             c.all++;
             
-            if (t.groupId === DEFAULT_GROUP_ID) c.inbox++;
-            else if (t.groupId) {
-                c.groups[t.groupId] = (c.groups[t.groupId] || 0) + 1;
+            if (t.calendarId === DEFAULT_GROUP_ID) c.inbox++;
+            else if (t.calendarId) {
+                c.groups[t.calendarId] = (c.groups[t.calendarId] || 0) + 1;
             }
 
-            if (t.startDate) {
-                const taskDateKey = formatDateKey(new Date(t.startDate));
+            if (t.dtstart) {
+                const taskDateKey = formatDateKey(new Date(t.dtstart));
                 if (taskDateKey === todayKey) c.today++;
             }
         });
@@ -83,17 +83,13 @@ export function TodoSidebar() {
 
     const handleUpdate = (id: string) => {
         if (editName.trim()) {
-            const group = groups.find(g => g.id === id);
-            updateGroup(id, editName.trim(), group?.icon);
+            updateGroup(id, editName.trim());
             setEditingGroupId(null);
         }
     };
 
-    const handleIconChange = (id: string, icon: string | undefined) => {
-        const group = groups.find(g => g.id === id);
-        if (group) {
-            updateGroup(id, group.name, icon);
-        }
+    const handleIconChange = (id: string) => {
+        updateGroup(id, calendars.find(c => c.id === id)?.name || '');
     };
 
     useEffect(() => {
@@ -199,18 +195,18 @@ export function TodoSidebar() {
                                 exit={{ height: 0, opacity: 0 }}
                                 className="space-y-0.5 overflow-hidden"
                             >
-                                {groups.filter(g => g.id !== DEFAULT_GROUP_ID).map(group => {
-                                    const isActive = activeGroupId === group.id;
-                                    const isEditing = editingGroupId === group.id;
-                                    const count = counts.groups[group.id] || 0;
+                                {calendars.filter(c => c.id !== DEFAULT_GROUP_ID).map(calendar => {
+                                    const isActive = activeGroupId === calendar.id;
+                                    const isEditing = editingGroupId === calendar.id;
+                                    const count = counts.groups[calendar.id] || 0;
 
                                     if (isEditing) {
                                         return (
-                                            <div key={group.id} className="flex items-center gap-2 px-3 py-1.5 mx-2 bg-white dark:bg-zinc-800 rounded-md shadow-sm border border-zinc-200 dark:border-zinc-700">
+                                            <div key={calendar.id} className="flex items-center gap-2 px-3 py-1.5 mx-2 bg-white dark:bg-zinc-800 rounded-md shadow-sm border border-zinc-200 dark:border-zinc-700">
                                                 <div className="shrink-0" onPointerDown={e => e.stopPropagation()}>
                                                     <IconSelector
-                                                        value={group.icon}
-                                                        onChange={(icon) => handleIconChange(group.id, icon)}
+                                                        value={undefined}
+                                                        onChange={() => handleIconChange(calendar.id)}
                                                         compact
                                                         hideColorPicker={true}
                                                         customIcons={customIcons}
@@ -219,7 +215,7 @@ export function TodoSidebar() {
                                                         imageLoader={imageLoader}
                                                         trigger={
                                                             <button className="flex items-center justify-center w-5 h-5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors">
-                                                                <AppIcon icon={group.icon || 'icon:Folder:default'} size={18} className="text-zinc-500" />
+                                                                <AppIcon icon={'icon:Folder:default'} size={18} className="text-zinc-500" />
                                                             </button>
                                                         }
                                                     />
@@ -229,10 +225,10 @@ export function TodoSidebar() {
                                                     value={editName}
                                                     onChange={e => setEditName(e.target.value)}
                                                     onKeyDown={e => {
-                                                        if (e.key === 'Enter') handleUpdate(group.id);
+                                                        if (e.key === 'Enter') handleUpdate(calendar.id);
                                                         if (e.key === 'Escape') setEditingGroupId(null);
                                                     }}
-                                                    onBlur={() => handleUpdate(group.id)}
+                                                    onBlur={() => handleUpdate(calendar.id)}
                                                     className="flex-1 bg-transparent text-sm outline-none min-w-0 text-zinc-900 dark:text-zinc-100"
                                                 />
                                             </div>
@@ -240,9 +236,9 @@ export function TodoSidebar() {
                                     }
 
                                     return (
-                                        <div key={group.id} className="group/item relative">
+                                        <div key={calendar.id} className="group/item relative">
                                             <button
-                                                onClick={() => setActiveGroup(group.id)}
+                                                onClick={() => setActiveGroup(calendar.id)}
                                                 className={cn(
                                                     "w-full flex items-center justify-between px-3 py-2 text-[14px] rounded-lg transition-colors duration-200",
                                                     isActive
@@ -252,11 +248,11 @@ export function TodoSidebar() {
                                             >
                                                 <div className="flex items-center gap-3 min-w-0">
                                                     <AppIcon 
-                                                        icon={group.icon || 'icon:Folder:default'} 
+                                                        icon={'icon:Folder:default'} 
                                                         size={18} 
                                                         className={cn(isActive ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500")} 
                                                     />
-                                                    <span className="truncate">{group.name}</span>
+                                                    <span className="truncate">{calendar.name}</span>
                                                 </div>
                                                 {count > 0 && (
                                                     <span className="text-xs text-zinc-400 group-hover/item:opacity-0 transition-opacity">
@@ -265,7 +261,6 @@ export function TodoSidebar() {
                                                 )}
                                             </button>
 
-                                            {/* Context Menu Trigger */}
                                             <Popover>
                                                 <PopoverTrigger asChild>
                                                     <button 
@@ -281,15 +276,15 @@ export function TodoSidebar() {
                                                 <PopoverContent className="w-32 p-1" align="end">
                                                     <button
                                                         onClick={() => {
-                                                            setEditingGroupId(group.id);
-                                                            setEditName(group.name);
+                                                            setEditingGroupId(calendar.id);
+                                                            setEditName(calendar.name);
                                                         }}
                                                         className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors text-left"
                                                     >
                                                         Edit
                                                     </button>
                                                     <button
-                                                        onClick={() => deleteGroup(group.id)}
+                                                        onClick={() => deleteGroup(calendar.id)}
                                                         className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors text-left"
                                                     >
                                                         <DeleteIcon className="size-[18px]" />

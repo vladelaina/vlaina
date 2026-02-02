@@ -15,30 +15,24 @@ interface ActivityData {
   level: 0 | 1 | 2 | 3 | 4;
 }
 
-/**
- * Transform tasks into activity calendar data format
- */
 function useActivityData(): ActivityData[] {
   const { tasks } = useGroupStore();
 
   return useMemo(() => {
-    // Get date range: last 365 days
     const endDate = new Date();
     const startDate = new Date();
     startDate.setFullYear(startDate.getFullYear() - 1);
 
-    // Count completions by date
     const countsByDate = new Map<string, number>();
 
-    tasks.forEach((task) => {
-      if (task.completed && task.completedAt) {
-        const dateStr = new Date(task.completedAt).toISOString().split('T')[0];
+    tasks.forEach((task: any) => {
+      if (task.completed && task.dtstart) {
+        const dateStr = new Date(task.dtstart).toISOString().split('T')[0];
         const current = countsByDate.get(dateStr) || 0;
         countsByDate.set(dateStr, current + 1);
       }
     });
 
-    // Generate data for all days in range
     const data: ActivityData[] = [];
     const current = new Date(startDate);
 
@@ -46,7 +40,6 @@ function useActivityData(): ActivityData[] {
       const dateStr = current.toISOString().split('T')[0];
       const count = countsByDate.get(dateStr) || 0;
       
-      // Calculate level (0-4) based on count
       let level: 0 | 1 | 2 | 3 | 4 = 0;
       if (count >= 8) level = 4;
       else if (count >= 5) level = 3;
@@ -64,14 +57,12 @@ function useActivityData(): ActivityData[] {
 export function ActivityHeatmap() {
   const data = useActivityData();
   
-  // Use useMemo to cache statistics calculation, avoid recalculating on every render
   const { totalCompleted, currentStreak } = useMemo(() => {
     const total = data.reduce((sum, d) => sum + d.count, 0);
     
-    // Find streak
     let streak = 0;
     for (let i = 0; i < data.length; i++) {
-      const dayData = data[data.length - 1 - i]; // Start from the most recent date
+      const dayData = data[data.length - 1 - i];
       if (dayData.count > 0) {
         streak++;
       } else if (i > 0) {
