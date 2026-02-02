@@ -342,6 +342,40 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             return;
         }
 
+        // Validate the target position can accept the node
+        const $targetPos = state.doc.resolve(targetPos);
+        const targetParent = $targetPos.parent;
+        const targetIndex = $targetPos.index();
+
+        // Check if we can insert the paragraph at the target position
+        if (!targetParent.canReplaceWith(targetIndex, targetIndex, parentNode.type)) {
+            console.log('[ImageDrag] Cannot insert at target position, finding valid position...');
+            // Try to find a valid position by moving up to the top level
+            let validTargetPos: number | null = null;
+            for (let d = $targetPos.depth; d >= 1; d--) {
+                const ancestorPos = $targetPos.before(d);
+                const ancestor = $targetPos.node(d);
+                const ancestorParent = d > 1 ? $targetPos.node(d - 1) : state.doc;
+                const ancestorIndex = d > 1 ? $targetPos.index(d - 1) : $targetPos.index(0);
+
+                if (ancestorParent.canReplaceWith(ancestorIndex, ancestorIndex, parentNode.type)) {
+                    // Found a valid position - insert at the boundary of this ancestor
+                    const ancestorRect = view.nodeDOM(ancestorPos) as HTMLElement | null;
+                    if (ancestorRect) {
+                        // Insert after the ancestor
+                        validTargetPos = ancestorPos + ancestor.nodeSize;
+                        console.log('[ImageDrag] Found valid position at depth', d, 'pos:', validTargetPos);
+                        break;
+                    }
+                }
+            }
+            if (validTargetPos === null) {
+                console.log('[ImageDrag] No valid position found, aborting');
+                return;
+            }
+            targetPos = validTargetPos;
+        }
+
         const tr = state.tr;
 
         // If moving forward (target > current position)
