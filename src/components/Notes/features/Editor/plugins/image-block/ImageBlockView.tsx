@@ -57,7 +57,8 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     // Drag State
     const [isDragging, setIsDragging] = useState(false);
-    const [dragOffsetY, setDragOffsetY] = useState(0);
+    const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+    const [dragSize, setDragSize] = useState<{ width: number; height: number } | null>(null);
 
     // --- Stores ---
     const notesPath = useNotesStore(s => s.notesPath);
@@ -369,11 +370,18 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             return;
         }
 
+        const startX = e.clientX;
         const startY = e.clientY;
         const startTime = Date.now();
         let isLongPressTriggered = false;
         const sourcePos = getPos();
         const sourceHeight = containerRef.current?.offsetHeight || 100;
+        const sourceWidth = containerRef.current?.offsetWidth || 200;
+
+        // Get initial position of the container
+        const containerRect = containerRef.current?.getBoundingClientRect();
+        const initialLeft = containerRect?.left || 0;
+        const initialTop = containerRect?.top || 0;
 
         const onPointerMove = (moveEvent: PointerEvent) => {
             const elapsed = Date.now() - startTime;
@@ -381,6 +389,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             if (!isLongPressTriggered && elapsed >= LONG_PRESS_DELAY) {
                 isLongPressTriggered = true;
                 setIsDragging(true);
+                setDragSize({ width: sourceWidth, height: sourceHeight });
 
                 // Initialize drag state in plugin
                 if (sourcePos !== undefined) {
@@ -394,8 +403,13 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             }
 
             if (isLongPressTriggered) {
+                // Calculate new position based on mouse movement
+                const deltaX = moveEvent.clientX - startX;
                 const deltaY = moveEvent.clientY - startY;
-                setDragOffsetY(deltaY);
+                setDragPosition({
+                    x: initialLeft + deltaX,
+                    y: initialTop + deltaY,
+                });
 
                 // Calculate and update drop position
                 if (sourcePos !== undefined) {
@@ -425,7 +439,8 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             clearDragState(view);
 
             setIsDragging(false);
-            setDragOffsetY(0);
+            setDragPosition(null);
+            setDragSize(null);
             dragTargetPosRef.current = null;
             dragCleanupRef.current = null;
 
@@ -441,6 +456,13 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             if (!isLongPressTriggered) {
                 isLongPressTriggered = true;
                 setIsDragging(true);
+                setDragSize({ width: sourceWidth, height: sourceHeight });
+
+                // Set initial drag position
+                const rect = containerRef.current?.getBoundingClientRect();
+                if (rect) {
+                    setDragPosition({ x: rect.left, y: rect.top });
+                }
 
                 // Initialize drag state in plugin
                 if (sourcePos !== undefined) {
@@ -474,16 +496,29 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     // --- Styles ---
     const alignmentClasses = { left: 'mr-auto', center: 'mx-auto', right: 'ml-auto' };
-    
+
     const computedAspectRatio = height ? 'auto' : (cropParams ? `${cropParams.ratio}` : (naturalRatio ? `${naturalRatio}` : 'auto'));
-    
-    const containerStyle = {
+
+    const containerStyle: React.CSSProperties = isDragging && dragPosition && dragSize ? {
+        // Fixed positioning when dragging
+        position: 'fixed',
+        left: dragPosition.x,
+        top: dragPosition.y,
+        width: dragSize.width,
+        height: dragSize.height,
+        zIndex: 9999,
+        pointerEvents: 'none',
+        opacity: 0.9,
+        transform: 'scale(0.95)',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        transition: 'none',
+    } : {
         width: width,
         maxWidth: '100%',
         height: height ? height : 'auto',
         aspectRatio: computedAspectRatio,
         transition: (isActive || height) ? 'none' : 'width 0.1s ease-out, opacity 0.2s ease-out',
-        display: 'block', // Prevent inline-block whitespace issues
+        display: 'block',
         opacity: isReady ? 1 : 0,
     };
 
@@ -494,23 +529,30 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     return (
         <div className="w-full flex my-2 justify-center group/image">
+            {/* Placeholder when dragging */}
+            {isDragging && (
+                <div
+                    style={{
+                        width: dragSize?.width || 'auto',
+                        height: dragSize?.height || 100,
+                        opacity: 0.3,
+                        border: '2px dashed #ccc',
+                        borderRadius: '8px',
+                        backgroundColor: 'rgba(0,0,0,0.05)',
+                    }}
+                />
+            )}
             <div
                 ref={containerRef}
                 data-dragging={isDragging ? "true" : undefined}
                 draggable={false}
                 className={cn(
                     "relative flex flex-col leading-none text-[0px] select-none",
-                    alignmentClasses[alignment],
+                    !isDragging && alignmentClasses[alignment],
                     (isHovered || isEditingCaption || isActive) ? "z-10" : "",
-                    isDragging && "z-50 cursor-grabbing"
+                    isDragging && "cursor-grabbing"
                 )}
-                style={{
-                    ...containerStyle,
-                    transform: isDragging ? `translateY(${dragOffsetY}px) scale(0.98)` : undefined,
-                    opacity: isDragging ? 0.7 : containerStyle.opacity,
-                    transition: isDragging ? 'none' : containerStyle.transition,
-                    boxShadow: isDragging ? '0 10px 40px rgba(0,0,0,0.15)' : undefined,
-                }}
+                style={containerStyle}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
                 onPointerDown={handleDragHandlePointerDown}
