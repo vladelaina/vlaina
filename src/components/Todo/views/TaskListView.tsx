@@ -39,7 +39,7 @@ export function TaskListView({
     const toggleTask = onToggleTask || groupStore.toggleTask;
     const updateTask = onUpdateTask || groupStore.updateTask;
     const deleteTask = onDeleteTask || groupStore.deleteTask;
-    const updateTaskIcon = onUpdateTaskIcon; // TaskItem defaults to store if this is undefined, but we need to pass it explicitly if we want to override
+    const updateTaskIcon = onUpdateTaskIcon;
 
     const {
         reorderTasks,
@@ -149,9 +149,7 @@ export function TaskListView({
 
     return (
         <div className="h-full flex flex-col bg-white dark:bg-zinc-900 overflow-hidden relative">
-            {/* Header - Minimalist & Expandable */}
             <div className="flex-shrink-0 px-8 py-3 flex items-center justify-end z-10 min-h-[52px]">
-                {/* Header Controls (Date Picker, etc.) */}
                 {headerControls && (
                     <div className="mr-auto">
                         {headerControls}
@@ -174,7 +172,6 @@ export function TaskListView({
                                 : "bg-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800/50"
                         )}
                     >
-                        {/* Search Icon / Toggle */}
                         <div 
                             className={cn(
                                 "flex-shrink-0 w-10 h-10 flex items-center justify-center cursor-pointer z-10",
@@ -185,7 +182,6 @@ export function TaskListView({
                             <MdSearch className="w-[18px] h-[18px] text-zinc-500" />
                         </div>
 
-                        {/* Input Field */}
                         <input
                             ref={searchInputRef}
                             type="text"
@@ -199,7 +195,6 @@ export function TaskListView({
                             )}
                         />
                         
-                        {/* Clear Button */}
                         <AnimatePresence>
                             {searchQuery && (
                                 <motion.button 
@@ -217,7 +212,6 @@ export function TaskListView({
                 </motion.div>
             </div>
 
-            {/* Content Area */}
             <div className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-300">
                 <div className="flex-shrink-0 px-8 pb-4 max-w-3xl mx-auto w-full">
                     <TaskInput compact={false} />
@@ -240,7 +234,6 @@ export function TaskListView({
                                 items={allSortableIds}
                                 strategy={verticalListSortingStrategy}
                             >
-                                {/* Incomplete Tasks Section */}
                                 <TodoListSection
                                     items={incompleteTasks}
                                     renderItem={(task) => renderTaskItem(task, 0)}
@@ -257,7 +250,6 @@ export function TaskListView({
                                     }
                                 />
 
-                                {/* Scheduled Tasks Section */}
                                 {showScheduledSection && scheduledTasks.length > 0 && (
                                     <TodoListSection
                                         title="Scheduled"
@@ -269,7 +261,6 @@ export function TaskListView({
                                     />
                                 )}
 
-                                {/* Completed Tasks Section */}
                                 {completedTasks.length > 0 && (
                                     <TodoListSection
                                         title="Completed"
@@ -311,7 +302,6 @@ export function TaskListView({
                 </div>
             </div>
 
-            {/* Subtask modal */}
             <AnimatePresence>
                 {addingSubTaskFor && (
                     <motion.div

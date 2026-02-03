@@ -1,7 +1,3 @@
-/**
- * VirtualEmojiGrid - Virtualized emoji grid with recent section
- */
-
 import { useRef, useEffect, useMemo, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -34,7 +30,6 @@ const EmojiRow = memo(
     );
   },
   (prev, next) => {
-    // Compare emojis array content
     if (prev.emojis.length !== next.emojis.length) return false;
     for (let i = 0; i < prev.emojis.length; i++) {
       if (prev.emojis[i] !== next.emojis[i]) return false;
@@ -62,7 +57,6 @@ export function VirtualEmojiGrid({
 }: VirtualEmojiGridProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
-  // Use ref to store callbacks
   const onPreviewRef = useRef(onPreview);
   const onSelectRef = useRef(onSelect);
   onPreviewRef.current = onPreview;
@@ -130,7 +124,6 @@ export function VirtualEmojiGrid({
 
   const lastPreviewRef = useRef<string | null>(null);
 
-  // Use native event handling
   useEffect(() => {
     const container = parentRef.current;
     if (!container) return;
@@ -229,7 +222,6 @@ export function VirtualSearchResults({
   const parentRef = useRef<HTMLDivElement>(null);
   const lastPreviewRef = useRef<string | null>(null);
 
-  // Use ref to store callbacks
   const onPreviewRef = useRef(onPreview);
   const onSelectRef = useRef(onSelect);
   onPreviewRef.current = onPreview;
@@ -264,7 +256,6 @@ export function VirtualSearchResults({
     overscan: 5,
   });
 
-  // Use native event handling
   useEffect(() => {
     const container = parentRef.current;
     if (!container) return;

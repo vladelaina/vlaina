@@ -1,11 +1,6 @@
-// Mermaid diagram plugin
-// Supports: ```mermaid code blocks
-// Note: Requires 'mermaid' package to be installed: pnpm add mermaid
-
 import { $node } from '@milkdown/kit/utils';
 import type { MermaidAttrs } from './types';
 
-// Lazy load mermaid - will gracefully fail if not installed
 let mermaidInstance: any = null;
 let mermaidPromise: Promise<any> | null = null;
 let mermaidAvailable = true;
@@ -17,7 +12,6 @@ async function getMermaid() {
   if (!mermaidPromise) {
     mermaidPromise = (async () => {
       try {
-        // Dynamic import - will fail gracefully if mermaid is not installed
         const m = await import('mermaid');
         mermaidInstance = m.default;
         mermaidInstance.initialize({
@@ -28,7 +22,6 @@ async function getMermaid() {
         });
         return mermaidInstance;
       } catch {
-        // Mermaid not installed
         mermaidAvailable = false;
         return null;
       }
@@ -38,9 +31,6 @@ async function getMermaid() {
   return mermaidPromise;
 }
 
-/**
- * Render mermaid diagram
- */
 async function renderMermaid(code: string, id: string): Promise<string> {
   const mermaid = await getMermaid();
   
@@ -64,13 +54,11 @@ function escapeHtml(text: string): string {
     .replace(/>/g, '&gt;');
 }
 
-// Generate unique ID for mermaid diagrams
 let mermaidCounter = 0;
 function generateMermaidId(): string {
   return `mermaid-${Date.now()}-${mermaidCounter++}`;
 }
 
-// Mermaid node schema
 export const mermaidSchema = $node('mermaid', () => ({
   group: 'block',
   atom: true,
@@ -100,7 +88,6 @@ export const mermaidSchema = $node('mermaid', () => ({
     placeholder.textContent = 'Loading diagram...';
     wrapper.appendChild(placeholder);
     
-    // Render asynchronously
     if (attrs.code) {
       renderMermaid(attrs.code, id).then((svg) => {
         wrapper.innerHTML = svg;
@@ -113,7 +100,6 @@ export const mermaidSchema = $node('mermaid', () => ({
   },
   parseMarkdown: {
     match: (node) => {
-      // Match code blocks with language 'mermaid'
       return node.type === 'code' && node.lang === 'mermaid';
     },
     runner: (state, node, type) => {
@@ -131,7 +117,6 @@ export const mermaidSchema = $node('mermaid', () => ({
   }
 }));
 
-// Combined mermaid plugin
 export const mermaidPlugin = [
   mermaidSchema
 ];

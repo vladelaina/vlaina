@@ -1,14 +1,4 @@
-/**
- * Time Grid Drag Types and Utilities
- * 
- * Shared types and utilities for time grid drag hooks.
- */
-
 import type { NekoEvent } from '@/lib/ics/types';
-
-// -------------------------------------------------------------------------
-// Types
-// -------------------------------------------------------------------------
 
 export interface DragPosition {
     dayIndex: number;
@@ -37,10 +27,6 @@ export interface AutoScrollState {
     isScrolling: boolean;
 }
 
-// -------------------------------------------------------------------------
-// Props
-// -------------------------------------------------------------------------
-
 export interface TimeGridDragConfig {
     days: Date[];
     displayItems: NekoEvent[];
@@ -52,10 +38,6 @@ export interface TimeGridDragConfig {
     canvasRef: React.RefObject<HTMLDivElement | null>;
     allDayAreaRef: React.RefObject<HTMLDivElement | null>;
 }
-
-// -------------------------------------------------------------------------
-// Utilities
-// -------------------------------------------------------------------------
 
 export const createAutoScrollState = (): AutoScrollState => ({
     rafId: null,

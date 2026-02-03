@@ -1,5 +1,3 @@
-// Clock time parsing and formatting module
-
 import { MINUTES_PER_DAY } from './constants';
 
 export interface ClockTime {
@@ -16,7 +14,7 @@ export function parseClockTime(input: string): ClockTime | null {
   }
 
   let str = input.trim().toLowerCase();
-  str = str.replace(/[�?。\-－]/g, ':');
+  str = str.replace(/[�?。\-－]/g, ':');
   str = str.replace(/\s+/g, ' ');
 
   let isPM = false;

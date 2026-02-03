@@ -1,7 +1,3 @@
-/**
- * ToggleIcon - Reusable toggle triangle icon
- */
-
 import { cn } from '@/lib/utils';
 
 interface ToggleIconProps {

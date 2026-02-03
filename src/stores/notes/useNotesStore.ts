@@ -1,5 +1,3 @@
-/** Notes Store - Markdown notes state management */
-
 import { create } from 'zustand';
 import { NotesStore } from './types';
 import { createFileSystemSlice } from './slices/fileSystemSlice';
@@ -8,7 +6,6 @@ import { createFeatureSlice } from './slices/featureSlice';
 import { createAssetSlice } from './slices/assetSlice';
 import { createCustomEmojiSlice } from './slices/customEmojiSlice';
 
-// Re-export for external use
 export * from './types';
 export { sortFileTree } from './fileTreeUtils';
 export { setCurrentVaultPath, getCurrentVaultPath } from './storage';

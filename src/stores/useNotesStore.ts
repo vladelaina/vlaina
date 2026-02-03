@@ -1,5 +1,3 @@
-/** Notes Store - Re-export from refactored location */
-
 export { 
   useNotesStore, 
   setCurrentVaultPath, 

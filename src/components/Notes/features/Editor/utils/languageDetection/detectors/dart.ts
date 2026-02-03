@@ -1,7 +1,7 @@
 import type { LanguageDetector } from '../types';
 
 export const detectDart: LanguageDetector = (ctx) => {
-  const { sample, first100Lines, hasCurlyBraces, hasSemicolon } = ctx;
+  const { first100Lines, hasCurlyBraces, hasSemicolon } = ctx;
 
   if (/\b(import\s+['"]dart:|import\s+['"]package:)\b/.test(first100Lines)) {
     return 'dart';

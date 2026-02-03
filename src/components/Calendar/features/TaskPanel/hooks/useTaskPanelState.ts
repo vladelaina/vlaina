@@ -7,7 +7,6 @@ interface UseTaskPanelStateResult {
     panelView: PanelView;
     setPanelView: (view: PanelView) => void;
 
-    // Search state
     showSearch: boolean;
     setShowSearch: (show: boolean) => void;
     searchQuery: string;
@@ -34,10 +33,6 @@ interface UseTaskPanelStateResult {
     setSubTaskContent: (content: string) => void;
 }
 
-/**
- * Custom hook for managing CalendarTaskPanel UI state
- * Extracted from CalendarTaskPanel for better separation of concerns
- */
 export function useTaskPanelState(): UseTaskPanelStateResult {
     const [panelView, setPanelView] = useState<PanelView>('tasks');
     const [showSearch, setShowSearch] = useState(false);

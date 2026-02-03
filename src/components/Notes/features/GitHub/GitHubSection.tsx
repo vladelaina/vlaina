@@ -1,10 +1,3 @@
-/**
- * GitHubSection - Sidebar section for GitHub repositories
- * 
- * Displays user's nekotick-* repositories with sync status,
- * supports lazy loading file tree, and provides repository management.
- */
-
 import { useEffect, useState } from 'react';
 import { MdAdd, MdRefresh, MdInventory2 } from 'react-icons/md';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
@@ -15,7 +8,6 @@ import { RepositoryItem } from './RepositoryItem';
 import { NewRepositoryDialog } from './NewRepositoryDialog';
 import { cn } from '@/lib/utils';
 
-// GitHub icon component (Custom SVG as react-icons/md doesn't have the exact brand icon)
 function GitHubIcon({ className }: { className?: string }) {
     return (
         <svg
@@ -42,14 +34,12 @@ export function GitHubSection() {
 
     const [showNewRepoDialog, setShowNewRepoDialog] = useState(false);
 
-    // Auto-expand when connected
     useEffect(() => {
         if (isConnected && !sectionExpanded) {
             toggleSectionExpanded();
         }
     }, [isConnected]);
 
-    // Load repositories when connected or username changes
     useEffect(() => {
         if (isConnected && hasBackendCommands()) {
             loadRepositories();
@@ -62,7 +52,6 @@ export function GitHubSection() {
 
     const hasRepos = repositories.length > 0;
 
-    // Header actions (only when connected)
     const headerActions = isConnected ? (
         <>
             <button
@@ -155,7 +144,6 @@ export function GitHubSection() {
                     </div>
                 )}
 
-                {/* Error display */}
                 {error && (
                     <div className="mx-2 mb-2 p-2 rounded-md bg-red-500/10 border border-red-500/20">
                         <p className="text-[12px] text-red-400">{error}</p>

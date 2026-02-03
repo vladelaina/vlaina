@@ -1,9 +1,5 @@
 import { cn } from '@/lib/utils';
 
-/**
- * DeleteIcon - Custom SVG implementation of the Material Design Delete icon
- * matches the exact path from Google Fonts/Material Symbols
- */
 export function DeleteIcon({ className, size }: { className?: string; size?: number | string }) {
     const style = size ? { width: size, height: size } : undefined;
 

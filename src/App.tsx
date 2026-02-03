@@ -108,7 +108,6 @@ function AppContent() {
   if (appViewMode === 'calendar') {
     centerSlot = <CalendarHeaderControl />;
   } else if (appViewMode === 'todo') {
-    // No center slot for Todo view
   } else if (appViewMode === 'notes' && currentVault) {
     centerSlot = <NotesTabRow />;
   }
@@ -119,7 +118,6 @@ function AppContent() {
   } else if (appViewMode === 'todo') {
     mainContent = <TodoView />;
   } else {
-    // Notes view handles "No Vault" internally
     mainContent = <NotesView />;
   }
 

@@ -4,9 +4,6 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType } from './types';
 
-/**
- * Get active marks from current selection
- */
 export function getActiveMarks(view: EditorView): Set<string> {
   const { state } = view;
   const { from, to, empty } = state.selection;
@@ -23,9 +20,6 @@ export function getActiveMarks(view: EditorView): Set<string> {
   return marks;
 }
 
-/**
- * Get current block type from selection
- */
 export function getCurrentBlockType(view: EditorView): BlockType {
   const { state } = view;
   const { $from } = state.selection;
@@ -50,9 +44,6 @@ export function getCurrentBlockType(view: EditorView): BlockType {
   return 'paragraph';
 }
 
-/**
- * Check if selection is inside the first H1 heading (document title)
- */
 export function isSelectionInFirstH1(view: EditorView): boolean {
   const { state } = view;
   const { $from } = state.selection;
@@ -68,9 +59,6 @@ export function isSelectionInFirstH1(view: EditorView): boolean {
   return pos === 0;
 }
 
-/**
- * Get link URL if selection contains a link
- */
 export function getLinkUrl(view: EditorView): string | null {
   const { state } = view;
   const { from, to } = state.selection;
@@ -86,9 +74,6 @@ export function getLinkUrl(view: EditorView): string | null {
   return linkUrl;
 }
 
-/**
- * Get text color from selection
- */
 export function getTextColor(view: EditorView): string | null {
   const { state } = view;
   const { from, to } = state.selection;
@@ -104,9 +89,6 @@ export function getTextColor(view: EditorView): string | null {
   return color;
 }
 
-/**
- * Get background color from selection
- */
 export function getBgColor(view: EditorView): string | null {
   const { state } = view;
   const { from, to } = state.selection;
@@ -122,9 +104,6 @@ export function getBgColor(view: EditorView): string | null {
   return color;
 }
 
-/**
- * Calculate toolbar position based on selection
- */
 export function calculatePosition(view: EditorView): { 
   x: number; 
   y: number; 

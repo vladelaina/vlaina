@@ -1,10 +1,3 @@
-/**
- * CollapsibleSection - Reusable collapsible sidebar section
- * 
- * Provides consistent header styling and expand/collapse animation
- * for sidebar sections like Favorites, GitHub, and Workspace.
- */
-
 import { ToggleIcon } from '@/components/common/ToggleIcon';
 import { cn } from '@/lib/utils';
 
@@ -12,10 +5,8 @@ interface CollapsibleSectionProps {
     title: string;
     expanded: boolean;
     onToggle: () => void;
-    /** Optional action buttons shown on header hover */
     actions?: React.ReactNode;
     children: React.ReactNode;
-    /** Additional class for the container */
     className?: string;
 }
 
@@ -28,7 +19,6 @@ export function CollapsibleSection({
     className,
 }: CollapsibleSectionProps) {
     const handleHeaderClick = (e: React.MouseEvent) => {
-        // Only toggle when clicking non-button area
         const target = e.target as HTMLElement;
         if (!target.closest('button')) {
             onToggle();

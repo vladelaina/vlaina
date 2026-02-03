@@ -1,5 +1,3 @@
-// Sync Init Hook - Initialize GitHub sync status on app startup
-
 import { useEffect, useRef } from 'react';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { hasBackendCommands } from '@/lib/tauri/invoke';
@@ -13,12 +11,10 @@ export function useSyncInit() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const oauthHandledRef = useRef(false);
 
-  // Handle OAuth callback on web platform (runs once)
   useEffect(() => {
     if (hasBackendCommands() || oauthHandledRef.current) return;
     oauthHandledRef.current = true;
 
-    // Check if URL has OAuth callback params
     const params = new URLSearchParams(window.location.search);
     if (params.has('auth_code')) {
       handleOAuthCallback();
@@ -27,7 +23,6 @@ export function useSyncInit() {
     }
   }, [handleOAuthCallback, checkStatus]);
 
-  // Check status on Tauri platform
   useEffect(() => {
     useGithubSyncStore.getState().hydrateAvatar();
     if (!hasBackendCommands()) return;

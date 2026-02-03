@@ -1,13 +1,5 @@
-/**
- * Format Preview Module
- * 
- * Provides real-time preview by temporarily applying inline styles to DOM.
- * Reads computed styles from actual rendered elements to ensure consistency.
- */
-
 import type { EditorView } from '@milkdown/kit/prose/view';
 
-// CSS selectors for each format type
 const FORMAT_SELECTORS: Record<string, string> = {
   bold: '.milkdown strong',
   italic: '.milkdown em',
@@ -48,12 +40,8 @@ const STYLE_PROPS: Record<string, string[]> = {
   highlight: ['backgroundColor', 'padding', 'borderRadius'],
 };
 
-// Cache for computed styles
 const styleCache: Record<string, Record<string, string>> = {};
 
-/**
- * Get computed styles for a format by reading from actual DOM element
- */
 function getFormatStyles(action: string): Record<string, string> {
   if (styleCache[action]) {
     return styleCache[action];
@@ -87,19 +75,12 @@ function getFormatStyles(action: string): Record<string, string> {
   return FALLBACK_STYLES[action] || {};
 }
 
-// Track preview state
 let previewNodes: { node: HTMLElement; originalStyles: Record<string, string> }[] = [];
 
-/**
- * Check if a format action supports preview
- */
 export function hasFormatPreview(action: string): boolean {
   return action in FORMAT_SELECTORS;
 }
 
-/**
- * Temporarily disable ProseMirror's DOM observer
- */
 function withDomObserverPaused<T>(view: EditorView, fn: () => T): T {
   const domObserver = (view as any).domObserver;
   if (domObserver) {
@@ -114,9 +95,6 @@ function withDomObserverPaused<T>(view: EditorView, fn: () => T): T {
   }
 }
 
-/**
- * Get all text nodes within a range
- */
 function getTextNodesInRange(range: Range): Text[] {
   const textNodes: Text[] = [];
   
@@ -154,9 +132,6 @@ function getTextNodesInRange(range: Range): Text[] {
   return textNodes;
 }
 
-/**
- * Find the closest inline element for styling
- */
 function getStyleTarget(textNode: Text): HTMLElement | null {
   const parent = textNode.parentElement;
   if (!parent) return null;
@@ -170,9 +145,6 @@ function getStyleTarget(textNode: Text): HTMLElement | null {
   return parent;
 }
 
-/**
- * Apply format preview to selected text
- */
 export function applyFormatPreview(
   view: EditorView,
   action: string,
@@ -229,9 +201,6 @@ export function applyFormatPreview(
   });
 }
 
-/**
- * Get reset styles for removing a format preview
- */
 function getResetStyles(action: string): Record<string, string> {
   const resets: Record<string, Record<string, string>> = {
     bold: { fontWeight: 'normal' },
@@ -256,9 +225,6 @@ function getResetStyles(action: string): Record<string, string> {
   return resets[action] || {};
 }
 
-/**
- * Clear format preview
- */
 export function clearFormatPreview(view: EditorView): void {
   if (previewNodes.length === 0) return;
   

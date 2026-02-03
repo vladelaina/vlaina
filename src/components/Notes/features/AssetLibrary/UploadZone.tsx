@@ -1,7 +1,3 @@
-/**
- * UploadZone - Drag and drop upload area for assets
- */
-
 import { useState, useRef, useCallback } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';

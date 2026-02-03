@@ -1,9 +1,4 @@
-/**
- * Config Module - Application configuration
- */
-
 export {
-  // Settings defaults
   DEFAULT_TIMEZONE,
   DEFAULT_VIEW_MODE,
   DEFAULT_DAY_COUNT,
@@ -11,11 +6,9 @@ export {
   DEFAULT_USE_24_HOUR,
   DEFAULT_DAY_START_TIME,
 
-  // Group defaults
   DEFAULT_GROUP_ID,
   DEFAULT_GROUP_NAME,
 
-  // Storage keys
   STORAGE_KEY_COLOR_FILTER,
   STORAGE_KEY_STATUS_FILTER,
   STORAGE_KEY_SHORTCUTS,
@@ -25,6 +18,5 @@ export {
   STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED,
   STORAGE_KEY_SHOW_SIDEBAR,
 
-  // Aggregated
   DEFAULT_SETTINGS,
 } from './defaults';

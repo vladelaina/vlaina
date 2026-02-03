@@ -48,9 +48,6 @@ const BLOCK_ICONS: Record<string, string> = {
   </svg>`,
 };
 
-/**
- * Render block type dropdown
- */
 export function renderBlockDropdown(
   container: HTMLElement,
   view: EditorView,
@@ -119,17 +116,11 @@ export function renderBlockDropdown(
   });
 }
 
-/**
- * Get block type display label
- */
 export function getBlockTypeDisplayLabel(blockType: BlockType): string {
   const config = BLOCK_TYPES.find(b => b.type === blockType);
   return config?.label || 'Text';
 }
 
-/**
- * Get short label for toolbar button
- */
 export function getBlockTypeShortLabel(blockType: BlockType): string {
   const shortLabels: Record<BlockType, string> = {
     paragraph: 'Text',

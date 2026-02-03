@@ -1,7 +1,7 @@
 import type { LanguageDetector } from '../types';
 
 export const detectSQL: LanguageDetector = (ctx) => {
-  const { first100Lines, sample } = ctx;
+  const { first100Lines } = ctx;
 
   if (/#import\s+["<]/.test(first100Lines)) {
     return null;

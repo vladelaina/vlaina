@@ -5,9 +5,6 @@ import { TOOLBAR_ACTIONS } from './types';
 import { setBlockType, wrapIn, lift } from '@milkdown/kit/prose/commands';
 import { floatingToolbarKey } from './floatingToolbarPlugin';
 
-/**
- * Toggle a mark on the current selection
- */
 export function toggleMark(view: EditorView, markName: string): void {
   const { state, dispatch } = view;
   const markType = state.schema.marks[markName];
@@ -25,51 +22,30 @@ export function toggleMark(view: EditorView, markName: string): void {
   view.focus();
 }
 
-/**
- * Toggle bold format
- */
 export function toggleBold(view: EditorView): void {
   toggleMark(view, 'strong');
 }
 
-/**
- * Toggle italic format
- */
 export function toggleItalic(view: EditorView): void {
   toggleMark(view, 'emphasis');
 }
 
-/**
- * Toggle underline format
- */
 export function toggleUnderline(view: EditorView): void {
   toggleMark(view, 'underline');
 }
 
-/**
- * Toggle strikethrough format
- */
 export function toggleStrikethrough(view: EditorView): void {
   toggleMark(view, 'strike_through');
 }
 
-/**
- * Toggle inline code format
- */
 export function toggleCode(view: EditorView): void {
   toggleMark(view, 'inlineCode');
 }
 
-/**
- * Toggle highlight format
- */
 export function toggleHighlight(view: EditorView): void {
   toggleMark(view, 'highlight');
 }
 
-/**
- * Set link on selection
- */
 export function setLink(view: EditorView, url: string | null): void {
   const { state, dispatch } = view;
   const { from, to } = state.selection;
@@ -86,9 +62,6 @@ export function setLink(view: EditorView, url: string | null): void {
   view.focus();
 }
 
-/**
- * Set text color on selection
- */
 export function setTextColor(view: EditorView, color: string | null): void {
   const { state, dispatch } = view;
   const { from, to } = state.selection;
@@ -105,9 +78,6 @@ export function setTextColor(view: EditorView, color: string | null): void {
   view.focus();
 }
 
-/**
- * Set background color on selection
- */
 export function setBgColor(view: EditorView, color: string | null): void {
   const { state, dispatch } = view;
   const { from, to } = state.selection;
@@ -124,9 +94,6 @@ export function setBgColor(view: EditorView, color: string | null): void {
   view.focus();
 }
 
-/**
- * Convert block to specified type
- */
 export function convertBlockType(view: EditorView, blockType: BlockType): void {
   const { state, dispatch } = view;
   const { $from } = state.selection;
@@ -206,9 +173,6 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
   view.focus();
 }
 
-/**
- * Open link editor submenu
- */
 export function openLinkEditor(view: EditorView): void {
   view.dispatch(
     view.state.tr.setMeta(floatingToolbarKey, {
@@ -218,9 +182,6 @@ export function openLinkEditor(view: EditorView): void {
   );
 }
 
-/**
- * Open color picker submenu
- */
 export function openColorPicker(view: EditorView): void {
   view.dispatch(
     view.state.tr.setMeta(floatingToolbarKey, {
@@ -230,9 +191,6 @@ export function openColorPicker(view: EditorView): void {
   );
 }
 
-/**
- * Open block type dropdown
- */
 export function openBlockDropdown(view: EditorView): void {
   view.dispatch(
     view.state.tr.setMeta(floatingToolbarKey, {
@@ -242,9 +200,6 @@ export function openBlockDropdown(view: EditorView): void {
   );
 }
 
-/**
- * Close any open submenu
- */
 export function closeSubMenu(view: EditorView): void {
   view.dispatch(
     view.state.tr.setMeta(floatingToolbarKey, {

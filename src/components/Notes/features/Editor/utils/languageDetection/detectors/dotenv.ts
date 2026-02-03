@@ -1,7 +1,7 @@
 import type { LanguageDetector } from '../types';
 
 export const detectDotenv: LanguageDetector = (ctx) => {
-  const { code, lines } = ctx;
+  const { lines } = ctx;
 
   const envPattern = /^[A-Z_][A-Z0-9_]*=/;
 

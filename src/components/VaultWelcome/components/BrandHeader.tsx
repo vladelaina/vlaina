@@ -1,11 +1,6 @@
-/**
- * BrandHeader - Logo and app name with version (horizontal layout, left aligned)
- */
-
 import { useState, useEffect } from 'react';
 import { isTauri } from '@/lib/storage/adapter';
 
-// Logo path - works in both Tauri and Web environments
 const logoSrc = '/logo.png';
 
 export function BrandHeader() {
@@ -17,7 +12,6 @@ export function BrandHeader() {
         getVersion().then(setVersion).catch(() => setVersion(''));
       });
     } else {
-      // Web version - use package.json version or leave empty
       setVersion('web');
     }
   }, []);

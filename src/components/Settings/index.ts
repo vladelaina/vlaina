@@ -1,4 +1,3 @@
-// Settings module exports
 export { SettingsModal } from './SettingsModal';
 export { AboutTab } from './tabs/AboutTab';
 export { AppearanceTab } from './tabs/AppearanceTab';

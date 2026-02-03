@@ -49,18 +49,10 @@ export const BLOCK_TYPES: BlockTypeConfig[] = [
   { type: 'codeBlock', label: 'Code Block', icon: 'code' },
 ];
 
-/**
- * Compute toolbar visibility based on selection state
- * Property 1: Toolbar should be visible iff selection is non-empty
- */
 export function computeToolbarVisibility(from: number, to: number): boolean {
   return from !== to;
 }
 
-/**
- * Compute toolbar placement based on selection position
- * Property 2: If selection top is within 60px of viewport top, place below
- */
 export function computeToolbarPlacement(
   selectionTop: number,
   viewportTop: number = 0
@@ -69,10 +61,6 @@ export function computeToolbarPlacement(
   return distanceFromTop < 60 ? 'bottom' : 'top';
 }
 
-/**
- * Validate URL format
- * Property 7: Valid URLs match http://, https://, mailto:, or relative path starting with /
- */
 export function isValidUrl(input: string): boolean {
   if (!input || input.trim() === '') return false;
   
@@ -88,24 +76,15 @@ export function isValidUrl(input: string): boolean {
   return validPatterns.some(pattern => pattern.test(trimmed));
 }
 
-/**
- * Get block type label for display
- */
 export function getBlockTypeLabel(blockType: BlockType): string {
   const config = BLOCK_TYPES.find(b => b.type === blockType);
   return config?.label || 'Paragraph';
 }
 
-/**
- * Check if a mark is active in the given marks set
- */
 export function isMarkActive(activeMarks: Set<string>, markName: string): boolean {
   return activeMarks.has(markName);
 }
 
-/**
- * Get color option by ID
- */
 export function getColorById(id: string, isDark: boolean = false): ColorOption | undefined {
   const palette = isDark ? COLOR_PALETTE_DARK : COLOR_PALETTE;
   return palette.find(c => c.id === id);

@@ -4,9 +4,6 @@ import type { FloatingToolbarState } from '../types';
 import { COLOR_PALETTE, COLOR_PALETTE_DARK } from '../utils';
 import { setTextColor, setBgColor } from '../commands';
 
-/**
- * Render color picker submenu
- */
 export function renderColorPicker(
   container: HTMLElement,
   view: EditorView,
@@ -78,9 +75,6 @@ export function renderColorPicker(
   container.appendChild(picker);
 }
 
-/**
- * Get color indicator style for toolbar button
- */
 export function getColorIndicatorStyle(textColor: string | null, bgColor: string | null): string {
   if (textColor) {
     return `background-color: ${textColor}`;

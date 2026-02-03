@@ -16,14 +16,15 @@ import { useImageResize } from './hooks/useImageResize';
 import { parseCropFragment, generateCropFragment, CropParams } from './utils/cropUtils';
 import { ensureImageFileExists } from './utils/fileUtils';
 import { ALIGNMENT_CLASSES, getContainerStyle, computeAspectRatio } from './utils/styleUtils';
+import type { Alignment } from './types';
+
+const HOVER_HIDE_DELAY_MS = 300;
 
 interface ImageBlockProps {
     node: Node;
     view: EditorView;
     getPos: () => number | undefined;
 }
-
-type Alignment = 'left' | 'center' | 'right';
 
 export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const [width, setWidth] = useState(node.attrs.width || 'auto');
@@ -49,7 +50,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     const { baseSrc, params: initialParams } = useMemo(() => parseCropFragment(node.attrs.src || ''), [node.attrs.src]);
-    const { resolvedSrc, error: loadError } = useLocalImage(baseSrc, notesPath, currentNotePath);
+    const { resolvedSrc, isLoading, error: loadError } = useLocalImage(baseSrc, notesPath, currentNotePath);
 
     const updateNodeAttrs = useCallback((attrs: Record<string, any>) => {
         const pos = getPos();
@@ -118,6 +119,15 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     useEffect(() => { setCropParams(initialParams); }, [initialParams]);
     useEffect(() => { if (loadError) setIsReady(true); }, [loadError]);
 
+    // Cleanup hover timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (hoverTimeoutRef.current) {
+                clearTimeout(hoverTimeoutRef.current);
+            }
+        };
+    }, []);
+
     const handleMouseEnter = () => {
         if (hoverTimeoutRef.current) {
             clearTimeout(hoverTimeoutRef.current);
@@ -128,7 +138,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     const handleMouseLeave = () => {
         if (isEditingCaption || isActive) return;
-        hoverTimeoutRef.current = setTimeout(() => setIsHovered(false), 300);
+        hoverTimeoutRef.current = setTimeout(() => setIsHovered(false), HOVER_HIDE_DELAY_MS);
     };
 
     const handleSave = async (percentageCrop: any, ratio: number) => {
@@ -158,14 +168,15 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 const blob = await response.blob();
                 await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
             } else {
-                await navigator.clipboard.writeText(node.attrs.src);
+                await navigator.clipboard.writeText(node.attrs.src || '');
             }
-        } catch (err) {
-            try { await navigator.clipboard.writeText(node.attrs.src); } catch (e) { /* ignore */ }
+        } catch {
+            try { await navigator.clipboard.writeText(node.attrs.src || ''); } catch { /* fallback failed */ }
         }
     };
 
     const handleDownload = async () => {
+        if (!resolvedSrc) return;
         try {
             await restoreIfNeeded();
             const { save } = await import('@tauri-apps/plugin-dialog');
@@ -177,7 +188,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             const response = await fetch(resolvedSrc);
             const blob = await response.blob();
             await writeFile(filePath, new Uint8Array(await blob.arrayBuffer()));
-        } catch (err) {
+        } catch {
             const link = document.createElement('a');
             link.href = resolvedSrc;
             link.download = node.attrs.alt || 'image';
@@ -264,7 +275,11 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     onPointerCancel={handlePointerCancel}
                     onDragStart={(e) => e.preventDefault()}
                 >
-                {loadError ? (
+                {isLoading && !isReady ? (
+                    <div className="w-full h-full min-h-[100px] flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900 rounded-md">
+                        <div className="size-6 border-2 border-gray-300 dark:border-zinc-600 border-t-[var(--neko-accent)] rounded-full animate-spin" />
+                    </div>
+                ) : loadError ? (
                     <div className="w-full h-full min-h-[100px] flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900 border border-dashed border-gray-200 dark:border-zinc-700 rounded-md text-gray-400 dark:text-zinc-500">
                         <MdBrokenImage className="size-8 mb-2 opacity-50" />
                         <span className="text-xs font-medium">Image not found</span>

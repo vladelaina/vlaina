@@ -1,10 +1,3 @@
-/**
- * GitHub Sync Store - GitHub Gist sync state management
- * 
- * Cross-platform sync store that works on both Tauri and Web
- * On Web, uses API-based OAuth flow instead of local callback server
- */
-
 import { create } from 'zustand';
 import { githubCommands, hasBackendCommands, webGithubCommands, handleOAuthCallback } from '@/lib/tauri/invoke';
 import { useProStatusStore } from '@/stores/useProStatusStore';
@@ -16,7 +9,6 @@ interface GithubSyncState {
   isConnected: boolean;
   username: string | null;
   avatarUrl: string | null;
-  /** Local cached avatar URL (asset:// or blob:) for offline use */
   localAvatarUrl: string | null;
   gistId: string | null;
   isSyncing: boolean;
@@ -27,7 +19,6 @@ interface GithubSyncState {
   remoteModifiedTime: string | null;
   isLoading: boolean;
   syncStatus: GithubSyncStatusType;
-  /** Whether sync features are available on this platform */
   isSyncAvailable: boolean;
 }
 
@@ -42,9 +33,7 @@ interface GithubSyncActions {
   clearError: () => void;
   cancelConnect: () => void;
   setSyncStatus: (status: GithubSyncStatusType) => void;
-  /** Handle OAuth callback (web only) */
   handleOAuthCallback: () => Promise<boolean>;
-  /** Hydrate local avatar from disk (optimistic load) */
   hydrateAvatar: () => Promise<void>;
 }
 
@@ -87,7 +76,6 @@ const initialState: GithubSyncState = {
   remoteModifiedTime: null,
   isLoading: true,
   syncStatus: 'idle',
-  // Web platform now also supports login (but sync features are limited)
   isSyncAvailable: true,
 };
 
@@ -98,7 +86,6 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
     set({ isLoading: true });
 
     if (hasBackendCommands()) {
-      // Tauri platform
       try {
         const status = await githubCommands.getGithubSyncStatus();
         if (status) {
@@ -114,15 +101,12 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
           };
           set(newState);
 
-          // Persist identity (Exclude localAvatarUrl as it is a blob)
           localStorage.setItem(GITHUB_USER_PERSIST_KEY, JSON.stringify({
             isConnected: status.connected,
             username: status.username,
             avatarUrl: status.avatarUrl,
           }));
 
-          // 2. Offline Avatar Logic (Apple-style)
-          // Try to get local avatar first for this specific user
           let localSrc: string | null = null;
           if (status.username) {
             localSrc = await getLocalAvatarUrl(status.username);
@@ -131,21 +115,13 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
             }
           }
 
-          // If we have a remote avatar, check if valid
           if (status.avatarUrl && status.username) {
             const currentUsername = status.username;
             const currentRemoteUrl = status.avatarUrl;
 
-            // COMMERCIAL GRADE: Always try to download on checkStatus to keep it fresh
-            // This happens in background. Optimistic UI shows localSrc immediately (above).
             downloadAndSaveAvatar(currentRemoteUrl, currentUsername).then(async () => {
-              // Only update if we are still logged in as this user
               if (get().username === currentUsername) {
                 const newLocal = await getLocalAvatarUrl(currentUsername);
-                // Only cause a re-render if the URL actually changed (though Blob URLs are unique)
-                // But since localAvatarUrl is a blob, updating it REVOKES the old one?
-                // Currently getLocalAvatarUrl creates a NEW blob.
-                // We should update it so the new image is shown.
                 if (newLocal) {
                   set({ localAvatarUrl: newLocal });
                 }
@@ -173,7 +149,6 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         set({ isLoading: false });
       }
     } else {
-      // Web platform
       const status = webGithubCommands.getStatus();
       const newState = {
         isConnected: status.connected,
@@ -185,7 +160,6 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       };
       set(newState);
 
-      // Persist identity
       localStorage.setItem(GITHUB_USER_PERSIST_KEY, JSON.stringify({
         isConnected: status.connected,
         username: status.username,
@@ -209,7 +183,6 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
   connect: async () => {
     set({ isConnecting: true, syncError: null });
 
-    // 60-second safety timeout (Apple-style: keep it shorter but provide Cancel option)
     const timeoutId = setTimeout(() => {
       const state = get();
       if (state.isConnecting) {
@@ -220,17 +193,14 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       }
     }, 60000);
 
-    // Store timeoutId to allow manual cancellation
     (window as any).__nekotick_auth_timeout = timeoutId;
 
     if (hasBackendCommands()) {
-      // Tauri platform - use local OAuth flow
       try {
         const result = await githubCommands.githubAuth();
         clearTimeout(timeoutId);
 
         if (result?.success) {
-          // Set checked status true immediately to avoid flicker
           useProStatusStore.getState().setIsChecking(true);
 
           set({
@@ -239,17 +209,13 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
             isConnecting: false,
           });
 
-          // Fetch full status
           await get().checkStatus();
 
-          // Force download avatar since we just connected (Explicit Login Action)
-          // This ensures we always get the latest avatar from GitHub
           const currentAvatarUrl = get().avatarUrl;
           const currentUsername = get().username;
 
           if (currentAvatarUrl && currentUsername) {
             downloadAndSaveAvatar(currentAvatarUrl, currentUsername).then(async () => {
-              // Verify we are still the same user
               if (get().username === currentUsername) {
                 const newLocal = await getLocalAvatarUrl(currentUsername);
                 if (newLocal) set({ localAvatarUrl: newLocal });
@@ -288,7 +254,6 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         return false;
       }
     } else {
-      // Web platform - use redirect OAuth flow
       try {
         const authData = await webGithubCommands.startAuth();
         clearTimeout(timeoutId);
@@ -297,12 +262,10 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
           return false;
         }
 
-        // Save state for verification
         sessionStorage.setItem('github_oauth_state', authData.state);
 
-        // Redirect to GitHub
         window.location.href = authData.authUrl;
-        return true; // Page will redirect, won't reach here
+        return true;
       } catch (error) {
         clearTimeout(timeoutId);
         const errorMsg = error instanceof Error ? error.message : String(error);
@@ -312,7 +275,6 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
     }
   },
 
-  /** Handle OAuth callback from URL (web only) */
   handleOAuthCallback: async () => {
     if (hasBackendCommands()) return false;
 
@@ -321,7 +283,6 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
 
     set({ isConnecting: true, syncError: null });
 
-    // Verify state
     const savedState = sessionStorage.getItem('github_oauth_state');
     sessionStorage.removeItem('github_oauth_state');
 
@@ -330,7 +291,6 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       return false;
     }
 
-    // Exchange code
     const result = await webGithubCommands.exchangeCode(callback.code);
 
     if (result.success && result.username) {
@@ -342,14 +302,12 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       };
       set(newState);
 
-      // Persist identity
       localStorage.setItem(GITHUB_USER_PERSIST_KEY, JSON.stringify({
         isConnected: true,
         username: result.username,
         avatarUrl: result.avatarUrl || null,
       }));
 
-      // Check PRO status
       try {
         const proStatus = await webGithubCommands.checkProStatus();
         useProStatusStore.getState().setProStatus(
@@ -383,15 +341,11 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         await githubCommands.githubDisconnect();
       } catch (error) {
         console.error('Backend disconnect failed, forcing local cleanup:', error);
-        // Continue to cleanup local state even if backend fails
       }
     } else {
       webGithubCommands.disconnect();
     }
 
-    // Clear state
-    // Note: We used to revokeObjectURL here, but now we use Base64 for avatars, 
-    // so no manual cleanup is needed for localAvatarUrl.
     set({
       isConnected: false,
       username: null,
@@ -403,7 +357,6 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       syncError: null,
     });
 
-    // Clear persistence
     localStorage.removeItem(GITHUB_USER_PERSIST_KEY);
 
     useProStatusStore.getState().clearProStatus();
@@ -479,7 +432,6 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         });
 
         if (result.pulledFromCloud) {
-
           window.location.reload();
         }
 

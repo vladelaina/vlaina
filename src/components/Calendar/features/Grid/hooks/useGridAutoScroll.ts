@@ -1,10 +1,3 @@
-/**
- * useGridAutoScroll - Auto-scroll during drag operations
- * 
- * Handles automatic scrolling when the mouse approaches the edges
- * of the scrollable container during drag operations.
- */
-
 import { useEffect, useRef, useCallback } from 'react';
 import type { AutoScrollState } from './timeGridDragTypes';
 import { createAutoScrollState, stopAutoScroll } from './timeGridDragTypes';

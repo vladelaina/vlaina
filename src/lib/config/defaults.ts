@@ -1,5 +1,3 @@
-// Application Default Configuration
-
 import type { TimeView } from '@/lib/date';
 
 export const DEFAULT_TIMEZONE = 8;

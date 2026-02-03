@@ -1,8 +1,3 @@
-/**
- * CloudSyncSection - GitHub cloud sync
- * Hidden when already connected
- */
-
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import {
   Tooltip,
@@ -15,7 +10,6 @@ import githubIcon from '@/assets/welcome-insignias/github.png';
 export function CloudSyncSection() {
   const { isConnected, connect, isConnecting } = useGithubSyncStore();
 
-  // Don't show if already connected
   if (isConnected) {
     return null;
   }

@@ -4,12 +4,10 @@ import { iconButtonStyles } from '@/lib/utils';
 
 interface WindowControlsProps {
   className?: string;
-  /** When true, only show minimize and close buttons */
   minimal?: boolean;
 }
 
 export function WindowControls({ className, minimal }: WindowControlsProps) {
-  // Get current window dynamically for each action (supports multiple windows)
   const getWindow = () => getCurrentWindow();
 
   return (

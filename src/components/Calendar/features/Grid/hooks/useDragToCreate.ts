@@ -1,10 +1,3 @@
-/**
- * useDragToCreate - Drag to create new events
- * 
- * Handles the interaction of dragging on the calendar canvas
- * to create a new event with a specific time range.
- */
-
 import { useState, useCallback } from 'react';
 import type { DragPosition, TimeIndicator } from './timeGridDragTypes';
 import {
@@ -107,7 +100,6 @@ export function useDragToCreate({
 
         setDragEnd({ minutes: snappedMinutes });
 
-        // Calculate visual start/end for indicator
         const startPos = minutesToDisplayPosition(dragStart.minutes, dayStartMinutes);
         const endPos = minutesToDisplayPosition(snappedMinutes, dayStartMinutes);
         

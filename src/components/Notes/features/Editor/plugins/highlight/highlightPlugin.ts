@@ -6,10 +6,6 @@ import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { toggleMark } from '@milkdown/kit/prose/commands';
 import { $command } from '@milkdown/kit/utils';
 
-// ============================================
-// Highlight Mark: ==text==
-// ============================================
-
 export const highlightMark = $mark('highlight', () => ({
   parseDOM: [
     { tag: 'mark' },
@@ -61,10 +57,6 @@ export const toggleHighlightCommand = $command('toggleHighlight', () => () => {
   };
 });
 
-// ============================================
-// Superscript Mark: ^text^
-// ============================================
-
 export const superscriptMark = $mark('superscript', () => ({
   parseDOM: [
     { tag: 'sup' },
@@ -114,10 +106,6 @@ export const toggleSuperscriptCommand = $command('toggleSuperscript', () => () =
     return toggleMark(markType)(state, dispatch);
   };
 });
-
-// ============================================
-// Subscript Mark: ~text~ (single tilde, not ~~)
-// ============================================
 
 export const subscriptMark = $mark('subscript', () => ({
   parseDOM: [

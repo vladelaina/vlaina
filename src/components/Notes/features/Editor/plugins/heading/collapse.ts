@@ -8,9 +8,6 @@ const COLLAPSE_PLUGIN_KEY = new PluginKey('headingCollapse');
 // Store collapsed heading positions
 const collapsedHeadings = new Set<number>();
 
-/**
- * Create toggle button element
- */
 function createToggleButton(pos: number, isCollapsed: boolean, hasContent: boolean): HTMLElement {
   const button = document.createElement('span');
   button.className = 'heading-toggle-btn';
@@ -47,9 +44,6 @@ function createToggleButton(pos: number, isCollapsed: boolean, hasContent: boole
   return button;
 }
 
-/**
- * Collect all nodes info from document
- */
 function collectNodes(doc: ProseMirrorNode): Array<{ pos: number; node: ProseMirrorNode; endPos: number }> {
   const nodes: Array<{ pos: number; node: ProseMirrorNode; endPos: number }> = [];
   
@@ -64,9 +58,6 @@ function collectNodes(doc: ProseMirrorNode): Array<{ pos: number; node: ProseMir
   return nodes;
 }
 
-/**
- * Find content range to collapse for a heading
- */
 function getCollapsedNodePositions(
   nodes: Array<{ pos: number; node: ProseMirrorNode; endPos: number }>,
   headingIndex: number
@@ -94,9 +85,6 @@ function getCollapsedNodePositions(
   return result;
 }
 
-/**
- * Heading Collapse Plugin
- */
 export const collapsePlugin = $prose(() => {
   return new Plugin({
     key: COLLAPSE_PLUGIN_KEY,

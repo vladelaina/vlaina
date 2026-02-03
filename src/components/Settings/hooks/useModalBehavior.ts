@@ -7,18 +7,12 @@ interface UseModalBehaviorOptions {
   onCancelEdit?: () => void;
 }
 
-/**
- * Hook for common modal behaviors:
- * - ESC key to close (or cancel editing)
- * - Lock background scroll when open
- */
 export function useModalBehavior({
   open,
   onClose,
   isEditing = false,
   onCancelEdit,
 }: UseModalBehaviorOptions) {
-  // ESC key handler
   useEffect(() => {
     if (!open) return;
 
@@ -36,7 +30,6 @@ export function useModalBehavior({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose, isEditing, onCancelEdit]);
 
-  // Lock background scroll when open
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';

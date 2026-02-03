@@ -1,7 +1,7 @@
 import type { LanguageDetector } from '../types';
 
 export const detectJava: LanguageDetector = (ctx) => {
-  const { first100Lines, sample, code } = ctx;
+  const { first100Lines, code } = ctx;
 
   if (/^use\s+(strict|warnings|lib)\b/m.test(first100Lines)) {
     return null;

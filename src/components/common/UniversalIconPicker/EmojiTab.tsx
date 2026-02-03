@@ -1,7 +1,3 @@
-/**
- * EmojiTab - Emoji picker tab with search and skin tone support
- */
-
 import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import { MdSearch, MdClose } from 'react-icons/md';
 import { cn } from '@/lib/utils';
@@ -22,7 +18,6 @@ interface EmojiTabProps {
   onSelect: (emoji: string) => void;
   onPreview?: (emoji: string | null) => void;
   
-  // Decoupled callbacks
   onSkinToneChange?: (tone: number) => void;
   onPreviewSkinTone?: (tone: number | null) => void;
 
@@ -51,7 +46,6 @@ export function EmojiTab({
 
   const effectiveSkinTone = previewSkinTone !== null ? previewSkinTone : skinTone;
 
-  // Use ref to store callbacks and state to avoid dependency changes
   const onPreviewRef = useRef(onPreview);
   onPreviewRef.current = onPreview;
 
@@ -61,10 +55,8 @@ export function EmojiTab({
   const onPreviewSkinToneRef = useRef(onPreviewSkinTone);
   onPreviewSkinToneRef.current = onPreviewSkinTone;
 
-  // Track last previewed skin tone to avoid duplicate updates
   const lastPreviewToneRef = useRef<number | null>(null);
 
-  // Use native event handling for skin tone hover to bypass React synthetic event system
   useEffect(() => {
     const container = skinTonePickerRef.current;
     if (!container || !showSkinTonePicker) return;
@@ -79,7 +71,6 @@ export function EmojiTab({
           setPreviewSkinTone(tone);
           onPreviewSkinToneRef.current?.(tone);
           
-          // Also preview current note's emoji
           const icon = currentIconRef.current;
           if (icon && !icon.startsWith('icon:') && !icon.startsWith('img:')) {
             const item = EMOJI_MAP.get(icon);
@@ -122,7 +113,6 @@ export function EmojiTab({
     onPreviewSkinTone?.(null);
     onPreview?.(null);
     
-    // Notify parent about tone change
     onSkinToneChange?.(tone);
   }, [setSkinTone, onSkinToneChange, onPreview, onPreviewSkinTone]);
 
@@ -150,7 +140,6 @@ export function EmojiTab({
     return results;
   }, [searchQuery]);
 
-  // Stable handlePreview callback
   const handlePreview = useCallback((emoji: string | null) => {
     onPreviewRef.current?.(emoji);
   }, []);

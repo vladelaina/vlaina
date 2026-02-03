@@ -1,5 +1,3 @@
-// Unified Color System - Apple style
-
 export type ItemColor = 'red' | 'amber' | 'yellow' | 'green' | 'blue' | 'purple' | 'brown' | 'default';
 
 interface ColorDefinition {

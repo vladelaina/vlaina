@@ -1,7 +1,3 @@
-/**
- * ActionButtons - Create and Open vault buttons
- */
-
 import { MdAdd, MdFolderOpen } from 'react-icons/md';
 
 interface ActionButtonsProps {

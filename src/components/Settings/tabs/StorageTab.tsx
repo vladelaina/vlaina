@@ -3,9 +3,6 @@ import { MdFolder, MdFolderOpen, MdMonitor, MdOpenInNew } from 'react-icons/md';
 import { getBasePath } from '@/lib/storage/paths';
 import { openPath } from '@tauri-apps/plugin-opener';
 
-/**
- * Storage tab content - data location settings
- */
 export function StorageTab() {
   const [storagePath, setStoragePath] = useState<string>('Loading...');
 

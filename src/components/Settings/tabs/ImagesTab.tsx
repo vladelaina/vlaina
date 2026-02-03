@@ -36,10 +36,6 @@ const storageOptions: StorageOption[] = [
     },
 ];
 
-
-/**
- * Images tab content - image storage settings
- */
 export function ImagesTab() {
     const imageStorageMode = useUIStore((s) => s.imageStorageMode);
     const imageSubfolderName = useUIStore((s) => s.imageSubfolderName);

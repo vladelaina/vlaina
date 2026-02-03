@@ -1,8 +1,9 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { setDragState, clearDragState, calculateDropPosition, calculateAlignmentFromPosition } from '../imageDragPlugin';
+import type { Alignment } from '../types';
 
-type Alignment = 'left' | 'center' | 'right';
+const LONG_PRESS_DELAY_MS = 300;
 
 interface UseImageDragOptions {
     view: EditorView;
@@ -23,8 +24,6 @@ interface UseImageDragReturn {
     handlePointerUp: () => void;
     handlePointerCancel: () => void;
 }
-
-const LONG_PRESS_DELAY = 300;
 
 export function useImageDrag({
     view,
@@ -97,25 +96,29 @@ export function useImageDrag({
         const initialLeft = containerRect?.left || 0;
         const initialTop = containerRect?.top || 0;
 
+        const triggerDragStart = () => {
+            isLongPressTriggered = true;
+            document.documentElement.classList.add('dragging-image');
+            setIsDragging(true);
+            setDragPosition({ x: initialLeft, y: initialTop });
+            setDragSize({ width: sourceWidth, height: sourceHeight });
+
+            if (sourcePos !== undefined) {
+                setDragState(view, {
+                    isDragging: true,
+                    sourcePos: sourcePos,
+                    targetPos: null,
+                    imageNaturalWidth: imageNaturalSize.width,
+                    imageNaturalHeight: imageNaturalSize.height,
+                });
+            }
+        };
+
         const onPointerMove = (moveEvent: PointerEvent) => {
             const elapsed = Date.now() - startTime;
 
-            if (!isLongPressTriggered && elapsed >= LONG_PRESS_DELAY) {
-                isLongPressTriggered = true;
-                document.documentElement.classList.add('dragging-image');
-                setIsDragging(true);
-                setDragPosition({ x: initialLeft, y: initialTop });
-                setDragSize({ width: sourceWidth, height: sourceHeight });
-
-                if (sourcePos !== undefined) {
-                    setDragState(view, {
-                        isDragging: true,
-                        sourcePos: sourcePos,
-                        targetPos: null,
-                        imageNaturalWidth: imageNaturalSize.width,
-                        imageNaturalHeight: imageNaturalSize.height,
-                    });
-                }
+            if (!isLongPressTriggered && elapsed >= LONG_PRESS_DELAY_MS) {
+                triggerDragStart();
             }
 
             if (isLongPressTriggered) {
@@ -167,28 +170,15 @@ export function useImageDrag({
 
         longPressTimeoutRef.current = setTimeout(() => {
             if (!isLongPressTriggered) {
-                isLongPressTriggered = true;
-                document.documentElement.classList.add('dragging-image');
-                setIsDragging(true);
-                setDragPosition({ x: initialLeft, y: initialTop });
-                setDragSize({ width: sourceWidth, height: sourceHeight });
-
-                if (sourcePos !== undefined) {
-                    setDragState(view, {
-                        isDragging: true,
-                        sourcePos: sourcePos,
-                        targetPos: null,
-                        imageNaturalWidth: imageNaturalSize.width,
-                        imageNaturalHeight: imageNaturalSize.height,
-                    });
-                }
+                triggerDragStart();
             }
-        }, LONG_PRESS_DELAY);
+        }, LONG_PRESS_DELAY_MS);
 
         window.addEventListener('pointermove', onPointerMove, true);
         window.addEventListener('pointerup', onPointerUp, true);
     }, [view, getPos, containerRef, imageNaturalSize, isActive, loadError, moveNodeToPosition, onAlignmentChange]);
 
+    // Empty handlers for React event binding
     const handlePointerUp = useCallback(() => {}, []);
     const handlePointerCancel = useCallback(() => {}, []);
 

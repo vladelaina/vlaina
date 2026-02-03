@@ -93,14 +93,14 @@ function ToolbarButton({
     active
 }: {
     icon: React.ReactNode;
-    onClick: (e: React.MouseEvent) => void;
+    onClick: () => void;
     danger?: boolean;
     success?: boolean;
     active?: boolean;
 }) {
     return (
         <IconButton
-            onClick={() => onClick({ preventDefault: () => {}, stopPropagation: () => {} } as any)}
+            onClick={onClick}
             icon={icon}
             className={cn(
                 active ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400",

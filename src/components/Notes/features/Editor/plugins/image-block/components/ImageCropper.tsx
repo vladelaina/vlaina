@@ -6,6 +6,10 @@ import { PremiumSlider } from '@/components/ui/premium-slider';
 import { CropParams, calculateRestoredCrop } from '../utils/cropUtils';
 import { InvisibleResizeHandles } from './InvisibleResizeHandles';
 
+const ZOOM_COVER_MULTIPLIER = 1.001;
+const MAX_ZOOM = 5;
+const AUTO_SAVE_DELAY_MS = 500;
+
 interface ImageCropperProps {
     imageSrc: string;
     initialCropParams: CropParams | null;
@@ -54,7 +58,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
             const widthScale = containerSize.width / displayedWidthAtZoom1;
             const heightScale = containerSize.height / displayedHeightAtZoom1;
 
-            const coverZoom = Math.max(widthScale, heightScale) * 1.001;
+            const coverZoom = Math.max(widthScale, heightScale) * ZOOM_COVER_MULTIPLIER;
 
             setMinZoomLimit(coverZoom);
 
@@ -117,7 +121,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
 
                 const delta = -e.deltaY / 200;
 
-                setZoom(prevZoom => Math.min(5, Math.max(minZoomLimit, prevZoom + delta)));
+                setZoom(prevZoom => Math.min(MAX_ZOOM, Math.max(minZoomLimit, prevZoom + delta)));
 
                 if (autoSaveTimeoutRef.current) {
                     clearTimeout(autoSaveTimeoutRef.current);
@@ -125,7 +129,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
 
                 autoSaveTimeoutRef.current = setTimeout(() => {
                     performSave();
-                }, 500);
+                }, AUTO_SAVE_DELAY_MS);
             }
         };
 
@@ -174,7 +178,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         const widthScale = containerSize.width / displayedWidthAtZoom1;
         const heightScale = containerSize.height / displayedHeightAtZoom1;
 
-        const coverZoom = Math.max(widthScale, heightScale) * 1.001;
+        const coverZoom = Math.max(widthScale, heightScale) * ZOOM_COVER_MULTIPLIER;
 
         setMinZoomLimit(coverZoom);
 
@@ -243,7 +247,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                     zoomWithScroll={isActive}
                     zoomSpeed={0.5}
                     minZoom={minZoomLimit}
-                    maxZoom={5}
+                    maxZoom={MAX_ZOOM}
                     restrictPosition={true}
                     objectFit="cover"
                     style={{
@@ -282,7 +286,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                     <span className="text-[10px] font-bold text-[var(--neko-text-tertiary)] mr-2 uppercase tracking-wide">Zoom</span>
                     <PremiumSlider
                         min={minZoomLimit}
-                        max={5}
+                        max={MAX_ZOOM}
                         step={0.1}
                         value={zoom}
                         onChange={(v) => setZoom(v)}
@@ -295,6 +299,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                         onClick={handleCancel}
                         className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-zinc-500 dark:text-zinc-400 transition-colors"
                         title="Cancel"
+                        aria-label="Cancel crop"
                     >
                         <MdClose size={18} />
                     </button>
@@ -303,6 +308,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                         disabled={isSaving}
                         className="p-1 rounded-lg bg-[var(--neko-accent)] hover:bg-[var(--neko-accent-hover)] text-white shadow-sm transition-all active:scale-95 disabled:opacity-50"
                         title="Save"
+                        aria-label="Save crop"
                     >
                         <MdCheck size={18} />
                     </button>

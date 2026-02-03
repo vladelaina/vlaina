@@ -1,7 +1,7 @@
 import type { LanguageDetector } from '../types';
 
 export const detectGraphQL: LanguageDetector = (ctx) => {
-  const { code, first100Lines } = ctx;
+  const { code } = ctx;
 
   if (/^package\s+[\w.]+;/m.test(code) || /^import\s+java\./m.test(code)) {
     return null;

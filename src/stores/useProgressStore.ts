@@ -1,5 +1,3 @@
-// Progress Store - Progress view data access layer
-
 import { useUnifiedStore } from './useUnifiedStore';
 import type { UnifiedProgress } from '@/lib/storage/unifiedStorage';
 import { getTodayKey } from '@/lib/date';

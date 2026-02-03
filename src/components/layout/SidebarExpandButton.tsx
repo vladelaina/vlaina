@@ -4,7 +4,6 @@ import { cn, iconButtonStyles } from '@/lib/utils';
 
 interface SidebarExpandButtonProps {
     onClick: () => void;
-    /** If true, shows ChevronsRight immediately without hover effect (for peeking state) */
     isPeeking?: boolean;
     className?: string;
     title?: string;
@@ -27,8 +26,6 @@ export function SidebarExpandButton({
                 )}
                 title={title}
             >
-                {/* When peeking: show ChevronsRight immediately. 
-                    Otherwise: Show Menu icon, swapping to ChevronsRight on hover. */}
                 {isPeeking ? (
                     <MdKeyboardDoubleArrowRight className="size-[18px]" />
                 ) : (

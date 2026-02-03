@@ -1,6 +1,5 @@
 import React from 'react';
-
-type Alignment = 'left' | 'center' | 'right';
+import type { Alignment } from '../types';
 
 export const ALIGNMENT_CLASSES: Record<Alignment, string> = {
     left: 'mr-auto',

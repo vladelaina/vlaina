@@ -70,9 +70,6 @@ export function TaskFilterMenu() {
                         exit={{ opacity: 0, y: -4 }}
                         className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50"
                     >
-                        {/* Color filter removed - moved to sidebar */}
-
-                        {/* Status filter */}
                         <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-700">
                             <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">Status Filter</div>
                             <div className="flex items-center gap-1">

@@ -1,10 +1,3 @@
-/**
- * RepositoryItem - Single repository item in the GitHub sidebar
- * 
- * Uses the same visual style as local FileTreeItem (folder) for consistency.
- * Repositories are cloned locally for offline support.
- */
-
 import { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { MdMoreHoriz, 
@@ -54,21 +47,17 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
     const repoIsCloned = isCloned(repository.id);
     const repoHasChanges = hasChanges(repository.id);
 
-    // Get cloud icon based on sync status (all amber-500 like folder icons)
     const getCloudIcon = () => {
         const iconClass = "w-[18px] h-[18px] text-amber-500";
 
-        // Show sync icon when refreshing, cloning, or syncing
         if (isRefreshing || isSyncing) {
             return <MdCloudSync className={iconClass} />;
         }
 
-        // Not cloned yet
         if (!repoIsCloned) {
             return <MdCloudOff className={iconClass} />;
         }
 
-        // Has local changes to push
         if (repoHasChanges) {
             return <MdCloudUpload className={iconClass} />;
         }
@@ -128,23 +117,19 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
 
     return (
         <div className="relative">
-            {/* Repository header - same style as folder in FileTreeItem */}
             <div
                 onClick={handleClick}
                 onContextMenu={handleContextMenu}
                 className="flex items-center h-[30px] cursor-pointer"
             >
-                {/* Indent spacer (depth 0) */}
                 <div style={{ width: 8 }} className="flex-shrink-0" />
 
-                {/* Content with background */}
                 <div
                     className={cn(
                         "group flex-1 flex items-center gap-1 h-full pr-2 rounded-md transition-colors",
                         "hover:bg-[var(--neko-hover)]"
                     )}
                 >
-                    {/* Chevron */}
                     <span className="w-[18px] h-[18px] flex items-center justify-center">
                         <ToggleIcon
                             expanded={isExpanded}
@@ -153,17 +138,14 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
                         />
                     </span>
 
-                    {/* Cloud icon - shows sync status */}
                     <span className="w-[18px] h-[18px] flex items-center justify-center">
                         {getCloudIcon()}
                     </span>
 
-                    {/* Repository name (without prefix) */}
                     <span className="flex-1 min-w-0 text-[13px] truncate text-[var(--neko-text-primary)]">
                         {repository.displayName}
                     </span>
 
-                    {/* Menu button */}
                     <button
                         ref={buttonRef}
                         onClick={(e) => {
@@ -187,7 +169,6 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
                 </div>
             </div>
 
-            {/* Context menu */}
             {showMenu && createPortal(
                 <>
                     <div
@@ -237,7 +218,6 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
                 document.body
             )}
 
-            {/* Expanded file tree - reads from local clone */}
             {isExpanded && repoIsCloned && (
                 <LocalFileTree
                     repoId={repository.id}
@@ -247,7 +227,6 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
                 />
             )}
 
-            {/* Cloning indicator */}
             {isExpanded && !repoIsCloned && isCloning && (
                 <div className="flex items-center gap-2 px-4 py-3 text-[12px] text-[var(--neko-text-tertiary)]">
                     <MdCloudSync className="w-[18px] h-[18px] animate-pulse" />

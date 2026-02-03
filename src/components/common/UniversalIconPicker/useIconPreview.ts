@@ -15,9 +15,7 @@ export function useIconPreview(targetId: string | undefined) {
     }
 
     if (icon === null) {
-      // Delay clearing to avoid flickering when moving between icons
       clearPreviewTimerRef.current = setTimeout(() => {
-        // Only clear if we are still targeting this ID (concurrency safety)
         if (useUIStore.getState().universalPreviewTarget === targetId) {
              setUniversalPreview(null, { icon: null });
         }
@@ -35,7 +33,6 @@ export function useIconPreview(targetId: string | undefined) {
 
   const handlePreviewColor = useCallback((color: string | null) => {
     if (!targetId) return;
-    // Direct update for color usually fine without debounce
     setUniversalPreview(targetId, { color });
   }, [targetId, setUniversalPreview]);
   
@@ -49,8 +46,6 @@ export function useIconPreview(targetId: string | undefined) {
       setUniversalPreview(targetId, { size });
   }, [targetId, setUniversalPreview]);
 
-
-  // Cleanup
   useEffect(() => {
     return () => {
       if (previewRafRef.current !== null) {
@@ -59,7 +54,6 @@ export function useIconPreview(targetId: string | undefined) {
       if (clearPreviewTimerRef.current) {
         clearTimeout(clearPreviewTimerRef.current);
       }
-      // Clear preview state on unmount if it was us
       if (useUIStore.getState().universalPreviewTarget === targetId) {
           setUniversalPreview(null, { icon: null, color: null, tone: null, size: null });
       }

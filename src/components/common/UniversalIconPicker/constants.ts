@@ -1,5 +1,3 @@
-/** Universal IconPicker Constants and Utilities */
-
 import data from '@emoji-mart/data';
 import { ICON_LIST, ICON_CATEGORIES } from './icons';
 import type { IconItem } from './icons';
@@ -20,7 +18,6 @@ export const ROW_GAP = 2;
 export const ICON_PER_ROW = 8;
 export const ICON_SIZE = 32;
 
-// Inline scrollbar styles for webkit (no arrow buttons)
 export const SCROLLBAR_CLASSNAME = `
   [&::-webkit-scrollbar]:w-1.5
   [&::-webkit-scrollbar-track]:bg-transparent
@@ -38,9 +35,8 @@ export const SKIN_TONES = [
   { tone: 5, emoji: '\u{1F44B}\u{1F3FF}', label: 'Dark' },
 ];
 
-// Map global colors to the format expected by the picker UI, but simpler
 export const ICON_COLORS = COLOR_PICKER_OPTIONS.map(opt => ({
-  id: opt.name, // Use name as ID
+  id: opt.name,
   color: opt.hex,
   label: opt.label
 }));
