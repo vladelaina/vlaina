@@ -4,9 +4,6 @@ import type { FloatingToolbarState } from '../types';
 import { setLink } from '../commands';
 import { isValidUrl } from '../utils';
 
-/**
- * Render link editor submenu
- */
 export function renderLinkEditor(
   container: HTMLElement,
   view: EditorView,
@@ -105,9 +102,6 @@ export function renderLinkEditor(
   container.appendChild(editor);
 }
 
-/**
- * Escape HTML special characters
- */
 function escapeHtml(text: string): string {
   const div = document.createElement('div');
   div.textContent = text;

@@ -1,27 +1,12 @@
-/**
- * Image Loader - Load local images as blob URLs
- * 
- * This handles the case where convertFileSrc doesn't work in dev mode
- */
-
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { getMimeType } from './filenameService';
 
-// Cache for blob URLs to avoid re-reading files
-// Using a Map as an LRU cache (insert order preservation)
 const MAX_CACHE_SIZE = 500;
 const blobUrlCache = new Map<string, string>();
 
-/**
- * Load a local image file and return a blob URL
- * @param fullPath - Full absolute path to the image file
- * @returns Blob URL that can be used in img src
- */
 export async function loadImageAsBlob(fullPath: string): Promise<string> {
-  // Check cache first
   const cached = blobUrlCache.get(fullPath);
   if (cached) {
-    // Refresh LRU position (delete and re-add)
     blobUrlCache.delete(fullPath);
     blobUrlCache.set(fullPath, cached);
     return cached;
@@ -32,13 +17,10 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
   try {
     const data = await storage.readBinaryFile(fullPath);
     const mimeType = getMimeType(fullPath);
-    // Create a new Uint8Array copy to ensure it's a proper ArrayBuffer
     const copy = new Uint8Array(data);
     const blob = new Blob([copy], { type: mimeType });
     const blobUrl = URL.createObjectURL(blob);
 
-    // Cache the URL
-    // If cache is full, remove oldest (first) item
     if (blobUrlCache.size >= MAX_CACHE_SIZE) {
       const oldestKey = blobUrlCache.keys().next().value;
       if (oldestKey) {
@@ -57,11 +39,6 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
   }
 }
 
-/**
- * Load a local image file and return a Base64 Data URI
- * This avoids Blob lifecycle management issues (revocation, 404s).
- * Ideal for small assets like avatars.
- */
 export async function loadImageAsBase64(fullPath: string): Promise<string> {
   const storage = getStorageAdapter();
 
@@ -69,7 +46,6 @@ export async function loadImageAsBase64(fullPath: string): Promise<string> {
     const data = await storage.readBinaryFile(fullPath);
     const mimeType = getMimeType(fullPath);
 
-    // Convert using FileReader (more efficient than manual string construction)
     const copy = new Uint8Array(data);
     const blob = new Blob([copy], { type: mimeType });
 
@@ -94,9 +70,6 @@ export async function loadImageAsBase64(fullPath: string): Promise<string> {
   }
 }
 
-/**
- * Revoke a blob URL and remove from cache
- */
 export function revokeImageBlob(fullPath: string): void {
   const cached = blobUrlCache.get(fullPath);
   if (cached) {
@@ -105,18 +78,10 @@ export function revokeImageBlob(fullPath: string): void {
   }
 }
 
-/**
- * Remove from cache WITHOUT revoking the blob URL.
- * Use this when the file has changed and we want to load a fresh one,
- * but the old URL might still be in use by the UI for a few frames.
- */
 export function invalidateImageCache(fullPath: string): void {
   blobUrlCache.delete(fullPath);
 }
 
-/**
- * Clear all cached blob URLs
- */
 export function clearImageCache(): void {
   for (const url of blobUrlCache.values()) {
     URL.revokeObjectURL(url);
@@ -124,13 +89,9 @@ export function clearImageCache(): void {
   blobUrlCache.clear();
 }
 
-/**
- * Synchronously get cached blob URL if available
- */
 export function getCachedBlobUrl(fullPath: string): string | undefined {
   const cached = blobUrlCache.get(fullPath);
-  // Optional: Refresh LRU on sync access? 
-  // Probably yes, if we are viewing it, it's "used".
+  
   if (cached) {
     blobUrlCache.delete(fullPath);
     blobUrlCache.set(fullPath, cached);
@@ -138,9 +99,6 @@ export function getCachedBlobUrl(fullPath: string): string | undefined {
   return cached;
 }
 
-/**
- * Create a cropped image blob from a source image URL and crop pixel data
- */
 export async function getCroppedImg(
   imageSrc: string,
   pixelCrop: { x: number; y: number; width: number; height: number },
@@ -154,8 +112,6 @@ export async function getCroppedImg(
     return null;
   }
 
-  // Calculate scale based on maxDimension (if provided)
-  // If maxDimension is 0 or Infinity, use original size
   let scale = 1;
   if (maxDimension > 0 && maxDimension < Infinity) {
     scale = Math.min(1, maxDimension / Math.max(pixelCrop.width, pixelCrop.height));

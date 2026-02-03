@@ -1,7 +1,3 @@
-/**
- * Workspace Slice - Current note, tabs, and workspace state management
- */
-
 import { StateCreator } from 'zustand';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { NotesStore } from '../types';
@@ -56,7 +52,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       const storage = getStorageAdapter();
       const fullPath = await joinPath(notesPath, path);
       const content = await storage.readFile(fullPath);
-      // Use filename as tab name, not H1
       const fileName = path.split('/').pop()?.replace('.md', '') || 'Untitled';
       const tabName = fileName;
       const updatedRecent = addToRecentNotes(path, recentNotes);
@@ -87,7 +82,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         isNewlyCreated: false,
       });
 
-      // Save workspace state
       const { rootFolder } = get();
       if (notesPath && rootFolder) {
         const expandedPaths = collectExpandedPaths(rootFolder.children);
@@ -101,7 +95,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
   },
 
-  // Open a note using absolute path (for GitHub repos and external files)
   openNoteByAbsolutePath: async (absolutePath: string, openInNewTab: boolean = false) => {
     const { isDirty, saveNote, openTabs, currentNote } = get();
     if (isDirty) await saveNote();
@@ -110,7 +103,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       const storage = getStorageAdapter();
       const content = await storage.readFile(absolutePath);
 
-      // Use the absolute path as the identifier
       const fileName = absolutePath.split(/[/\\]/).pop()?.replace('.md', '') || 'Untitled';
       const tabName = fileName;
       const existingTab = openTabs.find((t) => t.path === absolutePath);
@@ -148,7 +140,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     if (!currentNote) return;
 
     try {
-      // Check if path is absolute (starts with drive letter on Windows or / on Unix)
       const isAbsolutePath = /^[A-Za-z]:[\\/]/.test(currentNote.path) || currentNote.path.startsWith('/');
       const fullPath = isAbsolutePath
         ? currentNote.path
@@ -156,14 +147,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
       await safeWriteTextFile(fullPath, currentNote.content);
 
-      // Update modification time
       const metadata = await loadNoteMetadata(notesPath);
       const updatedMetadata = setNoteEntry(metadata, currentNote.path, {
         updatedAt: Date.now(),
       });
       await saveNoteMetadata(notesPath, updatedMetadata);
 
-      // Update store with new metadata
       set({
         isDirty: false,
         noteMetadata: updatedMetadata
@@ -194,12 +183,10 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       starredFolders,
     } = get();
 
-    // Helper to check if path is absolute
     const isAbsolutePath = (p: string) => /^[A-Za-z]:[\\/]/.test(p) || p.startsWith('/');
     const pathIsAbsolute = isAbsolutePath(path);
 
     const { isNewlyCreated } = get();
-    // Check if the note is empty and newly created (only for local workspace files)
     const isEmptyNote =
       !pathIsAbsolute &&
       isNewlyCreated &&
@@ -217,7 +204,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         await storage.deleteFile(fullPath);
         removeDisplayName(set, path);
 
-        // Remove from favorites if starred
         if (starredNotes.includes(path)) {
           const updatedStarred = starredNotes.filter((p) => p !== path);
           set({ starredNotes: updatedStarred });
@@ -236,7 +222,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
           });
         }
       } catch {
-        /* ignore */
       }
     } else if (currentNote?.path === path && isDirty) {
       await saveNote();
@@ -248,7 +233,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     if (currentNote?.path === path) {
       if (updatedTabs.length > 0) {
         const lastTab = updatedTabs[updatedTabs.length - 1];
-        // Use appropriate open method based on path type
         if (isAbsolutePath(lastTab.path)) {
           get().openNoteByAbsolutePath(lastTab.path);
         } else {
@@ -256,7 +240,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         }
       } else {
         set({ currentNote: null, isDirty: false });
-        // Clear workspace current note when no tabs (only for local workspace)
         if (notesPath && rootFolder) {
           const expandedPaths = collectExpandedPaths(rootFolder.children);
           saveWorkspaceState(notesPath, {
@@ -269,7 +252,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   },
 
   switchTab: (path: string) => {
-    // Check if path is absolute (GitHub repo files use absolute paths)
     const isAbsolutePath = /^[A-Za-z]:[\\/]/.test(path) || path.startsWith('/');
     if (isAbsolutePath) {
       get().openNoteByAbsolutePath(path);

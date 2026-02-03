@@ -3,7 +3,6 @@ import { ActivityCalendar, type ThemeInput } from 'react-activity-calendar';
 import { Tooltip } from 'react-tooltip';
 import { useGroupStore } from '@/stores/useGroupStore';
 
-// Zinc-based monochromatic theme
 const calendarTheme: ThemeInput = {
   light: ['#f4f4f5', '#d4d4d8', '#a1a1aa', '#71717a', '#3f3f46'],
   dark: ['#27272a', '#3f3f46', '#52525b', '#71717a', '#a1a1aa'],
@@ -75,13 +74,11 @@ export function ActivityHeatmap() {
 
   return (
     <div className="space-y-6">
-      {/* Stats Summary */}
       <div className="grid grid-cols-2 gap-4">
         <StatCard label="Total Completed" value={totalCompleted} />
         <StatCard label="Current Streak" value={`${currentStreak} days`} />
       </div>
 
-      {/* Heatmap */}
       <div className="overflow-x-auto pb-2">
         <ActivityCalendar
           data={data}

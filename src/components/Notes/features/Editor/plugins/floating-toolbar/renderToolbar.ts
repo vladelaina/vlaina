@@ -1,6 +1,3 @@
-// Toolbar Rendering Functions
-// Handles DOM rendering and event binding for the floating toolbar
-
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FloatingToolbarState, BlockType } from './types';
 import { TOOLBAR_ACTIONS } from './types';
@@ -11,19 +8,14 @@ import { applyFormatPreview, clearFormatPreview, hasFormatPreview } from './prev
 import { getLinkUrl } from './selectionHelpers';
 import { linkTooltipPluginKey } from '../links';
 
-// ============================================================================
-// Button Configuration
-// ============================================================================
-
 interface ToolbarButtonConfig {
   action: string;
   icon: string;
   tooltip: string;
   shortcut?: string;
-  mark?: string;  // For checking active state
+  mark?: string;
 }
 
-// SVG Icons
 const ICONS = {
   bold: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
     <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
@@ -70,7 +62,6 @@ const ICONS = {
   </svg>`,
 };
 
-// Format buttons configuration (first group)
 const FORMAT_BUTTONS: ToolbarButtonConfig[] = [
   { action: 'bold', icon: ICONS.bold, tooltip: 'Bold', shortcut: 'Ctrl+B', mark: 'strong' },
   { action: 'italic', icon: ICONS.italic, tooltip: 'Italic', shortcut: 'Ctrl+I', mark: 'emphasis' },
@@ -80,20 +71,12 @@ const FORMAT_BUTTONS: ToolbarButtonConfig[] = [
   { action: 'highlight', icon: ICONS.highlight, tooltip: 'Highlight', shortcut: 'Ctrl+H', mark: 'highlight' },
 ];
 
-// Extra buttons configuration (second group)
 const EXTRA_BUTTONS: ToolbarButtonConfig[] = [
   { action: 'link', icon: ICONS.link, tooltip: 'Add Link', shortcut: 'Ctrl+K' },
   { action: 'color', icon: ICONS.color, tooltip: 'Text Color' },
   { action: 'delete', icon: ICONS.trash, tooltip: 'Delete' },
 ];
 
-// ============================================================================
-// Button Rendering
-// ============================================================================
-
-/**
- * Render a single toolbar button
- */
 function renderButton(config: ToolbarButtonConfig, activeMarks: Set<string>, extraContent?: string): string {
   const isActive = config.mark && activeMarks.has(config.mark);
   const shortcutAttr = config.shortcut ? `data-shortcut="${config.shortcut}"` : '';
@@ -109,21 +92,11 @@ function renderButton(config: ToolbarButtonConfig, activeMarks: Set<string>, ext
   `;
 }
 
-/**
- * Render a group of buttons
- */
 function renderButtonGroup(buttons: ToolbarButtonConfig[], activeMarks: Set<string>, extraClass?: string): string {
   const buttonsHtml = buttons.map(btn => renderButton(btn, activeMarks)).join('');
   return `<div class="toolbar-group ${extraClass || ''}">${buttonsHtml}</div>`;
 }
 
-// ============================================================================
-// Block Type Helpers
-// ============================================================================
-
-/**
- * Get block type label for display (empty for paragraph since we use icon)
- */
 function getBlockTypeLabel(blockType: BlockType): string {
   const labels: Record<BlockType, string> = {
     paragraph: '',
@@ -142,9 +115,6 @@ function getBlockTypeLabel(blockType: BlockType): string {
   return labels[blockType] || '';
 }
 
-/**
- * Render block type button content
- */
 function renderBlockTypeContent(blockType: BlockType): string {
   if (blockType === 'paragraph') {
     return ICONS.text;
@@ -152,15 +122,7 @@ function renderBlockTypeContent(blockType: BlockType): string {
   return `<span class="block-type-label">${getBlockTypeLabel(blockType)}</span>`;
 }
 
-// ============================================================================
-// Action Handlers
-// ============================================================================
-
-/**
- * Handle toolbar button actions
- */
 function handleToolbarAction(view: EditorView, action: string, state: FloatingToolbarState) {
-  // Mark toggle actions
   const markActions: Record<string, string> = {
     bold: 'strong',
     italic: 'emphasis',
@@ -175,34 +137,26 @@ function handleToolbarAction(view: EditorView, action: string, state: FloatingTo
     return;
   }
 
-
-  // Link toggle action
   if (action === 'link') {
     const linkUrl = getLinkUrl(view);
 
-    // Case 1: Link exists with a real URL - remove it
     if (linkUrl !== null && linkUrl !== '') {
       setLink(view, null);
       return;
     }
 
-    // Case 2: Link exists but URL is empty - just show tooltip
     if (linkUrl === '') {
       const { state, dispatch } = view;
       const { from, to } = state.selection;
-      // Just dispatch the meta to show tooltip, don't add mark again
       const tr = state.tr.setMeta(linkTooltipPluginKey, { type: 'SHOW_LINK_TOOLTIP', from, to });
       dispatch(tr);
       view.focus();
       return;
     }
 
-    // Case 3: No link exists - create new empty link and show tooltip
     const { state, dispatch } = view;
     const { from, to } = state.selection;
 
-    // Just show the tooltip without adding a mark yet
-    // The mark will be added when the user saves the link in the tooltip
     const tr = state.tr.setMeta(linkTooltipPluginKey, { type: 'SHOW_LINK_TOOLTIP', from, to });
     dispatch(tr);
     view.focus();
@@ -210,7 +164,6 @@ function handleToolbarAction(view: EditorView, action: string, state: FloatingTo
     return;
   }
 
-  // Delete action
   if (action === 'delete') {
     const { state, dispatch } = view;
     const { from, to } = state.selection;
@@ -222,7 +175,6 @@ function handleToolbarAction(view: EditorView, action: string, state: FloatingTo
     return;
   }
 
-  // Sub-menu toggle actions
   const subMenuActions = ['color', 'block'];
   if (subMenuActions.includes(action)) {
     view.dispatch(
@@ -233,10 +185,6 @@ function handleToolbarAction(view: EditorView, action: string, state: FloatingTo
     );
   }
 }
-
-// ============================================================================
-// Tooltip System
-// ============================================================================
 
 let tooltipElement: HTMLElement | null = null;
 let tooltipTimer: ReturnType<typeof setTimeout> | null = null;
@@ -282,10 +230,6 @@ function hideTooltip() {
   }
 }
 
-// ============================================================================
-// Event Delegation
-// ============================================================================
-
 let currentView: EditorView | null = null;
 let currentState: FloatingToolbarState | null = null;
 let delegateHandler: ((e: Event) => void) | null = null;
@@ -301,7 +245,6 @@ export function setupToolbarEventDelegation(
   currentState = state;
 
   if (!delegateHandler) {
-    // Click handler
     delegateHandler = (e: Event) => {
       const target = e.target as HTMLElement;
       const button = target.closest('[data-action]') as HTMLElement | null;
@@ -310,7 +253,6 @@ export function setupToolbarEventDelegation(
         e.preventDefault();
         e.stopPropagation();
 
-        // Clear preview before applying
         clearFormatPreview(currentView);
 
         const action = button.dataset.action;
@@ -320,7 +262,6 @@ export function setupToolbarEventDelegation(
       }
     };
 
-    // Hover handler
     hoverHandler = (e: Event) => {
       const target = e.target as HTMLElement;
       const button = target.closest('[data-action]') as HTMLElement | null;
@@ -328,7 +269,6 @@ export function setupToolbarEventDelegation(
       if (button && currentView) {
         const action = button.dataset.action;
 
-        // Apply format preview only for inactive formats
         const isActive = button.classList.contains('active');
         if (action && hasFormatPreview(action) && !isActive) {
           applyFormatPreview(currentView, action, false);
@@ -341,7 +281,6 @@ export function setupToolbarEventDelegation(
       }
     };
 
-    // Leave handler
     leaveHandler = (e: Event) => {
       const mouseEvent = e as MouseEvent;
       const target = e.target as HTMLElement;
@@ -353,7 +292,6 @@ export function setupToolbarEventDelegation(
           return;
         }
 
-        // Clear format preview
         const action = button.dataset.action;
         if (action && hasFormatPreview(action)) {
           clearFormatPreview(currentView);
@@ -396,10 +334,6 @@ export function cleanupToolbarEventDelegation(toolbarElement: HTMLElement) {
   currentState = null;
 }
 
-// ============================================================================
-// Main Render Function
-// ============================================================================
-
 export function renderToolbarContent(
   toolbarElement: HTMLElement,
   view: EditorView,
@@ -411,12 +345,10 @@ export function renderToolbarContent(
     setupToolbarEventDelegation(toolbarElement, view, state);
   }
 
-  // Render color button with indicator
   const colorButton = renderButton(EXTRA_BUTTONS[1], state.activeMarks,
     state.textColor ? `<span class="color-indicator" style="background-color: ${state.textColor}"></span>` : ''
   );
 
-  // Render block type button
   const blockButtonActive = state.subMenu === 'block' ? 'active' : '';
   const blockButton = `
     <button class="toolbar-btn toolbar-dropdown-btn has-tooltip ${blockButtonActive}" 
@@ -446,7 +378,6 @@ export function renderToolbarContent(
     </div>
   `;
 
-  // Render block dropdown if needed
   if (state.subMenu === 'block') {
     const blockGroup = toolbarElement.querySelector('.toolbar-block-group');
     if (blockGroup) {

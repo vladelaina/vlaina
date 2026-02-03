@@ -46,7 +46,6 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
     const cachedDimensionsRef = useRef<{ width: number; height: number } | null>(null);
     const isSelectingRef = useRef(false);
 
-    // --- Synchronous "Derived State" Pattern for Instant Switching ---
     if (url !== prevUrlRef.current) {
         prevUrlRef.current = url;
 

@@ -1,10 +1,3 @@
-/**
- * Notes Store - Storage utilities
- * 
- * Provides cross-platform storage operations using the StorageAdapter
- * Works on both Tauri (native file system) and Web (IndexedDB)
- */
-
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import {
   RECENT_NOTES_KEY,
@@ -17,10 +10,7 @@ import {
 } from './constants';
 import type { MetadataFile, NoteMetadataEntry } from './types';
 
-// Re-export for convenience
 export type { MetadataFile, NoteMetadataEntry };
-
-// ============ localStorage utilities ============
 
 export function loadRecentNotes(): string[] {
   try {
@@ -44,27 +34,14 @@ export function addToRecentNotes(path: string, current: string[]): string[] {
   return updated;
 }
 
-// ============ File-based storage utilities ============
-
-/**
- * Atomic write helper: writes to temp file then renames to target.
- * Prevents data corruption on crash or partial write.
- */
 export async function safeWriteTextFile(path: string, content: string): Promise<void> {
   const storage = getStorageAdapter();
 
-  // On web, atomic write is handled internally by IndexedDB transactions
-  // On Tauri, TauriAdapter.writeFile already implements atomic write
   await storage.writeFile(path, content);
 }
 
-// ============ Unified Metadata System ============
-
 const CURRENT_METADATA_VERSION = 1;
 
-/**
- * Load unified metadata from .nekotick/store/metadata.json
- */
 export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile> {
   try {
     const storage = getStorageAdapter();
@@ -77,16 +54,12 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
       return data;
     }
 
-    // No existing data
     return { version: CURRENT_METADATA_VERSION, notes: {} };
   } catch {
     return { version: CURRENT_METADATA_VERSION, notes: {} };
   }
 }
 
-/**
- * Save unified metadata to .nekotick/store/metadata.json
- */
 export async function saveNoteMetadata(vaultPath: string, metadata: MetadataFile): Promise<void> {
   try {
     const storage = getStorageAdapter();
@@ -101,16 +74,10 @@ export async function saveNoteMetadata(vaultPath: string, metadata: MetadataFile
   } catch { /* ignore */ }
 }
 
-/**
- * Helper: Get metadata for a specific note
- */
 export function getNoteEntry(metadata: MetadataFile, path: string): NoteMetadataEntry {
   return metadata.notes[path] || {};
 }
 
-/**
- * Helper: Update metadata for a specific note
- */
 export function setNoteEntry(
   metadata: MetadataFile,
   path: string,
@@ -119,7 +86,6 @@ export function setNoteEntry(
   const existing = metadata.notes[path] || {};
   const updated = { ...existing, ...updates };
 
-  // Clean up undefined/null values
   if (updated.icon === null || updated.icon === undefined) delete updated.icon;
   if (updated.cover === null || updated.cover === undefined) {
     delete updated.cover;
@@ -129,7 +95,6 @@ export function setNoteEntry(
     delete updated.coverScale;
   }
 
-  // Remove entry if empty
   if (Object.keys(updated).length === 0) {
     const { [path]: _, ...rest } = metadata.notes;
     return { ...metadata, notes: rest };
@@ -140,9 +105,6 @@ export function setNoteEntry(
     notes: { ...metadata.notes, [path]: updated },
   };
 }
-
-
-// ============ Vault path management ============
 
 let currentVaultPath: string | null = null;
 
@@ -169,16 +131,11 @@ export async function ensureNotesFolder(basePath: string): Promise<void> {
   }
 }
 
-// ============ Workspace state persistence ============
-
 export interface WorkspaceState {
   currentNotePath: string | null;
   expandedFolders: string[];
 }
 
-/**
- * Load workspace state from .nekotick/store/workspace.json
- */
 export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceState | null> {
   try {
     const storage = getStorageAdapter();
@@ -195,9 +152,6 @@ export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceSt
   }
 }
 
-/**
- * Save workspace state to .nekotick/store/workspace.json
- */
 export async function saveWorkspaceState(vaultPath: string, state: WorkspaceState): Promise<void> {
   try {
     const storage = getStorageAdapter();
@@ -212,16 +166,11 @@ export async function saveWorkspaceState(vaultPath: string, state: WorkspaceStat
   } catch { /* ignore */ }
 }
 
-// ============ Favorites persistence ============
-
 export interface FavoritesData {
   notes: string[];
   folders: string[];
 }
 
-/**
- * Load favorites from .nekotick/store/favorites.json
- */
 export async function loadFavoritesFromFile(vaultPath: string): Promise<FavoritesData> {
   try {
     const storage = getStorageAdapter();
@@ -242,9 +191,6 @@ export async function loadFavoritesFromFile(vaultPath: string): Promise<Favorite
   }
 }
 
-/**
- * Save favorites to .nekotick/store/favorites.json
- */
 export async function saveFavoritesToFile(vaultPath: string, favorites: FavoritesData): Promise<void> {
   try {
     const storage = getStorageAdapter();

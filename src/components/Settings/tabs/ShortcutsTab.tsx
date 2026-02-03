@@ -10,9 +10,6 @@ interface ShortcutsTabProps {
   onClearRecording: () => void;
 }
 
-/**
- * Shortcuts tab content - keyboard shortcut configuration
- */
 export function ShortcutsTab({
   shortcuts,
   editingId,

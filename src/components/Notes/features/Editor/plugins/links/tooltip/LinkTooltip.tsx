@@ -164,7 +164,6 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
         return Math.min(Math.max(320, maxLength * 8 + 80), 520);
     }, [editText, editUrl, isAutolink]);
 
-    // --- EDIT MODE ---
     if (mode === 'edit') {
         return (
             <div
@@ -222,7 +221,6 @@ const LinkTooltip = ({ href, initialText = '', onEdit, onUnlink, onRemove, onClo
         );
     }
 
-    // --- VIEW MODE ---
     return (
         <div
             className="flex items-center bg-white dark:bg-[#1e1e1e] border border-black/5 dark:border-white/10 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-1.5 gap-1 animate-in fade-in zoom-in-95 duration-200"

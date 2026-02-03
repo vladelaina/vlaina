@@ -5,9 +5,6 @@ import { selectClassName, selectStyle, settingsButtonClassName } from '../styles
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { STORAGE_KEY_AUTO_UPDATE } from '@/lib/config';
 
-/**
- * About tab content - cloud sync, subscription status, version, updates, language
- */
 export function AboutTab() {
   const [autoUpdate, setAutoUpdate] = useState<boolean>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_AUTO_UPDATE);

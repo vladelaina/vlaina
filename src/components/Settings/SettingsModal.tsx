@@ -52,19 +52,13 @@ const sidebarGroups: SidebarGroup[] = [
   }
 ];
 
-/**
- * Settings modal with tabs for About, Appearance, and Shortcuts
- * Redesigned to match modern style (1:1 Replica)
- */
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
 
-  // Store data for profile section
   const { username, isConnected } = useGithubSyncStore();
   const avatarUrl = useUserAvatar(); // Use hook
   const { isProUser } = useProStatusStore();
 
-  // Shortcut editor state
   const {
     shortcuts,
     editingId,
@@ -75,7 +69,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     resetState: resetShortcutState,
   } = useShortcutEditor();
 
-  // Modal behavior (ESC, scroll lock)
   useModalBehavior({
     open,
     onClose,
@@ -83,16 +76,12 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     onCancelEdit: () => resetShortcutState(),
   });
 
-  // Reset state when modal opens
   useEffect(() => {
     if (open) {
-      // Default to Appearance
-      // But keep user preference if we want persistence later. For now, reset.
       resetShortcutState();
     }
   }, [open, resetShortcutState]);
 
-  // Refs for tracking drag logic
   const isDraggingRef = useRef(false);
   const startPosRef = useRef({ x: 0, y: 0 });
 
@@ -150,30 +139,25 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <div
               className="absolute top-0 left-0 right-0 h-14 z-[105] pointer-events-auto"
               onMouseDown={(e) => {
-                // Only handle left click
                 if (e.button !== 0) return;
 
                 isDraggingRef.current = false;
                 startPosRef.current = { x: e.clientX, y: e.clientY };
               }}
               onMouseMove={(e) => {
-                // If already dragging or button not held, ignore
                 if (isDraggingRef.current || e.buttons !== 1) return;
 
                 const dx = e.clientX - startPosRef.current.x;
                 const dy = e.clientY - startPosRef.current.y;
 
-                // If user moves mouse noticeably (e.g. > 10px), trigger drag
                 if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
                   startDrag();
                 }
               }}
               onMouseUp={() => {
-                // If we didn't trigger a drag, it's a click
                 if (!isDraggingRef.current) {
                   onClose();
                 }
-                // Reset dragging state for next interaction
                 isDraggingRef.current = false;
               }}
             />

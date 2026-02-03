@@ -68,7 +68,6 @@ export function TaskItemMenu({
                     className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    {/* Color picker */}
                     <div className="px-3 py-2">
                         <ColorPicker
                             value={task.color}
@@ -80,7 +79,6 @@ export function TaskItemMenu({
                     </div>
                     <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
 
-                    {/* Estimated time */}
                     <div className="px-3 py-2">
                         <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">Estimated Time</div>
                         <input
@@ -112,6 +110,7 @@ export function TaskItemMenu({
                                 if (estimatedTime.trim() !== currentFormatted) {
                                     if (estimatedTime.trim()) {
                                         const newEstimation = parseDuration(estimatedTime.trim());
+
                                         if (newEstimation !== undefined) {
                                             updateTaskEstimation(task.uid, newEstimation);
                                         } else {
@@ -129,7 +128,6 @@ export function TaskItemMenu({
                     </div>
                     <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
 
-                    {/* Add subtask */}
                     <button
                         onClick={() => {
                             if (canAddSubTask && onAddSubTask) {
@@ -151,7 +149,6 @@ export function TaskItemMenu({
                     </button>
                     <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
 
-                    {/* Archive - only for completed tasks */}
                     {task.completed && task.calendarId !== '__archive__' && (
                         <button
                             onClick={() => setShowMenu(false)}

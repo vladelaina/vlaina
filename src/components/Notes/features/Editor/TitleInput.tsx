@@ -15,10 +15,8 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
   const renameNote = useNotesStore(s => s.renameNote);
   const setNotesPreviewTitle = useUIStore(s => s.setNotesPreviewTitle);
 
-  // Auto-focus logic for new notes
   useEffect(() => {
     if (autoFocus && inputRef.current) {
-      // Small timeout to ensure layout is settled
       requestAnimationFrame(() => {
         if (inputRef.current) {
           inputRef.current.focus();
@@ -33,7 +31,6 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
     setTitle(initialTitle);
   }, [initialTitle]);
 
-  // Clear preview on unmount
   useEffect(() => {
     return () => {
       setNotesPreviewTitle(null, null);
@@ -43,7 +40,6 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
     setTitle(newTitle);
-    // Real-time preview update
     if (newTitle.trim()) {
       setNotesPreviewTitle(notePath, newTitle.trim());
     } else {
@@ -54,26 +50,21 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
   const handleBlur = useCallback(async () => {
     const trimmed = title.trim();
     if (trimmed && trimmed !== initialTitle) {
-      // First rename, then clear preview
-      // This ensures displayName is updated before preview is cleared
       await renameNote(notePath, trimmed);
     } else {
       setTitle(initialTitle);
     }
-    // Clear preview after rename is complete
     setNotesPreviewTitle(null, null);
   }, [title, initialTitle, notePath, renameNote, setNotesPreviewTitle]);
 
   const handleKeyDown = useCallback(async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      // Perform rename synchronously before moving focus
       const trimmed = title.trim();
       if (trimmed && trimmed !== initialTitle) {
         setNotesPreviewTitle(null, null);
         await renameNote(notePath, trimmed);
       }
-      // Use setTimeout to ensure focus happens after React re-renders from rename
       setTimeout(() => {
         onEnter?.();
       }, 50);

@@ -1,7 +1,3 @@
-/**
- * IconsTab - Icon picker tab with search, color picker and category navigation
- */
-
 import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import { MdSearch, MdClose, MdPalette } from 'react-icons/md';
 import { cn } from '@/lib/utils';
@@ -22,7 +18,6 @@ interface IconsTabProps {
   setIconColor: (color: ItemColor) => void;
   currentIcon?: string;
   
-  // Decoupled callbacks
   onIconColorChange?: (color: ItemColor) => void;
   onPreviewColor?: (color: string | null) => void;
   hideColorPicker?: boolean;
@@ -48,10 +43,8 @@ export function IconsTab({
   const [previewColor, setPreviewColor] = useState<ItemColor | null>(null);
 
   const effectiveColor = previewColor || iconColor;
-  // Get hex color directly from our unified system
   const currentColor = COLOR_HEX[effectiveColor] || COLOR_HEX['default'];
 
-  // Use ref to store callbacks and state to avoid dependency changes
   const onPreviewRef = useRef(onPreview);
   onPreviewRef.current = onPreview;
 
@@ -61,7 +54,6 @@ export function IconsTab({
   const onPreviewColorRef = useRef(onPreviewColor);
   onPreviewColorRef.current = onPreviewColor;
 
-  // Track last previewed color to avoid duplicate updates
   const lastPreviewColorRef = useRef<ItemColor | null>(null);
 
   const recentIconsList = useMemo(() =>
@@ -86,12 +78,10 @@ export function IconsTab({
     return results;
   }, [searchQuery]);
 
-  // Stable handlePreview callback
   const handlePreview = useCallback((icon: string | null) => {
     onPreviewRef.current?.(icon);
   }, []);
 
-  // Use native event handling for color hover to bypass React synthetic event system
   useEffect(() => {
     const container = colorPickerRef.current;
     if (!container || !showColorPicker) return;
@@ -106,10 +96,8 @@ export function IconsTab({
           setPreviewColor(colorId);
           const colorHex = COLOR_HEX[colorId] || COLOR_HEX['default'];
           
-          // Pass color name (ItemColor) to preview system
           onPreviewColorRef.current?.(colorId);
           
-          // Also preview current note's icon with hex for the icon string
           const icon = currentIconRef.current;
           if (icon && icon.startsWith('icon:')) {
             const parts = icon.split(':');
@@ -148,7 +136,6 @@ export function IconsTab({
     onPreviewColor?.(null);
     onPreview?.(null);
     
-    // Notify parent with color name (ItemColor) not hex
     onIconColorChange?.(color);
   }, [setIconColor, onIconColorChange, onPreview, onPreviewColor]);
 

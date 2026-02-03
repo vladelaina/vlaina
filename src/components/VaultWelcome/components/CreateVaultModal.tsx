@@ -1,7 +1,3 @@
-/**
- * CreateVaultModal - Modal for creating new vault
- */
-
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -28,7 +24,6 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
     }
   }, [isOpen, clearError, isWebPlatform]);
 
-  // Auto-scroll to end of path when it changes (only if not manually editing)
   useEffect(() => {
     if (pathInputRef.current && document.activeElement !== pathInputRef.current) {
       pathInputRef.current.scrollLeft = pathInputRef.current.scrollWidth;
@@ -37,7 +32,6 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
 
   const handleBrowse = async () => {
     if (!hasNativeDialogs()) {
-      // On web, user must type the path manually
       pathInputRef.current?.focus();
       return;
     }
@@ -50,7 +44,6 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
 
     if (selected && typeof selected === 'string') {
       setParentPath(selected);
-      // Focus the path input after selection so user can review or edit
       requestAnimationFrame(() => {
         if (pathInputRef.current) {
           pathInputRef.current.focus();
@@ -63,7 +56,6 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
   const handleCreate = async () => {
     if (!name.trim() || !parentPath.trim()) return;
 
-    // Create vault folder inside the selected parent folder
     const vaultPath = await joinPath(parentPath.trim(), name.trim());
     const success = await createVault(name.trim(), vaultPath);
     if (success) {
@@ -80,7 +72,6 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
   };
 
   const canCreate = name.trim() && parentPath.trim() && !isLoading;
-  // cubic-bezier(0.16, 1, 0.3, 1) as a stronger curve
   const APPLE_EASE = [0.16, 1, 0.3, 1] as const;
 
   return (
@@ -114,7 +105,6 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => {
-                  // If Tab is pressed and path is empty, trigger browse immediately
                   if (e.key === 'Tab' && !e.shiftKey && !parentPath && hasNativeDialogs()) {
                     e.preventDefault();
                     pathInputRef.current?.focus();

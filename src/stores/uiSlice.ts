@@ -1,5 +1,3 @@
-/** UI State Store - Unified UI state management */
-
 import { create } from 'zustand';
 import { ALL_COLORS, type ItemColor } from '@/lib/colors';
 import { type TimeView } from '@/lib/date';
@@ -43,7 +41,6 @@ interface UIStore {
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
 
-  // Specific to notes-style hover-peek behavior
   sidebarHeaderHovered: boolean;
   setSidebarHeaderHovered: (hovered: boolean) => void;
   sidebarPeeking: boolean;
@@ -111,8 +108,7 @@ interface UIStore {
   selectedEventId: string | null;
   setSelectedEventId: (id: string | null) => void;
 
-  // Universal Preview State (Unifying Notes, Calendar, Todo)
-  universalPreviewTarget: string | null; // ID of the entity being previewed (e.g. note path, task ID)
+  universalPreviewTarget: string | null;
   universalPreviewIcon: string | null;
   universalPreviewColor: string | null;
   universalPreviewTone: number | null;
@@ -125,7 +121,6 @@ interface UIStore {
     size?: number | null;
   }) => void;
 
-  // Image Storage Settings
   imageStorageMode: ImageStorageMode;
   imageSubfolderName: string;
   setImageStorageMode: (mode: ImageStorageMode) => void;
@@ -423,14 +418,12 @@ export const useUIStore = create<UIStore>()((set, get) => ({
 
   setUniversalPreview: (targetId, { icon, color, tone, size }) => set((state) => ({
     universalPreviewTarget: targetId,
-    // Only update fields that are provided (undefined means "no change", null means "clear")
     universalPreviewIcon: icon !== undefined ? icon : state.universalPreviewIcon,
     universalPreviewColor: color !== undefined ? color : state.universalPreviewColor,
     universalPreviewTone: tone !== undefined ? tone : state.universalPreviewTone,
     universalPreviewIconSize: size !== undefined ? size : state.universalPreviewIconSize,
   })),
 
-  // Image Storage Settings
   imageStorageMode: loadImageStorageMode(),
   imageSubfolderName: loadImageSubfolderName(),
   setImageStorageMode: (mode) => {
@@ -438,7 +431,6 @@ export const useUIStore = create<UIStore>()((set, get) => ({
     set({ imageStorageMode: mode });
   },
   setImageSubfolderName: (name) => {
-    // Sanitize: allow only alphanumeric, underscores, hyphens, and spaces
     const sanitized = name.replace(/[<>:"/\\|?*]/g, '').trim();
     localStorage.setItem(STORAGE_KEY_IMAGE_SUBFOLDER_NAME, sanitized);
     set({ imageSubfolderName: sanitized });

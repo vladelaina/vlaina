@@ -34,7 +34,6 @@ export const useWeatherStore = create<WeatherState>()(
   )
 );
 
-// Compatibility hook for components that used the old hook style
 export function useWeatherCity() {
   const { city, setCity } = useWeatherStore();
   return { city, updateCity: setCity };

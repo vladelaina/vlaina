@@ -1,9 +1,3 @@
-/**
- * NoteSearch - Full-text search for notes
- * 
- * Modern block-editor style quick search
- */
-
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { MdDescription, MdClose, MdAccessTime } from 'react-icons/md';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -28,7 +22,6 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus input when opened
   useEffect(() => {
     if (isOpen) {
       setQuery('');
@@ -38,7 +31,6 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
     }
   }, [isOpen]);
 
-  // Get recent notes as search results when no query
   const recentResults = useMemo(() => {
     if (query.trim() || !rootFolder) return [];
 
@@ -66,7 +58,6 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
       .slice(0, 5);
   }, [query, rootFolder, recentNotes]);
 
-  // Search notes by name
   const searchNotes = useCallback((searchQuery: string) => {
     if (!searchQuery.trim() || !rootFolder) {
       setResults([]);
@@ -97,19 +88,16 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
 
     searchInFolder(rootFolder.children);
 
-    // Sort by match position (earlier matches first)
     matches.sort((a, b) => a.matchIndex - b.matchIndex);
     setResults(matches.slice(0, 10));
     setSelectedIndex(0);
   }, [rootFolder]);
 
-  // Handle search input
   useEffect(() => {
     const timer = setTimeout(() => searchNotes(query), 100);
     return () => clearTimeout(timer);
   }, [query, searchNotes]);
 
-  // Keyboard navigation
   const displayResults = query.trim() ? results : recentResults;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -135,7 +123,6 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
     }
   };
 
-  // Handle result click
   const handleResultClick = (result: SearchResult) => {
     openNote(result.path);
     onClose();
@@ -145,15 +132,12 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-transparent"
         onClick={onClose}
       />
 
-      {/* Search Modal */}
       <div className="relative w-full max-w-lg bg-[var(--neko-bg-primary)] rounded-xl shadow-2xl border border-[var(--neko-border)] overflow-hidden">
-        {/* Search Input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--neko-border)]">
           <input
             ref={inputRef}
@@ -171,7 +155,6 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
           )}
         </div>
 
-        {/* Results */}
         {displayResults.length > 0 && (
           <div className="max-h-80 overflow-auto py-2 neko-scrollbar">
             {!query.trim() && recentResults.length > 0 && (
@@ -207,14 +190,12 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
           </div>
         )}
 
-        {/* Empty state */}
         {query && results.length === 0 && (
           <div className="py-8 text-center text-sm text-[var(--neko-text-tertiary)]">
             No notes found
           </div>
         )}
 
-        {/* Hint */}
         {!query && recentResults.length === 0 && (
           <div className="py-6 text-center text-xs text-[var(--neko-text-tertiary)]">
             Type to search your notes

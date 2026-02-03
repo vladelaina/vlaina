@@ -1,5 +1,3 @@
-/** Notes Store - Type definitions */
-
 import { AssetEntry, UploadResult } from '@/lib/assets/types';
 import { CustomEmojiSlice } from './slices/customEmojiSlice';
 
@@ -21,7 +19,6 @@ export interface FolderNode {
 
 export type FileTreeNode = NoteFile | FolderNode;
 
-// Unified Metadata Types
 export interface NoteMetadataEntry {
   icon?: string;
   iconSize?: number;
@@ -57,7 +54,6 @@ export interface NotesState {
   displayNames: Map<string, string>;
   isNewlyCreated: boolean;
   newlyCreatedFolderPath: string | null;
-  // Asset library state
   assetList: AssetEntry[];
   isLoadingAssets: boolean;
   uploadProgress: number | null;
@@ -95,11 +91,7 @@ export interface NotesActions {
   getNoteIcon: (path: string) => string | undefined;
   getNoteIconSize: (path: string) => number | undefined;
   setNoteIcon: (path: string, emoji: string | null) => void;
-  // Per-note size is deprecated in favor of global, but keeping for backward compat if needed, 
-  // or we can reuse this name for the global action if we want to simplify.
-  // actually, let's keep setNoteIconSize for specific overrides if we ever want them, 
-  // but for now the requirement is GLOBAL.
-  // Let's add a specific global action to be clear.
+  
   setGlobalIconSize: (size: number) => void;
   setNoteIconSize: (path: string, size: number) => void;
   updateAllIconColors: (newColor: string) => void;
@@ -107,10 +99,8 @@ export interface NotesActions {
   syncDisplayName: (path: string, title: string) => void;
   getDisplayName: (path: string) => string;
   uploadNoteAsset: (notePath: string, file: File) => Promise<string | null>;
-  // Cover metadata
   getNoteCover: (path: string) => { cover?: string; coverX?: number; coverY?: number; coverH?: number; coverScale?: number };
   setNoteCover: (path: string, cover: string | null, coverX?: number, coverY?: number, coverH?: number, coverScale?: number) => void;
-  // Asset library actions
   loadAssets: (vaultPath: string) => Promise<void>;
   uploadAsset: (file: File, category?: 'covers' | 'icons', currentNotePath?: string) => Promise<UploadResult>;
   deleteAsset: (filename: string) => Promise<void>;

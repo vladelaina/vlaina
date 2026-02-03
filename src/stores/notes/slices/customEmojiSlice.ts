@@ -25,7 +25,6 @@ export const createCustomEmojiSlice: StateCreator<NotesStore, [], [], CustomEmoj
 
         const storage = getStorageAdapter();
         try {
-            // Path: .nekotick/assets/icons
             const iconsDir = await joinPath(notesPath, '.nekotick', 'assets', 'icons');
 
             if (!await storage.exists(iconsDir)) {
@@ -38,13 +37,11 @@ export const createCustomEmojiSlice: StateCreator<NotesStore, [], [], CustomEmoj
             const emojis: CustomEmoji[] = entries
                 .filter(entry => !entry.isDirectory && !entry.name.startsWith('.'))
                 .map(entry => {
-                    // Use filename as ID and Name
                     const name = entry.name.replace(/\.[^/.]+$/, "");
                     return {
                         id: entry.name,
                         name: name,
                         url: `img:icons/${entry.name}`,
-                        // Use current time as fallback for createdAt since we don't track it on file
                         createdAt: Date.now()
                     };
                 })
@@ -58,8 +55,6 @@ export const createCustomEmojiSlice: StateCreator<NotesStore, [], [], CustomEmoj
     },
 
     addWorkspaceEmoji: async (emoji: CustomEmoji) => {
-        // File is already saved by uploadAsset.
-        // We just update the local state to reflect the new addition immediately.
         const { workspaceEmojis } = get();
         const updated = [...workspaceEmojis, emoji];
         set({ workspaceEmojis: updated });
@@ -69,20 +64,17 @@ export const createCustomEmojiSlice: StateCreator<NotesStore, [], [], CustomEmoj
         const { notesPath, workspaceEmojis } = get();
         if (!notesPath) return;
 
-        // Optimistic UI update
         const updated = workspaceEmojis.filter(e => e.id !== id);
         set({ workspaceEmojis: updated });
 
         const storage = getStorageAdapter();
         try {
-            // ID is the filename in our new system
             const filePath = await joinPath(notesPath, '.nekotick', 'assets', 'icons', id);
             if (await storage.exists(filePath)) {
                 await storage.deleteFile(filePath);
             }
         } catch (e) {
             console.error('Failed to delete workspace emoji file', e);
-            // Optionally revert state if delete fails, but for UI responsiveness we usually keep it removed directly
         }
     }
 });

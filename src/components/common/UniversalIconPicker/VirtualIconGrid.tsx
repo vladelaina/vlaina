@@ -1,7 +1,3 @@
-/**
- * VirtualIconGrid - Virtualized icon grid with recent section
- */
-
 import { useRef, useEffect, useMemo, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ICON_PER_ROW, ICON_SIZE, ROW_GAP, ICON_MAP, SCROLLBAR_CLASSNAME } from './constants';

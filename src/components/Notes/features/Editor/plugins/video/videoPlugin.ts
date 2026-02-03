@@ -4,9 +4,6 @@
 import { $node, $command } from '@milkdown/kit/utils';
 import type { VideoAttrs } from './types';
 
-/**
- * Parse video URL and return embed info
- */
 function parseVideoUrl(url: string): { type: 'youtube' | 'bilibili' | 'direct'; embedUrl: string } | null {
   // YouTube
   const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);

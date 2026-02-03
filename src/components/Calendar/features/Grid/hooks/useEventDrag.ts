@@ -1,10 +1,3 @@
-/**
- * useEventDrag - Drag and resize existing events
- * 
- * Handles dragging events to move them and resizing events
- * by dragging their top or bottom edges.
- */
-
 import { useState, useCallback } from 'react';
 import { startOfDay, endOfDay } from 'date-fns';
 import type { EventDragState, TimeIndicator, TimeGridDragConfig } from './timeGridDragTypes';
@@ -95,13 +88,12 @@ export function useEventDrag({
         const clientX = e.clientX;
         const clientY = e.clientY;
 
-        // Check AllDay drop target
         if (allDayAreaRef.current) {
             const allDayRect = allDayAreaRef.current.getBoundingClientRect();
             const isInAllDayArea = clientY >= allDayRect.top && clientY <= allDayRect.bottom;
             if (isInAllDayArea && eventDrag.edge === null && !eventDrag.originalIsAllDay) {
                 setIsAllDayDropTarget(true);
-                return; // Stop processing grid drag if we are in all-day area
+                return;
             }
             setIsAllDayDropTarget(false);
         }
@@ -109,20 +101,17 @@ export function useEventDrag({
         const event = displayItems.find(item => item.uid === eventDrag.eventId);
         if (!event) return;
 
-        // Calculate target day column
         const canvasRect = canvasRef.current.getBoundingClientRect();
         const relativeX = clientX - canvasRect.left;
         const dayWidth = canvasRect.width / columnCount;
         const targetDayIndex = Math.max(0, Math.min(columnCount - 1, Math.floor(relativeX / dayWidth)));
         const targetDate = days[targetDayIndex];
 
-        // Handle all-day event being dragged (Converting to Timed Event)
         if (eventDrag.originalIsAllDay) {
             const scrollRect = scrollRef.current.getBoundingClientRect();
             const allDayRect = allDayAreaRef.current?.getBoundingClientRect();
 
             if (allDayRect && clientY > allDayRect.bottom) {
-                // Converting to timed event
                 const relativeY = clientY - scrollRect.top + scrollRef.current.scrollTop;
                 const totalMinutes = pixelsToMinutes(relativeY, hourHeight, dayStartMinutes);
                 let snappedMinutes = Math.round(totalMinutes / snapMinutes) * snapMinutes;
@@ -131,7 +120,7 @@ export function useEventDrag({
                 if (targetDate) {
                     const newStartDate = new Date(targetDate);
                     newStartDate.setHours(Math.floor(snappedMinutes / 60), snappedMinutes % 60, 0, 0);
-                    const newEndDate = new Date(newStartDate.getTime() + 60 * 60 * 1000); // Default 1 hour
+                    const newEndDate = new Date(newStartDate.getTime() + 60 * 60 * 1000);
 
                     onUpdateEvent(eventDrag.eventId, {
                         allDay: false,
@@ -144,7 +133,6 @@ export function useEventDrag({
                     });
                 }
             } else if (allDayRect && clientY <= allDayRect.bottom) {
-                // Revert to all day (or keep as all day)
                  onUpdateEvent(eventDrag.eventId, {
                     allDay: true,
                     dtstart: new Date(eventDrag.originalStart),
@@ -155,17 +143,12 @@ export function useEventDrag({
             return;
         }
 
-        // Standard event drag logic
         const scrollDelta = scrollRef.current.scrollTop - eventDrag.startScrollTop;
         const deltaY = clientY - eventDrag.startY + scrollDelta;
         
-        // Calculate minutes delta
         const deltaMinutes = Math.round(pixelsDeltaToMinutes(deltaY, hourHeight) / snapMinutes) * snapMinutes;
         const deltaMs = deltaMinutes * 60 * 1000;
 
-        // Determine the effective day boundaries for the *target* day (or current event day for resizing)
-        // For resizing, we stick to the event's current day.
-        // For moving, we use the target column's day.
         const effectiveDateBase = (eventDrag.edge === null && targetDate) 
             ? targetDate.getTime() 
             : event.dtstart.getTime();
@@ -174,7 +157,6 @@ export function useEventDrag({
         const minDuration = Math.max(snapMinutes, 5) * 60 * 1000;
 
         if (eventDrag.edge === 'top') {
-            // Resize from top (Vertical Only)
             const anchor = Math.max(boundaries.start, Math.min(boundaries.end, eventDrag.originalEnd));
             const draggedPosition = eventDrag.originalStart + deltaMs;
             const clampedPosition = Math.max(boundaries.start, Math.min(boundaries.end, draggedPosition));
@@ -213,7 +195,6 @@ export function useEventDrag({
             });
 
         } else if (eventDrag.edge === 'bottom') {
-            // Resize from bottom (Vertical Only)
             const anchor = Math.max(boundaries.start, Math.min(boundaries.end, eventDrag.originalStart));
             const draggedPosition = eventDrag.originalEnd + deltaMs;
             const clampedPosition = Math.max(boundaries.start, Math.min(boundaries.end, draggedPosition));
@@ -251,28 +232,17 @@ export function useEventDrag({
             });
 
         } else {
-            // Move entire event (Horizontal + Vertical)
             if (!targetDate) return;
 
             const duration = eventDrag.originalEnd - eventDrag.originalStart;
             
-            // 1. Calculate the new start time
-            // Strategy: Reconstruct the date from scratch to avoid timestamp math issues
-            
-            // Get original time components
             const originalStartDate = new Date(eventDrag.originalStart);
             const originalStartTotalMinutes = originalStartDate.getHours() * 60 + originalStartDate.getMinutes();
             
-            // Apply vertical delta (in minutes)
             let newStartTotalMinutes = originalStartTotalMinutes + Math.round(deltaMs / 60000);
             
-            // Construct the proposed start date on the TARGET day
             const proposedStart = new Date(targetDate);
             proposedStart.setHours(Math.floor(newStartTotalMinutes / 60), newStartTotalMinutes % 60, 0, 0);
-            
-            // Check if we are within the visual boundaries of the TARGET day
-            // Manually calculate boundaries from targetDate (midnight) + dayStartMinutes
-            // This avoids ambiguity where getVisualDayBoundaries might think midnight belongs to the previous day.
             
             const dayStartMs = dayStartMinutes * 60 * 1000;
             const boundaryStart = targetDate.getTime() + dayStartMs;
@@ -280,26 +250,19 @@ export function useEventDrag({
             
             const boundaries = { start: boundaryStart, end: boundaryEnd };
             
-            // --- STRICT VERTICAL LOCKING ---
-            // We clamp the finalStart and finalEnd to the boundaries of the target day.
-            // This prevents an event from becoming "yesterday's 3 AM" if pushed too far up.
-            
             let finalStart = proposedStart.getTime();
             let finalEnd = finalStart + duration;
             
-            // Clamp to day start
             if (finalStart < boundaries.start) {
                 finalStart = boundaries.start;
                 finalEnd = finalStart + duration;
             }
             
-            // Clamp to day end
             if (finalEnd > boundaries.end) {
                 finalEnd = boundaries.end;
                 finalStart = Math.max(boundaries.start, finalEnd - duration);
             }
             
-            // Only update if it's a valid movement within the day
             onUpdateEvent(eventDrag.eventId, {
                 dtstart: new Date(finalStart),
                 dtend: new Date(finalEnd),
@@ -346,7 +309,6 @@ export function useEventDrag({
     }, [eventDrag, onUpdateEvent]);
 
     const clearHoverIndicator = useCallback(() => {
-        // This hook doesn't manage hover indicator, but provides the method for coordination
     }, []);
 
     return {

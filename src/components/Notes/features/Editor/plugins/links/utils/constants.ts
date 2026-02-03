@@ -1,6 +1,3 @@
-/**
- * Shared URL patterns for link detection
- */
 export const URL_PATTERNS = [
     // Full URLs with protocol: Limit length and avoid nested quantifiers
     /https?:\/\/[\w\-\._~:/?#[\]@!$&'*+,;=%()]{1,2000}/g,

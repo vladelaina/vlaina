@@ -1,9 +1,3 @@
-/**
- * DayGrid - Day view
- * 
- * Based on BaseTimeGrid, configured to display dayCount days
- */
-
 import { useMemo } from 'react';
 import { addDays } from 'date-fns';
 import { useCalendarStore } from '@/stores/useCalendarStore';

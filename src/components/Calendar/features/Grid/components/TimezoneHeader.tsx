@@ -24,7 +24,6 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
   const [open, setOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
-  // Format timezone string
   const displayTimezone = useMemo(() => {
     if (!timezone) return 'GMT+8';
     const tzStr = String(timezone);

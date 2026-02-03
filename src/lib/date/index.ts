@@ -1,5 +1,3 @@
-// Date Utilities Module
-
 export type TimeView = 'day' | 'week' | 'month';
 
 export {

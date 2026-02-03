@@ -23,16 +23,11 @@ export function DeletableItem({
     const handleClick = (e: React.MouseEvent) => {
         if (disabled) return;
 
-        // If currently confirming delete, clicking again performs the delete
         if (isDeleting) {
             e.stopPropagation();
             onDelete(id);
-            setIsDeleting(false); // Reset state just in case (though item usually disappears)
+            setIsDeleting(false);
         }
-        // Otherwise, assume parent handles selection unless we block it
-        // But here we need to intercept the click if we want to enter delete mode via click?
-        // Actually, the previous design used a small X button to ENTER delete mode.
-        // Let's stick to that pattern: X button enters mode, then whole item becomes confirm button.
     };
 
     const handleDeleteTrigger = (e: React.MouseEvent) => {
@@ -62,19 +57,14 @@ export function DeletableItem({
 
             {/* Interaction Layer */}
             {isDeleting ? (
-                // Confirmation State: Large Centered Trash Icon
                 <div
                     className="absolute inset-0 flex items-center justify-center cursor-pointer z-30"
-                // Click is handled by parent wrapper's onClick due to bubbling, 
-                // or we can explicitly handle it here to be safe.
-                // But wrapper has onClick={handleClick} which handles the logic.
                 >
                     <div className="text-red-500 transition-all active:scale-90 pointer-events-none">
                         <DeleteIcon size={24} />
                     </div>
                 </div>
             ) : (
-                // Idle State: Ghost X Button (top-right)
                 !disabled && (
                     <button
                         onClick={handleDeleteTrigger}
@@ -82,7 +72,7 @@ export function DeletableItem({
                             "absolute -top-1 -right-1 z-20 p-1.5 transition-all duration-200",
                             "flex items-center justify-center",
                             "text-[var(--neko-text-tertiary)] hover:text-red-500",
-                            "opacity-0 group-hover/item:opacity-100", // Show on hover
+                            "opacity-0 group-hover/item:opacity-100",
                             "scale-90 hover:scale-100"
                         )}
                     >

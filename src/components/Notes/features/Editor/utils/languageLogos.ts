@@ -1,8 +1,3 @@
-/**
- * Mapping of language IDs to their full-color logos
- * Using a mix of Devicons and Material Icon Theme for maximum compatibility and VS Code feel.
- */
-
 const DEVICON_BASE = 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons';
 const MATERIAL_BASE = 'https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/master/icons';
 

@@ -1,7 +1,3 @@
-/**
- * RecentVaultsList - Display recent vaults (IDEA style)
- */
-
 import { MdClose } from 'react-icons/md';
 import { useVaultStore, type VaultInfo } from '@/stores/useVaultStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';

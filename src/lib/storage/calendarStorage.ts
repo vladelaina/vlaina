@@ -1,10 +1,3 @@
-/**
- * Calendar Storage - ICS-based calendar storage
- * 
- * Handles reading and writing calendar events to .ics files.
- * Each calendar is stored as a separate .ics file in .nekotick/calendars/
- */
-
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { parseICS } from '@/lib/ics/parser';
 import { generateICS } from '@/lib/ics/generator';
@@ -40,17 +33,11 @@ async function ensureCalendarsDir(): Promise<void> {
     }
 }
 
-/**
- * Load calendar metadata (list of calendars)
- */
 export async function loadCalendarsMeta(): Promise<NekoCalendar[]> {
     const data = await loadUnifiedData();
     return data.calendars || [];
 }
 
-/**
- * Save calendar metadata
- */
 export async function saveCalendarsMeta(calendars: NekoCalendar[]): Promise<void> {
     const data = await loadUnifiedData();
     await saveUnifiedDataImmediate({
@@ -59,9 +46,6 @@ export async function saveCalendarsMeta(calendars: NekoCalendar[]): Promise<void
     });
 }
 
-/**
- * Load all events from all calendar ICS files
- */
 export async function loadAllEvents(): Promise<NekoEvent[]> {
     try {
         const storage = getStorageAdapter();
@@ -77,11 +61,9 @@ export async function loadAllEvents(): Promise<NekoEvent[]> {
             if (await storage.exists(icsPath)) {
                 const content = await storage.readFile(icsPath);
                 
-                // Sanitize content: remove \r to ensure consistent parsing
                 const cleanContent = content.replace(/\r/g, '');
                 const events = parseICS(cleanContent, calendar.id);
 
-                // Apply calendar's default color to events without color
                 for (const event of events) {
                     if (!event.color) {
                         event.color = calendar.color;
@@ -92,23 +74,18 @@ export async function loadAllEvents(): Promise<NekoEvent[]> {
             }
         }
 
-        // Log removed
         return allEvents;
     } catch (error) {
         return [];
     }
 }
 
-/**
- * Save events to their respective calendar ICS files
- */
 export async function saveAllEvents(events: NekoEvent[], calendars: NekoCalendar[]): Promise<void> {
     try {
         const storage = getStorageAdapter();
         await ensureCalendarsDir();
         const calendarsDir = await getCalendarsDir();
 
-        // Group events by calendar
         const eventsByCalendar = new Map<string, NekoEvent[]>();
         for (const calendar of calendars) {
             eventsByCalendar.set(calendar.id, []);
@@ -119,7 +96,6 @@ export async function saveAllEvents(events: NekoEvent[], calendars: NekoCalendar
             if (calendarEvents) {
                 calendarEvents.push(event);
             } else {
-                // Event belongs to unknown calendar, add to first calendar
                 const firstCalendar = calendars[0];
                 if (firstCalendar) {
                     event.calendarId = firstCalendar.id;
@@ -128,7 +104,6 @@ export async function saveAllEvents(events: NekoEvent[], calendars: NekoCalendar
             }
         }
 
-        // Write each calendar's ICS file
         for (const calendar of calendars) {
             const calendarEvents = eventsByCalendar.get(calendar.id) || [];
             const icsContent = generateICS(calendarEvents, calendar);
@@ -136,14 +111,10 @@ export async function saveAllEvents(events: NekoEvent[], calendars: NekoCalendar
             await storage.writeFile(icsPath, icsContent);
         }
 
-        // Log removed
     } catch (error) {
     }
 }
 
-/**
- * Add a new calendar
- */
 export async function addCalendar(name: string, color: ItemColor): Promise<NekoCalendar> {
     const calendars = await loadCalendarsMeta();
 
@@ -157,7 +128,6 @@ export async function addCalendar(name: string, color: ItemColor): Promise<NekoC
     calendars.push(newCalendar);
     await saveCalendarsMeta(calendars);
 
-    // Create empty ICS file
     const storage = getStorageAdapter();
     const calendarsDir = await getCalendarsDir();
     const icsPath = await joinPath(calendarsDir, `${newCalendar.id}.ics`);
@@ -167,21 +137,16 @@ export async function addCalendar(name: string, color: ItemColor): Promise<NekoC
     return newCalendar;
 }
 
-/**
- * Delete a calendar and its events
- */
 export async function deleteCalendar(calendarId: string): Promise<void> {
     const calendars = await loadCalendarsMeta();
     const filtered = calendars.filter(c => c.id !== calendarId);
 
     if (filtered.length === 0) {
-        // Don't delete the last calendar
         throw new Error('Cannot delete the last calendar');
     }
 
     await saveCalendarsMeta(filtered);
 
-    // Delete the ICS file
     const storage = getStorageAdapter();
     const calendarsDir = await getCalendarsDir();
     const icsPath = await joinPath(calendarsDir, `${calendarId}.ics`);
@@ -191,9 +156,6 @@ export async function deleteCalendar(calendarId: string): Promise<void> {
     }
 }
 
-/**
- * Update a calendar's metadata
- */
 export async function updateCalendar(
     calendarId: string,
     updates: Partial<Pick<NekoCalendar, 'name' | 'color' | 'visible'>>

@@ -10,10 +10,6 @@ interface DetailModalFooterProps {
   onCommit: () => void;
 }
 
-/**
- * Footer section of DetailModal
- * Shows history waveform or commit button based on editing state
- */
 export function DetailModalFooter({
   displayItem,
   isEditing,

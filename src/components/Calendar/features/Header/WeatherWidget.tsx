@@ -35,7 +35,6 @@ export function WeatherWidget() {
     return () => clearInterval(interval);
   }, [city, fetchWeather]);
 
-  // Compute display data from cached weather
   const displayWeather = useCallback(() => {
       if (!weather) return null;
       
@@ -92,10 +91,6 @@ export function WeatherWidget() {
     return <span className="text-sm leading-none">{emoji}</span>;
   };
 
-  // Determine visibility: 
-  // 1. If not setup yet (no city), show the "Add weather" button.
-  // 2. If setup, only show if we have data for the CURRENTLY SELECTED date (displayWeather) 
-  //    or if we are still doing the very first fetch (city && !weather).
   const isSetup = !!city;
   const hasDataForDate = !!displayWeather;
   const isInitialLoading = isSetup && !weather;

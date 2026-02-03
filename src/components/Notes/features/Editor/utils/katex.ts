@@ -1,4 +1,3 @@
-// KaTeX utility functions
 import katex from 'katex';
 
 export interface RenderResult {
@@ -6,9 +5,6 @@ export interface RenderResult {
   error: string | null;
 }
 
-/**
- * Render LaTeX to HTML using KaTeX
- */
 export function renderLatex(latex: string, displayMode: boolean): RenderResult {
   if (!latex.trim()) {
     return {
@@ -41,9 +37,6 @@ export function renderLatex(latex: string, displayMode: boolean): RenderResult {
   }
 }
 
-/**
- * Check if LaTeX string is valid
- */
 export function isValidLatex(latex: string): boolean {
   if (!latex.trim()) return true;
   

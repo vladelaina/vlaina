@@ -2,10 +2,6 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ReactNode } from 'react';
 
-// --- Segmented Control ---
-
-// --- Segmented Control ---
-
 interface SegmentedControlProps {
     options: { value: string; label: string; icon?: ReactNode }[];
     value: string;
@@ -48,8 +44,6 @@ export function SegmentedControl({ options, value, onChange }: SegmentedControlP
     );
 }
 
-// --- Settings Toggle ---
-
 interface SettingsToggleProps {
     checked: boolean;
     onChange: (checked: boolean) => void;
@@ -76,8 +70,6 @@ export function SettingsToggle({ checked, onChange }: SettingsToggleProps) {
     );
 }
 
-// --- Settings Item ---
-
 interface SettingsItemProps {
     title: string;
     description?: string;
@@ -103,8 +95,6 @@ export function SettingsItem({ title, description, children }: SettingsItemProps
         </div>
     );
 }
-
-// --- Settings Section Header ---
 
 export function SettingsSectionHeader({ children }: { children: ReactNode }) {
     return (

@@ -1,5 +1,3 @@
-// Duration parsing and formatting module
-
 import { MINUTES_PER_DAY, MINUTES_PER_HOUR } from './constants';
 
 export interface DurationFormatOptions {

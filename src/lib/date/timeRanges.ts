@@ -1,5 +1,3 @@
-// Time range calculation utilities
-
 import { MS_PER_WEEK } from '../time/constants';
 import type { TimeView } from './index';
 import {
@@ -52,7 +50,6 @@ export function formatTimeRangeDisplay(timeKey: string, timeView: TimeView): str
     const year = parseInt(yearStr);
     const week = parseInt(weekStr);
     
-    // Calculate week start and end dates
     const yearStart = new Date(year, 0, 1);
     const firstMonday = new Date(yearStart);
     const dayOfWeek = yearStart.getDay();
@@ -64,7 +61,6 @@ export function formatTimeRangeDisplay(timeKey: string, timeView: TimeView): str
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
     
-    // Check if current week
     if (timeKey === getCurrentWeekKey()) {
       return 'This Week';
     }

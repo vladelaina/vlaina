@@ -1,9 +1,3 @@
-/**
- * NoteTabs - Tab bar for multiple open notes
- * 
- * Modern block-editor style tab management
- */
-
 import { memo } from 'react';
 import { MdClose, MdDescription } from 'react-icons/md';
 import { cn } from '@/lib/utils';
@@ -45,7 +39,6 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
           : "bg-transparent hover:bg-[var(--neko-hover)]"
       )}
     >
-      {/* Active indicator */}
       {isActive && (
         <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--neko-accent)]" />
       )}

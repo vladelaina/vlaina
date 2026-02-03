@@ -1,9 +1,3 @@
-/**
- * Calendar Events Slice - Zustand store for ICS-based calendar events
- * 
- * This is the new calendar data layer that uses ICS files instead of the unified JSON store.
- */
-
 import { create } from 'zustand';
 import type { NekoEvent, NekoCalendar } from '@/lib/ics/types';
 import type { ItemColor } from '@/lib/colors';
@@ -20,45 +14,35 @@ import {
 } from '@/lib/storage/calendarStorage';
 
 interface CalendarEventsState {
-    // Data
     calendars: NekoCalendar[];
     events: NekoEvent[];
     loaded: boolean;
 
-    // Actions
     load: () => Promise<void>;
     save: () => Promise<void>;
 
-    // Event CRUD
     addEvent: (event: Omit<NekoEvent, 'uid'> & { uid?: string }) => Promise<void>;
     updateEvent: (uid: string, updates: Partial<NekoEvent>) => Promise<void>;
     deleteEvent: (uid: string) => Promise<void>;
 
-    // Task Specific Actions
     addTask: (content: string, groupId: string, calendarId?: string) => Promise<void>;
     addSubTask: (parentId: string, content: string) => Promise<void>;
     updateTaskOrder: (activeId: string, overId: string) => Promise<void>;
     moveTaskToGroup: (taskId: string, targetGroupId: string, overTaskId?: string | null) => Promise<void>;
     toggleTaskCollapse: (uid: string) => Promise<void>;
 
-    // Calendar CRUD
     addCalendar: (name: string, color: ItemColor) => Promise<void>;
     updateCalendar: (id: string, updates: Partial<Pick<NekoCalendar, 'name' | 'color' | 'visible'>>) => Promise<void>;
     deleteCalendar: (id: string) => Promise<void>;
     toggleCalendarVisibility: (id: string) => void;
 
-    // Timer Actions
     startTimer: (uid: string) => void;
     pauseTimer: (uid: string) => void;
     resumeTimer: (uid: string) => void;
     stopTimer: (uid: string) => void;
 
-    // Toggle complete
     toggleComplete: (uid: string) => void;
 }
-
-// Debounced save
-let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) => ({
     calendars: [],
@@ -78,12 +62,6 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
     },
 
     save: async () => {
-        // Clear any pending debounced save
-        if (saveTimeout) {
-            clearTimeout(saveTimeout);
-            saveTimeout = null;
-        }
-
         const { calendars, events } = get();
         await saveCalendarsMeta(calendars);
         await saveAllEvents(events, calendars);
@@ -121,19 +99,16 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
         await get().save();
     },
 
-    // --- Task Specific Actions Implementation ---
-
     addTask: async (content, groupId, calendarId) => {
         const state = get();
         const targetCalendarId = calendarId || state.calendars[0]?.id || 'main';
         
-        // Find order at the end of the group
         const groupTasks = getChildren(state.events, null, groupId);
         
         const newEvent: NekoEvent = {
             uid: crypto.randomUUID(),
             summary: content,
-            dtstart: new Date(), // Tasks default to now
+            dtstart: new Date(),
             dtend: new Date(Date.now() + 15*60*1000),
             allDay: false,
             calendarId: targetCalendarId,
@@ -178,9 +153,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
 
         if (!activeEvent || !overEvent) return;
         
-        // Must be in same group/parent context to reorder simply
         if (activeEvent.groupId !== overEvent.groupId) return;
-        // Handle null vs undefined for parentId comparison
         const activeParent = activeEvent.parentId || null;
         const overParent = overEvent.parentId || null;
         if (activeParent !== overParent) return;
@@ -213,7 +186,6 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
 
         const idsToMove = new Set(getDescendantIds(state.events, taskId));
         
-        // Calculate new order
         const targetTasks = getChildren(state.events, null, targetGroupId);
         let newOrder = targetTasks.length;
 
@@ -245,8 +217,6 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
         
         await get().updateEvent(uid, { collapsed: !event.collapsed });
     },
-
-    // --- End Task Actions ---
 
     addCalendar: async (name, color) => {
 

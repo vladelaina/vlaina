@@ -26,7 +26,6 @@ export function IconButton({
     </button>
   );
 
-  // If no tooltip, just render the button
   if (!tooltip) {
     return button;
   }

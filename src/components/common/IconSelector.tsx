@@ -1,7 +1,3 @@
-/**
- * IconSelector - Compact icon selector using UniversalIconPicker
- */
-
 import { useState } from 'react';
 import { MdBlock, MdMoreHoriz, MdMonitorHeart } from 'react-icons/md';
 import { UniversalIconPicker } from '@/components/common/UniversalIconPicker';
@@ -21,7 +17,6 @@ interface IconSelectorProps {
   trigger?: React.ReactNode;
   hideColorPicker?: boolean;
   
-  // Upload & Custom Icons
   customIcons?: CustomIcon[];
   onUploadFile?: (file: File) => Promise<{ success: boolean; url?: string; error?: string }>;
   onDeleteCustomIcon?: (id: string) => void;
@@ -106,7 +101,6 @@ export function IconSelector({
      );
   }
 
-  // Full expanded version (for Context Menus)
   return (
     <div className="py-1" onMouseLeave={() => handlePreview(null)}>
       <div className="flex items-center gap-1.5 flex-wrap">

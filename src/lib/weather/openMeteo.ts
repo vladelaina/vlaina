@@ -1,10 +1,3 @@
-/**
- * Open-Meteo API Service
- * 
- * Provides geocoding (city search) and weather forecast data.
- * No API key required.
- */
-
 import { format } from 'date-fns';
 
 export interface GeoLocation {
@@ -39,9 +32,6 @@ export interface WeatherData {
   };
 }
 
-/**
- * Search for a city by name
- */
 export async function searchCity(name: string): Promise<GeoLocation[]> {
   if (!name || name.length < 2) return [];
   
@@ -66,17 +56,11 @@ export async function searchCity(name: string): Promise<GeoLocation[]> {
       admin1: item.admin1
     }));
   } catch (e) {
-    // Only log actual errors, not aborts if we want silence, but mostly we want to see it.
-    // However, to fix the user's issue, we can just log a warning for timeouts.
     console.warn("Geocoding failed/timed out", e);
     return [];
   }
 }
 
-/**
- * Get weather data for specific coordinates (Current + Forecast Range)
- * Fetches Past 92 days (Max) + Next 16 days (Max) for extensive coverage
- */
 export async function getWeather(lat: number, lon: number): Promise<WeatherData | null> {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,is_day,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto&past_days=92&forecast_days=16`;
   
@@ -114,9 +98,6 @@ export async function getWeather(lat: number, lon: number): Promise<WeatherData 
   }
 }
 
-/**
- * Extract forecast data for a specific date from the cached WeatherData
- */
 export function getForecastForDate(weather: WeatherData, date: Date) {
   const dateStr = format(date, 'yyyy-MM-dd');
   
@@ -136,9 +117,6 @@ export function getForecastForDate(weather: WeatherData, date: Date) {
   return null;
 }
 
-/**
- * WMO Weather interpretation codes (WW)
- */
 export function getWeatherDescription(code: number): { label: string; emoji: string } {
   const mapping: Record<number, { label: string; emoji: string }> = {
     0: { label: 'Clear sky', emoji: '☀️' },

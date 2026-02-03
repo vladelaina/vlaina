@@ -7,9 +7,6 @@ import type { TocAttrs, TocItem } from './types';
 
 const tocViewPluginKey = new PluginKey('tocView');
 
-/**
- * Extract headings from document
- */
 function extractHeadings(doc: any, maxLevel: number = 6): TocItem[] {
   const headings: TocItem[] = [];
   let counter = 0;
@@ -28,9 +25,6 @@ function extractHeadings(doc: any, maxLevel: number = 6): TocItem[] {
   return headings;
 }
 
-/**
- * Generate TOC HTML
- */
 function generateTocHtml(headings: TocItem[]): string {
   if (headings.length === 0) {
     return '<div class="toc-empty">No headings found</div>';
@@ -124,7 +118,6 @@ export const tocSchema = $node('toc', () => ({
   }],
   toDOM: (node) => {
     const attrs = node.attrs as TocAttrs;
-    // Note: Actual TOC content is generated dynamically via nodeView
     return [
       'div',
       {

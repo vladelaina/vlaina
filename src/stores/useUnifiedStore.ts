@@ -36,7 +36,6 @@ interface UnifiedStoreActions {
   load: () => Promise<void>;
   setActiveGroup: (id: string) => void;
   
-  // Progress Actions
   addProgress: (item: Omit<UnifiedProgress, 'id' | 'createdAt' | 'current' | 'todayCount'>) => void;
   updateProgress: (id: string, delta: number) => void;
   updateProgressItem: (id: string, updates: Partial<UnifiedProgress>) => void;
@@ -44,7 +43,6 @@ interface UnifiedStoreActions {
   toggleProgressArchive: (id: string) => void;
   reorderProgress: (activeId: string, overId: string) => void;
 
-  // Settings Actions
   setTimezone: (tz: number) => void;
   setViewMode: (mode: TimeView) => void;
   setDayCount: (count: number) => void;
@@ -52,7 +50,6 @@ interface UnifiedStoreActions {
   toggle24Hour: () => void;
   setDayStartTime: (minutes: number) => void;
   
-  // Custom Icon Actions
   addCustomIcon: (icon: CustomIcon) => void;
   removeCustomIcon: (id: string) => void;
   syncCustomIcons: () => Promise<void>;
@@ -117,11 +114,7 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
         const currentIcons = state.data.customIcons || [];
         const existingIds = new Set(currentIcons.map(i => i.id));
         
-        // Find new icons
         const newIcons = scanned.filter(i => !existingIds.has(i.id));
-        
-        // Optional: Filter out icons that no longer exist?
-        // For now, let's just ADD missing ones to avoid accidental data loss if scan fails
         
         if (newIcons.length === 0) return {};
         

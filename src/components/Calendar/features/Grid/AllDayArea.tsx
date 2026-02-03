@@ -1,10 +1,3 @@
-/**
- * AllDayArea - All-day events display area
- * 
- * Displays all-day events at the top of the calendar grid.
- * Supports drag-to-create and drag-to-convert interactions.
- */
-
 import { useMemo, useCallback, useState, useRef } from 'react';
 import { MdCheck, MdExpandMore, MdExpandLess } from 'react-icons/md';
 
@@ -49,7 +42,6 @@ export function AllDayArea({
   const [eventDragStarted, setEventDragStarted] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ eventId: string; x: number; y: number } | null>(null);
 
-  // Calculate layout
   const { layoutedEvents, totalRows } = useMemo(
     () => calculateAllDayLayout(allDayEvents, days),
     [allDayEvents, days]
@@ -60,7 +52,6 @@ export function AllDayArea({
   const shouldCollapse = layoutedEvents.length >= 2;
   const showEvents = !shouldCollapse || isExpanded;
 
-  // Calculate area height
   const areaHeight = useMemo(() => {
     if (layoutedEvents.length === 0) return MIN_AREA_HEIGHT;
     if (!showEvents) return COLLAPSED_HEIGHT; // Collapsed state
@@ -71,7 +62,6 @@ export function AllDayArea({
     );
   }, [layoutedEvents.length, showEvents, totalRows]);
 
-  // Get day index from mouse position
   const getDayIndexFromMouse = useCallback((clientX: number) => {
     if (!areaRef.current) return null;
     const rect = areaRef.current.getBoundingClientRect();

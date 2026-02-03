@@ -62,7 +62,6 @@ async function getBasePath(): Promise<string> {
   if (basePath === null) {
     const storage = getStorageAdapter();
     const appData = await storage.getBasePath();
-    // Fix: Correctly escape backslash for Windows paths
     basePath =
       appData.endsWith(String.fromCharCode(92)) || appData.endsWith('/') ? appData.slice(0, -1) : appData;
   }
@@ -99,7 +98,6 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
       const parsed = JSON.parse(content) as DataFile;
 
       if (parsed.version === 2 && parsed.data) {
-        // Migration: ensure calendars exists
         if (!parsed.data.calendars || parsed.data.calendars.length === 0) {
             parsed.data.calendars = getDefaultData().calendars;
         }
@@ -113,7 +111,6 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
   }
 }
 
-// Debounce save to avoid frequent writes
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 let pendingData: UnifiedData | null = null;
 
@@ -131,9 +128,7 @@ export async function saveUnifiedData(data: UnifiedData): Promise<void> {
       const storage = getStorageAdapter();
       const base = await getBasePath();
       const jsonPath = await joinPath(base, '.nekotick', 'data.json');
-      // MD file generation removed as it relied on Tasks
 
-      // Save JSON (source of truth)
       const dataFile: DataFile = {
         version: 2,
         lastModified: Date.now(),
@@ -143,28 +138,22 @@ export async function saveUnifiedData(data: UnifiedData): Promise<void> {
 
       pendingData = null;
 
-      // Trigger auto-sync for PRO users
       triggerAutoSyncIfEligible();
     } catch (error) {
     }
   }, 300);
 }
 
-/**
- * Trigger auto-sync if user is eligible (PRO + connected to GitHub)
- */
 function triggerAutoSyncIfEligible(): void {
   const syncState = useGithubSyncStore.getState();
   const proStatusState = useProStatusStore.getState();
 
-  // Only trigger for PRO users connected to GitHub
   if (syncState.isConnected && proStatusState.isProUser) {
     const autoSyncManager = getAutoSyncManager();
     autoSyncManager.triggerSync();
   }
 }
 
-// Force immediate save (for critical operations)
 export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void> {
   if (saveTimeout) {
     clearTimeout(saveTimeout);

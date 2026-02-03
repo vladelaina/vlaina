@@ -1,7 +1,3 @@
-/**
- * Progress Actions
- */
-
 import { nanoid } from 'nanoid';
 import type { UnifiedData, UnifiedProgress } from '@/lib/storage/unifiedStorage';
 import { getTodayKey } from '@/lib/date';

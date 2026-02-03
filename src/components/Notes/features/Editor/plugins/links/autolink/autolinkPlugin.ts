@@ -1,6 +1,3 @@
-// Autolink plugin for automatic URL detection
-// Converts plain URLs like www.example.com to clickable links
-
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
@@ -15,9 +12,6 @@ interface LinkMatch {
     href: string;
 }
 
-/**
- * Find all URL matches in text
- */
 function findUrls(text: string, offset: number): LinkMatch[] {
     const matches: LinkMatch[] = [];
 
@@ -57,9 +51,6 @@ function findUrls(text: string, offset: number): LinkMatch[] {
     return matches;
 }
 
-/**
- * Creates decorations for auto-detected links
- */
 function createAutolinkDecorations(doc: any): DecorationSet {
     const decorations: Decoration[] = [];
 
@@ -98,9 +89,6 @@ function createAutolinkDecorations(doc: any): DecorationSet {
     return DecorationSet.create(doc, decorations);
 }
 
-/**
- * Milkdown plugin for automatic link detection
- */
 export const autolinkPlugin = $prose(() => {
     return new Plugin({
         key: autolinkPluginKey,

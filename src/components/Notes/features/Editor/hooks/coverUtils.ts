@@ -51,9 +51,6 @@ export async function loadImageWithDimensions(src: string): Promise<{ width: num
         img.onload = () => {
             const dims = { width: img.naturalWidth, height: img.naturalHeight };
 
-            // Basic LRU Logic:
-            // 1. If exists, delete to re-insert (refresh order) - though here it didn't exist
-            // 2. If size >= MAX, delete oldest (first)
             if (dimensionCache.size >= MAX_CACHE_SIZE) {
                 const firstKey = dimensionCache.keys().next().value;
                 if (firstKey) dimensionCache.delete(firstKey);
@@ -66,37 +63,19 @@ export async function loadImageWithDimensions(src: string): Promise<{ width: num
         img.src = src;
     });
 }
-// ... existing exports ...
-
 interface Size { width: number; height: number; }
 interface Point { x: number; y: number; }
 
-/**
- * Calculate the "Base" dimensions of the image as rendered with object-fit: cover/contain
- * This represents the image size when zoom = 1
- */
-/**
- * Calculate the "Base" dimensions of the image as rendered with object-fit: cover/contain
- * This represents the image size when zoom = 1
- */
 export function getBaseDimensions(mediaSize: Size, containerSize: Size): Size {
     const mediaRatio = mediaSize.width / mediaSize.height;
     const containerRatio = containerSize.width / containerSize.height;
 
     let baseW: number, baseH: number;
 
-    // "cover" logic: defaults to matching the SMALLER dimension to fill gaps
-    // If image is wider than container (relative to height), we match height
-    // If image is taller than container (relative to width), we match width
-    // Wait, object-fit: cover works by matching the constrained dimension
-
-    // Logic from react-easy-crop or standard CSS 'cover':
     if (mediaRatio > containerRatio) {
-        // Image is wider than container: Match Height, crop Width
         baseH = containerSize.height;
         baseW = baseH * mediaRatio;
     } else {
-        // Image is taller than container: Match Width, crop Height
         baseW = containerSize.width;
         baseH = baseW / mediaRatio;
     }
@@ -104,9 +83,6 @@ export function getBaseDimensions(mediaSize: Size, containerSize: Size): Size {
     return { width: baseW, height: baseH };
 }
 
-/**
- * Convert Database Percentage Position (0-100) to React-Easy-Crop Pixel Offset
- */
 export function calculateCropPixels(
     positionPercent: Point,
     mediaSize: Size,
@@ -135,9 +111,6 @@ export function calculateCropPixels(
     };
 }
 
-/**
- * Convert React-Easy-Crop Pixel Offset to Database Percentage Position (0-100)
- */
 export function calculateCropPercentage(
     cropPixels: Point,
     mediaSize: Size,
