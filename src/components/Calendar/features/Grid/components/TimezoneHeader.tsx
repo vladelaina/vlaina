@@ -83,7 +83,7 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
   const isMaxZoomIn = viewMode !== 'month' && currentDayCount === 1;
 
   return (
-    <div className="flex h-7 items-center select-none bg-white dark:bg-zinc-950 pr-2 border-b border-zinc-100 dark:border-zinc-800/50 relative">
+    <div className="flex h-7 items-center select-none bg-white dark:bg-zinc-950 border-b border-zinc-100 dark:border-zinc-800/50 relative">
       {/* 1. Timezone Label */}
       <div 
         style={{ width: GUTTER_WIDTH }} 
@@ -97,7 +97,7 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
       </div>
 
       {/* 2. Date Columns (Grid) */}
-      <div className="flex-1 min-w-0 h-full">
+      <div className="flex-1 min-w-0 h-full" style={{ paddingRight: '120px' }}>
         {viewMode !== 'month' && days.length > 0 && (
           <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
             <PopoverTrigger asChild>
