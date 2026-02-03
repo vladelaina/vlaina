@@ -1,7 +1,7 @@
 import type { LanguageDetector } from '../types';
 
 export const detectPug: LanguageDetector = (ctx) => {
-  const { code, lines, first100Lines, firstLine } = ctx;
+  const { code, lines, first100Lines } = ctx;
 
   if (/</.test(code)) {
     return null;

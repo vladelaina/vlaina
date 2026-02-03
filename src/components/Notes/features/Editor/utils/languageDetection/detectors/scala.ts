@@ -1,7 +1,7 @@
 import type { LanguageDetector } from '../types';
 
 export const detectScala: LanguageDetector = (ctx) => {
-  const { sample, first100Lines, hasCurlyBraces, firstLine, lines, code } = ctx;
+  const { sample, first100Lines, hasCurlyBraces, firstLine, code } = ctx;
 
   if (/:=/.test(first100Lines) && /^\t/m.test(code)) {
     return null;

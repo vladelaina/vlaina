@@ -1,7 +1,7 @@
 import type { LanguageDetector } from '../types';
 
 export const detectJulia: LanguageDetector = (ctx) => {
-  const { code, first100Lines, firstLine } = ctx;
+  const { code, first100Lines } = ctx;
 
   if (/^use\s+(strict|warnings|lib)\b/m.test(first100Lines) ||
       /^package\s+[\w:]+;/m.test(first100Lines) ||
