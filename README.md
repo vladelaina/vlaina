@@ -3,6 +3,13 @@
 <img width="2048" height="1152" alt="Gemini_Generated_Image_5y7o385y7o385y7o" src="https://github.com/user-attachments/assets/ec93951f-ace4-4af8-a5a2-e84225dfaf8c" />
 
 
+
+
+<p align="center">
+    <img src="https://count.getloli.com/@nekotick?name=nekotick&theme=booru-qualityhentais&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto" width="400">
+  </p>
+
+  
 # NekoTick
 
 ## ⚖️ License & Copyright
@@ -41,3 +48,4 @@ pnpm dev:dynamic
 
 
 This command automatically detects available ports to prevent conflicts and synchronizes configurations between Vite and Tauri. This is a recommended practice for maintaining a smooth development workflow across different environments and OS (Windows/macOS/Linux).
+
