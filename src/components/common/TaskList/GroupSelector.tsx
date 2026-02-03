@@ -37,7 +37,6 @@ export function GroupSelector({
                 )} />
             </button>
 
-            {/* Group dropdown menu */}
             <AnimatePresence>
                 {showPicker && (
                     <motion.div
@@ -66,7 +65,6 @@ export function GroupSelector({
                                 )}
                             </button>
                         ))}
-                        {/* Archive entry */}
                         <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
                         <button
                             onClick={() => {

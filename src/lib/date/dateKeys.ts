@@ -1,5 +1,3 @@
-// Date key generation utilities
-
 import { MS_PER_WEEK } from '../time/constants';
 
 export function formatDateKey(date: Date): string {
@@ -16,7 +14,6 @@ export function getYesterdayKey(): string {
   return formatDateKey(yesterday);
 }
 
-// Returns ISO week key (YYYY-Wxx), Monday as first day
 export function getCurrentWeekKey(): string {
   const today = new Date();
   const firstDay = new Date(today);

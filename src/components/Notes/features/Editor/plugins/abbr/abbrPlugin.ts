@@ -1,6 +1,3 @@
-// Abbreviation plugin
-// Supports: *[abbr]: full text syntax
-
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
@@ -12,12 +9,8 @@ interface AbbrDefinition {
   fullText: string;
 }
 
-// Regex to match abbreviation definitions: *[abbr]: full text
 const ABBR_DEF_REGEX = /^\*\[([^\]]+)\]:\s*(.+)$/gm;
 
-/**
- * Extract abbreviation definitions from document text
- */
 function extractAbbrDefinitions(doc: any): AbbrDefinition[] {
   const definitions: AbbrDefinition[] = [];
   
@@ -39,15 +32,11 @@ function extractAbbrDefinitions(doc: any): AbbrDefinition[] {
   return definitions;
 }
 
-/**
- * Find all abbreviation usages in document
- */
 function findAbbrUsages(doc: any, definitions: AbbrDefinition[]): { start: number; end: number; fullText: string }[] {
   const usages: { start: number; end: number; fullText: string }[] = [];
   
   if (definitions.length === 0) return usages;
   
-  // Create regex pattern for all abbreviations
   const abbrMap = new Map(definitions.map(d => [d.abbr, d.fullText]));
   const escapedAbbrs = definitions.map(d => escapeRegex(d.abbr));
   const pattern = new RegExp('\\b(' + escapedAbbrs.join('|') + ')\\b', 'g');
@@ -77,7 +66,6 @@ function findAbbrUsages(doc: any, definitions: AbbrDefinition[]): { start: numbe
 }
 
 function escapeRegex(str: string): string {
-  // Escape special regex characters
   let result = '';
   for (const char of str) {
     if ('.*+?^${}()|[]\\'.includes(char)) {
@@ -89,9 +77,6 @@ function escapeRegex(str: string): string {
   return result;
 }
 
-/**
- * Create decorations for abbreviations
- */
 function createAbbrDecorations(doc: any): DecorationSet {
   const decorations: Decoration[] = [];
   const definitions = extractAbbrDefinitions(doc);
@@ -110,9 +95,6 @@ function createAbbrDecorations(doc: any): DecorationSet {
   return DecorationSet.create(doc, decorations);
 }
 
-/**
- * Abbreviation plugin
- */
 export const abbrPlugin = $prose(() => {
   return new Plugin({
     key: abbrPluginKey,
@@ -122,7 +104,6 @@ export const abbrPlugin = $prose(() => {
       },
       apply(tr, old) {
         if (tr.docChanged) {
-          // For small changes, use mapping
           if (tr.steps.length <= 2) {
             return old.map(tr.mapping, tr.doc);
           }

@@ -131,7 +131,6 @@ export function TodoSidebar() {
         <div className="flex flex-col h-full bg-zinc-50/80 dark:bg-zinc-900/50 backdrop-blur-xl border-r border-zinc-200 dark:border-zinc-800 select-none">
             <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
                 
-                {/* Section 1: Smart Lists */}
                 <div className="space-y-0.5">
                     <NavItem 
                         id={DEFAULT_GROUP_ID} 
@@ -167,7 +166,6 @@ export function TodoSidebar() {
                     />
                 </div>
 
-                {/* Section 2: My Lists */}
                 <div className="space-y-1">
                     <div className="flex items-center justify-between px-3 group/header">
                         <button 
@@ -318,7 +316,6 @@ export function TodoSidebar() {
                     </AnimatePresence>
                 </div>
 
-                {/* Section 3: Tags */}
                 <div className="space-y-1">
                     <div className="px-3">
                         <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">TAGS</span>

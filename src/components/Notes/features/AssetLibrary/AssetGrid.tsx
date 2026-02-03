@@ -1,7 +1,3 @@
-/**
- * AssetGrid - Grid display of assets from the library
- */
-
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
@@ -19,12 +15,10 @@ interface AssetThumbnailProps {
   size: number;
   vaultPath: string;
   onSelect: () => void;
-  // onDelete removed as handled by parent wrapper
   isHovered: boolean;
   compact?: boolean;
 }
 
-// Memoized thumbnail component to prevent unnecessary re-renders
 const AssetThumbnail = memo(function AssetThumbnail({
   filename, size, vaultPath, onSelect, isHovered, compact
 }: AssetThumbnailProps) {
@@ -32,15 +26,11 @@ const AssetThumbnail = memo(function AssetThumbnail({
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const imgRef = useRef<HTMLDivElement>(null);
-  // Use a unique mount ID to handle StrictMode double-mount
   const mountIdRef = useRef(0);
 
-  // Lazy load with Intersection Observer
   useEffect(() => {
-    // Increment mount ID to invalidate any pending async operations from previous mount
     const currentMountId = ++mountIdRef.current;
 
-    // Reset state on mount
     setSrc(null);
     setIsLoaded(false);
     setHasError(false);
@@ -51,24 +41,17 @@ const AssetThumbnail = memo(function AssetThumbnail({
       async (entries) => {
         if (entries[0].isIntersecting) {
           try {
-            // Built-in covers use URL, user uploads use blob
             if (isBuiltinCover(filename)) {
-              // Check if this mount is still valid
               if (mountIdRef.current === currentMountId) {
                 setSrc(getBuiltinCoverUrl(filename));
               }
             } else if (vaultPath) {
               const fullPath = buildFullAssetPath(vaultPath, filename);
-              // loadImageAsBlob has internal caching, so we don't need to manage blob URLs here
-              // The cache ensures the same blob URL is reused across mounts
               const blobUrl = await loadImageAsBlob(fullPath);
 
-              // Check if this mount is still valid (handles StrictMode double-mount)
               if (mountIdRef.current === currentMountId) {
                 setSrc(blobUrl);
               }
-              // Note: We don't revoke blob URLs here because loadImageAsBlob caches them
-              // The cache manages the lifecycle of blob URLs
             }
           } catch (error) {
             console.error('Failed to load thumbnail:', filename, error);
@@ -83,12 +66,9 @@ const AssetThumbnail = memo(function AssetThumbnail({
 
     return () => {
       observer.disconnect();
-      // Note: We don't revoke blob URLs here because loadImageAsBlob caches them globally
-      // Revoking would invalidate the cache and cause ERR_FILE_NOT_FOUND on next open
     };
   }, [filename, vaultPath]);
 
-  // Handle image load error (e.g., revoked blob URL)
   const handleImageError = useCallback(() => {
     setHasError(true);
     setIsLoaded(false);
@@ -100,7 +80,6 @@ const AssetThumbnail = memo(function AssetThumbnail({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // Extract display name from path (remove @ prefix if present)
   const cleanFilename = filename.replace(/^@/, '');
   const displayName = cleanFilename.split('/').pop() || cleanFilename;
 
@@ -167,14 +146,12 @@ export function AssetGrid({ onSelect, onHover, vaultPath, compact, itemSize, cat
 
   const assets = getAssetList(category);
 
-  // Load assets on mount
   useEffect(() => {
     if (vaultPath) {
       loadAssets(vaultPath);
     }
   }, [vaultPath, loadAssets]);
 
-  // Event delegation for hover - similar to emoji picker
   useEffect(() => {
     const grid = gridRef.current;
     if (!grid) return;
@@ -184,10 +161,7 @@ export function AssetGrid({ onSelect, onHover, vaultPath, compact, itemSize, cat
       const item = target.closest('[data-filename]') as HTMLElement;
       const filename = item?.dataset.filename || null;
 
-      // Only update when hovering a NEW image (not when moving to gap)
-      // This prevents preview from clearing when moving between images
       if (filename && filename !== lastHoveredRef.current) {
-        // Clear any pending clear timeout
         if (clearTimeoutRef.current) {
           clearTimeout(clearTimeoutRef.current);
           clearTimeoutRef.current = null;
@@ -200,7 +174,6 @@ export function AssetGrid({ onSelect, onHover, vaultPath, compact, itemSize, cat
     };
 
     const handleMouseLeave = () => {
-      // Delay clearing preview to handle gaps between items
       if (clearTimeoutRef.current) {
         clearTimeout(clearTimeoutRef.current);
       }
@@ -227,12 +200,10 @@ export function AssetGrid({ onSelect, onHover, vaultPath, compact, itemSize, cat
     onSelect(filename);
   }, [onSelect]);
 
-
   if (assets.length === 0) {
-    return null; // EmptyState will be shown by parent
+    return null;
   }
 
-  // Dynamic grid style based on itemSize
   const gridStyle = itemSize
     ? { gridTemplateColumns: `repeat(auto-fill, minmax(${itemSize}px, 1fr))` }
     : undefined;
@@ -250,7 +221,6 @@ export function AssetGrid({ onSelect, onHover, vaultPath, compact, itemSize, cat
             id={asset.filename}
             onDelete={(id) => deleteAsset(id)}
             className="relative aspect-square rounded-lg overflow-hidden"
-            // Built-in covers cannot be deleted
             disabled={isBuiltinCover(asset.filename)}
           >
             <AssetThumbnail

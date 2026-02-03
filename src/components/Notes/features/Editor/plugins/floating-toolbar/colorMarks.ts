@@ -4,10 +4,6 @@
 import { $mark, $remark, $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 
-/**
- * Text Color Mark
- * Applies foreground color to text
- */
 export const textColorMark = $mark('textColor', () => ({
   attrs: {
     color: { default: null },
@@ -57,10 +53,6 @@ export const textColorMark = $mark('textColor', () => ({
   },
 }));
 
-/**
- * Background Color Mark
- * Applies background highlight color to text
- */
 export const bgColorMark = $mark('bgColor', () => ({
   attrs: {
     color: { default: null },
@@ -119,11 +111,6 @@ export const bgColorMark = $mark('bgColor', () => ({
   },
 }));
 
-/**
- * Underline Mark (if not already defined)
- * Standard underline formatting
- * Uses ++text++ syntax in markdown (similar to ==highlight==)
- */
 export const underlineMark = $mark('underline', () => ({
   parseDOM: [
     { tag: 'u' },
@@ -149,7 +136,6 @@ export const underlineMark = $mark('underline', () => ({
   },
 }));
 
-// Input rule: ++text++ -> underline
 export const underlineInputRule = $inputRule(() => {
   return new InputRule(
     /(?<!\+)\+\+([^+]+)\+\+$/,
@@ -169,10 +155,6 @@ export const underlineInputRule = $inputRule(() => {
   );
 });
 
-/**
- * Remark plugin to parse ++underline++ syntax
- * Transforms ++text++ into underline nodes in the AST
- */
 interface MdastNode {
   type: string;
   value?: string;
@@ -230,7 +212,6 @@ function remarkUnderline() {
     }
   }
   
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (tree: any) => {
     visitNode(tree);
   };
@@ -238,7 +219,6 @@ function remarkUnderline() {
 
 export const remarkUnderlinePlugin = $remark('remarkUnderline', () => remarkUnderline);
 
-// Combined color marks plugin - flatten for proper plugin registration
 export const colorMarksPlugin = [
   textColorMark,
   bgColorMark,

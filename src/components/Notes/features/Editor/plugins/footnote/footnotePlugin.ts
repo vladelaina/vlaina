@@ -5,10 +5,6 @@ import { $node, $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 import type { FootnoteDefAttrs, FootnoteRefAttrs } from './types';
 
-// ============================================
-// Footnote Reference: [^1]
-// ============================================
-
 export const footnoteRefSchema = $node('footnote_ref', () => ({
   group: 'inline',
   inline: true,
@@ -49,10 +45,6 @@ export const footnoteRefSchema = $node('footnote_ref', () => ({
     }
   }
 }));
-
-// ============================================
-// Footnote Definition: [^1]: content
-// ============================================
 
 export const footnoteDefSchema = $node('footnote_def', () => ({
   content: 'block+',

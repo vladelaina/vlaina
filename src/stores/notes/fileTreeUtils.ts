@@ -1,15 +1,6 @@
-/**
- * Notes Store - File tree utility functions
- * 
- * Cross-platform file tree operations using StorageAdapter
- */
-
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import type { FileTreeNode } from './types';
 
-/**
- * Build file tree from filesystem
- */
 export async function buildFileTree(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
   const storage = getStorageAdapter();
   const fullPath = relativePath ? await joinPath(basePath, relativePath) : basePath;
@@ -18,12 +9,10 @@ export async function buildFileTree(basePath: string, relativePath: string = '')
   const nodes: FileTreeNode[] = [];
 
   for (const entry of entries) {
-    // Skip hidden folders (like .nekotick)
     if (entry.name.startsWith('.')) continue;
 
     const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
 
-    // Check if entry is a directory (handle potential undefined values)
     const isDir = entry.isDirectory === true;
     const isFile = entry.isFile === true;
 
@@ -50,9 +39,6 @@ export async function buildFileTree(basePath: string, relativePath: string = '')
   return sortFileTree(nodes);
 }
 
-/**
- * Sort file tree nodes (folders first, then alphabetically)
- */
 export function sortFileTree(nodes: FileTreeNode[]): FileTreeNode[] {
   return [...nodes].sort((a, b) => {
     if (a.isFolder && !b.isFolder) return -1;
@@ -61,9 +47,6 @@ export function sortFileTree(nodes: FileTreeNode[]): FileTreeNode[] {
   });
 }
 
-/**
- * Update a file node's path in the tree
- */
 export function updateFileNodePath(
   nodes: FileTreeNode[],
   oldPath: string,
@@ -81,9 +64,6 @@ export function updateFileNodePath(
   });
 }
 
-/**
- * Update a folder node and all its children to reflect a rename/move
- */
 export function updateFolderNode(
   nodes: FileTreeNode[],
   targetPath: string,
@@ -125,9 +105,6 @@ export function updateFolderNode(
   });
 }
 
-/**
- * Toggle folder expanded state
- */
 export function updateFolderExpanded(nodes: FileTreeNode[], targetPath: string): FileTreeNode[] {
   return nodes.map(node => {
     if (node.isFolder) {
@@ -140,9 +117,6 @@ export function updateFolderExpanded(nodes: FileTreeNode[], targetPath: string):
   });
 }
 
-/**
- * Collect all expanded folder paths
- */
 export function collectExpandedPaths(nodes: FileTreeNode[]): Set<string> {
   const expandedPaths = new Set<string>();
   const collect = (nodes: FileTreeNode[]) => {
@@ -159,9 +133,6 @@ export function collectExpandedPaths(nodes: FileTreeNode[]): Set<string> {
   return expandedPaths;
 }
 
-/**
- * Restore expanded state from saved paths
- */
 export function restoreExpandedState(
   nodes: FileTreeNode[],
   expandedPaths: Set<string>
@@ -178,16 +149,11 @@ export function restoreExpandedState(
   });
 }
 
-/**
- * Add a new node to the tree at the specified folder path
- * If targetFolderPath is undefined/empty, adds to the root level (top of the nodes array)
- */
 export function addNodeToTree(
   nodes: FileTreeNode[],
   targetFolderPath: string | undefined | null,
   newNode: FileTreeNode
 ): FileTreeNode[] {
-  // If no target folder (root), just add and sort
   if (!targetFolderPath) {
     return sortFileTree([...nodes, newNode]);
   }
@@ -195,14 +161,12 @@ export function addNodeToTree(
   return nodes.map(node => {
     if (node.isFolder) {
       if (node.path === targetFolderPath) {
-        // Found the parent folder, add child and sort
         return {
           ...node,
           children: sortFileTree([...node.children, newNode]),
           expanded: true // Auto-expand parent when adding child
         };
       }
-      // Continue searching recursively
       return {
         ...node,
         children: addNodeToTree(node.children, targetFolderPath, newNode)
@@ -212,9 +176,6 @@ export function addNodeToTree(
   });
 }
 
-/**
- * Remove a node from the tree by path
- */
 export function removeNodeFromTree(
   nodes: FileTreeNode[],
   targetPath: string
@@ -230,9 +191,6 @@ export function removeNodeFromTree(
   });
 }
 
-/**
- * Find a node in the tree by path
- */
 export function findNode(nodes: FileTreeNode[], targetPath: string): FileTreeNode | null {
   for (const node of nodes) {
     if (node.path === targetPath) return node;
@@ -244,9 +202,6 @@ export function findNode(nodes: FileTreeNode[], targetPath: string): FileTreeNod
   return null;
 }
 
-/**
- * Deep update paths for a node and its children (used when moving a folder)
- */
 export function deepUpdateNodePath(
   node: FileTreeNode,
   oldBasePath: string,

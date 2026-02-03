@@ -1,8 +1,5 @@
 import { EditorView } from '@milkdown/kit/prose/view';
 
-/**
- * Helper to find the full range of a link mark at a given position within the DOM
- */
 export function findLinkRange(view: EditorView, link: HTMLElement): { start: number, end: number, linkMarkType: any } | null {
     const pos = view.posAtDOM(link, 0);
     if (pos < 0) return null;

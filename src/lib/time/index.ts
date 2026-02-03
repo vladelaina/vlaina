@@ -1,5 +1,3 @@
-// Unified Time System Module
-
 export {
   SECONDS_PER_MINUTE,
   MINUTES_PER_HOUR,

@@ -3,10 +3,6 @@ import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 
 export const debugPluginKey = new PluginKey('debug-cursor');
 
-/**
- * 将 ProseMirror Slice 序列化为纯净的文本格式
- * 不包含任何 HTML 标签
- */
 function serializeSliceToText(slice: any): string {
     let result = '';
 
@@ -32,7 +28,6 @@ function serializeSliceToText(slice: any): string {
         }
     });
 
-    // 移除末尾多余的换行符
     return result.replace(/\n+$/, '');
 }
 
@@ -49,13 +44,10 @@ export const debugPlugin = $prose(() => {
                     const slice = view.state.doc.slice(from, to);
                     const text = serializeSliceToText(slice);
 
-
-
-                    // 手动设置剪贴板内容
                     event.preventDefault();
                     event.clipboardData?.setData('text/plain', text);
 
-                    return true; // 阻止默认行为
+                    return true;
                 }
             }
         },
@@ -63,11 +55,6 @@ export const debugPlugin = $prose(() => {
             init() { },
             apply(tr, _value, _oldState) {
                 if (!tr.selectionSet) return;
-
-
-
-
-
 
                 return;
             }

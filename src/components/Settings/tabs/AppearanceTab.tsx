@@ -11,9 +11,6 @@ import { parseClockTime, formatClockTime } from '@/lib/time';
 import { STORAGE_KEY_FONT_SIZE } from '@/lib/config';
 import { MdLaptop, MdDarkMode, MdLightMode, MdTextFields, MdAccessTime } from 'react-icons/md';
 
-/**
- * Appearance tab content - theme, colors, font size
- */
 export function AppearanceTab() {
   const { theme, setTheme } = useTheme();
   const { timezone, setTimezone, use24Hour, toggle24Hour, dayStartTime, setDayStartTime } = useCalendarStore();
@@ -28,17 +25,14 @@ export function AppearanceTab() {
     formatClockTime(dayStartTime, use24Hour)
   );
 
-  // Update input when timezone changes externally
   useEffect(() => {
     setTimezoneInput(timezone.toString());
   }, [timezone]);
 
-  // Update day start input when settings change
   useEffect(() => {
     setDayStartInput(formatClockTime(dayStartTime, use24Hour));
   }, [dayStartTime, use24Hour]);
 
-  // Apply global font size
   useEffect(() => {
     document.documentElement.style.fontSize = `${fontSize}px`;
   }, [fontSize]);
@@ -59,7 +53,6 @@ export function AppearanceTab() {
         return;
       }
     }
-    // Reset if invalid
     setTimezoneInput(timezone.toString());
   };
 
@@ -69,7 +62,6 @@ export function AppearanceTab() {
       const minutes = parsed.hours * 60 + parsed.minutes;
       setDayStartTime(minutes);
     } else {
-      // Reset if invalid
       setDayStartInput(formatClockTime(dayStartTime, use24Hour));
     }
   };

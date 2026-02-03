@@ -7,21 +7,17 @@ export async function saveGlobalAsset(file: File, folder: 'icons' | 'covers'): P
   const { metadata } = await getPaths();
   const assetsDir = await joinPath(metadata, 'assets', folder);
   
-  // Ensure directory exists
   if (!(await adapter.exists(assetsDir))) {
     await adapter.mkdir(assetsDir, true);
   }
   
-  // Create filename: timestamp_clean-name
   const timestamp = Date.now();
   const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
   const filename = `${timestamp}_${safeName}`;
   const filePath = await joinPath(assetsDir, filename);
   
-  // Read file as ArrayBuffer
   const buffer = await file.arrayBuffer();
   
-  // Write file
   await adapter.writeBinaryFile(filePath, new Uint8Array(buffer));
   
   return filePath;
@@ -39,7 +35,6 @@ export async function scanGlobalIcons(): Promise<CustomIcon[]> {
   try {
     const files = await adapter.listDir(iconsDir);
     
-    // Filter for images
     const imageFiles = files.filter(f => 
       f.isFile && 
       !f.name.startsWith('.') &&
@@ -47,8 +42,8 @@ export async function scanGlobalIcons(): Promise<CustomIcon[]> {
     );
     
     return imageFiles.map(f => ({
-      id: f.path, // Use path as ID
-      url: `img:${f.path}`, // Protocol format used by UniversalIcon
+      id: f.path,
+      url: `img:${f.path}`,
       name: f.name,
       createdAt: f.modifiedAt || Date.now(),
     }));

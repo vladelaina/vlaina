@@ -1,15 +1,8 @@
-/**
- * ICS Parser - Parse ICS files to NekoEvent objects
- */
-
 import ICAL from 'ical.js';
 import type { NekoEvent } from './types';
 import type { ItemColor } from '@/lib/colors';
 import { NEKO_X_PROPS } from './types';
 
-/**
- * Parse an ICS string into NekoEvent array
- */
 export function parseICS(icsContent: string, defaultCalendarId: string = 'default'): NekoEvent[] {
     const jcalData = ICAL.parse(icsContent);
     const comp = new ICAL.Component(jcalData);
@@ -20,14 +13,11 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
     for (const vevent of vevents) {
         const event = new ICAL.Event(vevent);
 
-        // Get standard properties
         const dtstart = event.startDate;
         const dtend = event.endDate;
 
-        if (!dtstart) continue; // Skip invalid events
+        if (!dtstart) continue;
 
-        // Get NekoTick custom properties
-        // Note: ical.js normalizes X- properties to lowercase, so we must query with lowercase keys
         const nekoColor = vevent.getFirstPropertyValue(NEKO_X_PROPS.COLOR.toLowerCase()) as ItemColor | null;
         let nekoIcon = vevent.getFirstPropertyValue(NEKO_X_PROPS.ICON.toLowerCase()) as string | null;
         
@@ -35,7 +25,6 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
             try {
                 nekoIcon = decodeURIComponent(nekoIcon);
             } catch (e) {
-                // Fallback to raw value if decoding fails (legacy data)
             }
         }
         const nekoIconSize = vevent.getFirstPropertyValue(NEKO_X_PROPS.ICON_SIZE.toLowerCase()) as string | null;
@@ -56,7 +45,7 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
             uid: event.uid || crypto.randomUUID(),
             summary: event.summary || '',
             dtstart: dtstart.toJSDate(),
-            dtend: dtend ? dtend.toJSDate() : new Date(dtstart.toJSDate().getTime() + 30 * 60 * 1000), // Default 30 min
+            dtend: dtend ? dtend.toJSDate() : new Date(dtstart.toJSDate().getTime() + 30 * 60 * 1000),
             allDay: dtstart.isDate,
             description: event.description || undefined,
             location: event.location || undefined,
@@ -84,9 +73,6 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
     return events;
 }
 
-/**
- * Parse multiple ICS files into a combined event list
- */
 export function parseMultipleICS(
     icsFiles: Array<{ calendarId: string; content: string }>
 ): NekoEvent[] {

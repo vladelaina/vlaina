@@ -1,8 +1,3 @@
-/**
- * UniversalIcon - Renders either an emoji, a Material Design icon, or a custom image
- * Performance optimized: uses memo and shallow comparison
- */
-
 import { memo, useMemo, useState, useEffect } from 'react';
 import * as LucideIcons from 'lucide-react';
 import * as MdIcons from 'react-icons/md';

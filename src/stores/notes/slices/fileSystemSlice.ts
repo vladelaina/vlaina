@@ -1,7 +1,3 @@
-/**
- * FileSystem Slice - File and folder operations
- */
-
 import { StateCreator } from 'zustand';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { NotesStore } from '../types';
@@ -79,7 +75,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       const workspace = await loadWorkspaceState(basePath);
       const favorites = await loadFavoritesFromFile(basePath);
 
-      // Restore expanded folders from workspace state
       let restoredChildren = children;
       if (workspace?.expandedFolders?.length) {
         const expandedSet = new Set(workspace.expandedFolders);
@@ -102,8 +97,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         isLoading: false,
       });
 
-      // Restore last opened note
-      // skipRestore is used when we want to manually handle navigation (e.g. after creating a new note)
       if (!skipRestore && workspace?.currentNotePath) {
         setTimeout(async () => {
           try {
@@ -113,7 +106,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
               get().openNote(workspace.currentNotePath!);
             }
           } catch {
-            // File no longer exists, ignore
           }
         }, 0);
       }
@@ -131,7 +123,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     const updatedChildren = updateFolderExpanded(rootFolder.children, path);
     set({ rootFolder: { ...rootFolder, children: updatedChildren } });
 
-    // Save expanded state
     if (notesPath) {
       const expandedPaths = collectExpandedPaths(updatedChildren);
       const { currentNote } = get();
@@ -168,7 +159,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       const defaultContent = '';
       await safeWriteTextFile(fullPath, defaultContent);
 
-      // Initialize Metadata
       const now = Date.now();
       const metadata = await loadNoteMetadata(notesPath);
       const updatedMetadata = setNoteEntry(metadata, relativePath, {
@@ -177,8 +167,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       });
       await saveNoteMetadata(notesPath, updatedMetadata);
 
-      // Optimistic Update: Add to tree without reloading
-      const newNode: any = { // fileTreeUtils types might need export, using any for safety momentarily or import FileTreeNode
+      const newNode: any = {
         id: relativePath,
         name: fileName.replace('.md', ''),
         path: relativePath,
@@ -192,14 +181,12 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
             ...currentRootFolder,
             children: addNodeToTree(currentRootFolder.children, folderPath, newNode),
           },
-          noteMetadata: updatedMetadata, // Update store
+          noteMetadata: updatedMetadata,
         });
       }
 
       const tabName = fileName.replace('.md', '');
 
-      // Update Tabs: Replace current tab if exists, otherwise append
-      // This mimics Apple Notes behavior (single view context)
       let updatedTabs = openTabs;
       const newTab = { path: relativePath, name: tabName, isDirty: false };
 
@@ -253,7 +240,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
 
       await safeWriteTextFile(fullPath, content);
 
-      // Initialize Metadata
       const now = Date.now();
       const metadata = await loadNoteMetadata(notesPath);
       const updatedMetadata = setNoteEntry(metadata, relativePath, {
@@ -262,7 +248,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       });
       await saveNoteMetadata(notesPath, updatedMetadata);
 
-      // Optimistic Update
       const newNode: any = {
         id: relativePath,
         name: fileName.replace('.md', ''),
@@ -281,18 +266,9 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         });
       }
 
-      // Update recent notes
-      const updatedRecent = addToRecentNotes(relativePath, recentNotes); // Use fresh recentNotes
+      const updatedRecent = addToRecentNotes(relativePath, recentNotes);
 
-      // Since this is specific "Create Note With Content", we assume it might be a paste or import.
-      // We will KEEP standard tab behavior (append) if it creates implicit content? 
-      // User requested "Create New File" flow improvement. This function is likely used by "+ Create" button too if name provided.
-      // But standard "+" button uses createNote().
-      // Let's safe-guard this one to also reuse tab if it was triggered from a similar context.
-      // Actually, createNoteWithContent is likely drag-drop or specialized. I'll stick to Reuse logic for consistency.
-
-      let updatedTabs = openTabs;  // Start with current
-      // Reuse logic
+      let updatedTabs = openTabs;
       const currentNotePath = get().currentNote?.path;
       if (currentNotePath) {
         const tabName = name.replace('.md', '');
@@ -307,12 +283,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         isDirty: false,
         recentNotes: updatedRecent,
         noteMetadata: updatedMetadata,
-        // Also update openTabs here, it was missing in original code? 
-        // Wait, original code did NOT update openTabs in createNoteWithContent. 
-        // It just set currentNote. This means it relied on openTabs not changing?
-        // Or createNoteWithContent wasn't opening it?
-        // Line 261: set({ currentNote: ... }). The store implies that currentNote should be in tabs?
-        // If I strictly follow the Apple design, I should ensure it's in a tab.
         openTabs: updatedTabs
       });
       return relativePath;
@@ -339,7 +309,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       const updatedTabs = openTabs.filter((t) => t.path !== path);
       removeDisplayName(set, path);
 
-      // Remove from favorites if starred
       if (starredNotes.includes(path)) {
         const updatedStarred = starredNotes.filter((p) => p !== path);
         set({ starredNotes: updatedStarred });
@@ -358,7 +327,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         set({ openTabs: updatedTabs });
       }
 
-      // Optimistic Update: Remove from tree without reloading
       const currentRootFolder = get().rootFolder;
       if (currentRootFolder) {
         set({
@@ -392,24 +360,20 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       const newFileName = sanitizedName.endsWith('.md') ? sanitizedName : `${sanitizedName}.md`;
       const newPath = dirPath ? `${dirPath}/${newFileName}` : newFileName;
 
-      // Skip if path hasn't changed
       if (newPath === path) return;
 
       const newFullPath = await joinPath(notesPath, newPath);
 
       await storage.rename(fullPath, newFullPath);
       moveDisplayName(set, path, newPath);
-      // Update display name with new filename
       updateDisplayName(set, newPath, sanitizedName.replace('.md', ''));
 
-      // Update favorites if starred
       if (starredNotes.includes(path)) {
         const updatedStarred = starredNotes.map((p) => (p === path ? newPath : p));
         set({ starredNotes: updatedStarred });
         saveFavoritesToFile(notesPath, { notes: updatedStarred, folders: starredFolders });
       }
 
-      // Update metadata if exists (move icon and cover from old path to new path)
       if (noteMetadata?.notes[path]) {
         const entry = noteMetadata.notes[path];
         const { [path]: _, ...restNotes } = noteMetadata.notes;
@@ -425,7 +389,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         tab.path === path ? { ...tab, path: newPath, name: sanitizedName } : tab
       );
 
-      // Update file tree directly without reloading
       if (rootFolder) {
         const updatedChildren = updateFileNodePath(
           rootFolder.children,
@@ -463,7 +426,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
 
       await storage.rename(fullPath, newFullPath);
 
-      // Update favorites paths
       const updatedStarredFolders = starredFolders.map((p) => {
         if (p === path) return newPath;
         if (p.startsWith(path + '/')) return p.replace(path, newPath);
@@ -535,8 +497,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
 
       await storage.mkdir(fullPath, true);
 
-      // Optimistic Update
-      const newNode: any = { // Using any momentarily to satisfy type if strict
+      const newNode: any = {
         id: folderPath,
         name: folderName,
         path: folderPath,
@@ -572,7 +533,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       const fullPath = await joinPath(notesPath, path);
       await storage.deleteDir(fullPath, true);
 
-      // Remove folder and any notes inside from favorites
       const updatedStarredFolders = starredFolders.filter(
         (p) => p !== path && !p.startsWith(path + '/')
       );
@@ -589,27 +549,22 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         });
       }
 
-      // Update open tabs: close any tabs that were inside the deleted folder
       const updatedTabs = openTabs.filter((tab) => !tab.path.startsWith(path + '/') && tab.path !== path);
 
-      // If the current note was inside the deleted folder, clear it
       let updatedCurrentNote = currentNote;
       if (currentNote && (currentNote.path === path || currentNote.path.startsWith(path + '/'))) {
         if (updatedTabs.length > 0) {
           const lastTab = updatedTabs[updatedTabs.length - 1];
-          // Open the last remaining tab
-          get().openNote(lastTab.path); // This will also set currentNote and openTabs
-          updatedCurrentNote = null; // openNote will handle setting currentNote
+          get().openNote(lastTab.path);
+          updatedCurrentNote = null;
         } else {
           updatedCurrentNote = null;
           set({ currentNote: null, isDirty: false });
         }
       }
 
-      // Remove display names for all items in the deleted folder
-      removeDisplayName(set, path); // This function should handle recursive removal if path is a folder
+      removeDisplayName(set, path);
 
-      // Optimistic Update: Remove from tree
       const currentRootFolder = get().rootFolder;
       if (currentRootFolder) {
         set({
@@ -618,7 +573,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
             children: removeNodeFromTree(currentRootFolder.children, path),
           },
           openTabs: updatedTabs,
-          currentNote: updatedCurrentNote !== null ? updatedCurrentNote : get().currentNote, // Ensure currentNote is updated if it was cleared
+          currentNote: updatedCurrentNote !== null ? updatedCurrentNote : get().currentNote,
         });
       }
     } catch (error) {
@@ -645,7 +600,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       await storage.rename(sourceFullPath, targetFullPath);
       moveDisplayName(set, sourcePath, newPath);
 
-      // Update favorites paths
       let favoritesChanged = false;
       const updatedStarredNotes = starredNotes.map((p) => {
         if (p === sourcePath || p.startsWith(sourcePath + '/')) {
@@ -680,19 +634,15 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         set({ openTabs: updatedTabs });
       }
 
-      // Optimistic Update: Move node in tree
       const currentRootFolder = get().rootFolder;
       if (currentRootFolder) {
         const nodeToMove = findNode(currentRootFolder.children, sourcePath);
         if (nodeToMove) {
-          // 1. Prepare new node with updated paths
           const nodeWithNewPath = deepUpdateNodePath(nodeToMove, sourcePath, newPath);
           const updatedNode = { ...nodeWithNewPath, name: fileName.replace('.md', '') };
 
-          // 2. Remove from old location
           const childrenWithoutNode = removeNodeFromTree(currentRootFolder.children, sourcePath);
 
-          // 3. Add to new location
           const newChildren = addNodeToTree(childrenWithoutNode, targetFolderPath, updatedNode);
 
           set({
@@ -713,26 +663,20 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     const storage = getStorageAdapter();
 
     try {
-      // confirm vault path
       const vaultPath = notesPath || await getNotesBasePath();
 
-      // Ensure .nekotick/assets/covers directory exists
       const assetsDir = await joinPath(vaultPath, '.nekotick', 'assets', 'covers');
       if (!await storage.exists(assetsDir)) {
         await storage.mkdir(assetsDir, true);
       }
 
-      // Preserve original filename, but handle collisions and "generic" clipboard names
       let originalName = file.name;
       
-      // Detect generic clipboard names (Chrome: image.png, Safari: Pasted Graphic)
-      // If detected, generate a timestamp-based name
       const isGenericName = /^image(\s\(\d+\))?\.(png|jpg|jpeg|webp)$/i.test(originalName) || 
                             /^Pasted Graphic/.test(originalName);
 
       if (isGenericName) {
           const now = new Date();
-          // Format: YYYY-MM-DD_HH-mm-ss
           const timestamp = now.getFullYear() + '-' +
               String(now.getMonth() + 1).padStart(2, '0') + '-' +
               String(now.getDate()).padStart(2, '0') + '_' +
@@ -752,21 +696,17 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       let fullPath = await joinPath(assetsDir, fileName);
       let counter = 1;
 
-      // Collision detection: append (1), (2), etc.
       while (await storage.exists(fullPath)) {
         fileName = `${nameWithoutExt} (${counter}).${ext}`;
         fullPath = await joinPath(assetsDir, fileName);
         counter++;
       }
 
-      // Convert File to Uint8Array
       const buffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(buffer);
 
-      // Write binary file
       await storage.writeBinaryFile(fullPath, uint8Array);
 
-      // Return only filename
       return fileName;
 
     } catch (error) {

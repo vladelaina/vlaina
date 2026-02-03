@@ -1,27 +1,11 @@
-/**
- * Platform-aware Tauri Invoke Wrapper
- * 
- * Provides safe invoke calls that work on both Tauri and Web platforms
- * On Web, invoke calls return appropriate fallback values or throw errors
- */
-
 import { isTauri } from '@/lib/storage/adapter';
 
-/**
- * Invoke a Tauri command safely
- * 
- * On Tauri: Calls the actual backend command
- * On Web: Returns undefined or throws based on options
- */
 export async function safeInvoke<T>(
   command: string,
   args?: Record<string, unknown>,
   options?: {
-    /** Value to return on web platform */
     webFallback?: T;
-    /** If true, throws an error on web platform */
     throwOnWeb?: boolean;
-    /** Custom error message for web platform */
     webErrorMessage?: string;
   }
 ): Promise<T | undefined> {
@@ -30,7 +14,6 @@ export async function safeInvoke<T>(
     return invoke<T>(command, args);
   }
 
-  // Web platform handling
   if (options?.throwOnWeb) {
     throw new Error(options.webErrorMessage || `Command '${command}' is not available on web platform`);
   }
@@ -43,16 +26,10 @@ export async function safeInvoke<T>(
   return undefined;
 }
 
-/**
- * Check if Tauri commands are available
- */
 export function hasBackendCommands(): boolean {
   return isTauri();
 }
 
-/**
- * Window control commands (Tauri only)
- */
 export const windowCommands = {
   async setResizable(resizable: boolean): Promise<void> {
     if (!isTauri()) return;
@@ -71,7 +48,6 @@ export const windowCommands = {
 
   async createNewWindow(): Promise<void> {
     if (!isTauri()) {
-      // On web, open in new tab
       window.open(window.location.href, '_blank');
       return;
     }
@@ -79,9 +55,6 @@ export const windowCommands = {
   },
 };
 
-/**
- * GitHub sync commands (Tauri only - requires backend)
- */
 export const githubCommands = {
   async getGithubSyncStatus() {
     return safeInvoke<{
@@ -197,8 +170,6 @@ export const githubCommands = {
 };
 
 
-// ==================== Web OAuth ====================
-
 const API_BASE = 'https://api.nekotick.com';
 const WEB_GITHUB_CREDS_KEY = 'nekotick_github_creds';
 
@@ -211,7 +182,6 @@ interface WebGithubCredentials {
   lastSyncTime?: number;
 }
 
-/** Get stored web credentials */
 function getWebGithubCredentials(): WebGithubCredentials | null {
   try {
     const stored = localStorage.getItem(WEB_GITHUB_CREDS_KEY);
@@ -221,21 +191,15 @@ function getWebGithubCredentials(): WebGithubCredentials | null {
   }
 }
 
-/** Save web credentials */
 function saveWebGithubCredentials(creds: WebGithubCredentials): void {
   localStorage.setItem(WEB_GITHUB_CREDS_KEY, JSON.stringify(creds));
 }
 
-/** Clear web credentials */
 function clearWebGithubCredentials(): void {
   localStorage.removeItem(WEB_GITHUB_CREDS_KEY);
 }
 
-/**
- * Web-specific GitHub OAuth commands
- */
 export const webGithubCommands = {
-  /** Start OAuth flow - opens GitHub auth in popup/redirect */
   async startAuth(): Promise<{ authUrl: string; state: string } | null> {
     try {
       const res = await fetch(`${API_BASE}/auth/github`);
@@ -246,7 +210,6 @@ export const webGithubCommands = {
     }
   },
 
-  /** Exchange auth code for token and user info */
   async exchangeCode(code: string): Promise<{
     success: boolean;
     username?: string;
@@ -275,7 +238,6 @@ export const webGithubCommands = {
     }
   },
 
-  /** Check if connected on web */
   getStatus(): { connected: boolean; username: string | null; avatarUrl: string | null; gistId: string | null; lastSyncTime: number | null } {
     const creds = getWebGithubCredentials();
     return {
@@ -287,12 +249,10 @@ export const webGithubCommands = {
     };
   },
 
-  /** Disconnect on web */
   disconnect(): void {
     clearWebGithubCredentials();
   },
 
-  /** Check PRO status using stored credentials */
   async checkProStatus(): Promise<{ isPro: boolean; expiresAt: number | null }> {
     const creds = getWebGithubCredentials();
     if (!creds || !creds.githubId) return { isPro: false, expiresAt: null };
@@ -313,12 +273,10 @@ export const webGithubCommands = {
     }
   },
 
-  /** Get access token for Gist API calls */
   getAccessToken(): string | null {
     return getWebGithubCredentials()?.accessToken || null;
   },
 
-  /** Update gist ID after sync */
   updateGistId(gistId: string): void {
     const creds = getWebGithubCredentials();
     if (creds) {
@@ -327,7 +285,6 @@ export const webGithubCommands = {
     }
   },
 
-  /** Update last sync time */
   updateLastSyncTime(timestamp: number): void {
     const creds = getWebGithubCredentials();
     if (creds) {
@@ -337,7 +294,6 @@ export const webGithubCommands = {
   },
 };
 
-/** Check for OAuth callback params in URL (call on app init) */
 export function handleOAuthCallback(): { code: string; state: string } | null {
   const params = new URLSearchParams(window.location.search);
   const code = params.get('auth_code');
@@ -346,13 +302,11 @@ export function handleOAuthCallback(): { code: string; state: string } | null {
 
   if (error) {
     console.error('[OAuth] Auth error:', error);
-    // Clean URL
     window.history.replaceState({}, '', window.location.pathname);
     return null;
   }
 
   if (code) {
-    // Clean URL
     window.history.replaceState({}, '', window.location.pathname);
     return { code, state: state || '' };
   }
@@ -360,9 +314,6 @@ export function handleOAuthCallback(): { code: string; state: string } | null {
   return null;
 }
 
-// ==================== GitHub Repository Types ====================
-
-/** Repository info from GitHub API */
 export interface RepositoryInfo {
   id: number;
   name: string;
@@ -376,7 +327,6 @@ export interface RepositoryInfo {
   description: string | null;
 }
 
-/** Tree entry (file or directory) */
 export interface TreeEntry {
   path: string;
   name: string;
@@ -385,7 +335,6 @@ export interface TreeEntry {
   size?: number;
 }
 
-/** File content from repository */
 export interface FileContent {
   path: string;
   content: string;
@@ -393,21 +342,13 @@ export interface FileContent {
   encoding: string;
 }
 
-/** Commit result after file update */
 export interface CommitResult {
   sha: string;
   message: string;
   htmlUrl?: string;
 }
 
-// ==================== GitHub Repository Commands ====================
-
-/**
- * GitHub Repository commands (Tauri only - requires backend)
- * For browsing and managing nekotick-* repositories
- */
 export const githubRepoCommands = {
-  /** List user's nekotick-* repositories */
   async listRepos(): Promise<RepositoryInfo[]> {
     const result = await safeInvoke<RepositoryInfo[]>('list_github_repos', undefined, {
       webFallback: [],
@@ -415,7 +356,6 @@ export const githubRepoCommands = {
     return result || [];
   },
 
-  /** Get repository directory contents (tree) */
   async getRepoTree(owner: string, repo: string, path: string = ''): Promise<TreeEntry[]> {
     const result = await safeInvoke<TreeEntry[]>('get_repo_tree', { owner, repo, path }, {
       webFallback: [],
@@ -423,7 +363,6 @@ export const githubRepoCommands = {
     return result || [];
   },
 
-  /** Get file content from repository */
   async getFileContent(owner: string, repo: string, path: string): Promise<FileContent | null> {
     const result = await safeInvoke<FileContent>('get_repo_file_content', { owner, repo, path }, {
       webFallback: undefined,
@@ -431,7 +370,6 @@ export const githubRepoCommands = {
     return result || null;
   },
 
-  /** Update or create a file in repository */
   async updateFile(
     owner: string,
     repo: string,
@@ -453,7 +391,6 @@ export const githubRepoCommands = {
     return result || null;
   },
 
-  /** Create a new repository with nekotick- prefix */
   async createRepo(
     name: string,
     isPrivate: boolean,
@@ -469,7 +406,6 @@ export const githubRepoCommands = {
     return result || null;
   },
 
-  /** Delete a file from repository */
   async deleteFile(
     owner: string,
     repo: string,
@@ -490,15 +426,11 @@ export const githubRepoCommands = {
   },
 };
 
-// ==================== Git Local Operations ====================
-
-/** File status in local repository */
 export interface FileStatus {
   path: string;
   status: 'new' | 'modified' | 'deleted' | 'renamed' | 'untracked';
 }
 
-/** Commit info from git log */
 export interface CommitInfo {
   id: string;
   shortId: string;
@@ -508,12 +440,7 @@ export interface CommitInfo {
   timestamp: number;
 }
 
-/**
- * Git local operations (Tauri only - requires backend)
- * For cloning, pulling, pushing, and managing local repositories
- */
 export const gitCommands = {
-  /** Clone a repository to local storage */
   async cloneRepo(owner: string, repo: string): Promise<string | null> {
     const result = await safeInvoke<string>('clone_github_repo', { owner, repo }, {
       webFallback: undefined,
@@ -521,7 +448,6 @@ export const gitCommands = {
     return result || null;
   },
 
-  /** Check if a repository is cloned locally */
   async isRepoCloned(owner: string, repo: string): Promise<boolean> {
     const result = await safeInvoke<boolean>('is_repo_cloned', { owner, repo }, {
       webFallback: false,
@@ -529,7 +455,6 @@ export const gitCommands = {
     return result || false;
   },
 
-  /** Get the local path of a cloned repository */
   async getRepoLocalPath(owner: string, repo: string): Promise<string | null> {
     const result = await safeInvoke<string>('get_repo_local_path', { owner, repo }, {
       webFallback: undefined,
@@ -537,17 +462,14 @@ export const gitCommands = {
     return result || null;
   },
 
-  /** Pull latest changes from remote */
   async pullRepo(owner: string, repo: string): Promise<void> {
     await safeInvoke('pull_github_repo', { owner, repo });
   },
 
-  /** Push local changes to remote */
   async pushRepo(owner: string, repo: string): Promise<void> {
     await safeInvoke('push_github_repo', { owner, repo });
   },
 
-  /** Commit all changes */
   async commitChanges(
     owner: string,
     repo: string,
@@ -563,7 +485,6 @@ export const gitCommands = {
     return result || null;
   },
 
-  /** Get repository status (changed files) */
   async getStatus(owner: string, repo: string): Promise<FileStatus[]> {
     const result = await safeInvoke<FileStatus[]>('get_repo_status', { owner, repo }, {
       webFallback: [],
@@ -571,7 +492,6 @@ export const gitCommands = {
     return result || [];
   },
 
-  /** Get commit history */
   async getLog(owner: string, repo: string, limit?: number): Promise<CommitInfo[]> {
     const result = await safeInvoke<CommitInfo[]>('get_repo_log', { owner, repo, limit }, {
       webFallback: [],
@@ -579,7 +499,6 @@ export const gitCommands = {
     return result || [];
   },
 
-  /** Get diff for a file */
   async getFileDiff(owner: string, repo: string, filePath: string): Promise<string> {
     const result = await safeInvoke<string>('get_file_diff', { owner, repo, filePath }, {
       webFallback: '',
@@ -587,12 +506,10 @@ export const gitCommands = {
     return result || '';
   },
 
-  /** Delete a local repository */
   async deleteLocalRepo(owner: string, repo: string): Promise<void> {
     await safeInvoke('delete_local_repo', { owner, repo });
   },
 
-  /** List all locally cloned repositories */
   async listLocalRepos(): Promise<Array<[string, string]>> {
     const result = await safeInvoke<Array<[string, string]>>('list_local_repos', undefined, {
       webFallback: [],

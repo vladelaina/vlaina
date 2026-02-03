@@ -24,7 +24,6 @@ export function NotesView() {
 
   const [showSearch, setShowSearch] = useState(false);
 
-  // Initialize vault data
   useEffect(() => {
     if (!currentVault) return;
     loadFavorites(currentVault.path);
@@ -47,7 +46,6 @@ export function NotesView() {
     };
   }, [currentVault, loadFavorites, loadMetadata, loadAssets, loadFileTree, cleanupAssetTempFiles, clearAssetUrlCache]);
 
-  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Tab' && e.ctrlKey && openTabs.length > 1) {
@@ -79,15 +77,7 @@ export function NotesView() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [openTabs, currentNotePath, openNote, closeTab]);
 
-  // Expose search trigger to parent if needed via ref or context?
-  // Actually, sidebar usually triggers search. 
-  // We can listen to a global event or store signal if we want sidebar to trigger this local state.
-  // OR: We can hoist `showSearch` state to UI store?
-  // For now, let's keep it simple. The sidebar button might need to know how to trigger this.
-  // The SidebarContent receives onSearchClick.
-  // In the App.tsx lift-up, we'll need to coordinate this.
   
-  // Temporary: Listen for a custom event for search?
   useEffect(() => {
     const handleOpenSearch = () => setShowSearch(true);
     window.addEventListener('neko-open-search', handleOpenSearch);

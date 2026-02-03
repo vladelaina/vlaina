@@ -1,18 +1,11 @@
-/**
- * Collapse Utilities
- * 
- * Shared utilities for collapsible content (headings, lists, etc.)
- */
+import { $prose } from '@milkdown/kit/utils';
+import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 
-// CSS class for collapsed content
 export const COLLAPSED_CONTENT_CLASS = 'neko-collapsed-content';
 
-// Custom event name for triggering collapse re-render
 export const COLLAPSE_TOGGLE_EVENT = 'neko-collapse-toggle';
 
-/**
- * Collapsed state manager - tracks collapsed positions by type
- */
 class CollapsedStateManager {
     private states: Map<string, Set<number>> = new Map();
 
@@ -48,19 +41,14 @@ class CollapsedStateManager {
     }
 }
 
-// Global singleton for collapsed state
 export const collapsedState = new CollapsedStateManager();
 
-/**
- * Create a toggle button element for collapse/expand
- */
 export function createCollapseToggleButton(
     type: string,
     pos: number,
     isCollapsed: boolean,
     hasContent: boolean
 ): HTMLElement {
-
 
     const button = document.createElement('span');
     button.className = 'neko-collapse-btn';
@@ -69,7 +57,6 @@ export function createCollapseToggleButton(
     button.setAttribute('data-has-content', String(hasContent));
     button.setAttribute('contenteditable', 'false');
 
-    // Triangle icon
     button.innerHTML = `
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
       <path d="M13.15 15.132a.757.757 0 0 1-1.3 0L8.602 9.605c-.29-.491.072-1.105.65-1.105h6.497c.577 0 .938.614.65 1.105z"/>
@@ -83,20 +70,15 @@ export function createCollapseToggleButton(
         const newState = collapsedState.toggle(type, pos);
         button.setAttribute('data-collapsed', String(newState));
 
-        // Dispatch custom event to trigger re-render
         const event = new CustomEvent(COLLAPSE_TOGGLE_EVENT, {
             detail: { type, pos }
         });
         document.dispatchEvent(event);
     });
 
-
     return button;
 }
 
-/**
- * Dispatch a collapse toggle event
- */
 export function dispatchCollapseToggle(type: string, pos: number): void {
     const event = new CustomEvent(COLLAPSE_TOGGLE_EVENT, {
         detail: { type, pos }

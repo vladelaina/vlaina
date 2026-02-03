@@ -1,9 +1,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 
-/**
- * Delete first empty paragraph on backspace
- */
 const firstParagraphPlugin = $prose(() => {
     return new Plugin({
         key: new PluginKey('firstParagraph'),

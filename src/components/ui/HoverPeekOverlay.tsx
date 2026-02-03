@@ -25,12 +25,10 @@ export function HoverPeekOverlay({
     const [isPeeking, setIsPeeking] = useState(false);
     const peekTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Notify parent of state change if requested
     useEffect(() => {
         onPeekChange?.(isPeeking);
     }, [isPeeking, onPeekChange]);
 
-    // Clear timer on unmount
     useEffect(() => {
         return () => {
             if (peekTimerRef.current) clearTimeout(peekTimerRef.current);
@@ -46,10 +44,8 @@ export function HoverPeekOverlay({
                 className="fixed top-0 left-0 bottom-0 z-[40]"
                 style={{ width: triggerWidth }}
                 onMouseEnter={(e) => {
-                    // Safety: If user is dragging specific things (mouse btn down), don't trigger
                     if (e.buttons > 0) return;
 
-                    // Intent Detection: Wait 75ms (Perceptually instant, physically filter)
                     peekTimerRef.current = setTimeout(() => {
                         setIsPeeking(true);
                     }, 75);

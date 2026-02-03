@@ -1,7 +1,3 @@
-/**
- * Asset Library Component Types
- */
-
 export interface CoverPickerProps {
   isOpen: boolean;
   onClose: () => void;

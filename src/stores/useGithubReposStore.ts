@@ -1,10 +1,3 @@
-/**
- * GitHub Repos Store - State management for GitHub repository browsing
- * 
- * Uses local git clone for offline support.
- * Repositories are cloned to local storage and synced with remote.
- */
-
 import { create } from 'zustand';
 import { 
   githubRepoCommands, 
@@ -16,68 +9,38 @@ import {
 } from '@/lib/tauri/invoke';
 import { useGithubSyncStore } from './useGithubSyncStore';
 
-/** Sync status for a repository */
 export type SyncStatus = 'synced' | 'syncing' | 'has_changes' | 'error' | 'not_cloned';
 
-// Re-export types for convenience
 export type { FileStatus, CommitInfo };
 
 interface GithubReposState {
-  // Repository list (from GitHub API)
   repositories: RepositoryInfo[];
   isLoadingRepos: boolean;
-  
-  // Expanded state
   expandedRepos: Set<number>;
-  
-  // Local paths: repoId -> local path
   localPaths: Map<number, string>;
-  
-  // Clone status: repoId -> boolean
   clonedRepos: Set<number>;
-  
-  // Sync status per repository
   syncStatus: Map<number, SyncStatus>;
-  
-  // Git status per repository: repoId -> FileStatus[]
   gitStatus: Map<number, FileStatus[]>;
-  
-  // Error state
   error: string | null;
-  
-  // Section expanded state
   sectionExpanded: boolean;
-  
-  // Loading states
   cloningRepos: Set<number>;
 }
 
 interface GithubReposActions {
-  // Repository operations
   loadRepositories: () => Promise<void>;
   createRepository: (name: string, isPrivate: boolean, description?: string) => Promise<RepositoryInfo | null>;
   removeRepository: (repoId: number) => void;
-  
-  // Clone operations
   cloneRepository: (repoId: number) => Promise<boolean>;
   isCloned: (repoId: number) => boolean;
   getLocalPath: (repoId: number) => string | null;
-  
-  // Expand/collapse
   toggleRepoExpanded: (repoId: number) => void;
-  
-  // Sync operations
   syncRepository: (repoId: number) => Promise<void>;
   pullChanges: (repoId: number) => Promise<void>;
   pushChanges: (repoId: number) => Promise<void>;
   commitChanges: (repoId: number, message: string) => Promise<void>;
-  
-  // Git status
   refreshGitStatus: (repoId: number) => Promise<void>;
   getGitStatus: (repoId: number) => FileStatus[];
   hasChanges: (repoId: number) => boolean;
-  
-  // State management
   setSyncStatus: (repoId: number, status: SyncStatus) => void;
   clearError: () => void;
   toggleSectionExpanded: () => void;
@@ -94,7 +57,7 @@ const initialState: GithubReposState = {
   syncStatus: new Map(),
   gitStatus: new Map(),
   error: null,
-  sectionExpanded: false, // Default collapsed, will expand when connected
+  sectionExpanded: false,
   cloningRepos: new Set(),
 };
 
@@ -113,7 +76,6 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
     try {
       const repos = await githubRepoCommands.listRepos();
       
-      // Check which repos are already cloned
       const clonedRepos = new Set<number>();
       const localPaths = new Map<number, string>();
       const syncStatus = new Map<number, SyncStatus>();
@@ -142,15 +104,12 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
         syncStatus,
       });
       
-      // Auto-clone uncloned repos in background (don't await, let it run async)
       if (reposToClone.length > 0) {
-        // Clone repos one by one in background
         (async () => {
           for (const repo of reposToClone) {
             try {
               await get().cloneRepository(repo.id);
             } catch (e) {
-              // Silently fail for background clones
               console.error(`Failed to auto-clone ${repo.name}:`, e);
             }
           }
@@ -214,7 +173,6 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
     const repo = get().repositories.find(r => r.id === repoId);
     if (!repo) return false;
     
-    // Mark as cloning
     set(state => ({
       cloningRepos: new Set(state.cloningRepos).add(repoId),
       syncStatus: new Map(state.syncStatus).set(repoId, 'syncing'),
@@ -264,21 +222,18 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
       expandedRepos.delete(repoId);
       set({ expandedRepos });
     } else {
-      // If not cloned, clone first
       if (!state.clonedRepos.has(repoId)) {
         get().cloneRepository(repoId).then(success => {
           if (success) {
             set(s => ({
               expandedRepos: new Set(s.expandedRepos).add(repoId),
             }));
-            // Refresh git status after clone
             get().refreshGitStatus(repoId);
           }
         });
       } else {
         expandedRepos.add(repoId);
         set({ expandedRepos });
-        // Refresh git status when expanding
         get().refreshGitStatus(repoId);
       }
     }
@@ -293,19 +248,15 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
     }));
     
     try {
-      // First commit any local changes
       const status = get().gitStatus.get(repoId) || [];
       if (status.length > 0) {
         await gitCommands.commitChanges(repo.owner, repo.name, 'Sync changes from NekoTick');
       }
       
-      // Pull remote changes
       await gitCommands.pullRepo(repo.owner, repo.name);
       
-      // Push local changes
       await gitCommands.pushRepo(repo.owner, repo.name);
       
-      // Refresh status
       await get().refreshGitStatus(repoId);
       
       set(state => ({
@@ -353,7 +304,6 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
     }));
     
     try {
-      // Commit first if there are changes
       const status = get().gitStatus.get(repoId) || [];
       if (status.length > 0) {
         await gitCommands.commitChanges(repo.owner, repo.name, 'Update from NekoTick');
@@ -398,7 +348,6 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
         const gitStatus = new Map(state.gitStatus).set(repoId, status);
         const syncStatus = new Map(state.syncStatus);
         
-        // Update sync status based on git status
         if (status.length > 0) {
           syncStatus.set(repoId, 'has_changes');
         } else if (syncStatus.get(repoId) !== 'syncing') {
@@ -408,7 +357,6 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
         return { gitStatus, syncStatus };
       });
     } catch (error) {
-      // Silently fail - status refresh is not critical
       console.error('Failed to refresh git status:', error);
     }
   },

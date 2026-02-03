@@ -11,13 +11,6 @@ const LINK_PATTERN_BEFORE = /\[([^\]]+)\]\(([^)]+)\)$/;
 // Regex to find markdown link at any position in text
 const LINK_PATTERN_GLOBAL = /\[([^\]]+)\]\(([^)]+)\)/g;
 
-/**
- * Plugin to handle Markdown link syntax:
- * 1. Paste: Convert [text](url) to Link Marks
- * 2. Live conversion: When user types space/newline after [text](url), convert to Link Mark
- * 3. Auto-collapse: When cursor moves away from [text](url), convert to Link Mark
- * 4. Copy: Serialize Link Marks as [text](url)
- */
 export const markdownLinkPlugin = $prose(() => {
     return new Plugin({
         key: markdownLinkPluginKey,

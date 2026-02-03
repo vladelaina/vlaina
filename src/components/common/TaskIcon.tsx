@@ -1,28 +1,14 @@
-/**
- * TaskIcon - Unified task/event icon display component
- * 
- * Used for displaying icons in PanelTaskItem and EventEditForm
- * Supports preview state (via global UI store)
- */
-
 import { AppIcon } from '@/components/common/AppIcon';
 import { useUIStore } from '@/stores/uiSlice';
 import { getColorHex } from '@/lib/colors';
 
 interface TaskIconProps {
-  /** Task/event ID, used to match preview state */
   itemId: string;
-  /** Current icon name */
   icon?: string;
-  /** Icon color (legacy override, mostly for category colors) */
   color?: string;
-  /** Icon size class or pixel value */
-  sizeClass?: string; // tailwind class like "size-[18px]"
-  /** Icon size in pixels (if provided, overrides sizeClass somewhat) */
+  sizeClass?: string;
   size?: number;
-  /** Whether to enable preview (default true) */
   enablePreview?: boolean;
-  /** Fallback content if no icon is set */
   fallback?: React.ReactNode;
 }
 

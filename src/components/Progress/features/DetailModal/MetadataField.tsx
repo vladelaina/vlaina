@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react';
-
 interface MetadataFieldProps {
   label: string;
   isEditing: boolean;
@@ -10,10 +8,6 @@ interface MetadataFieldProps {
   className?: string;
 }
 
-/**
- * Reusable metadata field component for DetailModal
- * Handles edit/display mode switching with consistent styling
- */
 export function MetadataField({
   label,
   isEditing,
@@ -59,9 +53,6 @@ interface MetadataInputProps {
   className?: string;
 }
 
-/**
- * Input component for metadata fields with consistent styling
- */
 export function MetadataInput({
   type = 'text',
   value,

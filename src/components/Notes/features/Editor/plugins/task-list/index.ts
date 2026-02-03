@@ -1,16 +1,5 @@
-/**
- * Task List Click Plugin
- * 
- * Handles click events on task list items to toggle their checked state.
- * Since Milkdown renders task lists using data attributes (data-item-type="task", data-checked)
- * rather than native checkbox inputs, we need to manually handle the click interaction.
- */
-
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
-
-// Width of the checkbox area (CSS pseudo-element is 16px + 2px border + small margin)
-// const CHECKBOX_WIDTH = 20; // Deprecated due to negative margin layout
 
 export const taskListClickPluginKey = new PluginKey('taskListClick');
 

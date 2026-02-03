@@ -1,10 +1,3 @@
-/**
- * List Collapse Plugin
- * 
- * Adds collapse/expand functionality to bullet lists, ordered lists, and task lists.
- * Shows a toggle triangle on the first item of each list.
- */
-
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
@@ -18,9 +11,6 @@ import {
 const LIST_COLLAPSE_KEY = new PluginKey('listCollapse');
 const COLLAPSE_TYPE = 'list-item';
 
-/**
- * List Collapse Plugin
- */
 export const listCollapsePlugin = $prose(() => {
     return new Plugin({
         key: LIST_COLLAPSE_KEY,
@@ -37,7 +27,6 @@ export const listCollapsePlugin = $prose(() => {
                     // Traverse all nodes to find list items
                     doc.descendants((node, pos) => {
                         if (node.type.name === 'list_item') {
-                            // Check if this list item has a nested list
                             let hasNestedList = false;
                             let nestedListPos = -1;
                             let nestedListEnd = -1;
@@ -52,11 +41,6 @@ export const listCollapsePlugin = $prose(() => {
 
                             const isCollapsed = collapsedState.isCollapsed(COLLAPSE_TYPE, pos);
 
-                            // Create toggle button
-                            // Note: User requested "every item" has it, but we typically only show if content exists
-                            // The CSS handles hiding buttons with data-has-content="false" if desired,
-                            // or we can show them as disabled/empty. 
-                            // Current CSS hides them, matching standard behavior (no children = nothing to collapse).
                             const button = createCollapseToggleButton(
                                 COLLAPSE_TYPE,
                                 pos,
@@ -64,7 +48,6 @@ export const listCollapsePlugin = $prose(() => {
                                 hasNestedList
                             );
 
-                            // Add button widget at the start of the list item
                             decorations.push(
                                 Decoration.widget(pos + 1, button, {
                                     side: -1,
@@ -72,7 +55,6 @@ export const listCollapsePlugin = $prose(() => {
                                 })
                             );
 
-                            // If collapsed and has nested list, hide the nested list
                             if (isCollapsed && hasNestedList) {
                                 decorations.push(
                                     Decoration.node(nestedListPos, nestedListEnd, {

@@ -1,13 +1,3 @@
-/**
- * AutoSyncManager - Manages automatic sync for PRO users
- * 
- * Features:
- * - Debounce: Wait 5 seconds after data change before syncing
- * - Cooldown: Minimum 30 seconds between syncs
- * - Exponential backoff retry: 30s, 60s, 120s, 300s, 300s
- * - Max 5 retries before stopping
- */
-
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useProStatusStore } from '@/stores/useProStatusStore';
 
@@ -19,10 +9,10 @@ export interface AutoSyncConfig {
 }
 
 const DEFAULT_CONFIG: AutoSyncConfig = {
-  debounceMs: 5000,      // 5 seconds debounce
-  cooldownMs: 30000,     // 30 seconds cooldown
+  debounceMs: 5000,
+  cooldownMs: 30000,
   maxRetries: 5,
-  retryDelays: [30000, 60000, 120000, 300000, 300000], // 30s, 1m, 2m, 5m, 5m
+  retryDelays: [30000, 60000, 120000, 300000, 300000],
 };
 
 class AutoSyncManagerImpl {
@@ -36,66 +26,40 @@ class AutoSyncManagerImpl {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
-  /**
-   * Trigger auto sync with debounce
-   * Called when data changes
-   */
   triggerSync(): void {
-    // Clear existing debounce timer
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
     }
 
-    // Check if we can sync
     if (!this.canSync()) {
-
       return;
     }
 
-    // Mark pending sync
     useGithubSyncStore.getState().setSyncStatus('pending');
 
-    // Set debounce timer
     this.debounceTimer = setTimeout(() => {
       this.executeSync();
     }, this.config.debounceMs);
-
-
   }
 
-  /**
-   * Execute sync immediately (skip debounce)
-   * Used for manual retry
-   */
   async syncNow(): Promise<boolean> {
-    // Clear any pending timers
     this.clearTimers();
-
-    // Reset retry count for manual retry
-    // Note: GitHub sync store doesn't have retry count, just clear error
     useGithubSyncStore.getState().clearError();
-
     return this.executeSync();
   }
 
-  /**
-   * Check if sync can be triggered
-   */
   canSync(): boolean {
     const syncState = useGithubSyncStore.getState();
     const proStatusState = useProStatusStore.getState();
 
-    // Must be connected to GitHub
     if (!syncState.isConnected) {
       return false;
     }
 
-    // Must be PRO user
     if (!proStatusState.isProUser) {
       return false;
     }
 
-    // Not already syncing
     if (syncState.isSyncing) {
       return false;
     }
@@ -103,24 +67,15 @@ class AutoSyncManagerImpl {
     return true;
   }
 
-  /**
-   * Check if cooldown period has passed
-   */
   private isCooldownPassed(): boolean {
     const now = Date.now();
     return now - this.lastSyncTime >= this.config.cooldownMs;
   }
 
-  /**
-   * Execute the actual sync
-   */
   private async executeSync(): Promise<boolean> {
-    // Check cooldown
     if (!this.isCooldownPassed()) {
       const remainingCooldown = this.config.cooldownMs - (Date.now() - this.lastSyncTime);
 
-
-      // Schedule sync after cooldown
       this.debounceTimer = setTimeout(() => {
         this.executeSync();
       }, remainingCooldown);
@@ -128,62 +83,42 @@ class AutoSyncManagerImpl {
       return false;
     }
 
-    // Double check conditions
     if (!this.canSync()) {
-
       return false;
     }
-
-
 
     const success = await useGithubSyncStore.getState().syncBidirectional();
 
     if (success) {
       this.lastSyncTime = Date.now();
-
       return true;
     } else {
-      // Handle failure - schedule retry
       this.scheduleRetry();
       return false;
     }
   }
 
-  /**
-   * Schedule retry with exponential backoff
-   */
   private scheduleRetry(): void {
     const retryCount = this.retryCount;
 
     if (retryCount >= this.config.maxRetries) {
-
       useGithubSyncStore.getState().setSyncStatus('error');
       return;
     }
 
-    // Increment retry count
     this.retryCount++;
 
-    // Get delay for this retry
     const delay = this.config.retryDelays[Math.min(retryCount, this.config.retryDelays.length - 1)];
-
-
 
     this.retryTimer = setTimeout(() => {
       this.executeSync();
     }, delay);
   }
 
-  /**
-   * Reset retry count
-   */
   resetRetryCount(): void {
     this.retryCount = 0;
   }
 
-  /**
-   * Clear all timers
-   */
   private clearTimers(): void {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
@@ -195,22 +130,15 @@ class AutoSyncManagerImpl {
     }
   }
 
-  /**
-   * Destroy manager (cleanup)
-   */
   destroy(): void {
     this.clearTimers();
   }
 
-  /**
-   * Get current config (for testing)
-   */
   getConfig(): AutoSyncConfig {
     return { ...this.config };
   }
 }
 
-// Singleton instance
 let instance: AutoSyncManagerImpl | null = null;
 
 export function getAutoSyncManager(config?: Partial<AutoSyncConfig>): AutoSyncManagerImpl {
@@ -227,5 +155,4 @@ export function resetAutoSyncManager(): void {
   }
 }
 
-// Export type for testing
 export type AutoSyncManager = AutoSyncManagerImpl;

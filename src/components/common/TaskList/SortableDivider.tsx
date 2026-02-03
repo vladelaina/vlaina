@@ -1,8 +1,3 @@
-/**
- * SortableDivider - Sortable divider that can be pushed by other items
- * Migrated from Calendar/features/TaskPanel/SortableDivider.tsx
- */
-
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { MdExpandMore, MdMoreVert } from 'react-icons/md';

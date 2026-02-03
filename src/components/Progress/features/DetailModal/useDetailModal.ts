@@ -59,9 +59,6 @@ export function useDetailModal({
         setIsEditing(false);
         prevItemId.current = item.id;
       } else {
-        // Same Item Updated:
-        // If NOT editing, sync draft to keep it fresh.
-        // If IS editing, do NOT touch draft to avoid overwriting user input.
         if (!isEditing) {
           setDraft(item);
         }

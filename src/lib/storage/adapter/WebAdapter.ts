@@ -1,10 +1,3 @@
-/**
- * Web Storage Adapter
- * 
- * Browser implementation using IndexedDB
- * Simulates a file system structure for web deployment
- */
-
 import type { StorageAdapter, FileInfo, WriteOptions, ListOptions } from './types';
 
 const DB_NAME = 'nekotick-storage';
@@ -49,12 +42,10 @@ export class WebAdapter implements StorageAdapter {
         request.onupgradeneeded = (event) => {
           const db = (event.target as IDBOpenDBRequest).result;
           
-          // Files store with path as key
           if (!db.objectStoreNames.contains(STORE_FILES)) {
             db.createObjectStore(STORE_FILES, { keyPath: 'path' });
           }
           
-          // Directories store
           if (!db.objectStoreNames.contains(STORE_DIRS)) {
             db.createObjectStore(STORE_DIRS, { keyPath: 'path' });
           }
@@ -71,7 +62,6 @@ export class WebAdapter implements StorageAdapter {
       const tx = db.transaction(STORE_FILES, 'readonly');
       const store = tx.objectStore(STORE_FILES);
       const request = store.get(this.normalizePath(path));
-      
       request.onsuccess = () => {
         const file = request.result as StoredFile | undefined;
         if (!file) {
@@ -79,7 +69,6 @@ export class WebAdapter implements StorageAdapter {
           return;
         }
         if (file.isBinary) {
-          // Convert binary to string
           const decoder = new TextDecoder();
           resolve(decoder.decode(file.content as Uint8Array));
         } else {
@@ -107,7 +96,6 @@ export class WebAdapter implements StorageAdapter {
         if (file.isBinary) {
           resolve(file.content as Uint8Array);
         } else {
-          // Convert string to binary
           const encoder = new TextEncoder();
           resolve(encoder.encode(file.content as string));
         }
@@ -133,7 +121,6 @@ export class WebAdapter implements StorageAdapter {
         const existing = await this.readFile(normalizedPath);
         finalContent = existing + content;
       } catch {
-        // File doesn't exist, use content as is
       }
     }
 
@@ -176,7 +163,6 @@ export class WebAdapter implements StorageAdapter {
         combined.set(content, existing.length);
         finalContent = combined;
       } catch {
-        // File doesn't exist, use content as is
       }
     }
 
@@ -216,7 +202,6 @@ export class WebAdapter implements StorageAdapter {
     const normalizedPath = this.normalizePath(path);
 
     if (recursive) {
-      // Delete all files under this directory
       const files = await this.listDir(normalizedPath, { recursive: true, includeHidden: true });
       for (const file of files) {
         if (file.isFile) {
@@ -224,7 +209,6 @@ export class WebAdapter implements StorageAdapter {
         }
       }
       
-      // Delete all subdirectories
       for (const file of files.reverse()) {
         if (file.isDirectory) {
           await this.deleteDirEntry(file.path);
@@ -232,7 +216,6 @@ export class WebAdapter implements StorageAdapter {
       }
     }
 
-    // Delete the directory entry itself
     await this.deleteDirEntry(normalizedPath);
   }
 
@@ -252,7 +235,6 @@ export class WebAdapter implements StorageAdapter {
     const normalizedPath = this.normalizePath(path);
     const db = await this.getDB();
     
-    // Check files
     const fileExists = await new Promise<boolean>((resolve) => {
       const tx = db.transaction(STORE_FILES, 'readonly');
       const store = tx.objectStore(STORE_FILES);
@@ -264,7 +246,6 @@ export class WebAdapter implements StorageAdapter {
     
     if (fileExists) return true;
     
-    // Check directories
     return new Promise<boolean>((resolve) => {
       const tx = db.transaction(STORE_DIRS, 'readonly');
       const store = tx.objectStore(STORE_DIRS);
@@ -279,7 +260,6 @@ export class WebAdapter implements StorageAdapter {
     const normalizedPath = this.normalizePath(path);
     
     if (recursive) {
-      // Create all parent directories
       const parts = normalizedPath.split('/').filter(Boolean);
       let currentPath = '';
       
@@ -315,7 +295,6 @@ export class WebAdapter implements StorageAdapter {
     const results: FileInfo[] = [];
     const seenPaths = new Set<string>();
 
-    // Get all files
     const files = await new Promise<StoredFile[]>((resolve, reject) => {
       const tx = db.transaction(STORE_FILES, 'readonly');
       const store = tx.objectStore(STORE_FILES);
@@ -325,7 +304,6 @@ export class WebAdapter implements StorageAdapter {
       request.onerror = () => reject(request.error);
     });
 
-    // Get all directories
     const dirs = await new Promise<StoredDir[]>((resolve, reject) => {
       const tx = db.transaction(STORE_DIRS, 'readonly');
       const store = tx.objectStore(STORE_DIRS);
@@ -337,18 +315,15 @@ export class WebAdapter implements StorageAdapter {
 
     const prefix = normalizedPath === '/' ? '/' : `${normalizedPath}/`;
 
-    // Filter files in this directory
     for (const file of files) {
       if (!file.path.startsWith(prefix)) continue;
       
       const relativePath = file.path.slice(prefix.length);
       const parts = relativePath.split('/');
       
-      // Direct child or recursive
       if (parts.length === 1 || options?.recursive) {
         const name = parts[0];
         
-        // Skip hidden files if not requested
         if (!options?.includeHidden && name.startsWith('.')) continue;
         
         if (!seenPaths.has(file.path)) {
@@ -365,7 +340,6 @@ export class WebAdapter implements StorageAdapter {
       }
     }
 
-    // Filter directories
     for (const dir of dirs) {
       if (!dir.path.startsWith(prefix)) continue;
       
@@ -396,19 +370,15 @@ export class WebAdapter implements StorageAdapter {
     const normalizedOld = this.normalizePath(oldPath);
     const normalizedNew = this.normalizePath(newPath);
     
-    // Check if source exists
     const sourceExists = await this.exists(normalizedOld);
     if (!sourceExists) {
       throw new Error(`Path not found: ${oldPath}`);
     }
 
-    // Check if it's a directory
     const stat = await this.stat(normalizedOld);
     if (stat?.isDirectory) {
-      // Rename directory: update all files and subdirectories under it
       const db = await this.getDB();
       
-      // Get all files under this directory
       const files = await new Promise<StoredFile[]>((resolve, reject) => {
         const tx = db.transaction(STORE_FILES, 'readonly');
         const store = tx.objectStore(STORE_FILES);
@@ -417,7 +387,6 @@ export class WebAdapter implements StorageAdapter {
         request.onerror = () => reject(request.error);
       });
 
-      // Get all directories under this directory
       const dirs = await new Promise<StoredDir[]>((resolve, reject) => {
         const tx = db.transaction(STORE_DIRS, 'readonly');
         const store = tx.objectStore(STORE_DIRS);
@@ -426,12 +395,10 @@ export class WebAdapter implements StorageAdapter {
         request.onerror = () => reject(request.error);
       });
 
-      // Update all files under this directory
       const prefix = normalizedOld + '/';
       for (const file of files) {
         if (file.path.startsWith(prefix)) {
           const newFilePath = normalizedNew + file.path.slice(normalizedOld.length);
-          // Preserve file type (binary vs text)
           if (file.isBinary) {
             await this.writeBinaryFile(newFilePath, file.content as Uint8Array);
           } else {
@@ -441,7 +408,6 @@ export class WebAdapter implements StorageAdapter {
         }
       }
 
-      // Update all subdirectories
       for (const dir of dirs) {
         if (dir.path === normalizedOld || dir.path.startsWith(prefix)) {
           const newDirPath = dir.path === normalizedOld 
@@ -452,13 +418,11 @@ export class WebAdapter implements StorageAdapter {
         }
       }
     } else {
-      // Rename file: read, write to new location, delete old
       try {
         const content = await this.readFile(normalizedOld);
         await this.writeFile(normalizedNew, content);
         await this.deleteFile(normalizedOld);
       } catch {
-        // Try as binary
         const content = await this.readBinaryFile(normalizedOld);
         await this.writeBinaryFile(normalizedNew, content);
         await this.deleteFile(normalizedOld);
@@ -480,7 +444,6 @@ export class WebAdapter implements StorageAdapter {
     const normalizedPath = this.normalizePath(path);
     const db = await this.getDB();
     
-    // Check files first
     const file = await new Promise<StoredFile | undefined>((resolve) => {
       const tx = db.transaction(STORE_FILES, 'readonly');
       const store = tx.objectStore(STORE_FILES);
@@ -501,7 +464,6 @@ export class WebAdapter implements StorageAdapter {
       };
     }
     
-    // Check directories
     const dir = await new Promise<StoredDir | undefined>((resolve) => {
       const tx = db.transaction(STORE_DIRS, 'readonly');
       const store = tx.objectStore(STORE_DIRS);
@@ -524,22 +486,17 @@ export class WebAdapter implements StorageAdapter {
   }
 
   async getBasePath(): Promise<string> {
-    // Web uses virtual root
     return '/nekotick';
   }
 
-  // Helper methods
   private normalizePath(path: string): string {
-    // Normalize to forward slashes and ensure leading slash
     let normalized = path.replace(/\\/g, '/');
     if (!normalized.startsWith('/')) {
       normalized = '/' + normalized;
     }
-    // Remove trailing slash (except for root)
     if (normalized.length > 1 && normalized.endsWith('/')) {
       normalized = normalized.slice(0, -1);
     }
-    // Remove double slashes
     normalized = normalized.replace(/\/+/g, '/');
     return normalized;
   }

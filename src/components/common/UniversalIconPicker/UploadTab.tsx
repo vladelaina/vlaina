@@ -21,7 +21,6 @@ interface UploadTabProps {
     onPreview?: (url: string | null) => void;
     onClose: () => void;
     
-    // Abstracted custom icon support
     customIcons?: CustomIcon[];
     onUploadFile?: (file: File) => Promise<{ success: boolean; url?: string; error?: string }>;
     onDeleteCustomIcon?: (id: string) => void;

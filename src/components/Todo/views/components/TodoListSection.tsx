@@ -2,8 +2,8 @@ import React, { ReactNode } from 'react';
 import { SortableDivider } from '@/components/common/TaskList';
 
 interface TodoListSectionProps<T> {
-    title?: string; // If provided, renders a Divider
-    id?: string; // ID for the divider (required if title is present)
+    title?: string;
+    id?: string;
     items: T[];
     renderItem: (item: T) => ReactNode;
     isExpanded?: boolean;

@@ -1,7 +1,3 @@
-/**
- * Feature Slice - Notes features like favorites, icons, backlinks, tags
- */
-
 import { StateCreator } from 'zustand';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { NotesStore, FileTreeNode, MetadataFile } from '../types';
@@ -70,7 +66,6 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     const cache = new Map<string, string>();
     const filePaths: { path: string; fullPath: string }[] = [];
 
-    // Collect all file paths recursively
     const collectPaths = async (nodes: FileTreeNode[]) => {
       for (const node of nodes) {
         if (node.isFolder) {
@@ -84,7 +79,6 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
     await collectPaths(rootFolder.children);
 
-    // Read files in batches for better performance
     const BATCH_SIZE = 10;
     for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
       const batch = filePaths.slice(i, i + BATCH_SIZE);
@@ -274,9 +268,6 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
   getNoteIconSize: (_path: string) => {
     const { noteMetadata } = get();
-    // Use global default size, fallback to 60 if not set
-    // We ignore per-note size now as per requirements, or we could prioritise it if found
-    // But the requirement is "Global", so let's stick to global.
     return noteMetadata?.defaultIconSize ?? 60;
   },
 
@@ -290,8 +281,6 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
   },
 
   setNoteIconSize: (path: string, size: number) => {
-    // Legacy support or specific override if needed in future
-    // For now, redirect to global or just update local metadata but it won't be used by getter
     const { noteMetadata, notesPath } = get();
     if (!noteMetadata || !notesPath) return;
 

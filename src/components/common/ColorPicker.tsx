@@ -1,23 +1,11 @@
-/**
- * ColorPicker - Unified color picker component
- * 
- * Used for color selection in PanelTaskItem and EventEditForm
- * Supports hover preview functionality
- */
-
 import { cn } from '@/lib/utils';
 import { ALL_COLORS, COLOR_HEX, type ItemColor } from '@/lib/colors/index';
 
 interface ColorPickerProps {
-  /** Currently selected color */
   value?: ItemColor | string;
-  /** Color change callback */
   onChange: (color: ItemColor) => void;
-  /** Hover callback for live preview. Pass null when mouse leaves */
   onHover?: (color: ItemColor | null) => void;
-  /** Button size class */
   sizeClass?: string;
-  /** Whether to show ring for selected state */
   showRing?: boolean;
 }
 

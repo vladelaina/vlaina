@@ -1,8 +1,3 @@
-/**
- * CoverPicker - Popover for selecting or uploading cover images
- * Positioned at bottom-right of cover for real-time preview
- */
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
@@ -31,12 +26,10 @@ export function CoverPicker({
   const assets = getAssetList('covers');
   const hasAssets = assets.length > 0;
 
-  // Load assets when opened
   useEffect(() => {
     if (isOpen && vaultPath) {
       loadAssets(vaultPath);
     } else if (!isOpen) {
-      // Reset tab state when closed (after a short delay for animation)
       const timer = setTimeout(() => {
         setActiveTab('library');
         setIsUploading(false);
@@ -45,19 +38,15 @@ export function CoverPicker({
     }
   }, [isOpen, vaultPath, loadAssets]);
 
-  // Handle asset selection with preview
   const handleAssetSelect = useCallback((assetPath: string) => {
-    // Only call onSelect - let parent handle closing to avoid race condition
     onSelect(assetPath);
   }, [onSelect]);
 
-  // Handle asset hover for preview
   const handleAssetHover = useCallback((assetPath: string | null) => {
     onPreview?.(assetPath);
   }, [onPreview]);
 
   const handleUploadComplete = useCallback((assetPath: string) => {
-    // Only call onSelect - let parent handle closing
     onSelect(assetPath);
   }, [onSelect]);
 
@@ -65,7 +54,6 @@ export function CoverPicker({
     setActiveTab('upload');
   }, []);
 
-  // Handle escape key and paste
   useEffect(() => {
     if (!isOpen) return;
 
@@ -97,7 +85,6 @@ export function CoverPicker({
 
             if (result.success && result.path) {
               onSelect(result.path);
-              // Don't call onClose here - let parent handle it
             }
           }
           break;
@@ -115,10 +102,6 @@ export function CoverPicker({
 
   return (
     <Popover open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      {/* 
-        Anchor is placed at the bottom-right of the parent container 
-        (which is the CoverImage component wrapper)
-      */}
       <PopoverAnchor className="absolute bottom-4 right-4 w-1 h-1 pointer-events-none" />
 
       <PopoverContent
@@ -126,12 +109,10 @@ export function CoverPicker({
         align="end"
         side="bottom"
         sideOffset={8}
-        // Prevent event propagation so clicking inside doesn't trigger parent actions
         onPointerDown={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
       >
 
-        {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--neko-border)] bg-[var(--neko-bg-primary)]">
           <div className="flex items-center gap-2">
             <button
@@ -172,7 +153,6 @@ export function CoverPicker({
           )}
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-auto max-h-[280px]">
           {activeTab === 'library' ? (
             hasAssets ? (

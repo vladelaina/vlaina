@@ -1,15 +1,3 @@
-/**
- * PremiumSlider - Zero-Render Performance Edition
- *
- * This slider achieves maximum performance by:
- * 1. Using NO React state for visual updates
- * 2. All visual feedback (track, thumb) is handled by the native browser engine
- * 3. React is only used for the callback dispatch
- *
- * The secret: We use CSS custom properties and direct DOM manipulation
- * to update the visual state, completely bypassing React's render cycle.
- */
-
 import React, { useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -51,7 +39,6 @@ export function PremiumSlider({
         containerRef.current.style.setProperty('--slider-percentage', `${percentage}%`);
     }, [min, max]);
 
-    // Handle input change - update visuals directly, dispatch via RAF
     const handleInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = parseFloat(e.target.value);
         latestValueRef.current = newValue;
@@ -79,7 +66,6 @@ export function PremiumSlider({
         };
     }, []);
 
-    // Calculate initial percentage for SSR/first paint
     const initialPercentage = ((value - min) / (max - min)) * 100;
 
     return (

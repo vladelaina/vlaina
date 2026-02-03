@@ -1,8 +1,3 @@
-/**
- * TaskInput - Reusable task input component for panels
- * Migrated from Calendar/features/TaskPanel/PanelTaskInput.tsx
- */
-
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MdAdd } from 'react-icons/md';

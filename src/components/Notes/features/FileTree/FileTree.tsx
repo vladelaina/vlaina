@@ -1,9 +1,3 @@
-/**
- * FileTree - File tree navigation component
- * 
- * Modern style file browser
- */
-
 import { type FolderNode } from '@/stores/useNotesStore';
 import { FileTreeItem } from './FileTreeItem';
 

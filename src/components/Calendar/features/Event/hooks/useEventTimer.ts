@@ -1,10 +1,3 @@
-/**
- * useEventTimer - Event timer state management
- * 
- * Tracks elapsed time for events with running or paused timers.
- * Updates every 100ms when a timer is running.
- */
-
 import { useState, useEffect, useMemo } from 'react';
 import type { NekoEvent } from '@/lib/ics/types';
 
@@ -72,9 +65,6 @@ export function useEventTimer({
     };
 }
 
-/**
- * Format elapsed milliseconds to a display string
- */
 export function formatElapsedTime(ms: number): string {
     const totalSeconds = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
@@ -89,9 +79,6 @@ export function formatElapsedTime(ms: number): string {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-/**
- * Get height level classification for responsive styling
- */
 export function getHeightLevel(height: number): 'micro' | 'tiny' | 'small' | 'medium' | 'large' {
     if (height < 20) return 'micro';
     if (height < 32) return 'tiny';

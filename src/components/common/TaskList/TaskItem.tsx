@@ -1,8 +1,3 @@
-/**
- * TaskItem - Reusable task item component
- * Migrated from Calendar/features/TaskPanel/PanelTaskItem.tsx
- */
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSortable, defaultAnimateLayoutChanges, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -184,7 +179,6 @@ export function TaskItem({
                             : 'border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
                 )}
             >
-                {/* Drag Zone (Left Side) */}
                 <div 
                     {...attributes} 
                     {...(draggable ? listeners : {})}
@@ -211,7 +205,6 @@ export function TaskItem({
                     )}
                 </div>
 
-                {/* Checkbox */}
                 <div className="mt-0.5 flex-shrink-0">
                     <Checkbox
                         checked={task.completed}
@@ -222,14 +215,13 @@ export function TaskItem({
                                 : undefined
                         }
                         className={cn(
-                            "h-5 w-5 rounded-[6px] transition-none", // 3.5 -> 5, rounded-sm -> rounded-[6px] (Apple style)
-                            colorValue ? "border-2" : "border-2 border-zinc-300 dark:border-zinc-600" // Thicker border
+                            "h-5 w-5 rounded-[6px] transition-none",
+                            colorValue ? "border-2" : "border-2 border-zinc-300 dark:border-zinc-600"
                         )}
                         style={colorValue ? { borderColor: colorValue } : undefined}
                     />
                 </div>
 
-                {/* Icon Selector (Direct Access) */}
                 <div className="mt-0.5 flex-shrink-0" onPointerDown={(e) => e.stopPropagation()}>
                     <IconSelector
                         value={task.icon}
@@ -267,8 +259,7 @@ export function TaskItem({
                     />
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0 pt-[1px]"> {/* Optical alignment */}
+                <div className="flex-1 min-w-0 pt-[1px]">
                     {isEditing ? (
                         <textarea
                             ref={inputRef}
@@ -279,7 +270,7 @@ export function TaskItem({
                             rows={1}
                             className={cn(
                                 'w-full bg-transparent border-none outline-none resize-none',
-                                'text-[15px] text-foreground placeholder:text-muted-foreground', // 13px -> 15px
+                                'text-[15px] text-foreground placeholder:text-muted-foreground',
                                 'focus:ring-0 leading-relaxed min-h-[24px] max-h-[160px]'
                             )}
                         />
@@ -287,7 +278,7 @@ export function TaskItem({
                         <div
                             onClick={() => setIsEditing(true)}
                             className={cn(
-                                'w-full text-[15px] cursor-text select-none whitespace-pre-wrap break-words', // 13px -> 15px
+                                'w-full text-[15px] cursor-text select-none whitespace-pre-wrap break-words',
                                 task.completed
                                     ? 'text-zinc-400 line-through'
                                     : 'text-zinc-900 dark:text-zinc-100 font-normal',
@@ -298,9 +289,8 @@ export function TaskItem({
                         </div>
                     )}
 
-                    {/* Time info */}
                     {!hideActualTime && task.estimatedMinutes && (
-                        <div className="flex items-center gap-2 mt-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium"> {/* 10px -> xs, mt-0.5 -> 1 */}
+                        <div className="flex items-center gap-2 mt-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
                             {task.estimatedMinutes && (
                                 <span>Est. {formatMinutes(task.estimatedMinutes)}</span>
 
@@ -310,15 +300,13 @@ export function TaskItem({
                         </div>
                     )}
 
-                    {/* Scheduled time */}
                     {startDate && !task.allDay && (
-                        <div className="mt-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium"> {/* 10px -> xs, mt-0.5 -> 1 */}
+                        <div className="mt-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
                             {formatScheduledTime(startDate, endDate)}
                         </div>
                     )}
                 </div>
 
-                {/* More menu */}
                 <TaskItemMenu
                     task={task}
                     canAddSubTask={canAddSubTask}

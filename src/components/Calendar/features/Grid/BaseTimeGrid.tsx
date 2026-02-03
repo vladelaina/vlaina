@@ -1,10 +1,3 @@
-/**
- * BaseTimeGrid - Base time grid component
- * 
- * Unifies common logic for DayGrid and TimeGrid
- * Configures different behaviors via props
- */
-
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { getHours, getMinutes } from 'date-fns';
 
@@ -89,7 +82,6 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
     allDayAreaRef,
   });
 
-  // Update current time
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);

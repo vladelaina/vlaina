@@ -1,10 +1,3 @@
-/**
- * NewRepositoryDialog - Dialog for creating a new GitHub repository
- * 
- * Allows user to enter repository name (without nekotick- prefix)
- * and select public/private visibility.
- */
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { MdClose, MdRefresh, MdLock, MdPublic } from 'react-icons/md';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
@@ -26,7 +19,6 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
 
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Focus input when dialog opens
     useEffect(() => {
         if (isOpen) {
             setName('');
@@ -37,7 +29,6 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
         }
     }, [isOpen]);
 
-    // Handle escape key
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && isOpen) {
@@ -57,7 +48,6 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
             return;
         }
 
-        // Validate name (GitHub repo name rules)
         if (!/^[a-zA-Z0-9._-]+$/.test(trimmedName)) {
             setError('Name can only contain letters, numbers, hyphens, underscores, and periods');
             return;
@@ -89,19 +79,16 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                 onClick={onClose}
             />
 
-            {/* Dialog */}
             <div className={cn(
                 "relative w-full max-w-md mx-4 p-6 rounded-xl",
                 "bg-[var(--neko-bg-primary)] border border-[var(--neko-border)]",
                 "shadow-2xl"
             )}>
-                {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-lg font-semibold text-[var(--neko-text-primary)]">
                         New Repository
@@ -114,9 +101,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                     </button>
                 </div>
 
-                {/* Form */}
                 <form onSubmit={handleSubmit}>
-                    {/* Name input */}
                     <div className="mb-4">
                         <label className="block text-[13px] font-medium text-[var(--neko-text-secondary)] mb-1.5">
                             Repository name
@@ -167,7 +152,6 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                         />
                     </div>
 
-                    {/* Visibility selection */}
                     <div className="mb-6">
                         <label className="block text-[13px] font-medium text-[var(--neko-text-secondary)] mb-2">
                             Visibility
@@ -233,14 +217,12 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                         </div>
                     </div>
 
-                    {/* Error message */}
                     {error && (
                         <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
                             <p className="text-[12px] text-red-400">{error}</p>
                         </div>
                     )}
 
-                    {/* Actions */}
                     <div className="flex justify-end gap-2">
                         <button
                             type="button"

@@ -38,7 +38,6 @@ export function CoverImage({
     pickerOpen,
     onPickerOpenChange,
 }: CoverImageProps) {
-    // --- Height State (Managed Manually) ---
     const [coverHeight, setCoverHeight] = useState(initialHeight ?? DEFAULT_HEIGHT);
     const containerRef = useRef<HTMLDivElement>(null);
     const wrapperRef = useRef<HTMLDivElement>(null); // New Wrapper for counter-transform
@@ -51,7 +50,6 @@ export function CoverImage({
         setCoverHeight(initialHeight);
     }
 
-    // --- Data Source ---
     const {
         resolvedSrc,
         previewSrc,
@@ -63,8 +61,6 @@ export function CoverImage({
         isSelectingRef
     } = useCoverSource({ url, vaultPath, onUpdate });
 
-
-    // --- Resize Observer for Container ---
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -99,10 +95,8 @@ export function CoverImage({
             observer.disconnect();
             if (rafId) cancelAnimationFrame(rafId);
         };
-    }, []); // containerRef is stable
+    }, []);
 
-
-    // --- Picker State ---
     const [internalShowPicker, setInternalShowPicker] = useState(false);
     const showPicker = pickerOpen ?? internalShowPicker;
 
@@ -114,7 +108,6 @@ export function CoverImage({
         }
     }, [onPickerOpenChange]);
 
-    // --- Cropper State ---
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(scale);
     const [mediaSize, setMediaSize] = useState<{ width: number, height: number } | null>(null);
@@ -124,29 +117,14 @@ export function CoverImage({
     // Track if we are currently resizing the container
     const [isResizing, setIsResizing] = useState(false);
 
-    // FIX: Reset crop/zoom when previewing a NEW image.
-    // When user hovers over a different cover in the picker, we should show it
-    // at default position (center, zoom 1x) - exactly matching what will be saved.
-    // This prevents the preview from inheriting the OLD cover's positioning.
     useLayoutEffect(() => {
         if (previewSrc) {
-
-            // Reset to default: centered, no zoom
             setCrop({ x: 0, y: 0 });
             setZoom(1);
-            // Also reset isImageReady to trigger fresh load handling
             setIsImageReady(false);
         }
     }, [previewSrc]);
 
-    // NOTE: We intentionally do NOT reset isImageReady when resolvedSrc changes.
-    // When user selects an image they were previewing, the Cropper already has it loaded.
-    // The preview already set up the correct centered position (50/50).
-    // Resetting here would cause the image to disappear (no new onMediaLoaded).
-
-    // FIX: Construct Effective Container Size
-    // Use `coverHeight` (Source of Truth) for height to avoid ResizeObserver lag.
-    // Use `containerSize.width` for width (reactive to window resize).
     const effectiveContainerSize = useMemo(() => {
         if (!containerSize) return null;
         return {
@@ -155,9 +133,6 @@ export function CoverImage({
         };
     }, [containerSize, coverHeight]);
 
-
-    // SNAPSHOT STATE: The absolute position of the image when drag started.
-    // This allows us to render a completely static "Frozen Layer" that ignores container updates.
     const [frozenImageState, setFrozenImageState] = useState<{
         top: number;
         left: number;
@@ -239,14 +214,8 @@ export function CoverImage({
         );
         setCrop(pixels);
 
-    }, [positionX, positionY, scale, mediaSize, effectiveContainerSize, isInteracting, isResizing, zoom]); // Use scale prop for sync
+    }, [positionX, positionY, scale, mediaSize, effectiveContainerSize, isInteracting, isResizing, zoom]);
 
-    // --- Interaction Handlers ---
-
-    // --- Handlers for Cropper ---
-    // --- Interaction Handlers ---
-
-    // Track if actual modification occurred during interaction
     const dragOccurredRef = useRef(false);
     // Track if picker was open at start of interaction to prevent "Close -> Reopen" race
     const wasPickerOpenRef = useRef(false);
@@ -265,8 +234,6 @@ export function CoverImage({
         onUpdate(url, percent.x, percent.y, coverHeight, currentZoom);
     }, [mediaSize, effectiveContainerSize, url, coverHeight, onUpdate]);
 
-    // --- Interaction Handlers (Memoized) ---
-    // Define handlers for Start/End to manage interacting state and saving
     const handleInteractionStart = useCallback(() => {
         setIsInteracting(true);
         dragOccurredRef.current = false;
@@ -288,8 +255,6 @@ export function CoverImage({
         }
     }, [readOnly, crop, zoom, saveToDb, setShowPicker]);
 
-    // --- Handlers for Cropper (Memoized) ---
-    // Update local state only
     const onCropperCropChange = useCallback((newCrop: { x: number, y: number }) => {
         if (readOnly) return;
 
@@ -333,11 +298,6 @@ export function CoverImage({
             maxWidth: 'none',
         }
     }), []);
-
-    // --- Other Handlers (Copy reused) ---
-    // --- Seamless Selection Logic ---
-    // When a user selects a cover, we keep the previewSrc active until the new URL fully propagates.
-    // This allows the user to immediately start dragging/adjusting without a "loading" gap.
 
     useEffect(() => {
         // If we were selecting (isSelectingRef is true) and the URL changed,
@@ -680,14 +640,6 @@ export function CoverImage({
 
     const displaySrc = previewSrc || resolvedSrc || prevSrcRef.current || '';
 
-    // If we have no displaySrc but url exists (e.g. loading or error), Show Placeholder
-    // Actually displaySrc includes 'prevSrcRef' so it handles transitions.
-    // If absolutely nothing, show error.
-
-    // FIX: Force centered preview regardless of state latency.
-    // If we are previewing a new image, we MUST show it centered (50/50).
-    // EXCEPTION: If we are "selecting" (isSelectingRef=true), user might be dragging ALREADY.
-    // In that case, we MUST use the real 'crop' state, not force center.
     const isPreviewing = previewSrc && !isSelectingRef.current;
 
     const effectiveCrop = isPreviewing ? { x: 0, y: 0 } : crop;
@@ -700,11 +652,6 @@ export function CoverImage({
             style={{ height: coverHeight }}
             ref={containerRef}
         >
-            {/* Static CSS Placeholder (Instant Load) 
-                IMPORTANT: Only show when NOT previewing a different image.
-                When previewSrc exists, we let Cropper render it directly to ensure
-                the preview position matches the final selection position.
-            */}
             {displaySrc && !previewSrc && (
                 <img
                     src={displaySrc}
@@ -719,7 +666,6 @@ export function CoverImage({
                 />
             )}
 
-            {/* Cropper Layer (Standard Mode) - Only show when NOT resizing */}
             {displaySrc && !isResizing && (
                 <div
                     ref={wrapperRef}
@@ -744,19 +690,10 @@ export function CoverImage({
                             const dims = { width: media.naturalWidth, height: media.naturalHeight };
                             setMediaSize(dims);
 
-
-
-                            // Pre-calculate crop to prevent "Center -> Position" flash
-                            // We must ensure the first visible frame has the correct crop
                             if (effectiveContainerSize && !isImageReady) {
-                                // FIX: When previewing a NEW image (previewSrc exists),
-                                // use 50/50 (center) instead of the old image's position.
-                                // This ensures preview = selection (both centered).
                                 const targetX = previewSrc ? 50 : positionX;
                                 const targetY = previewSrc ? 50 : positionY;
                                 const targetZoom = previewSrc ? 1 : zoom;
-
-
 
                                 const pixels = calculateCropPixels(
                                     { x: targetX, y: targetY },

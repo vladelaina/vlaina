@@ -1,9 +1,3 @@
-/**
- * Type declarations for ical.js
- * 
- * ical.js doesn't ship with TypeScript types, so we declare the parts we use.
- */
-
 declare module 'ical.js' {
     export function parse(input: string): unknown[];
 

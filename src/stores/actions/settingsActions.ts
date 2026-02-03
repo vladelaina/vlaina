@@ -1,5 +1,3 @@
-// Settings Actions
-
 import type { UnifiedData } from '@/lib/storage/unifiedStorage';
 import type { TimeView } from '@/lib/date';
 

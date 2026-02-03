@@ -1,5 +1,3 @@
-// Calendar Constants
-
 export const DEFAULT_EVENT_DURATION_MINUTES = 25;
 
 export const DEFAULT_EVENT_DURATION_MS = DEFAULT_EVENT_DURATION_MINUTES * 60 * 1000;

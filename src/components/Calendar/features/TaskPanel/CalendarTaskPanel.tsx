@@ -1,10 +1,3 @@
-/**
- * CalendarTaskPanel - Unified panel on the right side of calendar
- * 
- * Supports switching between tasks and progress views
- * Refactored to use modular components and hooks
- */
-
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { DragMoveEvent } from '@dnd-kit/core';
 
@@ -104,7 +97,6 @@ export function CalendarTaskPanel({
     },
   });
 
-  // Check if dragging over calendar
   const checkIsOverCalendar = useCallback((event: DragMoveEvent) => {
     const gridContainer = document.getElementById('time-grid-container');
     if (!gridContainer) {

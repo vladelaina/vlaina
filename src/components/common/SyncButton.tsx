@@ -1,13 +1,3 @@
-/**
- * SyncButton - Manual sync button for free users
- * 
- * Design principles:
- * - Visible but not intrusive: Cloud icon with subtle visual weight
- * - Always available: Constant position in toolbar for multi-device sync
- * - Status feedback: Subtle visual changes for different states
- * - Bidirectional: Syncs both local→cloud and cloud→local
- */
-
 import { useState } from 'react';
 import { 
   MdCloud, 
