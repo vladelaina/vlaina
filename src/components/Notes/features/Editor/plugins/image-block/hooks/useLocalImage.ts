@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { loadImageAsBlob } from '@/lib/assets/imageLoader';
 import { joinPath } from '@/lib/storage/adapter';
 
@@ -6,32 +6,6 @@ interface UseLocalImageResult {
     resolvedSrc: string;
     isLoading: boolean;
     error: Error | null;
-}
-
-const blobUrlCache = new Map<string, { url: string; refCount: number }>();
-
-function acquireBlobUrl(key: string, url: string): void {
-    const existing = blobUrlCache.get(key);
-    if (existing) {
-        existing.refCount++;
-    } else {
-        blobUrlCache.set(key, { url, refCount: 1 });
-    }
-}
-
-function releaseBlobUrl(key: string): void {
-    const existing = blobUrlCache.get(key);
-    if (existing) {
-        existing.refCount--;
-        if (existing.refCount <= 0) {
-            URL.revokeObjectURL(existing.url);
-            blobUrlCache.delete(key);
-        }
-    }
-}
-
-function getCachedBlobUrl(key: string): string | null {
-    return blobUrlCache.get(key)?.url || null;
 }
 
 export function useLocalImage(
@@ -42,7 +16,6 @@ export function useLocalImage(
     const [resolvedSrc, setResolvedSrc] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
-    const cacheKeyRef = useRef<string | null>(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -85,28 +58,9 @@ export function useLocalImage(
                 }
 
                 if (fullPath) {
-                    const cachedUrl = getCachedBlobUrl(fullPath);
-                    if (cachedUrl) {
-                        if (isMounted) {
-                            if (cacheKeyRef.current && cacheKeyRef.current !== fullPath) {
-                                releaseBlobUrl(cacheKeyRef.current);
-                            }
-                            cacheKeyRef.current = fullPath;
-                            acquireBlobUrl(fullPath, cachedUrl);
-                            setResolvedSrc(cachedUrl);
-                        }
-                    } else {
-                        const blobUrl = await loadImageAsBlob(fullPath);
-                        if (isMounted) {
-                            if (cacheKeyRef.current && cacheKeyRef.current !== fullPath) {
-                                releaseBlobUrl(cacheKeyRef.current);
-                            }
-                            cacheKeyRef.current = fullPath;
-                            acquireBlobUrl(fullPath, blobUrl);
-                            setResolvedSrc(blobUrl);
-                        } else {
-                            URL.revokeObjectURL(blobUrl);
-                        }
+                    const blobUrl = await loadImageAsBlob(fullPath);
+                    if (isMounted) {
+                        setResolvedSrc(blobUrl);
                     }
                 } else {
                     if (isMounted) {
@@ -129,10 +83,6 @@ export function useLocalImage(
 
         return () => {
             isMounted = false;
-            if (cacheKeyRef.current) {
-                releaseBlobUrl(cacheKeyRef.current);
-                cacheKeyRef.current = null;
-            }
         };
     }, [rawSrc, notesPath, currentNotePath]);
 

@@ -233,32 +233,34 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                 )}
                 style={{ width: '100%', height: '100%' }}
             >
-                <Cropper
-                    image={imageSrc}
-                    crop={crop}
-                    zoom={zoom}
-                    cropSize={containerSize}
-                    aspect={undefined}
-                    onCropChange={setCrop}
-                    onCropComplete={onCropChangeComplete}
-                    onZoomChange={setZoom}
-                    onMediaLoaded={onMediaLoaded}
-                    showGrid={false}
-                    zoomWithScroll={isActive}
-                    zoomSpeed={0.5}
-                    minZoom={minZoomLimit}
-                    maxZoom={MAX_ZOOM}
-                    restrictPosition={true}
-                    objectFit="cover"
-                    style={{
-                        containerStyle: {
-                            borderRadius: '0',
-                            pointerEvents: (isActive || isCtrlPressed) ? 'auto' : 'none'
-                        },
-                        mediaStyle: { borderRadius: '0' }
-                    }}
-                    onInteractionEnd={handleInteractionEnd}
-                />
+                {imageSrc && (
+                    <Cropper
+                        image={imageSrc}
+                        crop={crop}
+                        zoom={zoom}
+                        cropSize={containerSize}
+                        aspect={undefined}
+                        onCropChange={setCrop}
+                        onCropComplete={onCropChangeComplete}
+                        onZoomChange={setZoom}
+                        onMediaLoaded={onMediaLoaded}
+                        showGrid={false}
+                        zoomWithScroll={isActive}
+                        zoomSpeed={0.5}
+                        minZoom={minZoomLimit}
+                        maxZoom={MAX_ZOOM}
+                        restrictPosition={true}
+                        objectFit="cover"
+                        style={{
+                            containerStyle: {
+                                borderRadius: '0',
+                                pointerEvents: (isActive || isCtrlPressed) ? 'auto' : 'none'
+                            },
+                            mediaStyle: { borderRadius: '0' }
+                        }}
+                        onInteractionEnd={handleInteractionEnd}
+                    />
+                )}
 
                 {onResizeStart && (
                     <InvisibleResizeHandles

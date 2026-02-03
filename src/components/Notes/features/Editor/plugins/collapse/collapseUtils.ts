@@ -1,7 +1,3 @@
-import { $prose } from '@milkdown/kit/utils';
-import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
-import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
-
 export const COLLAPSED_CONTENT_CLASS = 'neko-collapsed-content';
 
 export const COLLAPSE_TOGGLE_EVENT = 'neko-collapse-toggle';
