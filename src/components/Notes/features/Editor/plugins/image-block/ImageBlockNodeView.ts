@@ -11,6 +11,7 @@ export class ImageBlockNodeView implements NodeView {
     view: EditorView;
     getPos: () => number | undefined;
     root: Root;
+    private dragStartHandler: (e: DragEvent) => void;
 
     constructor(node: Node, view: EditorView, getPos: () => number | undefined) {
         this.node = node;
@@ -22,10 +23,11 @@ export class ImageBlockNodeView implements NodeView {
         this.dom.contentEditable = 'false';
         this.dom.draggable = false;
 
-        this.dom.addEventListener('dragstart', (e) => {
+        this.dragStartHandler = (e: DragEvent) => {
             e.preventDefault();
             e.stopPropagation();
-        }, true);
+        };
+        this.dom.addEventListener('dragstart', this.dragStartHandler, true);
 
         this.root = createRoot(this.dom);
         this.render();
@@ -75,6 +77,7 @@ export class ImageBlockNodeView implements NodeView {
     }
 
     destroy() {
+        this.dom.removeEventListener('dragstart', this.dragStartHandler, true);
         this.root.unmount();
         this.dom.remove();
     }
