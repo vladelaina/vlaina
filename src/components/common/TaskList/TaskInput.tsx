@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MdAdd } from 'react-icons/md';
+import { MdAddTask, MdCalendarToday, MdClose } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { ALL_COLORS, SIMPLE_COLOR_STYLES, type ItemColor } from '@/lib/colors';
 import { TaskFilterMenu } from './TaskFilterMenu';
 import { TaskSortMenu } from './TaskSortMenu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { MiniCalendar } from '@/components/Calendar/features/DateSelector/MiniCalendar';
+import { format } from 'date-fns';
 
 interface TaskInputProps {
     compact?: boolean;
@@ -16,6 +19,9 @@ export function TaskInput({ compact = false }: TaskInputProps) {
     const [isFocused, setIsFocused] = useState(false);
     const [color, setColor] = useState<ItemColor>('default');
     const [showColorMenu, setShowColorMenu] = useState(false);
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [timeInput, setTimeInput] = useState('');
+    const [datePickerOpen, setDatePickerOpen] = useState(false);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const colorMenuRef = useRef<HTMLDivElement>(null);
 
@@ -147,9 +153,9 @@ export function TaskInput({ compact = false }: TaskInputProps) {
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.8 }}
                             onClick={handleSubmit}
-                            className="shrink-0 p-1 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:opacity-90 transition-opacity mt-0.5"
+                            className="shrink-0 p-1 rounded text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors mt-0.5"
                         >
-                            <MdAdd className="w-[18px] h-[18px]" />
+                            <MdAddTask className="w-[18px] h-[18px]" />
                         </motion.button>
                     )}
                 </AnimatePresence>

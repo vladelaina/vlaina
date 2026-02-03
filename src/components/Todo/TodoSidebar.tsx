@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import {
-    MdInbox,
     MdCalendarToday,
-    MdPieChart,
-    MdAssignment,
+    MdOutlinePieChart,
+    MdOutlineAssignment,
+    MdOutlineCheckCircle,
 } from 'react-icons/md';
 import { ColorFilter } from '@/components/common/ColorFilter';
 import { cn } from '@/lib/utils';
@@ -18,18 +18,21 @@ export function TodoSidebar() {
         setActiveGroup
     } = useGroupStore();
 
+    const todayDate = new Date().getDate(); // 获取今天的日期数字
+
 
 
     const counts = useMemo(() => {
-        const c = { inbox: 0, today: 0, all: 0 };
+        const c = { today: 0, all: 0, completed: 0 };
         const todayKey = getTodayKey();
 
         tasks.forEach((t: any) => {
-            if (t.completed) return;
+            if (t.completed) {
+                c.completed++;
+                return;
+            }
             
             c.all++;
-            
-            if (t.calendarId === DEFAULT_GROUP_ID) c.inbox++;
 
             if (t.dtstart) {
                 const taskDateKey = formatDateKey(new Date(t.dtstart));
@@ -41,7 +44,7 @@ export function TodoSidebar() {
 
 
 
-    const NavItem = ({ label, icon: Icon, count, onClick, active }: any) => (
+    const NavItem = ({ label, icon: Icon, count, onClick, active, customIcon }: any) => (
         <button
             onClick={onClick}
             className={cn(
@@ -52,20 +55,38 @@ export function TodoSidebar() {
             )}
         >
             <div className="flex items-center gap-3">
-                <Icon className={cn("size-[18px]", active ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500")} />
+                {customIcon ? customIcon : <Icon className={cn("size-[18px]", active ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500")} />}
                 <span>{label}</span>
             </div>
             {count > 0 && (
                 <span className={cn(
-                    "text-xs px-1.5 py-0.5 rounded-full transition-colors",
+                    "text-xs transition-colors",
                     active 
-                        ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100" 
-                        : "text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-700"
+                        ? "text-zinc-900 dark:text-zinc-100" 
+                        : "text-zinc-400"
                 )}>
                     {count}
                 </span>
             )}
         </button>
+    );
+
+    // 自定义日历图标，中间显示日期数字
+    const CalendarIcon = ({ active }: { active: boolean }) => (
+        <div className={cn(
+            "relative size-[18px]",
+            active ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500"
+        )}>
+            <MdCalendarToday className="size-[18px]" />
+            <span className={cn(
+                "absolute text-[7px] font-bold leading-none",
+                "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
+                "mt-[1px]",
+                active ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500"
+            )}>
+                {todayDate}
+            </span>
+        </div>
     );
 
     return (
@@ -74,36 +95,36 @@ export function TodoSidebar() {
                 
                 <div className="space-y-0.5">
                     <NavItem 
-                        id={DEFAULT_GROUP_ID} 
-                        label="Inbox" 
-                        icon={MdInbox} 
-                        count={counts.inbox}
-                        active={activeGroupId === DEFAULT_GROUP_ID}
-                        onClick={() => setActiveGroup(DEFAULT_GROUP_ID)}
-                    />
-                    <NavItem 
                         id="today" 
                         label="Today" 
-                        icon={MdCalendarToday} 
+                        customIcon={<CalendarIcon active={activeGroupId === 'today'} />}
                         count={counts.today}
                         active={activeGroupId === 'today'}
                         onClick={() => setActiveGroup('today')}
                     />
                     <NavItem 
+                        id="progress" 
+                        label="Progress" 
+                        icon={MdOutlinePieChart} 
+                        count={0}
+                        active={activeGroupId === 'progress'}
+                        onClick={() => setActiveGroup('progress')}
+                    />
+                    <NavItem 
                         id="all" 
                         label="All Tasks" 
-                        icon={MdAssignment} 
+                        icon={MdOutlineAssignment} 
                         count={counts.all}
                         active={activeGroupId === 'all'}
                         onClick={() => setActiveGroup('all')}
                     />
                     <NavItem 
-                        id="progress" 
-                        label="Progress" 
-                        icon={MdPieChart} 
-                        count={0} // Progress usually doesn't have a task count
-                        active={activeGroupId === 'progress'}
-                        onClick={() => setActiveGroup('progress')}
+                        id="completed" 
+                        label="Completed" 
+                        icon={MdOutlineCheckCircle} 
+                        count={counts.completed}
+                        active={activeGroupId === 'completed'}
+                        onClick={() => setActiveGroup('completed')}
                     />
                 </div>
 
