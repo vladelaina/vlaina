@@ -160,7 +160,6 @@ const detectors: DetectorConfig[] = [
   // Priority 76-85: Scripting languages
   { name: 'perl', priority: 76, detector: detectPerl },
   { name: 'powershell', priority: 77, detector: detectPowerShell },
-  { name: 'vim', priority: 78, detector: detectVim },
   { name: 'coffeescript', priority: 79, detector: detectCoffeeScript },
   
   // Priority 86-95: Config & Tools
