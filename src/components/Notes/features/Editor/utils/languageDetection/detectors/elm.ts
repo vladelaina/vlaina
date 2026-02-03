@@ -1,7 +1,7 @@
 import type { LanguageDetector } from '../types';
 
 export const detectElm: LanguageDetector = (ctx) => {
-  const { code, first100Lines, firstLine } = ctx;
+  const { code, first100Lines } = ctx;
 
   if (/\b(const|var|export\s+default|export\s+const|import\s+.*from)\s+/.test(first100Lines)) {
     return null;

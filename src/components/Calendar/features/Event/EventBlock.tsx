@@ -29,7 +29,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
 
   const blockRef = useRef<HTMLDivElement>(null);
   const isActive = editingEventId === event.uid;
-  const isCompleted = event.completed;
+  const isCompleted = event.completed ?? false;
 
   const startDate = event.dtstart.getTime();
   const endDate = event.dtend.getTime();
@@ -71,7 +71,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   });
 
   const { colors, positioning, zIndex, shadowClass, cursorClass } = useEventStyles({
-    displayColor,
+    displayColor: displayColor || '',
     layout,
     isActive,
     isHovered,

@@ -1,7 +1,7 @@
 import type { LanguageDetector } from '../types';
 
 export const detectCSharp: LanguageDetector = (ctx) => {
-  const { sample, first100Lines, firstLine, hasCurlyBraces, hasSemicolon, code } = ctx;
+  const { sample, first100Lines, firstLine, hasCurlyBraces, hasSemicolon } = ctx;
 
   if (/#import\s+["<]/.test(first100Lines) ||
       /@(interface|implementation|property|protocol)\b/.test(first100Lines) ||

@@ -1,7 +1,7 @@
 import type { LanguageDetector } from '../types';
 
 export const detectAstro: LanguageDetector = (ctx) => {
-  const { code, firstLine, first100Lines } = ctx;
+  const { code, firstLine } = ctx;
 
   if (firstLine.trim() === '---') {
     const frontmatterMatch = code.match(/^---\n([\s\S]*?)\n---/);
