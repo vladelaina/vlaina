@@ -12,29 +12,16 @@ import { WeatherWidget } from '../../Header/WeatherWidget';
 const GUTTER_WIDTH = CALENDAR_CONSTANTS.GUTTER_WIDTH as number;
 
 interface TimezoneHeaderProps {
-  timezone: string;
   days?: Date[]; 
 }
 
-export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
+export function TimezoneHeader({ days = [] }: TimezoneHeaderProps) {
   const { dayCount, setDayCount, viewMode, setViewMode, setSelectedDate, selectedDate } = useCalendarStore();
   const { setAppViewMode } = useUIStore();
   const { setActiveGroup } = useGroupStore();
   
   const [open, setOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
-
-  const displayTimezone = useMemo(() => {
-    if (!timezone) return 'GMT+8';
-    const tzStr = String(timezone);
-    if (tzStr.startsWith('GMT')) return tzStr;
-    if (tzStr.startsWith('+') || tzStr.startsWith('-')) return `GMT${tzStr}`;
-    if (!isNaN(Number(tzStr))) {
-      const offset = Number(tzStr);
-      return `GMT${offset >= 0 ? '+' : ''}${offset}`;
-    }
-    return tzStr;
-  }, [timezone]);
 
   const currentDayCount = dayCount || 7;
 
@@ -84,15 +71,22 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
 
   return (
     <div className="flex h-7 items-center select-none bg-white dark:bg-zinc-950 border-b border-zinc-100 dark:border-zinc-800/50 relative">
-      {/* 1. Timezone Label */}
+      {/* 1. Left Gutter - Weather & Todo Button */}
       <div 
         style={{ width: GUTTER_WIDTH }} 
-        className="flex-shrink-0 flex items-center justify-end pr-2"
+        className="flex-shrink-0 flex items-center justify-end pr-1 gap-1"
       >
         {viewMode !== 'month' && (
-          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium whitespace-nowrap">
-            {displayTimezone}
-          </span>
+          <>
+            <WeatherWidget />
+            <button
+              onClick={handleJumpToTodo}
+              className="p-0.5 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-sm transition-colors"
+              title="Open in Today List"
+            >
+              <MdChecklist className="w-[18px] h-[18px]" />
+            </button>
+          </>
         )}
       </div>
 
@@ -105,8 +99,6 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
                         style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }}>
                     {days.map((day) => {
                         const isToday = isSameDay(day, new Date());
-                        // Show inline controls ONLY in multi-day view and ONLY for today
-                        const showInlineControls = currentDayCount > 1 && isToday;
 
                         return (
                             <div key={day.toString()} className="flex items-center justify-center h-full px-0.5 overflow-hidden">
@@ -122,22 +114,6 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
                                             {format(day, 'd')}
                                         </span>
                                     </div>
-
-                                    {/* Inline Controls (Weather, Todo) */}
-                                    {showInlineControls && (
-                                        <div className="flex items-center gap-1 flex-shrink min-w-0 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
-                                            <div className="scale-90 flex items-center flex-shrink-0">
-                                                <WeatherWidget />
-                                            </div>
-                                            <div 
-                                                onClick={handleJumpToTodo}
-                                                className="p-0.5 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-sm transition-colors cursor-pointer flex-shrink-0"
-                                                title="Open in Today List"
-                                            >
-                                                <MdChecklist className="size-[18px]" />
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         );
@@ -152,35 +128,23 @@ export function TimezoneHeader({ timezone, days = [] }: TimezoneHeaderProps) {
       </div>
 
       {/* 3. Right Controls: Absolute Positioning */}
-      <div className={`absolute right-2 top-0 bottom-0 flex items-center gap-2 z-20 ${currentDayCount > 1 ? 'pointer-events-auto' : ''}`}>
+      <div className={`absolute right-2 top-0 bottom-0 flex items-center gap-2 z-20`}>
         
-        {/* Only show Weather/Todo/Today here in Single Day View */}
-        {currentDayCount === 1 && (
-            <>
-                <WeatherWidget />
-
-                {!isSameDay(selectedDate, new Date()) && (
-                    <button
-                    onClick={() => setSelectedDate(new Date())}
-                    className="whitespace-nowrap px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-800/50 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-sm transition-all"
-                    >
-                    Today
-                    </button>
-                )}
-
-                <button
-                onClick={handleJumpToTodo}
-                className="p-1 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-sm transition-colors"
-                title="Open in Today List"
-                >
-                <MdChecklist className="size-[18px]" />
-                </button>
-
-                <div className="h-[18px] w-px bg-zinc-200 dark:bg-zinc-800" />
-            </>
+        {/* Today button - only show when not on today */}
+        {!isSameDay(selectedDate, new Date()) && (
+          <button
+            onClick={() => setSelectedDate(new Date())}
+            className="whitespace-nowrap px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-800/50 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-sm transition-all"
+          >
+            Today
+          </button>
         )}
 
-        {/* View Scale Controller - Always Visible */}
+        {!isSameDay(selectedDate, new Date()) && (
+          <div className="h-[18px] w-px bg-zinc-200 dark:bg-zinc-800" />
+        )}
+
+        {/* View Scale Controller */}
         <div className="flex items-center gap-0.5">
             <button 
             onClick={handleDecrement}

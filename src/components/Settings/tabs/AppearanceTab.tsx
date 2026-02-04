@@ -13,21 +13,16 @@ import { MdLaptop, MdDarkMode, MdLightMode, MdTextFields, MdAccessTime } from 'r
 
 export function AppearanceTab() {
   const { theme, setTheme } = useTheme();
-  const { timezone, setTimezone, use24Hour, toggle24Hour, dayStartTime, setDayStartTime } = useCalendarStore();
+  const { use24Hour, toggle24Hour, dayStartTime, setDayStartTime } = useCalendarStore();
 
   const [fontSize, setFontSize] = useState<number>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_FONT_SIZE);
     return saved !== null ? parseInt(saved) : 14;
   });
 
-  const [timezoneInput, setTimezoneInput] = useState(timezone.toString());
   const [dayStartInput, setDayStartInput] = useState(() =>
     formatClockTime(dayStartTime, use24Hour)
   );
-
-  useEffect(() => {
-    setTimezoneInput(timezone.toString());
-  }, [timezone]);
 
   useEffect(() => {
     setDayStartInput(formatClockTime(dayStartTime, use24Hour));
@@ -41,19 +36,6 @@ export function AppearanceTab() {
     const newSize = parseInt(e.target.value);
     setFontSize(newSize);
     localStorage.setItem(STORAGE_KEY_FONT_SIZE, newSize.toString());
-  };
-
-  const handleTimezoneSubmit = () => {
-    const input = timezoneInput.trim();
-    const match = input.match(/^([+-]?\d{1,2})$/);
-    if (match) {
-      const value = parseInt(match[0], 10);
-      if (value >= -12 && value <= 14) {
-        setTimezone(value);
-        return;
-      }
-    }
-    setTimezoneInput(timezone.toString());
   };
 
   const handleDayStartSubmit = () => {
@@ -123,26 +105,6 @@ export function AppearanceTab() {
           checked={use24Hour}
           onChange={toggle24Hour}
         />
-      </SettingsItem>
-
-      <SettingsItem
-        title="Timezone (GMT)"
-        description="Set your time offset from GMT (e.g., +8 for China)"
-      >
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-            <span className="text-zinc-500 text-sm font-medium">GMT</span>
-          </div>
-          <input
-            type="text"
-            value={timezoneInput}
-            onChange={(e) => setTimezoneInput(e.target.value)}
-            onBlur={handleTimezoneSubmit}
-            onKeyDown={(e) => e.key === 'Enter' && handleTimezoneSubmit()}
-            className="w-20 pl-10 pr-3 py-1.5 text-sm font-medium bg-[#F4F4F5] dark:bg-[#2A2A2A] border border-transparent dark:border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1E96EB]/20 focus:border-[#1E96EB] transition-all text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
-            placeholder="+0"
-          />
-        </div>
       </SettingsItem>
 
       <SettingsItem

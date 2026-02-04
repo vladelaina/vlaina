@@ -20,3 +20,5 @@ export {
 
   DEFAULT_SETTINGS,
 } from './defaults';
+
+export { detectSystemTimezone, getSystemTimezoneName } from './detectTimezone';

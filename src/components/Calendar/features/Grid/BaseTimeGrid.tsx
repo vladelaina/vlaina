@@ -103,15 +103,11 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
   const nowDisplayPosition = hourToDisplayPosition(nowHour, dayStartMinutes);
   const nowTop = nowDisplayPosition * hourHeight + (nowMinutes / 60) * hourHeight;
 
-  // Use the timezone from store or default
-  const { timezone } = useCalendarStore();
-
   return (
     <div className="flex flex-col h-full bg-white dark:bg-zinc-950 select-none relative">
       
-      {/* Universal Header Row: Timezone + Dates + Controller */}
+      {/* Universal Header Row: Dates + Controller */}
       <TimezoneHeader 
-        timezone={String(timezone || 'GMT+8')} 
         days={days}
       />
 
