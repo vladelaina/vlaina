@@ -5,6 +5,7 @@ import {
 from 'react-icons/md';
 import { isSameDay } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useWeatherStore } from '@/lib/weather/weatherStore';
 import { searchCity, getWeatherDescription, getForecastForDate, type GeoLocation } from '@/lib/weather/openMeteo';
@@ -99,39 +100,52 @@ export function WeatherWidget() {
       return null;
   }
 
+  const getWeatherTooltip = () => {
+    if (!displayWeather) return '';
+    const { label } = getWeatherDescription(displayWeather.code);
+    if (displayWeather.isForecast) {
+      return `${label} ${displayWeather.max}° / ${displayWeather.min}°`;
+    }
+    return `${label} ${displayWeather.temp}°`;
+  };
+
   return (
     <div className="flex items-center">
-      <Popover open={popoverOpen} onOpenChange={setDatePickerOpen}>
-        <PopoverTrigger asChild>
-          <button className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors group outline-none">
-            <div className="flex items-center gap-1.5">
-              {displayWeather ? (
-                <>
-                  {renderIcon()}
-                  <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300 whitespace-nowrap">
-                    {displayWeather.isForecast 
-                        ? `${displayWeather.max}° / ${displayWeather.min}°` 
-                        : `${displayWeather.temp}°`
-                    }
-                  </span>
-                </>
-              ) : (
-                <>
-                  {!city && (
-                    <span className="text-[10px] font-medium text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      Add weather
-                    </span>
-                  )}
-                  {isInitialLoading && (
-                     <MdRefresh className="size-[18px] animate-spin text-zinc-400" />
-                  )}
-                </>
-              )}
-            </div>
-          </button>
-        </PopoverTrigger>
-        
-        <PopoverContent className="w-64 p-0 overflow-hidden bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800" align="end" sideOffset={8}>
+      <TooltipProvider delayDuration={200}>
+        <Popover open={popoverOpen} onOpenChange={setDatePickerOpen}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <button 
+                  className="flex items-center gap-2 p-0.5 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors outline-none"
+                >
+                  <div className="flex items-center">
+                    {displayWeather ? (
+                      renderIcon()
+                    ) : (
+                      <>
+                        {!city && (
+                          <span className="text-[10px] font-medium text-zinc-400">
+                            Add weather
+                          </span>
+                        )}
+                        {isInitialLoading && (
+                           <MdRefresh className="size-[18px] animate-spin text-zinc-400" />
+                        )}
+                      </>
+                    )}
+                  </div>
+                </button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            {displayWeather && (
+              <TooltipContent side="bottom" className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-none">
+                <p className="text-[10px] font-medium">{getWeatherTooltip()}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+          
+          <PopoverContent className="w-64 p-0 overflow-hidden bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800" align="end" sideOffset={8}>
           <div className="p-3 border-b border-zinc-100 dark:border-zinc-800">
             <div className="relative">
               <MdSearch className="absolute left-2 top-1/2 -translate-y-1/2 size-[18px] text-zinc-400" />
@@ -190,8 +204,9 @@ export function WeatherWidget() {
               </div>
             )}
           </div>
-        </PopoverContent>
-      </Popover>
+          </PopoverContent>
+        </Popover>
+      </TooltipProvider>
     </div>
   );
 }

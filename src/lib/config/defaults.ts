@@ -1,6 +1,7 @@
 import type { TimeView } from '@/lib/date';
+import { detectSystemTimezone } from './detectTimezone';
 
-export const DEFAULT_TIMEZONE = 8;
+export const DEFAULT_TIMEZONE = detectSystemTimezone();
 export const DEFAULT_VIEW_MODE: TimeView = 'day';
 export const DEFAULT_DAY_COUNT = 1;
 export const DEFAULT_HOUR_HEIGHT = 64;

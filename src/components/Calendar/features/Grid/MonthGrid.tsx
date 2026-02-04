@@ -34,7 +34,7 @@ function sortEventsByColor(events: NekoEvent[]): NekoEvent[] {
 }
 
 export function MonthGrid() {
-  const { selectedDate, setSelectedDate, dayStartTime, timezone } = useCalendarStore();
+  const { selectedDate, setSelectedDate, dayStartTime } = useCalendarStore();
   const displayItems = useCalendarEvents();
   const dayStartMinutes = dayStartTime ?? DEFAULT_DAY_START_MINUTES;
 
@@ -69,8 +69,8 @@ export function MonthGrid() {
   return (
     <div className="flex flex-col h-full bg-white dark:bg-zinc-950">
       
-      {/* Universal Grid Header (Timezone + View Controller) */}
-      <TimezoneHeader timezone={String(timezone || 'GMT+8')} />
+      {/* Universal Grid Header (View Controller) */}
+      <TimezoneHeader />
 
       {/* Weekday Headers */}
       <div className="flex-shrink-0 grid grid-cols-7 border-b border-zinc-200 dark:border-zinc-800">
