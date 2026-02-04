@@ -1,32 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { useCalendarStore } from '@/stores/useCalendarStore';
 import {
   SettingsItem,
   SettingsSectionHeader,
   SegmentedControl,
-  SettingsToggle
 } from '../components/SettingsControls';
-import { parseClockTime, formatClockTime } from '@/lib/time';
 import { STORAGE_KEY_FONT_SIZE } from '@/lib/config';
-import { MdLaptop, MdDarkMode, MdLightMode, MdTextFields, MdAccessTime } from 'react-icons/md';
+import { MdLaptop, MdDarkMode, MdLightMode, MdTextFields } from 'react-icons/md';
 
 export function AppearanceTab() {
   const { theme, setTheme } = useTheme();
-  const { use24Hour, toggle24Hour, dayStartTime, setDayStartTime } = useCalendarStore();
 
   const [fontSize, setFontSize] = useState<number>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_FONT_SIZE);
     return saved !== null ? parseInt(saved) : 14;
   });
-
-  const [dayStartInput, setDayStartInput] = useState(() =>
-    formatClockTime(dayStartTime, use24Hour)
-  );
-
-  useEffect(() => {
-    setDayStartInput(formatClockTime(dayStartTime, use24Hour));
-  }, [dayStartTime, use24Hour]);
 
   useEffect(() => {
     document.documentElement.style.fontSize = `${fontSize}px`;
@@ -36,16 +24,6 @@ export function AppearanceTab() {
     const newSize = parseInt(e.target.value);
     setFontSize(newSize);
     localStorage.setItem(STORAGE_KEY_FONT_SIZE, newSize.toString());
-  };
-
-  const handleDayStartSubmit = () => {
-    const parsed = parseClockTime(dayStartInput);
-    if (parsed) {
-      const minutes = parsed.hours * 60 + parsed.minutes;
-      setDayStartTime(minutes);
-    } else {
-      setDayStartInput(formatClockTime(dayStartTime, use24Hour));
-    }
   };
 
   return (
@@ -91,39 +69,6 @@ export function AppearanceTab() {
           <span className="w-8 text-sm font-medium text-right tabular-nums text-zinc-700 dark:text-zinc-300">
             {fontSize}px
           </span>
-        </div>
-      </SettingsItem>
-
-      {/* Date & Time Section */}
-      <SettingsSectionHeader>Date & Time</SettingsSectionHeader>
-
-      <SettingsItem
-        title="24-Hour Time"
-        description="Use 24-hour format (e.g., 14:00) instead of 12-hour (2:00 PM)"
-      >
-        <SettingsToggle
-          checked={use24Hour}
-          onChange={toggle24Hour}
-        />
-      </SettingsItem>
-
-      <SettingsItem
-        title="Day Start Time"
-        description="When does your day start? (for calendar view)"
-      >
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-            <MdAccessTime className="w-[18px] h-[18px] text-zinc-400" />
-          </div>
-          <input
-            type="text"
-            value={dayStartInput}
-            onChange={(e) => setDayStartInput(e.target.value)}
-            onBlur={handleDayStartSubmit}
-            onKeyDown={(e) => e.key === 'Enter' && handleDayStartSubmit()}
-            className="w-28 pl-9 pr-3 py-1.5 text-sm font-medium bg-[#F4F4F5] dark:bg-[#2A2A2A] border border-transparent dark:border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1E96EB]/20 focus:border-[#1E96EB] transition-all text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
-            placeholder="05:00"
-          />
         </div>
       </SettingsItem>
     </div>

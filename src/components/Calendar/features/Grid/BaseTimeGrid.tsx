@@ -97,9 +97,18 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
     }
   }, []);
 
-  // Calculation for CurrentTimeLine
-  const nowHour = getHours(now);
-  const nowMinutes = getMinutes(now);
+  // Calculation for CurrentTimeLine - 根据选择的时区调整
+  const { timezone } = useCalendarStore();
+  
+  // 计算时区调整后的当前时间
+  const localOffset = -new Date().getTimezoneOffset() / 60; // 本地时区偏移（小时）
+  const selectedOffset = Number(timezone) || 8; // 选择的时区偏移
+  const offsetDiff = selectedOffset - localOffset; // 时区差异
+  
+  // 调整后的时间
+  const adjustedNow = new Date(now.getTime() + offsetDiff * 60 * 60 * 1000);
+  const nowHour = getHours(adjustedNow);
+  const nowMinutes = getMinutes(adjustedNow);
   const nowDisplayPosition = hourToDisplayPosition(nowHour, dayStartMinutes);
   const nowTop = nowDisplayPosition * hourHeight + (nowMinutes / 60) * hourHeight;
 
@@ -173,7 +182,7 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
 
             <CurrentTimeLine
               nowTop={nowTop}
-              now={now}
+              now={adjustedNow}
               use24Hour={use24Hour}
             />
 
