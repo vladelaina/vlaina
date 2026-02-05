@@ -53,7 +53,7 @@ export function EventVisualLayers({
         className={`absolute left-1 top-1 bottom-1 w-[3px] rounded-full ${isTimerActive && !isCompleted ? 'opacity-60' : ''}`}
         style={{ 
           backgroundColor: colorStyles.accent,
-          transition: 'none', // 禁用过渡
+          transition: 'none',
         }}
       />
 
@@ -64,7 +64,7 @@ export function EventVisualLayers({
             backgroundColor: colorStyles.fill,
             height: `${fillPercent}%`,
             opacity: 1,
-            transition: 'height 1s linear', // 只过渡高度
+            transition: 'height 1s linear',
           }}
         />
       )}
@@ -75,7 +75,7 @@ export function EventVisualLayers({
           style={{
             top: `${plannedHeight}px`,
             borderColor: colorStyles.accent,
-            transition: 'none', // 禁用过渡
+            transition: 'none',
           }}
         />
       )}
@@ -86,7 +86,7 @@ export function EventVisualLayers({
           style={{
             opacity: 1,
             color: colorStyles.accent,
-            transition: 'opacity 0.2s', // 只过渡透明度
+            transition: 'opacity 0.2s',
           }}
         >
           <AppIcon

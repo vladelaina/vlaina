@@ -259,7 +259,7 @@ export function AllDayArea({
                 height: EVENT_HEIGHT,
                 backgroundColor: bgColor,
                 color: textColor,
-                transition: 'box-shadow 0.15s, opacity 0.15s', // 只过渡 shadow 和 opacity
+                transition: 'box-shadow 0.15s, opacity 0.15s',
               }}
               onClick={(e) => handleEventClick(e, event.uid)}
               onMouseDown={(e) => handleEventMouseDown(e, event.uid)}

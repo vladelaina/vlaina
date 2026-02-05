@@ -23,7 +23,6 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   
-  // 复用预览逻辑
   const { handlePreviewColor } = useIconPreview(eventId);
   
   const event = events.find(e => e.uid === eventId);
@@ -34,13 +33,11 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
     }
   }, [event]);
 
-  // 打开右键菜单时，同时打开左侧面板
   useEffect(() => {
     setEditingEventId(eventId, position);
     onOpenPanel?.();
   }, [eventId, position, setEditingEventId, onOpenPanel]);
 
-  // 自动调整菜单位置，避免被遮挡
   useEffect(() => {
     if (menuRef.current) {
       const menuRect = menuRef.current.getBoundingClientRect();
@@ -50,17 +47,14 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
       let newX = position.x;
       let newY = position.y;
       
-      // 检查是否超出底部
       if (position.y + menuRect.height > viewportHeight) {
         newY = viewportHeight - menuRect.height - 10;
       }
       
-      // 检查是否超出右侧
       if (position.x + menuRect.width > viewportWidth) {
         newX = viewportWidth - menuRect.width - 10;
       }
       
-      // 确保不超出顶部和左侧
       newY = Math.max(10, newY);
       newX = Math.max(10, newX);
       
@@ -68,10 +62,9 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
     }
   }, [position]);
 
-  // 复用颜色修改逻辑（简化版，因为右键菜单不处理图标）
   const handleColorChange = (color: ItemColor) => {
     updateEvent(eventId, { color });
-    handlePreviewColor(null); // 清除预览
+    handlePreviewColor(null);
   };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
