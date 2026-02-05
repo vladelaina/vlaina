@@ -5,7 +5,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 
 import { cn } from '@/lib/utils';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
-import { TaskInput, TaskItem, TaskDragContext } from '@/components/common/TaskList';
+import { TaskInput, TaskItem, TaskDragContext, TaskFilterMenu, TaskSortMenu } from '@/components/common/TaskList';
 import { TodoListSection } from './components/TodoListSection';
 
 interface TaskListViewProps {
@@ -68,12 +68,18 @@ export function TaskListView({
 
     const handleSearchClick = () => {
         setIsSearchExpanded(true);
-        setTimeout(() => searchInputRef.current?.focus(), 100);
+        setTimeout(() => searchInputRef.current?.focus(), 150);
     };
 
     const handleSearchBlur = () => {
+        // Keep expanded if there's a query
         if (!searchQuery) {
-            setIsSearchExpanded(false);
+            // Small delay to allow clicking the close button
+            setTimeout(() => {
+                if (!searchQuery) {
+                    setIsSearchExpanded(false);
+                }
+            }, 150);
         }
     };
 
@@ -149,72 +155,73 @@ export function TaskListView({
 
     return (
         <div className="h-full flex flex-col bg-white dark:bg-zinc-900 overflow-hidden relative">
-            <div className="flex-shrink-0 px-8 py-3 flex items-center justify-end z-10 min-h-[52px]">
-                {headerControls && (
-                    <div className="mr-auto">
-                        {headerControls}
-                    </div>
-                )}
-
-                <motion.div 
-                    initial={false}
-                    animate={{ 
-                        width: isSearchExpanded || searchQuery ? 240 : 40,
-                    }}
-                    transition={{ type: "spring", bounce: 0, duration: 0.4 }}
-                    className="relative flex items-center justify-end"
-                >
-                    <motion.div
-                        className={cn(
-                            "flex items-center overflow-hidden rounded-full transition-colors relative h-10",
-                            isSearchExpanded || searchQuery 
-                                ? "bg-zinc-100 dark:bg-zinc-800/50" 
-                                : "bg-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800/50"
-                        )}
-                    >
-                        <div 
-                            className={cn(
-                                "flex-shrink-0 w-10 h-10 flex items-center justify-center cursor-pointer z-10",
-                                !isSearchExpanded && !searchQuery && "absolute right-0"
-                            )}
-                            onClick={handleSearchClick}
-                        >
-                            <MdSearch className="w-[18px] h-[18px] text-zinc-500" />
-                        </div>
-
-                        <input
-                            ref={searchInputRef}
-                            type="text"
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            onBlur={handleSearchBlur}
-                            placeholder="Search..."
-                            className={cn(
-                                "w-full bg-transparent border-none outline-none text-sm pr-2 placeholder:text-zinc-400 transition-opacity duration-300",
-                                isSearchExpanded || searchQuery ? "opacity-100" : "opacity-0 pointer-events-none"
-                            )}
-                        />
-                        
-                        <AnimatePresence>
-                            {searchQuery && (
-                                <motion.button 
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.8 }}
-                                    onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
-                                    className="flex-shrink-0 w-8 h-10 flex items-center justify-center text-zinc-400 hover:text-zinc-600 z-10 mr-1"
-                                >
-                                    <MdClose className="w-[18px] h-[18px]" />
-                                </motion.button>
-                            )}
-                        </AnimatePresence>
-                    </motion.div>
-                </motion.div>
-            </div>
+            {headerControls && (
+                <div className="flex-shrink-0 px-8 py-3 flex items-center z-10 min-h-[52px]">
+                    {headerControls}
+                </div>
+            )}
 
             <div className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-300">
-                <div className="flex-shrink-0 px-8 pb-4 max-w-3xl mx-auto w-full">
-                    <TaskInput compact={false} />
+                <div className="flex-shrink-0 px-8 pb-4 pt-3 max-w-3xl mx-auto w-full">
+                    <AnimatePresence mode="wait">
+                        {isSearchExpanded || searchQuery ? (
+                            <motion.div
+                                key="search"
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="flex items-start gap-1"
+                            >
+                                <div className={cn(
+                                    'flex-1 flex items-center gap-2 px-3 py-2 rounded-md',
+                                    'border border-zinc-200 dark:border-zinc-700 bg-muted/30'
+                                )}>
+                                    <MdSearch className="w-[18px] h-[18px] text-zinc-400 flex-shrink-0" />
+                                    <input
+                                        ref={searchInputRef}
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={e => setSearchQuery(e.target.value)}
+                                        onBlur={handleSearchBlur}
+                                        placeholder="Search tasks..."
+                                        className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/50 focus:ring-0"
+                                    />
+                                    <button 
+                                        onClick={() => { 
+                                            setSearchQuery(''); 
+                                            setIsSearchExpanded(false);
+                                        }}
+                                        className="flex-shrink-0 p-1 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                    >
+                                        <MdClose className="w-[18px] h-[18px]" />
+                                    </button>
+                                </div>
+                                <TaskFilterMenu />
+                                <TaskSortMenu />
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="input"
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="flex items-start gap-1"
+                            >
+                                <TaskInput compact={false} />
+                                <button
+                                    onClick={handleSearchClick}
+                                    className="shrink-0 p-1.5 rounded-md transition-colors mt-0.5 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                                    title="Search tasks"
+                                >
+                                    <MdSearch className="size-[18px]" />
+                                </button>
+                                <TaskFilterMenu />
+                                <TaskSortMenu />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
 
                 <div

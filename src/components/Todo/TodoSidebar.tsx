@@ -8,7 +8,6 @@ import {
 import { ColorFilter } from '@/components/common/ColorFilter';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
-import { DEFAULT_GROUP_ID } from '@/lib/config';
 import { getTodayKey, formatDateKey } from '@/lib/date';
 
 export function TodoSidebar() {
