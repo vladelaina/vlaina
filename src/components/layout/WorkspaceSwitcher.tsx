@@ -2,15 +2,14 @@ import React, { useMemo, useCallback } from "react";
 import {
     MdSettings,
     MdLogout,
-    MdMonitor,
     MdExpandMore,
     MdCalendarToday,
     MdDescription,
-    MdPublic,
     MdMoreHoriz,
     MdPeople,
     MdChevronRight,
     MdChecklist,
+    MdTranslate,
 } from "react-icons/md";
 import * as Popover from "@radix-ui/react-popover";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
@@ -40,6 +39,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
     const [isOpen, setIsOpen] = React.useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
     const [tooltipsEnabled, setTooltipsEnabled] = React.useState(false);
+    const [isLanguageMenuOpen, setIsLanguageMenuOpen] = React.useState(false);
 
     // Cache static platform check
     const isDesktop = useMemo(() => isTauri(), []);
@@ -92,6 +92,21 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
         }
     }, [isDesktop]);
 
+    const handleOpenWebsite = useCallback(async () => {
+        const url = "https://nekotick.com";
+        if (isDesktop) {
+            try {
+                const { openUrl } = await import('@tauri-apps/plugin-opener');
+                await openUrl(url);
+            } catch (e) {
+                console.error("Failed to open URL:", e);
+                window.open(url, "_blank");
+            }
+        } else {
+            window.open(url, "_blank");
+        }
+    }, [isDesktop]);
+
     const handleOpenAppLink = useCallback(async () => {
         const url = isDesktop ? "https://app.nekotick.com" : "https://nekotick.com";
         if (isDesktop) {
@@ -121,6 +136,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
     React.useEffect(() => {
         if (!isOpen) {
             setIsUserMenuOpen(false);
+            setIsLanguageMenuOpen(false);
         }
     }, [isOpen]);
 
@@ -411,25 +427,97 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                 <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Settings</span>
                             </button>
 
-                            <button
-                                onClick={handleOpenAppLink}
-                                className={cn(
-                                    "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
-                                    "hover:bg-[var(--neko-hover)]"
-                                )}
-                            >
-                                {isDesktop ? (
+                            <div className="h-[1px] bg-[var(--neko-border)] mx-3 my-1 opacity-50" />
+
+                            {/* Powered by NekoTick with Language Selector */}
+                            <div className="relative px-3 py-2 flex items-center justify-between group/powered">
+                                <button
+                                    onClick={handleOpenWebsite}
+                                    className="text-[11px] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-secondary)] font-medium transition-colors"
+                                >
+                                    Powered by <span className="text-[var(--neko-text-secondary)]">NekoTick</span>
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsLanguageMenuOpen(!isLanguageMenuOpen);
+                                    }}
+                                    className={cn(
+                                        "flex items-center justify-center w-6 h-6 rounded-md hover:bg-[var(--neko-hover)] transition-colors",
+                                        isLanguageMenuOpen && "bg-[var(--neko-hover)]"
+                                    )}
+                                >
+                                    <MdTranslate className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)]" />
+                                </button>
+
+                                {isLanguageMenuOpen && (
                                     <>
-                                        <MdPublic className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
-                                        <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Open Web Version</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <MdMonitor className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
-                                        <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Get Desktop App</span>
+                                        <div className="fixed inset-0 z-[60]" onClick={() => setIsLanguageMenuOpen(false)} />
+                                        <div className="absolute right-2 bottom-full mb-1 z-[70] w-48 p-1 rounded-lg bg-[var(--neko-bg-primary)] border border-[var(--neko-border)] shadow-xl animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-1">
+                                            <button
+                                                onClick={() => {
+                                                    // TODO: Implement language change
+                                                    setIsLanguageMenuOpen(false);
+                                                }}
+                                                className={cn(
+                                                    "flex items-center justify-between px-3 py-2 rounded-md w-full text-left transition-colors",
+                                                    "hover:bg-[var(--neko-hover)]"
+                                                )}
+                                            >
+                                                <div className="flex flex-col">
+                                                    <span className="text-[13px] font-medium text-[var(--neko-text-primary)]">English</span>
+                                                    <span className="text-[11px] text-[var(--neko-text-tertiary)]">英语</span>
+                                                </div>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    // TODO: Implement language change
+                                                    setIsLanguageMenuOpen(false);
+                                                }}
+                                                className={cn(
+                                                    "flex items-center justify-between px-3 py-2 rounded-md w-full text-left transition-colors",
+                                                    "hover:bg-[var(--neko-hover)]"
+                                                )}
+                                            >
+                                                <div className="flex flex-col">
+                                                    <span className="text-[13px] font-medium text-[var(--neko-text-primary)]">简体中文</span>
+                                                    <span className="text-[11px] text-[var(--neko-text-tertiary)]">简体中文</span>
+                                                </div>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    // TODO: Implement language change
+                                                    setIsLanguageMenuOpen(false);
+                                                }}
+                                                className={cn(
+                                                    "flex items-center justify-between px-3 py-2 rounded-md w-full text-left transition-colors",
+                                                    "hover:bg-[var(--neko-hover)]"
+                                                )}
+                                            >
+                                                <div className="flex flex-col">
+                                                    <span className="text-[13px] font-medium text-[var(--neko-text-primary)]">繁體中文</span>
+                                                    <span className="text-[11px] text-[var(--neko-text-tertiary)]">繁体中文</span>
+                                                </div>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    // TODO: Implement language change
+                                                    setIsLanguageMenuOpen(false);
+                                                }}
+                                                className={cn(
+                                                    "flex items-center justify-between px-3 py-2 rounded-md w-full text-left transition-colors",
+                                                    "hover:bg-[var(--neko-hover)]"
+                                                )}
+                                            >
+                                                <div className="flex flex-col">
+                                                    <span className="text-[13px] font-medium text-[var(--neko-text-primary)]">日本語</span>
+                                                    <span className="text-[11px] text-[var(--neko-text-tertiary)]">日语</span>
+                                                </div>
+                                            </button>
+                                        </div>
                                     </>
                                 )}
-                            </button>
+                            </div>
                         </div>
                     </div>
                 </Popover.Content>
