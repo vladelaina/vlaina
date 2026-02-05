@@ -9,6 +9,7 @@ import { calculateEventTop, calculateEventHeight, DEFAULT_DAY_START_MINUTES } fr
 import { useEventTimer, getHeightLevel } from './hooks/useEventTimer';
 import { useEventStyles } from './hooks/useEventStyles';
 import { useEventInteraction } from './hooks/useEventInteraction';
+import { useEventPreview } from './hooks/useEventPreview';
 
 interface EventBlockProps {
   event: NekoEvent;
@@ -21,12 +22,7 @@ interface EventBlockProps {
 }
 
 export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, onHover, dayStartMinutes = DEFAULT_DAY_START_MINUTES }: EventBlockProps) {
-  const {
-    editingEventId,
-    use24Hour,
-    universalPreviewColor,
-    universalPreviewTarget,
-  } = useCalendarStore();
+  const { editingEventId, use24Hour } = useCalendarStore();
 
   const blockRef = useRef<HTMLDivElement>(null);
   const isActive = editingEventId === event.uid;
@@ -47,10 +43,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   const height = actualHeight;
   const heightLevel = getHeightLevel(height);
 
-  const isPreviewing = universalPreviewTarget === event.uid;
-  const displayColor = (isPreviewing && universalPreviewColor !== null && universalPreviewColor !== undefined)
-    ? universalPreviewColor
-    : event.color;
+  const { displayColor } = useEventPreview(event.uid, event.color);
 
   const {
     contextMenu,
@@ -154,7 +147,6 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
           eventId={event.uid}
           position={contextMenu}
           currentColor={event.color}
-          currentIcon={event.icon}
           timerState={event.timerState}
           onClose={() => setContextMenu(null)}
         />
