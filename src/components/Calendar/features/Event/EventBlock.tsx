@@ -25,6 +25,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
     editingEventId,
     use24Hour,
     universalPreviewColor,
+    universalPreviewTarget,
   } = useCalendarStore();
 
   const blockRef = useRef<HTMLDivElement>(null);
@@ -46,7 +47,9 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   const height = actualHeight;
   const heightLevel = getHeightLevel(height);
 
-  const displayColor = (universalPreviewColor !== null && universalPreviewColor !== undefined)
+  // 只有当前事件才应用预览颜色
+  const isPreviewing = universalPreviewTarget === event.uid;
+  const displayColor = (isPreviewing && universalPreviewColor !== null && universalPreviewColor !== undefined)
     ? universalPreviewColor
     : event.color;
 
@@ -114,6 +117,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
           style={{
             backgroundColor: colors.bg,
             opacity: isCompleted ? 0.6 : 1,
+            transition: 'box-shadow 0.2s ease-out', // 只过渡 shadow，不过渡颜色
             ...(isActive ? { boxShadow: `0 0 0 2px ${colors.ring}` } : {}),
             ...(isHovered && !isActive ? { boxShadow: `0 0 0 1px ${colors.ring}` } : {}),
           }}
