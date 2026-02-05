@@ -99,13 +99,24 @@ export function calculateDropPosition(view: EditorView, clientY: number, sourceP
             const childPos = startPos + childOffset;
             const childEndPos = childPos + child.nodeSize;
 
-            if (childPos === sourceParentPos) return;
-
             const canInsert = depth === 0 ? true : parentCanContainParagraph;
-            const dom = view.nodeDOM(childPos) as HTMLElement | null;
-
+            
+            let dom = view.nodeDOM(childPos) as HTMLElement | null;
+            let rect: DOMRect | null = null;
+            
             if (dom) {
-                const rect = dom.getBoundingClientRect();
+                rect = dom.getBoundingClientRect();
+            } else {
+                try {
+                    const coords = view.coordsAtPos(childPos);
+                    const endCoords = view.coordsAtPos(childEndPos);
+                    rect = new DOMRect(coords.left, coords.top, endCoords.right - coords.left, endCoords.bottom - coords.top);
+                } catch (e) {
+                    return;
+                }
+            }
+
+            if (rect) {
                 dropTargets.push({
                     pos: childPos,
                     endPos: childEndPos,
@@ -126,7 +137,34 @@ export function calculateDropPosition(view: EditorView, clientY: number, sourceP
 
     collectDropTargets(doc, 0, 0, true);
 
-    if (dropTargets.length === 0) return null;
+    if (dropTargets.length === 0) {
+        try {
+            const startCoords = view.coordsAtPos(0);
+            const endCoords = view.coordsAtPos(doc.content.size);
+            
+            dropTargets.push({
+                pos: 0,
+                endPos: 0,
+                top: startCoords.top - 100,
+                bottom: startCoords.bottom + 50,
+                depth: 0,
+                nodeType: 'doc',
+                canInsertParagraph: true,
+            });
+            
+            dropTargets.push({
+                pos: doc.content.size,
+                endPos: doc.content.size,
+                top: endCoords.top - 50,
+                bottom: endCoords.bottom + 100,
+                depth: 0,
+                nodeType: 'doc',
+                canInsertParagraph: true,
+            });
+        } catch (e) {
+            // Silently fail if we can't get document boundary coords
+        }
+    }
 
     let bestTarget: DropTarget | null = null;
     let bestDistance = Infinity;
@@ -156,7 +194,9 @@ export function calculateDropPosition(view: EditorView, clientY: number, sourceP
         }
     }
 
-    if (!bestTarget) return null;
+    if (!bestTarget) {
+        return sourcePos;
+    }
 
     const midPoint = (bestTarget.top + bestTarget.bottom) / 2;
     let targetPos = clientY < midPoint ? bestTarget.pos : bestTarget.endPos;
@@ -181,7 +221,9 @@ export function calculateDropPosition(view: EditorView, clientY: number, sourceP
         }
     }
 
-    if (targetPos < 0 || targetPos > doc.content.size) return null;
+    if (targetPos < 0 || targetPos > doc.content.size) {
+        return null;
+    }
 
     return targetPos;
 }

@@ -195,7 +195,7 @@ export const slashMenuItems: SlashMenuItem[] = [
     description: 'Insert an image',
     group: 'Media',
     searchAlias: ['img', 'picture', 'photo'],
-    action: (ctx) => insertNode(ctx, 'image', { src: '', alt: '' })
+    action: (ctx) => insertNode(ctx, 'image', { src: '', alt: '', align: 'center', width: null })
   },
   
   // Advanced

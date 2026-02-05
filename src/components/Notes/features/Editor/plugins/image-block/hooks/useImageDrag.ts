@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
-import { setDragState, clearDragState, calculateDropPosition, calculateAlignmentFromPosition } from '../imageDragPlugin';
+import { setDragState, clearDragState, calculateDropPosition, calculateAlignmentFromPosition, imageDragPluginKey } from '../imageDragPlugin';
 import type { Alignment } from '../types';
 
 const LONG_PRESS_DELAY_MS = 300;
@@ -12,7 +12,6 @@ interface UseImageDragOptions {
     imageNaturalSize: { width: number; height: number };
     isActive: boolean;
     loadError: boolean;
-    onAlignmentChange?: (alignment: Alignment) => void;
 }
 
 interface UseImageDragReturn {
@@ -32,7 +31,6 @@ export function useImageDrag({
     imageNaturalSize,
     isActive,
     loadError,
-    onAlignmentChange,
 }: UseImageDragOptions): UseImageDragReturn {
     const [isDragging, setIsDragging] = useState(false);
     const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
@@ -44,43 +42,80 @@ export function useImageDrag({
     const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const dragCleanupRef = useRef<(() => void) | null>(null);
 
-    const moveNodeToPosition = useCallback((targetPos: number) => {
+    const moveNodeToPosition = useCallback((targetPos: number, newAlignment?: Alignment) => {
         const pos = getPos();
         if (pos === undefined || targetPos === null) return;
 
         const { state, dispatch } = view;
         const imageNode = state.doc.nodeAt(pos);
-        if (!imageNode || imageNode.type.name !== 'image') return;
+        if (!imageNode || imageNode.type.name !== 'image') {
+            return;
+        }
 
         const imageNodeSize = imageNode.nodeSize;
-        if (targetPos === pos || targetPos === pos + imageNodeSize) return;
+        if (targetPos === pos || targetPos === pos + imageNodeSize) {
+            return;
+        }
+
+        const currentWidth = imageNode.attrs.width;
+        const containerWidth = containerRef.current?.offsetWidth;
+        const parentWidth = containerRef.current?.parentElement?.offsetWidth;
+        
+        let preservedWidth = currentWidth;
+        if (!preservedWidth && containerWidth && parentWidth) {
+            const calculatedPercent = (containerWidth / parentWidth) * 100;
+            preservedWidth = `${Math.min(100, calculatedPercent)}%`;
+        }
+        
+        if (!preservedWidth) {
+            preservedWidth = null;
+        }
+
+        const updatedAttrs = {
+            ...imageNode.attrs,
+            align: (newAlignment || imageNode.attrs.align || 'center') as Alignment,
+            width: preservedWidth
+        };
 
         const tr = state.tr;
         tr.setMeta('addToHistory', true);
         tr.setMeta('scrollIntoView', false);
         tr.setMeta('imageDragMove', true);
-
-        const paragraphType = state.schema.nodes.paragraph;
-        const newParagraph = paragraphType.create(null, imageNode);
+        tr.setMeta(imageDragPluginKey, {
+            sourcePos: null,
+            targetPos: null,
+            isDragging: false,
+            editorView: null,
+            alignment: 'center',
+        });
 
         if (targetPos > pos) {
+            const slice = state.doc.slice(pos, pos + imageNodeSize);
             tr.delete(pos, pos + imageNodeSize);
             const adjustedTarget = tr.mapping.map(targetPos);
-            tr.insert(adjustedTarget, newParagraph);
+            tr.insert(adjustedTarget, slice.content);
+            const insertedPos = adjustedTarget;
+            tr.setNodeMarkup(insertedPos, undefined, updatedAttrs);
         } else {
-            tr.insert(targetPos, newParagraph);
+            const slice = state.doc.slice(pos, pos + imageNodeSize);
+            tr.insert(targetPos, slice.content);
+            tr.setNodeMarkup(targetPos, undefined, updatedAttrs);
             const adjustedSource = tr.mapping.map(pos);
             tr.delete(adjustedSource, adjustedSource + imageNodeSize);
         }
 
         dispatch(tr);
-    }, [view, getPos]);
+    }, [view, getPos, containerRef]);
 
     const handlePointerDown = useCallback((e: React.PointerEvent) => {
         if (isActive || loadError) return;
 
         const target = e.target as HTMLElement;
         if (target.closest('button') || target.closest('input') || target.closest('[data-resize-handle]')) {
+            return;
+        }
+
+        if (e.ctrlKey || e.metaKey) {
             return;
         }
 
@@ -107,14 +142,24 @@ export function useImageDrag({
                 setDragState(view, {
                     isDragging: true,
                     sourcePos: sourcePos,
-                    targetPos: null,
+                    targetPos: sourcePos,
                     imageNaturalWidth: imageNaturalSize.width,
                     imageNaturalHeight: imageNaturalSize.height,
+                    editorView: view,
+                    alignment: 'center',
                 });
             }
         };
 
         const onPointerMove = (moveEvent: PointerEvent) => {
+            if (moveEvent.ctrlKey || moveEvent.metaKey) {
+                if (longPressTimeoutRef.current) {
+                    clearTimeout(longPressTimeoutRef.current);
+                    longPressTimeoutRef.current = undefined;
+                }
+                return;
+            }
+
             const elapsed = Date.now() - startTime;
 
             if (!isLongPressTriggered && elapsed >= LONG_PRESS_DELAY_MS) {
@@ -130,10 +175,32 @@ export function useImageDrag({
                 dragAlignmentRef.current = alignment;
                 setDragAlignment(alignment);
 
+                const placeholder = document.querySelector('.image-drag-placeholder') as HTMLElement;
+                if (placeholder) {
+                    const marginMap = {
+                        left: '8px auto 8px 0',
+                        center: '8px auto',
+                        right: '8px 0 8px auto',
+                    };
+                    placeholder.style.margin = marginMap[alignment];
+                }
+
                 if (sourcePos !== undefined) {
                     const targetPos = calculateDropPosition(view, moveEvent.clientY, sourcePos);
-                    dragTargetPosRef.current = targetPos;
-                    setDragState(view, { targetPos, alignment });
+                    if (targetPos !== null) {
+                        dragTargetPosRef.current = targetPos;
+                    }
+                    const finalTargetPos = dragTargetPosRef.current !== null ? dragTargetPosRef.current : sourcePos;
+                    
+                    setDragState(view, { 
+                        isDragging: true,
+                        sourcePos: sourcePos,
+                        targetPos: finalTargetPos, 
+                        alignment,
+                        imageNaturalWidth: imageNaturalSize.width,
+                        imageNaturalHeight: imageNaturalSize.height,
+                        editorView: view,
+                    });
                 }
             }
         };
@@ -151,7 +218,12 @@ export function useImageDrag({
             const targetPos = dragTargetPosRef.current;
             const finalAlignment = dragAlignmentRef.current;
 
+            if (isLongPressTriggered && targetPos !== null) {
+                moveNodeToPosition(targetPos, finalAlignment);
+            }
+
             clearDragState(view);
+
             setIsDragging(false);
             setDragPosition(null);
             setDragSize(null);
@@ -159,11 +231,6 @@ export function useImageDrag({
             dragTargetPosRef.current = null;
             dragAlignmentRef.current = 'center';
             dragCleanupRef.current = null;
-
-            if (isLongPressTriggered && targetPos !== null) {
-                moveNodeToPosition(targetPos);
-                onAlignmentChange?.(finalAlignment);
-            }
         };
 
         dragCleanupRef.current = onPointerUp;
@@ -176,7 +243,7 @@ export function useImageDrag({
 
         window.addEventListener('pointermove', onPointerMove, true);
         window.addEventListener('pointerup', onPointerUp, true);
-    }, [view, getPos, containerRef, imageNaturalSize, isActive, loadError, moveNodeToPosition, onAlignmentChange]);
+    }, [view, getPos, containerRef, imageNaturalSize, isActive, loadError, moveNodeToPosition]);
 
     // Empty handlers for React event binding
     const handlePointerUp = useCallback(() => {}, []);

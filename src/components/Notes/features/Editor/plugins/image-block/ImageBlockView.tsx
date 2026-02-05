@@ -35,6 +35,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const [naturalRatio, setNaturalRatio] = useState<number | null>(null);
     const [imageNaturalSize, setImageNaturalSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
     const [alignment, setAlignment] = useState<Alignment>((node.attrs.align as Alignment) || 'center');
+
     const [isHovered, setIsHovered] = useState(false);
     const [isEditingCaption, setIsEditingCaption] = useState(false);
     const [captionInput, setCaptionInput] = useState(node.attrs.alt || '');
@@ -85,7 +86,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         imageNaturalSize,
         isActive,
         loadError: !!loadError,
-        onAlignmentChange: handleAlignmentChange,
     });
 
     const { handleResizeStart } = useImageResize({
@@ -118,6 +118,17 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     useEffect(() => { setCropParams(initialParams); }, [initialParams]);
     useEffect(() => { if (loadError) setIsReady(true); }, [loadError]);
+
+    useEffect(() => {
+        const newAlignment = (node.attrs.align as Alignment) || 'center';
+        if (alignment !== newAlignment) {
+            setAlignment(newAlignment);
+        }
+        const newWidth = node.attrs.width || 'auto';
+        if (width !== newWidth) {
+            setWidth(newWidth);
+        }
+    }, [node.attrs.align, node.attrs.width]);
 
     // Cleanup hover timeout on unmount
     useEffect(() => {
@@ -224,9 +235,9 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     };
 
     const DRAG_ALIGNMENT_STYLES: Record<'left' | 'center' | 'right', React.CSSProperties> = {
-        left: { left: dragPosition?.x, transform: 'scale(0.95)' },
-        center: { left: dragPosition?.x, transform: 'scale(0.95)' },
-        right: { left: dragPosition?.x, transform: 'scale(0.95)' },
+        left: { left: dragPosition?.x },
+        center: { left: dragPosition?.x },
+        right: { left: dragPosition?.x },
     };
 
     return (
@@ -298,7 +309,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                             setNaturalRatio(media.naturalWidth / media.naturalHeight);
                             setImageNaturalSize({ width: media.naturalWidth, height: media.naturalHeight });
 
-                            if (!node.attrs.width || width === 'auto') {
+                            if (node.attrs.width === undefined) {
                                 const containerWidth = containerRef.current?.parentElement?.offsetWidth;
                                 if (containerWidth) {
                                     const percent = (media.naturalWidth / containerWidth) * 100;

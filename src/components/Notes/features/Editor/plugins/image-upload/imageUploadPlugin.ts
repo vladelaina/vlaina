@@ -84,6 +84,8 @@ async function handleImageUpload(file: File, view: any) {
             const imageNode = imageNodeType.create({
                 src: result.path,
                 alt: altText,
+                align: 'center',
+                width: null,
             });
 
             const pos = state.selection.from;

@@ -140,11 +140,125 @@ export function configureTheme(ctx: Ctx) {
             toDOM: (node: any) => ['div', { class: themeClasses.fence, 'data-language': node.attrs.language }, ['pre', ['code', { spellcheck: 'false' }, 0]]]
         }));
 
-        // Images
-        ctx.update(imageSchema.key, (prev: any) => ({
-            ...prev,
-            toDOM: (node: any) => ['img', { ...node.attrs, class: themeClasses.image }]
-        }));
+        ctx.update(imageSchema.key, (prev: any) => {
+            const escapeHtml = (str: string) => {
+                if (!str) return '';
+                return str
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            };
+
+            return {
+                ...prev,
+                attrs: {
+                    src: { default: null },
+                    alt: { default: null },
+                    title: { default: null },
+                    align: { default: 'center' },
+                    width: { default: null }
+                },
+                toDOM: (node: any) => {
+                    return ['img', { 
+                        src: node.attrs.src,
+                        alt: node.attrs.alt,
+                        title: node.attrs.title,
+                        align: node.attrs.align,
+                        width: node.attrs.width,
+                        class: themeClasses.image 
+                    }];
+                },
+                parseDOM: prev.parseDOM ? [
+                    ...prev.parseDOM,
+                    {
+                        tag: 'img[src]',
+                        getAttrs: (dom: HTMLElement) => ({
+                            src: dom.getAttribute('src'),
+                            alt: dom.getAttribute('alt'),
+                            title: dom.getAttribute('title'),
+                            align: dom.getAttribute('align') || 'center',
+                            width: dom.getAttribute('width') || null
+                        })
+                    }
+                ] : [{
+                    tag: 'img[src]',
+                    getAttrs: (dom: HTMLElement) => ({
+                        src: dom.getAttribute('src'),
+                        alt: dom.getAttribute('alt'),
+                        title: dom.getAttribute('title'),
+                        align: dom.getAttribute('align') || 'center',
+                        width: dom.getAttribute('width') || null
+                    })
+                }],
+                parseMarkdown: {
+                    match: (node: any) => {
+                        if (node.type === 'html' && typeof node.value === 'string') {
+                            return node.value.trim().startsWith('<img');
+                        }
+                        return node.type === 'image';
+                    },
+                    runner: (state: any, node: any, type: any) => {
+                        if (node.type === 'html') {
+                            const html = node.value as string;
+                            const srcMatch = html.match(/src=["']([^"']+)["']/);
+                            const altMatch = html.match(/alt=["']([^"']*)["']/);
+                            const widthMatch = html.match(/width=["']([^"']+)["']/);
+                            const alignMatch = html.match(/align=["']([^"']+)["']/);
+                            const titleMatch = html.match(/title=["']([^"']+)["']/);
+                            
+                            if (srcMatch) {
+                                state.addNode(type, {
+                                    src: srcMatch[1],
+                                    alt: altMatch ? altMatch[1] : '',
+                                    title: titleMatch ? titleMatch[1] : null,
+                                    width: widthMatch ? widthMatch[1] : null,
+                                    align: alignMatch ? alignMatch[1] : 'center',
+                                });
+                            }
+                        } else if (node.type === 'image') {
+                            state.addNode(type, {
+                                src: node.url,
+                                alt: node.alt || '',
+                                title: node.title || null,
+                                align: 'center',
+                                width: null
+                            });
+                        }
+                    }
+                },
+                toMarkdown: {
+                    match: (node: any) => node.type.name === 'image',
+                    runner: (state: any, node: any) => {
+                        const { src, alt, title, align, width } = node.attrs;
+                        
+                        const hasCustomAlign = align && align !== 'center';
+                        const hasCustomWidth = width && width !== '';
+                        
+                        if (!hasCustomAlign && !hasCustomWidth) {
+                            state.addNode('image', undefined, undefined, {
+                                title: title || undefined,
+                                url: src || '',
+                                alt: alt || undefined,
+                            });
+                            return;
+                        }
+                        
+                        const attrs: string[] = [];
+                        if (hasCustomWidth) attrs.push(`width="${escapeHtml(width)}"`);
+                        if (hasCustomAlign) attrs.push(`align="${escapeHtml(align)}"`);
+                        if (title) attrs.push(`title="${escapeHtml(title)}"`);
+                        
+                        const attrsStr = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
+                        const srcStr = escapeHtml(src || '');
+                        const altStr = escapeHtml(alt || '');
+                        
+                        state.write(`<img src="${srcStr}" alt="${altStr}"${attrsStr} />`);
+                    }
+                }
+            };
+        });
 
         // Table Nodes
         ctx.update(tableRowSchema.key, (prev: any) => ({
