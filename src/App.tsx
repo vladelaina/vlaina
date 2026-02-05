@@ -12,6 +12,7 @@ import { ToastContainer } from '@/components/ui/Toast';
 import { CalendarView } from '@/components/Calendar/CalendarView';
 import { NotesView } from '@/components/Notes/NotesView';
 import { TodoView } from '@/components/Todo/TodoView';
+import { ChatView } from '@/components/Chat/ChatView';
 
 import { CalendarSidebarWrapper } from '@/components/Calendar/features/Sidebar/CalendarSidebarWrapper';
 import { TodoSidebar } from '@/components/Todo/TodoSidebar';
@@ -117,6 +118,8 @@ function AppContent() {
     mainContent = <CalendarView />;
   } else if (appViewMode === 'todo') {
     mainContent = <TodoView />;
+  } else if (appViewMode === 'chat') {
+    mainContent = <ChatView />;
   } else {
     mainContent = <NotesView />;
   }

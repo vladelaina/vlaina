@@ -10,6 +10,7 @@ import {
     MdChevronRight,
     MdChecklist,
     MdTranslate,
+    MdAutoAwesome,
 } from "react-icons/md";
 import * as Popover from "@radix-ui/react-popover";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
@@ -371,6 +372,25 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                     <span className="text-xs font-medium">Todos</span>
                                                 </TooltipContent>
                                             </Tooltip>
+
+                                            <Tooltip delayDuration={500}>
+                                                <TooltipTrigger asChild>
+                                                    <button
+                                                        onClick={() => handleViewSwitch('chat')}
+                                                        className={cn(
+                                                            "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
+                                                            appViewMode === 'chat'
+                                                                ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
+                                                                : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
+                                                        )}
+                                                    >
+                                                        <MdAutoAwesome className="w-6 h-6" />
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom" sideOffset={4}>
+                                                    <span className="text-xs font-medium">AI Chat</span>
+                                                </TooltipContent>
+                                            </Tooltip>
                                         </>
                                     ) : (
                                         <>
@@ -408,6 +428,18 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                 )}
                                             >
                                                 <MdChecklist className="w-6 h-6" />
+                                            </button>
+
+                                            <button
+                                                onClick={() => handleViewSwitch('chat')}
+                                                className={cn(
+                                                    "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
+                                                    appViewMode === 'chat'
+                                                        ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
+                                                        : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
+                                                )}
+                                            >
+                                                <MdAutoAwesome className="w-6 h-6" />
                                             </button>
                                         </>
                                     )}
