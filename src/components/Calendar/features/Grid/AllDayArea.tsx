@@ -248,7 +248,7 @@ export function AllDayArea({
               key={event.uid}
               className={`
                   all-day-event absolute flex items-center gap-1 px-1.5 rounded
-                  transition-all duration-150 select-none
+                  select-none
                   ${isActive ? 'ring-2 ring-blue-400 dark:ring-blue-500 shadow-md z-30' : 'hover:shadow-sm z-10'}
                   ${event.completed ? 'opacity-60' : ''}
                 `}
@@ -259,6 +259,7 @@ export function AllDayArea({
                 height: EVENT_HEIGHT,
                 backgroundColor: bgColor,
                 color: textColor,
+                transition: 'box-shadow 0.15s, opacity 0.15s',
               }}
               onClick={(e) => handleEventClick(e, event.uid)}
               onMouseDown={(e) => handleEventMouseDown(e, event.uid)}

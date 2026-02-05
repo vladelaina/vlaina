@@ -9,6 +9,7 @@ import { calculateEventTop, calculateEventHeight, DEFAULT_DAY_START_MINUTES } fr
 import { useEventTimer, getHeightLevel } from './hooks/useEventTimer';
 import { useEventStyles } from './hooks/useEventStyles';
 import { useEventInteraction } from './hooks/useEventInteraction';
+import { useEventPreview } from './hooks/useEventPreview';
 
 interface EventBlockProps {
   event: NekoEvent;
@@ -21,11 +22,7 @@ interface EventBlockProps {
 }
 
 export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, onHover, dayStartMinutes = DEFAULT_DAY_START_MINUTES }: EventBlockProps) {
-  const {
-    editingEventId,
-    use24Hour,
-    universalPreviewColor,
-  } = useCalendarStore();
+  const { editingEventId, use24Hour } = useCalendarStore();
 
   const blockRef = useRef<HTMLDivElement>(null);
   const isActive = editingEventId === event.uid;
@@ -46,9 +43,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
   const height = actualHeight;
   const heightLevel = getHeightLevel(height);
 
-  const displayColor = (universalPreviewColor !== null && universalPreviewColor !== undefined)
-    ? universalPreviewColor
-    : event.color;
+  const { displayColor } = useEventPreview(event.uid, event.color);
 
   const {
     contextMenu,
@@ -114,6 +109,7 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
           style={{
             backgroundColor: colors.bg,
             opacity: isCompleted ? 0.6 : 1,
+            transition: 'box-shadow 0.2s ease-out',
             ...(isActive ? { boxShadow: `0 0 0 2px ${colors.ring}` } : {}),
             ...(isHovered && !isActive ? { boxShadow: `0 0 0 1px ${colors.ring}` } : {}),
           }}
@@ -151,7 +147,6 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
           eventId={event.uid}
           position={contextMenu}
           currentColor={event.color}
-          currentIcon={event.icon}
           timerState={event.timerState}
           onClose={() => setContextMenu(null)}
         />

@@ -51,16 +51,20 @@ export function EventVisualLayers({
     <>
       <div
         className={`absolute left-1 top-1 bottom-1 w-[3px] rounded-full ${isTimerActive && !isCompleted ? 'opacity-60' : ''}`}
-        style={{ backgroundColor: colorStyles.accent }}
+        style={{ 
+          backgroundColor: colorStyles.accent,
+          transition: 'none',
+        }}
       />
 
       {isTimerActive && !isCompleted && (
         <div
-          className="absolute inset-0 transition-all duration-1000 ease-linear rounded-[4px]"
+          className="absolute inset-0 rounded-[4px]"
           style={{
             backgroundColor: colorStyles.fill,
             height: `${fillPercent}%`,
             opacity: 1,
+            transition: 'height 1s linear',
           }}
         />
       )}
@@ -71,16 +75,18 @@ export function EventVisualLayers({
           style={{
             top: `${plannedHeight}px`,
             borderColor: colorStyles.accent,
+            transition: 'none',
           }}
         />
       )}
 
       {showIcon && displayIconName && (
         <div
-          className="absolute right-1 bottom-0 pointer-events-none transition-all duration-200"
+          className="absolute right-1 bottom-0 pointer-events-none"
           style={{
             opacity: 1,
             color: colorStyles.accent,
+            transition: 'opacity 0.2s',
           }}
         >
           <AppIcon

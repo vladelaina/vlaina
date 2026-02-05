@@ -1,73 +1,38 @@
-import { useState } from 'react';
+import { useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MdContentCut,  MdContentCopy,  MdAddToPhotos,  MdCheck,  MdPlayArrow,  MdPause,  MdStop  } from 'react-icons/md';
-import { useCalendarStore } from '@/stores/useCalendarStore';
-import { CONTEXT_MENU_COLORS, type ItemColor } from '@/lib/colors';
-import { IconSelector } from '@/components/common';
+import { MdContentCut,  MdContentCopy,  MdAddToPhotos,  MdPlayArrow,  MdPause,  MdStop  } from 'react-icons/md';
+import { ColorPicker } from '@/components/common/ColorPicker';
 import { DeleteIcon } from '@/components/common/DeleteIcon';
+import { useMenuPosition } from './hooks/useMenuPosition';
+import { useEventContextMenu } from './hooks/useEventContextMenu';
 
 interface EventContextMenuProps {
   eventId: string;
   position: { x: number; y: number };
   currentColor?: string;
-  currentIcon?: string;
   timerState?: 'idle' | 'running' | 'paused';
   onClose: () => void;
 }
 
-export function EventContextMenu({ eventId, position, currentColor = 'blue', currentIcon, timerState = 'idle', onClose }: EventContextMenuProps) {
-  const { updateEvent, updateEventIcon, deleteEvent, events, addEvent, startTimer, pauseTimer, resumeTimer, stopTimer } = useCalendarStore();
-  const [selectedIcon, setSelectedIcon] = useState(currentIcon);
-
-  const handleColorChange = (color: ItemColor) => {
-    updateEvent(eventId, { color });
-    onClose();
-  };
-
-  const handleIconChange = (icon: string | undefined) => {
-    setSelectedIcon(icon);
-    updateEventIcon(eventId, icon);
-    onClose();
-  };
-
-  const handleDelete = () => {
-    deleteEvent(eventId);
-    onClose();
-  };
-
-  const handleDuplicate = () => {
-    const event = events.find(e => e.uid === eventId);
-    if (event) {
-      addEvent({
-        summary: event.summary,
-        dtstart: event.dtstart,
-        dtend: event.dtend,
-        allDay: event.allDay,
-        color: event.color,
-      });
-    }
-    onClose();
-  };
-
-  const handleStartTimer = () => {
-    startTimer(eventId);
-    onClose();
-  };
-
-  const handlePauseTimer = () => {
-    pauseTimer(eventId);
-    onClose();
-  };
-
-  const handleResumeTimer = () => {
-    resumeTimer(eventId);
-    onClose();
-  };
-
-  const handleStopTimer = () => {
-    stopTimer(eventId);
-    onClose();
-  };
+export function EventContextMenu({ eventId, position, currentColor = 'blue', timerState = 'idle', onClose }: EventContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const adjustedPosition = useMenuPosition({ 
+    initialPosition: position, 
+    menuRef: menuRef as React.RefObject<HTMLDivElement>
+  });
+  
+  const {
+    eventName,
+    inputRef,
+    handleColorChange,
+    handlePreviewColor,
+    handleNameChange,
+    handleNameBlur,
+    handleNameKeyDown,
+    handleDelete,
+    handleDuplicate,
+    handleTimerAction,
+  } = useEventContextMenu(eventId, position);
 
   return createPortal(
     <>
@@ -81,35 +46,43 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
 
       {/* Menu */}
       <div
+        ref={menuRef}
         data-event-context-menu
         className="fixed z-[99999] w-56 bg-zinc-900 rounded-xl shadow-2xl py-2 overflow-hidden"
-        style={{ top: position.y, left: position.x }}
+        style={{ top: adjustedPosition.y, left: adjustedPosition.x }}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Color Picker */}
-        <div className="px-4 py-2 flex gap-2">
-          {CONTEXT_MENU_COLORS.map((color) => (
-            <button
-              key={color.name}
-              onClick={() => handleColorChange(color.name)}
-              className="w-6 h-6 rounded-md flex items-center justify-center hover:scale-110 transition-transform"
-              style={{ backgroundColor: color.hex }}
-            >
-              {currentColor === color.name && <MdCheck className="size-[18px] text-white" />}
-            </button>
-          ))}
+        <div className="px-4 py-2">
+          <ColorPicker
+            value={currentColor}
+            onChange={handleColorChange}
+            onHover={handlePreviewColor}
+          />
         </div>
 
-        {/* Icon Selector */}
-        <IconSelector value={selectedIcon} onChange={handleIconChange} closeOnSelect={false} />
+        {/* Name Input */}
+        <div className="px-4 py-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={eventName}
+            onChange={handleNameChange}
+            onBlur={handleNameBlur}
+            onKeyDown={handleNameKeyDown}
+            placeholder="Event name"
+            className="w-full px-2 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-600"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
 
         <div className="h-px bg-zinc-700 my-2" />
 
         {/* Timer Actions */}
         {timerState === 'idle' && (
           <button
-            onClick={handleStartTimer}
+            onClick={() => handleTimerAction('start', onClose)}
             className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
           >
             <MdPlayArrow className="size-[18px]" />
@@ -120,14 +93,14 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
         {timerState === 'running' && (
           <>
             <button
-              onClick={handlePauseTimer}
+              onClick={() => handleTimerAction('pause', onClose)}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
               <MdPause className="size-[18px]" />
               <span className="flex-1 text-left">Pause Timer</span>
             </button>
             <button
-              onClick={handleStopTimer}
+              onClick={() => handleTimerAction('stop', onClose)}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
               <MdStop className="size-[18px]" />
@@ -139,14 +112,14 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
         {timerState === 'paused' && (
           <>
             <button
-              onClick={handleResumeTimer}
+              onClick={() => handleTimerAction('resume', onClose)}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
               <MdPlayArrow className="size-[18px]" />
               <span className="flex-1 text-left">Resume Timer</span>
             </button>
             <button
-              onClick={handleStopTimer}
+              onClick={() => handleTimerAction('stop', onClose)}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
               <MdStop className="size-[18px]" />
@@ -171,7 +144,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
         </button>
 
         <button
-          onClick={handleDuplicate}
+          onClick={() => handleDuplicate(onClose)}
           className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
         >
           <MdAddToPhotos className="size-[18px]" />
@@ -182,7 +155,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
         <div className="h-px bg-zinc-700 my-2" />
 
         <button
-          onClick={handleDelete}
+          onClick={() => handleDelete(onClose)}
           className="w-full px-4 py-2 flex items-center gap-3 text-sm text-red-400 hover:bg-zinc-800"
         >
           <DeleteIcon className="size-[18px]" />
