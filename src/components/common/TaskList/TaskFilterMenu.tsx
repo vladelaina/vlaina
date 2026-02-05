@@ -16,7 +16,7 @@ export function TaskFilterMenu() {
     const [showMoreMenu, setShowMoreMenu] = useState(false);
     const moreMenuRef = useRef<HTMLDivElement>(null);
 
-    const { activeGroupId, deleteGroup, archiveCompletedTasks, deleteCompletedTasks } = useGroupStore();
+    const { activeGroupId, archiveCompletedTasks, deleteCompletedTasks } = useGroupStore();
     const {
         hideCompleted, setHideCompleted,
         hideActualTime, setHideActualTime,
@@ -156,18 +156,6 @@ export function TaskFilterMenu() {
                                     className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                 >
                                     Delete Completed
-                                </button>
-                                <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
-                                <button
-                                    onClick={() => {
-                                        if (activeGroupId && activeGroupId !== 'default') {
-                                            deleteGroup(activeGroupId);
-                                        }
-                                        setShowMoreMenu(false);
-                                    }}
-                                    className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                                >
-                                    Move to Trash
                                 </button>
                             </>
                         )}

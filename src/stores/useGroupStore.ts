@@ -30,18 +30,6 @@ export function useGroupStore() {
         uiStore.setActiveGroupId(id || DEFAULT_GROUP_ID);
     },
 
-    addGroup: async (name: string) => {
-        await eventStore.addCalendar(name, 'blue');
-    },
-
-    updateGroup: async (id: string, name: string, _icon?: string) => {
-        await eventStore.updateCalendar(id, { name });
-    },
-
-    deleteGroup: async (id: string) => {
-        await eventStore.deleteCalendar(id);
-    },
-
     togglePin: (_id: string) => {
     },
 

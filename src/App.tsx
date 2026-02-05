@@ -23,7 +23,6 @@ import { NotesTabRow } from '@/components/Notes/features/Tabs/NotesTabRow';
 import { useCalendarEventsStore } from '@/stores/calendarEventsSlice';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
-import { useVimShortcuts } from '@/hooks/useVimShortcuts';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
 
@@ -45,7 +44,6 @@ function AppContent() {
     'open-settings': toggleSettings,
   }), [toggleSettings]);
   useShortcuts({ handlers: shortcutHandlers });
-  useVimShortcuts();
 
   useSyncInit();
   const loadCalendarEvents = useCalendarEventsStore(state => state.load);
