@@ -268,7 +268,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
             "p-1.5 transition-colors",
             starred
               ? "text-yellow-500"
-              : `${iconButtonStyles} hover: text - yellow - 500`
+              : `${iconButtonStyles} hover:text-yellow-500`
           )}
         >
           <MdStar className="size-[18px]" style={{ fill: starred ? "currentColor" : "none" }} />
