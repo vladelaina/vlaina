@@ -11,6 +11,15 @@ export const detectScala: LanguageDetector = (ctx) => {
     return null;
   }
 
+  // Exclude Rust trait implementations (strong Rust indicators)
+  if (/\btrait\s+\w+\s*\{/.test(first100Lines) && /\bfn\s+\w+\s*\(/.test(first100Lines)) {
+    return null;
+  }
+
+  if (/\bimpl\s+\w+\s+for\s+\w+/.test(first100Lines)) {
+    return null;
+  }
+
   if (/\b(let\s+\w+\s*=.*\s+in\b|module\s+\w+\s*=|open\s+[A-Z][\w.]*)\b/.test(first100Lines) ||
       /\(\*[\s\S]*?\*\)/.test(first100Lines) ||
       (/^let\s+\w+\s*=/m.test(first100Lines) && /\(\*/.test(first100Lines))) {
@@ -65,12 +74,54 @@ export const detectScala: LanguageDetector = (ctx) => {
     return 'scala';
   }
 
+  if (/\bval\s+\w+\s*=\s*\(\d+\s+to\s+\d+\)/.test(code)) {
+    if (/\.filter\s*\(\s*_\s*%/.test(code) || /\.map\s*\(\s*\w+\s*=>/.test(code)) {
+      return 'scala';
+    }
+  }
+
+  if (/\bimplicit\s+class\s+\w+/.test(code)) {
+    return 'scala';
+  }
+
+  if (/\bfor\s*\{\s*\w+\s*<-/.test(code)) {
+    if (/\}\s+yield\b/.test(code)) {
+      return 'scala';
+    }
+  }
+
+  if (/\b(val|var)\s+\w+\s*=.*\.(filter|map|flatMap)\s*\(/.test(code)) {
+    if (/_\.\w+/.test(code) || /\bcase\s+class\b/.test(code) || /\bval\s+\w+\s*=.*\.filter\(_\./.test(code) || /\.sorted\b/.test(code)) {
+      return 'scala';
+    }
+  }
+
+  if (/\b(val|var)\s+\w+\s*=.*\.(filter|map)\s*\(\s*_\./.test(code)) {
+    return 'scala';
+  }
+
+  if (/\bval\s+\w+\s*=.*\.filter\s*\(\s*_\.\w+\s*>/.test(code)) {
+    return 'scala';
+  }
+
+  if (/\bcase\s+class\s+\w+\s*\(/.test(first100Lines)) {
+    return 'scala';
+  }
+
+  if (/\bimplicit\s+(val|def|class)/.test(first100Lines)) {
+    return 'scala';
+  }
+
   if (/\b(import\s+scala\.|import\s+math\.|package\s+object)\b/.test(first100Lines)) {
     return 'scala';
   }
 
+  // SBT build file patterns - but exclude simple Go variable declarations
   if (/\b(name|version|organization|libraryDependencies)\s*:=/.test(first100Lines)) {
-    return 'scala';
+    // Exclude Go single-line variable declarations like: name := "Alice"
+    if (!/^\w+\s*:=\s*"[^"]*"$/.test(code.trim())) {
+      return 'scala';
+    }
   }
 
   if (hasCurlyBraces) {

@@ -1,7 +1,14 @@
 import type { LanguageDetector } from '../types';
 
 export const detectHandlebars: LanguageDetector = (ctx) => {
-  const { code } = ctx;
+  const { code, lines } = ctx;
+
+  // Simple single-line Handlebars patterns
+  if (lines.length <= 3) {
+    if (/\{\{\w+\}\}/.test(code) && !/\{%/.test(code)) {
+      return 'handlebars';
+    }
+  }
 
   if (/\{#(if|each|await)\s+/.test(code) && !/\{\{#/.test(code)) {
     return null;

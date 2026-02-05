@@ -81,6 +81,18 @@ export const detectR: LanguageDetector = (ctx) => {
     return 'r';
   }
 
+  if (/%>%/.test(code)) {
+    return 'r';
+  }
+
+  if (/\bggplot\s*\(/.test(code) && /\baes\s*\(/.test(code)) {
+    return 'r';
+  }
+
+  if (/\b(mean|median|sd|var|sum|min|max|range)\s*\(\s*c\s*\(/.test(code)) {
+    return 'r';
+  }
+
   if (/%>%|%\|\|%/.test(code)) {
     if (/\b(library|require|data\.frame|c\()\b/.test(first100Lines)) {
       return 'r';

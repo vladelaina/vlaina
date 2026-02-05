@@ -1,7 +1,11 @@
 import type { LanguageDetector } from '../types';
 
 export const detectRust: LanguageDetector = (ctx) => {
-  const { first100Lines, sample, hasDoubleColon, hasArrow } = ctx;
+  const { first100Lines, sample, code } = ctx;
+  
+  // Helper variables
+  const hasDoubleColon = sample.includes('::');
+  const hasArrow = sample.includes('->');
 
   if (/^package\s+[\w:]+;/m.test(first100Lines) ||
       /^use\s+(strict|warnings|lib)\b/m.test(first100Lines)) {
@@ -16,7 +20,83 @@ export const detectRust: LanguageDetector = (ctx) => {
     return null;
   }
 
+  // Rust lifetime parameters: fn longest<'a>(x: &'a str, y: &'a str) -> &'a str
+  if (/<'[a-z]\w*>/.test(code) || /&'[a-z]\w*\s+\w+/.test(code)) {
+    return 'rust';
+  }
+
+  if (/\bprintln!\(/.test(code)) {
+    return 'rust';
+  }
+
+  if (/\b(let|const)\s+\w+:\s*(Vec|HashMap|HashSet|Option|Result|Box|Rc|Arc)</.test(first100Lines)) {
+    return 'rust';
+  }
+
+  if (/\bvec!\[/.test(code)) {
+    return 'rust';
+  }
+
+  if (/^#\[(derive|cfg|test|allow|warn|deny)\(/.test(first100Lines)) {
+    return 'rust';
+  }
+
+  // Rust trait (distinguish from Scala and PHP)
+  if (/\btrait\s+\w+/.test(first100Lines)) {
+    // Exclude PHP trait (has public/private methods with $)
+    if (/\bpublic\s+function/.test(code) && /\$\w+/.test(code)) {
+      return null;
+    }
+    // Rust-specific: trait with Self, impl, fn, or Rust syntax
+    if (/\bSelf\b/.test(code) ||
+        /\bimpl\s+\w+\s+for\s+/.test(code) ||
+        /\bfn\s+\w+\s*\(&self/.test(code) ||
+        /\bfn\s+\w+\s*\([^)]*\)\s*->/.test(code) ||
+        /\bwhere\s+\w+:\s*\w+/.test(code)) {
+      return 'rust';
+    }
+    // Rust trait definition with fn (not PHP which uses function)
+    if (/\btrait\s+\w+\s*\{[\s\S]*?\bfn\s+/.test(code)) {
+      return 'rust';
+    }
+  }
+
+  // Rust impl blocks (strong indicator)
+  if (/\bimpl\s+\w+\s+for\s+\w+\s*\{/.test(code)) {
+    return 'rust';
+  }
+
+  // Rust trait with fn definition (very strong indicator)
+  if (/\btrait\s+\w+\s*\{/.test(code) && /\bfn\s+\w+\s*\(/.test(code)) {
+    // Check for &self parameter (Rust-specific)
+    if (/\bfn\s+\w+\s*\(&self/.test(code) || /\bfn\s+\w+\s*\(&mut\s+self/.test(code)) {
+      return 'rust';
+    }
+    // Or just trait with fn (not Scala which uses def)
+    if (!/\bdef\s+\w+/.test(code)) {
+      return 'rust';
+    }
+  }
+
+  // Rust generic function with trait bound
+  if (/\bfn\s+\w+<[^>]+:\s*\w+>\s*\(/.test(code)) {
+    return 'rust';
+  }
+
+  // Rust println! with formatting
+  if (/\bprintln!\s*\(\s*"[^"]*\{\}/.test(code)) {
+    return 'rust';
+  }
+
   if (/\b(fn\s+main|pub\s+fn|impl\s+\w+|use\s+std::|use\s+self::|extern\s+crate)\b/.test(first100Lines)) {
+    return 'rust';
+  }
+
+  if (/\bimpl<[^>]+>\s+\w+\s+for\s+\w+/.test(code)) {
+    return 'rust';
+  }
+
+  if (/\bimpl\s+\w+\s+for\s+\w+\s*\{/.test(code)) {
     return 'rust';
   }
 

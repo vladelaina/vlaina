@@ -1,7 +1,35 @@
 import type { LanguageDetector } from '../types';
 
 export const detectNim: LanguageDetector = (ctx) => {
-  const { code, first100Lines, firstLine } = ctx;
+  const { code, first100Lines, firstLine, lines } = ctx;
+
+  // Simple single-line Nim patterns
+  if (lines.length <= 3) {
+    // Nim echo is very distinctive - it doesn't use $ for variables like bash
+    if (/^echo\s+["']/.test(code.trim())) {
+      // If it has bash-specific patterns, let shell handle it
+      if (/\$\{|\$\(|\$\w+|`.*`|\|\||&&|;/.test(code)) {
+        return null;
+      }
+      // If it's just echo "string" with nothing else, it's ambiguous
+      // Default to bash (more common)
+      if (/^echo\s+["'][^"']*["']\s*$/.test(code.trim())) {
+        return null;
+      }
+      // If it has Nim-specific keywords, it's Nim
+      if (/\bproc\b|\bvar\b|\blet\b|\bimport\b/.test(code)) {
+        return 'nim';
+      }
+      return null;
+    }
+    // Nim variable with type annotation
+    if (/\bvar\s+\w+\s*:\s*\w+\s*=/.test(code)) {
+      // Check if it's not TypeScript/JavaScript
+      if (!/\b(const|let|function|class|interface|type)\b/.test(code)) {
+        return 'nim';
+      }
+    }
+  }
 
   if (/^(hint|path|define|symbol|cs|gc|opt|warning)\[?\w*\]?:/m.test(first100Lines)) {
     return 'nim';
@@ -54,6 +82,14 @@ export const detectNim: LanguageDetector = (ctx) => {
 
   if (/^[a-zA-Z_][\w-]*:\s*/.test(first100Lines) && !/\b(proc|when|template|import)\b/.test(first100Lines)) {
     return null;
+  }
+
+  if (/\bcollect\s*\(\s*newSeq\s*\)/.test(code)) {
+    return 'nim';
+  }
+
+  if (/\blet\s+\w+\s*=\s*collect\s*\(/.test(code)) {
+    return 'nim';
   }
 
   if (/\{\.[\w,\s:"]+\.\}/.test(code)) {

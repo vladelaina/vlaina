@@ -79,6 +79,14 @@ export const detectVim: LanguageDetector = (ctx) => {
     return 'viml';
   }
 
+  if (/\bnnoremap\s+<leader>\w+/.test(code)) {
+    return 'viml';
+  }
+
+  if (/\b(nnoremap|vnoremap|inoremap)\s+<\w+>/.test(code)) {
+    return 'viml';
+  }
+
   if (/\bsyntax\s+(on|off|enable|match|region|keyword)/.test(code)) {
     return 'viml';
   }

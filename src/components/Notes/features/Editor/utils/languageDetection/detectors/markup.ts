@@ -1,7 +1,26 @@
 import type { LanguageDetector } from '../types';
 
 export const detectHTML: LanguageDetector = (ctx) => {
-  const { first100Lines, sample, code, firstLine } = ctx;
+  const { first100Lines, sample, code, firstLine, lines } = ctx;
+
+  // Simple single-line HTML patterns
+  if (lines.length <= 3) {
+    // Exclude template languages with {{ }} syntax
+    if (/\{\{[\s\S]*?\}\}/.test(code)) {
+      return null; // Let template language detectors handle it
+    }
+    if (/<(div|span|p|a|img|h[1-6]|ul|ol|li|table|form|input|button)[^>]*>/.test(code)) {
+      return 'html';
+    }
+  }
+
+  if (/\$\w+\s*=~\s*s\//.test(code)) {
+    return null;
+  }
+
+  if (/=~\s*s\/.*<[a-z]+/.test(code)) {
+    return null;
+  }
 
   if (/^using\s+System/m.test(first100Lines) ||
       /^package\s+\w+/m.test(first100Lines) ||
@@ -130,14 +149,41 @@ export const detectMarkdown: LanguageDetector = (ctx) => {
     }
   }
 
+  // Strong Markdown indicators
+  const headingCount = lines.slice(0, 20).filter(l => /^#{1,6}\s+/.test(l)).length;
+  const hasCodeBlock = /```\w*\n/.test(code);
+  const hasTable = /\|.*\|.*\|/.test(first100Lines);
+  const hasLinks = /\[.*\]\(.*\)/.test(first100Lines);
+  
+  // Markdown with API documentation pattern
+  if (headingCount >= 2 && hasCodeBlock) {
+    return 'markdown';
+  }
+  
+  // Markdown with table and heading
+  if (hasTable && (headingCount > 0 || hasCodeBlock)) {
+    return 'markdown';
+  }
+
+  // Markdown with multiple headings (strong indicator)
+  if (headingCount >= 3) {
+    return 'markdown';
+  }
+
+  // Markdown with heading and links
+  if (headingCount >= 1 && hasLinks && /^##\s+/.test(code)) {
+    return 'markdown';
+  }
+
   const mdScore = (
-    (lines.slice(0, 20).filter(l => /^#{1,6}\s+/.test(l)).length > 0 ? 2 : 0) +
+    (headingCount > 0 ? 2 : 0) +
     (/^[-*+]\s+/.test(first100Lines) ? 1 : 0) +
-    (/\[.*\]\(.*\)/.test(first100Lines) ? 1 : 0) +
+    (hasLinks ? 1 : 0) +
     (/^>\s+/.test(first100Lines) ? 1 : 0) +
-    (/```/.test(first100Lines) ? 1 : 0) +
+    (hasCodeBlock ? 2 : 0) +
     (/^[=\-]{3,}$/m.test(first100Lines) ? 1 : 0) +
-    (/^\*\*.*\*\*|^_.*_|^\*.*\*/.test(first100Lines) ? 1 : 0)
+    (/^\*\*.*\*\*|^_.*_|^\*.*\*/.test(first100Lines) ? 1 : 0) +
+    (hasTable ? 1 : 0)
   );
 
   if (mdScore >= 2) {
@@ -145,6 +191,9 @@ export const detectMarkdown: LanguageDetector = (ctx) => {
   }
 
   if (lines.length <= 3) {
+    if (/!\[.*\]\(.*\)/.test(sample)) {
+      return 'markdown';
+    }
     if (/\*\*|\*|_|`/.test(sample) || /^[A-Z]/.test(sample) || /^[a-z]+\.(md|markdown)$/i.test(sample.trim())) {
       return 'markdown';
     }

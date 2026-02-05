@@ -1,7 +1,16 @@
 import type { LanguageDetector } from '../types';
 
 export const detectMatlab: LanguageDetector = (ctx) => {
-  const { code, first100Lines, firstLine } = ctx;
+  const { code, first100Lines, firstLine, lines } = ctx;
+
+  // Simple single-line MATLAB patterns
+  if (lines.length <= 3) {
+    const trimmed = code.trim();
+    // MATLAB matrix: A = [1 2 3; 4 5 6; 7 8 9];
+    if (/^[A-Z]\w*\s*=\s*\[[\d\s;]+\];?$/.test(trimmed)) {
+      return 'matlab';
+    }
+  }
 
   if (/^function\s+/.test(firstLine)) {
 
@@ -37,7 +46,19 @@ export const detectMatlab: LanguageDetector = (ctx) => {
     }
   }
 
+  // MATLAB comment and function
   if (/^%\s/m.test(first100Lines) && /\bfunction\b/.test(first100Lines) && /\bend\b/.test(code)) {
+    return 'matlab';
+  }
+
+  // MATLAB matrix operations
+  if (/\b(eig|rand|plot|zeros|ones|eye|linspace|meshgrid)\s*\(/.test(code)) {
+    if (/^%\s/m.test(first100Lines) || /\bend\b/.test(code)) {
+      return 'matlab';
+    }
+  }
+
+  if (/\barrayfun\s*\(@/.test(code)) {
     return 'matlab';
   }
 

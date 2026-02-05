@@ -19,34 +19,29 @@ export const detectElm: LanguageDetector = (ctx) => {
     return null;
   }
 
+  if (/\bview\s+\w+\s*=\s*div\s*\[\]/.test(code)) {
+    return 'elm';
+  }
+
+  if (/\b(onClick|onInput|onSubmit|onMouseOver|onMouseOut)\s+\w+/.test(code)) {
+    if (/\bdiv\s*\[\]|\bbutton\s*\[\]|\bh\d+\s*\[\]/.test(code)) {
+      return 'elm';
+    }
+  }
+
+  // Elm module with exposing (very distinctive)
   if (/^module\s+[A-Z][\w.]*\s+exposing/m.test(first100Lines)) {
     return 'elm';
   }
 
-  const hasDataDecl = /^data\s+[A-Z]\w+(\s+\w+)?\s*=/m.test(first100Lines);
-  if (hasDataDecl) {
-
-    if (/\{\w+\s*::\s*/.test(first100Lines)) {
-      return null;
-    }
-    if (/^(module|import)\s+[A-Z]/m.test(first100Lines)) {
-      return null;
-    }
-
-    if (/\bcase\s+\w+\s+of\b/.test(code)) {
-      return 'elm';
-    }
-    if (/\blet\s+\w+\s*=.*\bin\b/.test(code)) {
-      return 'elm';
-    }
-
-    if (/^\w+\s*=\s*[^=]/m.test(code) && !/^\w+\s*::\s*/m.test(code)) {
-      return 'elm';
-    }
+  // Elm import with exposing (very distinctive)
+  if (/^import\s+[A-Z][\w.]*\s+exposing\s*\(/m.test(first100Lines)) {
+    return 'elm';
   }
 
+  // Elm import statements
   if (/^import\s+[A-Z][\w.]*(\s+exposing|\s+as\s+[A-Z]|\s+\()/m.test(first100Lines)) {
-
+    // Check for Elm-specific keywords
     if (/\b(let|in|case|of|type|type\s+alias)\b/.test(first100Lines)) {
       return 'elm';
     }

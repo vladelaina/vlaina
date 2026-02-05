@@ -139,6 +139,7 @@ const getLanguagesWithoutIcons = () => {
 
 // Combined list: languages with icons first (by popularity), then without icons (alphabetically)
 export const SUPPORTED_LANGUAGES = [
+  { id: 'txt' as BundledLanguage, name: 'TXT', aliases: ['text', 'plaintext'] },
   ...LANGUAGES_WITH_ICONS,
   ...getLanguagesWithoutIcons()
 ];

@@ -18,6 +18,11 @@ export const detectHaml: LanguageDetector = (ctx) => {
     return null;
   }
 
+  // Haml tag: %h1 Hello World
+  if (/^%(h[1-6]|html|head|body|div|span|p|a|li|td|th|button|label)(\s|$|[.#])/m.test(code)) {
+    return 'haml';
+  }
+
   if (/^%[\w-]+/m.test(code)) {
 
     if (/^%[\w-]+[.#][\w-]+|^%[\w-]+\{/.test(code)) {

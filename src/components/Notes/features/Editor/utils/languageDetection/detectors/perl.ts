@@ -1,7 +1,23 @@
 import type { LanguageDetector } from '../types';
 
 export const detectPerl: LanguageDetector = (ctx) => {
-  const { code, first100Lines } = ctx;
+  const { code, first100Lines, lines } = ctx;
+
+  // Simple single-line Perl patterns
+  if (lines.length <= 3) {
+    if (/^print\s+["'].*["']\s*;/.test(code.trim())) {
+      return 'perl';
+    }
+  }
+
+  // Perl regex matching
+  if (/\$\w+\s*=~\s*\//.test(code) || /\bif\s*\(\s*\$\w+\s*=~/.test(code)) {
+    return 'perl';
+  }
+
+  if (/\[package\]/.test(code) && /\bname\s*=\s*["']/.test(code) && /\bversion\s*=\s*["']/.test(code)) {
+    return null;
+  }
 
   if (/\bvar\s+\w+\s*=/.test(first100Lines) ||
       /\bfunction\s+\w+\s*\(/.test(first100Lines) ||
@@ -89,7 +105,16 @@ export const detectPerl: LanguageDetector = (ctx) => {
   }
 
   // Perl regex operators (=~ s/ or =~ m/)
-  if (/=~\s*[sm]\/|=~\s*\//.test(code)) {
+  if (/=~\s*[sm]\//.test(code)) {
+    if (/\$\w+\s*=~\s*s\//.test(code)) {
+      return 'perl';
+    }
+    if (/<[a-z]+\s+[^>]*>/.test(code) && !/\b(use|package|sub|my|our|local|[\$@%]\w+)\b/.test(code)) {
+      return null;
+    }
+    if (/\b(use|package|sub|my|our|local)\b/.test(code) || /[\$@%]\w+/.test(code)) {
+      return 'perl';
+    }
     return 'perl';
   }
 

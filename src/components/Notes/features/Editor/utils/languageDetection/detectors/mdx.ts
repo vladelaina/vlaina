@@ -3,6 +3,17 @@ import type { LanguageDetector } from '../types';
 export const detectMDX: LanguageDetector = (ctx) => {
   const { code, first100Lines, firstLine } = ctx;
 
+  // Single-line import in MDX context
+  if (ctx.lines.length <= 3) {
+    const trimmed = code.trim();
+    // MDX import: import { Button } from './components'
+    if (/^import\s+\{[^}]+\}\s+from\s+['"][^'"]*['"]$/.test(trimmed)) {
+      // Could be JavaScript or MDX, return null to let context decide
+      // In MDX files, imports are common at the top
+      return null; // Let JavaScript handle it for now
+    }
+  }
+
   if (/^\\(name|alias|title|usage|arguments|value|description|details|docType)\{/m.test(first100Lines)) {
     return null;
   }
@@ -47,6 +58,12 @@ export const detectMDX: LanguageDetector = (ctx) => {
       if (/^(import|export)\s+/.test(first100Lines)) {
         return 'mdx';
       }
+    }
+  }
+
+  if (/^import\s+\{[^}]+\}\s+from\s+['"]/.test(first100Lines)) {
+    if (/<[A-Z]\w+/.test(code)) {
+      return 'mdx';
     }
   }
 

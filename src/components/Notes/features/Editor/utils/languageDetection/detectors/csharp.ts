@@ -1,7 +1,7 @@
 import type { LanguageDetector } from '../types';
 
 export const detectCSharp: LanguageDetector = (ctx) => {
-  const { sample, first100Lines, firstLine, hasCurlyBraces, hasSemicolon } = ctx;
+  const { sample, first100Lines, firstLine, hasCurlyBraces, hasSemicolon, code } = ctx;
 
   if (/#import\s+["<]/.test(first100Lines) ||
       /@(interface|implementation|property|protocol)\b/.test(first100Lines) ||
@@ -24,6 +24,11 @@ export const detectCSharp: LanguageDetector = (ctx) => {
     return null;
   }
 
+  // Exclude Java annotations (Java uses @RestController, @GetMapping, etc.)
+  if (/@(RestController|RequestMapping|GetMapping|PostMapping|Autowired|Component|Service|Repository|Controller|Entity|Table)\b/.test(code)) {
+    return null;
+  }
+
   if (/\b(import\s+['"]dart:|import\s+['"]package:|part\s+of\s+|part\s+['"])\b/.test(first100Lines)) {
     return null;
   }
@@ -41,6 +46,30 @@ export const detectCSharp: LanguageDetector = (ctx) => {
   }
 
   if (/^namespace\s+[\w.]+;$/m.test(first100Lines)) {
+    return 'csharp';
+  }
+
+  if (/\bvar\s+\w+\s*=\s*await\s+/.test(code) && /\bWhere\(/.test(code)) {
+    return 'csharp';
+  }
+
+  if (/\bawait\s+using\s+var\s+/.test(code)) {
+    return 'csharp';
+  }
+
+  if (/\bFile\.(OpenRead|ReadAllText|WriteAllText|Exists)/.test(code)) {
+    return 'csharp';
+  }
+
+  if (/\brecord\s+\w+\s*\(/.test(code)) {
+    return 'csharp';
+  }
+
+  if (/\[Http(Get|Post|Put|Delete|Patch)\(/.test(code)) {
+    return 'csharp';
+  }
+
+  if (/\bConsole\.(WriteLine|Write|ReadLine|Read|Clear)\s*\(/.test(code)) {
     return 'csharp';
   }
 
@@ -69,9 +98,7 @@ export const detectCSharp: LanguageDetector = (ctx) => {
   }
 
   if (/\b(int|string|void|bool|double|float)\s+[A-Z]\w*\s*\([^)]*\)\s*\{/.test(first100Lines)) {
-
     if (!/^(package|import)\s+/m.test(first100Lines)) {
-
       if (!/#include\s*[<"]/.test(first100Lines) && !/std::/.test(first100Lines)) {
         return 'csharp';
       }

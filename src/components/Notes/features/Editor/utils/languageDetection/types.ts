@@ -1,20 +1,15 @@
 export interface DetectionContext {
   code: string;
   sample: string;
-  lines: string[];
   firstLine: string;
-  first20Lines: string;
   first100Lines: string;
-  
+  lines: string[];
   hasCurlyBraces: boolean;
-  hasArrow: boolean;
-  hasDoubleColon: boolean;
+  hasSemicolon: boolean;
   hasImport: boolean;
-  hasFunction: boolean;
   hasConst: boolean;
   hasLet: boolean;
-  hasClass: boolean;
-  hasSemicolon: boolean;
+  hasFunction: boolean;
 }
 
 export type LanguageDetector = (ctx: DetectionContext) => string | null;

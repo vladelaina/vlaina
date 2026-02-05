@@ -1,67 +1,56 @@
-import type { DetectionContext } from './types';
+import type { DetectionContext, LanguageDetector } from './types';
 
 export function createContext(code: string): DetectionContext {
-  // Normalize line endings (Windows \r\n -> Unix \n)
-  const text = code.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  const maxLength = 50000;
-  const sample = text.length > maxLength ? text.slice(0, maxLength) : text;
-  
-  const lines = sample.split('\n');
+  const lines = code.split('\n');
   const firstLine = lines[0] || '';
-  const first20Lines = lines.slice(0, 20).join('\n');
   const first100Lines = lines.slice(0, 100).join('\n');
+  const sample = code.slice(0, 1000);
   
   return {
-    code: text,
+    code,
     sample,
-    lines,
     firstLine,
-    first20Lines,
     first100Lines,
-    
-    hasCurlyBraces: sample.includes('{'),
-    hasArrow: sample.includes('->'),
-    hasDoubleColon: sample.includes('::'),
-    hasImport: sample.includes('import'),
-    hasFunction: sample.includes('function'),
-    hasConst: sample.includes('const'),
-    hasLet: sample.includes('let'),
-    hasClass: sample.includes('class'),
-    hasSemicolon: sample.includes(';'),
+    lines,
+    hasCurlyBraces: code.includes('{') || code.includes('}'),
+    hasSemicolon: code.includes(';'),
+    hasImport: /\bimport\s+/.test(first100Lines),
+    hasConst: /\bconst\s+/.test(first100Lines),
+    hasLet: /\blet\s+/.test(first100Lines),
+    hasFunction: /\bfunction\s+/.test(first100Lines),
   };
 }
 
-export function checkShebang(ctx: DetectionContext): string | null {
-  const { firstLine, lines } = ctx;
+export const checkShebang: LanguageDetector = (ctx) => {
+  const { firstLine } = ctx;
   
-  if (!firstLine.startsWith('#!')) return null;
-  
-  // Check for Scala shebang scripts - #!/bin/sh followed by exec scala
-  if ((firstLine.includes('/bash') || firstLine.includes('/sh')) && 
-      lines.length > 1 && lines[1].includes('exec scala')) {
-    return 'scala';
+  if (!firstLine.startsWith('#!')) {
+    return null;
   }
   
-  // R shebang
-  if (firstLine.includes('Rscript') || firstLine.includes('/R ')) {
-    return 'r';
-  }
+  const shebangMap: Record<string, string> = {
+    'python': 'python',
+    'python2': 'python',
+    'python3': 'python',
+    'node': 'javascript',
+    'bash': 'shell',
+    'sh': 'shell',
+    'zsh': 'shell',
+    'fish': 'shell',
+    'ruby': 'ruby',
+    'perl': 'perl',
+    'php': 'php',
+    'lua': 'lua',
+    'crystal': 'crystal',
+    'pwsh': 'powershell',
+    'powershell': 'powershell',
+  };
   
-  if (firstLine.includes('/bash') || firstLine.includes('/sh')) {
-    // fish, zsh are shell variants - map to bash for Shiki compatibility
-    if (firstLine.includes('/fish')) return 'bash';
-    if (firstLine.includes('/zsh')) return 'bash';
-    return 'bash';
+  for (const [key, lang] of Object.entries(shebangMap)) {
+    if (firstLine.includes(key)) {
+      return lang;
+    }
   }
-  // awk is not supported by Shiki - map to bash
-  if (firstLine.includes('/awk')) return 'bash';
-  // tcl/expect is not supported by Shiki - map to bash
-  if (firstLine.includes('/expect')) return 'bash';
-  if (firstLine.includes('/python')) return 'python';
-  if (firstLine.includes('python')) return 'python'; // env python
-  if (firstLine.includes('/ruby')) return 'ruby';
-  if (firstLine.includes('/node')) return 'javascript';
-  if (firstLine.includes('perl')) return 'perl';
   
   return null;
-}
+};

@@ -1,7 +1,11 @@
 import type { LanguageDetector } from '../types';
 
 export const detectCPP: LanguageDetector = (ctx) => {
-  const { first100Lines, sample, hasDoubleColon, hasClass, code } = ctx;
+  const { first100Lines, sample, code } = ctx;
+  
+  // Helper variables
+  const hasDoubleColon = sample.includes('::');
+  const hasClass = sample.includes('class');
 
   if (/^package\s+[\w.]+;/m.test(code) || /^import\s+java\./m.test(code)) {
     return null;
@@ -21,7 +25,7 @@ export const detectCPP: LanguageDetector = (ctx) => {
     return null;
   }
 
-  if (/\b(CREATE\s+TABLE|INSERT\s+INTO|SELECT\s+.*\s+FROM|DROP\s+TABLE|SHOW\s+WARNINGS)\b/i.test(first100Lines)) {
+  if (/\b(CREATE\s+TABLE|INSERT\s+INTO|SELECT\s+.*\s+FROM|DROP\s+TABLE|SHOW\s+WARNINGS|CREATE\s+INDEX|CREATE\s+UNIQUE\s+INDEX)\b/i.test(first100Lines)) {
     return null;
   }
 
@@ -31,7 +35,6 @@ export const detectCPP: LanguageDetector = (ctx) => {
   }
 
   if (/\bfunction\s+\w+\s*\(/.test(first100Lines)) {
-
     if (!/#include\s*[<"]/.test(first100Lines) &&
         !/\b(printf|scanf|malloc|free|sizeof|std::|cout|cin)\b/.test(first100Lines)) {
       return null;
@@ -60,29 +63,68 @@ export const detectCPP: LanguageDetector = (ctx) => {
     }
   }
 
-  if (/^enum\s+\w+/m.test(first100Lines)) {
+  // C++ class definition
+  if (/^class\s+\w+\s*\{/m.test(code) || /^class\s+\w+\s*$/m.test(code)) {
+    if (/#include\s*[<"]/.test(first100Lines) || 
+        /\b(public|private|protected):\s*$/m.test(code) ||
+        /\b(std::|cout|cin|vector|template|namespace)\b/.test(code)) {
+      return 'cpp';
+    }
+  }
 
+  if (/\bstd::(cout|cin|cerr|endl|string|vector|map|set|list|queue|stack|pair|make_pair|shared_ptr|unique_ptr|move|forward|find_if|for_each|transform|accumulate)\b/.test(first100Lines)) {
+    return 'cpp';
+  }
+
+  if (/<<|>>/.test(code) && /\b(cout|cin|cerr|endl)\b/.test(code)) {
+    return 'cpp';
+  }
+
+  if (/\bauto\s+\w+\s*=\s*std::/.test(first100Lines)) {
+    return 'cpp';
+  }
+
+  if (/\bauto\s+\w+\s*=.*\[.*\]\s*\(/.test(first100Lines)) {
+    return 'cpp';
+  }
+
+  if (/\btemplate\s*<\s*typename\s+\w+\s*>/.test(first100Lines)) {
+    return 'cpp';
+  }
+
+  if (/\btemplate\s*<[^>]+>\s+\w+\s+\w+/.test(code)) {
+    return 'cpp';
+  }
+
+  if (/\bconstexpr\s+\w+/.test(code)) {
+    return 'cpp';
+  }
+
+  if (/\bauto\s+\[[\w,\s]+\]\s*=/.test(code)) {
+    return 'cpp';
+  }
+
+  if (/\bstd::make_tuple/.test(code)) {
+    return 'cpp';
+  }
+
+  if (/^enum\s+\w+/m.test(first100Lines)) {
     if (sample.includes('class') || sample.includes('namespace') || sample.includes('template') || hasDoubleColon) {
       return 'cpp';
     }
-
     return 'c';
   }
 
   if (/#include\s*[<"]/.test(first100Lines) || /\b(printf|scanf|malloc|free|sizeof|NULL)\b/.test(first100Lines)) {
-    // Exclude Objective-C files (has @interface, @implementation, or NS types)
     if (/@(interface|implementation|property|protocol)\b/.test(code) ||
         /\bNS[A-Z]\w+\s*\*/.test(first100Lines) ||
         /#import\s+<(Foundation|UIKit|CoreFoundation|CFNetwork)\//.test(first100Lines)) {
       return null;
     }
     
-    // Detect Objective-C files with Apple frameworks (IOKit, CoreVideo, CoreGraphics, ApplicationServices)
-    // These files use .m extension but may not have Objective-C syntax
     if (/#include\s+<(IOKit|CoreVideo|CoreGraphics|ApplicationServices)\//.test(first100Lines)) {
-      // Check for Apple C API calls (CF, CG, IO, CV prefixes)
       if (/\b(CF|CG|IO|CV)[A-Z]\w+\s*\(/.test(code)) {
-        return 'objective-c';
+        return 'objectivec';
       }
     }
 
@@ -115,16 +157,13 @@ export const detectCPP: LanguageDetector = (ctx) => {
   }
 
   if (/^enum\s+\w+/m.test(first100Lines) && /\{[\s\S]*?\}/.test(code)) {
-
     if (sample.includes('::') || sample.includes('class') || sample.includes('template') || sample.includes('namespace')) {
       return 'cpp';
     }
-
     return 'cpp';
   }
 
   if (/\b(protected|private|public)\s*:/.test(first100Lines) && hasClass) {
-
     if (!sample.includes('alert(') && !sample.includes('super.')) {
       return 'cpp';
     }
