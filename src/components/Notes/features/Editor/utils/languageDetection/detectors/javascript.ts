@@ -1,7 +1,7 @@
 import type { LanguageDetector } from '../types';
 
 export const detectJavaScript: LanguageDetector = (ctx) => {
-  const { sample, first100Lines, firstLine, hasCurlyBraces, hasSemicolon, hasImport, hasConst, hasLet, hasFunction, code } = ctx;
+  const { sample, first100Lines, firstLine, hasCurlyBraces, hasSemicolon, hasImport, hasConst, hasLet, hasFunction, code, lines } = ctx;
 
   if (/^\\(name|alias|title|usage|arguments|value|description|details|docType)\{/m.test(first100Lines)) {
     return null;
@@ -31,6 +31,28 @@ export const detectJavaScript: LanguageDetector = (ctx) => {
 
     if (/->|=>/.test(code) || /constructor:\s*\([^)]*@/.test(code) || /@\w+/.test(code)) {
       return null;
+    }
+  }
+
+  // Detect React/JSX - should be treated as JavaScript
+  if (/\bimport\s+.*from\s+['"]react['"]/.test(first100Lines) ||
+      /\bimport\s+\{[^}]*\}\s+from\s+['"]react['"]/.test(first100Lines)) {
+    return 'javascript';
+  }
+
+  // Detect Express/Node.js patterns
+  if (/\brequire\s*\(\s*['"]express['"]\s*\)/.test(first100Lines) ||
+      /\bapp\.(get|post|put|delete|use)\s*\(/.test(code)) {
+    return 'javascript';
+  }
+
+  // Exclude CoffeeScript (has arrow functions without function keyword)
+  if (/->|=>/.test(code)) {
+    // CoffeeScript pattern: assignment with arrow function
+    if (/\w+\s*=\s*\([^)]*\)\s*->/.test(code) || /\w+\s*=\s*->/.test(code)) {
+      if (!/\bfunction\b/.test(first100Lines) && !/\bconst\b|\blet\b|\bvar\b/.test(first100Lines)) {
+        return null; // Let CoffeeScript handle it
+      }
     }
   }
 
@@ -105,7 +127,12 @@ export const detectJavaScript: LanguageDetector = (ctx) => {
     return null;
   }
 
-  if (/^(set|let|function|if|endif|colorscheme)\s+/.test(first100Lines)) {
+  if (/^(set|let|if|endif|colorscheme)\s+/.test(first100Lines)) {
+    return null;
+  }
+  
+  // Exclude Vim Script function declarations (function! not function)
+  if (/^function!\s+/.test(first100Lines)) {
     return null;
   }
 
@@ -132,7 +159,7 @@ export const detectJavaScript: LanguageDetector = (ctx) => {
     return null;
   }
 
-  if (/\blocal\s+\w+/.test(first100Lines)) {
+  if (/\blocal\s+\w+\s*=/.test(first100Lines)) {
     return null;
   }
 
@@ -153,7 +180,17 @@ export const detectJavaScript: LanguageDetector = (ctx) => {
     return 'typescript';
   }
 
-  if (/\bfunction\s+\w+\s*\([\s\S]*?:\s*(string|number|boolean|any|void|Promise|Array)/.test(first100Lines)) {
+  // TypeScript type annotations in function parameters
+  if (/function\s+\w+\s*\([^)]*:\s*(string|number|boolean|any|void)\s*\)/.test(first100Lines)) {
+    return 'typescript';
+  }
+  
+  // TypeScript function with return type
+  if (/function\s+\w+\s*\([^)]*\)\s*:\s*(string|number|boolean|any|void|Promise)/.test(first100Lines)) {
+    return 'typescript';
+  }
+
+  if (/\bfunction\s+\w+\s*\([\s\S]*?:\s*\w+/.test(first100Lines)) {
     return 'typescript';
   }
 
@@ -162,6 +199,28 @@ export const detectJavaScript: LanguageDetector = (ctx) => {
   }
 
   if (/\bexport\s+function\s+\w+\s*\([\s\S]*?:\s*\w+/.test(first100Lines)) {
+    return 'typescript';
+  }
+
+  if (/\binterface\s+\w+\s*\{/.test(first100Lines)) {
+    return 'typescript';
+  }
+
+  if (/^(interface|type)\s+\w+\s*=/.test(first100Lines)) {
+    return 'typescript';
+  }
+
+  // TypeScript generics
+  if (/function\s+\w+<[A-Z]\w*>/.test(first100Lines)) {
+    return 'typescript';
+  }
+  
+  // TypeScript generic with parameter
+  if (/function\s+\w+<[A-Z]>\s*\(\s*\w+:\s*[A-Z]\s*\)\s*:\s*[A-Z]/.test(code)) {
+    return 'typescript';
+  }
+
+  if (/^type\s+\w+\s*=\s*\{/.test(first100Lines)) {
     return 'typescript';
   }
 
@@ -183,10 +242,27 @@ export const detectJavaScript: LanguageDetector = (ctx) => {
 
   if ((/<[A-Z]\w+/.test(first100Lines) || /return\s*\(?\s*<[a-z]+/.test(first100Lines)) &&
       !/#import\s+</.test(first100Lines)) {
+    if (/\bexport\s+default\s+function\s+\w+\s*\(\s*\)\s*\{/.test(first100Lines)) {
+      return 'jsx';
+    }
     if (tsIndicators >= 1 || sample.includes('interface ')) {
       return 'tsx';
     }
     return 'jsx';
+  }
+
+  // Simple console.log without type annotations should be JavaScript
+  if (lines.length <= 3 && /^console\.log\(/.test(first100Lines.trim())) {
+    // Check if there are NO type annotations
+    if (!/:\s*(string|number|boolean|any|void|Promise|Array|<T>)/.test(code)) {
+      return 'javascript';
+    }
+  }
+
+  if (/\bconst\s+\w+\s*=\s*await\s+fetch\(/.test(first100Lines)) {
+    if (!/\b(final|FirebaseFirestore|Widget|BuildContext)\b/.test(first100Lines)) {
+      return 'javascript';
+    }
   }
 
   if (/\b(console\.(log|error|warn|info)|alert|document\.|window\.|require\(|module\.exports)\b/.test(first100Lines)) {
@@ -195,6 +271,12 @@ export const detectJavaScript: LanguageDetector = (ctx) => {
       return 'typescript';
     }
     return 'javascript';
+  }
+
+  if (/\bconst\s+\w+\s*=\s*await\s+fetch\(/.test(first100Lines)) {
+    if (!/\b(final|var)\s+\w+\s*=\s*await/.test(first100Lines)) {
+      return 'javascript';
+    }
   }
 
   if (/\b(import\.meta|await\s+Promise|await\s+\w+\()\b/.test(first100Lines)) {
@@ -208,7 +290,17 @@ export const detectJavaScript: LanguageDetector = (ctx) => {
     }
   }
 
-  if (!hasCurlyBraces && !hasSemicolon && !hasImport && !hasConst && !hasLet && !hasFunction) {
+  // Arrow function patterns - detect early
+  const hasArrowFunction = /=>\s*/.test(first100Lines);
+  const hasConstArrow = /\bconst\s+\w+\s*=\s*\([^)]*\)\s*=>/.test(first100Lines);
+  const hasLetArrow = /\blet\s+\w+\s*=\s*\([^)]*\)\s*=>/.test(first100Lines);
+  
+  // Single line arrow function: const add = (a, b) => a + b;
+  if (hasConstArrow || hasLetArrow) {
+    return 'javascript';
+  }
+  
+  if (!hasCurlyBraces && !hasSemicolon && !hasImport && !hasConst && !hasLet && !hasFunction && !hasArrowFunction) {
     return null;
   }
 
@@ -222,9 +314,14 @@ export const detectJavaScript: LanguageDetector = (ctx) => {
     (/!\s*function\s*\(/.test(first100Lines) ? 2 : 0) +
     (/\$\s*\(/.test(first100Lines) ? 1 : 0) +
     (/\bexport\s+(function|const|class|default)/.test(first100Lines) ? 2 : 0) +
-    (/\bimport\.meta\b/.test(first100Lines) ? 2 : 0)
+    (/\bimport\.meta\b/.test(first100Lines) ? 2 : 0) +
+    (hasArrowFunction ? 1 : 0) +
+    // JavaScript class with constructor
+    (/\bclass\s+\w+\s*\{[\s\S]*?\bconstructor\s*\(/.test(code) ? 2 : 0)
   );
 
+  // Don't give points for just having class keyword, as C++ also has it
+  // Only return JavaScript if we have strong indicators
   if (jsScore >= 2) {
     return 'javascript';
   }

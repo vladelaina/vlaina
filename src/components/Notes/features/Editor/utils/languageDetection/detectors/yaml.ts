@@ -3,6 +3,63 @@ import type { LanguageDetector } from '../types';
 export const detectYAML: LanguageDetector = (ctx) => {
   const { code, lines, first100Lines, firstLine } = ctx;
 
+  // Simple single-line YAML patterns
+  if (lines.length <= 3) {
+    if (/^[\w-]+:\s+\w+/.test(code.trim())) {
+      if (!/\{|\}|;|function|class|def|import|package/.test(code)) {
+        return 'yaml';
+      }
+    }
+  }
+
+  // Kubernetes YAML (must be before Makefile check)
+  if (/\b(apiVersion|kind|metadata|spec|services|volumes|networks):\s*/.test(first100Lines)) {
+    return 'yaml';
+  }
+
+  // Docker Compose YAML (very strong indicator)
+  if (/^version:\s*['"]?\d+(\.\d+)?['"]?\s*$/m.test(first100Lines)) {
+    if (/\b(services|volumes|networks):\s*$/m.test(code)) {
+      return 'yaml';
+    }
+  }
+
+  // Docker Compose services structure (very strong indicator)
+  if (/^services:\s*$/m.test(code) && /^\s{2,}\w+:\s*$/m.test(code)) {
+    if (/\b(image|build|ports|environment|depends_on|volumes):\s*/.test(code)) {
+      return 'yaml';
+    }
+  }
+
+  // Docker Compose depends_on (strong indicator)
+  if (/\bdepends_on:\s*$/m.test(code)) {
+    return 'yaml';
+  }
+
+  // Docker Compose environment variables (list format)
+  if (/\benvironment:\s*$/m.test(code) && /^\s+-\s+\w+=/m.test(code)) {
+    return 'yaml';
+  }
+
+  // Docker Compose volumes mapping
+  if (/\bvolumes:\s*$/m.test(code) && /^\s+-\s+[./]/.test(code)) {
+    return 'yaml';
+  }
+
+  // Docker Compose image specification
+  if (/\bimage:\s*\w+:\d+/.test(code) && /\bservices:\s*$/m.test(code)) {
+    return 'yaml';
+  }
+
+  // YAML with nested structure (indentation)
+  if (/^[\w-]+:\s*$/m.test(code) && /^\s{2,}[\w-]+:\s*/m.test(code)) {
+    // Check if it's not Makefile (Makefile uses tabs)
+    if (!/^\t/m.test(code) && !/\$\(/.test(code)) {
+      return 'yaml';
+    }
+  }
+
+  // YAML document separator
   if (/^---\s*$/m.test(code)) {
 
     if (/\b(import|export)\s+/.test(code) || /<\w+/.test(code)) {
@@ -12,14 +69,6 @@ export const detectYAML: LanguageDetector = (ctx) => {
     if (/^[\w-]+:\s+/m.test(code) || /^\s{2,}[\w-]+:/m.test(code)) {
       return 'yaml';
     }
-  }
-
-  if (/^\.\.\.\s*$/m.test(code) && /^[\w-]+:\s+/m.test(code)) {
-    return 'yaml';
-  }
-
-  if (/\b(apiVersion|kind|metadata|spec|services|volumes|networks):\s*/.test(first100Lines)) {
-    return 'yaml';
   }
 
   if (/^(hint|path|define|symbol|cs|gc|opt|warning)\[?\w*\]?:/m.test(first100Lines)) {

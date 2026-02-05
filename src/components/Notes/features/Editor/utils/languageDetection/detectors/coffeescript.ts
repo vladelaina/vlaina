@@ -67,25 +67,25 @@ export const detectCoffeeScript: LanguageDetector = (ctx) => {
     }
   }
 
+  // CoffeeScript arrow functions (very distinctive)
   if (/->|=>/.test(code)) {
-
+    // Check for CoffeeScript-specific patterns
     if (/\w+\s*=\s*\([^)]*\)\s*->/.test(code) ||
         /\w+\s*=\s*->/.test(code) ||
         /\([^)]*\)\s*->/.test(code) ||
         /\w+:\s*\([^)]*\)\s*->/.test(code)) {
       return 'coffeescript';
     }
+    
+    // CoffeeScript assignment with arrow
+    if (/^\w+\s*=\s*\([^)]*\)\s*->/m.test(code)) {
+      return 'coffeescript';
+    }
   }
 
-  if (/^class\s+\w+/m.test(code)) {
-
-    if (/->|=>/.test(code) || /\bextends\s+\w+/.test(code)) {
-      return 'coffeescript';
-    }
-
-    if (/constructor:\s*\([^)]*@/.test(code)) {
-      return 'coffeescript';
-    }
+  // CoffeeScript comprehension
+  if (/\w+\s*=\s*\([^)]*for\s+\w+\s+in\s+/.test(code)) {
+    return 'coffeescript';
   }
 
   if (/for\s+\w+\s+in\s+/.test(code) && /->/.test(code)) {

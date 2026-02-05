@@ -1,7 +1,24 @@
 import type { LanguageDetector } from '../types';
 
 export const detectLiquid: LanguageDetector = (ctx) => {
-  const { code } = ctx;
+  const { code, lines } = ctx;
+
+  // Simple single-line Liquid patterns
+  if (lines.length <= 3) {
+    const trimmed = code.trim();
+    // Liquid variable with page object: <h1>{{ page.title }}</h1>
+    if (/^<\w+>\{\{\s*page\.\w+\s*\}\}<\/\w+>$/.test(trimmed)) {
+      return 'liquid';
+    }
+    if (/\{\{\s*\w+\.\w+\s*\}\}/.test(code) && !/\{%/.test(code)) {
+      // Check if it's Liquid-specific (page, site, etc.)
+      if (/\{\{\s*(page|site|content|layout)\.\w+/.test(code)) {
+        return 'liquid';
+      }
+      // Otherwise, let Jinja handle it (more common)
+      return null;
+    }
+  }
 
   if (/\{%\s*(extends|block|macro|set|import)\b/.test(code)) {
     return null;

@@ -1,7 +1,30 @@
 import type { LanguageDetector } from '../types';
 
 export const detectTOML: LanguageDetector = (ctx) => {
-  const { code, first100Lines, firstLine } = ctx;
+  const { code, first100Lines, firstLine, lines } = ctx;
+
+  // Simple single-line TOML patterns: [server] or host = "localhost"
+  if (lines.length <= 3) {
+    const trimmed = code.trim();
+    // TOML section header: [server]
+    if (/^\[[\w.-]+\]\s*$/.test(trimmed)) {
+      return 'toml';
+    }
+    // Multiple lines with section and key-value
+    if (/^\[[\w.-]+\]\s*\n[\w-]+\s*=/.test(code)) {
+      return 'toml';
+    }
+    // TOML key-value: host = "localhost"
+    if (/^[\w-]+\s*=\s*["']/.test(trimmed)) {
+      if (!/\{|\}|;|function|class|def|import|package|:/.test(code)) {
+        return 'toml';
+      }
+    }
+    // TOML key-value with number: port = 8080
+    if (/^[\w-]+\s*=\s*\d+\s*$/.test(trimmed)) {
+      return 'toml';
+    }
+  }
 
   if (/^(version|author|description|license|srcDir|binDir|skipDirs)\s*=/m.test(code)) {
     if (/\brequires\s+["']|^task\s+\w+,/m.test(code)) {
@@ -22,6 +45,11 @@ export const detectTOML: LanguageDetector = (ctx) => {
   }
 
   if (/\b(name|version|organization|libraryDependencies)\s*:=/.test(first100Lines)) {
+    return null;
+  }
+
+  // Exclude CoffeeScript (has arrow functions)
+  if (/->|=>/.test(first100Lines)) {
     return null;
   }
 
@@ -46,10 +74,25 @@ export const detectTOML: LanguageDetector = (ctx) => {
   }
 
   if (/^\[[\w.-]+\]\s*$/m.test(code)) {
+    if ((/\bname\s*=\s*["']/.test(code) && /\bversion\s*=\s*["']/.test(code)) || /\bauthors\s*=\s*\[/.test(code) || /\[package\]/.test(code)) {
+      return 'toml';
+    }
+  }
+
+  if (/\[package\]\s*\n\s*name\s*=/.test(code)) {
+    return 'toml';
+  }
+
+  if (/\[package\]/.test(code) && /\bname\s*=\s*["']/.test(code) && /\bversion\s*=\s*["']/.test(code)) {
     return 'toml';
   }
 
   if (/^[\w.-]+\s*=\s*.+$/m.test(code)) {
+
+    // Exclude Julia vectorized operations (.^, .+, .*, etc.)
+    if (/\.\^|\.\+|\.\*|\.\//.test(code)) {
+      return null;
+    }
 
     if (/\[\[.*\]\]|"""/.test(code)) {
       return 'toml';

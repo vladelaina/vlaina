@@ -1,7 +1,23 @@
 import type { LanguageDetector } from '../types';
 
 export const detectCrystal: LanguageDetector = (ctx) => {
-  const { code, first100Lines, firstLine } = ctx;
+  const { code, first100Lines, firstLine, lines } = ctx;
+
+  // Crystal type annotations
+  if (/:\s*[A-Z]\w*/.test(code) && /\b(def|class|property|getter|setter)\b/.test(code)) {
+    if (/^#!.*crystal/.test(firstLine) || /require\s+["']/.test(first100Lines) || /\b(property|getter|setter)\b/.test(code)) {
+      return 'crystal';
+    }
+    // If it's just a simple puts with no Crystal-specific features, let Ruby handle it
+    if (lines.length <= 3 && /^puts\s+["']/.test(code.trim())) {
+      return null;
+    }
+  }
+
+  // Crystal property macro
+  if (/\b(property|getter|setter)\s+\w+\s*:\s*[A-Z]\w*/.test(code)) {
+    return 'crystal';
+  }
 
   if (/^use\s+(strict|warnings|lib)\b/m.test(first100Lines) ||
       /^package\s+[\w:]+;/m.test(first100Lines) ||
@@ -10,7 +26,6 @@ export const detectCrystal: LanguageDetector = (ctx) => {
   }
 
   if (/\b(def\s+\w+|class\s+\w+|module\s+\w+)\b/.test(first100Lines)) {
-
     if (!/\b(require|lib|fun|property|getter|setter|describe|it|assert_type)\b/.test(first100Lines) &&
         !/:\s*[A-Z]\w*/.test(code) &&
         !/^#!.*crystal/.test(firstLine) &&
@@ -32,7 +47,6 @@ export const detectCrystal: LanguageDetector = (ctx) => {
   }
 
   if (/\b(let\s+\w+\s*=|module\s+\w+|open\s+\w+|namespace\s+\w+)\b/.test(first100Lines) && /->/.test(code)) {
-
     if (!/\b(require|class|def|end|describe|it)\b/.test(first100Lines)) {
       return null;
     }
@@ -63,7 +77,6 @@ export const detectCrystal: LanguageDetector = (ctx) => {
   }
 
   if (/\bdescribe\s+["']/.test(code) && /\bit\s+["']/.test(code)) {
-
     if (/\b(run|to_i|to_f32|to_b|should|assert_type)\(/.test(code) ||
         /\.should\s+(eq|be_true|be_false|be_nil)/.test(code)) {
       return 'crystal';
@@ -75,16 +88,13 @@ export const detectCrystal: LanguageDetector = (ctx) => {
   }
 
   if (/@\w+\s*::\s*[A-Z]\w*/.test(code) || /\w+\s*::\s*[A-Z]\w*/.test(code)) {
-
     if (/\b(def|class|module|require)\b/.test(code)) {
       return 'crystal';
     }
   }
 
   if (/:\s*[A-Z]\w*(\s*\|\s*[A-Z]\w*)*/.test(code)) {
-
     if (/\b(def|class|module|struct|enum|macro|lib|fun|alias|annotation)\b/.test(code)) {
-
       if (/\brequire\s+["']/.test(first100Lines) ||
           /\bproperty\s+\w+/.test(code) ||
           /\bgetter\s+\w+/.test(code) ||
@@ -111,7 +121,6 @@ export const detectCrystal: LanguageDetector = (ctx) => {
   }
 
   if (/\.(to_i|to_f32|to_f64|to_b|to_s)\b/.test(code)) {
-
     if (/\b(def|class|module|require)\b/.test(code)) {
       return 'crystal';
     }
@@ -119,6 +128,24 @@ export const detectCrystal: LanguageDetector = (ctx) => {
 
   if (/\.should\s+(eq|be_true|be_false|be_nil)/.test(code)) {
     return 'crystal';
+  }
+
+  if (/\busers\.(select|map|filter|reject)\s*\(&\./.test(code)) {
+    return 'crystal';
+  }
+
+  // Simple puts statement - only Crystal if it has Crystal-specific features
+  if (lines.length <= 3 && /\bputs\s+/.test(code)) {
+    // Check for Crystal-specific features
+    if (/\b(require|property|getter|setter|:\s*[A-Z]\w*)\b/.test(code)) {
+      return 'crystal';
+    }
+    // Crystal type annotation with space before colon
+    if (/\w+\s*:\s*[A-Z]\w*\s*=/.test(code)) {
+      return 'crystal';
+    }
+    // Otherwise, let Ruby handle it
+    return null;
   }
 
   return null;

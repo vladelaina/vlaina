@@ -39,8 +39,20 @@ export const detectErlang: LanguageDetector = (ctx) => {
     return 'erlang';
   }
 
-  if (/^\w+\([^)]*\)\s*->/m.test(code) && /\.$/.test(code.trim())) {
+  if (/\blists:(filter|map|foldl|foldr|foreach|any|all)\s*\(/.test(code)) {
     return 'erlang';
+  }
+
+  // Erlang function definition with pattern matching
+  if (/^\w+\([^)]*\)\s*->/m.test(code)) {
+    // Check if it ends with a period (Erlang requirement)
+    if (/\.\s*$/.test(code.trim())) {
+      return 'erlang';
+    }
+    // Check for Erlang-specific patterns
+    if (/\bfun\s*\(\w+\)\s*->/.test(code) || /;$/.test(code.trim())) {
+      return 'erlang';
+    }
   }
 
   return null;

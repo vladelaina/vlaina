@@ -35,6 +35,47 @@ export const detectShell: LanguageDetector = (ctx) => {
     return null;
   }
 
+  // Pipe patterns: cat file.txt | grep "error" | wc -l
+  if (/\|/.test(code)) {
+    const pipeCount = (code.match(/\|/g) || []).length;
+    if (pipeCount >= 2 && lines.length <= 3) {
+      // Check for common shell commands
+      if (/\b(cat|grep|awk|sed|wc|sort|uniq|head|tail|cut|tr)\b/.test(code)) {
+        return 'bash';
+      }
+    }
+  }
+  
+  // Shell function definition: function backup() {
+  if (/^function\s+\w+\s*\(\s*\)\s*\{/m.test(code)) {
+    // Make sure it's not PowerShell or other languages
+    if (!/\b(param|Get-|Set-|New-|Test-)\b/.test(code)) {
+      return 'bash';
+    }
+  }
+
+  // Simple single-line shell patterns
+  if (lines.length <= 3) {
+    if (/^echo\s+/.test(code.trim())) {
+      return 'bash';
+    }
+  }
+
+  if (/\b(find|docker|curl|wget|git|npm|yarn|pip|apt|yum)\s+/.test(code)) {
+    if (lines.length <= 3) {
+      return 'bash';
+    }
+  }
+
+  if (/^(find|docker|curl|wget|git|npm|yarn)\s+/.test(firstLine)) {
+    return 'bash';
+  }
+
+  // Shell if statement
+  if (/\bif\s+\[/.test(code) && /\bthen\b/.test(code) && /\bfi\b/.test(code)) {
+    return 'bash';
+  }
+
   if (/^set\s+-[euxo]/.test(firstLine)) {
     return 'bash';
   }
@@ -43,6 +84,14 @@ export const detectShell: LanguageDetector = (ctx) => {
     if (/\b(echo|export|source|cd|ls|grep|awk|sed)\b/.test(first100Lines)) {
       return 'bash';
     }
+  }
+
+  if (/^awk\s+['"]/.test(code)) {
+    return 'bash';
+  }
+
+  if (/^sed\s+-i\s+/.test(code)) {
+    return 'bash';
   }
 
   if (/\b(echo|export|source|alias|cd|ls|grep|awk|sed|chmod|chown)\b/.test(first100Lines)) {

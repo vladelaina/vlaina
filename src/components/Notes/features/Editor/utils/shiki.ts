@@ -112,6 +112,7 @@ const getLanguagesWithoutIcons = () => {
 };
 
 export const SUPPORTED_LANGUAGES = [
+  { id: 'txt' as BundledLanguage, name: 'TXT', aliases: ['text', 'plaintext'] },
   ...LANGUAGES_WITH_ICONS,
   ...getLanguagesWithoutIcons()
 ];

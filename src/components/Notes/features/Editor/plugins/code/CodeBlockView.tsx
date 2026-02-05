@@ -85,11 +85,8 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
     const code = node.textContent;
     const guessed = guessLanguage(code);
     
-    if (guessed) {
-        updateLanguage(guessed);
-        // Auto-close the dropdown after successful detection
-        setIsLangMenuOpen(false);
-    }
+    updateLanguage(guessed || 'txt');
+    setIsLangMenuOpen(false);
   };
 
   const handleCopy = (e: React.MouseEvent) => {

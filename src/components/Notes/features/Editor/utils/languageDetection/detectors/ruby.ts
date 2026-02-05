@@ -1,7 +1,22 @@
 import type { LanguageDetector } from '../types';
 
 export const detectRuby: LanguageDetector = (ctx) => {
-  const { sample, first100Lines, firstLine, hasCurlyBraces } = ctx;
+  const { sample, first100Lines, firstLine, hasCurlyBraces, code, lines } = ctx;
+
+  // Simple single-line Ruby patterns
+  if (lines.length <= 3) {
+    // Ruby symbol assignment: status = :active
+    if (/^\w+\s*=\s*:\w+$/.test(code.trim())) {
+      return 'ruby';
+    }
+    
+    if (/^puts\s+["']/.test(code.trim())) {
+      // Check if it's NOT Crystal (no type annotations, no @property)
+      if (!/:/.test(code) && !/@property/.test(code) && !/@\[/.test(code)) {
+        return 'ruby';
+      }
+    }
+  }
 
   if (/^#'/m.test(first100Lines)) {
     return null;
@@ -52,12 +67,93 @@ export const detectRuby: LanguageDetector = (ctx) => {
     return null;
   }
 
+  if (/\bUser\.(where|find|create|update|delete|all|first|last|includes)/.test(code)) {
+    if (!/\.objects\./.test(code)) {
+      return 'ruby';
+    }
+  }
+
+  if (/\.(select|map|filter|reject)\s*\(&:/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/\bdefine_method\s*\(:/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/\.(where|order|limit|includes)\s*\(/.test(code) && /:\w+/.test(code)) {
+    if (!/\bUser\.objects\./.test(code)) {
+      return 'ruby';
+    }
+  }
+
+  if (/\b(has_many|belongs_to|has_one|validates|before_save|after_create)\b/.test(code)) {
+    return 'ruby';
+  }
+
+  // Rails ActiveRecord scopes and DSL (strong indicators)
+  if (/\bscope\s+:\w+,\s*->/.test(code) ||
+      /class\s+\w+\s*<\s*(ApplicationRecord|ActiveRecord::Base)/.test(code) ||
+      /\bvalidates\s+:\w+,\s+(presence|uniqueness|length):/.test(code)) {
+    return 'ruby';
+  }
+
+  // Rails dependent: :destroy pattern
+  if (/has_many\s+:\w+,\s+dependent:\s*:destroy/.test(code)) {
+    return 'ruby';
+  }
+
+  // Rails before_save, after_create callbacks
+  if (/\b(before_save|after_create|before_validation|after_validation)\s+:\w+/.test(code)) {
+    return 'ruby';
+  }
+
+  // Rails model with multiple associations (very strong indicator)
+  if (/\b(has_many|belongs_to|has_one)\s+:\w+/.test(code)) {
+    const associationCount = (code.match(/\b(has_many|belongs_to|has_one)\s+:/g) || []).length;
+    if (associationCount >= 2) {
+      return 'ruby';
+    }
+  }
+
+  // Rails scope with lambda (very strong indicator)
+  if (/\bscope\s+:\w+,\s*->\s*\{/.test(code)) {
+    return 'ruby';
+  }
+
+  // Rails where clause in scope
+  if (/\bscope\s+:\w+,\s*->\s*\{\s*where\(/.test(code)) {
+    return 'ruby';
+  }
+
+  // Rails order with symbol
+  if (/\border\s*\(\s*created_at:\s*:desc\s*\)/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/\.(select|map|filter|reject|each)\s*\{\s*\|\w+\|/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/\.\w+\s*\{\s*\|/.test(code)) {
+    if (/\bend\b/.test(code) || /\}\s*\./.test(code)) {
+      return 'ruby';
+    }
+  }
+
   if (firstLine.startsWith('# encoding:') || firstLine.startsWith('# frozen_string_literal:') || firstLine.startsWith('# typed:')) {
     return 'ruby';
   }
 
   if (/^require\s+/.test(first100Lines) || /^require_relative\s+/.test(first100Lines)) {
     if (/\b(module\s+\w+|class\s+\w+|def\s+\w+|end\b|attr_reader|attr_accessor|attr_writer)\b/.test(first100Lines)) {
+      return 'ruby';
+    }
+  }
+
+  // Ruby block iteration
+  if (/\.(each|map|select|reject|filter)\s+(do\s+\||\{)/.test(code)) {
+    if (/\bend\b/.test(code) || /\}\s*$/.test(code)) {
       return 'ruby';
     }
   }

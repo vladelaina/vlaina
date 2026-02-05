@@ -1,7 +1,20 @@
 import type { LanguageDetector } from '../types';
 
 export const detectZig: LanguageDetector = (ctx) => {
-  const { code, first100Lines } = ctx;
+  const { code, first100Lines, lines } = ctx;
+
+  // Simple single-line Zig patterns
+  if (lines.length <= 3) {
+    const trimmed = code.trim();
+    // Zig function: fn add(a: i32, b: i32) i32 { return a + b; }
+    if (/^fn\s+\w+\s*\([^)]*\)\s+i\d+\s*\{/.test(trimmed)) {
+      return 'zig';
+    }
+    // Zig pub fn
+    if (/^pub\s+fn\s+\w+\s*\([^)]*\)\s+i\d+/.test(trimmed)) {
+      return 'zig';
+    }
+  }
 
   if (/\b(impl\s+\w+|use\s+std::|fn\s+main\(\)\s*\{)\b/.test(first100Lines)) {
 
@@ -19,6 +32,44 @@ export const detectZig: LanguageDetector = (ctx) => {
   }
 
   if (/\bconst\s+\w+\s*=\s*@import/.test(first100Lines)) {
+    return 'zig';
+  }
+
+  if (/\bconst\s+\w+\s*=\s*std\.\w+/.test(first100Lines)) {
+    if (/@\w+\(/.test(first100Lines) || /!\s*void/.test(first100Lines) || /std\.heap\./.test(first100Lines)) {
+      return 'zig';
+    }
+  }
+
+  if (/\bconst\s+ArrayList\s*=\s*std\.ArrayList/.test(code)) {
+    return 'zig';
+  }
+
+  if (/\bpub\s+fn\s+\w+\s*\([^)]*\)\s+i\d+/.test(code)) {
+    return 'zig';
+  }
+
+  if (/\btry\s+std\.(io|fs|mem|heap|debug)\./.test(first100Lines)) {
+    return 'zig';
+  }
+
+  if (/\btry\s+std\.io\.getStdOut\(\)\.writer\(\)\.print/.test(code)) {
+    return 'zig';
+  }
+
+  if (/\btry\s+std\.io\.getStdOut\(\)/.test(code)) {
+    return 'zig';
+  }
+
+  if (/std\.io\.getStdOut\(\)\.writer\(\)/.test(code)) {
+    return 'zig';
+  }
+
+  if (/\bstd\.heap\.\w+/.test(first100Lines)) {
+    return 'zig';
+  }
+
+  if (/\bstd\.io\.getStdOut\(\)/.test(first100Lines)) {
     return 'zig';
   }
 

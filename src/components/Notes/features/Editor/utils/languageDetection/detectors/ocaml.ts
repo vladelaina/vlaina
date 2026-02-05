@@ -1,7 +1,48 @@
 import type { LanguageDetector } from '../types';
 
 export const detectOCaml: LanguageDetector = (ctx) => {
-  const { code, first100Lines, firstLine } = ctx;
+  const { code, first100Lines, firstLine, lines } = ctx;
+
+  // Simple single-line OCaml patterns
+  if (lines.length <= 3) {
+    // OCaml single-line function: let square x = x * x
+    if (/^let\s+\w+\s+\w+\s*=\s*\w+\s*\*\s*\w+$/.test(code.trim())) {
+      return 'ocaml';
+    }
+  }
+
+  // OCaml recursive function (must be before F# check)
+  if (/^let\s+rec\s+\w+/.test(first100Lines)) {
+    // Exclude F# (F# uses printfn, OCaml uses printf or print_endline)
+    if (/\bprintfn\b/.test(code)) {
+      return null;
+    }
+    return 'ocaml';
+  }
+
+  // OCaml function with if/then/else
+  if (/\blet\s+rec\s+\w+\s+\w+\s*=/.test(code)) {
+    if (/\bif\s+\w+\s*<=/.test(code) && /\bthen\b/.test(code) && /\belse\b/.test(code)) {
+      // Exclude F# (F# uses printfn)
+      if (/\bprintfn\b/.test(code)) {
+        return null;
+      }
+      return 'ocaml';
+    }
+  }
+
+  // Exclude F# pattern matching with printfn
+  if (/\bmatch\s+\w+\s+with/.test(first100Lines) && /\bprintfn\b/.test(code)) {
+    return null;
+  }
+
+  if (/\bdata\s+class\s+\w+\s*\(/.test(first100Lines)) {
+    return null;
+  }
+
+  if (/\b(val|var)\s+\w+:\s*\w+/.test(first100Lines) && /\bfun\s+\w+/.test(first100Lines)) {
+    return null;
+  }
 
   if (/^function\s+/.test(firstLine)) {
     if (/^%\s/m.test(first100Lines) ||
@@ -75,6 +116,13 @@ export const detectOCaml: LanguageDetector = (ctx) => {
     return 'ocaml';
   }
 
+  if (/\bList\.filter\s*\(/.test(code) && /\|>/.test(code)) {
+    if (/\bfun\s+\w+\s*->\s*\w+\s*>\s*\d+/.test(code) && !/\b[A-Z]\w*\b/.test(code.match(/fun\s+\w+\s*->.*$/)?.[0] || '')) {
+      return 'ocaml';
+    }
+    return 'ocaml';
+  }
+
   if (/\|\s*\w+\s*->/.test(code)) {
 
     if (/\b(let|match)\b/.test(code)) {
@@ -87,9 +135,10 @@ export const detectOCaml: LanguageDetector = (ctx) => {
   }
 
   if (/\btype\s+\w+\s*=/.test(code)) {
-
     if (/\|\s*\w+|\bof\b|\bbegin\b|\bend\b/.test(code)) {
-      return 'ocaml';
+      if (!/\bdata\s+class\b/.test(code)) {
+        return 'ocaml';
+      }
     }
   }
 

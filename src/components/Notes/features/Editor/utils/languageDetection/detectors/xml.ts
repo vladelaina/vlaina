@@ -7,6 +7,11 @@ export const detectXML: LanguageDetector = (ctx) => {
     return null;
   }
 
+  // Exclude template languages with {{ }} syntax
+  if (/\{\{[\s\S]*?\}\}/.test(code)) {
+    return null;
+  }
+
   if (/\{%\s*(extends|block|macro|set|import)\b/.test(code)) {
     return null;
   }

@@ -1,7 +1,22 @@
 import type { LanguageDetector } from '../types';
 
 export const detectJulia: LanguageDetector = (ctx) => {
-  const { code, first100Lines } = ctx;
+  const { code, first100Lines, lines } = ctx;
+
+  // Simple single-line Julia patterns
+  if (lines.length <= 3) {
+    const trimmed = code.trim();
+    // Julia single-line function: f(x) = x^2 + 2x + 1
+    if (/^[a-z_]\w*\s*\([^)]*\)\s*=\s*.+$/.test(trimmed)) {
+      // Check if it's not other languages
+      if (!/\{|\}|;|function|def|=>/.test(trimmed)) {
+        return 'julia';
+      }
+    }
+    if (/^println\s*\(/.test(trimmed) && /\^\d+/.test(code)) {
+      return 'julia';
+    }
+  }
 
   if (/^use\s+(strict|warnings|lib)\b/m.test(first100Lines) ||
       /^package\s+[\w:]+;/m.test(first100Lines) ||
@@ -23,8 +38,79 @@ export const detectJulia: LanguageDetector = (ctx) => {
     return null;
   }
 
+  // Julia vectorized operations: x .^ 2 .+ 2 .* x
+  if (/\.\^|\.\+|\.\*|\.\//.test(code)) {
+    // Check if it's Julia-style vectorized operations
+    if (/\w+\s*=\s*\[[\d\s,]+\]/.test(code) || /\w+\s*\.\^\s*\d+/.test(code)) {
+      return 'julia';
+    }
+  }
+
+  // Julia array operations (must be before Makefile check)
+  if (/\[[\d\s]+;[\d\s]+\]/.test(code) || /\.\^/.test(code)) {
+    return 'julia';
+  }
+
+  // Julia array with semicolon separator
+  if (/\w+\s*=\s*\[[\d\s]+;[\d\s]+\]/.test(code)) {
+    return 'julia';
+  }
+
+  // Julia array with space-separated elements
+  if (/\w+\s*=\s*\[[\d\s]+\]/.test(code) && /\.\^/.test(code)) {
+    return 'julia';
+  }
+
+  // Julia struct definition: struct Point{T<:Real}
+  if (/^struct\s+[A-Z]\w*\{[^}]+\}/m.test(code)) {
+    return 'julia';
+  }
+
   if (/^[\w-]+\s*=\s*[^=]/m.test(code) && !/\bfunction\b|\bend\b/.test(first100Lines)) {
+    if (/\[\s*\w+\s*\^\s*\d+\s+for\s+\w+\s+in\s+\d+:\d+/.test(code)) {
+      return 'julia';
+    }
+    // Don't return null here - let other checks continue
+  }
+
+  if (/\bprintln\s*\(/.test(code) && /\d+\^\d+/.test(code)) {
+    return 'julia';
+  }
+
+  if (/@time\s+/.test(code)) {
+    return 'julia';
+  }
+
+  if (/\bwith\s+\w+\s*\(/.test(code) && /\bas\s+\w+:/.test(code)) {
     return null;
+  }
+
+  if (/\blambda\s+\w+/.test(code)) {
+    return null;
+  }
+
+  if (/\w+\s*=\s*\[\s*\w+\s*\^\s*\d+\s+for\s+\w+\s+in\s+\d+:\d+/.test(code)) {
+    return 'julia';
+  }
+
+  if (/\[.+\s+for\s+\w+\s+in\s+.+\]/.test(code)) {
+    if (!/\bdef\s+\w+/.test(first100Lines)) {
+      if (/\d+:\d+/.test(code) || /@time\b/.test(code) || /\bprintln\b/.test(code)) {
+        return 'julia';
+      }
+    }
+  }
+
+  if (/\[\s*\w+\s*\^\s*\d+\s+for\s+\w+\s+in\s+\d+:\d+/.test(code)) {
+    return 'julia';
+  }
+
+  if (/\[\s*\w+\s*\*\*\s*\d+\s+for\s+\w+\s+in\s+range\(/.test(code)) {
+    return null;
+  }
+
+  if (/\bfor\s+\w+\s+in\s+\d+:\d+/.test(code)) {
+    return 'julia';
   }
 
   if (/^function\s+\w+\s*\(/m.test(first100Lines) && /\bend\b/.test(code)) {
@@ -34,6 +120,34 @@ export const detectJulia: LanguageDetector = (ctx) => {
         /\[[\d\s.]+\]/.test(first100Lines)) {
       return 'julia';
     }
+  }
+
+  // Julia function definition (must be before Lua check)
+  if (/^function\s+\w+\s*\(/m.test(first100Lines) && /\bend\b/.test(code)) {
+    // Check for Julia-specific patterns
+    if (/^##/.test(first100Lines) ||
+        /\b(zeros|ones|rand|randn|println|using|module)\b/.test(first100Lines) ||
+        /\[[\d\s.]+\]/.test(first100Lines) ||
+        /\bif\s+\w+\s*<=/.test(code) ||
+        /\breturn\s+\w+\([^)]*\)\s*\+/.test(code) ||
+        /\breturn\s+\w+/.test(code)) {
+      return 'julia';
+    }
+  }
+
+  // Julia array operations (must be before Makefile check)
+  if (/\[[\d\s]+;[\d\s]+\]/.test(code) || /\.\^/.test(code)) {
+    return 'julia';
+  }
+
+  // Julia array with semicolon separator
+  if (/\w+\s*=\s*\[[\d\s]+;[\d\s]+\]/.test(code)) {
+    return 'julia';
+  }
+
+  // Julia array with space-separated elements
+  if (/\w+\s*=\s*\[[\d\s]+\]/.test(code) && /\.\^/.test(code)) {
+    return 'julia';
   }
 
   if (/\b(module|using|import)\s+[A-Z]\w*/.test(first100Lines)) {

@@ -3,6 +3,24 @@ import type { LanguageDetector } from '../types';
 export const detectSass: LanguageDetector = (ctx) => {
   const { code, first100Lines } = ctx;
 
+  if (/@[\w-]+:\s*#[0-9a-fA-F]{3,6};/.test(code) && /darken\s*\(@[\w-]+/.test(code)) {
+    return null;
+  }
+
+  // Simple single-line SCSS variable: $primary-color: #007bff;
+  if (ctx.lines.length <= 3) {
+    const trimmed = code.trim();
+    if (/^\$[\w-]+:\s*#[0-9a-fA-F]{3,6};?$/.test(trimmed)) {
+      return 'scss';
+    }
+    if (/^\$[\w-]+:\s*[^;]+;?$/.test(trimmed)) {
+      // Make sure it's not PowerShell or Perl
+      if (!/\b(param|Get-|Set-|my\s+\$|sub\s+)\b/.test(code)) {
+        return 'scss';
+      }
+    }
+  }
+
   if (/#include\s*[<"]/.test(first100Lines)) {
     return null;
   }
@@ -47,6 +65,14 @@ export const detectSass: LanguageDetector = (ctx) => {
 
     if (/\$[\w-]+:\s*[^;]+;/.test(code)) {
 
+      if (/&:(hover|focus|active|before|after|first-child|last-child)/.test(code) || /&--\w+/.test(code) || /&\.\w+/.test(code)) {
+        return 'scss';
+      }
+
+      if (/\b(darken|lighten|saturate|desaturate|adjust-hue|rgba|mix)\s*\(/.test(code)) {
+        return 'scss';
+      }
+
       if (/\b(color|background|margin|padding|border|width|height|display|position|font-size|font-family)\s*:/.test(code) ||
           /@(mixin|include|extend|import|use|forward)\b/.test(code)) {
         return 'scss';
@@ -54,12 +80,16 @@ export const detectSass: LanguageDetector = (ctx) => {
     }
   }
 
-  if (/\$[\w-]+:\s*[^;]+;/.test(code)) {
+  if (/\$[\w-]+:\s*[^;]+;/.test(code) && (/&/.test(code) || /\bdarken\(/.test(code))) {
+    return 'scss';
+  }
 
-    if (/@(mixin|include|extend|import|use|forward)\b/.test(code) ||
-        /\b(color|background|margin|padding|border|width|height|display|position|font-size)\s*:/.test(code)) {
-      return 'scss';
-    }
+  if (/&:(hover|focus|active|before|after)/.test(code) && /\{[\s\S]*?\}/.test(code)) {
+    return 'scss';
+  }
+
+  if (/\bdarken\s*\(\s*\$\w+/.test(code)) {
+    return 'scss';
   }
 
   if (!/[{}]/.test(code) && !/;/.test(code)) {

@@ -28,6 +28,16 @@ export const detectCSS: LanguageDetector = (ctx) => {
     return null;
   }
 
+  // CSS custom properties (variables): :root { --primary-color: #007bff; }
+  if (/:root\s*\{/.test(code) && /--[\w-]+:\s*[^;]+;/.test(code)) {
+    return 'css';
+  }
+  
+  // CSS @keyframes animation
+  if (/@keyframes\s+[\w-]+\s*\{/.test(code)) {
+    return 'css';
+  }
+
   if (/[.#][\w-]+\s*\{/.test(first100Lines) ||
       /^[\w-]+\s*\{/.test(first100Lines) ||
       /@(media|import|keyframes|font-face)/.test(first100Lines)) {

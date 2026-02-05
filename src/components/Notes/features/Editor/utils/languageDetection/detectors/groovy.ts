@@ -1,7 +1,16 @@
 import type { LanguageDetector } from '../types';
 
 export const detectGroovy: LanguageDetector = (ctx) => {
-  const { code, first100Lines, firstLine } = ctx;
+  const { code, first100Lines, firstLine, lines } = ctx;
+
+  // Simple single-line Groovy patterns
+  if (lines.length <= 3) {
+    const trimmed = code.trim();
+    // Groovy closure: def square = { it * it }
+    if (/^def\s+\w+\s*=\s*\{\s*it\s*[*+\-\/]/.test(trimmed)) {
+      return 'groovy';
+    }
+  }
 
   if (/^#!.*groovy/.test(firstLine)) {
     return 'groovy';
@@ -45,6 +54,18 @@ export const detectGroovy: LanguageDetector = (ctx) => {
     return null;
   }
 
+  // Exclude Ruby Rails models (strong Ruby indicators)
+  if (/class\s+\w+\s*<\s*(ApplicationRecord|ActiveRecord::Base)/.test(first100Lines)) {
+    return null;
+  }
+
+  if (/\b(has_many|belongs_to|validates)\s+:\w+/.test(first100Lines)) {
+    const railsCount = (code.match(/\b(has_many|belongs_to|has_one|validates|scope|before_save|after_create)\b/g) || []).length;
+    if (railsCount >= 2) {
+      return null;
+    }
+  }
+
   if (/^\(ns\s+|^\(def\s+|^\(defn\s+/.test(first100Lines)) {
     return null;
   }
@@ -67,6 +88,16 @@ export const detectGroovy: LanguageDetector = (ctx) => {
 
   if (/^[\w-]+:\s*$/m.test(code) && /^\t/.test(code)) {
     return null;
+  }
+
+  if (/\bdef\s+\w+\s*=.*\.(findAll|collect|each|eachWithIndex)\s*\{/.test(code)) {
+    return 'groovy';
+  }
+
+  if (/\bprintln\s+["']/.test(code) && !/;/.test(code)) {
+    if (lines.length <= 3) {
+      return 'groovy';
+    }
   }
 
   if (/\bdef\s+\w+\s*=|\bdef\s+\w+\(/.test(code)) {

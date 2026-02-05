@@ -1,7 +1,15 @@
 import type { LanguageDetector } from '../types';
 
 export const detectVue: LanguageDetector = (ctx) => {
-  const { code, first100Lines, sample } = ctx;
+  const { code, first100Lines, sample, lines } = ctx;
+
+  // Single-line Vue template
+  if (lines.length <= 3) {
+    // <template><div>{{ message }}</div></template>
+    if (/^<template>.*\{\{.*\}\}.*<\/template>$/.test(code.trim())) {
+      return 'vue';
+    }
+  }
 
   const hasTemplate = /<template[\s>]/.test(sample);
   const hasScript = /<script[\s>]/.test(sample);

@@ -11,15 +11,26 @@ export const detectPowerShell: LanguageDetector = (ctx) => {
     return null;
   }
 
+  // PowerShell cmdlets (must be before Perl check)
   if (/\b(Get|Set|New|Remove|Add|Clear|Write|Read|Test|Start|Stop|Invoke|Import|Export)-[A-Z]\w+/.test(code)) {
     return 'powershell';
   }
 
+  // PowerShell variables and functions
   if (/^function\s+\w+/.test(first100Lines) && /\$[\w]+/.test(first100Lines)) {
-
-    if (/\$global:|@\{|@\(|\[datetime\]|\[array\]|\[string\]/.test(code)) {
+    // Check for PowerShell-specific syntax
+    if (/\$global:|@\{|@\(|\[datetime\]|\[array\]|\[string\]|\[Parameter/.test(code)) {
       return 'powershell';
     }
+    // PowerShell function with param block
+    if (/param\s*\(/.test(code)) {
+      return 'powershell';
+    }
+  }
+
+  // PowerShell $variable with cmdlets
+  if (/\$[\w]+\s*=\s*(Get|Set|New)-[A-Z]\w+/.test(code)) {
+    return 'powershell';
   }
 
   if (/\$[\w]+/.test(code)) {

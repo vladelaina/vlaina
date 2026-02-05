@@ -11,6 +11,23 @@ export const detectMakefile: LanguageDetector = (ctx) => {
     return null;
   }
 
+  // Exclude Go code (strong Go indicators)
+  if (/\bsync\.(WaitGroup|Mutex)/.test(first100Lines) ||
+      /\bgo\s+func\s*\(/.test(first100Lines) ||
+      /\bmake\s*\(\s*chan\s+/.test(first100Lines) ||
+      /func\s+\w+\([^)]*\)\s+\([^)]*error\)/.test(first100Lines)) {
+    return null;
+  }
+
+  // Exclude YAML (Docker Compose, Kubernetes)
+  if (/^version:\s*['"]?\d+/.test(first100Lines) && /^services:/m.test(code)) {
+    return null;
+  }
+
+  if (/\b(apiVersion|kind|metadata|spec):\s*/.test(first100Lines)) {
+    return null;
+  }
+
   if (/:=/.test(first100Lines)) {
 
     if (/^package\s+\w+$/m.test(code)) {
@@ -108,7 +125,27 @@ export const detectMakefile: LanguageDetector = (ctx) => {
     return null;
   }
 
+  // Variable assignments (KEY = value)
   if (/^[A-Z_a-z][\w-]*\s*[:?]?=/m.test(code)) {
+    // Exclude Julia array operations
+    if (/\.\^/.test(code) || /\[[\d\s]+;[\d\s]+\]/.test(code)) {
+      return null;
+    }
+
+    // Exclude Python list comprehensions and operations
+    if (/\[[\s\S]*?\bfor\s+\w+\s+in\s+[\s\S]*?\]/.test(code) || /\*\*\d+/.test(code)) {
+      return null;
+    }
+
+    // Exclude MATLAB scripts
+    if (/^%\s/m.test(code) && /\b(eig|plot|zeros|ones|rand|randn|figure|title|xlabel|ylabel)\s*\(/.test(code)) {
+      return null;
+    }
+
+    // Exclude Stylus (CSS-like with variables)
+    if (/#[0-9a-fA-F]{3,6}\b/.test(code) && /\b(color|background|padding|margin|font-size|border)\b/.test(code)) {
+      return null;
+    }
 
     const varMatches = code.match(/^[A-Z_a-z][\w-]*\s*[:?]?=/gm);
     if (varMatches && varMatches.length >= 2) {
@@ -134,7 +171,12 @@ export const detectMakefile: LanguageDetector = (ctx) => {
     }
   }
 
+  // Target rules (key: value or key:)
   if (/^[\w./-]+:\s*[\w./-]*\s*\\?$/m.test(code)) {
+    // Exclude YAML files (check for YAML-specific keywords)
+    if (/\b(apiVersion|kind|metadata|spec|selector|matchLabels):\s*/.test(first100Lines)) {
+      return null;
+    }
 
     if (/\bdef\s+\w+\s*\(/.test(first100Lines) || /\bclass\s+\w+/.test(first100Lines)) {
       return null;

@@ -15,7 +15,6 @@ export const detectElixir: LanguageDetector = (ctx) => {
   }
 
   if (/@\w+/.test(first100Lines) || /sig\s*\{/.test(first100Lines)) {
-
     if (!/\bdefmodule\b/.test(first100Lines)) {
       return null;
     }
@@ -48,6 +47,21 @@ export const detectElixir: LanguageDetector = (ctx) => {
     }
   }
 
+  // Elixir case/pattern matching
+  if (/\bcase\s+\w+\s+do\b/.test(code)) {
+    if (/\{:ok,\s*\w+\}\s*->/.test(code) || /\{:error,\s*_\}\s*->/.test(code)) {
+      return 'elixir';
+    }
+  }
+
+  if (/\b(Enum|String|List|Map|Tuple|Agent|Task|GenServer|Supervisor)\.[a-z_]+\(/.test(code)) {
+    return 'elixir';
+  }
+
+  if (/\bwith\s+\{:ok,\s*\w+\}\s*<-/.test(code)) {
+    return 'elixir';
+  }
+
   if (/\|>/.test(code)) {
     if (/\b(def|defp|defmodule)\b/.test(code)) {
       return 'elixir';
@@ -55,7 +69,6 @@ export const detectElixir: LanguageDetector = (ctx) => {
   }
 
   if (/:\w+/.test(code) && /\b(def|defmodule)\b/.test(code)) {
-
     if (/\bend\b/.test(code)) {
       return 'elixir';
     }

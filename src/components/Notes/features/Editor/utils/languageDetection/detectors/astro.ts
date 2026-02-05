@@ -1,10 +1,10 @@
 import type { LanguageDetector } from '../types';
 
 export const detectAstro: LanguageDetector = (ctx) => {
-  const { code, firstLine } = ctx;
+  const { code, firstLine, first100Lines } = ctx;
 
-  if (firstLine.trim() === '---') {
-    const frontmatterMatch = code.match(/^---\n([\s\S]*?)\n---/);
+  if (/^---/.test(firstLine)) {
+    const frontmatterMatch = code.match(/^---\r?\n?([\s\S]*?)\r?\n?---/);
     if (frontmatterMatch) {
       const frontmatter = frontmatterMatch[1];
 
@@ -16,9 +16,7 @@ export const detectAstro: LanguageDetector = (ctx) => {
         return 'astro';
       }
 
-      // Check for component imports from /components/ directory
       if (/import\s+\w+\s+from\s+['"][^'"]*\/components\//.test(frontmatter)) {
-        // If has HTML tags, likely Astro
         if (/<html|<head|<body|<main/.test(code)) {
           return 'astro';
         }
@@ -28,16 +26,16 @@ export const detectAstro: LanguageDetector = (ctx) => {
         return 'astro';
       }
 
-      if (/\blet\s+\w+\s*=|const\s+\w+\s*=/.test(frontmatter)) {
-
-        if (/<html|<head|<body|<main/.test(code)) {
+      if (/\b(let|const|var)\s+\w+\s*=/.test(frontmatter)) {
+        const afterFrontmatter = code.substring(frontmatterMatch[0].length);
+        if (/<[a-zA-Z][a-zA-Z0-9]*[\s>\/]/.test(afterFrontmatter)) {
           return 'astro';
         }
       }
     }
   }
 
-  if (/^---\n[\s\S]*?\n---/.test(code) && /Astro\.(props|slots|request|url|redirect)/.test(code)) {
+  if (/^---[\s\S]*?---/.test(first100Lines) && /Astro\.(props|slots|request|url|redirect)/.test(code)) {
     return 'astro';
   }
 
