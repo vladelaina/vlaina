@@ -1,33 +1,98 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MdContentCut,  MdContentCopy,  MdAddToPhotos,  MdCheck,  MdPlayArrow,  MdPause,  MdStop  } from 'react-icons/md';
+import { MdContentCut,  MdContentCopy,  MdAddToPhotos,  MdPlayArrow,  MdPause,  MdStop  } from 'react-icons/md';
 import { useCalendarStore } from '@/stores/useCalendarStore';
-import { CONTEXT_MENU_COLORS, type ItemColor } from '@/lib/colors';
-import { IconSelector } from '@/components/common';
+import { ColorPicker } from '@/components/common/ColorPicker';
 import { DeleteIcon } from '@/components/common/DeleteIcon';
+import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconPreview';
+import type { ItemColor } from '@/lib/colors';
 
 interface EventContextMenuProps {
   eventId: string;
   position: { x: number; y: number };
   currentColor?: string;
-  currentIcon?: string;
   timerState?: 'idle' | 'running' | 'paused';
   onClose: () => void;
+  onOpenPanel?: () => void;
 }
 
-export function EventContextMenu({ eventId, position, currentColor = 'blue', currentIcon, timerState = 'idle', onClose }: EventContextMenuProps) {
-  const { updateEvent, updateEventIcon, deleteEvent, events, addEvent, startTimer, pauseTimer, resumeTimer, stopTimer } = useCalendarStore();
-  const [selectedIcon, setSelectedIcon] = useState(currentIcon);
+export function EventContextMenu({ eventId, position, currentColor = 'blue', timerState = 'idle', onClose, onOpenPanel }: EventContextMenuProps) {
+  const { updateEvent, deleteEvent, events, addEvent, startTimer, pauseTimer, resumeTimer, stopTimer, setEditingEventId } = useCalendarStore();
+  const [eventName, setEventName] = useState('');
+  const [adjustedPosition, setAdjustedPosition] = useState(position);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  
+  // 复用预览逻辑
+  const { handlePreviewColor } = useIconPreview(eventId);
+  
+  const event = events.find(e => e.uid === eventId);
 
+  useEffect(() => {
+    if (event) {
+      setEventName(event.summary || '');
+    }
+  }, [event]);
+
+  // 打开右键菜单时，同时打开左侧面板
+  useEffect(() => {
+    setEditingEventId(eventId, position);
+    onOpenPanel?.();
+  }, [eventId, position, setEditingEventId, onOpenPanel]);
+
+  // 自动调整菜单位置，避免被遮挡
+  useEffect(() => {
+    if (menuRef.current) {
+      const menuRect = menuRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      
+      let newX = position.x;
+      let newY = position.y;
+      
+      // 检查是否超出底部
+      if (position.y + menuRect.height > viewportHeight) {
+        newY = viewportHeight - menuRect.height - 10;
+      }
+      
+      // 检查是否超出右侧
+      if (position.x + menuRect.width > viewportWidth) {
+        newX = viewportWidth - menuRect.width - 10;
+      }
+      
+      // 确保不超出顶部和左侧
+      newY = Math.max(10, newY);
+      newX = Math.max(10, newX);
+      
+      setAdjustedPosition({ x: newX, y: newY });
+    }
+  }, [position]);
+
+  // 复用颜色修改逻辑（简化版，因为右键菜单不处理图标）
   const handleColorChange = (color: ItemColor) => {
     updateEvent(eventId, { color });
-    onClose();
+    handlePreviewColor(null); // 清除预览
   };
 
-  const handleIconChange = (icon: string | undefined) => {
-    setSelectedIcon(icon);
-    updateEventIcon(eventId, icon);
-    onClose();
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEventName(e.target.value);
+  };
+
+  const handleNameBlur = () => {
+    if (eventName.trim() !== event?.summary) {
+      updateEvent(eventId, { summary: eventName.trim() || 'Untitled' });
+    }
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      updateEvent(eventId, { summary: eventName.trim() || 'Untitled' });
+      inputRef.current?.blur();
+    } else if (e.key === 'Escape') {
+      setEventName(event?.summary || '');
+      inputRef.current?.blur();
+    }
   };
 
   const handleDelete = () => {
@@ -81,28 +146,36 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', cur
 
       {/* Menu */}
       <div
+        ref={menuRef}
         data-event-context-menu
         className="fixed z-[99999] w-56 bg-zinc-900 rounded-xl shadow-2xl py-2 overflow-hidden"
-        style={{ top: position.y, left: position.x }}
+        style={{ top: adjustedPosition.y, left: adjustedPosition.x }}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Color Picker */}
-        <div className="px-4 py-2 flex gap-2">
-          {CONTEXT_MENU_COLORS.map((color) => (
-            <button
-              key={color.name}
-              onClick={() => handleColorChange(color.name)}
-              className="w-6 h-6 rounded-md flex items-center justify-center hover:scale-110 transition-transform"
-              style={{ backgroundColor: color.hex }}
-            >
-              {currentColor === color.name && <MdCheck className="size-[18px] text-white" />}
-            </button>
-          ))}
+        <div className="px-4 py-2">
+          <ColorPicker
+            value={currentColor}
+            onChange={handleColorChange}
+            onHover={handlePreviewColor}
+          />
         </div>
 
-        {/* Icon Selector */}
-        <IconSelector value={selectedIcon} onChange={handleIconChange} closeOnSelect={false} />
+        {/* Name Input */}
+        <div className="px-4 py-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={eventName}
+            onChange={handleNameChange}
+            onBlur={handleNameBlur}
+            onKeyDown={handleNameKeyDown}
+            placeholder="Event name"
+            className="w-full px-2 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-600"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
 
         <div className="h-px bg-zinc-700 my-2" />
 
