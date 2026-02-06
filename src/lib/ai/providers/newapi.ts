@@ -12,7 +12,9 @@ export class NewAPIClient implements AIClient {
     provider: Provider,
     onChunk?: (chunk: string) => void
   ): Promise<string> {
-    const url = `${normalizeApiHost(provider.apiHost)}/v1/chat/completions`
+    const host = normalizeApiHost(provider.apiHost)
+    const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
+    const url = `${baseUrl}/chat/completions`
     const headers = {
       'Authorization': `Bearer ${provider.apiKey}`,
       'Content-Type': 'application/json'
@@ -134,7 +136,9 @@ export class NewAPIClient implements AIClient {
 
   async testConnection(provider: Provider): Promise<boolean> {
     try {
-      const url = `${normalizeApiHost(provider.apiHost)}/v1/models`
+      const host = normalizeApiHost(provider.apiHost)
+      const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
+      const url = `${baseUrl}/models`
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 10000)
 
@@ -155,7 +159,9 @@ export class NewAPIClient implements AIClient {
 
   async getModels(provider: Provider): Promise<string[]> {
     try {
-      const url = `${normalizeApiHost(provider.apiHost)}/v1/models`
+      const host = normalizeApiHost(provider.apiHost)
+      const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
+      const url = `${baseUrl}/models`
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 10000)
 

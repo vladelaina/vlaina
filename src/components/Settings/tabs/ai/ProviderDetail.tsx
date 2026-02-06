@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { MdCheck, MdSave, MdAdd, MdDelete, MdRefresh, MdContentCopy, MdCloudDownload } from 'react-icons/md';
+import { MdCheck, MdSave, MdAdd, MdDelete, MdRefresh, MdContentCopy, MdCloudDownload, MdKeyboardArrowDown, MdKeyboardArrowRight } from 'react-icons/md';
 import { useAIStore } from '@/stores/useAIStore';
-import { ProviderConfig } from './constants';
+import { ProviderConfig, SUPPORTED_PROVIDERS } from './constants';
 import { newAPIClient } from '@/lib/ai/providers/newapi';
 import { cn } from '@/lib/utils';
 import { Provider, AIModel } from '@/lib/ai/types';
 import { IconSelector } from '@/components/common/IconSelector';
 import { AppIcon } from '@/components/common/AppIcon';
+import { getModelLogoById } from './modelIcons';
 
 interface ProviderDetailProps {
   config: ProviderConfig;
@@ -42,6 +43,7 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
   // Dynamic Fetching
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [fetchedModels, setFetchedModels] = useState<string[]>([]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const providerModels = initialProvider 
@@ -58,6 +60,7 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
     setApiHost(initialProvider?.apiHost || config.defaultBaseUrl);
     setCheckResult(null);
     setFetchedModels([]);
+    setCollapsedGroups(new Set());
     setFetchError(null);
     setNewModelId('');
     setNewModelName('');
@@ -140,11 +143,11 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
         updatedAt: 0
       };
 
-      const models = await newAPIClient.getModels(tempProvider);
-      if (models.length === 0) {
+      const modelsList = await newAPIClient.getModels(tempProvider);
+      if (modelsList.length === 0) {
         setFetchError('No models found or API returned empty list.');
       } else {
-        setFetchedModels(models);
+        setFetchedModels(modelsList);
       }
     } catch (e) {
       setFetchError(e instanceof Error ? e.message : 'Failed to fetch models');
@@ -153,7 +156,7 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
     }
   };
 
-  const handleAddModel = (id: string = newModelId, name: string = newModelName) => {
+  const handleAddModel = (id: string = newModelId, nameVal: string = newModelName) => {
     if (!id.trim()) return;
     
     // Auto-save provider if it doesn't exist
@@ -174,17 +177,11 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
     
     // Check for duplicates
     const existingModels = models.filter(m => m.providerId === currentProviderId);
-    
-    if (existingModels.some(m => m.id === id.trim())) {
-        if (id === newModelId) {
-            return; 
-        }
-        return;
-    }
+    if (existingModels.some(m => m.id === id.trim())) return;
 
     addModel({
       id: id.trim(),
-      name: name.trim() || id.trim(),
+      name: nameVal.trim() || id.trim(),
       providerId: currentProviderId,
       enabled: true
     });
@@ -194,6 +191,29 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
         setNewModelName('');
         setIsAddingModel(false);
     }
+  };
+
+  const toggleGroup = (group: string) => {
+      const newSet = new Set(collapsedGroups);
+      if (newSet.has(group)) newSet.delete(group);
+      else newSet.add(group);
+      setCollapsedGroups(newSet);
+  };
+
+  // Dynamic Grouping Helper
+  const groupModelsList = (modelIds: string[]) => {
+      return modelIds.reduce((acc, id) => {
+          let group = 'Other';
+          if (id.includes('/')) group = id.split('/')[0];
+          else if (id.includes(':')) group = id.split(':')[0];
+          else if (id.includes('-')) group = id.split('-')[0];
+          else group = id;
+
+          group = group.charAt(0).toUpperCase() + group.slice(1);
+          if (!acc[group]) acc[group] = [];
+          acc[group].push(id);
+          return acc;
+      }, {} as Record<string, string[]>);
   };
 
   const displayIcon = previewIcon || icon || 'cube';
@@ -220,7 +240,7 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
                     compact 
                     trigger={
                         <button className="w-12 h-12 flex items-center justify-center hover:opacity-80 transition-opacity" title="Change Icon">
-                            <AppIcon icon={displayIcon} size={40} className="object-contain" />
+                            <AppIcon icon={displayIcon} size={40} />
                         </button>
                     }
                  />
@@ -254,7 +274,6 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
             </h3>
             
             <div className="grid gap-4">
-              {/* Name Field - Only editable for custom instances */}
               {isCustomInstance && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Display Name</label>
@@ -274,7 +293,7 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
                     type="text"
                     value={apiHost}
                     onChange={(e) => setApiHost(e.target.value)}
-                    placeholder="https://api.example.com/v1"
+                    placeholder="https://api.example.com"
                     className="flex-1 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   />
                   {config.defaultBaseUrl !== apiHost && (
@@ -354,41 +373,50 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
               </button>
             </div>
 
-            {/* Fetched Models Result Area */}
+            {/* Discovered Models Result Area */}
             {(fetchedModels.length > 0 || fetchError) && (
-              <div className="mt-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-800 animate-in fade-in slide-in-from-top-2">
+              <div className="mt-6 animate-in fade-in slide-in-from-top-2">
                   {fetchError ? (
-                      <div className="text-red-500 text-sm flex items-center gap-2">
+                      <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm flex items-center gap-2">
                           <span className="font-bold">Error:</span> {fetchError}
                       </div>
                   ) : (
-                      <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                  Found {fetchedModels.length} remote models
+                      <div className="space-y-2">
+                          <div className="flex items-center justify-between px-1 mb-2">
+                              <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                                  <MdCloudDownload className="w-4 h-4 text-blue-500" />
+                                  Discovered Models ({fetchedModels.length})
                               </h4>
-                              <button 
-                                  onClick={() => setFetchedModels([])}
-                                  className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                              >
-                                  Clear
-                              </button>
+                              <button onClick={() => setFetchedModels([])} className="text-xs text-gray-500 hover:text-gray-700">Clear</button>
                           </div>
-                          <div className="max-h-48 overflow-y-auto space-y-1 pr-1 scrollbar-thin">
-                              {fetchedModels.map(modelId => {
-                                  const isAdded = providerModels.some(m => m.id === modelId);
+                          
+                          <div className="max-h-[320px] overflow-y-auto pr-2 scrollbar-thin space-y-2">
+                              {Object.entries(groupModelsList(fetchedModels)).sort().map(([group, groupModels]) => {
+                                  const isCollapsed = collapsedGroups.has(`fetched-${group}`);
                                   return (
-                                      <div key={modelId} className="flex items-center justify-between px-3 py-2 bg-white dark:bg-gray-800 rounded border border-gray-100 dark:border-gray-700 text-sm">
-                                          <span className="truncate flex-1 mr-2 text-gray-700 dark:text-gray-300">{modelId}</span>
-                                          {isAdded ? (
-                                              <span className="text-xs text-green-500 font-medium px-2">Added</span>
-                                          ) : (
-                                              <button
-                                                  onClick={() => handleAddModel(modelId)}
-                                                  className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
-                                              >
-                                                  Add
-                                              </button>
+                                      <div key={group} className="border border-gray-100 dark:border-gray-800 rounded-lg overflow-hidden">
+                                          <button 
+                                              onClick={() => toggleGroup(`fetched-${group}`)}
+                                              className="w-full flex items-center justify-between px-3 py-2 bg-gray-50/50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                          >
+                                              <div className="flex items-center gap-2">
+                                                  {isCollapsed ? <MdKeyboardArrowRight size={16} /> : <MdKeyboardArrowDown size={16} />}
+                                                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{group}</span>
+                                                  <span className="text-[10px] text-gray-400 bg-gray-200 dark:bg-gray-800 px-1.5 py-0.5 rounded-full">{groupModels.length}</span>
+                                              </div>
+                                          </button>
+                                          {!isCollapsed && (
+                                              <div className="flex flex-col gap-1 p-2 bg-white dark:bg-gray-800/50">
+                                                  {groupModels.map(modelId => (
+                                                      <ModelListItem 
+                                                        key={modelId} 
+                                                        modelId={modelId} 
+                                                        isAdded={providerModels.some(m => m.id === modelId)} 
+                                                        onAdd={() => handleAddModel(modelId)}
+                                                        defaultIcon={config.icon}
+                                                      />
+                                                  ))}
+                                              </div>
                                           )}
                                       </div>
                                   );
@@ -400,37 +428,47 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
             )}
           </div>
 
-          {/* Models */}
+          {/* Added Models List */}
           <div className="space-y-4 pt-6 border-t border-gray-100 dark:border-gray-800">
-             <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wider">
-                  Models
-                </h3>
-             </div>
+             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+               My Models
+             </h3>
 
              <div className="space-y-2 pb-4">
                 {providerModels.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/30 rounded-lg border border-dashed border-gray-200 dark:border-gray-800">
-                        <p className="text-sm">No models configured</p>
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/30 rounded-lg border border-dashed border-gray-200 dark:border-gray-800 text-sm">
+                        No models configured
                     </div>
                 ) : (
-                    providerModels.map(model => (
-                        <div key={model.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 group hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
-                            <div className="min-w-0">
-                                <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{model.name}</div>
-                                <div className="text-xs text-gray-500 font-mono truncate">{model.id}</div>
-                            </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    Object.entries(groupModelsList(providerModels.map(m => m.id))).sort().map(([group, groupModels]) => {
+                        const isCollapsed = collapsedGroups.has(`added-${group}`);
+                        return (
+                            <div key={group} className="border border-gray-100 dark:border-gray-800 rounded-lg overflow-hidden mb-2">
                                 <button 
-                                    onClick={() => deleteModel(model.id)}
-                                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
-                                    title="Remove model"
+                                    onClick={() => toggleGroup(`added-${group}`)}
+                                    className="w-full flex items-center justify-between px-3 py-2 bg-gray-50/50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                                 >
-                                    <MdDelete className="w-4 h-4" />
+                                    <div className="flex items-center gap-2">
+                                        {isCollapsed ? <MdKeyboardArrowRight size={16} /> : <MdKeyboardArrowDown size={16} />}
+                                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{group}</span>
+                                    </div>
                                 </button>
+                                {!isCollapsed && (
+                                    <div className="flex flex-col gap-1 p-2">
+                                        {groupModels.map(modelId => (
+                                            <ModelListItem 
+                                                key={modelId} 
+                                                modelId={modelId} 
+                                                isAdded={true} 
+                                                onRemove={() => deleteModel(modelId)}
+                                                defaultIcon={config.icon}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
              </div>
           </div>
@@ -454,14 +492,8 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
               <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-in zoom-in-95 duration-200">
                   <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Add Model</h3>
-                      <button 
-                          onClick={() => setIsAddingModel(false)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                      >
-                          ✕
-                      </button>
+                      <button onClick={() => setIsAddingModel(false)} className="text-gray-400 hover:text-gray-600">✕</button>
                   </div>
-                  
                   <div className="p-6 space-y-4">
                       <div className="space-y-1.5">
                           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Model ID <span className="text-red-500">*</span></label>
@@ -470,18 +502,13 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
                               value={newModelId}
                               onChange={(e) => {
                                   setNewModelId(e.target.value);
-                                  // Auto-fill name if empty
-                                  if (!newModelName || newModelName === newModelId) {
-                                      setNewModelName(e.target.value);
-                                  }
+                                  if (!newModelName || newModelName === newModelId) setNewModelName(e.target.value);
                               }}
                               placeholder="e.g. gpt-4-turbo"
                               className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                               autoFocus
                           />
-                          <p className="text-xs text-gray-500">The exact ID used in API requests.</p>
                       </div>
-
                       <div className="space-y-1.5">
                           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Display Name</label>
                           <input
@@ -493,25 +520,52 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
                           />
                       </div>
                   </div>
-
                   <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 flex justify-end gap-3 border-t border-gray-100 dark:border-gray-800">
-                      <button
-                          onClick={() => setIsAddingModel(false)}
-                          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                      >
-                          Cancel
-                      </button>
-                      <button
-                          onClick={() => handleAddModel()}
-                          disabled={!newModelId.trim()}
-                          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                          Add Model
-                      </button>
+                      <button onClick={() => setIsAddingModel(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg">Cancel</button>
+                      <button onClick={() => handleAddModel()} disabled={!newModelId.trim()} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg">Add Model</button>
                   </div>
               </div>
           </div>
       )}
     </>
   );
+}
+
+// Sub-component for individual model list items to keep logic unified
+function ModelListItem({ modelId, isAdded, onAdd, onRemove, defaultIcon }: { 
+    modelId: string, 
+    isAdded: boolean, 
+    onAdd?: () => void, 
+    onRemove?: () => void,
+    defaultIcon: string 
+}) {
+    const modelIcon = getModelLogoById(modelId) || defaultIcon;
+    return (
+        <div className={cn(
+            "flex items-center gap-3 p-2 rounded-lg border transition-all duration-200 group",
+            isAdded && onAdd
+                ? "bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800 opacity-60"
+                : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700"
+        )}>
+            <div className="w-6 h-6 rounded-md bg-gray-50 dark:bg-gray-900 flex items-center justify-center overflow-hidden flex-shrink-0 border border-gray-100 dark:border-gray-800">
+                <img src={modelIcon} className="w-full h-full object-contain" alt="" />
+            </div>
+            <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" title={modelId}>{modelId}</div>
+            </div>
+            {isAdded ? (
+                onRemove ? (
+                    <button onClick={onRemove} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md opacity-0 group-hover:opacity-100 transition-opacity" title="Remove">
+                        <MdDelete className="w-4 h-4" />
+                    </button>
+                ) : (
+                    <div className="text-green-600 px-2"><MdCheck className="w-4 h-4" /></div>
+                )
+            ) : (
+                <button onClick={onAdd} className="p-1.5 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <MdAdd className="w-4 h-4" />
+                </button>
+            )}
+        </div>
+    );
 }
