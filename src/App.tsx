@@ -42,6 +42,14 @@ function AppContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const toggleSettings = useCallback(() => setSettingsOpen(prev => !prev), []);
 
+  useEffect(() => {
+    const handleOpenSettings = () => {
+      setSettingsOpen(true)
+    }
+    window.addEventListener('open-settings', handleOpenSettings)
+    return () => window.removeEventListener('open-settings', handleOpenSettings)
+  }, [])
+
   const shortcutHandlers = useMemo(() => ({
     'open-settings': toggleSettings,
   }), [toggleSettings]);
