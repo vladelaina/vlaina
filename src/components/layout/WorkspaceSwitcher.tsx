@@ -108,21 +108,6 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
         }
     }, [isDesktop]);
 
-    const handleOpenAppLink = useCallback(async () => {
-        const url = isDesktop ? "https://app.nekotick.com" : "https://nekotick.com";
-        if (isDesktop) {
-            try {
-                const { openUrl } = await import('@tauri-apps/plugin-opener');
-                await openUrl(url);
-            } catch (e) {
-                window.open(url, "_blank");
-            }
-        } else {
-            window.open(url, "_blank");
-        }
-        setIsOpen(false);
-    }, [isDesktop]);
-
     // Helper to prioritize menu closing over heavy view rendering
     const handleViewSwitch = useCallback((mode: typeof appViewMode) => {
         if (appViewMode === mode) return;

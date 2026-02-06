@@ -31,6 +31,10 @@ export function useCalendarStore() {
   const calendarEvents = eventsStore.events.filter(e =>
     visibleCalendarIds.has(e.calendarId) || e.uid === uiStore.editingEventId
   );
+  
+  // 获取时区信息
+  const timezone = settingsStore.data.settings.timezone.offset;
+  const timezoneCity = settingsStore.data.settings.timezone.city;
 
   const load = useCallback(async () => {
     await settingsStore.load();
@@ -70,7 +74,8 @@ export function useCalendarStore() {
 
     viewMode: settingsStore.data.settings.viewMode,
     dayCount: settingsStore.data.settings.dayCount,
-    timezone: settingsStore.data.settings.timezone,
+    timezone,
+    timezoneCity,
     hourHeight: settingsStore.data.settings.hourHeight ?? DEFAULT_HOUR_HEIGHT,
     use24Hour: settingsStore.data.settings.use24Hour ?? DEFAULT_USE_24_HOUR,
     dayStartTime: settingsStore.data.settings.dayStartTime ?? DEFAULT_DAY_START_TIME,

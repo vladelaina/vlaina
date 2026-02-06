@@ -5,6 +5,7 @@ import {
   type UnifiedData,
   type UnifiedProgress,
   type CustomIcon,
+  type TimezoneInfo,
 } from '@/lib/storage/unifiedStorage';
 import { scanGlobalIcons } from '@/lib/storage/assetStorage';
 
@@ -21,6 +22,7 @@ import type { UndoAction } from './types';
 export type {
   UnifiedProgress,
   CustomIcon,
+  TimezoneInfo,
 };
 
 export type { ItemColor, TimeView };
@@ -43,7 +45,7 @@ interface UnifiedStoreActions {
   toggleProgressArchive: (id: string) => void;
   reorderProgress: (activeId: string, overId: string) => void;
 
-  setTimezone: (tz: number) => void;
+  setTimezone: (offset: number, city: string) => void;
   setViewMode: (mode: TimeView) => void;
   setDayCount: (count: number) => void;
   setHourHeight: (height: number) => void;

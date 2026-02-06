@@ -21,7 +21,10 @@ export const STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED = 'nekotick-notes-sidebar-colla
 export const STORAGE_KEY_SHOW_SIDEBAR = 'nekotick-show-sidebar';
 
 export const DEFAULT_SETTINGS = {
-  timezone: DEFAULT_TIMEZONE,
+  timezone: {
+    offset: DEFAULT_TIMEZONE,
+    city: 'Beijing',
+  },
   viewMode: DEFAULT_VIEW_MODE,
   dayCount: DEFAULT_DAY_COUNT,
   hourHeight: DEFAULT_HOUR_HEIGHT,

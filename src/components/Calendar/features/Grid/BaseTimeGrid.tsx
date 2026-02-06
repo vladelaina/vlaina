@@ -102,7 +102,7 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
   
   // 计算时区调整后的当前时间
   const localOffset = -new Date().getTimezoneOffset() / 60; // 本地时区偏移（小时）
-  const selectedOffset = Number(timezone) || 8; // 选择的时区偏移
+  const selectedOffset = timezone; // 选择的时区偏移
   const offsetDiff = selectedOffset - localOffset; // 时区差异
   
   // 调整后的时间

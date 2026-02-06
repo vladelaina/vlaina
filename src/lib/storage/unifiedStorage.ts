@@ -36,11 +36,16 @@ export interface CustomIcon {
   createdAt: number;
 }
 
+export interface TimezoneInfo {
+  offset: number;
+  city: string;
+}
+
 export interface UnifiedData {
   calendars: NekoCalendar[];
   progress: UnifiedProgress[];
   settings: {
-    timezone: number;
+    timezone: TimezoneInfo;
     viewMode: TimeView;
     dayCount: number;
     hourHeight?: number;
@@ -80,7 +85,10 @@ function getDefaultData(): UnifiedData {
     ],
     progress: [],
     settings: {
-      timezone: DEFAULT_TIMEZONE,
+      timezone: {
+        offset: DEFAULT_TIMEZONE,
+        city: 'Beijing', // 默认城市
+      },
       viewMode: DEFAULT_VIEW_MODE,
       dayCount: DEFAULT_DAY_COUNT,
     },

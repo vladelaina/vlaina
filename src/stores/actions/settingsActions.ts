@@ -11,11 +11,17 @@ type Persist = (data: UnifiedData) => void;
 
 export function createSettingsActions(set: SetState, persist: Persist) {
   return {
-    setTimezone: (tz: number) => {
+    setTimezone: (offset: number, city: string) => {
       set((state) => {
         const newData = {
           ...state.data,
-          settings: { ...state.data.settings, timezone: Math.max(-12, Math.min(14, tz)) },
+          settings: { 
+            ...state.data.settings, 
+            timezone: { 
+              offset: Math.max(-12, Math.min(14, offset)),
+              city,
+            } 
+          },
         };
         persist(newData);
         return { data: newData };

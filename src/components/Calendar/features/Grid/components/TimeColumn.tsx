@@ -23,7 +23,7 @@ export function TimeColumn({
     dragTimeIndicator,
     hoverTimeIndicator,
 }: TimeColumnProps) {
-    const { setDayStartTime, toggle24Hour, timezone, setTimezone } = useCalendarStore();
+    const { setDayStartTime, toggle24Hour, timezone, timezoneCity, setTimezone } = useCalendarStore();
     const [popoverOpen, setPopoverOpen] = useState(false);
     const [showTimezoneList, setShowTimezoneList] = useState(false);
     const [timezoneSearch, setTimezoneSearch] = useState('');
@@ -62,14 +62,17 @@ export function TimeColumn({
         toggle24Hour();
     };
 
-    const handleTimezoneSelect = (offset: number) => {
-        setTimezone(offset);
+    const handleTimezoneSelect = (offset: number, city: string) => {
+        setTimezone(offset, city);
         setShowTimezoneList(false);
         setTimezoneSearch('');
     };
 
     // 获取当前时区信息
-    const currentTimezone = TIMEZONES.find(tz => tz.offset === (Number(timezone) || 8)) || TIMEZONES[0];
+    const currentTimezone = TIMEZONES.find(tz => 
+        tz.offset === timezone && 
+        tz.city === timezoneCity
+    ) || TIMEZONES[0];
     const currentTimezoneDisplay = `${getTimezoneDisplay(currentTimezone.offset)} ${currentTimezone.city}`;
 
     // 过滤时区列表
@@ -194,25 +197,31 @@ export function TimeColumn({
                             {/* 时区列表 */}
                             <div className="overflow-y-auto neko-scrollbar">
                                 {filteredTimezones.length > 0 ? (
-                                    filteredTimezones.map((tz, idx) => (
-                                        <button
-                                            key={`${tz.offset}-${idx}`}
-                                            onClick={() => handleTimezoneSelect(tz.offset)}
-                                            className="w-full flex items-center justify-between px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left"
-                                        >
-                                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                <span className="text-xs text-zinc-400 font-mono w-16 flex-shrink-0">
-                                                    {getTimezoneDisplay(tz.offset)}
-                                                </span>
-                                                <span className="text-xs text-zinc-700 dark:text-zinc-300 truncate">
-                                                    {tz.city}
-                                                </span>
-                                            </div>
-                                            {tz.offset === currentTimezone.offset && (
-                                                <MdCheck className="w-4 h-4 text-zinc-500 flex-shrink-0 ml-2" />
-                                            )}
-                                        </button>
-                                    ))
+                                    filteredTimezones.map((tz, idx) => {
+                                        // 精确匹配 offset 和 city
+                                        const isSelected = tz.offset === currentTimezone.offset && 
+                                            tz.city === currentTimezone.city;
+                                        
+                                        return (
+                                            <button
+                                                key={`${tz.offset}-${idx}`}
+                                                onClick={() => handleTimezoneSelect(tz.offset, tz.city)}
+                                                className="w-full flex items-center justify-between px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left"
+                                            >
+                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                    <span className="text-xs text-zinc-400 font-mono w-16 flex-shrink-0">
+                                                        {getTimezoneDisplay(tz.offset)}
+                                                    </span>
+                                                    <span className="text-xs text-zinc-700 dark:text-zinc-300 truncate">
+                                                        {tz.city}
+                                                    </span>
+                                                </div>
+                                                {isSelected && (
+                                                    <MdCheck className="w-4 h-4 text-zinc-500 flex-shrink-0 ml-2" />
+                                                )}
+                                            </button>
+                                        );
+                                    })
                                 ) : (
                                     <div className="p-8 text-center text-xs text-zinc-400">
                                         No timezone found
