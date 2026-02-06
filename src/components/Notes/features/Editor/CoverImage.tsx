@@ -3,8 +3,8 @@ import Cropper from 'react-easy-crop';
 import { MdBrokenImage } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { CoverPicker } from '../AssetLibrary';
-import { loadImageAsBlob } from '@/lib/assets/imageLoader';
-import { buildFullAssetPath } from '@/lib/assets/pathUtils';
+import { loadImageAsBlob } from '@/lib/assets/io/reader';
+import { buildFullAssetPath } from '@/lib/assets/core/paths';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 import { useCoverSource } from './hooks/useCoverSource';
 // We import constants for consistent constraints

@@ -9,7 +9,7 @@ import { DetailModalContent } from './DetailModalContent';
 import { DetailModalFooter } from './DetailModalFooter';
 import { SPRING_SNAPPY, SPRING_GENTLE } from '@/lib/animations';
 import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
-import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { HeroIconHeader } from '@/components/common/HeroIconHeader';
 
 // Get window dynamically for multi-window support

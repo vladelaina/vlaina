@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { loadImageAsBlob, getCachedBlobUrl } from '@/lib/assets/imageLoader';
-import { buildFullAssetPath } from '@/lib/assets/pathUtils';
+import { loadImageAsBlob, getCachedBlobUrl } from '@/lib/assets/io/reader';
+import { buildFullAssetPath } from '@/lib/assets/core/paths';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 import { loadImageWithDimensions, getCachedDimensions } from './coverUtils';
 

@@ -9,7 +9,7 @@ import { PremiumSlider } from '@/components/ui/premium-slider';
 import { useEventForm } from './hooks/useEventForm';
 import { EditableTime } from './components/EditableTime';
 import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
-import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { HeroIconHeader } from '@/components/common/HeroIconHeader';
 
 interface EventEditFormProps {

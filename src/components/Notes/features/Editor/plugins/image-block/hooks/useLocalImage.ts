@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { joinPath } from '@/lib/storage/adapter';
 
 interface UseLocalImageResult {

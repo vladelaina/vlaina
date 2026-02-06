@@ -12,7 +12,7 @@ import { IconSelector } from '@/components/common/IconSelector';
 import { TaskIcon } from '@/components/common/TaskIcon';
 import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconPreview';
 import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
-import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { loadSkinTone, getRandomEmoji } from '@/components/common/UniversalIconPicker/constants';
 import { TaskItemMenu } from './TaskItemMenu';
 

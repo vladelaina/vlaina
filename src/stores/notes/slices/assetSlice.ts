@@ -3,13 +3,13 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { NotesStore } from '../types';
 import { getNotesBasePath } from '../storage';
 import { AssetEntry, UploadResult } from '@/lib/assets/types';
-import { getMimeType, generateFilename } from '@/lib/assets/filenameService';
-import { writeAssetAtomic, cleanupTempFiles } from '@/lib/assets/atomicWrite';
-import { clearImageCache } from '@/lib/assets/imageLoader';
+import { AssetService } from '@/lib/assets/AssetService';
 import { getBuiltinCovers, toBuiltinAssetPath } from '@/lib/assets/builtinCovers';
 import { useUIStore } from '@/stores/uiSlice';
+import { getMimeType } from '@/lib/assets/core/naming';
+import { clearImageCache, cleanupTempFiles } from '@/lib/assets'; // Re-export from index
 
-const MAX_ASSET_SIZE = 10 * 1024 * 1024;
+
 
 export interface AssetSlice {
   assetList: AssetEntry[];
@@ -100,148 +100,45 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
   uploadAsset: async (file: File, category: 'covers' | 'icons' = 'covers', currentNotePath?: string): Promise<UploadResult> => {
     const { notesPath, assetList } = get();
-    const storage = getStorageAdapter();
+    const uiState = useUIStore.getState();
 
-    const { imageStorageMode, imageSubfolderName } = useUIStore.getState();
+    const config = {
+      storageMode: uiState.imageStorageMode,
+      subfolderName: uiState.imageSubfolderName,
+      imageVaultSubfolderName: uiState.imageVaultSubfolderName,
+      filenameFormat: uiState.imageFilenameFormat,
+    };
 
-    if (file.size > MAX_ASSET_SIZE) {
-      const msg = `File is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Limit is 10MB.`;
-      console.warn(msg);
-      return { success: false, path: null, isDuplicate: false, error: msg };
-    }
-    if (!file.type.startsWith('image/')) {
-      const msg = `Invalid file type: ${file.type}. Only images are allowed.`;
-      console.warn(msg);
-      return { success: false, path: null, isDuplicate: false, error: msg };
-    }
+    const vaultPath = notesPath || await getNotesBasePath();
+    const context = {
+      vaultPath,
+      currentNotePath,
+      category
+    };
+
+    set({ uploadProgress: 0 });
 
     try {
-      const vaultPath = notesPath || await getNotesBasePath();
-      let targetDir: string;
-      let storedPathPrefix = '';
+      const result = await AssetService.upload(
+        file,
+        context,
+        config,
+        assetList,
+        (progress) => set({ uploadProgress: progress })
+      );
 
-      if (category === 'icons') {
-        const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
-        targetDir = await joinPath(assetsBaseDir, 'icons');
-        storedPathPrefix = 'icons/';
-      } else if (category === 'covers' && !currentNotePath) {
-        const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
-        targetDir = await joinPath(assetsBaseDir, 'covers');
-        storedPathPrefix = '';
-      } else {
-        switch (imageStorageMode) {
-          case 'vault':
-          default:
-            targetDir = vaultPath;
-            storedPathPrefix = '';
-            break;
-
-          case 'vaultSubfolder':
-            const { imageVaultSubfolderName } = useUIStore.getState();
-            const vaultSubfolderName = imageVaultSubfolderName || 'assets';
-            targetDir = await joinPath(vaultPath, vaultSubfolderName);
-            storedPathPrefix = `${vaultSubfolderName}/`;
-            break;
-
-          case 'currentFolder':
-            if (currentNotePath) {
-              const pathParts = currentNotePath.replace(/\\/g, '/').split('/');
-              pathParts.pop();
-              targetDir = pathParts.join('/') || vaultPath;
-              storedPathPrefix = './';
-            } else {
-              targetDir = await joinPath(vaultPath, '.nekotick', 'assets', 'covers');
-              storedPathPrefix = '';
-            }
-            break;
-          case 'subfolder':
-            if (currentNotePath) {
-              const pathParts = currentNotePath.replace(/\\/g, '/').split('/');
-              pathParts.pop();
-              const noteDir = pathParts.join('/') || vaultPath;
-              const subfolderName = imageSubfolderName || 'assets';
-              targetDir = await joinPath(noteDir, subfolderName);
-              storedPathPrefix = `./${subfolderName}/`;
-            } else {
-              targetDir = await joinPath(vaultPath, '.nekotick', 'assets', 'covers');
-              storedPathPrefix = '';
-            }
-            break;
+      if (result.success && result.entry) {
+        if (!result.isDuplicate) {
+          set(state => ({
+            assetList: [result.entry!, ...state.assetList],
+            uploadProgress: 100
+          }));
         }
       }
 
-      if (!await storage.exists(targetDir)) {
-        await storage.mkdir(targetDir, true);
-      }
-
-      set({ uploadProgress: 20 });
-
-      const buffer = await file.arrayBuffer();
-      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-      const existingAsset = assetList.find(a => a.hash === fileHash);
-      if (existingAsset) {
-        return {
-          success: true,
-          path: existingAsset.filename,
-          isDuplicate: true,
-          existingFilename: existingAsset.filename
-        };
-      }
-
-      let existingFiles: string[] = [];
-      try {
-        const files = await storage.listDir(targetDir);
-        existingFiles = files.filter(f => f.isFile).map(f => f.name);
-      } catch (error) {
-        console.warn('Failed to list directory for conflict resolution:', error);
-        existingFiles = assetList.map(a => a.filename.split('/').pop() || '');
-      }
-
-      const existingNames = new Set(existingFiles);
-      let { imageFilenameFormat } = useUIStore.getState();
-
-      const isGenericName = file.name.toLowerCase() === 'image.png';
-      const isClipboardTimestamp = Math.abs(Date.now() - file.lastModified) < 2000;
-
-      if (imageFilenameFormat === 'original' && isGenericName && isClipboardTimestamp) {
-        imageFilenameFormat = 'timestamp';
-      }
-
-      const filename = generateFilename(file.name, imageFilenameFormat, existingNames);
-
-      set({ uploadProgress: 50 });
-
-      const data = new Uint8Array(buffer);
-      const filePath = await joinPath(targetDir, filename);
-
-      await writeAssetAtomic(filePath, data);
-      set({ uploadProgress: 80 });
-
-      const storedFilename = storedPathPrefix + filename;
-
-      const newEntry: AssetEntry = {
-        filename: storedFilename,
-        hash: fileHash,
-        size: file.size,
-        mimeType: getMimeType(filename),
-        uploadedAt: new Date().toISOString(),
-      };
-
-      set({
-        assetList: [newEntry, ...assetList],
-        uploadProgress: 100
-      });
-
       setTimeout(() => set({ uploadProgress: null }), 500);
+      return result;
 
-      return {
-        success: true,
-        path: storedFilename,
-        isDuplicate: false,
-      };
     } catch (error) {
       set({ uploadProgress: null });
       console.error('Failed to upload asset:', error);

@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils';
 import { MdRefresh } from 'react-icons/md';
 import { DeletableItem } from '@/components/ui/deletable-item';
 import { AssetGridProps } from './types';
-import { loadImageAsBlob } from '@/lib/assets/imageLoader';
-import { buildFullAssetPath } from '@/lib/assets/pathUtils';
+import { loadImageAsBlob } from '@/lib/assets/io/reader';
+import { buildFullAssetPath } from '@/lib/assets/core/paths';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 
 const PREVIEW_CLEAR_DELAY = 100;
