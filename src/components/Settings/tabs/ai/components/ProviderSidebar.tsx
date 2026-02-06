@@ -3,7 +3,7 @@ import { MdSearch, MdAdd, MdCheckCircle } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { AppIcon } from '@/components/common/AppIcon';
 import { Provider } from '@/lib/ai/types';
-import { ProviderConfig, SUPPORTED_PROVIDERS } from '../ai/constants';
+import { ProviderConfig, SUPPORTED_PROVIDERS } from '../constants';
 
 interface ProviderSidebarProps {
   allProviders: Provider[];
