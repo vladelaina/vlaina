@@ -87,7 +87,7 @@ export function TimeColumn({
             <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                 <PopoverTrigger asChild>
                     <button 
-                        className="absolute top-0 right-3 pt-1 text-[11px] text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 font-medium tabular-nums px-1 rounded-sm transition-all z-20"
+                        className="absolute top-0 right-0 pt-1 text-[11px] text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 font-medium tabular-nums px-1 rounded-sm transition-all z-20"
                     >
                         {startTimeDisplay}
                     </button>
