@@ -151,10 +151,8 @@ export function ChatView() {
           <div 
             className={cn(
               "bg-white dark:bg-gray-800 rounded-[20px]",
-              "shadow-[0_12px_32px_rgba(0,0,0,0.04)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.2)]",
-              "border border-gray-200/50 dark:border-gray-700/50",
-              "transition-all duration-200",
-              "hover:shadow-[0_12px_40px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)]"
+              "border border-gray-200 dark:border-gray-700",
+              "transition-all duration-200"
             )}
           >
             <div className="flex flex-col">
