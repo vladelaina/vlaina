@@ -2,16 +2,15 @@ import React, { useMemo, useCallback } from "react";
 import {
     MdSettings,
     MdLogout,
-    MdMonitor,
     MdExpandMore,
     MdCalendarToday,
     MdDescription,
-    MdPublic,
     MdMoreHoriz,
     MdPeople,
     MdChevronRight,
-    MdAssignment,
-    MdChat,
+    MdChecklist,
+    MdTranslate,
+    MdAutoAwesome,
 } from "react-icons/md";
 import * as Popover from "@radix-ui/react-popover";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
@@ -20,6 +19,7 @@ import { useUIStore } from "@/stores/uiSlice";
 import { useUserAvatar } from "@/hooks/useUserAvatar";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { isTauri } from "@/lib/storage/adapter";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface WorkspaceSwitcherProps {
     onOpenSettings?: () => void;
@@ -39,9 +39,24 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
     const { appViewMode, setAppViewMode } = useUIStore();
     const [isOpen, setIsOpen] = React.useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
+    const [tooltipsEnabled, setTooltipsEnabled] = React.useState(false);
+    const [isLanguageMenuOpen, setIsLanguageMenuOpen] = React.useState(false);
 
     // Cache static platform check
     const isDesktop = useMemo(() => isTauri(), []);
+
+    // Enable tooltips after a short delay when popover opens
+    React.useEffect(() => {
+        if (isOpen) {
+            setTooltipsEnabled(false);
+            const timer = setTimeout(() => {
+                setTooltipsEnabled(true);
+            }, 300);
+            return () => clearTimeout(timer);
+        } else {
+            setTooltipsEnabled(false);
+        }
+    }, [isOpen]);
 
     // Memoize handlers to prevent unnecessary re-renders
     const handleLogout = useCallback(async () => {
@@ -65,6 +80,21 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
 
     const handleUpgradePlan = useCallback(async () => {
         const url = "https://nekotick.com/pricing";
+        if (isDesktop) {
+            try {
+                const { openUrl } = await import('@tauri-apps/plugin-opener');
+                await openUrl(url);
+            } catch (e) {
+                console.error("Failed to open URL:", e);
+                window.open(url, "_blank");
+            }
+        } else {
+            window.open(url, "_blank");
+        }
+    }, [isDesktop]);
+
+    const handleOpenWebsite = useCallback(async () => {
+        const url = "https://nekotick.com";
         if (isDesktop) {
             try {
                 const { openUrl } = await import('@tauri-apps/plugin-opener');
@@ -107,6 +137,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
     React.useEffect(() => {
         if (!isOpen) {
             setIsUserMenuOpen(false);
+            setIsLanguageMenuOpen(false);
         }
     }, [isOpen]);
 
@@ -239,22 +270,11 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                     >
                                                         {isProUser ? "Pro Plan" : "Free Plan"}
                                                     </button>
-                                                    <span className="text-[var(--neko-text-tertiary)] opacity-30 text-[10px]">·</span>
                                                 </>
                                             ) : (
                                                 <div className="w-10 h-2 bg-[var(--neko-border)] rounded-full animate-pulse opacity-40" />
                                             )}
                                         </div>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleOpenSettings();
-                                            }}
-                                            className="flex items-center gap-1 text-[11px] font-medium text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors group/settings"
-                                        >
-                                            <MdSettings className="w-[18px] h-[18px] opacity-60 group-hover/settings:opacity-100 transition-opacity" />
-                                            Settings
-                                        </button>
                                     </div>
                                 </div>
 
@@ -291,94 +311,245 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                         {isGithubConnected && <div className="h-[1px] bg-[var(--neko-border)] mx-3 my-1 opacity-50" />}
 
                         <div className="px-1.5 pb-1.5 pt-0.5 space-y-0.5">
-                            {!isGithubConnected && (
-                                <button
-                                    onClick={handleOpenSettings}
-                                    className={cn(
-                                        "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
-                                        "hover:bg-[var(--neko-hover)]"
-                                    )}
-                                >
-                                    <MdSettings className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
-                                    <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Settings</span>
-                                </button>
-                            )}
-
                             <div className="flex flex-col gap-0.5 py-1">
-                                {appViewMode !== 'calendar' && (
-                                    <button
-                                        onClick={() => handleViewSwitch('calendar')}
-                                        className={cn(
-                                            "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
-                                            "hover:bg-[var(--neko-hover)]"
-                                        )}
-                                    >
-                                        <MdCalendarToday className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
-                                        <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Calendar</span>
-                                    </button>
-                                )}
+                                {/* View switcher as icon buttons in a row */}
+                                <div className="flex items-center justify-center gap-2 px-3 py-2">
+                                    {tooltipsEnabled ? (
+                                        <>
+                                            <Tooltip delayDuration={500}>
+                                                <TooltipTrigger asChild>
+                                                    <button
+                                                        onClick={() => handleViewSwitch('notes')}
+                                                        className={cn(
+                                                            "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
+                                                            appViewMode === 'notes'
+                                                                ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
+                                                                : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
+                                                        )}
+                                                    >
+                                                        <MdDescription className="w-6 h-6" />
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom" sideOffset={4}>
+                                                    <span className="text-xs font-medium">Notes</span>
+                                                </TooltipContent>
+                                            </Tooltip>
 
-                                {appViewMode !== 'notes' && (
-                                    <button
-                                        onClick={() => handleViewSwitch('notes')}
-                                        className={cn(
-                                            "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
-                                            "hover:bg-[var(--neko-hover)]"
-                                        )}
-                                    >
-                                        <MdDescription className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
-                                        <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Notes</span>
-                                    </button>
-                                )}
+                                            <Tooltip delayDuration={500}>
+                                                <TooltipTrigger asChild>
+                                                    <button
+                                                        onClick={() => handleViewSwitch('calendar')}
+                                                        className={cn(
+                                                            "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
+                                                            appViewMode === 'calendar'
+                                                                ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
+                                                                : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
+                                                        )}
+                                                    >
+                                                        <MdCalendarToday className="w-6 h-6" />
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom" sideOffset={4}>
+                                                    <span className="text-xs font-medium">Calendar</span>
+                                                </TooltipContent>
+                                            </Tooltip>
 
-                                {appViewMode !== 'todo' && (
-                                    <button
-                                        onClick={() => handleViewSwitch('todo')}
-                                        className={cn(
-                                            "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
-                                            "hover:bg-[var(--neko-hover)]"
-                                        )}
-                                    >
-                                        <MdAssignment className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
-                                        <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Todos</span>
-                                    </button>
-                                )}
+                                            <Tooltip delayDuration={500}>
+                                                <TooltipTrigger asChild>
+                                                    <button
+                                                        onClick={() => handleViewSwitch('todo')}
+                                                        className={cn(
+                                                            "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
+                                                            appViewMode === 'todo'
+                                                                ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
+                                                                : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
+                                                        )}
+                                                    >
+                                                        <MdChecklist className="w-6 h-6" />
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom" sideOffset={4}>
+                                                    <span className="text-xs font-medium">Todos</span>
+                                                </TooltipContent>
+                                            </Tooltip>
 
-                                {appViewMode !== 'chat' && (
-                                    <button
-                                        onClick={() => handleViewSwitch('chat')}
-                                        className={cn(
-                                            "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
-                                            "hover:bg-[var(--neko-hover)]"
-                                        )}
-                                    >
-                                        <MdChat className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
-                                        <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Chat</span>
-                                    </button>
-                                )}
+                                            <Tooltip delayDuration={500}>
+                                                <TooltipTrigger asChild>
+                                                    <button
+                                                        onClick={() => handleViewSwitch('chat')}
+                                                        className={cn(
+                                                            "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
+                                                            appViewMode === 'chat'
+                                                                ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
+                                                                : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
+                                                        )}
+                                                    >
+                                                        <MdAutoAwesome className="w-6 h-6" />
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom" sideOffset={4}>
+                                                    <span className="text-xs font-medium">AI Chat</span>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button
+                                                onClick={() => handleViewSwitch('notes')}
+                                                className={cn(
+                                                    "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
+                                                    appViewMode === 'notes'
+                                                        ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
+                                                        : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
+                                                )}
+                                            >
+                                                <MdDescription className="w-6 h-6" />
+                                            </button>
+
+                                            <button
+                                                onClick={() => handleViewSwitch('calendar')}
+                                                className={cn(
+                                                    "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
+                                                    appViewMode === 'calendar'
+                                                        ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
+                                                        : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
+                                                )}
+                                            >
+                                                <MdCalendarToday className="w-6 h-6" />
+                                            </button>
+
+                                            <button
+                                                onClick={() => handleViewSwitch('todo')}
+                                                className={cn(
+                                                    "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
+                                                    appViewMode === 'todo'
+                                                        ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
+                                                        : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
+                                                )}
+                                            >
+                                                <MdChecklist className="w-6 h-6" />
+                                            </button>
+
+                                            <button
+                                                onClick={() => handleViewSwitch('chat')}
+                                                className={cn(
+                                                    "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
+                                                    appViewMode === 'chat'
+                                                        ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
+                                                        : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
+                                                )}
+                                            >
+                                                <MdAutoAwesome className="w-6 h-6" />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="h-[1px] bg-[var(--neko-border)] mx-3 my-1 opacity-50" />
 
                             <button
-                                onClick={handleOpenAppLink}
+                                onClick={handleOpenSettings}
                                 className={cn(
                                     "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
                                     "hover:bg-[var(--neko-hover)]"
                                 )}
                             >
-                                {isDesktop ? (
+                                <MdSettings className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
+                                <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Settings</span>
+                            </button>
+
+                            <div className="h-[1px] bg-[var(--neko-border)] mx-3 my-1 opacity-50" />
+
+                            {/* Powered by NekoTick with Language Selector */}
+                            <div className="relative px-3 py-2 flex items-center justify-between group/powered">
+                                <button
+                                    onClick={handleOpenWebsite}
+                                    className="text-[11px] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-secondary)] font-medium transition-colors"
+                                >
+                                    Powered by <span className="text-[var(--neko-text-secondary)]">NekoTick</span>
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsLanguageMenuOpen(!isLanguageMenuOpen);
+                                    }}
+                                    className={cn(
+                                        "flex items-center justify-center w-6 h-6 rounded-md hover:bg-[var(--neko-hover)] transition-colors",
+                                        isLanguageMenuOpen && "bg-[var(--neko-hover)]"
+                                    )}
+                                >
+                                    <MdTranslate className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)]" />
+                                </button>
+
+                                {isLanguageMenuOpen && (
                                     <>
-                                        <MdPublic className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
-                                        <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Open Web Version</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <MdMonitor className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
-                                        <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Get Desktop App</span>
+                                        <div className="fixed inset-0 z-[60]" onClick={() => setIsLanguageMenuOpen(false)} />
+                                        <div className="absolute right-2 bottom-full mb-1 z-[70] w-48 p-1 rounded-lg bg-[var(--neko-bg-primary)] border border-[var(--neko-border)] shadow-xl animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-1">
+                                            <button
+                                                onClick={() => {
+                                                    // TODO: Implement language change
+                                                    setIsLanguageMenuOpen(false);
+                                                }}
+                                                className={cn(
+                                                    "flex items-center justify-between px-3 py-2 rounded-md w-full text-left transition-colors",
+                                                    "hover:bg-[var(--neko-hover)]"
+                                                )}
+                                            >
+                                                <div className="flex flex-col">
+                                                    <span className="text-[13px] font-medium text-[var(--neko-text-primary)]">English</span>
+                                                    <span className="text-[11px] text-[var(--neko-text-tertiary)]">英语</span>
+                                                </div>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    // TODO: Implement language change
+                                                    setIsLanguageMenuOpen(false);
+                                                }}
+                                                className={cn(
+                                                    "flex items-center justify-between px-3 py-2 rounded-md w-full text-left transition-colors",
+                                                    "hover:bg-[var(--neko-hover)]"
+                                                )}
+                                            >
+                                                <div className="flex flex-col">
+                                                    <span className="text-[13px] font-medium text-[var(--neko-text-primary)]">简体中文</span>
+                                                    <span className="text-[11px] text-[var(--neko-text-tertiary)]">简体中文</span>
+                                                </div>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    // TODO: Implement language change
+                                                    setIsLanguageMenuOpen(false);
+                                                }}
+                                                className={cn(
+                                                    "flex items-center justify-between px-3 py-2 rounded-md w-full text-left transition-colors",
+                                                    "hover:bg-[var(--neko-hover)]"
+                                                )}
+                                            >
+                                                <div className="flex flex-col">
+                                                    <span className="text-[13px] font-medium text-[var(--neko-text-primary)]">繁體中文</span>
+                                                    <span className="text-[11px] text-[var(--neko-text-tertiary)]">繁体中文</span>
+                                                </div>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    // TODO: Implement language change
+                                                    setIsLanguageMenuOpen(false);
+                                                }}
+                                                className={cn(
+                                                    "flex items-center justify-between px-3 py-2 rounded-md w-full text-left transition-colors",
+                                                    "hover:bg-[var(--neko-hover)]"
+                                                )}
+                                            >
+                                                <div className="flex flex-col">
+                                                    <span className="text-[13px] font-medium text-[var(--neko-text-primary)]">日本語</span>
+                                                    <span className="text-[11px] text-[var(--neko-text-tertiary)]">日语</span>
+                                                </div>
+                                            </button>
+                                        </div>
                                     </>
                                 )}
-                            </button>
+                            </div>
                         </div>
                     </div>
                 </Popover.Content>
