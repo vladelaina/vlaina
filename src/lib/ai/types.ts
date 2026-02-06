@@ -1,6 +1,7 @@
 export interface Provider {
   id: string
   name: string
+  icon?: string
   type: 'newapi'
   apiHost: string
   apiKey: string

@@ -152,6 +152,43 @@ export class NewAPIClient implements AIClient {
       return false
     }
   }
+
+  async getModels(provider: Provider): Promise<string[]> {
+    try {
+      const url = `${normalizeApiHost(provider.apiHost)}/v1/models`
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${provider.apiKey}`
+        },
+        signal: controller.signal
+      })
+
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch models: ${response.status}`)
+      }
+
+      const data = await response.json()
+      // Handle standard OpenAI format { data: [{ id: "..." }] }
+      if (data.data && Array.isArray(data.data)) {
+        return data.data.map((m: any) => m.id)
+      }
+      // Handle Ollama format { models: [{ name: "..." }] }
+      if (data.models && Array.isArray(data.models)) {
+        return data.models.map((m: any) => m.name || m.model)
+      }
+      
+      return []
+    } catch (error) {
+      console.error('Fetch models failed:', error)
+      throw error
+    }
+  }
 }
 
 export const newAPIClient = new NewAPIClient()

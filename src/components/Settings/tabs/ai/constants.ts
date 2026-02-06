@@ -66,6 +66,13 @@ export interface ProviderConfig {
 
 export const SUPPORTED_PROVIDERS: ProviderConfig[] = [
   {
+    id: 'custom',
+    name: 'New API',
+    icon: newapiIcon,
+    defaultBaseUrl: '',
+    description: 'Connect to any OpenAI-compatible API',
+  },
+  {
     id: 'openai',
     name: 'OpenAI',
     icon: openaiIcon,
@@ -400,12 +407,5 @@ export const SUPPORTED_PROVIDERS: ProviderConfig[] = [
     name: 'GPUStack',
     icon: gpustackIcon,
     defaultBaseUrl: 'http://localhost:10000/v1',
-  },
-  {
-    id: 'custom',
-    name: 'Custom (OpenAI)',
-    icon: newapiIcon,
-    defaultBaseUrl: '',
-    description: 'Connect to any OpenAI-compatible API',
   },
 ];
