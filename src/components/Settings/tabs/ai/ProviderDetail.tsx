@@ -4,10 +4,12 @@ import { useAIStore } from '@/stores/useAIStore';
 import { ProviderConfig, SUPPORTED_PROVIDERS } from './constants';
 import { newAPIClient } from '@/lib/ai/providers/newapi';
 import { cn } from '@/lib/utils';
+import { generateModelGroup } from '@/lib/ai/utils';
 import { Provider, AIModel } from '@/lib/ai/types';
 import { IconSelector } from '@/components/common/IconSelector';
 import { AppIcon } from '@/components/common/AppIcon';
-import { getModelLogoById } from './modelIcons';
+import { ModelListItem } from './components/ModelListItem';
+import { AddModelModal } from './components/AddModelModal';
 
 interface ProviderDetailProps {
   config: ProviderConfig;
@@ -36,8 +38,6 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
   const [previewIcon, setPreviewIcon] = useState<string | null>(null);
   
   // Model list management
-  const [newModelId, setNewModelId] = useState('');
-  const [newModelName, setNewModelName] = useState('');
   const [isAddingModel, setIsAddingModel] = useState(false);
   
   // Dynamic Fetching
@@ -62,8 +62,6 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
     setFetchedModels([]);
     setCollapsedGroups(new Set());
     setFetchError(null);
-    setNewModelId('');
-    setNewModelName('');
     setIsAddingModel(false);
     setPreviewIcon(null);
   }, [initialProvider, config]);
@@ -156,15 +154,13 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
     }
   };
 
-  const handleAddModel = (id: string = newModelId, nameVal: string = newModelName) => {
+  const handleAddModel = (id: string, nameVal?: string) => {
     if (!id.trim()) return;
     
     // Auto-save provider if it doesn't exist
     let currentProviderId = initialProvider?.id;
     if (!currentProviderId) {
-        if (!apiKey.trim()) {
-            return;
-        }
+        if (!apiKey.trim()) return;
         currentProviderId = addProvider({
             name,
             icon,
@@ -175,22 +171,17 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
         });
     }
     
-    // Check for duplicates
     const existingModels = models.filter(m => m.providerId === currentProviderId);
     if (existingModels.some(m => m.id === id.trim())) return;
 
     addModel({
       id: id.trim(),
-      name: nameVal.trim() || id.trim(),
+      name: nameVal?.trim() || id.trim(),
       providerId: currentProviderId,
       enabled: true
     });
     
-    if (id === newModelId) {
-        setNewModelId('');
-        setNewModelName('');
-        setIsAddingModel(false);
-    }
+    setIsAddingModel(false);
   };
 
   const toggleGroup = (group: string) => {
@@ -200,16 +191,9 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
       setCollapsedGroups(newSet);
   };
 
-  // Dynamic Grouping Helper
   const groupModelsList = (modelIds: string[]) => {
       return modelIds.reduce((acc, id) => {
-          let group = 'Other';
-          if (id.includes('/')) group = id.split('/')[0];
-          else if (id.includes(':')) group = id.split(':')[0];
-          else if (id.includes('-')) group = id.split('-')[0];
-          else group = id;
-
-          group = group.charAt(0).toUpperCase() + group.slice(1);
+          const group = generateModelGroup(id);
           if (!acc[group]) acc[group] = [];
           acc[group].push(id);
           return acc;
@@ -240,7 +224,7 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
                     compact 
                     trigger={
                         <button className="w-12 h-12 flex items-center justify-center hover:opacity-80 transition-opacity" title="Change Icon">
-                            <AppIcon icon={displayIcon} size={40} />
+                            <AppIcon icon={displayIcon} size={40} className="object-contain" />
                         </button>
                     }
                  />
@@ -486,86 +470,11 @@ export function ProviderDetail({ config, provider: initialProvider }: ProviderDe
         </div>
       </div>
 
-      {/* Add Model Modal */}
-      {isAddingModel && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-              <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-in zoom-in-95 duration-200">
-                  <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Add Model</h3>
-                      <button onClick={() => setIsAddingModel(false)} className="text-gray-400 hover:text-gray-600">✕</button>
-                  </div>
-                  <div className="p-6 space-y-4">
-                      <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Model ID <span className="text-red-500">*</span></label>
-                          <input
-                              type="text"
-                              value={newModelId}
-                              onChange={(e) => {
-                                  setNewModelId(e.target.value);
-                                  if (!newModelName || newModelName === newModelId) setNewModelName(e.target.value);
-                              }}
-                              placeholder="e.g. gpt-4-turbo"
-                              className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              autoFocus
-                          />
-                      </div>
-                      <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Display Name</label>
-                          <input
-                              type="text"
-                              value={newModelName}
-                              onChange={(e) => setNewModelName(e.target.value)}
-                              placeholder="e.g. GPT-4 Turbo"
-                              className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                      </div>
-                  </div>
-                  <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 flex justify-end gap-3 border-t border-gray-100 dark:border-gray-800">
-                      <button onClick={() => setIsAddingModel(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg">Cancel</button>
-                      <button onClick={() => handleAddModel()} disabled={!newModelId.trim()} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg">Add Model</button>
-                  </div>
-              </div>
-          </div>
-      )}
+      <AddModelModal 
+        isOpen={isAddingModel}
+        onClose={() => setIsAddingModel(false)}
+        onAdd={handleAddModel}
+      />
     </>
   );
-}
-
-// Sub-component for individual model list items to keep logic unified
-function ModelListItem({ modelId, isAdded, onAdd, onRemove, defaultIcon }: { 
-    modelId: string, 
-    isAdded: boolean, 
-    onAdd?: () => void, 
-    onRemove?: () => void,
-    defaultIcon: string 
-}) {
-    const modelIcon = getModelLogoById(modelId) || defaultIcon;
-    return (
-        <div className={cn(
-            "flex items-center gap-3 p-2 rounded-lg border transition-all duration-200 group",
-            isAdded && onAdd
-                ? "bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800 opacity-60"
-                : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700"
-        )}>
-            <div className="w-6 h-6 rounded-md bg-gray-50 dark:bg-gray-900 flex items-center justify-center overflow-hidden flex-shrink-0 border border-gray-100 dark:border-gray-800">
-                <img src={modelIcon} className="w-full h-full object-contain" alt="" />
-            </div>
-            <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" title={modelId}>{modelId}</div>
-            </div>
-            {isAdded ? (
-                onRemove ? (
-                    <button onClick={onRemove} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md opacity-0 group-hover:opacity-100 transition-opacity" title="Remove">
-                        <MdDelete className="w-4 h-4" />
-                    </button>
-                ) : (
-                    <div className="text-green-600 px-2"><MdCheck className="w-4 h-4" /></div>
-                )
-            ) : (
-                <button onClick={onAdd} className="p-1.5 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <MdAdd className="w-4 h-4" />
-                </button>
-            )}
-        </div>
-    );
 }
