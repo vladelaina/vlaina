@@ -69,11 +69,11 @@ export function ModelSelector() {
                 <MdSmartToy className="w-5 h-5 text-gray-500" />
             )}
         </div>
-        <span className="max-w-[120px] truncate">
+        <span className="max-w-[120px] truncate font-medium">
           {selectedModel ? selectedModel.name : 'Select Model'}
         </span>
         <MdExpandMore className={cn(
-          "w-4 h-4 transition-transform",
+          "w-4 h-4 transition-transform text-gray-400",
           isOpen && "rotate-180"
         )} />
       </button>
@@ -123,13 +123,13 @@ export function ModelSelector() {
                   }}
                   className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
                 >
-                  Add models
+                  Configure models
                 </button>
               </div>
             ) : (
               Object.entries(filteredGroups).map(([group, groupModels]) => (
                 <div key={group} className="mb-2 last:mb-0">
-                  <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                     {group}
                   </div>
                   {groupModels.map((model) => {
@@ -150,8 +150,8 @@ export function ModelSelector() {
                             {logo ? (
                                 <img src={logo} alt="" className="w-full h-full object-contain" />
                             ) : (
-                                <div className="w-full h-full bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-[10px]">
-                                    {model.name.charAt(0)}
+                                <div className="w-full h-full bg-gray-100 dark:bg-gray-700 rounded-md flex items-center justify-center text-[10px] font-bold text-gray-500">
+                                    {model.name.charAt(0).toUpperCase()}
                                 </div>
                             )}
                           </div>

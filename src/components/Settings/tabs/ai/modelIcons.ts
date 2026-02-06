@@ -79,9 +79,6 @@ import TokenFluxLogo from '@/components/Chat/assets/models/tokenflux.png';
 import ByteDanceLogo from '@/components/Chat/assets/models/byte_dance.svg';
 import EmbeddingLogo from '@/components/Chat/assets/models/embedding.png';
 
-// Provider logos for fallbacks
-import SiliconLogo from '@/components/Chat/assets/providers/silicon.png';
-
 export function getModelLogoById(modelId: string): string | undefined {
   if (!modelId) return undefined;
   
@@ -177,7 +174,6 @@ export function getModelLogoById(modelId: string): string | undefined {
     'microsoft': MicrosoftLogo,
     'nvidia': NvidiaLogo,
     'huggingface': HuggingfaceLogo,
-    'silicon': SiliconLogo,
   };
 
   for (const key in logoMap) {
