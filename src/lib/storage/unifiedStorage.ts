@@ -36,6 +36,8 @@ export interface CustomIcon {
   createdAt: number;
 }
 
+import type { Provider, AIModel, ChatMessage, ChatSession } from '@/lib/ai/types';
+
 export interface UnifiedData {
   calendars: NekoCalendar[];
   progress: UnifiedProgress[];
@@ -48,6 +50,14 @@ export interface UnifiedData {
     dayStartTime?: number;
   };
   customIcons?: CustomIcon[];
+  ai?: {
+    providers: Provider[];
+    models: AIModel[];
+    sessions: ChatSession[];
+    messages: Record<string, ChatMessage[]>;
+    selectedModelId: string | null;
+    currentSessionId: string | null;
+  };
 }
 
 interface DataFile {

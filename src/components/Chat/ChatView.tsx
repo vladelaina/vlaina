@@ -14,6 +14,7 @@ export function ChatView() {
     createSession,
     addMessage, 
     updateMessage, 
+    completeMessage,
     getSelectedModel, 
     providers, 
     isLoading, 
@@ -42,20 +43,17 @@ export function ChatView() {
         activeSessionId = createSession(userMessage.slice(0, 30));
     }
 
-    // Ensure we are switched to it (createSession does this, but for safety)
-    if (activeSessionId !== currentSessionId) {
-        // We rely on store update, but addMessage uses get().currentSessionId
-        // createSession runs synchronously, so store should be updated.
-    }
-    
+    // Add User Message first
     addMessage({
       role: 'user',
       content: userMessage,
       modelId: selectedModel.id
     });
 
+    // Then Add Assistant Placeholder
     const assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     addMessage({
+      id: assistantMessageId,
       role: 'assistant',
       content: '',
       modelId: selectedModel.id
@@ -67,13 +65,16 @@ export function ChatView() {
     try {
       await newAPIClient.sendMessage(
         userMessage,
+        messages, // Pass history
         selectedModel,
         provider,
         (chunk) => {
           updateMessage(assistantMessageId, chunk);
         }
       );
+      completeMessage(assistantMessageId);
     } catch (error) {
+      console.error('[ChatView] Message failed', error);
       setError(error instanceof Error ? error.message : 'Failed to send message');
       updateMessage(assistantMessageId, '❌ Failed to get response');
     } finally {
@@ -147,7 +148,13 @@ export function ChatView() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="从任何想法开始… 按 Ctrl+Enter 换行..."
+                  placeholder={
+                      !selectedModel 
+                        ? "Please select a model to start chat..." 
+                        : isLoading 
+                            ? "AI is thinking..." 
+                            : "从任何想法开始… 按 Ctrl+Enter 换行..."
+                  }
                   rows={1}
                   disabled={isLoading || !selectedModel}
                   className={cn(

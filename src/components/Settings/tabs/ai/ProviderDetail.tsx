@@ -9,6 +9,7 @@ import { ModelListItem } from './components/ModelListItem';
 import { AddModelModal } from './components/AddModelModal';
 import { generateModelGroup } from '@/lib/ai/utils';
 import { IconSelector } from '@/components/common/IconSelector';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +43,7 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
   const [checkResult, setCheckResult] = useState<'success' | 'error' | null>(null);
   
   const [isAddingModel, setIsAddingModel] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false); // For ConfirmDialog
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [fetchedModels, setFetchedModels] = useState<string[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -68,6 +70,7 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
     setCollapsedGroups(new Set());
     setFetchError(null);
     setIsAddingModel(false);
+    setIsDeleting(false);
     setPreviewIcon(null);
   }, [initialProvider]);
 
@@ -77,12 +80,6 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
       setCheckResult('success');
       setTimeout(() => setCheckResult(null), 2000);
     } 
-  };
-
-  const handleDeleteProvider = () => {
-      if (initialProvider && confirm('Are you sure you want to delete this channel?')) {
-          deleteProvider(initialProvider.id);
-      }
   };
 
   const handleCheckConnection = async () => {
@@ -206,7 +203,11 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
             
             {initialProvider && (
                 <div className="flex items-center gap-2">
-                    <button onClick={handleDeleteProvider} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete Channel">
+                    <button 
+                        onClick={() => setIsDeleting(true)} // Open Dialog
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" 
+                        title="Delete Channel"
+                    >
                         <MdDelete size={18} />
                     </button>
                     <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:opacity-90 transition-all shadow-sm">
@@ -220,11 +221,11 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
               <div className="flex flex-wrap gap-4 animate-in fade-in slide-in-from-top-2">
                   <div className="flex-1 min-w-[240px] space-y-1.5">
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Base URL</label>
-                      <input type="text" value={apiHost} onChange={(e) => setApiHost(e.target.value)} placeholder="https://api.example.com" className="w-full px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-gray-800 focus:ring-2 focus:ring-blue-500/20 text-sm outline-none" />
+                      <input type="text" value={apiHost} onChange={(e) => setApiHost(e.target.value)} onBlur={handleSave} placeholder="https://api.example.com" className="w-full px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-gray-800 focus:ring-2 focus:ring-blue-500/20 text-sm outline-none" />
                   </div>
                   <div className="flex-1 min-w-[240px] space-y-1.5">
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">API Key</label>
-                      <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk-..." className="w-full px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-gray-800 focus:ring-2 focus:ring-blue-500/20 text-sm font-mono outline-none" />
+                      <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} onBlur={handleSave} placeholder="sk-..." className="w-full px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-gray-800 focus:ring-2 focus:ring-blue-500/20 text-sm font-mono outline-none" />
                   </div>
               </div>
           ) : (
@@ -314,6 +315,18 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
       </div>
 
       <AddModelModal isOpen={isAddingModel} onClose={() => setIsAddingModel(false)} onAdd={handleAddModel} />
+      
+      <ConfirmDialog
+        isOpen={isDeleting}
+        onClose={() => setIsDeleting(false)}
+        onConfirm={() => {
+            if (initialProvider) deleteProvider(initialProvider.id);
+        }}
+        title="Delete Channel"
+        description="Are you sure you want to delete this channel? All configuration and models will be lost."
+        confirmText="Delete"
+        variant="danger"
+      />
     </>
   );
 }

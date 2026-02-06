@@ -1,291 +1,253 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { useEffect } from 'react'
+import { useUnifiedStore } from './useUnifiedStore'
 import type { Provider, AIModel, ChatMessage, ChatSession } from '@/lib/ai/types'
 import { generateModelName, generateModelGroup } from '@/lib/ai/utils'
+import { appendMessageToMarkdown, saveSessionToMarkdown } from '@/lib/storage/chatStorage'
 
-interface AIStore {
-  providers: Provider[]
-  models: AIModel[]
-  
-  // Session Management
-  sessions: ChatSession[]
-  currentSessionId: string | null
-  messages: Record<string, ChatMessage[]> // Key: sessionId
-  
-  // UI State
-  selectedModelId: string | null
-  isLoading: boolean
-  error: string | null
-
-  // Provider Actions
-  addProvider: (provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>) => string
-  updateProvider: (id: string, updates: Partial<Provider>) => void
-  deleteProvider: (id: string) => void
-  getProvider: (id: string) => Provider | undefined
-
-  // Model Actions
-  addModel: (model: Omit<AIModel, 'createdAt'>) => void
-  addModels: (models: Array<Omit<AIModel, 'createdAt'>>) => void
-  updateModel: (id: string, updates: Partial<AIModel>) => void
-  deleteModel: (id: string) => void
-  getModel: (id: string) => AIModel | undefined
-  getModelsByProvider: (providerId: string) => AIModel[]
-
-  // Selection
-  selectModel: (modelId: string | null) => void
-  getSelectedModel: () => AIModel | undefined
-
-  // Session Actions
-  createSession: (title?: string) => string
-  switchSession: (sessionId: string) => void
-  updateSession: (id: string, updates: Partial<ChatSession>) => void
-  deleteSession: (id: string) => void
-  clearSessions: () => void
-
-  // Message Actions (Targeting current session)
-  addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void
-  updateMessage: (id: string, content: string) => void
-  clearMessages: () => void // Clears current session messages
-
-  setLoading: (loading: boolean) => void
-  setError: (error: string | null) => void
+// 1. UI State Store (Transient)
+interface AIUIState {
+  isLoading: boolean;
+  error: string | null;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
 }
 
-export const useAIStore = create<AIStore>()(
-  persist(
-    (set, get) => ({
-      providers: [],
-      models: [],
-      sessions: [],
-      currentSessionId: null,
-      messages: {}, // Map sessionId -> messages
-      selectedModelId: null,
-      isLoading: false,
-      error: null,
+const useAIUIStore = create<AIUIState>((set) => ({
+  isLoading: false,
+  error: null,
+  setLoading: (loading) => set({ isLoading: loading }),
+  setError: (error: string | null) => set({ error }),
+}));
 
-      addProvider: (provider) => {
-        const id = `provider-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
-        const now = Date.now()
-        const newProvider: Provider = {
-          ...provider,
-          id,
-          createdAt: now,
-          updatedAt: now
-        }
-        set((state) => ({
-          providers: [...state.providers, newProvider]
-        }))
-        return id
-      },
+// 2. Actions
+const actions = {
+  addProvider: (provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = `provider-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+    const now = Date.now()
+    const newProvider: Provider = { ...provider, id, createdAt: now, updatedAt: now }
+    const state = useUnifiedStore.getState();
+    const currentProviders = state.data.ai?.providers || [];
+    state.updateAIData({ providers: [...currentProviders, newProvider] });
+    return id
+  },
 
-      updateProvider: (id, updates) => {
-        set((state) => ({
-          providers: state.providers.map((p) =>
-            p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p
-          )
-        }))
-      },
+  updateProvider: (id: string, updates: Partial<Provider>) => {
+    const state = useUnifiedStore.getState();
+    const providers = state.data.ai?.providers || [];
+    state.updateAIData({
+      providers: providers.map((p) =>
+        p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p
+      )
+    })
+  },
 
-      deleteProvider: (id) => {
-        set((state) => ({
-          providers: state.providers.filter((p) => p.id !== id),
-          models: state.models.filter((m) => m.providerId !== id),
-          selectedModelId: state.selectedModelId && 
-            state.models.find(m => m.id === state.selectedModelId)?.providerId === id
-            ? null
-            : state.selectedModelId
-        }))
-      },
+  deleteProvider: (id: string) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    state.updateAIData({
+      providers: ai.providers.filter((p) => p.id !== id),
+      models: ai.models.filter((m) => m.providerId !== id),
+      selectedModelId: ai.selectedModelId && 
+        ai.models.find(m => m.id === ai.selectedModelId)?.providerId === id
+        ? null
+        : ai.selectedModelId
+    })
+  },
 
-      getProvider: (id) => {
-        return get().providers.find((p) => p.id === id)
-      },
-
-      addModel: (model) => {
-        const newModel: AIModel = {
-          ...model,
-          name: model.name || generateModelName(model.id),
-          group: model.group || generateModelGroup(model.id),
-          createdAt: Date.now()
-        }
-        set((state) => ({
-          models: [...state.models, newModel]
-        }))
-      },
-
-      addModels: (models) => {
-        const now = Date.now()
-        const newModels: AIModel[] = models.map((model) => ({
-          ...model,
-          name: model.name || generateModelName(model.id),
-          group: model.group || generateModelGroup(model.id),
-          createdAt: now
-        }))
-        set((state) => ({
-          models: [...state.models, ...newModels]
-        }))
-      },
-
-      updateModel: (id, updates) => {
-        set((state) => ({
-          models: state.models.map((m) =>
-            m.id === id ? { ...m, ...updates } : m
-          )
-        }))
-      },
-
-      deleteModel: (id) => {
-        set((state) => ({
-          models: state.models.filter((m) => m.id !== id),
-          selectedModelId: state.selectedModelId === id ? null : state.selectedModelId
-        }))
-      },
-
-      getModel: (id) => {
-        return get().models.find((m) => m.id === id)
-      },
-
-      getModelsByProvider: (providerId) => {
-        return get().models.filter((m) => m.providerId === providerId && m.enabled)
-      },
-
-      selectModel: (modelId) => {
-        set({ selectedModelId: modelId })
-      },
-
-      getSelectedModel: () => {
-        const { selectedModelId, models } = get()
-        if (!selectedModelId) return undefined
-        return models.find((m) => m.id === selectedModelId)
-      },
-
-      // --- Session Logic ---
-
-      createSession: (title = 'New Chat') => {
-        const id = `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
-        const { selectedModelId } = get()
-        
-        const newSession: ChatSession = {
-          id,
-          title,
-          modelId: selectedModelId || '',
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        }
-
-        set((state) => ({
-          sessions: [newSession, ...state.sessions],
-          currentSessionId: id,
-          messages: { ...state.messages, [id]: [] }
-        }))
-        
-        return id
-      },
-
-      switchSession: (sessionId) => {
-        set({ currentSessionId: sessionId })
-      },
-
-      updateSession: (id, updates) => {
-        set((state) => ({
-          sessions: state.sessions.map((s) => 
-            s.id === id ? { ...s, ...updates, updatedAt: Date.now() } : s
-          )
-        }))
-      },
-
-      deleteSession: (id) => {
-        set((state) => {
-          const newSessions = state.sessions.filter(s => s.id !== id);
-          const newMessages = { ...state.messages };
-          delete newMessages[id];
-          
-          return {
-            sessions: newSessions,
-            messages: newMessages,
-            currentSessionId: state.currentSessionId === id 
-              ? (newSessions[0]?.id || null) 
-              : state.currentSessionId
-          }
-        })
-      },
-
-      clearSessions: () => {
-        set({ sessions: [], messages: {}, currentSessionId: null })
-      },
-
-      addMessage: (message) => {
-        const { currentSessionId } = get();
-        if (!currentSessionId) return;
-
-        const newMessage: ChatMessage = {
-          ...message,
-          id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
-          timestamp: Date.now()
-        }
-
-        set((state) => {
-          const sessionMessages = state.messages[currentSessionId] || [];
-          return {
-            messages: {
-              ...state.messages,
-              [currentSessionId]: [...sessionMessages, newMessage]
-            },
-            // Update session timestamp
-            sessions: state.sessions.map(s => 
-              s.id === currentSessionId ? { ...s, updatedAt: Date.now() } : s
-            )
-          }
-        })
-      },
-
-      updateMessage: (id, content) => {
-        const { currentSessionId } = get();
-        if (!currentSessionId) return;
-
-        set((state) => {
-          const sessionMessages = state.messages[currentSessionId] || [];
-          return {
-            messages: {
-              ...state.messages,
-              [currentSessionId]: sessionMessages.map(m => 
-                m.id === id ? { ...m, content } : m
-              )
-            }
-          }
-        })
-      },
-
-      clearMessages: () => {
-        const { currentSessionId } = get();
-        if (!currentSessionId) return;
-        
-        set((state) => ({
-          messages: {
-            ...state.messages,
-            [currentSessionId]: []
-          }
-        }))
-      },
-
-      setLoading: (loading) => {
-        set({ isLoading: loading })
-      },
-
-      setError: (error) => {
-        set({ error })
-      }
-    }),
-    {
-      name: 'nekotick-ai-config',
-      partialize: (state) => ({
-        providers: state.providers,
-        models: state.models,
-        sessions: state.sessions,
-        messages: state.messages,
-        currentSessionId: state.currentSessionId,
-        selectedModelId: state.selectedModelId
-      })
+  addModel: (model: Omit<AIModel, 'createdAt'>) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    const newModel: AIModel = {
+      ...model,
+      name: model.name || generateModelName(model.id),
+      group: model.group || generateModelGroup(model.id),
+      createdAt: Date.now()
     }
-  )
-)
+    
+    const updates: any = { models: [...ai.models, newModel] };
+    if (!ai.selectedModelId) {
+        updates.selectedModelId = newModel.id;
+    }
+    state.updateAIData(updates);
+  },
+
+  addModels: (models: Array<Omit<AIModel, 'createdAt'>>) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    const now = Date.now()
+    const newModels: AIModel[] = models.map((model) => ({
+      ...model,
+      name: model.name || generateModelName(model.id),
+      group: model.group || generateModelGroup(model.id),
+      createdAt: now
+    }))
+    
+    const updates: any = { models: [...ai.models, ...newModels] };
+    if (!ai.selectedModelId && newModels.length > 0) {
+        updates.selectedModelId = newModels[0].id;
+    }
+    state.updateAIData(updates);
+  },
+
+  deleteModel: (id: string) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    state.updateAIData({
+      models: ai.models.filter((m) => m.id !== id),
+      selectedModelId: ai.selectedModelId === id ? null : ai.selectedModelId
+    })
+  },
+
+  selectModel: (modelId: string | null) => {
+    useUnifiedStore.getState().updateAIData({ selectedModelId: modelId })
+  },
+
+  createSession: (title = 'New Chat') => {
+    const id = `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    
+    const newSession: ChatSession = {
+      id,
+      title,
+      modelId: ai.selectedModelId || '',
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }
+
+    state.updateAIData({
+      sessions: [newSession, ...ai.sessions],
+      currentSessionId: id,
+      messages: { ...ai.messages, [id]: [] }
+    })
+    
+    // Init MD file
+    saveSessionToMarkdown(newSession, []);
+    
+    return id
+  },
+
+  switchSession: (sessionId: string) => {
+    useUnifiedStore.getState().updateAIData({ currentSessionId: sessionId })
+  },
+
+  updateSession: (id: string, updates: Partial<ChatSession>) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    state.updateAIData({
+      sessions: ai.sessions.map((s) => 
+        s.id === id ? { ...s, ...updates, updatedAt: Date.now() } : s
+      )
+    })
+  },
+
+  deleteSession: (id: string) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    const newSessions = ai.sessions.filter(s => s.id !== id);
+    const newMessages = { ...ai.messages };
+    delete newMessages[id];
+    
+    state.updateAIData({
+      sessions: newSessions,
+      messages: newMessages,
+      currentSessionId: ai.currentSessionId === id 
+        ? (newSessions[0]?.id || null) 
+        : ai.currentSessionId
+    });
+  },
+
+  clearSessions: () => {
+    useUnifiedStore.getState().updateAIData({ sessions: [], messages: {}, currentSessionId: null })
+  },
+
+  addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'> & { id?: string }) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    const { currentSessionId } = ai;
+    if (!currentSessionId) return;
+
+    const newMessage: ChatMessage = {
+      ...message,
+      id: message.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+      timestamp: Date.now()
+    }
+
+    const sessionMessages = ai.messages[currentSessionId] || [];
+    const newMessages = [...sessionMessages, newMessage];
+    
+    state.updateAIData({
+      messages: { ...ai.messages, [currentSessionId]: newMessages },
+      sessions: ai.sessions.map(s => s.id === currentSessionId ? { ...s, updatedAt: Date.now() } : s)
+    });
+
+    // Save user messages immediately to MD
+    if (message.role === 'user') {
+        appendMessageToMarkdown(currentSessionId, newMessage);
+    }
+    
+    return newMessage.id;
+  },
+
+  updateMessage: (id: string, content: string) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    const { currentSessionId } = ai;
+    if (!currentSessionId) return;
+
+    const sessionMessages = ai.messages[currentSessionId] || [];
+    state.updateAIData({
+      messages: {
+        ...ai.messages,
+        [currentSessionId]: sessionMessages.map(m => m.id === id ? { ...m, content } : m)
+      }
+    })
+  },
+
+  // New action to finalize assistant message
+  completeMessage: (id: string) => {
+      const state = useUnifiedStore.getState();
+      const ai = state.data.ai!;
+      const { currentSessionId } = ai;
+      if (!currentSessionId) return;
+
+      const sessionMessages = ai.messages[currentSessionId] || [];
+      const msg = sessionMessages.find(m => m.id === id);
+      if (msg) {
+          appendMessageToMarkdown(currentSessionId, msg);
+      }
+  }
+};
+
+// 3. The Hook
+export const useAIStore = () => {
+  const aiData = useUnifiedStore(s => s.data.ai);
+  const uiState = useAIUIStore();
+  const loaded = useUnifiedStore(s => s.loaded);
+  const load = useUnifiedStore(s => s.load);
+
+  // Auto-load persistence on mount
+  useEffect(() => {
+      if (!loaded) {
+          load();
+      }
+  }, [loaded, load]);
+
+  return {
+    providers: aiData?.providers || [],
+    models: aiData?.models || [],
+    sessions: aiData?.sessions || [],
+    currentSessionId: aiData?.currentSessionId || null,
+    messages: aiData?.messages || {},
+    selectedModelId: aiData?.selectedModelId || null,
+    
+    ...uiState,
+    ...actions,
+    
+    getProvider: (id: string) => aiData?.providers.find(p => p.id === id),
+    getModel: (id: string) => aiData?.models.find(m => m.id === id),
+    getSelectedModel: () => aiData?.selectedModelId ? aiData.models.find(m => m.id === aiData.selectedModelId) : undefined,
+    getModelsByProvider: (pid: string) => aiData?.models.filter(m => m.providerId === pid && m.enabled) || [],
+  };
+};

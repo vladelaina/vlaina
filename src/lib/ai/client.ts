@@ -1,8 +1,9 @@
-import type { Provider, AIModel, AIError, AIErrorType } from './types'
+import type { Provider, AIModel, AIError, AIErrorType, ChatMessage } from './types'
 
 export interface AIClient {
   sendMessage(
     message: string,
+    history: ChatMessage[],
     model: AIModel,
     provider: Provider,
     onChunk?: (chunk: string) => void

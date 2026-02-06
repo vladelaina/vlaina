@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { SUPPORTED_PROVIDERS } from './ai/constants';
 import { ProviderDetail } from './ai/ProviderDetail';
@@ -6,13 +6,35 @@ import { ProviderDetail } from './ai/ProviderDetail';
 export function AITab() {
   const { providers, addProvider } = useAIStore();
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
+  const hasInitialized = useRef(false);
 
-  // Initialize selection if possible
+  // Initialize selection or create default
   useEffect(() => {
-      if (!selectedProviderId && providers.length > 0) {
+      if (providers.length === 0) {
+          // No providers? Create one immediately!
+          // Use a ref to prevent double-firing in Strict Mode if necessary, though length check is robust
+          if (!hasInitialized.current) {
+              hasInitialized.current = true;
+              const id = addProvider({
+                  name: 'New Channel',
+                  type: 'newapi',
+                  apiHost: '',
+                  apiKey: '',
+                  enabled: true
+              });
+              setSelectedProviderId(id);
+          }
+      } else if (!selectedProviderId) {
+          // Have providers but none selected? Select the first one.
           setSelectedProviderId(providers[0].id);
+      } else {
+          // Have selectedId, verify it exists (e.g. after deletion)
+          const exists = providers.some(p => p.id === selectedProviderId);
+          if (!exists) {
+              setSelectedProviderId(providers[0].id);
+          }
       }
-  }, [providers, selectedProviderId]);
+  }, [providers, selectedProviderId, addProvider]);
 
   // Resolve current provider object
   const currentProvider = selectedProviderId 
