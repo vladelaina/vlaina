@@ -1,79 +1,144 @@
-import { MdAdd, MdEdit, MdDelete } from 'react-icons/md';
+import { useMemo, useEffect, useState } from 'react';
+import { MdMoreHoriz, MdDriveFileRenameOutline, MdPushPin, MdDelete, MdPushPin as MdUnpin } from 'react-icons/md'; // MdUnpin is same icon visually usually
+import { useAIStore } from '@/stores/useAIStore';
+import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface ChatSidebarProps {
   isPeeking?: boolean;
 }
 
 export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
+  const { sessions, currentSessionId, createSession, switchSession, deleteSession, updateSession } = useAIStore();
+
+  // Listen for global create new event
+  useEffect(() => {
+    const handleCreateNew = (e: Event) => {
+        const customEvent = e as CustomEvent;
+        if (customEvent.detail?.view === 'chat') {
+            createSession();
+        }
+    };
+
+    window.addEventListener('neko-create-new', handleCreateNew);
+    return () => window.removeEventListener('neko-create-new', handleCreateNew);
+  }, [createSession]);
+
+  // Sort sessions: Pinned first, then by updatedAt desc
+  const sortedSessions = useMemo(() => {
+    return [...sessions].sort((a, b) => {
+        if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+        return b.updatedAt - a.updatedAt;
+    });
+  }, [sessions]);
+
+  const handleRename = (sessionId: string, currentTitle: string) => {
+      const newTitle = window.prompt("Rename chat", currentTitle);
+      if (newTitle && newTitle.trim()) {
+          updateSession(sessionId, { title: newTitle.trim() });
+      }
+  };
+
+  const handleTogglePin = (sessionId: string, isPinned?: boolean) => {
+      updateSession(sessionId, { isPinned: !isPinned });
+  };
+
   return (
-    <div className={`h-full flex flex-col bg-[var(--neko-bg-primary)] ${isPeeking ? 'opacity-95' : ''}`}>
-      {/* Action Bar */}
-      <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-        <button className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
-          <MdAdd className="w-4 h-4" />
-          新建话题
-        </button>
-      </div>
+    <div className={cn(
+      "h-full flex flex-col bg-white dark:bg-[#171717]",
+      isPeeking ? 'opacity-95' : ''
+    )}>
+      {/* Scrollable List */}
+      <div className="flex-1 overflow-y-auto px-2 py-3 scrollbar-none">
+        <div className="space-y-[2px]">
+          {sortedSessions.length === 0 ? (
+            <div className="px-4 py-8 text-center text-xs text-gray-400">
+              No conversations yet
+            </div>
+          ) : (
+            sortedSessions.map(session => {
+              const isActive = currentSessionId === session.id;
+              return (
+                <div
+                  key={session.id}
+                  className={cn(
+                    "group relative flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer transition-all duration-200 ease-out",
+                    isActive 
+                      ? "bg-[#F4F4F5] dark:bg-[#222] text-gray-800 dark:text-gray-200 font-medium" 
+                      : "text-gray-600 dark:text-gray-400 hover:bg-[#F9F9FA] dark:hover:bg-[#1E1E1E]"
+                  )}
+                  onClick={() => switchSession(session.id)}
+                >
+                  <div className="flex-1 truncate relative z-10 flex items-center gap-2">
+                    {session.isPinned && <MdPushPin className="w-3 h-3 flex-shrink-0 text-gray-400" />}
+                    <span className="truncate">{session.title || 'New Chat'}</span>
+                  </div>
 
-      {/* Topic List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        <TopicItem
-          title="新对话"
-          time="刚刚"
-          preview="你好，有什么可以帮助你的吗？"
-          isActive={true}
-        />
-        <TopicItem
-          title="关于 React Hooks"
-          time="2小时前"
-          preview="useEffect 的依赖数组应该..."
-          isActive={false}
-        />
-        <TopicItem
-          title="项目规划讨论"
-          time="昨天"
-          preview="我们需要考虑以下几个方面..."
-          isActive={false}
-        />
-      </div>
-    </div>
-  );
-}
-
-interface TopicItemProps {
-  title: string;
-  time: string;
-  preview: string;
-  isActive: boolean;
-}
-
-function TopicItem({ title, time, preview, isActive }: TopicItemProps) {
-  return (
-    <div
-      className={`group p-3 rounded-lg border transition-all cursor-pointer ${
-        isActive
-          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-      }`}
-    >
-      <div className="flex items-start justify-between mb-1">
-        <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate flex-1">
-          {title}
+                  {/* Hover Actions - Menu */}
+                  <div className={cn(
+                      "absolute right-1 top-1/2 -translate-y-1/2 flex items-center",
+                      "opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  )}>
+                    {/* Gradient Mask */}
+                    <div className={cn(
+                        "absolute right-full top-0 h-full w-6 bg-gradient-to-l pointer-events-none",
+                        isActive 
+                          ? "from-[#F4F4F5] to-transparent dark:from-[#222]" 
+                          : "from-white to-transparent dark:from-[#171717] group-hover:from-[#F9F9FA] dark:group-hover:from-[#1E1E1E]"
+                    )} />
+                    
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button
+                              onClick={(e) => e.stopPropagation()}
+                              className={cn(
+                                  "p-1 rounded transition-colors focus:outline-none",
+                                  isActive ? "text-gray-500 hover:bg-black/5" : "text-gray-400 hover:bg-gray-200/50 dark:hover:bg-zinc-700"
+                              )}
+                            >
+                              <MdMoreHoriz className="w-4 h-4" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-32 bg-white dark:bg-[#1C1C1C]">
+                            <DropdownMenuItem onClick={(e) => {
+                                e.stopPropagation();
+                                handleRename(session.id, session.title);
+                            }}>
+                                <MdDriveFileRenameOutline className="mr-2 h-3.5 w-3.5 text-gray-500" />
+                                <span>Rename</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => {
+                                e.stopPropagation();
+                                handleTogglePin(session.id, session.isPinned);
+                            }}>
+                                <MdPushPin className="mr-2 h-3.5 w-3.5 text-gray-500" />
+                                <span>{session.isPinned ? 'Unpin' : 'Pin'}</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm('Delete this chat?')) deleteSession(session.id);
+                                }}
+                                className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
+                            >
+                                <MdDelete className="mr-2 h-3.5 w-3.5" />
+                                <span>Delete</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-            <MdEdit className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
-          </button>
-          <button className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded">
-            <MdDelete className="w-3.5 h-3.5 text-red-500 dark:text-red-400" />
-          </button>
-        </div>
-      </div>
-      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-        {time}
-      </div>
-      <div className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">
-        {preview}
       </div>
     </div>
   );

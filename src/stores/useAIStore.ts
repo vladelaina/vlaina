@@ -1,21 +1,29 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Provider, AIModel, ChatMessage } from '@/lib/ai/types'
+import type { Provider, AIModel, ChatMessage, ChatSession } from '@/lib/ai/types'
 import { generateModelName, generateModelGroup } from '@/lib/ai/utils'
 
 interface AIStore {
   providers: Provider[]
   models: AIModel[]
+  
+  // Session Management
+  sessions: ChatSession[]
+  currentSessionId: string | null
+  messages: Record<string, ChatMessage[]> // Key: sessionId
+  
+  // UI State
   selectedModelId: string | null
-  messages: ChatMessage[]
   isLoading: boolean
   error: string | null
 
+  // Provider Actions
   addProvider: (provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>) => string
   updateProvider: (id: string, updates: Partial<Provider>) => void
   deleteProvider: (id: string) => void
   getProvider: (id: string) => Provider | undefined
 
+  // Model Actions
   addModel: (model: Omit<AIModel, 'createdAt'>) => void
   addModels: (models: Array<Omit<AIModel, 'createdAt'>>) => void
   updateModel: (id: string, updates: Partial<AIModel>) => void
@@ -23,12 +31,21 @@ interface AIStore {
   getModel: (id: string) => AIModel | undefined
   getModelsByProvider: (providerId: string) => AIModel[]
 
+  // Selection
   selectModel: (modelId: string | null) => void
   getSelectedModel: () => AIModel | undefined
 
+  // Session Actions
+  createSession: (title?: string) => string
+  switchSession: (sessionId: string) => void
+  updateSession: (id: string, updates: Partial<ChatSession>) => void
+  deleteSession: (id: string) => void
+  clearSessions: () => void
+
+  // Message Actions (Targeting current session)
   addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void
   updateMessage: (id: string, content: string) => void
-  clearMessages: () => void
+  clearMessages: () => void // Clears current session messages
 
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
@@ -39,8 +56,10 @@ export const useAIStore = create<AIStore>()(
     (set, get) => ({
       providers: [],
       models: [],
+      sessions: [],
+      currentSessionId: null,
+      messages: {}, // Map sessionId -> messages
       selectedModelId: null,
-      messages: [],
       isLoading: false,
       error: null,
 
@@ -140,27 +159,113 @@ export const useAIStore = create<AIStore>()(
         return models.find((m) => m.id === selectedModelId)
       },
 
+      // --- Session Logic ---
+
+      createSession: (title = 'New Chat') => {
+        const id = `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+        const { selectedModelId } = get()
+        
+        const newSession: ChatSession = {
+          id,
+          title,
+          modelId: selectedModelId || '',
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        }
+
+        set((state) => ({
+          sessions: [newSession, ...state.sessions],
+          currentSessionId: id,
+          messages: { ...state.messages, [id]: [] }
+        }))
+        
+        return id
+      },
+
+      switchSession: (sessionId) => {
+        set({ currentSessionId: sessionId })
+      },
+
+      updateSession: (id, updates) => {
+        set((state) => ({
+          sessions: state.sessions.map((s) => 
+            s.id === id ? { ...s, ...updates, updatedAt: Date.now() } : s
+          )
+        }))
+      },
+
+      deleteSession: (id) => {
+        set((state) => {
+          const newSessions = state.sessions.filter(s => s.id !== id);
+          const newMessages = { ...state.messages };
+          delete newMessages[id];
+          
+          return {
+            sessions: newSessions,
+            messages: newMessages,
+            currentSessionId: state.currentSessionId === id 
+              ? (newSessions[0]?.id || null) 
+              : state.currentSessionId
+          }
+        })
+      },
+
+      clearSessions: () => {
+        set({ sessions: [], messages: {}, currentSessionId: null })
+      },
+
       addMessage: (message) => {
+        const { currentSessionId } = get();
+        if (!currentSessionId) return;
+
         const newMessage: ChatMessage = {
           ...message,
           id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           timestamp: Date.now()
         }
-        set((state) => ({
-          messages: [...state.messages, newMessage]
-        }))
+
+        set((state) => {
+          const sessionMessages = state.messages[currentSessionId] || [];
+          return {
+            messages: {
+              ...state.messages,
+              [currentSessionId]: [...sessionMessages, newMessage]
+            },
+            // Update session timestamp
+            sessions: state.sessions.map(s => 
+              s.id === currentSessionId ? { ...s, updatedAt: Date.now() } : s
+            )
+          }
+        })
       },
 
       updateMessage: (id, content) => {
-        set((state) => ({
-          messages: state.messages.map((m) =>
-            m.id === id ? { ...m, content } : m
-          )
-        }))
+        const { currentSessionId } = get();
+        if (!currentSessionId) return;
+
+        set((state) => {
+          const sessionMessages = state.messages[currentSessionId] || [];
+          return {
+            messages: {
+              ...state.messages,
+              [currentSessionId]: sessionMessages.map(m => 
+                m.id === id ? { ...m, content } : m
+              )
+            }
+          }
+        })
       },
 
       clearMessages: () => {
-        set({ messages: [] })
+        const { currentSessionId } = get();
+        if (!currentSessionId) return;
+        
+        set((state) => ({
+          messages: {
+            ...state.messages,
+            [currentSessionId]: []
+          }
+        }))
       },
 
       setLoading: (loading) => {
@@ -176,6 +281,9 @@ export const useAIStore = create<AIStore>()(
       partialize: (state) => ({
         providers: state.providers,
         models: state.models,
+        sessions: state.sessions,
+        messages: state.messages,
+        currentSessionId: state.currentSessionId,
         selectedModelId: state.selectedModelId
       })
     }

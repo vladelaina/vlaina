@@ -19,6 +19,15 @@ export interface AIModel {
   createdAt: number
 }
 
+export interface ChatSession {
+  id: string
+  title: string
+  modelId: string
+  isPinned?: boolean
+  createdAt: number
+  updatedAt: number
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system'

@@ -9,7 +9,9 @@ export function ChatView() {
   const [message, setMessage] = useState('');
   
   const { 
-    messages, 
+    messages: allMessages, 
+    currentSessionId,
+    createSession,
     addMessage, 
     updateMessage, 
     getSelectedModel, 
@@ -19,6 +21,7 @@ export function ChatView() {
     setError 
   } = useAIStore();
 
+  const messages = currentSessionId ? (allMessages[currentSessionId] || []) : [];
   const selectedModel = getSelectedModel();
 
   const handleSend = async () => {
@@ -32,6 +35,18 @@ export function ChatView() {
 
     const userMessage = message.trim();
     setMessage('');
+    
+    // Auto-create session if none exists
+    let activeSessionId = currentSessionId;
+    if (!activeSessionId) {
+        activeSessionId = createSession(userMessage.slice(0, 30));
+    }
+
+    // Ensure we are switched to it (createSession does this, but for safety)
+    if (activeSessionId !== currentSessionId) {
+        // We rely on store update, but addMessage uses get().currentSessionId
+        // createSession runs synchronously, so store should be updated.
+    }
     
     addMessage({
       role: 'user',
@@ -80,12 +95,6 @@ export function ChatView() {
         <div className="max-w-3xl mx-auto px-4 py-8">
           {messages.length === 0 ? (
             <div className="text-center py-12">
-              <h1 className="text-3xl font-semibold text-[var(--neko-text-primary)] mb-2">
-                有什么可以帮忙的？
-              </h1>
-              <p className="text-sm text-[var(--neko-text-tertiary)] mt-2">
-                NekoTick AI 助手随时为您服务
-              </p>
               {!selectedModel && (
                 <button
                   onClick={() => {
