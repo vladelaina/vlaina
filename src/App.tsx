@@ -12,10 +12,12 @@ import { ToastContainer } from '@/components/ui/Toast';
 import { CalendarView } from '@/components/Calendar/CalendarView';
 import { NotesView } from '@/components/Notes/NotesView';
 import { TodoView } from '@/components/Todo/TodoView';
+import { ChatView } from '@/components/Chat/ChatView';
 
 import { CalendarSidebarWrapper } from '@/components/Calendar/features/Sidebar/CalendarSidebarWrapper';
 import { TodoSidebar } from '@/components/Todo/TodoSidebar';
 import { NotesSidebarWrapper } from '@/components/Notes/features/Sidebar/NotesSidebarWrapper';
+import { ChatSidebar } from '@/components/Chat/ChatSidebar';
 
 import { CalendarHeaderControl } from '@/components/Calendar/features/Grid/CalendarHeaderControl';
 import { NotesTabRow } from '@/components/Notes/features/Tabs/NotesTabRow';
@@ -97,6 +99,9 @@ function AppContent() {
     sidebarContent = <CalendarSidebarWrapper />;
   } else if (appViewMode === 'todo') {
     sidebarContent = <TodoSidebar />;
+  } else if (appViewMode === 'chat') {
+    sidebarContent = <ChatSidebar isPeeking={false} />;
+    sidebarPeekContent = <ChatSidebar isPeeking={true} />;
   } else if (appViewMode === 'notes' && currentVault) {
     sidebarContent = <NotesSidebarWrapper isPeeking={false} />;
     sidebarPeekContent = <NotesSidebarWrapper isPeeking={true} />;
@@ -117,6 +122,8 @@ function AppContent() {
     mainContent = <CalendarView />;
   } else if (appViewMode === 'todo') {
     mainContent = <TodoView />;
+  } else if (appViewMode === 'chat') {
+    mainContent = <ChatView />;
   } else {
     mainContent = <NotesView />;
   }

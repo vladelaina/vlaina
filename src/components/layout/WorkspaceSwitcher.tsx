@@ -11,6 +11,7 @@ import {
     MdPeople,
     MdChevronRight,
     MdAssignment,
+    MdChat,
 } from "react-icons/md";
 import * as Popover from "@radix-ui/react-popover";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
@@ -340,6 +341,19 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                     >
                                         <MdAssignment className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
                                         <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Todos</span>
+                                    </button>
+                                )}
+
+                                {appViewMode !== 'chat' && (
+                                    <button
+                                        onClick={() => handleViewSwitch('chat')}
+                                        className={cn(
+                                            "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
+                                            "hover:bg-[var(--neko-hover)]"
+                                        )}
+                                    >
+                                        <MdChat className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
+                                        <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Chat</span>
                                     </button>
                                 )}
                             </div>
