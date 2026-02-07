@@ -1,6 +1,6 @@
 import type { AIClient } from '../client'
 import type { Provider, AIModel, ChatCompletionRequest, ChatCompletionResponse, ChatCompletionStreamChunk, ChatMessage, ChatMessageContent } from '../types'
-import { parseAPIError, parseHTTPError } from '../client'
+import { parseAPIError, parseHTTPError } from '../errors'
 import { normalizeApiHost } from '../utils'
 
 export class OpenAICompatibleClient implements AIClient {
@@ -134,8 +134,14 @@ export class OpenAICompatibleClient implements AIClient {
       });
 
       if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}))
-        console.error('[OpenAI] Stream error body', errorBody);
+        const errorText = await response.text().catch(() => 'Unknown error');
+        let errorBody;
+        try {
+            errorBody = JSON.parse(errorText);
+        } catch (e) {
+            errorBody = { message: errorText }; // Keep raw text if not JSON
+        }
+        console.error('[OpenAI] Stream error', { status: response.status, errorBody });
         throw parseHTTPError(response.status, errorBody)
       }
 

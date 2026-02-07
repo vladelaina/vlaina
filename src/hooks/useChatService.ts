@@ -201,8 +201,15 @@ export function useChatService() {
           console.log('[ChatService] Request aborted.');
       } else {
           console.error('[ChatService] Message failed', error);
-          setError(error instanceof Error ? error.message : 'Failed to send message');
-          updateMessage(targetSessionId, assistantMessageId, '❌ Failed to get response');
+          
+          const type = error.type || 'UNKNOWN';
+          const code = error.statusCode || error.status || '';
+          const detail = error.message || 'Unknown error occurred';
+          
+          const errorXml = `<error type="${type}" code="${code}">${detail}</error>`;
+          
+          setError(detail); 
+          updateMessage(targetSessionId, assistantMessageId, errorXml);
       }
     } finally {
       requestManager.finish(targetSessionId);
