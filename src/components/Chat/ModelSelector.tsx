@@ -48,12 +48,22 @@ export function ModelSelector() {
 
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside)
+      
+      // Auto-scroll to selected model
+      if (selectedModelId && dropdownRef.current) {
+          requestAnimationFrame(() => {
+              const activeItem = dropdownRef.current?.querySelector(`[data-model-id="${selectedModelId}"]`);
+              if (activeItem) {
+                  activeItem.scrollIntoView({ block: 'center', behavior: 'instant' });
+              }
+          });
+      }
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [isOpen])
+  }, [isOpen, selectedModelId])
 
   const handleSelectModel = (modelId: string) => {
     selectModel(modelId)
@@ -72,6 +82,7 @@ export function ModelSelector() {
       return (
         <button
             key={model.id}
+            data-model-id={model.id} // Added data attribute for scrolling lookup
             onClick={() => handleSelectModel(model.id)}
             className={cn(
                 "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md",
