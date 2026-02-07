@@ -48,7 +48,13 @@ export const CoverRenderer = React.memo(({
 
   const cropperStyle = useMemo(() => ({
     containerStyle: { backgroundColor: 'transparent' },
-    cropAreaStyle: { border: 'none', boxShadow: 'none', color: 'transparent' },
+    cropAreaStyle: { 
+      border: 'none', 
+      boxShadow: 'none', 
+      color: 'transparent',
+      outline: 'none',
+      background: 'transparent'
+    },
     mediaStyle: {
       willChange: 'transform',
       backfaceVisibility: 'hidden' as 'hidden',

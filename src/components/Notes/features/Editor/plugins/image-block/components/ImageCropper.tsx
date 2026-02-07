@@ -19,6 +19,8 @@ interface ImageCropperProps {
     onResizeStart?: (direction: 'left' | 'right' | 'top' | 'bottom' | 'bottom-left' | 'bottom-right') => (e: React.MouseEvent) => void;
     isActive: boolean;
     onMediaLoaded?: (mediaSize: { width: number; height: number; naturalWidth: number; naturalHeight: number }) => void;
+    overrideState?: { crop: { x: number; y: number }; zoom: number } | null;
+    onStateChange?: (state: { crop: { x: number; y: number }; zoom: number }) => void;
 }
 
 export const ImageCropper: React.FC<ImageCropperProps> = ({
@@ -30,7 +32,9 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     isSaving,
     onResizeStart,
     isActive,
-    onMediaLoaded: externalOnMediaLoaded
+    onMediaLoaded: externalOnMediaLoaded,
+    overrideState,
+    onStateChange
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +45,13 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         minZoomLimit,
         originalAspectRatioRef,
         onMediaLoaded
-    } = useCropperState({ initialCropParams, containerSize, onMediaLoaded: externalOnMediaLoaded });
+    } = useCropperState({ 
+        initialCropParams, 
+        containerSize, 
+        onMediaLoaded: externalOnMediaLoaded,
+        overrideState,
+        onStateChange
+    });
 
     // 2. Interaction
     const {
@@ -95,6 +105,13 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                             containerStyle: {
                                 borderRadius: '0',
                                 pointerEvents: (isActive || isCtrlPressed) ? 'auto' : 'none'
+                            },
+                            cropAreaStyle: { 
+                                border: 'none', 
+                                boxShadow: 'none', 
+                                color: 'transparent',
+                                outline: 'none',
+                                background: 'transparent'
                             },
                             mediaStyle: { borderRadius: '0' }
                         }}

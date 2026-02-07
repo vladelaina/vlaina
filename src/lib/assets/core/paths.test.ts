@@ -16,7 +16,7 @@ import {
   isValidAssetFilename,
   buildAssetPath,
   buildFullAssetPath,
-} from './core/paths';
+} from './paths';
 
 describe('pathUtils', () => {
   describe('Property 10: Path Storage Format', () => {
