@@ -17,11 +17,14 @@ export function ChatView() {
     currentSessionId, 
     switchVersion, 
     selectedModel,
-    isLoading 
+    isSessionLoading
   } = useAIStore();
 
   const messages = currentSessionId ? (allMessages[currentSessionId] || []) : [];
   const { sendMessage, regenerate, stop } = useChatService();
+  
+  // Check if CURRENT session is loading
+  const isLoading = currentSessionId ? isSessionLoading(currentSessionId) : false;
   
   useEffect(() => {
       if (scrollRef.current) {
@@ -76,7 +79,7 @@ export function ChatView() {
                 <MessageItem 
                     key={msg.id}
                     msg={msg}
-                    isLoading={isLoading}
+                    isLoading={isLoading} // Only affects this session's UI
                     isSpeaking={speakingMsgId === msg.id}
                     isSourcesOpen={expandedSources.has(msg.id)}
                     onCopy={copyToClipboard}

@@ -18,7 +18,7 @@ Rules:
 
 User Message: ${userText}`;
           
-          // We use a non-streaming call for title (well, strictly it streams but we wait for full text)
+          // No signal passed, runs in background independently
           const title = await openaiClient.sendMessage(
               prompt,
               [], 
@@ -26,17 +26,18 @@ User Message: ${userText}`;
               provider
           );
           
-          // Clean up title: remove <think> blocks and quotes
           const cleanTitle = title
-              .replace(/<think>[\s\S]*?<\/think>/gi, '') // Remove reasoning chain
-              .replace(/^["']|["']$/g, '') // Remove quotes
+              .replace(/<think>[\s\S]*?<\/think>/gi, '') 
+              .replace(/^["']|["']$/g, '') 
               .trim();
 
           if (cleanTitle) {
+              console.log('[AutoTitle] Updated title:', cleanTitle);
               updateSession(sessionId, { title: cleanTitle });
           }
       } catch (e) {
-          console.warn('[AutoTitle] Failed to generate title:', e);
+          // Silent fail is intentional for background tasks, but logging for debug
+          console.warn('[AutoTitle] Skipped:', e);
       }
   }, [providers, updateSession]);
 

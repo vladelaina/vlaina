@@ -4,7 +4,7 @@ import { parseAPIError, parseHTTPError } from '../client'
 import { normalizeApiHost } from '../utils'
 
 export class OpenAICompatibleClient implements AIClient {
-  private readonly timeout = 60000 
+  private readonly timeout = 300000 // 5 minutes for thinking models 
 
   async sendMessage(
     message: ChatMessageContent,

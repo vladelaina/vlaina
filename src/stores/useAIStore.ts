@@ -8,16 +8,30 @@ import type { SearchResult } from '@/lib/ai/search'
 
 // 1. UI State Store (Transient)
 interface AIUIState {
-  isLoading: boolean;
+  generatingSessions: Record<string, boolean>;
+  unreadSessions: Record<string, boolean>; // New: Track unread status
   error: string | null;
-  setLoading: (loading: boolean) => void;
+  setSessionLoading: (sessionId: string, loading: boolean) => void;
+  markSessionUnread: (sessionId: string) => void;
+  markSessionRead: (sessionId: string) => void;
   setError: (error: string | null) => void;
 }
 
 const useAIUIStore = create<AIUIState>((set) => ({
-  isLoading: false,
+  generatingSessions: {},
+  unreadSessions: {},
   error: null,
-  setLoading: (loading) => set({ isLoading: loading }),
+  setSessionLoading: (id, loading) => set((state) => ({
+      generatingSessions: { ...state.generatingSessions, [id]: loading }
+  })),
+  markSessionUnread: (id) => set((state) => ({
+      unreadSessions: { ...state.unreadSessions, [id]: true }
+  })),
+  markSessionRead: (id) => set((state) => {
+      const newUnread = { ...state.unreadSessions };
+      delete newUnread[id];
+      return { unreadSessions: newUnread };
+  }),
   setError: (error: string | null) => set({ error }),
 }));
 
@@ -190,20 +204,19 @@ const actions = {
     return newMessage.id;
   },
 
-  updateMessage: (id: string, content: string) => {
+  updateMessage: (sessionId: string, id: string, content: string) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
-    const { currentSessionId } = ai;
-    if (!currentSessionId) return;
+    const sessionMessages = ai.messages[sessionId] || [];
+    
+    if (sessionMessages.length === 0) return;
 
-    const sessionMessages = ai.messages[currentSessionId] || [];
     state.updateAIData({
       messages: {
         ...ai.messages,
-        [currentSessionId]: sessionMessages.map(m => {
+        [sessionId]: sessionMessages.map(m => {
             if (m.id !== id) return m;
             
-            // Sync versions
             const idx = m.currentVersionIndex ?? 0;
             const versions = m.versions ? [...m.versions] : [m.content];
             versions[idx] = content;
@@ -211,21 +224,20 @@ const actions = {
             return { ...m, content, versions, currentVersionIndex: idx };
         })
       }
-    }, true); // Skip persist for high-frequency updates
+    }, true); 
   },
 
-  // Set citations for a message
-  setCitations: (id: string, results: SearchResult[]) => {
+  setCitations: (sessionId: string, id: string, results: SearchResult[]) => {
       const state = useUnifiedStore.getState();
       const ai = state.data.ai!;
-      const { currentSessionId } = ai;
-      if (!currentSessionId) return;
+      const sessionMessages = ai.messages[sessionId] || [];
+      
+      if (sessionMessages.length === 0) return;
 
-      const sessionMessages = ai.messages[currentSessionId] || [];
       state.updateAIData({
           messages: {
               ...ai.messages,
-              [currentSessionId]: sessionMessages.map(m => {
+              [sessionId]: sessionMessages.map(m => {
                   if (m.id !== id) return m;
                   return { ...m, citations: results };
               })
@@ -233,22 +245,17 @@ const actions = {
       });
   },
 
-  completeMessage: (id: string) => {
+  completeMessage: (sessionId: string, id: string) => {
       const state = useUnifiedStore.getState();
       const ai = state.data.ai!;
-      const { currentSessionId } = ai;
-      if (!currentSessionId) return;
-
-      const sessionMessages = ai.messages[currentSessionId] || [];
+      const sessionMessages = ai.messages[sessionId] || [];
       const msg = sessionMessages.find(m => m.id === id);
       if (msg) {
-          appendMessageToMarkdown(currentSessionId, msg);
-          // Trigger final persist
+          appendMessageToMarkdown(sessionId, msg);
           state.updateAIData({}); 
       }
   },
 
-  // Versioning Actions
   addVersion: (id: string) => {
       const state = useUnifiedStore.getState();
       const ai = state.data.ai!;
@@ -299,7 +306,6 @@ const actions = {
   }
 };
 
-// 3. The Hook
 export const useAIStore = () => {
   const aiData = useUnifiedStore(s => s.data.ai);
   const uiState = useAIUIStore();
@@ -335,5 +341,9 @@ export const useAIStore = () => {
     getModel: (id: string) => aiData?.models.find(m => m.id === id),
     getSelectedModel: () => aiData?.selectedModelId ? aiData.models.find(m => m.id === aiData.selectedModelId) : undefined,
     getModelsByProvider: (pid: string) => aiData?.models.filter(m => m.providerId === pid && m.enabled) || [],
+    
+    isSessionLoading: (sessionId: string) => !!uiState.generatingSessions[sessionId],
+    isSessionUnread: (sessionId: string) => !!uiState.unreadSessions[sessionId],
+    isLoading: aiData?.currentSessionId ? !!uiState.generatingSessions[aiData.currentSessionId] : false
   };
 };

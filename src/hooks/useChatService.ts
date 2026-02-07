@@ -7,9 +7,9 @@ import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types'
 import { SEARCH_SYSTEM_PROMPT, TIME_SYSTEM_PROMPT, IMAGE_PLACEHOLDER } from '@/lib/ai/prompts';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useAutoTitle } from './useAutoTitle';
+import { requestManager } from '@/lib/ai/requestManager';
 
 export function useChatService() {
-  const abortControllerRef = useRef<AbortController | null>(null);
   const { generateAutoTitle } = useAutoTitle();
 
   const { 
@@ -19,13 +19,13 @@ export function useChatService() {
     addMessage, 
     updateMessage, 
     completeMessage,
-    addVersion,
+    addVersion, // Ensure this is destructured
     setCitations,
     getSelectedModel, 
     providers, 
     webSearchEnabled,
-    isLoading, 
-    setLoading, 
+    setSessionLoading,
+    markSessionUnread,
     setError 
   } = useAIStore();
 
@@ -33,12 +33,12 @@ export function useChatService() {
   const selectedModel = getSelectedModel();
 
   const stop = useCallback(() => {
-      if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
-          abortControllerRef.current = null;
+      if (currentSessionId) {
+          console.log(`[ChatService] Stopping session: ${currentSessionId}`);
+          requestManager.abort(currentSessionId);
+          setSessionLoading(currentSessionId, false);
       }
-      setLoading(false);
-  }, [setLoading]);
+  }, [currentSessionId, setSessionLoading]);
 
   const sendMessage = useCallback(async (text: string, attachments: Attachment[]) => {
     const isTextEmpty = !text || text.trim().length === 0;
@@ -46,15 +46,9 @@ export function useChatService() {
     
     if ((isTextEmpty && hasNoAttachments) || !selectedModel) return;
 
-    if (isLoading && abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-    }
-
     const provider = providers.find(p => p.id === selectedModel.providerId);
     if (!provider) {
       setError('Provider not found');
-      setLoading(false);
       return;
     }
 
@@ -67,7 +61,8 @@ export function useChatService() {
         isNewSession = true;
     }
 
-    // 1. Construct Content for Local Storage (Markdown)
+    const targetSessionId = activeSessionId;
+
     let storageContent = userMessageText;
     if (attachments.length > 0) {
         const imageMarkdown = attachments
@@ -91,48 +86,37 @@ export function useChatService() {
       modelId: selectedModel.id
     });
 
-    setLoading(true);
+    const controller = requestManager.start(targetSessionId);
+    setSessionLoading(targetSessionId, true);
     setError(null);
 
-    // --- Auto Title Generation (Fire and Forget) ---
-    // Check if we should generate a title:
-    // 1. It's a newly created session
-    // 2. OR the current session still has the default title
     let shouldGenerateTitle = isNewSession;
-    
-    if (!shouldGenerateTitle && activeSessionId) {
+    if (!shouldGenerateTitle && targetSessionId) {
         const state = useUnifiedStore.getState();
-        const session = state.data.ai?.sessions.find(s => s.id === activeSessionId);
+        const session = state.data.ai?.sessions.find(s => s.id === targetSessionId);
         if (session && (session.title === 'New Chat' || session.title === 'New Image Chat')) {
             shouldGenerateTitle = true;
         }
     }
 
-    if (shouldGenerateTitle && activeSessionId) {
-        console.log('[ChatService] Scheduling background Auto-Title generation (delayed)...');
-        // Delay 3 seconds to avoid concurrency limits (ERR_CONNECTION_CLOSED) on some providers
+    if (shouldGenerateTitle && targetSessionId) {
+        const titleSessionId = targetSessionId;
         setTimeout(() => {
-            generateAutoTitle(activeSessionId, userMessageText || "Image Query", provider.id, selectedModel.id)
+            generateAutoTitle(titleSessionId, userMessageText || "Image Query", provider.id, selectedModel.id)
                 .catch(e => console.error('[ChatService] Auto-Title failed silently:', e));
         }, 3000);
     }
 
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
     try {
       let finalHistory = [...messages];
       
-      // Web Search Logic
       if (webSearchEnabled && userMessageText) {
-          console.log('[ChatService] Web search is ENABLED. Starting search flow...');
-          updateMessage(assistantMessageId, '🔍 正在联网搜索...');
-          
+          updateMessage(targetSessionId, assistantMessageId, '🔍 正在联网搜索...');
           const results = await performWebSearch(userMessageText, controller.signal);
           
           let searchContext = '';
           if (results.length > 0) {
-              setCitations(assistantMessageId, results);
+              setCitations(targetSessionId, assistantMessageId, results);
               searchContext = formatSearchResults(results);
           } else {
               searchContext = "No search results found.";
@@ -149,7 +133,7 @@ export function useChatService() {
               timestamp: Date.now()
           };
           finalHistory = [...finalHistory, contextMsg as any];
-          updateMessage(assistantMessageId, '🧠 正在思考...');
+          updateMessage(targetSessionId, assistantMessageId, '🧠 正在思考...');
       } else {
           const timeInfo = `${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`;
           const timeContext = {
@@ -162,7 +146,6 @@ export function useChatService() {
           finalHistory = [...finalHistory, timeContext as any];
       }
 
-      // Sanitize history
       const sanitizedHistory = finalHistory.map(msg => {
           if (typeof msg.content === 'string') {
               return { 
@@ -173,7 +156,6 @@ export function useChatService() {
           return msg;
       });
 
-      // 2. Construct Content for API (Multimodal)
       let apiMessageContent: ChatMessageContent = userMessageText;
       if (attachments.length > 0) {
           const parts: ChatMessageContentPart[] = [];
@@ -203,29 +185,34 @@ export function useChatService() {
         sanitizedHistory, 
         selectedModel,
         provider,
-        (chunk) => updateMessage(assistantMessageId, chunk),
+        (chunk) => updateMessage(targetSessionId, assistantMessageId, chunk),
         controller.signal
       );
-      completeMessage(assistantMessageId);
+      completeMessage(targetSessionId, assistantMessageId);
+
+      // Check for background completion
+      const current = useUnifiedStore.getState().data.ai?.currentSessionId;
+      if (targetSessionId !== current) {
+          markSessionUnread(targetSessionId);
+      }
+
     } catch (error: any) {
       if (error.name === 'AbortError') {
           console.log('[ChatService] Request aborted.');
       } else {
           console.error('[ChatService] Message failed', error);
           setError(error instanceof Error ? error.message : 'Failed to send message');
-          updateMessage(assistantMessageId, '❌ Failed to get response');
+          updateMessage(targetSessionId, assistantMessageId, '❌ Failed to get response');
       }
     } finally {
-      if (abortControllerRef.current === controller) {
-          setLoading(false);
-          abortControllerRef.current = null;
-      }
+      requestManager.finish(targetSessionId);
+      setSessionLoading(targetSessionId, false);
     }
-  }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, setLoading, setError, messages, isLoading, webSearchEnabled, setCitations, generateAutoTitle]);
+  }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, setSessionLoading, setError, messages, webSearchEnabled, setCitations, generateAutoTitle, markSessionUnread]);
 
   const regenerate = useCallback(async (msgId: string) => {
-      if (isLoading || !selectedModel) return;
-      if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (!selectedModel || !currentSessionId) return;
+      const sessionId = currentSessionId;
 
       const msgIndex = messages.findIndex(m => m.id === msgId);
       if (msgIndex <= 0) return;
@@ -237,34 +224,35 @@ export function useChatService() {
       const provider = providers.find(p => p.id === selectedModel.providerId);
       if (!provider) return;
 
+      // addVersion also needs sessionId now?
+      // No, UI actions can use currentSessionId logic inside store unless we refactor all.
+      // But addVersion implementation uses currentSessionId from Store state.
+      // Since regenerate is user-initiated on current session, it's safe.
       addVersion(msgId);
-      setLoading(true);
       
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-
+      const controller = requestManager.start(sessionId);
+      setSessionLoading(sessionId, true);
+      
       try {
           await openaiClient.sendMessage(
               promptMsg.content,
               history,
               selectedModel,
               provider,
-              (chunk) => updateMessage(msgId, chunk),
+              (chunk) => updateMessage(sessionId, msgId, chunk),
               controller.signal
           );
-          completeMessage(msgId);
+          completeMessage(sessionId, msgId);
       } catch (error: any) {
           if (error.name !== 'AbortError') {
               console.error('[ChatService] Regen failed', error);
               setError('Failed to regenerate');
           }
       } finally {
-          if (abortControllerRef.current === controller) {
-              setLoading(false);
-              abortControllerRef.current = null;
-          }
+          requestManager.finish(sessionId);
+          setSessionLoading(sessionId, false);
       }
-  }, [isLoading, selectedModel, messages, providers, addVersion, setLoading, updateMessage, completeMessage, setError]);
+  }, [selectedModel, messages, providers, addVersion, setSessionLoading, updateMessage, completeMessage, setError, currentSessionId]);
 
   return { sendMessage, regenerate, stop };
 }
