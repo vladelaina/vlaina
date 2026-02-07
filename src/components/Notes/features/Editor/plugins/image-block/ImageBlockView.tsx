@@ -147,6 +147,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                         zIndex: 9999, pointerEvents: 'none',
                         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
                         borderRadius: '8px', overflow: 'hidden',
+                        backgroundColor: 'var(--neko-bg-primary)',
                         ...DRAG_ALIGNMENT_STYLES[dragAlignment],
                     }}
                 >

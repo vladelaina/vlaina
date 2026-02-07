@@ -92,7 +92,9 @@ export function useCropperState({
 
         // Priority: Override -> InitialParams -> Default
         if (overrideState) {
-            setZoom(overrideState.zoom);
+            // Ensure we at least cover the container, plus a tiny buffer
+            const safeZoom = Math.max(overrideState.zoom, coverZoom);
+            setZoom(safeZoom * 1.01);
             setCrop(overrideState.crop);
         } else if (initialCropParams) {
             const restoredZoom = 100 / initialCropParams.width;
