@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { MdContentCopy, MdVolumeUp, MdRefresh, MdNavigateBefore, MdNavigateNext, MdStop, MdPlayArrow, MdAutoAwesome } from 'react-icons/md';
+import { MdContentCopy, MdVolumeUp, MdRefresh, MdNavigateBefore, MdNavigateNext, MdStop, MdPlayArrow } from 'react-icons/md';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAIStore } from '@/stores/useAIStore';
@@ -11,6 +11,9 @@ import '@/components/Notes/features/Editor/styles/core.css';
 export function ChatView() {
   // TTS State
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+  
+  // Abort Controller for stopping generation
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const { 
     messages: allMessages, 
@@ -33,26 +36,44 @@ export function ChatView() {
   
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  // Optimized Scroll: Only scroll when new message added or loading changes
   useEffect(() => {
       if (scrollRef.current) {
           scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
       }
   }, [messages.length, isLoading]);
 
-  // Clean up TTS on unmount
+  // Clean up on unmount
   useEffect(() => {
       return () => {
           window.speechSynthesis.cancel();
+          if (abortControllerRef.current) {
+              abortControllerRef.current.abort();
+          }
       };
   }, []);
+
+  const handleStop = useCallback(() => {
+      if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
+      }
+      setLoading(false);
+  }, [setLoading]);
 
   const handleSend = useCallback(async (text: string) => {
     if (!text.trim() || !selectedModel) return;
 
+    // 1. Interrupt existing request if any
+    if (isLoading && abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+        // We don't set loading false here because we are about to set it true again
+    }
+
     const provider = providers.find(p => p.id === selectedModel.providerId);
     if (!provider) {
       setError('Provider not found');
+      setLoading(false);
       return;
     }
 
@@ -60,7 +81,6 @@ export function ChatView() {
     
     let activeSessionId = currentSessionId;
     if (!activeSessionId) {
-        // Sync createSession is fine, store updates
         activeSessionId = createSession(userMessage.slice(0, 30));
     }
 
@@ -81,15 +101,10 @@ export function ChatView() {
     setLoading(true);
     setError(null);
 
-    // Use current messages + new user message for history
-    // Note: 'messages' here is from closure, but since we just added to store, 
-    // and we need to pass history to API.
-    // Ideally we fetch fresh state, but for now passing current messages is ok 
-    // as newAPIClient appends the prompt.
-    // Wait, if we just added to store, 'messages' variable in this closure is STALE (doesn't have new msgs).
-    // This is GOOD. newAPIClient expects history BEFORE the prompt.
-    // AND it expects the prompt argument.
-    
+    // 2. Create new AbortController
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       await newAPIClient.sendMessage(
         userMessage,
@@ -98,21 +113,42 @@ export function ChatView() {
         provider,
         (chunk) => {
           updateMessage(assistantMessageId, chunk);
-        }
+        },
+        controller.signal // Pass signal
       );
       completeMessage(assistantMessageId);
-    } catch (error) {
-      console.error('[ChatView] Message failed', error);
-      setError(error instanceof Error ? error.message : 'Failed to send message');
-      updateMessage(assistantMessageId, '❌ Failed to get response');
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+          console.log('[ChatView] Request aborted.');
+          // Do not set error state for user interruption
+      } else {
+          console.error('[ChatView] Message failed', error);
+          setError(error instanceof Error ? error.message : 'Failed to send message');
+          updateMessage(assistantMessageId, '❌ Failed to get response');
+      }
     } finally {
-      setLoading(false);
+      // Only clear loading if we haven't started a NEW request immediately after
+      // But here handleSend is async. If user clicked send again, handleSend would be called again.
+      // But handleSend creates a NEW controller.
+      // If we are here in finally, it means THIS request finished/aborted.
+      // If user interrupted, we aborted THIS request.
+      
+      // If user interrupted by clicking send again, handleSend runs again.
+      // The previous handleSend will reach finally block.
+      // We need to check if the current controller is still THIS controller.
+      if (abortControllerRef.current === controller) {
+          setLoading(false);
+          abortControllerRef.current = null;
+      }
     }
-  }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, setLoading, setError, messages]);
+  }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, setLoading, setError, messages, isLoading]);
 
   const handleRegenerate = async (msgId: string) => {
       if (isLoading || !selectedModel) return;
       
+      // Stop any current generation first (though isLoading check prevents it usually)
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+
       const msgIndex = messages.findIndex(m => m.id === msgId);
       if (msgIndex <= 0) return;
       
@@ -126,20 +162,29 @@ export function ChatView() {
       addVersion(msgId);
       setLoading(true);
       
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       try {
           await newAPIClient.sendMessage(
               promptMsg.content,
               history,
               selectedModel,
               provider,
-              (chunk) => updateMessage(msgId, chunk)
+              (chunk) => updateMessage(msgId, chunk),
+              controller.signal
           );
           completeMessage(msgId);
-      } catch (error) {
-          console.error('[ChatView] Regen failed', error);
-          setError('Failed to regenerate');
+      } catch (error: any) {
+          if (error.name !== 'AbortError') {
+              console.error('[ChatView] Regen failed', error);
+              setError('Failed to regenerate');
+          }
       } finally {
-          setLoading(false);
+          if (abortControllerRef.current === controller) {
+              setLoading(false);
+              abortControllerRef.current = null;
+          }
       }
   };
 
@@ -192,7 +237,7 @@ export function ChatView() {
                         )}
                     >
                         {isUser ? (
-                            <div className="milkdown inline-block bg-[#F4F4F5] dark:bg-[#2C2C2C] px-5 py-3 rounded-[20px] rounded-tr-md text-gray-900 dark:text-gray-100 text-[15px] leading-7 shadow-sm border border-black/5 dark:border-white/5 text-left break-words">
+                            <div className="milkdown inline-block bg-[#F4F4F5] dark:bg-[#2C2C2C] px-5 py-3 rounded-[20px] rounded-tr-md text-gray-900 dark:text-gray-100 text-[15px] leading-7 shadow-sm border border-black/5 dark:border-white/5 text-left break-words max-w-full">
                                 <div className="whitespace-pre-wrap">{msg.content}</div>
                             </div>
                         ) : (
@@ -240,7 +285,8 @@ export function ChatView() {
               })}
               {isLoading && (
                 <div className="flex w-full justify-start pl-0 mt-4 mb-2">
-                    {/* High-Vibe Elastic (Original Blue) */}
+                    {/* High-Vibe Elastic (Blue) - Inline for simplicity or component? */}
+                    {/* Using inline for now to guarantee styling matches current prod */}
                     <div className="relative h-6 w-28 flex items-center justify-center overflow-hidden">
                         {[0, 1, 2, 3].map((i) => (
                             <motion.div
@@ -282,6 +328,7 @@ export function ChatView() {
 
       <ChatInput 
         onSend={handleSend} 
+        onStop={handleStop}
         isLoading={isLoading} 
         selectedModel={selectedModel} 
         onOpenSettings={handleOpenSettings}
