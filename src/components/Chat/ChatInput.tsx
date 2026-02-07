@@ -34,9 +34,13 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
     onSend(message, attachments);
     setMessage('');
     setAttachments([]);
-    if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-    }
+    
+    // Ensure height is reset after state update
+    requestAnimationFrame(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+        }
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
