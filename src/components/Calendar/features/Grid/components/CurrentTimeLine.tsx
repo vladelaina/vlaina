@@ -1,5 +1,5 @@
 
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { CALENDAR_CONSTANTS } from '../../../utils/timeUtils';
 
 const GUTTER_WIDTH = CALENDAR_CONSTANTS.GUTTER_WIDTH as number;
@@ -11,6 +11,8 @@ interface CurrentTimeLineProps {
 }
 
 export function CurrentTimeLine({ nowTop, use24Hour, now }: CurrentTimeLineProps) {
+    if (!isValid(now)) return null;
+    
     return (
         <div style={{ top: nowTop }} className="absolute left-0 right-0 z-20 flex items-center pointer-events-none">
             <div className="absolute flex items-center" style={{ left: -GUTTER_WIDTH }}>
