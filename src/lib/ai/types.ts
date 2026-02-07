@@ -16,6 +16,7 @@ export interface AIModel {
   providerId: string
   group?: string
   enabled: boolean
+  pinned?: boolean
   createdAt: number
 }
 

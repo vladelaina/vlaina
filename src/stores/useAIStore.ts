@@ -105,6 +105,14 @@ const actions = {
     state.updateAIData(updates);
   },
 
+  updateModel: (id: string, updates: Partial<AIModel>) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    state.updateAIData({
+      models: ai.models.map((m) => m.id === id ? { ...m, ...updates } : m)
+    })
+  },
+
   deleteModel: (id: string) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
