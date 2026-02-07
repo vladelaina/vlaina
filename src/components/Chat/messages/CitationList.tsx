@@ -1,4 +1,4 @@
-import { MdLanguage, MdOpenInNew } from 'react-icons/md';
+import { MdLanguage } from 'react-icons/md';
 import type { SearchResult } from '@/lib/ai/search';
 
 interface CitationListProps {

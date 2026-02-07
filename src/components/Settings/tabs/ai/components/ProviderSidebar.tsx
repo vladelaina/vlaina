@@ -1,9 +1,8 @@
-import { useState } from 'react';
-import { MdAdd, MdCheckCircle } from 'react-icons/md';
+import { MdAdd } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { AppIcon } from '@/components/common/AppIcon';
 import { Provider } from '@/lib/ai/types';
-import { ProviderConfig } from '../ai/constants';
+import { ProviderConfig } from '../constants';
 
 interface ProviderSidebarProps {
   allProviders: Provider[];

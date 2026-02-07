@@ -1,4 +1,4 @@
-import { MdAnimation, MdTextFields, MdPalette } from 'react-icons/md';
+import { MdAnimation } from 'react-icons/md';
 import { AnimationLab } from './playground/AnimationLab';
 
 // Lab Registry: Add new experiments here

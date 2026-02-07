@@ -1,4 +1,3 @@
-import Ai360Logo from '@/components/Chat/assets/models/360.png';
 import BaichuanLogo from '@/components/Chat/assets/models/baichuan.png';
 import ChatGLMLogo from '@/components/Chat/assets/models/chatglm.png';
 import ChatGptLogo from '@/components/Chat/assets/models/chatgpt.jpeg';
