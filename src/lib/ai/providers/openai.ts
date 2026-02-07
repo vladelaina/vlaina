@@ -39,7 +39,7 @@ export class OpenAICompatibleClient implements AIClient {
     const body: ChatCompletionRequest = {
       model: model.id,
       messages: apiMessages,
-      stream: !!onChunk
+      stream: true // Always use stream for better compatibility
     }
 
     console.log('[OpenAI] Request constructed', { 
@@ -49,13 +49,11 @@ export class OpenAICompatibleClient implements AIClient {
         messagesCount: body.messages.length
     });
 
-    if (onChunk) {
-      return this.streamResponse(url, headers, body, onChunk, signal)
-    } else {
-      return this.fetchResponse(url, headers, body, signal)
-    }
+    // Use streamResponse even if onChunk is not provided to handle forced SSE responses
+    return this.streamResponse(url, headers, body, onChunk || (() => {}), signal)
   }
 
+  // fetchResponse is now unused but kept for reference or specific non-stream needs
   private async fetchResponse(
     url: string,
     headers: Record<string, string>,

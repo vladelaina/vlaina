@@ -5,9 +5,12 @@ import { performWebSearch, formatSearchResults } from '@/lib/ai/search';
 import { convertToBase64, type Attachment } from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import { SEARCH_SYSTEM_PROMPT, TIME_SYSTEM_PROMPT, IMAGE_PLACEHOLDER } from '@/lib/ai/prompts';
+import { useUnifiedStore } from '@/stores/useUnifiedStore';
+import { useAutoTitle } from './useAutoTitle';
 
 export function useChatService() {
   const abortControllerRef = useRef<AbortController | null>(null);
+  const { generateAutoTitle } = useAutoTitle();
 
   const { 
     messages: allMessages, 
@@ -58,8 +61,10 @@ export function useChatService() {
     const userMessageText = text.trim();
     
     let activeSessionId = currentSessionId;
+    let isNewSession = false;
     if (!activeSessionId) {
         activeSessionId = createSession(userMessageText.slice(0, 30) || 'New Image Chat');
+        isNewSession = true;
     }
 
     // 1. Construct Content for Local Storage (Markdown)
@@ -88,6 +93,29 @@ export function useChatService() {
 
     setLoading(true);
     setError(null);
+
+    // --- Auto Title Generation (Fire and Forget) ---
+    // Check if we should generate a title:
+    // 1. It's a newly created session
+    // 2. OR the current session still has the default title
+    let shouldGenerateTitle = isNewSession;
+    
+    if (!shouldGenerateTitle && activeSessionId) {
+        const state = useUnifiedStore.getState();
+        const session = state.data.ai?.sessions.find(s => s.id === activeSessionId);
+        if (session && (session.title === 'New Chat' || session.title === 'New Image Chat')) {
+            shouldGenerateTitle = true;
+        }
+    }
+
+    if (shouldGenerateTitle && activeSessionId) {
+        console.log('[ChatService] Scheduling background Auto-Title generation (delayed)...');
+        // Delay 3 seconds to avoid concurrency limits (ERR_CONNECTION_CLOSED) on some providers
+        setTimeout(() => {
+            generateAutoTitle(activeSessionId, userMessageText || "Image Query", provider.id, selectedModel.id)
+                .catch(e => console.error('[ChatService] Auto-Title failed silently:', e));
+        }, 3000);
+    }
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -193,7 +221,7 @@ export function useChatService() {
           abortControllerRef.current = null;
       }
     }
-  }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, setLoading, setError, messages, isLoading, webSearchEnabled, setCitations]);
+  }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, setLoading, setError, messages, isLoading, webSearchEnabled, setCitations, generateAutoTitle]);
 
   const regenerate = useCallback(async (msgId: string) => {
       if (isLoading || !selectedModel) return;
