@@ -31,7 +31,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   return (
     <div 
         ref={containerRef}
-        className="milkdown prose dark:prose-invert max-w-none text-[15px] leading-7"
+        className="milkdown prose dark:prose-invert max-w-none text-[15px] leading-7 [&>*:last-child]:mb-0" // Added mb-0 override
         dangerouslySetInnerHTML={{ __html: htmlContent }}
     />
   );

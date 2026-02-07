@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { MdSend, MdAttachFile, MdImage, MdSettings } from 'react-icons/md';
+import { MdSend, MdAttachFile, MdImage, MdSettings, MdContentCopy, MdVolumeUp, MdRefresh, MdNavigateBefore, MdNavigateNext } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { ModelSelector } from './ModelSelector';
 import { useAIStore } from '@/stores/useAIStore';
 import { newAPIClient } from '@/lib/ai/providers/newapi';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import '@/components/Notes/features/Editor/styles/core.css';
 
 export function ChatView() {
   const [message, setMessage] = useState('');
@@ -16,6 +17,8 @@ export function ChatView() {
     addMessage, 
     updateMessage, 
     completeMessage,
+    addVersion,
+    switchVersion,
     getSelectedModel, 
     providers, 
     isLoading, 
@@ -26,18 +29,6 @@ export function ChatView() {
   const messages = currentSessionId ? (allMessages[currentSessionId] || []) : [];
   const selectedModel = getSelectedModel();
   
-  // Debug log for model selection
-  useEffect(() => {
-      console.log('[ChatView] Rendered with model:', selectedModel?.id);
-  }, [selectedModel?.id]);
-
-  // Debug log for message updates
-  useEffect(() => {
-      if (messages.length > 0) {
-          console.log(`[ChatView] UI Updated. Messages count: ${messages.length}. Last content length: ${messages[messages.length-1].content.length}`);
-      }
-  }, [messages]);
-
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
       if (scrollRef.current) {
@@ -57,20 +48,17 @@ export function ChatView() {
     const userMessage = message.trim();
     setMessage('');
     
-    // Auto-create session if none exists
     let activeSessionId = currentSessionId;
     if (!activeSessionId) {
         activeSessionId = createSession(userMessage.slice(0, 30));
     }
 
-    // Add User Message first
     addMessage({
       role: 'user',
       content: userMessage,
       modelId: selectedModel.id
     });
 
-    // Then Add Assistant Placeholder
     const assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     addMessage({
       id: assistantMessageId,
@@ -85,7 +73,7 @@ export function ChatView() {
     try {
       await newAPIClient.sendMessage(
         userMessage,
-        messages, // Pass history
+        messages, // Pass history (stale is correct here as it excludes current user msg)
         selectedModel,
         provider,
         (chunk) => {
@@ -102,6 +90,46 @@ export function ChatView() {
     }
   };
 
+  const handleRegenerate = async (msgId: string) => {
+      if (isLoading || !selectedModel) return;
+      
+      const msgIndex = messages.findIndex(m => m.id === msgId);
+      if (msgIndex <= 0) return;
+      
+      const promptMsg = messages[msgIndex - 1];
+      if (promptMsg.role !== 'user') return;
+      
+      const history = messages.slice(0, msgIndex - 1);
+      const provider = providers.find(p => p.id === selectedModel.providerId);
+      if (!provider) return;
+
+      addVersion(msgId);
+      setLoading(true);
+      
+      try {
+          await newAPIClient.sendMessage(
+              promptMsg.content,
+              history,
+              selectedModel,
+              provider,
+              (chunk) => updateMessage(msgId, chunk)
+          );
+          completeMessage(msgId);
+      } catch (error) {
+          console.error('[ChatView] Regen failed', error);
+          setError('Failed to regenerate');
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  const copyToClipboard = (text: string) => navigator.clipboard.writeText(text);
+  const speakText = (text: string) => { 
+      window.speechSynthesis.cancel(); 
+      const utterance = new SpeechSynthesisUtterance(text);
+      window.speechSynthesis.speak(utterance);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -111,19 +139,21 @@ export function ChatView() {
 
   return (
     <div className="h-full w-full flex flex-col bg-[var(--neko-bg-primary)]">
-      {/* Messages Area */}
       <div className="flex-1 overflow-y-auto" ref={scrollRef}>
         <div className="max-w-3xl mx-auto px-4 py-8 pb-4">
           {messages.length > 0 && (
             <div className="space-y-8">
               {messages.map((msg) => {
                 const isUser = msg.role === 'user';
+                const versions = msg.versions || [msg.content];
+                const currentVer = (msg.currentVersionIndex ?? 0) + 1;
+                const totalVer = versions.length;
                 
                 return (
                   <div
                     key={msg.id}
                     className={cn(
-                      "flex w-full",
+                      "flex w-full group", // Added group for hover effect
                       isUser ? "justify-end" : "justify-start"
                     )}
                   >
@@ -133,7 +163,6 @@ export function ChatView() {
                             isUser ? "items-end max-w-[85%]" : "w-full items-start"
                         )}
                     >
-                        {/* Content Area */}
                         {isUser ? (
                             <div className="milkdown inline-block bg-[#F4F4F5] dark:bg-[#2C2C2C] px-5 py-3 rounded-[20px] rounded-tr-md text-gray-900 dark:text-gray-100 text-[15px] leading-7 shadow-sm border border-black/5 dark:border-white/5 text-left break-words max-w-full">
                                 <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -141,6 +170,29 @@ export function ChatView() {
                         ) : (
                             <div className="w-full pl-0">
                                 <MarkdownRenderer content={msg.content} />
+                                
+                                {/* Toolbar */}
+                                {!isLoading && (
+                                    <div className="flex items-center gap-2 mt-2 select-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                        {totalVer > 1 && (
+                                            <div className="flex items-center text-xs font-medium text-gray-500 bg-gray-100 dark:bg-zinc-800 rounded-md px-1 mr-2">
+                                                <button onClick={() => switchVersion(msg.id, 'prev')} disabled={currentVer <= 1} className="p-1 hover:text-black dark:hover:text-white disabled:opacity-30"><MdNavigateBefore size={14}/></button>
+                                                <span className="mx-1">{currentVer} / {totalVer}</span>
+                                                <button onClick={() => switchVersion(msg.id, 'next')} disabled={currentVer >= totalVer} className="p-1 hover:text-black dark:hover:text-white disabled:opacity-30"><MdNavigateNext size={14}/></button>
+                                            </div>
+                                        )}
+                                        
+                                        <button onClick={() => copyToClipboard(msg.content)} className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800" title="Copy">
+                                            <MdContentCopy size={14} />
+                                        </button>
+                                        <button onClick={() => speakText(msg.content)} className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800" title="Read Aloud">
+                                            <MdVolumeUp size={14} />
+                                        </button>
+                                        <button onClick={() => handleRegenerate(msg.id)} className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800" title="Regenerate">
+                                            <MdRefresh size={14} />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

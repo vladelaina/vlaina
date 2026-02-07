@@ -34,6 +34,8 @@ export interface ChatMessage {
   content: string
   modelId: string
   timestamp: number
+  versions?: string[]
+  currentVersionIndex?: number
 }
 
 export interface ChatCompletionRequest {
