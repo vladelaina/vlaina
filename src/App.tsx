@@ -13,6 +13,7 @@ import { CalendarView } from '@/components/Calendar/CalendarView';
 import { NotesView } from '@/components/Notes/NotesView';
 import { TodoView } from '@/components/Todo/TodoView';
 import { ChatView } from '@/components/Chat/ChatView';
+import { LabView } from '@/components/Lab/LabView';
 
 import { CalendarSidebarWrapper } from '@/components/Calendar/features/Sidebar/CalendarSidebarWrapper';
 import { TodoSidebar } from '@/components/Todo/TodoSidebar';
@@ -35,7 +36,8 @@ function AppContent() {
     sidebarWidth,
     setSidebarWidth,
     toggleSidebar,
-    setSidebarPeeking
+    setSidebarPeeking,
+    setAppViewMode
   } = useUIStore();
   const { currentVault, initialize } = useVaultStore();
 
@@ -43,12 +45,17 @@ function AppContent() {
   const toggleSettings = useCallback(() => setSettingsOpen(prev => !prev), []);
 
   useEffect(() => {
-    const handleOpenSettings = () => {
-      setSettingsOpen(true)
-    }
+    const handleOpenSettings = () => setSettingsOpen(true)
+    const handleOpenLab = () => setAppViewMode('lab') // Switch view to Lab
+    
     window.addEventListener('open-settings', handleOpenSettings)
-    return () => window.removeEventListener('open-settings', handleOpenSettings)
-  }, [])
+    window.addEventListener('open-lab', handleOpenLab)
+    
+    return () => {
+        window.removeEventListener('open-settings', handleOpenSettings)
+        window.removeEventListener('open-lab', handleOpenLab)
+    }
+  }, [setAppViewMode])
 
   const shortcutHandlers = useMemo(() => ({
     'open-settings': toggleSettings,
@@ -114,6 +121,7 @@ function AppContent() {
     sidebarContent = <NotesSidebarWrapper isPeeking={false} />;
     sidebarPeekContent = <NotesSidebarWrapper isPeeking={true} />;
   }
+  // Lab Mode: No sidebar content by default
 
   let centerSlot = null;
   let rightSlot = null;
@@ -132,6 +140,8 @@ function AppContent() {
     mainContent = <TodoView />;
   } else if (appViewMode === 'chat') {
     mainContent = <ChatView />;
+  } else if (appViewMode === 'lab') {
+    mainContent = <LabView />;
   } else {
     mainContent = <NotesView />;
   }
