@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MdCheck, MdSave, MdAdd, MdDelete, MdCloudDownload, MdKeyboardArrowDown, MdKeyboardArrowRight, MdUnfoldMore } from 'react-icons/md';
+import { MdCheck, MdSave, MdAdd, MdDelete, MdCloudDownload, MdKeyboardArrowDown, MdKeyboardArrowRight, MdUnfoldMore, MdSelectAll, MdClear } from 'react-icons/md';
 import { useAIStore } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import { cn } from '@/lib/utils';
@@ -31,10 +31,10 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
     deleteProvider,
     models,
     addModel,
+    addModels, 
     deleteModel
   } = useAIStore();
 
-  // State
   const [name, setName] = useState(initialProvider?.name || '');
   const [apiKey, setApiKey] = useState(initialProvider?.apiKey || '');
   const [apiHost, setApiHost] = useState(initialProvider?.apiHost || '');
@@ -43,10 +43,12 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
   const [checkResult, setCheckResult] = useState<'success' | 'error' | null>(null);
   
   const [isAddingModel, setIsAddingModel] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false); // For ConfirmDialog
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [fetchedModels, setFetchedModels] = useState<string[]>([]);
+  
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [previewIcon, setPreviewIcon] = useState<string | null>(null);
 
@@ -54,7 +56,6 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
     ? models.filter(m => m.providerId === initialProvider.id)
     : [];
 
-  // Update local state when provider changes
   useEffect(() => {
     if (initialProvider) {
         setName(initialProvider.name);
@@ -116,26 +117,36 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
     }
   };
 
-  const handleAddModel = (id: string, nameVal?: string) => {
+  const handleAddModel = (id: string) => {
     if (!id.trim() || !initialProvider) return;
-    
-    const existingModels = models.filter(m => m.providerId === initialProvider.id);
-    if (existingModels.some(m => m.id === id.trim())) return;
+    const exists = providerModels.some(m => m.id === id);
+    if (exists) return;
 
     addModel({
       id: id.trim(),
-      name: nameVal?.trim() || id.trim(),
+      name: id.trim(),
       providerId: initialProvider.id,
       enabled: true
     });
-    
-    setIsAddingModel(false);
   };
 
-  const toggleGroup = (group: string) => {
+  const handleBatchAdd = (ids: string[]) => {
+      if (!initialProvider || ids.length === 0) return;
+      const newIds = ids.filter(id => !providerModels.some(m => m.id === id));
+      if (newIds.length === 0) return;
+
+      addModels(newIds.map(id => ({
+          id,
+          name: id,
+          providerId: initialProvider!.id,
+          enabled: true
+      })));
+  };
+
+  const toggleGroup = (groupKey: string) => {
       const newSet = new Set(collapsedGroups);
-      if (newSet.has(group)) newSet.delete(group);
-      else newSet.add(group);
+      if (newSet.has(groupKey)) newSet.delete(groupKey);
+      else newSet.add(groupKey);
       setCollapsedGroups(newSet);
   };
 
@@ -148,14 +159,16 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
       }, {} as Record<string, string[]>);
   };
 
+  const fetchedGroups = groupModelsList(fetchedModels);
+  const addedGroups = groupModelsList(providerModels.map(m => m.id));
+
   return (
     <>
       <div className="h-full flex flex-col">
-        {/* Header with Channel Switcher and Icon Selector */}
+        {/* Header */}
         <div className="pb-6 border-b border-gray-100 dark:border-gray-800 space-y-6">
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 flex items-center gap-3">
-                {/* Icon Selector */}
                 <div className="flex-shrink-0">
                      <IconSelector 
                         value={initialProvider?.icon || 'cube'} 
@@ -174,9 +187,9 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Active Channel</label>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <button className="group flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors focus:outline-none">
+                            <button className="group flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none">
                                 <span>{initialProvider ? name : 'Select Channel'}</span>
-                                <MdUnfoldMore className="text-gray-400 group-hover:text-blue-500" size={20} />
+                                <MdUnfoldMore className="text-gray-400 group-hover:text-gray-600" size={20} />
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-[240px] bg-white dark:bg-[#1E1E1E]">
@@ -188,11 +201,11 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
                                 >
                                     <AppIcon icon={p.icon || 'cube'} size={16} />
                                     <span className="truncate">{p.name}</span>
-                                    {p.id === initialProvider?.id && <MdCheck className="ml-auto text-blue-500" />}
+                                    {p.id === initialProvider?.id && <MdCheck className="ml-auto text-black dark:text-white" />}
                                 </DropdownMenuItem>
                             ))}
                             {allProviders.length > 0 && <DropdownMenuSeparator />}
-                            <DropdownMenuItem onClick={onAddProvider} className="text-blue-600 dark:text-blue-400 gap-2">
+                            <DropdownMenuItem onClick={onAddProvider} className="text-gray-900 dark:text-gray-100 gap-2 font-medium">
                                 <MdAdd size={16} />
                                 Create New Channel
                             </DropdownMenuItem>
@@ -204,14 +217,11 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
             {initialProvider && (
                 <div className="flex items-center gap-2">
                     <button 
-                        onClick={() => setIsDeleting(true)} // Open Dialog
+                        onClick={() => setIsDeleting(true)} 
                         className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" 
                         title="Delete Channel"
                     >
                         <MdDelete size={18} />
-                    </button>
-                    <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:opacity-90 transition-all shadow-sm">
-                        <MdSave size={18} /> Save
                     </button>
                 </div>
             )}
@@ -221,11 +231,11 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
               <div className="flex flex-wrap gap-4 animate-in fade-in slide-in-from-top-2">
                   <div className="flex-1 min-w-[240px] space-y-1.5">
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Base URL</label>
-                      <input type="text" value={apiHost} onChange={(e) => setApiHost(e.target.value)} onBlur={handleSave} placeholder="https://api.example.com" className="w-full px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-gray-800 focus:ring-2 focus:ring-blue-500/20 text-sm outline-none" />
+                      <input type="text" value={apiHost} onChange={(e) => setApiHost(e.target.value)} onBlur={handleSave} placeholder="https://api.example.com" className="w-full px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-gray-800 focus:ring-2 focus:ring-gray-500/20 text-sm outline-none" />
                   </div>
                   <div className="flex-1 min-w-[240px] space-y-1.5">
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">API Key</label>
-                      <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} onBlur={handleSave} placeholder="sk-..." className="w-full px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-gray-800 focus:ring-2 focus:ring-blue-500/20 text-sm font-mono outline-none" />
+                      <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} onBlur={handleSave} placeholder="sk-..." className="w-full px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-gray-800 focus:ring-2 focus:ring-gray-500/20 text-sm font-mono outline-none" />
                   </div>
               </div>
           ) : (
@@ -238,7 +248,8 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
         {/* Models Section */}
         {initialProvider && (
             <div className="flex-1 overflow-y-auto pt-6 scrollbar-none animate-in fade-in">
-                <div className="space-y-4">
+                <div className="space-y-6">
+                    {/* Header Controls */}
                     <div className="flex items-center justify-between px-1">
                         <div className="flex items-center gap-2">
                             <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-widest">Models</h3>
@@ -249,56 +260,105 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
                                 {isChecking ? <div className="size-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <MdCheck size={14} />}
                                 {checkResult === 'success' ? 'Connected' : 'Check'}
                             </button>
-                            <button onClick={handleFetchModels} disabled={isFetchingModels || !apiKey} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors border border-blue-100 dark:border-blue-900/30">
+                            <button onClick={handleFetchModels} disabled={isFetchingModels || !apiKey} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white dark:text-black bg-black dark:bg-white hover:opacity-80 rounded-lg transition-colors border border-transparent">
                                 {isFetchingModels ? <div className="size-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <MdCloudDownload size={14} />}
                                 Fetch Models
                             </button>
                         </div>
                     </div>
 
-                    <div className="space-y-4">
-                        {fetchedModels.length > 0 && (
-                            <div className="bg-blue-50/30 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl p-4 animate-in fade-in zoom-in-95">
-                                <div className="flex items-center justify-between mb-3 px-1">
-                                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Discovered Remote Models</span>
-                                    <button onClick={() => setFetchedModels([])} className="text-xs text-blue-600 hover:underline">Done</button>
+                    {/* Discovered Models (Grouped & Batch Actions) - Monochrome Style */}
+                    {fetchedModels.length > 0 && (
+                        <div className="bg-gray-50/50 dark:bg-white/5 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden animate-in fade-in zoom-in-95">
+                            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-gray-50 dark:bg-zinc-900/50">
+                                <div className="flex items-center gap-2">
+                                    <MdCloudDownload className="text-gray-500 w-4 h-4" />
+                                    <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Discovered Remote Models</span>
+                                    <span className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] px-1.5 py-0.5 rounded-md font-mono">{fetchedModels.length}</span>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1 scrollbar-thin">
-                                    {fetchedModels.map(id => (
-                                        <ModelListItem key={id} modelId={id} isAdded={providerModels.some(m => m.id === id)} onAdd={() => handleAddModel(id)} />
-                                    ))}
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => handleBatchAdd(fetchedModels)} className="flex items-center gap-1 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 px-2 py-1 rounded transition-colors">
+                                        <MdSelectAll size={14} /> Add All
+                                    </button>
+                                    <div className="w-[1px] h-3 bg-gray-300 dark:bg-gray-700" />
+                                    <button onClick={() => setFetchedModels([])} className="text-xs font-bold text-gray-400 hover:text-gray-600 px-2 py-1 rounded transition-colors">
+                                        Close
+                                    </button>
                                 </div>
                             </div>
-                        )}
-
-                        <div className="space-y-2">
-                            {providerModels.length === 0 ? (
-                                <div className="text-center py-12 text-gray-400 bg-gray-50/50 dark:bg-white/5 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">
-                                    <p className="text-sm">No models configured.</p>
-                                </div>
-                            ) : (
-                                Object.entries(groupModelsList(providerModels.map(m => m.id))).sort().map(([group, groupModels]) => {
-                                    const isCollapsed = collapsedGroups.has(`added-${group}`);
+                            
+                            <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto scrollbar-thin">
+                                {Object.entries(fetchedGroups).sort().map(([group, groupModels]) => {
+                                    const isCollapsed = collapsedGroups.has(`fetched-${group}`);
+                                    const allAdded = groupModels.every(id => providerModels.some(m => m.id === id));
+                                    
                                     return (
-                                        <div key={group} className="border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-900/50">
-                                            <button onClick={() => toggleGroup(`added-${group}`)} className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50/50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
-                                                <div className="flex items-center gap-2">
-                                                    {isCollapsed ? <MdKeyboardArrowRight size={18} /> : <MdKeyboardArrowDown size={18} />}
-                                                    <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{group}</span>
-                                                </div>
-                                            </button>
+                                        <div key={group} className="border border-gray-100 dark:border-gray-800 rounded-lg overflow-hidden bg-white dark:bg-black/20">
+                                            <div className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                                <button onClick={() => toggleGroup(`fetched-${group}`)} className="flex items-center gap-2 flex-1 text-left">
+                                                    {isCollapsed ? <MdKeyboardArrowRight size={16} className="text-gray-400" /> : <MdKeyboardArrowDown size={16} className="text-gray-400" />}
+                                                    <span className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">{group}</span>
+                                                    <span className="text-[10px] text-gray-400">({groupModels.length})</span>
+                                                </button>
+                                                
+                                                {!allAdded && (
+                                                    <button 
+                                                        onClick={() => handleBatchAdd(groupModels)}
+                                                        className="text-[10px] font-bold text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-white/10 px-2 py-1 rounded transition-colors"
+                                                    >
+                                                        Add Group
+                                                    </button>
+                                                )}
+                                            </div>
+                                            
                                             {!isCollapsed && (
-                                                <div className="p-2 grid grid-cols-1 gap-1">
+                                                <div className="p-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
                                                     {groupModels.map(id => (
-                                                        <ModelListItem key={id} modelId={id} isAdded={true} onRemove={() => deleteModel(id)} />
+                                                        <ModelListItem 
+                                                            key={id} 
+                                                            modelId={id} 
+                                                            isAdded={providerModels.some(m => m.id === id)} 
+                                                            onAdd={() => handleAddModel(id)} 
+                                                        />
                                                     ))}
                                                 </div>
                                             )}
                                         </div>
                                     );
-                                })
-                            )}
+                                })}
+                            </div>
                         </div>
+                    )}
+
+                    {/* Added Models List */}
+                    <div className="space-y-2">
+                        {providerModels.length === 0 ? (
+                            <div className="text-center py-12 text-gray-400 bg-gray-50/50 dark:bg-white/5 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">
+                                <p className="text-sm">No models configured.</p>
+                            </div>
+                        ) : (
+                            Object.entries(addedGroups).sort().map(([group, groupModels]) => {
+                                const isCollapsed = collapsedGroups.has(`added-${group}`);
+                                return (
+                                    <div key={group} className="border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-900/50">
+                                        <button onClick={() => toggleGroup(`added-${group}`)} className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50/50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                                            <div className="flex items-center gap-2">
+                                                {isCollapsed ? <MdKeyboardArrowRight size={18} className="text-gray-400" /> : <MdKeyboardArrowDown size={18} className="text-gray-400" />}
+                                                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{group}</span>
+                                                <span className="text-[10px] text-gray-400">({groupModels.length})</span>
+                                            </div>
+                                        </button>
+                                        {!isCollapsed && (
+                                            <div className="p-2 grid grid-cols-1 gap-1">
+                                                {groupModels.map(id => (
+                                                    <ModelListItem key={id} modelId={id} isAdded={true} onRemove={() => deleteModel(id)} />
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
             </div>

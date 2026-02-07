@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { MdExpandMore, MdSearch, MdSmartToy } from 'react-icons/md'
+import { MdExpandMore, MdSearch, MdSmartToy, MdCheck } from 'react-icons/md'
 import { useAIStore } from '@/stores/useAIStore'
 import { groupModels } from '@/lib/ai/utils'
 import { cn } from '@/lib/utils'
@@ -55,25 +55,24 @@ export function ModelSelector() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-2 px-3 py-2 rounded-lg",
-          "text-sm font-medium",
-          "text-gray-700 dark:text-gray-300",
-          "hover:bg-gray-100 dark:hover:bg-gray-700",
-          "transition-colors"
+          "flex items-center gap-2 px-1 py-1.5 rounded-md transition-all",
+          "bg-transparent",
+          "text-gray-700 dark:text-gray-300"
         )}
+        title={selectedModel ? selectedModel.id : 'Select Model'}
       >
         <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
             {selectedModelLogo ? (
                 <img src={selectedModelLogo} alt="" className="w-full h-full object-contain" />
             ) : (
-                <MdSmartToy className="w-5 h-5 text-gray-500" />
+                <MdSmartToy className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             )}
         </div>
-        <span className="font-medium whitespace-nowrap">
+        <span className="text-sm font-medium whitespace-nowrap">
           {selectedModel ? selectedModel.name : 'Select Model'}
         </span>
         <MdExpandMore className={cn(
-          "w-4 h-4 transition-transform text-gray-400",
+          "w-4 h-4 transition-transform text-gray-400 dark:text-gray-500",
           isOpen && "rotate-180"
         )} />
       </button>
@@ -81,38 +80,38 @@ export function ModelSelector() {
       {isOpen && (
         <div 
           className={cn(
-            "absolute bottom-full right-0 mb-2 w-96", // Aligned Right, Wider
-            "bg-white dark:bg-gray-800 rounded-xl shadow-2xl",
-            "border border-gray-200 dark:border-gray-700",
+            "absolute bottom-full right-0 mb-2 w-72",
+            "bg-white dark:bg-[#1E1E1E] rounded-xl shadow-xl",
+            "border border-gray-200 dark:border-gray-800",
             "animate-in fade-in slide-in-from-bottom-2 duration-150 origin-bottom-right",
-            "z-50"
+            "z-50 overflow-hidden flex flex-col"
           )}
+          style={{ maxHeight: '400px' }}
         >
-          <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+          <div className="p-2 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-[#1E1E1E] z-10">
             <div className="relative">
-              <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search models..."
+                placeholder="Search..."
                 className={cn(
-                  "w-full pl-9 pr-3 py-2 rounded-lg",
-                  "bg-gray-50 dark:bg-gray-900",
-                  "border border-gray-200 dark:border-gray-700",
-                  "text-sm text-gray-900 dark:text-gray-100",
+                  "w-full pl-8 pr-3 py-1.5 rounded-lg",
+                  "bg-gray-50 dark:bg-zinc-900",
+                  "text-xs text-gray-900 dark:text-gray-100",
                   "placeholder:text-gray-400 dark:placeholder:text-gray-500",
-                  "focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  "focus:outline-none focus:ring-1 focus:ring-gray-400"
                 )}
                 autoFocus
               />
             </div>
           </div>
 
-          <div className="max-h-96 overflow-y-auto p-2">
+          <div className="overflow-y-auto p-1 scrollbar-thin flex-1">
             {Object.keys(filteredGroups).length === 0 ? (
               <div className="py-8 text-center">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-gray-500">
                   {searchQuery ? 'No models found' : 'No models configured'}
                 </p>
                 <button
@@ -121,47 +120,56 @@ export function ModelSelector() {
                     const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } })
                     window.dispatchEvent(event)
                   }}
-                  className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  className="mt-2 text-xs text-blue-600 hover:underline"
                 >
                   Configure models
                 </button>
               </div>
             ) : (
-              Object.entries(filteredGroups).map(([group, groupModels]) => (
-                <div key={group} className="mb-2 last:mb-0">
-                  <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+              Object.entries(filteredGroups).sort().map(([group, groupModels]) => (
+                <div key={group} className="mb-1 last:mb-0">
+                  <div className="px-2 py-1 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest bg-gray-50/50 dark:bg-white/5 sticky top-0 backdrop-blur-sm">
                     {group}
                   </div>
-                  {groupModels.map((model) => {
-                    const logo = getModelLogoById(model.id);
-                    return (
-                        <button
-                          key={model.id}
-                          onClick={() => handleSelectModel(model.id)}
-                          className={cn(
-                            "w-full flex items-center gap-3 px-3 py-2 rounded-lg",
-                            "text-left transition-colors",
-                            selectedModelId === model.id
-                              ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400"
-                              : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-                          )}
-                        >
-                          <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                            {logo ? (
-                                <img src={logo} alt="" className="w-full h-full object-contain" />
-                            ) : (
-                                <div className="w-full h-full bg-gray-100 dark:bg-gray-700 rounded-md flex items-center justify-center text-[10px] font-bold text-gray-500">
-                                    {model.name.charAt(0).toUpperCase()}
-                                </div>
+                  <div className="mt-0.5 space-y-0.5">
+                    {groupModels.map((model) => {
+                        const logo = getModelLogoById(model.id);
+                        const isSelected = selectedModelId === model.id;
+                        return (
+                            <button
+                            key={model.id}
+                            onClick={() => handleSelectModel(model.id)}
+                            className={cn(
+                                "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md",
+                                "text-left transition-colors group",
+                                isSelected
+                                ? "bg-gray-100 dark:bg-zinc-800"
+                                : "hover:bg-gray-50 dark:hover:bg-zinc-900"
                             )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm truncate">{model.name}</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{model.id}</div>
-                          </div>
-                        </button>
-                    );
-                  })}
+                            title={model.id}
+                            >
+                            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                                {logo ? (
+                                    <img src={logo} alt="" className="w-full h-full object-contain" /> // Removed opacity
+                                ) : (
+                                    <div className="w-full h-full bg-gray-200 dark:bg-zinc-700 rounded-sm flex items-center justify-center text-[8px] font-bold text-gray-600 dark:text-gray-300">
+                                        {model.name.charAt(0).toUpperCase()}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex-1 min-w-0 flex items-center justify-between">
+                                <span className={cn(
+                                    "text-xs truncate font-medium",
+                                    isSelected ? "text-black dark:text-white" : "text-gray-800 dark:text-gray-200"
+                                )}>
+                                    {model.name}
+                                </span>
+                                {isSelected && <MdCheck className="w-3.5 h-3.5 text-black dark:text-white" />}
+                            </div>
+                            </button>
+                        );
+                    })}
+                  </div>
                 </div>
               ))
             )}
