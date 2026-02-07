@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { MdSend, MdAttachFile, MdImage, MdSettings } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { ModelSelector } from './ModelSelector';
 import { useAIStore } from '@/stores/useAIStore';
 import { newAPIClient } from '@/lib/ai/providers/newapi';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 export function ChatView() {
   const [message, setMessage] = useState('');
@@ -24,6 +25,25 @@ export function ChatView() {
 
   const messages = currentSessionId ? (allMessages[currentSessionId] || []) : [];
   const selectedModel = getSelectedModel();
+  
+  // Debug log for model selection
+  useEffect(() => {
+      console.log('[ChatView] Rendered with model:', selectedModel?.id);
+  }, [selectedModel?.id]);
+
+  // Debug log for message updates
+  useEffect(() => {
+      if (messages.length > 0) {
+          console.log(`[ChatView] UI Updated. Messages count: ${messages.length}. Last content length: ${messages[messages.length-1].content.length}`);
+      }
+  }, [messages]);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+      if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+  }, [messages.length, messages[messages.length - 1]?.content]);
 
   const handleSend = async () => {
     if (!message.trim() || !selectedModel) return;
@@ -92,39 +112,50 @@ export function ChatView() {
   return (
     <div className="h-full w-full flex flex-col bg-[var(--neko-bg-primary)]">
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="flex-1 overflow-y-auto" ref={scrollRef}>
+        <div className="max-w-3xl mx-auto px-4 py-8 pb-4">
           {messages.length > 0 && (
-            <div className="space-y-4">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    "flex",
-                    msg.role === 'user' ? "justify-end" : "justify-start"
-                  )}
-                >
+            <div className="space-y-8">
+              {messages.map((msg) => {
+                const isUser = msg.role === 'user';
+                
+                return (
                   <div
+                    key={msg.id}
                     className={cn(
-                      "max-w-[80%] px-4 py-2 rounded-2xl",
-                      msg.role === 'user'
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      "flex w-full",
+                      isUser ? "justify-end" : "justify-start"
                     )}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                  </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-2xl">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <div 
+                        className={cn(
+                            "flex flex-col min-w-0",
+                            isUser ? "items-end max-w-[85%]" : "w-full items-start"
+                        )}
+                    >
+                        {/* Content Area */}
+                        {isUser ? (
+                            <div className="milkdown inline-block bg-[#F4F4F5] dark:bg-[#2C2C2C] px-5 py-3 rounded-[20px] rounded-tr-md text-gray-900 dark:text-gray-100 text-[15px] leading-7 shadow-sm border border-black/5 dark:border-white/5 text-left break-words max-w-full">
+                                <div className="whitespace-pre-wrap">{msg.content}</div>
+                            </div>
+                        ) : (
+                            <div className="w-full pl-0">
+                                <MarkdownRenderer content={msg.content} />
+                            </div>
+                        )}
                     </div>
                   </div>
+                );
+              })}
+              {isLoading && (
+                <div className="flex w-full justify-start">
+                    <div className="flex items-center h-8 pl-0">
+                        <div className="flex gap-1.5">
+                            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                    </div>
                 </div>
               )}
             </div>

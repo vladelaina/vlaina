@@ -102,7 +102,8 @@ export class NewAPIClient implements AIClient {
     body: ChatCompletionRequest,
     onChunk: (chunk: string) => void
   ): Promise<string> {
-    console.log('[NewAPI] Starting streamResponse');
+    const startTime = Date.now();
+    console.log('[NewAPI] Starting streamResponse at', new Date(startTime).toISOString());
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), this.timeout)
 
@@ -114,11 +115,13 @@ export class NewAPIClient implements AIClient {
         signal: controller.signal
       })
 
+      const tt_header = Date.now() - startTime;
       clearTimeout(timeoutId)
-      console.log('[NewAPI] Stream response received', { 
+      console.log('[NewAPI] Stream headers received', { 
           status: response.status, 
           ok: response.ok,
-          contentType: response.headers.get('content-type')
+          contentType: response.headers.get('content-type'),
+          latencyMs: tt_header
       });
 
       if (!response.ok) {
@@ -135,12 +138,18 @@ export class NewAPIClient implements AIClient {
       const decoder = new TextDecoder()
       let fullContent = ''
       let buffer = ''
+      let firstTokenReceived = false;
 
       while (true) {
         const { done, value } = await reader.read()
         
+        if (!firstTokenReceived && value) {
+            firstTokenReceived = true;
+            console.log('[NewAPI] Time to First Byte (TTFB):', Date.now() - startTime, 'ms');
+        }
+        
         if (done) {
-            console.log('[NewAPI] Stream reading done');
+            console.log('[NewAPI] Stream reading done. Total duration:', Date.now() - startTime, 'ms');
             break
         }
 

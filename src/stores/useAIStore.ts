@@ -105,6 +105,7 @@ const actions = {
 
   createSession: (title = 'New Chat') => {
     const id = `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+    console.log('[AIStore] Creating new session:', { id, title });
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
     
@@ -129,10 +130,12 @@ const actions = {
   },
 
   switchSession: (sessionId: string) => {
+    console.log('[AIStore] Switching session to:', sessionId);
     useUnifiedStore.getState().updateAIData({ currentSessionId: sessionId })
   },
 
   updateSession: (id: string, updates: Partial<ChatSession>) => {
+    console.log('[AIStore] Updating session:', { id, updates });
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
     state.updateAIData({
@@ -143,6 +146,7 @@ const actions = {
   },
 
   deleteSession: (id: string) => {
+    console.log('[AIStore] Deleting session:', id);
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
     const newSessions = ai.sessions.filter(s => s.id !== id);
