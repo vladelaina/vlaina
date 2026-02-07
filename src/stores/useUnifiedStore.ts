@@ -13,6 +13,7 @@ import { createProgressActions } from './actions/progressActions';
 import { createSettingsActions } from './actions/settingsActions';
 import type { TimeView } from '@/lib/date';
 import type { ItemColor } from '@/lib/colors';
+import type { Provider, AIModel, ChatMessage, ChatSession } from '@/lib/ai/types';
 import { 
   DEFAULT_GROUP_ID,
   DEFAULT_SETTINGS,
@@ -55,6 +56,9 @@ interface UnifiedStoreActions {
   addCustomIcon: (icon: CustomIcon) => void;
   removeCustomIcon: (id: string) => void;
   syncCustomIcons: () => Promise<void>;
+
+  // AI Actions
+  updateAIData: (updates: Partial<NonNullable<UnifiedData['ai']>>) => void;
 }
 
 type UnifiedStore = UnifiedStoreState & UnifiedStoreActions;
@@ -69,6 +73,14 @@ const initialState: UnifiedStoreState = {
     progress: [],
     settings: { ...DEFAULT_SETTINGS },
     customIcons: [],
+    ai: {
+        providers: [],
+        models: [],
+        sessions: [],
+        messages: {},
+        selectedModelId: null,
+        currentSessionId: null
+    }
   },
   loaded: false,
   activeGroupId: DEFAULT_GROUP_ID,
@@ -85,6 +97,12 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
     load: async () => {
       if (get().loaded) return;
       const data = await loadUnifiedData();
+      
+      // Ensure AI data structure exists
+      if (!data.ai) {
+          data.ai = { ...initialState.data.ai! };
+      }
+      
       set({ data, loaded: true });
     },
 
@@ -131,9 +149,23 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
       });
     },
 
+    updateAIData: (updates) => {
+        const state = get();
+        const newData = {
+            ...state.data,
+            ai: {
+                ...(state.data.ai || initialState.data.ai!),
+                ...updates
+            }
+        };
+        set({ data: newData });
+        persist(newData);
+    },
+
     ...progressActions,
     ...settingsActions,
   };
 });
 
 export { useUnifiedStore as useStore };
+

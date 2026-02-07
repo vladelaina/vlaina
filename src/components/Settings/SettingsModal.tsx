@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { MdClose, MdPalette, MdKeyboard, MdInfo, MdStorage, MdPerson, MdImage } from 'react-icons/md';
+import { MdClose, MdPalette, MdKeyboard, MdInfo, MdStorage, MdPerson, MdImage, MdSmartToy } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
@@ -11,6 +11,7 @@ import { AppearanceTab } from './tabs/AppearanceTab';
 import { ShortcutsTab } from './tabs/ShortcutsTab';
 import { StorageTab } from './tabs/StorageTab';
 import { ImagesTab } from './tabs/ImagesTab';
+import { AITab } from './tabs/AITab';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useProStatusStore } from '@/stores/useProStatusStore';
 import { useUserAvatar } from '@/hooks/useUserAvatar';
@@ -21,7 +22,7 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type SettingsTab = 'appearance' | 'shortcuts' | 'storage' | 'images' | 'about';
+type SettingsTab = 'appearance' | 'shortcuts' | 'storage' | 'images' | 'ai' | 'about';
 
 interface SidebarItem {
   id: SettingsTab;
@@ -40,6 +41,7 @@ const sidebarGroups: SidebarGroup[] = [
     items: [
       { id: 'appearance', label: 'Appearance', icon: MdPalette },
       { id: 'shortcuts', label: 'Shortcuts', icon: MdKeyboard },
+      { id: 'ai', label: 'AI Settings', icon: MdSmartToy },
       { id: 'about', label: 'About NekoTick', icon: MdInfo },
     ]
   },
@@ -56,8 +58,18 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
 
   const { username, isConnected } = useGithubSyncStore();
-  const avatarUrl = useUserAvatar(); // Use hook
+  const avatarUrl = useUserAvatar();
   const { isProUser } = useProStatusStore();
+
+  useEffect(() => {
+    const handleOpenSettings = (e: CustomEvent<{ tab?: SettingsTab }>) => {
+      if (e.detail?.tab) {
+        setActiveTab(e.detail.tab)
+      }
+    }
+    window.addEventListener('open-settings', handleOpenSettings as EventListener)
+    return () => window.removeEventListener('open-settings', handleOpenSettings as EventListener)
+  }, [])
 
   const {
     shortcuts,
@@ -101,6 +113,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       case 'shortcuts': return 'Keyboard shortcuts';
       case 'storage': return 'Storage & Usage';
       case 'images': return 'Image Settings';
+      case 'ai': return 'AI Settings';
       case 'about': return 'About NekoTick';
       default: return 'Settings';
     }
@@ -112,6 +125,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       case 'shortcuts': return 'View and customize keyboard shortcuts';
       case 'storage': return 'Manage local data and cloud sync';
       case 'images': return 'Configure image storage location';
+      case 'ai': return 'Configure AI providers and models';
       case 'about': return 'Version info and acknowledgments';
       default: return '';
     }
@@ -276,19 +290,29 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
                 {/* Content Scroll Area */}
                 <div className="flex-1 overflow-y-auto w-full neko-scrollbar">
-                  <div className="px-12 py-10 max-w-[800px] w-full mx-auto">
+                  <div className={cn(
+                    "w-full mx-auto",
+                    activeTab === 'ai' 
+                      ? "h-full" 
+                      : "px-12 py-10 max-w-[800px]"
+                  )}>
                     {/* Page Header */}
-                    <div className="mb-10">
-                      <h1 className="text-[26px] font-bold text-[#111] dark:text-white mb-1.5 tracking-tight">
-                        {getTabTitle(activeTab)}
-                      </h1>
-                      <p className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-lg">
-                        {getTabSubtitle(activeTab)}
-                      </p>
-                    </div>
+                    {activeTab !== 'ai' && (
+                      <div className="mb-10">
+                        <h1 className="text-[26px] font-bold text-[#111] dark:text-white mb-1.5 tracking-tight">
+                          {getTabTitle(activeTab)}
+                        </h1>
+                        <p className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-lg">
+                          {getTabSubtitle(activeTab)}
+                        </p>
+                      </div>
+                    )}
 
                     {/* Content */}
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <div className={cn(
+                      "animate-in fade-in slide-in-from-bottom-2 duration-500",
+                      activeTab === 'ai' ? "h-full" : "space-y-8"
+                    )}>
                       {activeTab === 'about' && <AboutTab />}
                       {activeTab === 'appearance' && <AppearanceTab />}
                       {activeTab === 'shortcuts' && (
@@ -303,6 +327,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       )}
                       {activeTab === 'storage' && <StorageTab />}
                       {activeTab === 'images' && <ImagesTab />}
+                      {activeTab === 'ai' && <AITab />}
                     </div>
                   </div>
                 </div>

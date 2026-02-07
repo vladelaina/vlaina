@@ -17,6 +17,7 @@ import { ChatView } from '@/components/Chat/ChatView';
 import { CalendarSidebarWrapper } from '@/components/Calendar/features/Sidebar/CalendarSidebarWrapper';
 import { TodoSidebar } from '@/components/Todo/TodoSidebar';
 import { NotesSidebarWrapper } from '@/components/Notes/features/Sidebar/NotesSidebarWrapper';
+import { ChatSidebar } from '@/components/Chat/ChatSidebar';
 
 import { CalendarHeaderControl } from '@/components/Calendar/features/Grid/CalendarHeaderControl';
 import { NotesTabRow } from '@/components/Notes/features/Tabs/NotesTabRow';
@@ -40,6 +41,14 @@ function AppContent() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const toggleSettings = useCallback(() => setSettingsOpen(prev => !prev), []);
+
+  useEffect(() => {
+    const handleOpenSettings = () => {
+      setSettingsOpen(true)
+    }
+    window.addEventListener('open-settings', handleOpenSettings)
+    return () => window.removeEventListener('open-settings', handleOpenSettings)
+  }, [])
 
   const shortcutHandlers = useMemo(() => ({
     'open-settings': toggleSettings,
@@ -98,6 +107,9 @@ function AppContent() {
     sidebarContent = <CalendarSidebarWrapper />;
   } else if (appViewMode === 'todo') {
     sidebarContent = <TodoSidebar />;
+  } else if (appViewMode === 'chat') {
+    sidebarContent = <ChatSidebar isPeeking={false} />;
+    sidebarPeekContent = <ChatSidebar isPeeking={true} />;
   } else if (appViewMode === 'notes' && currentVault) {
     sidebarContent = <NotesSidebarWrapper isPeeking={false} />;
     sidebarPeekContent = <NotesSidebarWrapper isPeeking={true} />;
