@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { MdSend, MdAttachFile, MdImage, MdSettings, MdContentCopy, MdVolumeUp, MdRefresh, MdNavigateBefore, MdNavigateNext } from 'react-icons/md';
+import { MdSend, MdAttachFile, MdImage, MdSettings, MdContentCopy, MdVolumeUp, MdRefresh, MdNavigateBefore, MdNavigateNext, MdStop, MdPlayArrow, MdAutoAwesome } from 'react-icons/md';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ModelSelector } from './ModelSelector';
 import { useAIStore } from '@/stores/useAIStore';
@@ -10,6 +11,9 @@ import '@/components/Notes/features/Editor/styles/core.css';
 export function ChatView() {
   const [message, setMessage] = useState('');
   
+  // TTS State
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+
   const { 
     messages: allMessages, 
     currentSessionId,
@@ -34,7 +38,14 @@ export function ChatView() {
       if (scrollRef.current) {
           scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
       }
-  }, [messages.length, messages[messages.length - 1]?.content]);
+  }, [messages.length, messages[messages.length - 1]?.content, isLoading]);
+
+  // Clean up TTS on unmount
+  useEffect(() => {
+      return () => {
+          window.speechSynthesis.cancel();
+      };
+  }, []);
 
   const handleSend = async () => {
     if (!message.trim() || !selectedModel) return;
@@ -73,7 +84,7 @@ export function ChatView() {
     try {
       await newAPIClient.sendMessage(
         userMessage,
-        messages, // Pass history (stale is correct here as it excludes current user msg)
+        messages, 
         selectedModel,
         provider,
         (chunk) => {
@@ -124,10 +135,19 @@ export function ChatView() {
   };
 
   const copyToClipboard = (text: string) => navigator.clipboard.writeText(text);
-  const speakText = (text: string) => { 
-      window.speechSynthesis.cancel(); 
-      const utterance = new SpeechSynthesisUtterance(text);
-      window.speechSynthesis.speak(utterance);
+  
+  const handleSpeak = (msgId: string, text: string) => {
+      if (speakingMsgId === msgId) {
+          window.speechSynthesis.cancel();
+          setSpeakingMsgId(null);
+      } else {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.onend = () => setSpeakingMsgId(null);
+          utterance.onerror = () => setSpeakingMsgId(null);
+          setSpeakingMsgId(msgId);
+          window.speechSynthesis.speak(utterance);
+      }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -148,12 +168,13 @@ export function ChatView() {
                 const versions = msg.versions || [msg.content];
                 const currentVer = (msg.currentVersionIndex ?? 0) + 1;
                 const totalVer = versions.length;
+                const isSpeaking = speakingMsgId === msg.id;
                 
                 return (
                   <div
                     key={msg.id}
                     className={cn(
-                      "flex w-full group", // Added group for hover effect
+                      "flex w-full group",
                       isUser ? "justify-end" : "justify-start"
                     )}
                   >
@@ -164,16 +185,18 @@ export function ChatView() {
                         )}
                     >
                         {isUser ? (
-                            <div className="milkdown inline-block bg-[#F4F4F5] dark:bg-[#2C2C2C] px-5 py-3 rounded-[20px] rounded-tr-md text-gray-900 dark:text-gray-100 text-[15px] leading-7 shadow-sm border border-black/5 dark:border-white/5 text-left break-words max-w-full">
+                            <div className="milkdown inline-block bg-[#F4F4F5] dark:bg-[#2C2C2C] px-5 py-3 rounded-[20px] rounded-tr-md text-gray-900 dark:text-gray-100 text-[15px] leading-7 shadow-sm border border-black/5 dark:border-white/5 text-left break-words">
                                 <div className="whitespace-pre-wrap">{msg.content}</div>
                             </div>
                         ) : (
                             <div className="w-full pl-0">
-                                <MarkdownRenderer content={msg.content} />
+                                <div className="[&>*:last-child]:mb-0">
+                                    <MarkdownRenderer content={msg.content} />
+                                </div>
                                 
                                 {/* Toolbar */}
                                 {!isLoading && (
-                                    <div className="flex items-center gap-2 mt-2 select-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <div className="flex items-center gap-2 mt-1 select-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                         {totalVer > 1 && (
                                             <div className="flex items-center text-xs font-medium text-gray-500 bg-gray-100 dark:bg-zinc-800 rounded-md px-1 mr-2">
                                                 <button onClick={() => switchVersion(msg.id, 'prev')} disabled={currentVer <= 1} className="p-1 hover:text-black dark:hover:text-white disabled:opacity-30"><MdNavigateBefore size={14}/></button>
@@ -185,9 +208,18 @@ export function ChatView() {
                                         <button onClick={() => copyToClipboard(msg.content)} className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800" title="Copy">
                                             <MdContentCopy size={14} />
                                         </button>
-                                        <button onClick={() => speakText(msg.content)} className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800" title="Read Aloud">
-                                            <MdVolumeUp size={14} />
+                                        
+                                        <button 
+                                            onClick={() => handleSpeak(msg.id, msg.content)} 
+                                            className={cn(
+                                                "p-1.5 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800",
+                                                isSpeaking ? "text-red-500" : "text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                                            )} 
+                                            title={isSpeaking ? "Stop" : "Read Aloud"}
+                                        >
+                                            {isSpeaking ? <MdStop size={14} /> : <MdVolumeUp size={14} />}
                                         </button>
+
                                         <button onClick={() => handleRegenerate(msg.id)} className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800" title="Regenerate">
                                             <MdRefresh size={14} />
                                         </button>
@@ -200,12 +232,34 @@ export function ChatView() {
                 );
               })}
               {isLoading && (
-                <div className="flex w-full justify-start">
-                    <div className="flex items-center h-8 pl-0">
-                        <div className="flex gap-1.5">
-                            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="flex w-full justify-start pl-0 mt-4 mb-2">
+                    <div className="flex items-center gap-4">
+                        {/* Harmonic Neural Stream - Elegant & High-Speed */}
+                        <div className="flex items-center gap-[3px] h-6 px-1">
+                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) => {
+                                // Bell curve for height (middle is taller)
+                                const centerDist = Math.abs(i - 5.5);
+                                const heightScale = Math.max(0.3, 1 - (centerDist / 6));
+                                const maxH = 6 + 18 * heightScale; // Middle ~24px, Sides ~8px
+                                
+                                return (
+                                    <motion.div
+                                        key={i}
+                                        className="w-[2px] rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]"
+                                        initial={{ height: 4, opacity: 0.3 }}
+                                        animate={{ 
+                                            height: [6, maxH, 6],
+                                            opacity: [0.3, 1, 0.3],
+                                        }}
+                                        transition={{
+                                            duration: 0.5,
+                                            repeat: Infinity,
+                                            delay: i * 0.04, // Perfectly timed propagation
+                                            ease: "easeInOut"
+                                        }}
+                                    />
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
