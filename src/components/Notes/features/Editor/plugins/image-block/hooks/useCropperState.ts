@@ -7,15 +7,29 @@ interface UseCropperStateProps {
     initialCropParams: CropParams | null;
     containerSize: { width: number; height: number };
     onMediaLoaded?: (mediaSize: { width: number; height: number; naturalWidth: number; naturalHeight: number }) => void;
+    overrideState?: { crop: { x: number; y: number }; zoom: number } | null;
+    onStateChange?: (state: { crop: { x: number; y: number }; zoom: number }) => void;
 }
 
-export function useCropperState({ initialCropParams, containerSize, onMediaLoaded: externalOnMediaLoaded }: UseCropperStateProps) {
-    const [crop, setCrop] = useState({ x: 0, y: 0 });
-    const [zoom, setZoom] = useState(1);
+export function useCropperState({ 
+    initialCropParams, 
+    containerSize, 
+    onMediaLoaded: externalOnMediaLoaded,
+    overrideState,
+    onStateChange
+}: UseCropperStateProps) {
+    // If overrideState is provided, use it as initial value
+    const [crop, setCrop] = useState(overrideState?.crop || { x: 0, y: 0 });
+    const [zoom, setZoom] = useState(overrideState?.zoom || 1);
     const [minZoomLimit, setMinZoomLimit] = useState(1);
 
     const mediaSizeRef = useRef<{ naturalWidth: number; naturalHeight: number } | null>(null);
     const originalAspectRatioRef = useRef<number>(1);
+
+    // Notify parent on change
+    useEffect(() => {
+        onStateChange?.({ crop, zoom });
+    }, [crop, zoom, onStateChange]);
 
     // Recalculate zoom limits when container size changes
     useEffect(() => {
@@ -36,9 +50,14 @@ export function useCropperState({ initialCropParams, containerSize, onMediaLoade
             const coverZoom = Math.max(widthScale, heightScale) * ZOOM_COVER_MULTIPLIER;
 
             setMinZoomLimit(coverZoom);
-            setZoom(prev => Math.max(prev, coverZoom));
+            
+            // Only auto-adjust zoom if we are NOT using an override state
+            // or if the current zoom is invalid (too small)
+            if (!overrideState) {
+                setZoom(prev => Math.max(prev, coverZoom));
+            }
         }
-    }, [containerSize.width, containerSize.height]);
+    }, [containerSize.width, containerSize.height, overrideState]);
 
     // Enforce min zoom
     useEffect(() => {
@@ -71,7 +90,11 @@ export function useCropperState({ initialCropParams, containerSize, onMediaLoade
 
         setMinZoomLimit(coverZoom);
 
-        if (initialCropParams) {
+        // Priority: Override -> InitialParams -> Default
+        if (overrideState) {
+            setZoom(overrideState.zoom);
+            setCrop(overrideState.crop);
+        } else if (initialCropParams) {
             const restoredZoom = 100 / initialCropParams.width;
             setZoom(restoredZoom);
 
@@ -85,7 +108,7 @@ export function useCropperState({ initialCropParams, containerSize, onMediaLoade
             setZoom(coverZoom);
             setCrop({ x: 0, y: 0 });
         }
-    }, [containerSize, initialCropParams, externalOnMediaLoaded]);
+    }, [containerSize, initialCropParams, externalOnMediaLoaded, overrideState]);
 
     return {
         crop, setCrop,

@@ -15,6 +15,7 @@ interface ImageContentProps {
     onCancel: () => void;
     onResizeStart: (direction: any) => (e: React.MouseEvent) => void;
     onMediaLoaded: (media: any) => void;
+    onStateChange?: (state: { crop: { x: number; y: number }; zoom: number }) => void;
 }
 
 export const ImageContent = ({
@@ -29,7 +30,8 @@ export const ImageContent = ({
     onSave,
     onCancel,
     onResizeStart,
-    onMediaLoaded
+    onMediaLoaded,
+    onStateChange
 }: ImageContentProps) => {
 
     if ((isLoading || !resolvedSrc) && !isReady) {
@@ -60,6 +62,7 @@ export const ImageContent = ({
             isActive={isActive}
             onResizeStart={onResizeStart}
             onMediaLoaded={onMediaLoaded}
+            onStateChange={onStateChange}
         />
     );
 };

@@ -143,8 +143,8 @@ export function useImageDrag({
                     isDragging: true,
                     sourcePos: sourcePos,
                     targetPos: sourcePos,
-                    imageNaturalWidth: imageNaturalSize.width,
-                    imageNaturalHeight: imageNaturalSize.height,
+                    imageNaturalWidth: sourceWidth,
+                    imageNaturalHeight: sourceHeight,
                     editorView: view,
                     alignment: 'center',
                 });
@@ -197,8 +197,8 @@ export function useImageDrag({
                         sourcePos: sourcePos,
                         targetPos: finalTargetPos, 
                         alignment,
-                        imageNaturalWidth: imageNaturalSize.width,
-                        imageNaturalHeight: imageNaturalSize.height,
+                        imageNaturalWidth: sourceWidth,
+                        imageNaturalHeight: sourceHeight,
                         editorView: view,
                     });
                 }
