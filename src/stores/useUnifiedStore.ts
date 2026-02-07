@@ -56,7 +56,7 @@ interface UnifiedStoreActions {
   syncCustomIcons: () => Promise<void>;
 
   // AI Actions
-  updateAIData: (updates: Partial<NonNullable<UnifiedData['ai']>>) => void;
+  updateAIData: (updates: Partial<NonNullable<UnifiedData['ai']>>, skipPersist?: boolean) => void;
 }
 
 type UnifiedStore = UnifiedStoreState & UnifiedStoreActions;
@@ -147,7 +147,7 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
       });
     },
 
-    updateAIData: (updates) => {
+    updateAIData: (updates, skipPersist = false) => {
         const state = get();
         const newData = {
             ...state.data,
@@ -157,7 +157,9 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
             }
         };
         set({ data: newData });
-        persist(newData);
+        if (!skipPersist) {
+            persist(newData);
+        }
     },
 
     ...progressActions,

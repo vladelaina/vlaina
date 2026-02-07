@@ -1,16 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
-import { MdSend, MdAttachFile, MdImage, MdSettings, MdContentCopy, MdVolumeUp, MdRefresh, MdNavigateBefore, MdNavigateNext, MdStop, MdPlayArrow, MdAutoAwesome } from 'react-icons/md';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { MdContentCopy, MdVolumeUp, MdRefresh, MdNavigateBefore, MdNavigateNext, MdStop, MdPlayArrow, MdAutoAwesome } from 'react-icons/md';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { ModelSelector } from './ModelSelector';
 import { useAIStore } from '@/stores/useAIStore';
 import { newAPIClient } from '@/lib/ai/providers/newapi';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { ChatInput } from './ChatInput';
 import '@/components/Notes/features/Editor/styles/core.css';
 
 export function ChatView() {
-  const [message, setMessage] = useState('');
-  
   // TTS State
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
 
@@ -34,11 +32,13 @@ export function ChatView() {
   const selectedModel = getSelectedModel();
   
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  // Optimized Scroll: Only scroll when new message added or loading changes
   useEffect(() => {
       if (scrollRef.current) {
           scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
       }
-  }, [messages.length, messages[messages.length - 1]?.content, isLoading]);
+  }, [messages.length, isLoading]);
 
   // Clean up TTS on unmount
   useEffect(() => {
@@ -47,8 +47,8 @@ export function ChatView() {
       };
   }, []);
 
-  const handleSend = async () => {
-    if (!message.trim() || !selectedModel) return;
+  const handleSend = useCallback(async (text: string) => {
+    if (!text.trim() || !selectedModel) return;
 
     const provider = providers.find(p => p.id === selectedModel.providerId);
     if (!provider) {
@@ -56,11 +56,11 @@ export function ChatView() {
       return;
     }
 
-    const userMessage = message.trim();
-    setMessage('');
+    const userMessage = text.trim();
     
     let activeSessionId = currentSessionId;
     if (!activeSessionId) {
+        // Sync createSession is fine, store updates
         activeSessionId = createSession(userMessage.slice(0, 30));
     }
 
@@ -81,6 +81,15 @@ export function ChatView() {
     setLoading(true);
     setError(null);
 
+    // Use current messages + new user message for history
+    // Note: 'messages' here is from closure, but since we just added to store, 
+    // and we need to pass history to API.
+    // Ideally we fetch fresh state, but for now passing current messages is ok 
+    // as newAPIClient appends the prompt.
+    // Wait, if we just added to store, 'messages' variable in this closure is STALE (doesn't have new msgs).
+    // This is GOOD. newAPIClient expects history BEFORE the prompt.
+    // AND it expects the prompt argument.
+    
     try {
       await newAPIClient.sendMessage(
         userMessage,
@@ -99,7 +108,7 @@ export function ChatView() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, setLoading, setError, messages]);
 
   const handleRegenerate = async (msgId: string) => {
       if (isLoading || !selectedModel) return;
@@ -150,12 +159,10 @@ export function ChatView() {
       }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
+  const handleOpenSettings = useCallback(() => {
+      const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } })
+      window.dispatchEvent(event)
+  }, []);
 
   return (
     <div className="h-full w-full flex flex-col bg-[var(--neko-bg-primary)]">
@@ -233,7 +240,7 @@ export function ChatView() {
               })}
               {isLoading && (
                 <div className="flex w-full justify-start pl-0 mt-4 mb-2">
-                    {/* High-Vibe Elastic (Original Blue Edition) */}
+                    {/* High-Vibe Elastic (Original Blue) */}
                     <div className="relative h-6 w-28 flex items-center justify-center overflow-hidden">
                         {[0, 1, 2, 3].map((i) => (
                             <motion.div
@@ -273,111 +280,12 @@ export function ChatView() {
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 pb-6">
-        <div className="max-w-3xl mx-auto">
-          <div 
-            className={cn(
-              "bg-white dark:bg-gray-800 rounded-[20px]",
-              "border border-gray-200 dark:border-gray-700",
-              "transition-all duration-200"
-            )}
-          >
-            <div className="flex flex-col">
-              <div className="relative px-4 pt-4">
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={
-                      !selectedModel 
-                        ? "Please select a model to start chat..." 
-                        : isLoading 
-                            ? "AI is thinking..." 
-                            : "从任何想法开始… 按 Ctrl+Enter 换行..."
-                  }
-                  rows={1}
-                  disabled={isLoading || !selectedModel}
-                  className={cn(
-                    "w-full resize-none bg-transparent",
-                    "text-[var(--neko-text-primary)] placeholder:text-gray-400 dark:placeholder:text-gray-500",
-                    "focus:outline-none",
-                    "text-sm leading-6",
-                    "disabled:opacity-50 disabled:cursor-not-allowed"
-                  )}
-                  style={{
-                    minHeight: '46px',
-                    maxHeight: '320px',
-                  }}
-                />
-              </div>
-
-              <div className="flex items-center justify-between px-3 py-2">
-                <div className="flex items-center gap-1">
-                  <ModelSelector />
-                  
-                  <button
-                    className={cn(
-                      "w-9 h-9 flex items-center justify-center rounded-lg",
-                      "text-gray-600 dark:text-gray-400",
-                      "hover:bg-gray-100 dark:hover:bg-gray-700",
-                      "transition-colors"
-                    )}
-                    title="附加文件"
-                  >
-                    <MdAttachFile className="w-5 h-5" />
-                  </button>
-
-                  <button
-                    className={cn(
-                      "w-9 h-9 flex items-center justify-center rounded-lg",
-                      "text-gray-600 dark:text-gray-400",
-                      "hover:bg-gray-100 dark:hover:bg-gray-700",
-                      "transition-colors"
-                    )}
-                    title="添加图片"
-                  >
-                    <MdImage className="w-5 h-5" />
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } })
-                      window.dispatchEvent(event)
-                    }}
-                    className={cn(
-                      "w-9 h-9 flex items-center justify-center rounded-lg",
-                      "text-gray-600 dark:text-gray-400",
-                      "hover:bg-gray-100 dark:hover:bg-gray-700",
-                      "transition-colors"
-                    )}
-                    title="AI 设置"
-                  >
-                    <MdSettings className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleSend}
-                    disabled={!message.trim() || isLoading || !selectedModel}
-                    className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center",
-                      "transition-all duration-200",
-                      message.trim() && selectedModel && !isLoading
-                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-                        : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                    )}
-                    title="发送消息"
-                  >
-                    <MdSend className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ChatInput 
+        onSend={handleSend} 
+        isLoading={isLoading} 
+        selectedModel={selectedModel} 
+        onOpenSettings={handleOpenSettings}
+      />
     </div>
   );
 }

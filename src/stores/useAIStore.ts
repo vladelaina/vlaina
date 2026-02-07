@@ -210,7 +210,7 @@ const actions = {
             return { ...m, content, versions, currentVersionIndex: idx };
         })
       }
-    })
+    }, true); // Skip persist for high-frequency updates
   },
 
   completeMessage: (id: string) => {
@@ -223,6 +223,8 @@ const actions = {
       const msg = sessionMessages.find(m => m.id === id);
       if (msg) {
           appendMessageToMarkdown(currentSessionId, msg);
+          // Trigger final persist
+          state.updateAIData({}); 
       }
   },
 

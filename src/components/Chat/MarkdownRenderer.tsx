@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, memo } from 'react';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css'; 
 // Import Milkdown styles for consistency
@@ -11,7 +11,7 @@ interface MarkdownRendererProps {
   content: string;
 }
 
-export function MarkdownRenderer({ content }: MarkdownRendererProps) {
+export const MarkdownRenderer = memo(function MarkdownRenderer({ content }: MarkdownRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const htmlContent = useMemo(() => {
@@ -35,7 +35,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         dangerouslySetInnerHTML={{ __html: htmlContent }}
     />
   );
-}
+});
 
 function parseMarkdown(text: string): string {
     const codeBlockMap = new Map<string, string>();
