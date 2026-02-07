@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, memo } from 'react';
-import { MdSend, MdAttachFile, MdImage, MdSettings, MdStop } from 'react-icons/md';
+import { MdSend, MdAttachFile, MdImage, MdSettings, MdStop, MdLanguage } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { ModelSelector } from './ModelSelector';
+import { useAIStore } from '@/stores/useAIStore';
 import type { AIModel } from '@/lib/ai/types';
 
 interface ChatInputProps {
@@ -15,22 +16,15 @@ interface ChatInputProps {
 export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, selectedModel, onOpenSettings }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { webSearchEnabled, toggleWebSearch } = useAIStore();
 
   const handleSend = () => {
     if (!message.trim()) return;
-    
-    // If loading, parent (ChatView) will handle aborting previous request
-    // We just fire onSend with the new text
     onSend(message);
     setMessage('');
-    
     if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
     }
-  };
-
-  const handleStop = () => {
-      onStop();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -40,7 +34,6 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
     }
   };
 
-  // Auto-resize
   useEffect(() => {
       if (textareaRef.current) {
           textareaRef.current.style.height = 'auto';
@@ -57,7 +50,8 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
             className={cn(
               "bg-white dark:bg-gray-800 rounded-[20px]",
               "border border-gray-200 dark:border-gray-700",
-              "transition-all duration-200"
+              "transition-all duration-200",
+              webSearchEnabled && "ring-2 ring-blue-500/20 border-blue-200 dark:border-blue-800"
             )}
           >
             <div className="flex flex-col">
@@ -73,7 +67,6 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                         : (isLoading ? "Type to interrupt..." : "从任何想法开始… 按 Ctrl+Enter 换行...")
                   }
                   rows={1}
-                  // Removed disabled={isLoading} to allow interruption
                   className={cn(
                     "w-full resize-none bg-transparent",
                     "text-[var(--neko-text-primary)] placeholder:text-gray-400 dark:placeholder:text-gray-500",
@@ -85,8 +78,20 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
               </div>
 
               <div className="flex items-center justify-between px-3 py-2">
-                {/* Left Side: Attachments & Settings */}
                 <div className="flex items-center gap-1">
+                  <button
+                    onClick={toggleWebSearch}
+                    className={cn(
+                      "w-9 h-9 flex items-center justify-center rounded-lg transition-all",
+                      webSearchEnabled 
+                        ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" 
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    )}
+                    title={webSearchEnabled ? "禁用联网搜索" : "启用联网搜索"}
+                  >
+                    <MdLanguage className="w-5 h-5" />
+                  </button>
+
                   <button
                     onClick={onOpenSettings}
                     className={cn(
@@ -103,42 +108,27 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                   <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
 
                   <button
-                    className={cn(
-                      "w-9 h-9 flex items-center justify-center rounded-lg",
-                      "text-gray-600 dark:text-gray-400",
-                      "hover:bg-gray-100 dark:hover:bg-gray-700",
-                      "transition-colors"
-                    )}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                     title="附加文件"
                   >
                     <MdAttachFile className="w-5 h-5" />
                   </button>
 
                   <button
-                    className={cn(
-                      "w-9 h-9 flex items-center justify-center rounded-lg",
-                      "text-gray-600 dark:text-gray-400",
-                      "hover:bg-gray-100 dark:hover:bg-gray-700",
-                      "transition-colors"
-                    )}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                     title="添加图片"
                   >
                     <MdImage className="w-5 h-5" />
                   </button>
                 </div>
 
-                {/* Right Side: Model Selector & Send/Stop */}
                 <div className="flex items-center gap-2">
                   <ModelSelector />
                   
                   {isLoading && !message.trim() ? (
                       <button
-                        onClick={handleStop}
-                        className={cn(
-                          "w-8 h-8 rounded-full flex items-center justify-center",
-                          "transition-all duration-200",
-                          "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40"
-                        )}
+                        onClick={onStop}
+                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40"
                         title="停止生成"
                       >
                         <MdStop className="w-4 h-4" />

@@ -4,6 +4,7 @@ import { useUnifiedStore } from './useUnifiedStore'
 import type { Provider, AIModel, ChatMessage, ChatSession } from '@/lib/ai/types'
 import { generateModelName, generateModelGroup } from '@/lib/ai/utils'
 import { appendMessageToMarkdown, saveSessionToMarkdown } from '@/lib/storage/chatStorage'
+import type { SearchResult } from '@/lib/ai/search'
 
 // 1. UI State Store (Transient)
 interface AIUIState {
@@ -213,6 +214,25 @@ const actions = {
     }, true); // Skip persist for high-frequency updates
   },
 
+  // Set citations for a message
+  setCitations: (id: string, results: SearchResult[]) => {
+      const state = useUnifiedStore.getState();
+      const ai = state.data.ai!;
+      const { currentSessionId } = ai;
+      if (!currentSessionId) return;
+
+      const sessionMessages = ai.messages[currentSessionId] || [];
+      state.updateAIData({
+          messages: {
+              ...ai.messages,
+              [currentSessionId]: sessionMessages.map(m => {
+                  if (m.id !== id) return m;
+                  return { ...m, citations: results };
+              })
+          }
+      });
+  },
+
   completeMessage: (id: string) => {
       const state = useUnifiedStore.getState();
       const ai = state.data.ai!;
@@ -299,10 +319,18 @@ export const useAIStore = () => {
     currentSessionId: aiData?.currentSessionId || null,
     messages: aiData?.messages || {},
     selectedModelId: aiData?.selectedModelId || null,
+    webSearchEnabled: aiData?.webSearchEnabled || false,
     
     ...uiState,
     ...actions,
     
+    toggleWebSearch: () => {
+        const current = useUnifiedStore.getState().data.ai?.webSearchEnabled || false;
+        const next = !current;
+        console.log('[AIStore] Toggling web search to:', next);
+        useUnifiedStore.getState().updateAIData({ webSearchEnabled: next });
+    },
+
     getProvider: (id: string) => aiData?.providers.find(p => p.id === id),
     getModel: (id: string) => aiData?.models.find(m => m.id === id),
     getSelectedModel: () => aiData?.selectedModelId ? aiData.models.find(m => m.id === aiData.selectedModelId) : undefined,
