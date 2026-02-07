@@ -1,21 +1,21 @@
 import type { AIClient } from '../client'
-import type { Provider, AIModel, ChatCompletionRequest, ChatCompletionResponse, ChatCompletionStreamChunk, ChatMessage } from '../types'
+import type { Provider, AIModel, ChatCompletionRequest, ChatCompletionResponse, ChatCompletionStreamChunk, ChatMessage, ChatMessageContent } from '../types'
 import { parseAPIError, parseHTTPError } from '../client'
 import { normalizeApiHost } from '../utils'
 
-export class NewAPIClient implements AIClient {
+export class OpenAICompatibleClient implements AIClient {
   private readonly timeout = 60000 
 
   async sendMessage(
-    message: string,
+    message: ChatMessageContent,
     history: ChatMessage[],
     model: AIModel,
     provider: Provider,
     onChunk?: (chunk: string) => void,
     signal?: AbortSignal
   ): Promise<string> {
-    console.log('[NewAPI] sendMessage called', { 
-        messageLength: message.length, 
+    console.log('[OpenAI] sendMessage called', { 
+        messageLength: typeof message === 'string' ? message.length : 'multimodal', 
         historyLength: history.length, 
         model: model.id,
         provider: provider.name
@@ -42,7 +42,7 @@ export class NewAPIClient implements AIClient {
       stream: !!onChunk
     }
 
-    console.log('[NewAPI] Request constructed', { 
+    console.log('[OpenAI] Request constructed', { 
         url, 
         headers: { ...headers, Authorization: 'Bearer ***' }, 
         bodyModel: body.model,
@@ -62,7 +62,7 @@ export class NewAPIClient implements AIClient {
     body: ChatCompletionRequest,
     signal?: AbortSignal
   ): Promise<string> {
-    console.log('[NewAPI] Starting fetchResponse');
+    console.log('[OpenAI] Starting fetchResponse');
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), this.timeout)
     
@@ -79,7 +79,7 @@ export class NewAPIClient implements AIClient {
       })
 
       clearTimeout(timeoutId)
-      console.log('[NewAPI] Fetch response received', { 
+      console.log('[OpenAI] Fetch response received', { 
           status: response.status, 
           ok: response.ok,
           type: response.type,
@@ -88,15 +88,15 @@ export class NewAPIClient implements AIClient {
 
       if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}))
-        console.error('[NewAPI] Fetch error body', errorBody);
+        console.error('[OpenAI] Fetch error body', errorBody);
         throw parseHTTPError(response.status, errorBody)
       }
 
       const data: ChatCompletionResponse = await response.json()
-      console.log('[NewAPI] Fetch success, content length:', data.choices[0]?.message?.content?.length);
+      console.log('[OpenAI] Fetch success, content length:', data.choices[0]?.message?.content?.length);
       return data.choices[0]?.message?.content || ''
     } catch (error) {
-      console.error('[NewAPI] Fetch exception', error);
+      console.error('[OpenAI] Fetch exception', error);
       clearTimeout(timeoutId)
       throw parseAPIError(error)
     }
@@ -110,7 +110,7 @@ export class NewAPIClient implements AIClient {
     signal?: AbortSignal
   ): Promise<string> {
     const startTime = Date.now();
-    console.log('[NewAPI] Starting streamResponse at', new Date(startTime).toISOString());
+    console.log('[OpenAI] Starting streamResponse at', new Date(startTime).toISOString());
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), this.timeout)
 
@@ -128,7 +128,7 @@ export class NewAPIClient implements AIClient {
 
       const tt_header = Date.now() - startTime;
       clearTimeout(timeoutId)
-      console.log('[NewAPI] Stream headers received', { 
+      console.log('[OpenAI] Stream headers received', { 
           status: response.status, 
           ok: response.ok,
           contentType: response.headers.get('content-type'),
@@ -137,7 +137,7 @@ export class NewAPIClient implements AIClient {
 
       if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}))
-        console.error('[NewAPI] Stream error body', errorBody);
+        console.error('[OpenAI] Stream error body', errorBody);
         throw parseHTTPError(response.status, errorBody)
       }
 
@@ -156,16 +156,15 @@ export class NewAPIClient implements AIClient {
         
         if (!firstTokenReceived && value) {
             firstTokenReceived = true;
-            console.log('[NewAPI] Time to First Byte (TTFB):', Date.now() - startTime, 'ms');
+            console.log('[OpenAI] Time to First Byte (TTFB):', Date.now() - startTime, 'ms');
         }
         
         if (done) {
-            console.log('[NewAPI] Stream reading done. Total duration:', Date.now() - startTime, 'ms');
+            console.log('[OpenAI] Stream reading done. Total duration:', Date.now() - startTime, 'ms');
             break
         }
 
         const chunkText = decoder.decode(value, { stream: true })
-        // console.log('[NewAPI] Raw chunk text:', JSON.stringify(chunkText)); // Too noisy
         
         buffer += chunkText
         const lines = buffer.split('\n')
@@ -186,21 +185,20 @@ export class NewAPIClient implements AIClient {
                 onChunk(fullContent)
               }
             } catch (e) {
-              console.error('[NewAPI] Failed to parse SSE chunk:', e, line)
+              console.error('[OpenAI] Failed to parse SSE chunk:', e, line)
             }
           }
         }
       }
 
-      console.log('[NewAPI] Stream finished. Total length:', fullContent.length);
+      console.log('[OpenAI] Stream finished. Total length:', fullContent.length);
       return fullContent
     } catch (error) {
-      // Don't log abort errors as exceptions
       if (error instanceof Error && error.name === 'AbortError') {
-          console.log('[NewAPI] Request aborted by user');
+          console.log('[OpenAI] Request aborted by user');
           throw error;
       }
-      console.error('[NewAPI] Stream exception', error);
+      console.error('[OpenAI] Stream exception', error);
       clearTimeout(timeoutId)
       throw parseAPIError(error)
     }
@@ -211,7 +209,7 @@ export class NewAPIClient implements AIClient {
       const host = normalizeApiHost(provider.apiHost)
       const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
       const url = `${baseUrl}/models`
-      console.log('[NewAPI] Testing connection to', url);
+      console.log('[OpenAI] Testing connection to', url);
       
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 10000)
@@ -225,10 +223,10 @@ export class NewAPIClient implements AIClient {
       })
 
       clearTimeout(timeoutId)
-      console.log('[NewAPI] Test connection result:', response.status);
+      console.log('[OpenAI] Test connection result:', response.status);
       return response.ok
     } catch (e) {
-      console.error('[NewAPI] Test connection failed:', e);
+      console.error('[OpenAI] Test connection failed:', e);
       return false
     }
   }
@@ -238,7 +236,7 @@ export class NewAPIClient implements AIClient {
       const host = normalizeApiHost(provider.apiHost)
       const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
       const url = `${baseUrl}/models`
-      console.log('[NewAPI] Fetching models from', url);
+      console.log('[OpenAI] Fetching models from', url);
 
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 10000)
@@ -268,10 +266,10 @@ export class NewAPIClient implements AIClient {
       
       return []
     } catch (error) {
-      console.error('[NewAPI] Fetch models failed:', error)
+      console.error('[OpenAI] Fetch models failed:', error)
       throw error
     }
   }
 }
 
-export const newAPIClient = new NewAPIClient()
+export const openaiClient = new OpenAICompatibleClient()

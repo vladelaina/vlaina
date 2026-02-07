@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, memo } from 'react';
-import { MdSend, MdAttachFile, MdImage, MdSettings, MdStop, MdLanguage, MdAdd } from 'react-icons/md';
+import { useState, useRef, useEffect, memo, useCallback } from 'react';
+import { MdSend, MdAttachFile, MdImage, MdSettings, MdStop, MdLanguage, MdAdd, MdClose } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { ModelSelector } from './ModelSelector';
 import { useAIStore } from '@/stores/useAIStore';
 import type { AIModel } from '@/lib/ai/types';
+import { saveAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 interface ChatInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: string, attachments: Attachment[]) => void;
   onStop: () => void;
   isLoading: boolean;
   selectedModel: AIModel | undefined;
@@ -22,13 +23,17 @@ interface ChatInputProps {
 
 export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, selectedModel, onOpenSettings }: ChatInputProps) {
   const [message, setMessage] = useState('');
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { webSearchEnabled, toggleWebSearch } = useAIStore();
 
   const handleSend = () => {
-    if (!message.trim()) return;
-    onSend(message);
+    if (!message.trim() && attachments.length === 0) return;
+    onSend(message, attachments);
     setMessage('');
+    setAttachments([]);
     if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
     }
@@ -41,6 +46,66 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
     }
   };
 
+  const processFiles = async (files: File[]) => {
+      const newAttachments: Attachment[] = [];
+      for (const file of files) {
+          try {
+              const attachment = await saveAttachment(file);
+              newAttachments.push(attachment);
+          } catch (e) {
+              console.error('[ChatInput] Failed to save attachment:', e);
+          }
+      }
+      if (newAttachments.length > 0) {
+          setAttachments(prev => [...prev, ...newAttachments]);
+      }
+  };
+
+  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+      const items = Array.from(e.clipboardData.items);
+      const files = items
+          .filter(item => item.kind === 'file')
+          .map(item => item.getAsFile())
+          .filter((f): f is File => !!f);
+      
+      if (files.length > 0) {
+          e.preventDefault();
+          await processFiles(files);
+      }
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const files = Array.from(e.dataTransfer.files);
+      await processFiles(files);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+  }, []);
+
+  const removeAttachment = (id: string) => {
+      setAttachments(prev => prev.filter(a => a.id !== id));
+  };
+
+  const triggerFileSelect = () => {
+      fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files) {
+          await processFiles(Array.from(e.target.files));
+      }
+      e.target.value = ''; // Reset
+  };
+
   useEffect(() => {
       if (textareaRef.current) {
           textareaRef.current.style.height = 'auto';
@@ -48,11 +113,26 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
       }
   }, [message]);
 
-  const canSend = !!message.trim() && !!selectedModel;
+  const canSend = (!!message.trim() || attachments.length > 0) && !!selectedModel;
 
   return (
     <div className="p-4 pb-6">
         <div className="max-w-3xl mx-auto relative">
+          <input 
+              type="file" 
+              multiple 
+              className="hidden" 
+              ref={fileInputRef}
+              onChange={handleFileChange}
+          />
+          
+          {/* Drag Overlay */}
+          {isDragging && (
+              <div className="absolute inset-0 z-20 bg-blue-500/10 border-2 border-dashed border-blue-500 rounded-[26px] flex items-center justify-center backdrop-blur-sm pointer-events-none">
+                  <span className="text-blue-600 font-medium">Drop files here</span>
+              </div>
+          )}
+
           {/* The Premium Container */}
           <div 
             className={cn(
@@ -66,14 +146,41 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
               "focus-within:ring-1 focus-within:ring-black/5 dark:focus-within:ring-white/10", // Focus ring
               webSearchEnabled && "ring-2 ring-blue-500/20 border-blue-200 dark:border-blue-800"
             )}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
           >
             <div className="flex flex-col">
+              {/* Attachment Previews */}
+              {attachments.length > 0 && (
+                  <div className="px-4 pt-4 pb-0 flex gap-2 overflow-x-auto scrollbar-none">
+                      {attachments.map(att => (
+                          <div key={att.id} className="relative group shrink-0">
+                              {att.type.startsWith('image/') ? (
+                                  <img src={att.previewUrl} alt="preview" className="h-16 w-16 object-cover rounded-xl border border-black/5 dark:border-white/10" />
+                              ) : (
+                                  <div className="h-16 w-16 bg-gray-100 dark:bg-zinc-800 rounded-xl flex items-center justify-center border border-black/5 dark:border-white/10">
+                                      <MdAttachFile className="text-gray-400" />
+                                  </div>
+                              )}
+                              <button 
+                                  onClick={() => removeAttachment(att.id)}
+                                  className="absolute -top-1.5 -right-1.5 bg-gray-200 dark:bg-zinc-700 text-gray-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
+                              >
+                                  <MdClose size={12} />
+                              </button>
+                          </div>
+                      ))}
+                  </div>
+              )}
+
               <div className="relative px-4 pt-4 pb-2">
                 <textarea
                   ref={textareaRef}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
                   placeholder={
                       !selectedModel 
                         ? "Select a model..." 
@@ -118,11 +225,11 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                                 <MdSettings className="w-4 h-4 text-gray-500" />
                                 <span>Settings</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 cursor-pointer">
+                            <DropdownMenuItem onClick={triggerFileSelect} className="gap-2 cursor-pointer">
                                 <MdAttachFile className="w-4 h-4 text-gray-500" />
                                 <span>Attach File</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 cursor-pointer">
+                            <DropdownMenuItem onClick={triggerFileSelect} className="gap-2 cursor-pointer">
                                 <MdImage className="w-4 h-4 text-gray-500" />
                                 <span>Add Image</span>
                             </DropdownMenuItem>

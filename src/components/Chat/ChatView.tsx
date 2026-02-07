@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
-import { newAPIClient } from '@/lib/ai/providers/newapi';
+import { openaiClient } from '@/lib/ai/providers/openai';
 import { ChatInput } from './ChatInput';
 import { MessageItem } from './messages/MessageItem';
 import { ChatLoading } from './components/ChatLoading';
 import { performWebSearch, formatSearchResults } from '@/lib/ai/search';
+import { convertToBase64, type Attachment } from '@/lib/storage/attachmentStorage';
+import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import '@/components/Notes/features/Editor/styles/core.css';
 
 export function ChatView() {
@@ -67,8 +69,8 @@ export function ChatView() {
       setLoading(false);
   }, [setLoading]);
 
-  const handleSend = useCallback(async (text: string) => {
-    if (!text.trim() || !selectedModel) return;
+  const handleSend = useCallback(async (text: string, attachments: Attachment[]) => {
+    if ((!text.trim() && attachments.length === 0) || !selectedModel) return;
 
     if (isLoading && abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -82,16 +84,26 @@ export function ChatView() {
       return;
     }
 
-    const userMessage = text.trim();
+    const userMessageText = text.trim();
     
     let activeSessionId = currentSessionId;
     if (!activeSessionId) {
-        activeSessionId = createSession(userMessage.slice(0, 30));
+        activeSessionId = createSession(userMessageText.slice(0, 30) || 'New Image Chat');
+    }
+
+    // 1. Construct Content for Local Storage (Markdown)
+    let storageContent = userMessageText;
+    if (attachments.length > 0) {
+        const imageMarkdown = attachments
+            .filter(a => a.type.startsWith('image/'))
+            .map(a => `![image](${a.assetUrl})`)
+            .join('\n\n');
+        storageContent = imageMarkdown + (userMessageText ? `\n\n${userMessageText}` : '');
     }
 
     addMessage({
       role: 'user',
-      content: userMessage,
+      content: storageContent,
       modelId: selectedModel.id
     });
 
@@ -112,12 +124,12 @@ export function ChatView() {
     try {
       let finalHistory = [...messages];
       
-      if (webSearchEnabled) {
+      // Web Search Logic
+      if (webSearchEnabled && userMessageText) {
           console.log('[ChatView] Web search is ENABLED. Starting search flow...');
           updateMessage(assistantMessageId, '🔍 正在联网搜索...');
           
-          // Pass signal to allow aborting search
-          const results = await performWebSearch(userMessage, controller.signal);
+          const results = await performWebSearch(userMessageText, controller.signal);
           
           let searchContext = '';
           if (results.length > 0) {
@@ -156,9 +168,45 @@ Please use the information above to answer the user question. CITATION REQUIREME
           finalHistory = [...finalHistory, timeContext as any];
       }
 
-      await newAPIClient.sendMessage(
-        userMessage,
-        finalHistory, 
+      // Sanitize history
+      const sanitizedHistory = finalHistory.map(msg => {
+          if (typeof msg.content === 'string') {
+              return { 
+                  ...msg, 
+                  content: msg.content.replace(/!\[.*?\]\(.*?\)/g, '[Image]') 
+              };
+          }
+          return msg;
+      });
+
+      // 2. Construct Content for API
+      let apiMessageContent: ChatMessageContent = userMessageText;
+      if (attachments.length > 0) {
+          const parts: ChatMessageContentPart[] = [];
+          if (userMessageText) {
+              parts.push({ type: 'text', text: userMessageText });
+          }
+          for (const att of attachments) {
+              if (att.type.startsWith('image/')) {
+                  try {
+                      const base64 = await convertToBase64(att);
+                      parts.push({
+                          type: 'image_url',
+                          image_url: { url: base64 } 
+                      });
+                  } catch (e) {
+                      console.error('Failed to convert image for API:', e);
+                  }
+              }
+          }
+          if (parts.length > 0) {
+              apiMessageContent = parts;
+          }
+      }
+
+      await openaiClient.sendMessage(
+        apiMessageContent,
+        sanitizedHistory, 
         selectedModel,
         provider,
         (chunk) => updateMessage(assistantMessageId, chunk),
@@ -202,7 +250,7 @@ Please use the information above to answer the user question. CITATION REQUIREME
       abortControllerRef.current = controller;
 
       try {
-          await newAPIClient.sendMessage(
+          await openaiClient.sendMessage(
               promptMsg.content,
               history,
               selectedModel,
