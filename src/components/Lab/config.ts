@@ -1,5 +1,6 @@
-import { MdAnimation, MdTextFields, MdPalette } from 'react-icons/md';
+import { MdAnimation, MdTextFields, MdPalette, MdInput } from 'react-icons/md';
 import { AnimationLab } from './playground/AnimationLab';
+import { InputLab } from './playground/InputLab';
 
 // Lab Registry: Add new experiments here
 export const LAB_MODULES = [
@@ -10,13 +11,13 @@ export const LAB_MODULES = [
     component: AnimationLab,
     description: 'Loading indicators, transitions, and particle effects.'
   },
-  // Example for future expansion:
-  // {
-  //   id: 'typography',
-  //   label: 'Typography',
-  //   icon: MdTextFields,
-  //   component: TypographyLab
-  // }
+  {
+    id: 'input',
+    label: 'Input & Controls',
+    icon: MdInput,
+    component: InputLab,
+    description: 'Chat input field styles, buttons, and interactions.'
+  }
 ];
 
 export type LabId = typeof LAB_MODULES[number]['id'];
