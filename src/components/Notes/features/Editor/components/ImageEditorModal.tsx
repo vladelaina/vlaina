@@ -3,7 +3,7 @@ import Cropper from 'react-easy-crop';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { PremiumSlider } from '@/components/ui/premium-slider';
-import { getCroppedImg } from '@/lib/assets/imageLoader';
+import { getCroppedImg } from '@/lib/assets/processing/crop';
 import { cn } from '@/lib/utils';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useToastStore } from '@/stores/useToastStore';

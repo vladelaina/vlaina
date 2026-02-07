@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { UniversalIcon, type UniversalIconProps } from '@/components/common/UniversalIconPicker/UniversalIcon';
-import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { loadImageAsBlob } from '@/lib/assets/io/reader';
 
 export function AppIcon(props: UniversalIconProps) {
   const defaultImageLoader = useCallback(async (src: string) => {

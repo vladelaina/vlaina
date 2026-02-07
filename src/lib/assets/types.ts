@@ -12,4 +12,5 @@ export interface UploadResult {
   isDuplicate: boolean;
   existingFilename?: string;
   error?: string;
+  entry?: AssetEntry;
 }

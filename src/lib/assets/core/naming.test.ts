@@ -14,7 +14,7 @@ import {
   truncateFilename,
   resolveFilenameConflict,
   processFilename,
-} from './filenameService';
+} from './core/naming';
 
 const DANGEROUS_CHARS = '<>:"/\\|?*';
 
