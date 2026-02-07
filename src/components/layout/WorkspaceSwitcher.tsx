@@ -11,6 +11,7 @@ import {
     MdChecklist,
     MdTranslate,
     MdAutoAwesome,
+    MdScience,
 } from "react-icons/md";
 import * as Popover from "@radix-ui/react-popover";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
@@ -443,6 +444,22 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                 <MdSettings className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
                                 <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Settings</span>
                             </button>
+
+                            {import.meta.env.DEV && (
+                                <button
+                                    onClick={() => {
+                                        setIsOpen(false);
+                                        window.dispatchEvent(new Event('open-lab'));
+                                    }}
+                                    className={cn(
+                                        "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
+                                        "hover:bg-[var(--neko-hover)]"
+                                    )}
+                                >
+                                    <MdScience className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-purple-500 transition-colors" />
+                                    <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-purple-500">Design Lab</span>
+                                </button>
+                            )}
 
                             <div className="h-[1px] bg-[var(--neko-border)] mx-3 my-1 opacity-50" />
 

@@ -19,7 +19,7 @@ export const ALL_STATUSES: TaskStatus[] = ['todo', 'scheduled', 'completed'];
 
 export type TaskSortMode = 'default' | 'time' | 'priority';
 
-export type AppViewMode = 'calendar' | 'notes' | 'todo' | 'chat';
+export type AppViewMode = 'calendar' | 'notes' | 'todo' | 'chat' | 'lab';
 
 export type ImageStorageMode = 'vault' | 'vaultSubfolder' | 'currentFolder' | 'subfolder';
 
