@@ -96,6 +96,13 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                                 borderRadius: '0',
                                 pointerEvents: (isActive || isCtrlPressed) ? 'auto' : 'none'
                             },
+                            cropAreaStyle: { 
+                                border: 'none', 
+                                boxShadow: 'none', 
+                                color: 'transparent',
+                                outline: 'none',
+                                background: 'transparent'
+                            },
                             mediaStyle: { borderRadius: '0' }
                         }}
                         onInteractionEnd={handleInteractionEnd}
