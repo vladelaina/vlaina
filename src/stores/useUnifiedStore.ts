@@ -13,7 +13,6 @@ import { createProgressActions } from './actions/progressActions';
 import { createSettingsActions } from './actions/settingsActions';
 import type { TimeView } from '@/lib/date';
 import type { ItemColor } from '@/lib/colors';
-import type { Provider, AIModel, ChatMessage, ChatSession } from '@/lib/ai/types';
 import { 
   DEFAULT_GROUP_ID,
   DEFAULT_SETTINGS,
@@ -79,7 +78,8 @@ const initialState: UnifiedStoreState = {
         sessions: [],
         messages: {},
         selectedModelId: null,
-        currentSessionId: null
+        currentSessionId: null,
+        webSearchEnabled: false
     }
   },
   loaded: false,
