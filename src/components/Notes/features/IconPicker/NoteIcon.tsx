@@ -1,7 +1,7 @@
 import { UniversalIcon, type UniversalIconProps } from '@/components/common/UniversalIconPicker/UniversalIcon';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { buildFullAssetPath } from '@/lib/assets/pathUtils';
-import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { buildFullAssetPath } from '@/lib/assets/core/paths';
+import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { useCallback } from 'react';
 import { useUIStore } from '@/stores/uiSlice';
 

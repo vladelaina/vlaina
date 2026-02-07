@@ -8,7 +8,7 @@ import { useCreateForm } from './useCreateForm';
 import { PreviewSection } from './PreviewSection';
 import { CreateModalProps } from './types';
 import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
-import { loadImageAsBlob } from '@/lib/assets/imageLoader';
+import { loadImageAsBlob } from '@/lib/assets/io/reader';
 
 // Get window dynamically for multi-window support
 const getWindow = () => getCurrentWindow();

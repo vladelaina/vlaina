@@ -1,5 +1,5 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { loadImageAsBase64 } from './imageLoader';
+import { loadImageAsBase64 } from './io/reader';
 
 const SYSTEM_DIR_NAME = '.nekotick';
 const SYSTEM_SUBDIR = 'system';

@@ -4,7 +4,7 @@ import Cropper from 'react-easy-crop';
 import { Button } from '@/components/ui/button';
 import { MdUpload } from 'react-icons/md';
 import { cn } from '@/lib/utils';
-import { getCroppedImg } from '@/lib/assets/imageLoader';
+import { getCroppedImg } from '@/lib/assets/processing/crop';
 import { useToastStore } from '@/stores/useToastStore';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 import { DeletableItem } from '@/components/ui/deletable-item';

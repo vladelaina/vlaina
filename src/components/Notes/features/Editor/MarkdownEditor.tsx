@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,7 +7,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Editor, rootCtx, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
-
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
@@ -18,70 +17,15 @@ import { motion } from 'framer-motion';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { NoteHeader } from './NoteHeader';
-import { CoverImage } from './CoverImage';
+import { CoverImage } from './components/CoverImage/CoverImage';
 import { getCurrentVaultPath } from '@/stores/notes/storage';
 import { SPRING_FLASH } from '@/lib/animations';
-import {
-  floatingToolbarPlugin,
-  colorMarksPlugin,
-  headingPlugin,
-  collapsePlugin,
-  mathPlugin,
-  mathClickPlugin,
-  slashPlugin,
-  calloutPlugin,
-  tablePlugin,
-  highlightPlugin,
-  footnotePlugin,
-  autolinkPlugin,
-  linkTooltipPlugin,
-  tocPlugin,
-  mermaidPlugin,
-  codePlugin,
-  codeBlockPlugins,
-  videoPlugin,
-  abbrPlugin,
-  taskListClickPlugin,
-  listCollapsePlugin,
-  markdownLinkPlugin,
-  clipboardPlugin,
-  imageBlockPlugin,
-  imageUploadPlugin,
-} from './plugins';
-import { GAP_SCALE, CONTENT_MAX_WIDTH, PADDING_DESKTOP, PADDING_MOBILE, EDITOR_LAYOUT_CLASS } from '@/lib/layout';
+import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { configureTheme } from './theme';
+import { customPlugins } from './config/plugins';
+import { useEditorLayout } from './hooks/useEditorLayout';
+import { useEditorSave } from './hooks/useEditorSave';
 import './styles/index.css';
-
-const customPlugins = [
-  floatingToolbarPlugin,
-  ...colorMarksPlugin,
-  ...headingPlugin,
-  collapsePlugin,
-  ...mathPlugin,
-  mathClickPlugin,
-  slashPlugin,
-  ...calloutPlugin,
-  tablePlugin,
-  ...highlightPlugin,
-  ...footnotePlugin,
-  autolinkPlugin,
-  linkTooltipPlugin,
-  ...tocPlugin,
-  ...mermaidPlugin,
-  ...codePlugin,
-  ...codeBlockPlugins,
-  ...videoPlugin,
-  abbrPlugin,
-  taskListClickPlugin,
-  listCollapsePlugin,
-  markdownLinkPlugin,
-  clipboardPlugin,
-  imageUploadPlugin,
-  ...imageBlockPlugin,
-];
-
-
-
 
 const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   const updateContent = useNotesStore(s => s.updateContent);
@@ -89,29 +33,12 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
 
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hasAutoFocused = useRef(false);
+  const { debouncedSave } = useEditorSave(saveNote);
 
   const initialContent = useMemo(() => {
     return useNotesStore.getState().currentNote?.content || '';
   }, [currentNotePath]);
-
-  const debouncedSave = useCallback(() => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    saveTimeoutRef.current = setTimeout(() => {
-      saveNote();
-    }, 2000);
-  }, [saveNote]);
-
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -192,37 +119,14 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   );
 });
 
-function calculateGoldenOffset(viewportWidth: number, sidebarWidth: number, isPeeking: boolean): number {
-  if (!isPeeking) return 0;
-
-  const contentPadding = viewportWidth >= 768 ? PADDING_DESKTOP : PADDING_MOBILE;
-  const actualContainerWidth = Math.min(viewportWidth, CONTENT_MAX_WIDTH);
-  const containerLeftEdge = (viewportWidth - actualContainerWidth) / 2;
-  const naturalTextLeftEdge = containerLeftEdge + contentPadding;
-  const goldenGap = sidebarWidth / GAP_SCALE;
-  const safeZoneLimit = sidebarWidth + goldenGap;
-  const intrusion = safeZoneLimit - naturalTextLeftEdge;
-
-  return Math.max(0, intrusion);
-}
-
 export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeeking?: boolean; peekOffset?: number }) {
-  const [viewportWidth, setViewportWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
-
-  useEffect(() => {
-    const handleResize = () => setViewportWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const contentOffset = useMemo(() => {
-    return calculateGoldenOffset(viewportWidth, peekOffset, isPeeking);
-  }, [viewportWidth, peekOffset, isPeeking]);
+  const { contentOffset } = useEditorLayout(isPeeking, peekOffset);
 
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const isStarred = useNotesStore(s => s.isStarred);
   const toggleStarred = useNotesStore(s => s.toggleStarred);
   const noteMetadata = useNotesStore(s => s.noteMetadata);
+  
   const currentNoteMetadata = useMemo(() => {
     return currentNotePath && noteMetadata?.notes ? noteMetadata.notes[currentNotePath] : undefined;
   }, [currentNotePath, noteMetadata]);
@@ -230,9 +134,10 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
   const starred = currentNotePath ? isStarred(currentNotePath) : false;
   const getNoteCover = useNotesStore(s => s.getNoteCover);
   const setNoteCover = useNotesStore(s => s.setNoteCover);
-  const [vaultPath, setVaultPath] = useState<string>('');
-  const [showCoverPicker, setShowCoverPicker] = useState(false);
-  const coverData = currentNotePath ? getNoteCover(currentNotePath) : {};
+  const [vaultPath, setVaultPath] = React.useState<string>('');
+  const [showCoverPicker, setShowCoverPicker] = React.useState(false);
+  
+  const coverData = useMemo(() => currentNotePath ? getNoteCover(currentNotePath) : {}, [currentNotePath, getNoteCover]);
   const coverUrl = coverData.cover || null;
   const coverX = coverData.coverX ?? 50;
   const coverY = coverData.coverY ?? 50;
