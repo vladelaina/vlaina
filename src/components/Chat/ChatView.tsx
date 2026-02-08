@@ -135,10 +135,14 @@ export function ChatView() {
       </div>
 
       {/* Input Area (Centered when empty, Bottom when active) */}
-      <div className={cn(
-          "w-full transition-all duration-500 ease-in-out z-10 flex flex-col",
-          isEmpty ? "flex-1 justify-center items-center" : "flex-none" // Removed pb-32 to center geometrically
-      )}>
+      <motion.div 
+          layout
+          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+          className={cn(
+              "w-full z-10 flex flex-col",
+              isEmpty ? "flex-1 justify-center items-center" : "flex-none"
+          )}
+      >
           {/* Welcome Message (Attached to Input) */}
           <AnimatePresence>
             {isEmpty && (
@@ -146,17 +150,20 @@ export function ChatView() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.4 }}
-                    className="mb-8 text-center" // Increased margin for better separation
+                    transition={{ duration: 0.3 }}
+                    className="mb-5 text-center"
                 >
                     <h1 className="text-3xl font-bold text-gray-300 dark:text-gray-700 select-none tracking-tight">
-                        ciallo~(∠・ω&lt;)⌒★
+                        Ciallo~(∠・ω&lt;)⌒★
                     </h1>
                 </motion.div>
             )}
           </AnimatePresence>
 
-          <div className={cn("w-full transition-all duration-500", isEmpty ? "max-w-2xl px-4" : "")}>
+          <motion.div 
+            layout
+            className={cn("w-full", isEmpty ? "max-w-2xl px-4" : "")}
+          >
               <ChatInput 
                 onSend={sendMessage} 
                 onStop={stop}
@@ -165,8 +172,8 @@ export function ChatView() {
                 onOpenSettings={handleOpenSettings}
                 focusTrigger={focusInputTrigger}
               />
-          </div>
-      </div>
+          </motion.div>
+      </motion.div>
       
       <ChatShortcutsDialog 
         isOpen={isShortcutsOpen} 
