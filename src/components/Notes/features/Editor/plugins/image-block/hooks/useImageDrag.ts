@@ -12,6 +12,7 @@ interface UseImageDragOptions {
     imageNaturalSize: { width: number; height: number };
     isActive: boolean;
     loadError: boolean;
+    currentAlignment: Alignment;
 }
 
 interface UseImageDragReturn {
@@ -31,6 +32,7 @@ export function useImageDrag({
     imageNaturalSize,
     isActive,
     loadError,
+    currentAlignment,
 }: UseImageDragOptions): UseImageDragReturn {
     const [isDragging, setIsDragging] = useState(false);
     const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
@@ -137,6 +139,7 @@ export function useImageDrag({
             setIsDragging(true);
             setDragPosition({ x: initialLeft, y: initialTop });
             setDragSize({ width: sourceWidth, height: sourceHeight });
+            setDragAlignment(currentAlignment);
 
             if (sourcePos !== undefined) {
                 setDragState(view, {
@@ -146,7 +149,7 @@ export function useImageDrag({
                     imageNaturalWidth: sourceWidth,
                     imageNaturalHeight: sourceHeight,
                     editorView: view,
-                    alignment: 'center',
+                    alignment: currentAlignment,
                 });
             }
         };
@@ -243,7 +246,7 @@ export function useImageDrag({
 
         window.addEventListener('pointermove', onPointerMove, true);
         window.addEventListener('pointerup', onPointerUp, true);
-    }, [view, getPos, containerRef, imageNaturalSize, isActive, loadError, moveNodeToPosition]);
+    }, [view, getPos, containerRef, imageNaturalSize, isActive, loadError, moveNodeToPosition, currentAlignment]);
 
     // Empty handlers for React event binding
     const handlePointerUp = useCallback(() => {}, []);

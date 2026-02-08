@@ -72,6 +72,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         handlePointerDown, handlePointerUp, handlePointerCancel,
     } = useImageDrag({
         view, getPos, containerRef, imageNaturalSize, isActive, loadError: !!loadError,
+        currentAlignment: alignment
     });
 
     // 5. Container Size Observer
