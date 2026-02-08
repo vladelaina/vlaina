@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, memo } from 'react';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css'; 
 // Import Milkdown styles for consistency
@@ -11,7 +11,7 @@ interface MarkdownRendererProps {
   content: string;
 }
 
-export function MarkdownRenderer({ content }: MarkdownRendererProps) {
+export const MarkdownRenderer = memo(function MarkdownRenderer({ content }: MarkdownRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const htmlContent = useMemo(() => {
@@ -31,11 +31,11 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   return (
     <div 
         ref={containerRef}
-        className="milkdown prose dark:prose-invert max-w-none text-[15px] leading-7"
+        className="milkdown prose dark:prose-invert max-w-none text-[15px] leading-7 [&>*:last-child]:mb-0" // Added mb-0 override
         dangerouslySetInnerHTML={{ __html: htmlContent }}
     />
   );
-}
+});
 
 function parseMarkdown(text: string): string {
     const codeBlockMap = new Map<string, string>();
@@ -44,14 +44,14 @@ function parseMarkdown(text: string): string {
     let processed = text;
 
     // 1. Extract Fenced Code Blocks
-    processed = processed.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+    processed = processed.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
         const id = `__CODE_BLOCK_${Math.random().toString(36).substr(2, 9)}__`;
         codeBlockMap.set(id, `<pre><code class="language-${lang}">${escapeHtml(code)}</code></pre>`);
         return id;
     });
 
     // 2. Extract Inline Code
-    processed = processed.replace(/`([^`]+)`/g, (match, code) => {
+    processed = processed.replace(/`([^`]+)`/g, (_, code) => {
         const id = `__INLINE_CODE_${Math.random().toString(36).substr(2, 9)}__`;
         inlineCodeMap.set(id, `<code>${escapeHtml(code)}</code>`);
         return id;

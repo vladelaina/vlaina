@@ -28,12 +28,17 @@ export interface ChatSession {
   updatedAt: number
 }
 
+import type { SearchResult } from './search';
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
   content: string
   modelId: string
   timestamp: number
+  versions?: string[]
+  currentVersionIndex?: number
+  citations?: SearchResult[] // New field
 }
 
 export interface ChatCompletionRequest {

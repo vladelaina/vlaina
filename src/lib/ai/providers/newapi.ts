@@ -11,7 +11,8 @@ export class NewAPIClient implements AIClient {
     history: ChatMessage[],
     model: AIModel,
     provider: Provider,
-    onChunk?: (chunk: string) => void
+    onChunk?: (chunk: string) => void,
+    signal?: AbortSignal
   ): Promise<string> {
     console.log('[NewAPI] sendMessage called', { 
         messageLength: message.length, 
@@ -49,20 +50,25 @@ export class NewAPIClient implements AIClient {
     });
 
     if (onChunk) {
-      return this.streamResponse(url, headers, body, onChunk)
+      return this.streamResponse(url, headers, body, onChunk, signal)
     } else {
-      return this.fetchResponse(url, headers, body)
+      return this.fetchResponse(url, headers, body, signal)
     }
   }
 
   private async fetchResponse(
     url: string,
     headers: Record<string, string>,
-    body: ChatCompletionRequest
+    body: ChatCompletionRequest,
+    signal?: AbortSignal
   ): Promise<string> {
     console.log('[NewAPI] Starting fetchResponse');
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), this.timeout)
+    
+    if (signal) {
+        signal.addEventListener('abort', () => controller.abort());
+    }
 
     try {
       const response = await fetch(url, {
@@ -100,12 +106,17 @@ export class NewAPIClient implements AIClient {
     url: string,
     headers: Record<string, string>,
     body: ChatCompletionRequest,
-    onChunk: (chunk: string) => void
+    onChunk: (chunk: string) => void,
+    signal?: AbortSignal
   ): Promise<string> {
     const startTime = Date.now();
     console.log('[NewAPI] Starting streamResponse at', new Date(startTime).toISOString());
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), this.timeout)
+
+    if (signal) {
+        signal.addEventListener('abort', () => controller.abort());
+    }
 
     try {
       const response = await fetch(url, {
@@ -154,7 +165,7 @@ export class NewAPIClient implements AIClient {
         }
 
         const chunkText = decoder.decode(value, { stream: true })
-        console.log('[NewAPI] Raw chunk text:', JSON.stringify(chunkText)); // Log content safely
+        // console.log('[NewAPI] Raw chunk text:', JSON.stringify(chunkText)); // Too noisy
         
         buffer += chunkText
         const lines = buffer.split('\n')
@@ -172,17 +183,11 @@ export class NewAPIClient implements AIClient {
               
               if (content) {
                 fullContent += content
-                // console.log('[NewAPI] Content chunk extracted:', content);
                 onChunk(fullContent)
-              } else {
-                  // Some providers send empty content chunks for keep-alive or role info
-                  // console.log('[NewAPI] Empty chunk content', chunk);
               }
             } catch (e) {
               console.error('[NewAPI] Failed to parse SSE chunk:', e, line)
             }
-          } else {
-              if (trimmed) console.log('[NewAPI] Received non-SSE line:', trimmed);
           }
         }
       }
@@ -190,6 +195,11 @@ export class NewAPIClient implements AIClient {
       console.log('[NewAPI] Stream finished. Total length:', fullContent.length);
       return fullContent
     } catch (error) {
+      // Don't log abort errors as exceptions
+      if (error instanceof Error && error.name === 'AbortError') {
+          console.log('[NewAPI] Request aborted by user');
+          throw error;
+      }
       console.error('[NewAPI] Stream exception', error);
       clearTimeout(timeoutId)
       throw parseAPIError(error)
@@ -248,7 +258,6 @@ export class NewAPIClient implements AIClient {
       }
 
       const data = await response.json()
-      console.log('[NewAPI] Models fetched, raw data keys:', Object.keys(data));
       
       if (data.data && Array.isArray(data.data)) {
         return data.data.map((m: any) => m.id)

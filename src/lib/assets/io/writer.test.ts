@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { isTempFile, getTempPath, getFinalPath } from './io/writer';
+import { isTempFile, getTempPath, getFinalPath } from './writer';
 
 describe('atomicWrite', () => {
   describe('Property 7: Temp File Cleanup', () => {

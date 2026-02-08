@@ -62,6 +62,7 @@ export interface UnifiedData {
     messages: Record<string, ChatMessage[]>;
     selectedModelId: string | null;
     currentSessionId: string | null;
+    webSearchEnabled?: boolean;
   };
 }
 

@@ -1,4 +1,3 @@
-import Ai360Logo from '@/components/Chat/assets/models/360.png';
 import BaichuanLogo from '@/components/Chat/assets/models/baichuan.png';
 import ChatGLMLogo from '@/components/Chat/assets/models/chatglm.png';
 import ChatGptLogo from '@/components/Chat/assets/models/chatgpt.jpeg';
@@ -9,7 +8,6 @@ import DalleLogo from '@/components/Chat/assets/models/dalle.png';
 import DeepSeekLogo from '@/components/Chat/assets/models/deepseek.png';
 import DoubaoLogo from '@/components/Chat/assets/models/doubao.png';
 import GeminiLogo from '@/components/Chat/assets/models/gemini.png';
-import GemmaLogo from '@/components/Chat/assets/models/gemma.png';
 import GoogleLogo from '@/components/Chat/assets/models/google.png';
 import Gpt35Logo from '@/components/Chat/assets/models/gpt_3.5.png';
 import Gpt4Logo from '@/components/Chat/assets/models/gpt_4.png';

@@ -69,7 +69,7 @@ export function ModelSelector() {
                 <MdSmartToy className="w-5 h-5 text-gray-500" />
             )}
         </div>
-        <span className="max-w-[120px] truncate font-medium">
+        <span className="font-medium whitespace-nowrap">
           {selectedModel ? selectedModel.name : 'Select Model'}
         </span>
         <MdExpandMore className={cn(
@@ -81,10 +81,10 @@ export function ModelSelector() {
       {isOpen && (
         <div 
           className={cn(
-            "absolute bottom-full left-0 mb-2 w-80",
+            "absolute bottom-full right-0 mb-2 w-96", // Aligned Right, Wider
             "bg-white dark:bg-gray-800 rounded-xl shadow-2xl",
             "border border-gray-200 dark:border-gray-700",
-            "animate-in fade-in slide-in-from-bottom-2 duration-150",
+            "animate-in fade-in slide-in-from-bottom-2 duration-150 origin-bottom-right",
             "z-50"
           )}
         >

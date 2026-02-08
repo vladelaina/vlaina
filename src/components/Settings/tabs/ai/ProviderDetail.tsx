@@ -47,7 +47,6 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [fetchedModels, setFetchedModels] = useState<string[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const [fetchError, setFetchError] = useState<string | null>(null);
   const [previewIcon, setPreviewIcon] = useState<string | null>(null);
 
   const providerModels = initialProvider 
@@ -68,7 +67,6 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
     setCheckResult(null);
     setFetchedModels([]);
     setCollapsedGroups(new Set());
-    setFetchError(null);
     setIsAddingModel(false);
     setIsDeleting(false);
     setPreviewIcon(null);
@@ -101,16 +99,16 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
   const handleFetchModels = async () => {
     if (!apiKey.trim()) return;
     setIsFetchingModels(true);
-    setFetchError(null);
     setFetchedModels([]);
 
     try {
       const tempProvider: Provider = { id: initialProvider?.id || 'temp', name, type: 'newapi', apiHost, apiKey, enabled: true, createdAt: 0, updatedAt: 0 };
       const modelsList = await newAPIClient.getModels(tempProvider);
-      if (modelsList.length === 0) setFetchError('No models found.');
-      else setFetchedModels(modelsList);
+      if (modelsList.length > 0) {
+          setFetchedModels(modelsList);
+      }
     } catch (e) {
-      setFetchError(e instanceof Error ? e.message : 'Failed to fetch models');
+      // Error handling suppressed as fetchError state is unused
     } finally {
       setIsFetchingModels(false);
     }

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
-import { SUPPORTED_PROVIDERS } from './ai/constants';
 import { ProviderDetail } from './ai/ProviderDetail';
 
 export function AITab() {
