@@ -1,92 +1,37 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo, memo } from 'react'
 import { MdExpandMore, MdSearch, MdSmartToy, MdCheck, MdPushPin, MdPushPin as MdPushPinOutlined } from 'react-icons/md'
 import { useAIStore } from '@/stores/useAIStore'
 import { groupModels } from '@/lib/ai/utils'
 import { cn } from '@/lib/utils'
 import { getModelLogoById } from '@/components/Settings/tabs/ai/modelIcons'
+import type { AIModel } from '@/lib/ai/types';
 
-export function ModelSelector() {
-  const { models, selectedModelId, selectModel, getSelectedModel, updateModel } = useAIStore()
-  const [isOpen, setIsOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const dropdownRef = useRef<HTMLDivElement>(null)
-
-  const selectedModel = getSelectedModel()
-  const selectedModelLogo = selectedModel ? getModelLogoById(selectedModel.id) : undefined;
-
-  const enabledModels = models.filter(m => m.enabled)
-  
-  const pinnedModels = enabledModels.filter(m => m.pinned);
-  const unpinnedModels = enabledModels.filter(m => !m.pinned);
-
-  const groupedModels = groupModels(unpinnedModels)
-
-  const filteredGroups = Object.entries(groupedModels).reduce((acc, [group, groupModels]) => {
-    const filtered = groupModels.filter(model =>
-      model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      model.id.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    if (filtered.length > 0) {
-      acc[group] = filtered
-    }
-    return acc
-  }, {} as Record<string, typeof enabledModels>)
-
-  const filteredPinned = pinnedModels.filter(model => 
-      model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      model.id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      
-      if (selectedModelId && dropdownRef.current) {
-          requestAnimationFrame(() => {
-              const activeItem = dropdownRef.current?.querySelector(`[data-model-id="${selectedModelId}"]`);
-              if (activeItem) {
-                  activeItem.scrollIntoView({ block: 'center', behavior: 'instant' });
-              }
-          });
-      }
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isOpen, selectedModelId])
-
-  const handleSelectModel = (modelId: string) => {
-    selectModel(modelId)
-    setIsOpen(false)
-    setSearchQuery('')
-  }
-
-  const handleTogglePin = (e: React.MouseEvent, modelId: string, currentPinned?: boolean) => {
-      e.stopPropagation();
-      updateModel(modelId, { pinned: !currentPinned });
-  };
-
-  const renderModelItem = (model: typeof enabledModels[0]) => {
-      const logo = getModelLogoById(model.id);
-      const isSelected = selectedModelId === model.id;
-      return (
+// Extracted Memoized Option Component for Performance
+const ModelOption = memo(({ 
+    model, 
+    isSelected, 
+    isFocused, 
+    onSelect, 
+    onTogglePin 
+}: { 
+    model: AIModel; 
+    isSelected: boolean; 
+    isFocused: boolean; 
+    onSelect: (id: string) => void; 
+    onTogglePin: (e: React.MouseEvent, id: string, pinned?: boolean) => void;
+}) => {
+    const logo = getModelLogoById(model.id);
+    
+    return (
         <button
-            key={model.id}
             data-model-id={model.id}
-            onClick={() => handleSelectModel(model.id)}
+            onClick={() => onSelect(model.id)}
             className={cn(
                 "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md",
                 "text-left transition-colors group relative",
-                isSelected
+                (isSelected || isFocused)
                 ? "bg-gray-100 dark:bg-zinc-800"
-                : "hover:bg-gray-50 dark:hover:bg-zinc-900"
+                : "bg-transparent hover:bg-gray-50 dark:hover:bg-zinc-900"
             )}
         >
             <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
@@ -108,7 +53,7 @@ export function ModelSelector() {
                 
                 <div className="flex items-center gap-2">
                     <div 
-                        onClick={(e) => handleTogglePin(e, model.id, model.pinned)}
+                        onClick={(e) => onTogglePin(e, model.id, model.pinned)}
                         className={cn(
                             "opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700",
                             model.pinned && "opacity-100 text-blue-500"
@@ -121,7 +66,160 @@ export function ModelSelector() {
                 </div>
             </div>
         </button>
+    );
+});
+
+export function ModelSelector() {
+  const { models, selectedModelId, selectModel, getSelectedModel, updateModel } = useAIStore()
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [focusedModelId, setFocusedModelId] = useState<string | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const selectedModel = getSelectedModel()
+  const selectedModelLogo = selectedModel ? getModelLogoById(selectedModel.id) : undefined;
+
+  const enabledModels = useMemo(() => models.filter(m => m.enabled), [models]);
+  const pinnedModels = useMemo(() => enabledModels.filter(m => m.pinned), [enabledModels]);
+  const unpinnedModels = useMemo(() => enabledModels.filter(m => !m.pinned), [enabledModels]);
+
+  const groupedModels = useMemo(() => groupModels(unpinnedModels), [unpinnedModels]);
+
+  const filteredGroups = useMemo(() => {
+      return Object.entries(groupedModels).reduce((acc, [group, groupModels]) => {
+        const filtered = groupModels.filter(model =>
+          model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          model.id.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        if (filtered.length > 0) {
+          acc[group] = filtered
+        }
+        return acc
+      }, {} as Record<string, typeof enabledModels>)
+  }, [groupedModels, searchQuery]);
+
+  const filteredPinned = useMemo(() => {
+      return pinnedModels.filter(model => 
+          model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          model.id.toLowerCase().includes(searchQuery.toLowerCase())
       );
+  }, [pinnedModels, searchQuery]);
+
+  const flatModels = useMemo(() => {
+      return [...filteredPinned, ...Object.values(filteredGroups).flat()];
+  }, [filteredPinned, filteredGroups]);
+
+  // Keyboard Shortcuts & Navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        const isMod = e.metaKey || e.ctrlKey;
+        
+        if (isMod && e.key.toLowerCase() === 'm') {
+            e.preventDefault();
+            setIsOpen(prev => {
+                const next = !prev;
+                if (next) {
+                    setFocusedModelId(selectedModelId || null);
+                    setTimeout(() => inputRef.current?.focus(), 50);
+                }
+                return next;
+            });
+            return;
+        }
+
+        if (!isOpen) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setFocusedModelId(curr => {
+                const idx = flatModels.findIndex(m => m.id === curr);
+                const nextIdx = idx === -1 ? 0 : (idx + 1) % flatModels.length;
+                return flatModels[nextIdx]?.id || curr;
+            });
+        }
+
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setFocusedModelId(curr => {
+                const idx = flatModels.findIndex(m => m.id === curr);
+                const prevIdx = idx === -1 ? flatModels.length - 1 : (idx - 1 + flatModels.length) % flatModels.length;
+                return flatModels[prevIdx]?.id || curr;
+            });
+        }
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (focusedModelId) {
+                handleSelectModel(focusedModelId);
+            } else if (flatModels.length > 0) {
+                handleSelectModel(flatModels[0].id);
+            }
+        }
+
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            setIsOpen(false);
+        }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, flatModels, selectedModelId, focusedModelId]); // Add focusedModelId dependency
+
+  // Auto-scroll to focused item
+  useEffect(() => {
+      if (isOpen && focusedModelId && dropdownRef.current) {
+          const activeItem = dropdownRef.current.querySelector(`[data-model-id="${focusedModelId}"]`);
+          if (activeItem) {
+              activeItem.scrollIntoView({ block: 'nearest' });
+          }
+      }
+  }, [focusedModelId, isOpen]);
+
+  // Initial scroll
+  useEffect(() => {
+      if (isOpen && selectedModelId) {
+          setFocusedModelId(selectedModelId);
+          requestAnimationFrame(() => {
+              const activeItem = dropdownRef.current?.querySelector(`[data-model-id="${selectedModelId}"]`);
+              if (activeItem) {
+                  activeItem.scrollIntoView({ block: 'center', behavior: 'instant' });
+              }
+          });
+      }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
+
+  const handleSelectModel = (modelId: string) => {
+    selectModel(modelId)
+    setIsOpen(false)
+    setSearchQuery('')
+    
+    setTimeout(() => {
+        const input = document.querySelector('textarea[placeholder*="Message"]') as HTMLTextAreaElement;
+        if (input) input.focus();
+    }, 50);
+  }
+
+  const handleTogglePin = (e: React.MouseEvent, modelId: string, currentPinned?: boolean) => {
+      e.stopPropagation();
+      updateModel(modelId, { pinned: !currentPinned });
   };
 
   return (
@@ -166,6 +264,7 @@ export function ModelSelector() {
             <div className="relative">
               <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
               <input
+                ref={inputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -207,7 +306,16 @@ export function ModelSelector() {
                             <MdPushPin size={10} /> Pinned
                         </div>
                         <div className="mt-0.5 space-y-0.5">
-                            {filteredPinned.map(renderModelItem)}
+                            {filteredPinned.map(model => (
+                                <ModelOption 
+                                    key={model.id}
+                                    model={model}
+                                    isSelected={selectedModelId === model.id}
+                                    isFocused={focusedModelId === model.id}
+                                    onSelect={handleSelectModel}
+                                    onTogglePin={handleTogglePin}
+                                />
+                            ))}
                         </div>
                     </div>
                   )}
@@ -218,7 +326,16 @@ export function ModelSelector() {
                         {group}
                       </div>
                       <div className="mt-0.5 space-y-0.5">
-                        {groupModels.map(renderModelItem)}
+                        {groupModels.map(model => (
+                            <ModelOption 
+                                key={model.id}
+                                model={model}
+                                isSelected={selectedModelId === model.id}
+                                isFocused={focusedModelId === model.id}
+                                onSelect={handleSelectModel}
+                                onTogglePin={handleTogglePin}
+                            />
+                        ))}
                       </div>
                     </div>
                   ))}
