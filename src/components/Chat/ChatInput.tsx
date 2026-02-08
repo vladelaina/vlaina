@@ -1,12 +1,20 @@
-import { useState, useRef, useEffect, memo } from 'react';
-import { MdSend, MdAttachFile, MdImage, MdSettings, MdStop, MdLanguage } from 'react-icons/md';
+import { useState, useRef, useEffect, memo, useCallback } from 'react';
+import { MdSend, MdAttachFile, MdImage, MdSettings, MdStop, MdLanguage, MdAdd, MdClose } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { ModelSelector } from './ModelSelector';
 import { useAIStore } from '@/stores/useAIStore';
 import type { AIModel } from '@/lib/ai/types';
+import { saveAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 
 interface ChatInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: string, attachments: Attachment[]) => void;
   onStop: () => void;
   isLoading: boolean;
   selectedModel: AIModel | undefined;
@@ -15,16 +23,24 @@ interface ChatInputProps {
 
 export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, selectedModel, onOpenSettings }: ChatInputProps) {
   const [message, setMessage] = useState('');
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { webSearchEnabled, toggleWebSearch } = useAIStore();
 
   const handleSend = () => {
-    if (!message.trim()) return;
-    onSend(message);
+    if (!message.trim() && attachments.length === 0) return;
+    onSend(message, attachments);
     setMessage('');
-    if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-    }
+    setAttachments([]);
+    
+    // Ensure height is reset after state update
+    requestAnimationFrame(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+        }
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -34,6 +50,66 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
     }
   };
 
+  const processFiles = async (files: File[]) => {
+      const newAttachments: Attachment[] = [];
+      for (const file of files) {
+          try {
+              const attachment = await saveAttachment(file);
+              newAttachments.push(attachment);
+          } catch (e) {
+              console.error('[ChatInput] Failed to save attachment:', e);
+          }
+      }
+      if (newAttachments.length > 0) {
+          setAttachments(prev => [...prev, ...newAttachments]);
+      }
+  };
+
+  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+      const items = Array.from(e.clipboardData.items);
+      const files = items
+          .filter(item => item.kind === 'file')
+          .map(item => item.getAsFile())
+          .filter((f): f is File => !!f);
+      
+      if (files.length > 0) {
+          e.preventDefault();
+          await processFiles(files);
+      }
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const files = Array.from(e.dataTransfer.files);
+      await processFiles(files);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+  }, []);
+
+  const removeAttachment = (id: string) => {
+      setAttachments(prev => prev.filter(a => a.id !== id));
+  };
+
+  const triggerFileSelect = () => {
+      fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files) {
+          await processFiles(Array.from(e.target.files));
+      }
+      e.target.value = ''; // Reset
+  };
+
   useEffect(() => {
       if (textareaRef.current) {
           textareaRef.current.style.height = 'auto';
@@ -41,85 +117,147 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
       }
   }, [message]);
 
-  const canSend = !!message.trim() && !!selectedModel;
+  const canSend = (!!message.trim() || attachments.length > 0) && !!selectedModel;
 
   return (
     <div className="p-4 pb-6">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto relative">
+          <input 
+              type="file" 
+              multiple 
+              className="hidden" 
+              ref={fileInputRef}
+              onChange={handleFileChange}
+          />
+          
+          {/* Drag Overlay */}
+          {isDragging && (
+              <div className="absolute inset-0 z-20 bg-blue-500/10 border-2 border-dashed border-blue-500 rounded-[26px] flex items-center justify-center backdrop-blur-sm pointer-events-none">
+                  <span className="text-blue-600 font-medium">Drop files here</span>
+              </div>
+          )}
+
+          {/* The Premium Container */}
           <div 
             className={cn(
-              "bg-white dark:bg-gray-800 rounded-[20px]",
-              "border border-gray-200 dark:border-gray-700",
-              "transition-all duration-200",
+              "relative z-10",
+              "bg-white/80 dark:bg-[#18181b]/80 backdrop-blur-xl", // Glassmorphism
+              "border border-black/5 dark:border-white/10", // Subtle border
+              "rounded-[26px]", // Super rounded (iOS style)
+              "shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]", // Deep, soft shadow
+              "transition-all duration-300 ease-out",
+              "hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]",
+              "focus-within:ring-1 focus-within:ring-black/5 dark:focus-within:ring-white/10", // Focus ring
               webSearchEnabled && "ring-2 ring-blue-500/20 border-blue-200 dark:border-blue-800"
             )}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
           >
             <div className="flex flex-col">
-              <div className="relative px-4 pt-4">
+              {/* Attachment Previews */}
+              {attachments.length > 0 && (
+                  <div className="px-4 pt-4 pb-0 flex gap-2 overflow-x-auto scrollbar-none">
+                      {attachments.map(att => (
+                          <div key={att.id} className="relative group shrink-0">
+                              {att.type.startsWith('image/') ? (
+                                  <img src={att.previewUrl} alt="preview" className="h-16 w-16 object-cover rounded-xl border border-black/5 dark:border-white/10" />
+                              ) : (
+                                  <div className="h-16 w-16 bg-gray-100 dark:bg-zinc-800 rounded-xl flex items-center justify-center border border-black/5 dark:border-white/10">
+                                      <MdAttachFile className="text-gray-400" />
+                                  </div>
+                              )}
+                              <button 
+                                  onClick={() => removeAttachment(att.id)}
+                                  className="absolute -top-1.5 -right-1.5 bg-gray-200 dark:bg-zinc-700 text-gray-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
+                              >
+                                  <MdClose size={12} />
+                              </button>
+                          </div>
+                      ))}
+                  </div>
+              )}
+
+              <div className="relative px-4 pt-4 pb-2">
                 <textarea
                   ref={textareaRef}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
                   placeholder={
                       !selectedModel 
-                        ? "Please select a model to start chat..." 
-                        : (isLoading ? "Type to interrupt..." : "从任何想法开始… 按 Ctrl+Enter 换行...")
+                        ? "Select a model..." 
+                        : (isLoading ? "Type to interrupt..." : "Message...")
                   }
                   rows={1}
                   className={cn(
                     "w-full resize-none bg-transparent",
-                    "text-[var(--neko-text-primary)] placeholder:text-gray-400 dark:placeholder:text-gray-500",
+                    "text-[15px] leading-6 text-[var(--neko-text-primary)]",
+                    "placeholder:text-gray-400 dark:placeholder:text-gray-500",
                     "focus:outline-none",
-                    "text-sm leading-6",
-                    "max-h-[320px]"
+                    "max-h-[320px] min-h-[24px]"
                   )}
                 />
               </div>
 
-              <div className="flex items-center justify-between px-3 py-2">
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={toggleWebSearch}
-                    className={cn(
-                      "w-9 h-9 flex items-center justify-center rounded-lg transition-all",
-                      webSearchEnabled 
-                        ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" 
-                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+              {/* Toolbar Area */}
+              <div className="flex items-center justify-between px-2 pb-2 pl-3">
+                {/* Left Side: Unified Add Button & Active Search Indicator */}
+                <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button 
+                                className={cn(
+                                    "w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200",
+                                    "text-gray-500 dark:text-gray-400",
+                                    "hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200 active:scale-95"
+                                )}
+                                title="More options"
+                            >
+                                <MdAdd className="w-5 h-5" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" sideOffset={8} className="w-48 bg-white dark:bg-[#1E1E1E]">
+                            <DropdownMenuItem onClick={toggleWebSearch} className="gap-2 cursor-pointer">
+                                <MdLanguage className={cn("w-4 h-4", webSearchEnabled ? "text-blue-500" : "text-gray-500")} />
+                                <span>Web Search</span>
+                                {webSearchEnabled && <span className="ml-auto text-[10px] bg-blue-100 text-blue-600 px-1.5 rounded-full">ON</span>}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={onOpenSettings} className="gap-2 cursor-pointer">
+                                <MdSettings className="w-4 h-4 text-gray-500" />
+                                <span>Settings</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={triggerFileSelect} className="gap-2 cursor-pointer">
+                                <MdAttachFile className="w-4 h-4 text-gray-500" />
+                                <span>Attach File</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={triggerFileSelect} className="gap-2 cursor-pointer">
+                                <MdImage className="w-4 h-4 text-gray-500" />
+                                <span>Add Image</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Quick Search Toggle (Visible only when enabled) */}
+                    {webSearchEnabled && (
+                        <button
+                            onClick={toggleWebSearch}
+                            className={cn(
+                                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all animate-in fade-in zoom-in duration-200",
+                                "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400",
+                                "hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                            )}
+                            title="Click to disable Web Search"
+                        >
+                            <MdLanguage className="w-3.5 h-3.5" />
+                            <span>Search</span>
+                            <div className="w-3.5 h-3.5 flex items-center justify-center rounded-full bg-blue-200 dark:bg-blue-800 ml-0.5">
+                                <span className="text-[10px] font-bold">×</span>
+                            </div>
+                        </button>
                     )}
-                    title={webSearchEnabled ? "禁用联网搜索" : "启用联网搜索"}
-                  >
-                    <MdLanguage className="w-5 h-5" />
-                  </button>
-
-                  <button
-                    onClick={onOpenSettings}
-                    className={cn(
-                      "w-9 h-9 flex items-center justify-center rounded-lg",
-                      "text-gray-600 dark:text-gray-400",
-                      "hover:bg-gray-100 dark:hover:bg-gray-700",
-                      "transition-colors"
-                    )}
-                    title="AI 设置"
-                  >
-                    <MdSettings className="w-5 h-5" />
-                  </button>
-                  
-                  <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
-
-                  <button
-                    className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                    title="附加文件"
-                  >
-                    <MdAttachFile className="w-5 h-5" />
-                  </button>
-
-                  <button
-                    className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                    title="添加图片"
-                  >
-                    <MdImage className="w-5 h-5" />
-                  </button>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -128,25 +266,24 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                   {isLoading && !message.trim() ? (
                       <button
                         onClick={onStop}
-                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40"
-                        title="停止生成"
+                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-black dark:bg-white text-white dark:text-black hover:opacity-80 shadow-md"
+                        title="Stop"
                       >
-                        <MdStop className="w-4 h-4" />
+                        <MdStop className="w-3.5 h-3.5" />
                       </button>
                   ) : (
                       <button
                         onClick={handleSend}
                         disabled={!canSend}
                         className={cn(
-                          "w-8 h-8 rounded-full flex items-center justify-center",
-                          "transition-all duration-200",
+                          "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200",
                           canSend
-                            ? "bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-                            : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                            ? "bg-black dark:bg-white text-white dark:text-black shadow-md hover:opacity-80 hover:scale-105 active:scale-95"
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
                         )}
-                        title={isLoading ? "发送并中断" : "发送消息"}
+                        title="Send"
                       >
-                        <MdSend className="w-4 h-4" />
+                        <MdSend className="w-3.5 h-3.5" />
                       </button>
                   )}
                 </div>

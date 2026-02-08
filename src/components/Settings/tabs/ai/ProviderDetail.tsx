@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MdCheck, MdSave, MdAdd, MdDelete, MdCloudDownload, MdKeyboardArrowDown, MdKeyboardArrowRight, MdUnfoldMore } from 'react-icons/md';
 import { useAIStore } from '@/stores/useAIStore';
-import { newAPIClient } from '@/lib/ai/providers/newapi';
+import { openaiClient } from '@/lib/ai/providers/openai';
 import { cn } from '@/lib/utils';
 import { Provider } from '@/lib/ai/types';
 import { AppIcon } from '@/components/common/AppIcon';
@@ -87,7 +87,7 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
 
     try {
       const tempProvider: Provider = { id: initialProvider?.id || 'temp', name, type: 'newapi', apiHost, apiKey, enabled: true, createdAt: 0, updatedAt: 0 };
-      const success = await newAPIClient.testConnection(tempProvider);
+      const success = await openaiClient.testConnection(tempProvider);
       setCheckResult(success ? 'success' : 'error');
     } catch (e) {
       setCheckResult('error');
