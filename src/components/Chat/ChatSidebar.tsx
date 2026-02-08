@@ -20,7 +20,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
       sessions, 
       currentSessionId, 
       createSession, 
-      openNewChat, // Added openNewChat
+      openNewChat,
       switchSession, 
       deleteSession, 
       updateSession, 
@@ -35,7 +35,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
     const handleCreateNew = (e: Event) => {
         const customEvent = e as CustomEvent;
         if (customEvent.detail?.view === 'chat') {
-            openNewChat(); // Use lazy open
+            openNewChat();
         }
     };
 
@@ -53,15 +53,13 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
         window.removeEventListener('neko-create-new', handleCreateNew);
         window.removeEventListener('neko-delete-chat', handleDeleteChat);
     };
-  }, [createSession]);
+  }, [openNewChat]);
 
   const sortedSessions = useMemo(() => {
-    return [...sessions]
-        .filter(s => s.title && s.title.trim() !== '')
-        .sort((a, b) => {
-            if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
-            return b.updatedAt - a.updatedAt;
-        });
+    return [...sessions].sort((a, b) => {
+        if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+        return b.updatedAt - a.updatedAt;
+    });
   }, [sessions]);
 
   const handleRename = (sessionId: string, currentTitle: string) => {
@@ -113,7 +111,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                       {isGenerating && !isActive ? (
                           <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] animate-pulse flex-shrink-0" title="Generating in background..." />
                       ) : isUnread ? (
-                          <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)] flex-shrink-0" title="New messages" />
+                          <div className="w-2 h-2 rounded-full bg-gray-600 dark:bg-gray-300 shadow-sm flex-shrink-0" title="New messages" />
                       ) : session.isPinned ? (
                           <MdPushPin className="w-3 h-3 flex-shrink-0 text-gray-400" />
                       ) : null}
