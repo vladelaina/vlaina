@@ -71,7 +71,7 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                     <span className="flex items-center gap-1.5">
                         Search
                         <kbd className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-zinc-700">Ctrl</kbd>
-                        <kbd className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-zinc-700">K</kbd>
+                        <kbd className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-zinc-700">F</kbd>
                     </span>
                 </TooltipContent>
             </Tooltip>

@@ -6,6 +6,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
 import { VaultWelcome } from '@/components/VaultWelcome';
+import { useGlobalSearch } from '@/hooks/useGlobalSearch';
 
 export function NotesView() {
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
@@ -66,11 +67,6 @@ export function NotesView() {
         e.preventDefault();
         closeTab(currentNotePath);
       }
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setShowSearch(prev => !prev);
-      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
@@ -78,11 +74,8 @@ export function NotesView() {
   }, [openTabs, currentNotePath, openNote, closeTab]);
 
   
-  useEffect(() => {
-    const handleOpenSearch = () => setShowSearch(true);
-    window.addEventListener('neko-open-search', handleOpenSearch);
-    return () => window.removeEventListener('neko-open-search', handleOpenSearch);
-  }, []);
+  useGlobalSearch(() => setShowSearch(prev => !prev));
+
 
   if (!currentVault) {
     return (

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MdCheck, MdSearch, MdClose } from 'react-icons/md';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
 import { TaskInput, TaskItem, TaskDragContext, TaskFilterMenu, TaskSortMenu } from '@/components/common/TaskList';
 import { TodoListSection } from './components/TodoListSection';
+import { useGlobalSearch } from '@/hooks/useGlobalSearch';
 
 interface TaskListViewProps {
     title: string;
@@ -57,7 +58,8 @@ export function TaskListView({
     const [completedExpanded, setCompletedExpanded] = useState(false);
     const [showCompletedMenu, setShowCompletedMenu] = useState(false);
     
-    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+    // Controls the visibility of the search bar
+    const [isSearchActive, setIsSearchActive] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
     const [addingSubTaskFor, setAddingSubTaskFor] = useState<string | null>(null);
@@ -66,22 +68,18 @@ export function TaskListView({
     const scrollRef = useRef<HTMLDivElement>(null);
     const completedMenuRef = useRef<HTMLDivElement>(null);
 
-    const handleSearchClick = () => {
-        setIsSearchExpanded(true);
-        setTimeout(() => searchInputRef.current?.focus(), 150);
-    };
-
-    const handleSearchBlur = () => {
-        // Keep expanded if there's a query
-        if (!searchQuery) {
-            // Small delay to allow clicking the close button
-            setTimeout(() => {
-                if (!searchQuery) {
-                    setIsSearchExpanded(false);
-                }
-            }, 150);
-        }
-    };
+    // Listen for global search shortcut/button
+    useGlobalSearch(() => {
+        setIsSearchActive(prev => {
+            if (prev) {
+                setSearchQuery(''); // Clear query when toggling off
+                return false;
+            } else {
+                setTimeout(() => searchInputRef.current?.focus(), 50);
+                return true;
+            }
+        });
+    });
 
     const handleAddSubTask = useCallback((parentId: string) => {
         setAddingSubTaskFor(parentId);
@@ -164,7 +162,7 @@ export function TaskListView({
             <div className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-300">
                 <div className="flex-shrink-0 px-8 pb-4 pt-3 max-w-3xl mx-auto w-full">
                     <div className="flex items-start gap-1">
-                        {searchQuery ? (
+                        {isSearchActive || searchQuery ? (
                             <div className={cn(
                                 'flex-1 flex items-center gap-2 px-3 py-2 rounded-md',
                                 'border border-zinc-200 dark:border-zinc-700 bg-muted/30'
@@ -177,10 +175,17 @@ export function TaskListView({
                                     onChange={e => setSearchQuery(e.target.value)}
                                     placeholder="Search tasks..."
                                     className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/50 focus:ring-0"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Escape') {
+                                            setSearchQuery('');
+                                            setIsSearchActive(false);
+                                        }
+                                    }}
                                 />
                                 <button 
                                     onClick={() => { 
                                         setSearchQuery(''); 
+                                        setIsSearchActive(false);
                                     }}
                                     className="flex-shrink-0 p-1 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                 >

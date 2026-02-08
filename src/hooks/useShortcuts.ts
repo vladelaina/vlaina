@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
-import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
+import { useGroupStore } from '@/stores/useGroupStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore as useAppUIStore } from '@/stores/uiSlice';
 import { getShortcuts, getKeysFromEvent, matchShortcut, ShortcutScope, ShortcutHandler } from '@/lib/shortcuts';
@@ -14,12 +14,20 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
   const { scope = 'global', handlers: extraHandlers = {} } = options;
   
   const { activeGroupId, archiveCompletedTasks, setActiveGroup } = useGroupStore();
-  const { toggleDrawer } = useUIStore();
+  const { toggleDrawer, appViewMode, toggleSidebar } = useAppUIStore();
   const { createNote, currentNote } = useNotesStore();
-  const { appViewMode, toggleSidebar } = useAppUIStore();
 
   const builtinHandlers = useMemo<Record<string, ShortcutHandler>>(() => ({
     toggleSidebar: toggleSidebar,
+    globalSearch: () => {
+      window.dispatchEvent(new Event('neko-open-search'));
+    },
+    'open-settings': () => {
+      window.dispatchEvent(new Event('open-settings'));
+    },
+    newWindow: async () => {
+      await windowCommands.createNewWindow();
+    },
     newTab: () => {
       const folderPath = currentNote?.path 
         ? currentNote.path.substring(0, currentNote.path.lastIndexOf('/')) || undefined
