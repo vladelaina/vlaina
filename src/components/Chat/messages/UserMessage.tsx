@@ -90,8 +90,8 @@ export function UserMessage({ content, onEdit }: UserMessageProps) {
                 </div>
             ))}
             {displayText && (
-                <div className="milkdown inline-block bg-[#F4F4F5] dark:bg-[#2C2C2C] px-4 py-2 rounded-[20px] text-gray-900 dark:text-gray-100 text-[15px] leading-6 shadow-sm border border-black/5 dark:border-white/5 text-left break-words">
-                    <div className="whitespace-pre-wrap">{displayText}</div>
+                <div className="milkdown inline-block max-w-full bg-[#F4F4F5] dark:bg-[#2C2C2C] px-4 py-2 rounded-[20px] text-gray-900 dark:text-gray-100 text-[15px] leading-6 shadow-sm border border-black/5 dark:border-white/5 text-left break-words overflow-hidden">
+                    <div className="whitespace-pre-wrap break-words">{displayText}</div>
                 </div>
             )}
         </div>
