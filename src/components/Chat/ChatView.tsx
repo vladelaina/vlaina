@@ -5,11 +5,15 @@ import { useChatService } from '@/hooks/useChatService';
 import { ChatInput } from './ChatInput';
 import { MessageItem } from './messages/MessageItem';
 import { ChatLoading } from './components/ChatLoading';
+import { ChatShortcutsDialog } from './components/ChatShortcutsDialog';
+import { useChatShortcuts } from './hooks/useChatShortcuts';
 import '@/components/Notes/features/Editor/styles/core.css';
 
 export function ChatView() {
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { 
@@ -23,8 +27,13 @@ export function ChatView() {
   const messages = currentSessionId ? (allMessages[currentSessionId] || []) : [];
   const { sendMessage, regenerate, editMessage, stop } = useChatService();
   
-  // Check if CURRENT session is loading
   const isLoading = currentSessionId ? isSessionLoading(currentSessionId) : false;
+  
+  useChatShortcuts({
+      onFocusInput: () => setFocusInputTrigger(n => n + 1),
+      onToggleShortcuts: () => setIsShortcutsOpen(prev => !prev),
+      scrollRef
+  });
   
   useEffect(() => {
       if (scrollRef.current) {
@@ -79,13 +88,13 @@ export function ChatView() {
                 <MessageItem 
                     key={msg.id}
                     msg={msg}
-                    isLoading={isLoading} // Only affects this session's UI
+                    isLoading={isLoading} 
                     isSpeaking={speakingMsgId === msg.id}
                     isSourcesOpen={expandedSources.has(msg.id)}
                     onCopy={copyToClipboard}
                     onSpeak={handleSpeak}
                     onRegenerate={regenerate}
-                    onEdit={editMessage} // Pass editMessage
+                    onEdit={editMessage}
                     onSwitchVersion={switchVersion}
                     onToggleSources={toggleSources}
                 />
@@ -104,6 +113,12 @@ export function ChatView() {
         isLoading={isLoading} 
         selectedModel={selectedModel} 
         onOpenSettings={handleOpenSettings}
+        focusTrigger={focusInputTrigger}
+      />
+      
+      <ChatShortcutsDialog 
+        isOpen={isShortcutsOpen} 
+        onOpenChange={setIsShortcutsOpen} 
       />
     </div>
   );

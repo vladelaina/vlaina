@@ -28,10 +28,8 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
       markSessionRead
   } = useAIStore();
   
-  // Dialog States
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // Listen for global create new event
   useEffect(() => {
     const handleCreateNew = (e: Event) => {
         const customEvent = e as CustomEvent;
@@ -40,8 +38,20 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
         }
     };
 
+    const handleDeleteChat = (e: Event) => {
+        const customEvent = e as CustomEvent;
+        if (customEvent.detail?.id) {
+            setDeleteId(customEvent.detail.id);
+        }
+    };
+
     window.addEventListener('neko-create-new', handleCreateNew);
-    return () => window.removeEventListener('neko-create-new', handleCreateNew);
+    window.addEventListener('neko-delete-chat', handleDeleteChat);
+    
+    return () => {
+        window.removeEventListener('neko-create-new', handleCreateNew);
+        window.removeEventListener('neko-delete-chat', handleDeleteChat);
+    };
   }, [createSession]);
 
   const sortedSessions = useMemo(() => {
@@ -97,7 +107,6 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                     onClick={() => handleSwitch(session.id, isUnread)}
                   >
                     <div className="flex-1 truncate relative z-10 flex items-center gap-2">
-                      {/* Status Indicator Priority: Generating (Yellow, only if background) > Unread (Blue) > Pinned (Icon) */}
                       {isGenerating && !isActive ? (
                           <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] animate-pulse flex-shrink-0" title="Generating in background..." />
                       ) : isUnread ? (

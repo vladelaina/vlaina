@@ -35,7 +35,6 @@ export function useChatService() {
 
   const stop = useCallback(() => {
       if (currentSessionId) {
-          console.log(`[ChatService] Stopping session: ${currentSessionId}`);
           requestManager.abort(currentSessionId);
           setSessionLoading(currentSessionId, false);
       }
@@ -104,12 +103,12 @@ export function useChatService() {
         const titleSessionId = targetSessionId;
         setTimeout(() => {
             generateAutoTitle(titleSessionId, userMessageText || "Image Query", provider.id, selectedModel.id)
-                .catch(e => console.error('[ChatService] Auto-Title failed silently:', e));
+                .catch(e => console.error(e));
         }, 3000);
     }
 
     try {
-      let finalHistory = [...messages]; // This is stale for new message but ok for history
+      let finalHistory = [...messages];
       
       if (webSearchEnabled && userMessageText) {
           updateMessage(targetSessionId, assistantMessageId, '🔍 正在联网搜索...');
@@ -172,7 +171,7 @@ export function useChatService() {
                           image_url: { url: base64 } 
                       });
                   } catch (e) {
-                      console.error('Failed to convert image for API:', e);
+                      console.error(e);
                   }
               }
           }
@@ -191,7 +190,6 @@ export function useChatService() {
       );
       completeMessage(targetSessionId, assistantMessageId);
 
-      // Check for background completion
       const current = useUnifiedStore.getState().data.ai?.currentSessionId;
       if (targetSessionId !== current) {
           markSessionUnread(targetSessionId);
@@ -199,10 +197,8 @@ export function useChatService() {
 
     } catch (error: any) {
       if (error.name === 'AbortError') {
-          console.log('[ChatService] Request aborted.');
+          // ignore
       } else {
-          console.error('[ChatService] Message failed', error);
-          
           const type = error.type || 'UNKNOWN';
           const code = error.statusCode || error.status || '';
           const detail = error.message || 'Unknown error occurred';
@@ -219,23 +215,13 @@ export function useChatService() {
   }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, setSessionLoading, setError, messages, webSearchEnabled, setCitations, generateAutoTitle, markSessionUnread]);
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
-      console.log('[ChatService] editMessage called', { messageId, newContentLength: newContent.length });
-      
-      if (!currentSessionId || !selectedModel) {
-          console.error('[ChatService] Edit failed: No session or model', { currentSessionId, selectedModel });
-          return;
-      }
+      if (!currentSessionId || !selectedModel) return;
       const sessionId = currentSessionId;
       const provider = providers.find(p => p.id === selectedModel.providerId);
-      if (!provider) {
-          console.error('[ChatService] Edit failed: Provider not found');
-          return;
-      }
+      if (!provider) return;
 
-      // 1. Truncate and Update Store
       editMessageAndTruncate(sessionId, messageId, newContent);
 
-      // 2. Prepare for Generation
       const assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
       addMessage({
           id: assistantMessageId,
@@ -307,7 +293,6 @@ export function useChatService() {
 
       } catch (error: any) {
           if (error.name !== 'AbortError') {
-              console.error('[ChatService] Edit failed', error);
               const detail = error.message || 'Unknown error';
               const errorXml = `<error type="${error.type || 'UNKNOWN'}" code="${error.statusCode || ''}">${detail}</error>`;
               updateMessage(sessionId, assistantMessageId, errorXml);
@@ -349,7 +334,6 @@ export function useChatService() {
           completeMessage(sessionId, msgId);
       } catch (error: any) {
           if (error.name !== 'AbortError') {
-              console.error('[ChatService] Regen failed', error);
               setError('Failed to regenerate');
           }
       } finally {

@@ -16,7 +16,6 @@ export function ModelSelector() {
 
   const enabledModels = models.filter(m => m.enabled)
   
-  // Separate pinned models
   const pinnedModels = enabledModels.filter(m => m.pinned);
   const unpinnedModels = enabledModels.filter(m => !m.pinned);
 
@@ -33,7 +32,6 @@ export function ModelSelector() {
     return acc
   }, {} as Record<string, typeof enabledModels>)
 
-  // Handle pinned models in search
   const filteredPinned = pinnedModels.filter(model => 
       model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       model.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -49,7 +47,6 @@ export function ModelSelector() {
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside)
       
-      // Auto-scroll to selected model
       if (selectedModelId && dropdownRef.current) {
           requestAnimationFrame(() => {
               const activeItem = dropdownRef.current?.querySelector(`[data-model-id="${selectedModelId}"]`);
@@ -82,7 +79,7 @@ export function ModelSelector() {
       return (
         <button
             key={model.id}
-            data-model-id={model.id} // Added data attribute for scrolling lookup
+            data-model-id={model.id}
             onClick={() => handleSelectModel(model.id)}
             className={cn(
                 "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md",
@@ -110,7 +107,6 @@ export function ModelSelector() {
                 </span>
                 
                 <div className="flex items-center gap-2">
-                    {/* Pin Button */}
                     <div 
                         onClick={(e) => handleTogglePin(e, model.id, model.pinned)}
                         className={cn(
@@ -137,6 +133,7 @@ export function ModelSelector() {
           "bg-transparent",
           "text-gray-700 dark:text-gray-300"
         )}
+        title={selectedModel ? selectedModel.id : 'Select Model'}
       >
         <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
             {selectedModelLogo ? (
@@ -204,7 +201,6 @@ export function ModelSelector() {
               </div>
             ) : (
               <>
-                  {/* Pinned Section */}
                   {filteredPinned.length > 0 && (
                     <div className="mb-1">
                         <div className="px-2 py-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest bg-gray-50/50 dark:bg-white/5 sticky top-0 backdrop-blur-sm flex items-center gap-1 select-none">
@@ -216,7 +212,6 @@ export function ModelSelector() {
                     </div>
                   )}
 
-                  {/* Normal Groups */}
                   {Object.entries(filteredGroups).sort().map(([group, groupModels]) => (
                     <div key={group} className="mb-1 last:mb-0">
                       <div className="px-2 py-1 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest bg-gray-50/50 dark:bg-white/5 sticky top-0 backdrop-blur-sm select-none">

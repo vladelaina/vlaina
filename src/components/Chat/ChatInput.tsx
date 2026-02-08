@@ -19,15 +19,23 @@ interface ChatInputProps {
   isLoading: boolean;
   selectedModel: AIModel | undefined;
   onOpenSettings: () => void;
+  focusTrigger?: number; // Added prop
 }
 
-export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, selectedModel, onOpenSettings }: ChatInputProps) {
+export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, selectedModel, onOpenSettings, focusTrigger }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { webSearchEnabled, toggleWebSearch } = useAIStore();
+
+  // Focus effect
+  useEffect(() => {
+      if (focusTrigger && textareaRef.current) {
+          textareaRef.current.focus();
+      }
+  }, [focusTrigger]);
 
   const handleSend = () => {
     if (!message.trim() && attachments.length === 0) return;
@@ -143,18 +151,18 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
               "relative z-10",
               "bg-white/80 dark:bg-[#18181b]/80 backdrop-blur-xl", // Glassmorphism
               "border border-black/5 dark:border-white/10", // Subtle border
-              "rounded-[26px]", // Super rounded (iOS style)
-              "shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]", // Deep, soft shadow
+              "rounded-[32px]", // Increased from 26px to 32px for a more elliptical look
+              "shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]", 
               "transition-all duration-300 ease-out",
               "hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]",
-              "focus-within:ring-1 focus-within:ring-black/5 dark:focus-within:ring-white/10", // Focus ring
+              "focus-within:ring-1 focus-within:ring-black/5 dark:focus-within:ring-white/10", 
               webSearchEnabled && "ring-2 ring-blue-500/20 border-blue-200 dark:border-blue-800"
             )}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <div className="flex flex-col">
+            <div className="flex flex-col px-1"> {/* Added horizontal padding to prevent text clipping */}
               {/* Attachment Previews */}
               {attachments.length > 0 && (
                   <div className="px-4 pt-4 pb-0 flex gap-2 overflow-x-auto scrollbar-none">

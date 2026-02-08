@@ -33,6 +33,8 @@ export const MessageItem = memo(function MessageItem({
 
   return (
     <div
+      data-message-item="true"
+      data-role={msg.role} // Added role attribute
       className={cn(
         "flex w-full group",
         isUser ? "justify-end" : "justify-start"

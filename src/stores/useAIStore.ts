@@ -36,7 +36,7 @@ const useAIUIStore = create<AIUIState>((set) => ({
 }));
 
 // 2. Actions
-const actions = {
+export const actions = {
   addProvider: (provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>) => {
     const id = `provider-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
     const now = Date.now()
