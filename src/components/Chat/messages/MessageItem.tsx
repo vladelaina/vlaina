@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { UserMessage } from './UserMessage';
 import { AIMessage } from './AIMessage';
@@ -15,7 +16,7 @@ interface MessageItemProps {
   onToggleSources: (id: string) => void;
 }
 
-export function MessageItem({
+export const MessageItem = memo(function MessageItem({
   msg,
   isLoading,
   isSpeaking,
@@ -59,4 +60,4 @@ export function MessageItem({
       </div>
     </div>
   );
-}
+});
