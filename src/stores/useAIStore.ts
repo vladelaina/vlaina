@@ -8,7 +8,7 @@ import type { SearchResult } from '@/lib/ai/search'
 
 // 1. UI State Store (Transient)
 interface AIUIState {
-  generatingSessions: Record<string, boolean>;
+  generatingSessions: Record<string, boolean>; // Map sessionId -> isGenerating
   unreadSessions: Record<string, boolean>; // New: Track unread status
   error: string | null;
   setSessionLoading: (sessionId: string, loading: boolean) => void;
@@ -268,6 +268,7 @@ export const actions = {
       }
   },
 
+  // Helper action for edit workflow
   editMessageAndTruncate: (sessionId: string, messageId: string, newContent: string) => {
       const state = useUnifiedStore.getState();
       const ai = state.data.ai!;
@@ -279,10 +280,7 @@ export const actions = {
       const newMessages = messages.slice(0, index + 1);
       newMessages[index] = { 
           ...newMessages[index], 
-          content: newContent,
-          // Reset versions if we are doing a destructive edit? 
-          // Or keep versions? For simplicity in this "Truncate" mode, we might just update main content.
-          // Let's just update content for now.
+          content: newContent
       };
       
       state.updateAIData({
@@ -340,6 +338,7 @@ export const actions = {
   }
 };
 
+// 3. The Hook
 export const useAIStore = () => {
   const aiData = useUnifiedStore(s => s.data.ai);
   const uiState = useAIUIStore();
@@ -367,7 +366,6 @@ export const useAIStore = () => {
     toggleWebSearch: () => {
         const current = useUnifiedStore.getState().data.ai?.webSearchEnabled || false;
         const next = !current;
-        console.log('[AIStore] Toggling web search to:', next);
         useUnifiedStore.getState().updateAIData({ webSearchEnabled: next });
     },
 
@@ -378,6 +376,7 @@ export const useAIStore = () => {
     
     isSessionLoading: (sessionId: string) => !!uiState.generatingSessions[sessionId],
     isSessionUnread: (sessionId: string) => !!uiState.unreadSessions[sessionId],
-    isLoading: aiData?.currentSessionId ? !!uiState.generatingSessions[aiData.currentSessionId] : false
+    isLoading: aiData?.currentSessionId ? !!uiState.generatingSessions[aiData.currentSessionId] : false,
+    selectedModel: aiData?.selectedModelId ? aiData.models.find(m => m.id === aiData.selectedModelId) : undefined
   };
 };

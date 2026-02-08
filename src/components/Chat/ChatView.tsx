@@ -22,6 +22,8 @@ export function ChatView() {
     currentSessionId, 
     switchVersion, 
     selectedModel,
+    models,
+    selectModel,
     isSessionLoading
   } = useAIStore();
 
@@ -31,6 +33,13 @@ export function ChatView() {
   const isLoading = currentSessionId ? isSessionLoading(currentSessionId) : false;
   const isEmpty = messages.length === 0;
   
+  // Auto-select model if none selected
+  useEffect(() => {
+      if (!selectedModel && models.length > 0) {
+          selectModel(models[0].id);
+      }
+  }, [models, selectedModel, selectModel]);
+
   // Track session transition to auto-focus on new chat
   const prevSessionIdRef = useRef(currentSessionId);
   useEffect(() => {
