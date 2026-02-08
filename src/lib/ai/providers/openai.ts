@@ -12,7 +12,8 @@ export class OpenAICompatibleClient implements AIClient {
     model: AIModel,
     provider: Provider,
     onChunk?: (chunk: string) => void,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    options?: { max_tokens?: number; max_completion_tokens?: number }
   ): Promise<string> {
     console.log('[OpenAI] sendMessage called', { 
         messageLength: typeof message === 'string' ? message.length : 'multimodal', 
@@ -39,7 +40,8 @@ export class OpenAICompatibleClient implements AIClient {
     const body: ChatCompletionRequest = {
       model: model.id,
       messages: apiMessages,
-      stream: true // Always use stream for better compatibility
+      stream: true, // Always use stream for better compatibility
+      ...options
     }
 
     console.log('[OpenAI] Request constructed', { 

@@ -109,13 +109,11 @@ export function ModelSelector() {
   }, [pinnedModels, searchQuery]);
 
   const flatModels = useMemo(() => {
-      // Use default sort to match the render loop exactly
       const sortedGroups = Object.entries(filteredGroups).sort();
       const sortedUnpinned = sortedGroups.map(([_, models]) => models).flat();
       return [...filteredPinned, ...sortedUnpinned];
   }, [filteredPinned, filteredGroups]);
 
-  // Reset keyboard navigation flag on mouse movement
   useEffect(() => {
       const handleMouseMove = () => {
           isKeyboardNavigating.current = false;
@@ -126,7 +124,6 @@ export function ModelSelector() {
       }
   }, [isOpen]);
 
-  // Keyboard Shortcuts & Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
         const isMod = e.metaKey || e.ctrlKey;
@@ -183,24 +180,20 @@ export function ModelSelector() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, flatModels, focusedModelId]); // Removed selectedModelId from deps as it's not used in handler logic directly (except via closures, but we use state setters)
+  }, [isOpen, flatModels, focusedModelId]);
 
-  // Auto-scroll to focused item
   useEffect(() => {
       if (isOpen && focusedModelId && dropdownRef.current) {
           const activeItem = dropdownRef.current.querySelector(`[data-model-id="${focusedModelId}"]`);
           if (activeItem) {
-              // Direct scroll without rAF for instant response
               activeItem.scrollIntoView({ block: 'nearest', behavior: 'instant' } as any);
           }
       }
   }, [focusedModelId, isOpen]);
 
-  // Initial scroll
   useEffect(() => {
       if (isOpen && selectedModelId) {
           setFocusedModelId(selectedModelId);
-          // Initial scroll can use rAF to ensure layout is settled after animation start
           requestAnimationFrame(() => {
               const activeItem = dropdownRef.current?.querySelector(`[data-model-id="${selectedModelId}"]`);
               if (activeItem) {
@@ -208,7 +201,7 @@ export function ModelSelector() {
               }
           });
       } else if (isOpen) {
-          setFocusedModelId(null); // Explicitly reset if no selection
+          setFocusedModelId(null);
       }
   }, [isOpen]);
 
@@ -253,7 +246,6 @@ export function ModelSelector() {
           "bg-transparent",
           "text-gray-700 dark:text-gray-300"
         )}
-        title={selectedModel ? selectedModel.id : 'Select Model'}
       >
         <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
             {selectedModelLogo ? (

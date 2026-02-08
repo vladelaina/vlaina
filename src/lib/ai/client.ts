@@ -6,7 +6,9 @@ export interface AIClient {
     history: ChatMessage[],
     model: AIModel,
     provider: Provider,
-    onChunk?: (chunk: string) => void
+    onChunk?: (chunk: string) => void,
+    signal?: AbortSignal,
+    options?: { max_tokens?: number; max_completion_tokens?: number }
   ): Promise<string>
   
   testConnection(provider: Provider): Promise<boolean>

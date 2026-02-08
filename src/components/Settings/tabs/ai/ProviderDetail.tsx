@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { MdCheck, MdSave, MdAdd, MdDelete, MdCloudDownload, MdKeyboardArrowDown, MdKeyboardArrowRight, MdUnfoldMore, MdSelectAll, MdClear } from 'react-icons/md';
 import { useAIStore } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
+import { checkModelHealth } from '@/lib/ai/healthCheck';
 import { cn } from '@/lib/utils';
 import { Provider } from '@/lib/ai/types';
 import { AppIcon } from '@/components/common/AppIcon';
-import { ModelListItem } from './components/ModelListItem';
+import { ModelListItem, HealthStatus } from './components/ModelListItem';
 import { AddModelModal } from './components/AddModelModal';
+import { HealthCheckButton } from './components/HealthCheckButton';
 import { generateModelGroup } from '@/lib/ai/utils';
 import { IconSelector } from '@/components/common/IconSelector';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -39,9 +41,6 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
   const [apiKey, setApiKey] = useState(initialProvider?.apiKey || '');
   const [apiHost, setApiHost] = useState(initialProvider?.apiHost || '');
   
-  const [isChecking, setIsChecking] = useState(false);
-  const [checkResult, setCheckResult] = useState<'success' | 'error' | null>(null);
-  
   const [isAddingModel, setIsAddingModel] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFetchingModels, setIsFetchingModels] = useState(false);
@@ -51,6 +50,10 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
   
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [previewIcon, setPreviewIcon] = useState<string | null>(null);
+
+  const [healthStatus, setHealthStatus] = useState<Record<string, HealthStatus>>({});
+  const [isHealthChecking, setIsHealthChecking] = useState(false);
+  const [healthCheckOverall, setHealthCheckOverall] = useState<'idle' | 'success' | 'error'>('idle');
 
   const providerModels = initialProvider 
     ? models.filter(m => m.providerId === initialProvider.id)
@@ -66,37 +69,79 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
         setApiKey('');
         setApiHost('');
     }
-    setCheckResult(null);
     setFetchedModels([]);
     setCollapsedGroups(new Set());
     setFetchError(null);
     setIsAddingModel(false);
     setIsDeleting(false);
     setPreviewIcon(null);
+    setHealthStatus({});
+    setHealthCheckOverall('idle');
   }, [initialProvider]);
 
   const handleSave = () => {
     if (initialProvider) {
       updateProvider(initialProvider.id, { name, apiKey, apiHost, updatedAt: Date.now() });
-      setCheckResult('success');
-      setTimeout(() => setCheckResult(null), 2000);
     } 
   };
 
   const handleCheckConnection = async () => {
     if (!apiKey.trim()) return;
-    setIsChecking(true);
-    setCheckResult(null);
+    // setIsChecking(true); // Now handled by HealthCheckButton
+    // ... logic removed ...
+  };
 
-    try {
-      const tempProvider: Provider = { id: initialProvider?.id || 'temp', name, type: 'newapi', apiHost, apiKey, enabled: true, createdAt: 0, updatedAt: 0 };
-      const success = await openaiClient.testConnection(tempProvider);
-      setCheckResult(success ? 'success' : 'error');
-    } catch (e) {
-      setCheckResult('error');
-    } finally {
-      setIsChecking(false);
-    }
+  const handleBatchHealthCheck = async () => {
+      if (!initialProvider || !apiKey) return;
+      
+      setIsHealthChecking(true);
+      setHealthCheckOverall('idle');
+      
+      // Initialize status
+      const initialStatus: Record<string, HealthStatus> = {};
+      providerModels.forEach(m => {
+          initialStatus[m.id] = { status: 'loading' };
+      });
+      setHealthStatus(initialStatus);
+
+      const tempProvider = { ...initialProvider, apiKey, apiHost };
+      
+      try {
+          if (providerModels.length === 0) {
+              // Fallback to simple connection check if no models added
+              const success = await openaiClient.testConnection(tempProvider);
+              setHealthCheckOverall(success ? 'success' : 'error');
+          } else {
+              // Batch check all added models
+              const results = await Promise.all(providerModels.map(async (model) => {
+                  try {
+                      const res = await checkModelHealth(tempProvider, model);
+                      return { id: model.id, ...res };
+                  } catch (e: any) {
+                      return { id: model.id, status: 'error', error: e.message };
+                  }
+              }));
+
+              const newStatus: Record<string, HealthStatus> = {};
+              let hasError = false;
+              results.forEach((res: any) => {
+                  newStatus[res.id] = { 
+                      status: res.status, 
+                      latency: res.latency, 
+                      error: res.error 
+                  };
+                  if (res.status === 'error') hasError = true;
+              });
+              setHealthStatus(newStatus);
+              setHealthCheckOverall(hasError ? 'error' : 'success');
+          }
+      } catch (e) {
+          setHealthCheckOverall('error');
+      } finally {
+          setIsHealthChecking(false);
+          // Clear overall status after delay, but keep individual statuses
+          setTimeout(() => setHealthCheckOverall('idle'), 3000);
+      }
   };
 
   const handleFetchModels = async () => {
@@ -256,10 +301,14 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
                             <span className="text-xs text-gray-400 font-normal">({providerModels.length})</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button onClick={handleCheckConnection} disabled={isChecking || !apiKey} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors border border-gray-200 dark:border-gray-700">
-                                {isChecking ? <div className="size-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <MdCheck size={14} />}
-                                {checkResult === 'success' ? 'Connected' : 'Check'}
-                            </button>
+                            {/* Health Check Button */}
+                            <HealthCheckButton 
+                                onCheck={handleBatchHealthCheck}
+                                isChecking={isHealthChecking}
+                                overallStatus={healthCheckOverall}
+                                disabled={!apiKey}
+                            />
+                            
                             <button onClick={handleFetchModels} disabled={isFetchingModels || !apiKey} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white dark:text-black bg-black dark:bg-white hover:opacity-80 rounded-lg transition-colors border border-transparent">
                                 {isFetchingModels ? <div className="size-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <MdCloudDownload size={14} />}
                                 Fetch Models
@@ -297,7 +346,7 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
                                             <div className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                                                 <button onClick={() => toggleGroup(`fetched-${group}`)} className="flex items-center gap-2 flex-1 text-left">
                                                     {isCollapsed ? <MdKeyboardArrowRight size={16} className="text-gray-400" /> : <MdKeyboardArrowDown size={16} className="text-gray-400" />}
-                                                    <span className="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">{group}</span>
+                                                    <span className="text-xs font-bold text-gray-600 dark:text-gray-400 tracking-widest">{group}</span>
                                                     <span className="text-[10px] text-gray-400">({groupModels.length})</span>
                                                 </button>
                                                 
@@ -344,14 +393,20 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
                                         <button onClick={() => toggleGroup(`added-${group}`)} className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50/50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                                             <div className="flex items-center gap-2">
                                                 {isCollapsed ? <MdKeyboardArrowRight size={18} className="text-gray-400" /> : <MdKeyboardArrowDown size={18} className="text-gray-400" />}
-                                                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{group}</span>
+                                                <span className="text-xs font-bold text-gray-500 tracking-widest">{group}</span>
                                                 <span className="text-[10px] text-gray-400">({groupModels.length})</span>
                                             </div>
                                         </button>
                                         {!isCollapsed && (
                                             <div className="p-2 grid grid-cols-1 gap-1">
                                                 {groupModels.map(id => (
-                                                    <ModelListItem key={id} modelId={id} isAdded={true} onRemove={() => deleteModel(id)} />
+                                                    <ModelListItem 
+                                                        key={id} 
+                                                        modelId={id} 
+                                                        isAdded={true} 
+                                                        onRemove={() => deleteModel(id)} 
+                                                        health={healthStatus[id]} 
+                                                    />
                                                 ))}
                                             </div>
                                         )}

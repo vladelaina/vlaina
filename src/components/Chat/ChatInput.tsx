@@ -225,10 +225,6 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                                 {webSearchEnabled && <span className="ml-auto text-[10px] bg-blue-100 text-blue-600 px-1.5 rounded-full">ON</span>}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={onOpenSettings} className="gap-2 cursor-pointer">
-                                <MdSettings className="w-4 h-4 text-gray-500" />
-                                <span>Settings</span>
-                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={triggerFileSelect} className="gap-2 cursor-pointer">
                                 <MdAttachFile className="w-4 h-4 text-gray-500" />
                                 <span>Attach File</span>
