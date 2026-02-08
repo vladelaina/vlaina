@@ -64,7 +64,7 @@ export function EventContent({
             className={`font-medium leading-tight whitespace-normal break-words ${isCompleted ? 'line-through opacity-60' : ''} ${heightLevel === 'micro' ? 'text-[9px]' : 'text-[11px]'}`}
             style={{ color: colorStyles.text }}
           >
-            {event.summary || 'Untitled'}
+            {event.summary || (event.icon ? '' : 'Untitled')}
           </p>
         </div>
         {showTime && (

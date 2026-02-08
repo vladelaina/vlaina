@@ -32,14 +32,18 @@ export function useEventContextMenu(eventId: string, position: { x: number; y: n
 
   const handleNameBlur = () => {
     if (eventName.trim() !== event?.summary) {
-      updateEvent(eventId, { summary: eventName.trim() || 'Untitled' });
+      const newSummary = eventName.trim();
+      const fallback = event?.icon ? '' : 'Untitled';
+      updateEvent(eventId, { summary: newSummary || fallback });
     }
   };
 
   const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      updateEvent(eventId, { summary: eventName.trim() || 'Untitled' });
+      const newSummary = eventName.trim();
+      const fallback = event?.icon ? '' : 'Untitled';
+      updateEvent(eventId, { summary: newSummary || fallback });
       inputRef.current?.blur();
     } else if (e.key === 'Escape') {
       setEventName(event?.summary || '');

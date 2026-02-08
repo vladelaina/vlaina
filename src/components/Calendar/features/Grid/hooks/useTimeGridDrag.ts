@@ -49,8 +49,11 @@ export function useTimeGridDrag({
     const handleBeforeCreate = useCallback(() => {
         if (editingEventId) {
             const editingEvent = displayItems.find(ev => ev.uid === editingEventId);
-            if (editingEvent && !editingEvent.summary.trim()) {
-                deleteEvent(editingEventId);
+            if (editingEvent) {
+                const hasContent = editingEvent.summary?.trim() || editingEvent.icon;
+                if (!hasContent) {
+                    deleteEvent(editingEventId);
+                }
             }
         }
         closeEditingEvent();

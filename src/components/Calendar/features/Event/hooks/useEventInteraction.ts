@@ -79,8 +79,11 @@ export function useEventInteraction({
 
     if (editingEventId && editingEventId !== eventId) {
       const editingEvent = allEvents.find(ev => ev.uid === editingEventId);
-      if (editingEvent && !editingEvent.summary.trim()) {
-        deleteEvent(editingEventId);
+      if (editingEvent) {
+        const hasContent = editingEvent.summary?.trim() || editingEvent.icon;
+        if (!hasContent) {
+          deleteEvent(editingEventId);
+        }
       }
       closeEditingEvent();
     }

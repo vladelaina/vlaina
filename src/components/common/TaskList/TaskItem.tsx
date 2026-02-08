@@ -282,10 +282,10 @@ export function TaskItem({
                                 task.completed
                                     ? 'text-zinc-400 line-through'
                                     : 'text-zinc-900 dark:text-zinc-100 font-normal',
-                                'leading-relaxed'
+                                'leading-relaxed min-h-[24px]'
                             )}
                         >
-                            {task.summary}
+                            {task.summary || (task.icon ? '' : 'Untitled')}
                         </div>
                     )}
 

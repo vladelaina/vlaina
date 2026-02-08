@@ -28,8 +28,11 @@ export function CalendarView() {
       if (target.closest('[data-no-auto-close]')) return;
 
       const editingEvent = events.find(e => e.uid === editingEventId);
-      if (editingEvent && !editingEvent.summary.trim()) {
-        deleteEvent(editingEventId);
+      if (editingEvent) {
+        const hasContent = editingEvent.summary?.trim() || editingEvent.icon;
+        if (!hasContent) {
+          deleteEvent(editingEventId);
+        }
       }
       closeEditingEvent();
     };

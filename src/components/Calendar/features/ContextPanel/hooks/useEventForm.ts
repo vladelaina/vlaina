@@ -31,7 +31,11 @@ export function useEventForm(event: NekoEvent) {
             clearTimeout(debouncedUpdateSummary.current);
         }
 
-        if (!localSummary.trim()) {
+        // 重新获取最新的 event 状态，以确保 icon 等信息是最新的
+        const currentEvent = useCalendarStore.getState().allEvents.find(e => e.uid === event.uid);
+        const hasContent = localSummary.trim() || currentEvent?.icon;
+
+        if (!hasContent) {
             deleteEvent(event.uid);
         } else if (localSummary !== event.summary) {
             saveSummary(localSummary);

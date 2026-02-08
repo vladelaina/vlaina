@@ -284,7 +284,7 @@ export function AllDayArea({
                   flex-1 text-[11px] font-medium truncate
                   ${event.completed ? 'line-through' : ''}
                 `}>
-                {event.summary || 'Untitled'}
+                {event.summary || (event.icon ? '' : 'Untitled')}
               </span>
 
               {/* Multi-day indicator */}

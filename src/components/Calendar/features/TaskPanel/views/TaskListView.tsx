@@ -281,7 +281,7 @@ export function TaskListView({
                                                         className="font-medium leading-tight truncate text-[11px]"
                                                         style={{ color: textColor }}
                                                     >
-                                                        {task.summary || 'Untitled'}
+                                                        {task.summary || (task.icon ? '' : 'Untitled')}
                                                     </p>
                                                     {eventHeight >= 32 && (
                                                         <p
