@@ -16,6 +16,7 @@ export interface AIModel {
   providerId: string
   group?: string
   enabled: boolean
+  pinned?: boolean
   createdAt: number
 }
 
@@ -56,6 +57,7 @@ export interface ChatCompletionRequest {
   stream: boolean
   temperature?: number
   max_tokens?: number
+  max_completion_tokens?: number
 }
 
 export interface ChatCompletionResponse {

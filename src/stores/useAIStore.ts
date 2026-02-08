@@ -8,21 +8,35 @@ import type { SearchResult } from '@/lib/ai/search'
 
 // 1. UI State Store (Transient)
 interface AIUIState {
-  isLoading: boolean;
+  generatingSessions: Record<string, boolean>; // Map sessionId -> isGenerating
+  unreadSessions: Record<string, boolean>; // New: Track unread status
   error: string | null;
-  setLoading: (loading: boolean) => void;
+  setSessionLoading: (sessionId: string, loading: boolean) => void;
+  markSessionUnread: (sessionId: string) => void;
+  markSessionRead: (sessionId: string) => void;
   setError: (error: string | null) => void;
 }
 
 const useAIUIStore = create<AIUIState>((set) => ({
-  isLoading: false,
+  generatingSessions: {},
+  unreadSessions: {},
   error: null,
-  setLoading: (loading) => set({ isLoading: loading }),
+  setSessionLoading: (id, loading) => set((state) => ({
+      generatingSessions: { ...state.generatingSessions, [id]: loading }
+  })),
+  markSessionUnread: (id) => set((state) => ({
+      unreadSessions: { ...state.unreadSessions, [id]: true }
+  })),
+  markSessionRead: (id) => set((state) => {
+      const newUnread = { ...state.unreadSessions };
+      delete newUnread[id];
+      return { unreadSessions: newUnread };
+  }),
   setError: (error: string | null) => set({ error }),
 }));
 
 // 2. Actions
-const actions = {
+export const actions = {
   addProvider: (provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>) => {
     const id = `provider-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
     const now = Date.now()
@@ -91,6 +105,14 @@ const actions = {
     state.updateAIData(updates);
   },
 
+  updateModel: (id: string, updates: Partial<AIModel>) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    state.updateAIData({
+      models: ai.models.map((m) => m.id === id ? { ...m, ...updates } : m)
+    })
+  },
+
   deleteModel: (id: string) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
@@ -102,6 +124,10 @@ const actions = {
 
   selectModel: (modelId: string | null) => {
     useUnifiedStore.getState().updateAIData({ selectedModelId: modelId })
+  },
+
+  openNewChat: () => {
+      useUnifiedStore.getState().updateAIData({ currentSessionId: null })
   },
 
   createSession: (title = 'New Chat') => {
@@ -152,7 +178,7 @@ const actions = {
       sessions: newSessions,
       messages: newMessages,
       currentSessionId: ai.currentSessionId === id 
-        ? (newSessions[0]?.id || null) 
+        ? null 
         : ai.currentSessionId
     });
   },
@@ -190,20 +216,19 @@ const actions = {
     return newMessage.id;
   },
 
-  updateMessage: (id: string, content: string) => {
+  updateMessage: (sessionId: string, id: string, content: string) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
-    const { currentSessionId } = ai;
-    if (!currentSessionId) return;
+    const sessionMessages = ai.messages[sessionId] || [];
+    
+    if (sessionMessages.length === 0) return;
 
-    const sessionMessages = ai.messages[currentSessionId] || [];
     state.updateAIData({
       messages: {
         ...ai.messages,
-        [currentSessionId]: sessionMessages.map(m => {
+        [sessionId]: sessionMessages.map(m => {
             if (m.id !== id) return m;
             
-            // Sync versions
             const idx = m.currentVersionIndex ?? 0;
             const versions = m.versions ? [...m.versions] : [m.content];
             versions[idx] = content;
@@ -211,21 +236,20 @@ const actions = {
             return { ...m, content, versions, currentVersionIndex: idx };
         })
       }
-    }, true); // Skip persist for high-frequency updates
+    }, true); 
   },
 
-  // Set citations for a message
-  setCitations: (id: string, results: SearchResult[]) => {
+  setCitations: (sessionId: string, id: string, results: SearchResult[]) => {
       const state = useUnifiedStore.getState();
       const ai = state.data.ai!;
-      const { currentSessionId } = ai;
-      if (!currentSessionId) return;
+      const sessionMessages = ai.messages[sessionId] || [];
+      
+      if (sessionMessages.length === 0) return;
 
-      const sessionMessages = ai.messages[currentSessionId] || [];
       state.updateAIData({
           messages: {
               ...ai.messages,
-              [currentSessionId]: sessionMessages.map(m => {
+              [sessionId]: sessionMessages.map(m => {
                   if (m.id !== id) return m;
                   return { ...m, citations: results };
               })
@@ -233,22 +257,37 @@ const actions = {
       });
   },
 
-  completeMessage: (id: string) => {
+  completeMessage: (sessionId: string, id: string) => {
       const state = useUnifiedStore.getState();
       const ai = state.data.ai!;
-      const { currentSessionId } = ai;
-      if (!currentSessionId) return;
-
-      const sessionMessages = ai.messages[currentSessionId] || [];
+      const sessionMessages = ai.messages[sessionId] || [];
       const msg = sessionMessages.find(m => m.id === id);
       if (msg) {
-          appendMessageToMarkdown(currentSessionId, msg);
-          // Trigger final persist
+          appendMessageToMarkdown(sessionId, msg);
           state.updateAIData({}); 
       }
   },
 
-  // Versioning Actions
+  // Helper action for edit workflow
+  editMessageAndTruncate: (sessionId: string, messageId: string, newContent: string) => {
+      const state = useUnifiedStore.getState();
+      const ai = state.data.ai!;
+      const messages = ai.messages[sessionId] || [];
+      const index = messages.findIndex(m => m.id === messageId);
+      if (index === -1) return;
+
+      // Keep messages up to this one (inclusive), update content
+      const newMessages = messages.slice(0, index + 1);
+      newMessages[index] = { 
+          ...newMessages[index], 
+          content: newContent
+      };
+      
+      state.updateAIData({
+          messages: { ...ai.messages, [sessionId]: newMessages }
+      });
+  },
+
   addVersion: (id: string) => {
       const state = useUnifiedStore.getState();
       const ai = state.data.ai!;
@@ -327,7 +366,6 @@ export const useAIStore = () => {
     toggleWebSearch: () => {
         const current = useUnifiedStore.getState().data.ai?.webSearchEnabled || false;
         const next = !current;
-        console.log('[AIStore] Toggling web search to:', next);
         useUnifiedStore.getState().updateAIData({ webSearchEnabled: next });
     },
 
@@ -335,5 +373,10 @@ export const useAIStore = () => {
     getModel: (id: string) => aiData?.models.find(m => m.id === id),
     getSelectedModel: () => aiData?.selectedModelId ? aiData.models.find(m => m.id === aiData.selectedModelId) : undefined,
     getModelsByProvider: (pid: string) => aiData?.models.filter(m => m.providerId === pid && m.enabled) || [],
+    
+    isSessionLoading: (sessionId: string) => !!uiState.generatingSessions[sessionId],
+    isSessionUnread: (sessionId: string) => !!uiState.unreadSessions[sessionId],
+    isLoading: aiData?.currentSessionId ? !!uiState.generatingSessions[aiData.currentSessionId] : false,
+    selectedModel: aiData?.selectedModelId ? aiData.models.find(m => m.id === aiData.selectedModelId) : undefined
   };
 };

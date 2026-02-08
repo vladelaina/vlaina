@@ -19,9 +19,10 @@ interface ChatInputProps {
   isLoading: boolean;
   selectedModel: AIModel | undefined;
   onOpenSettings: () => void;
+  focusTrigger?: number;
 }
 
-export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, selectedModel, onOpenSettings }: ChatInputProps) {
+export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, selectedModel, onOpenSettings, focusTrigger }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -29,13 +30,18 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { webSearchEnabled, toggleWebSearch } = useAIStore();
 
+  useEffect(() => {
+      if (focusTrigger && textareaRef.current) {
+          textareaRef.current.focus();
+      }
+  }, [focusTrigger]);
+
   const handleSend = () => {
     if (!message.trim() && attachments.length === 0) return;
     onSend(message, attachments);
     setMessage('');
     setAttachments([]);
     
-    // Ensure height is reset after state update
     requestAnimationFrame(() => {
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
@@ -57,7 +63,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
               const attachment = await saveAttachment(file);
               newAttachments.push(attachment);
           } catch (e) {
-              console.error('[ChatInput] Failed to save attachment:', e);
+              console.error(e);
           }
       }
       if (newAttachments.length > 0) {
@@ -107,7 +113,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
       if (e.target.files) {
           await processFiles(Array.from(e.target.files));
       }
-      e.target.value = ''; // Reset
+      e.target.value = ''; 
   };
 
   useEffect(() => {
@@ -130,32 +136,29 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
               onChange={handleFileChange}
           />
           
-          {/* Drag Overlay */}
           {isDragging && (
-              <div className="absolute inset-0 z-20 bg-blue-500/10 border-2 border-dashed border-blue-500 rounded-[26px] flex items-center justify-center backdrop-blur-sm pointer-events-none">
+              <div className="absolute inset-0 z-20 bg-blue-500/10 border-2 border-dashed border-blue-500 rounded-[32px] flex items-center justify-center backdrop-blur-sm pointer-events-none">
                   <span className="text-blue-600 font-medium">Drop files here</span>
               </div>
           )}
 
-          {/* The Premium Container */}
           <div 
             className={cn(
               "relative z-10",
-              "bg-white/80 dark:bg-[#18181b]/80 backdrop-blur-xl", // Glassmorphism
-              "border border-black/5 dark:border-white/10", // Subtle border
-              "rounded-[26px]", // Super rounded (iOS style)
-              "shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]", // Deep, soft shadow
+              "bg-white/80 dark:bg-[#18181b]/80 backdrop-blur-xl",
+              "border border-black/5 dark:border-white/10",
+              "rounded-[32px]", 
+              "shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]", 
               "transition-all duration-300 ease-out",
               "hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]",
-              "focus-within:ring-1 focus-within:ring-black/5 dark:focus-within:ring-white/10", // Focus ring
+              "focus-within:ring-1 focus-within:ring-black/5 dark:focus-within:ring-white/10", 
               webSearchEnabled && "ring-2 ring-blue-500/20 border-blue-200 dark:border-blue-800"
             )}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <div className="flex flex-col">
-              {/* Attachment Previews */}
+            <div className="flex flex-col px-1">
               {attachments.length > 0 && (
                   <div className="px-4 pt-4 pb-0 flex gap-2 overflow-x-auto scrollbar-none">
                       {attachments.map(att => (
@@ -201,9 +204,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                 />
               </div>
 
-              {/* Toolbar Area */}
               <div className="flex items-center justify-between px-2 pb-2 pl-3">
-                {/* Left Side: Unified Add Button & Active Search Indicator */}
                 <div className="flex items-center gap-2">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -213,7 +214,6 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                                     "text-gray-500 dark:text-gray-400",
                                     "hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200 active:scale-95"
                                 )}
-                                title="More options"
                             >
                                 <MdAdd className="w-5 h-5" />
                             </button>
@@ -225,10 +225,6 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                                 {webSearchEnabled && <span className="ml-auto text-[10px] bg-blue-100 text-blue-600 px-1.5 rounded-full">ON</span>}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={onOpenSettings} className="gap-2 cursor-pointer">
-                                <MdSettings className="w-4 h-4 text-gray-500" />
-                                <span>Settings</span>
-                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={triggerFileSelect} className="gap-2 cursor-pointer">
                                 <MdAttachFile className="w-4 h-4 text-gray-500" />
                                 <span>Attach File</span>
@@ -240,7 +236,6 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    {/* Quick Search Toggle (Visible only when enabled) */}
                     {webSearchEnabled && (
                         <button
                             onClick={toggleWebSearch}
@@ -249,7 +244,6 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                                 "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400",
                                 "hover:bg-blue-200 dark:hover:bg-blue-900/50"
                             )}
-                            title="Click to disable Web Search"
                         >
                             <MdLanguage className="w-3.5 h-3.5" />
                             <span>Search</span>
@@ -266,10 +260,9 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                   {isLoading && !message.trim() ? (
                       <button
                         onClick={onStop}
-                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-black dark:bg-white text-white dark:text-black hover:opacity-80 shadow-md"
-                        title="Stop"
+                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-gray-100 dark:bg-white text-black dark:text-black shadow-sm hover:scale-105 active:scale-95"
                       >
-                        <MdStop className="w-3.5 h-3.5" />
+                        <MdStop className="w-4 h-4" />
                       </button>
                   ) : (
                       <button
@@ -278,10 +271,9 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                         className={cn(
                           "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200",
                           canSend
-                            ? "bg-black dark:bg-white text-white dark:text-black shadow-md hover:opacity-80 hover:scale-105 active:scale-95"
-                            : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                            ? "bg-gray-100 dark:bg-white text-black dark:text-black shadow-sm hover:scale-105 active:scale-95"
+                            : "bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-default"
                         )}
-                        title="Send"
                       >
                         <MdSend className="w-3.5 h-3.5" />
                       </button>

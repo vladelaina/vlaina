@@ -1,10 +1,10 @@
 import type { AIClient } from '../client'
 import type { Provider, AIModel, ChatCompletionRequest, ChatCompletionResponse, ChatCompletionStreamChunk, ChatMessage, ChatMessageContent } from '../types'
-import { parseAPIError, parseHTTPError } from '../client'
+import { parseAPIError, parseHTTPError } from '../errors'
 import { normalizeApiHost } from '../utils'
 
 export class OpenAICompatibleClient implements AIClient {
-  private readonly timeout = 60000 
+  private readonly timeout = 300000 // 5 minutes for thinking models 
 
   async sendMessage(
     message: ChatMessageContent,
@@ -12,7 +12,8 @@ export class OpenAICompatibleClient implements AIClient {
     model: AIModel,
     provider: Provider,
     onChunk?: (chunk: string) => void,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    options?: { max_tokens?: number; max_completion_tokens?: number }
   ): Promise<string> {
     console.log('[OpenAI] sendMessage called', { 
         messageLength: typeof message === 'string' ? message.length : 'multimodal', 
@@ -39,7 +40,8 @@ export class OpenAICompatibleClient implements AIClient {
     const body: ChatCompletionRequest = {
       model: model.id,
       messages: apiMessages,
-      stream: true // Always use stream for better compatibility
+      stream: true, // Always use stream for better compatibility
+      ...options
     }
 
     console.log('[OpenAI] Request constructed', { 
@@ -134,8 +136,14 @@ export class OpenAICompatibleClient implements AIClient {
       });
 
       if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}))
-        console.error('[OpenAI] Stream error body', errorBody);
+        const errorText = await response.text().catch(() => 'Unknown error');
+        let errorBody;
+        try {
+            errorBody = JSON.parse(errorText);
+        } catch (e) {
+            errorBody = { message: errorText }; // Keep raw text if not JSON
+        }
+        console.error('[OpenAI] Stream error', { status: response.status, errorBody });
         throw parseHTTPError(response.status, errorBody)
       }
 

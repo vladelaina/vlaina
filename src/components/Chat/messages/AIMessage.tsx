@@ -3,6 +3,7 @@ import { MarkdownRenderer } from '../MarkdownRenderer';
 import { CitationList } from './CitationList';
 import { MessageToolbar } from './MessageToolbar';
 import { ThinkingBlock } from '../components/ThinkingBlock';
+import { ErrorBlock } from '../components/ErrorBlock';
 import type { ChatMessage } from '@/lib/ai/types';
 
 interface AIMessageProps {
@@ -29,22 +30,33 @@ export function AIMessage({
   onToggleSources
 }: AIMessageProps) {
   
-  // Parse <think> block
-  // Pattern: <think> ... </think> ...
+  // 1. Parse Error Block
+  const errorRegex = /<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/;
+  const errorMatch = errorRegex.exec(msg.content);
+  const errorType = errorMatch ? errorMatch[1] : undefined;
+  const errorCode = errorMatch ? errorMatch[2] : undefined;
+  const errorContent = errorMatch ? errorMatch[3] : null;
+
+  // Clean content by removing error block for further parsing
+  const contentWithoutError = msg.content.replace(errorRegex, '');
+
+  // 2. Parse Thinking Block
   const thinkRegex = /^<think>([\s\S]*?)(?:<\/think>|$)([\s\S]*)/;
-  const match = thinkRegex.exec(msg.content);
+  const thinkMatch = thinkRegex.exec(contentWithoutError);
   
-  const thinkContent = match ? match[1] : null;
-  const mainContent = match ? match[2] : msg.content;
+  const thinkContent = thinkMatch ? thinkMatch[1] : null;
+  const mainContent = thinkMatch ? thinkMatch[2] : contentWithoutError;
   
-  // Determine if still thinking (streaming and tag not closed)
-  // If isLoading is true AND we have thinkContent but NO mainContent (or tag not closed)
-  // But regex catches (?:</think>|$) so we can't easily tell if closed.
-  // Better check: if msg.content includes '</think>', then thinking is done.
-  const isThinkingActive = isLoading && !!thinkContent && !msg.content.includes('</think>');
+  // Determine if still thinking
+  const isThinkingActive = isLoading && !!thinkContent && !contentWithoutError.includes('</think>');
 
   return (
     <div className="w-full pl-0">
+        {/* Error Block - Highest Priority */}
+        {errorContent && (
+            <ErrorBlock type={errorType} code={errorCode} content={errorContent} />
+        )}
+
         {/* Thinking Block */}
         {thinkContent && (
             <ThinkingBlock 
@@ -54,12 +66,15 @@ export function AIMessage({
         )}
 
         {/* Main Content */}
-        <div className="[&>*:last-child]:mb-0">
-            <MarkdownRenderer content={mainContent || (isThinkingActive ? '' : ' ')} />
-        </div>
+        {/* Only render main content if it's not empty or we are actively thinking */}
+        {(mainContent.trim() || isThinkingActive) && (
+            <div className="[&>*:last-child]:mb-0">
+                <MarkdownRenderer content={mainContent || (isThinkingActive ? '' : ' ')} />
+            </div>
+        )}
         
-        {/* Toolbar */}
-        {(!isLoading || mainContent) && (
+        {/* Toolbar - Hide if error occurred and no content */}
+        {(!isLoading || mainContent) && !errorContent && (
             <>
                 <MessageToolbar 
                     msg={msg}
@@ -73,7 +88,6 @@ export function AIMessage({
                     isSourcesOpen={isSourcesOpen}
                 />
 
-                {/* Expanded Sources Panel */}
                 <AnimatePresence>
                     {isSourcesOpen && msg.citations && (
                         <motion.div
@@ -88,6 +102,18 @@ export function AIMessage({
                     )}
                 </AnimatePresence>
             </>
+        )}
+        
+        {/* Retry Button for Errors */}
+        {errorContent && (
+            <div className="mt-2">
+                <button 
+                    onClick={onRegenerate}
+                    className="text-xs font-medium text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1"
+                >
+                    ⟳ Retry Generation
+                </button>
+            </div>
         )}
     </div>
   );

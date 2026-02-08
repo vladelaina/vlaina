@@ -7,9 +7,9 @@ import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types'
 import { SEARCH_SYSTEM_PROMPT, TIME_SYSTEM_PROMPT, IMAGE_PLACEHOLDER } from '@/lib/ai/prompts';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useAutoTitle } from './useAutoTitle';
+import { requestManager } from '@/lib/ai/requestManager';
 
 export function useChatService() {
-  const abortControllerRef = useRef<AbortController | null>(null);
   const { generateAutoTitle } = useAutoTitle();
 
   const { 
@@ -19,13 +19,14 @@ export function useChatService() {
     addMessage, 
     updateMessage, 
     completeMessage,
+    editMessageAndTruncate,
     addVersion,
     setCitations,
     getSelectedModel, 
     providers, 
     webSearchEnabled,
-    isLoading, 
-    setLoading, 
+    setSessionLoading,
+    markSessionUnread,
     setError 
   } = useAIStore();
 
@@ -33,12 +34,11 @@ export function useChatService() {
   const selectedModel = getSelectedModel();
 
   const stop = useCallback(() => {
-      if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
-          abortControllerRef.current = null;
+      if (currentSessionId) {
+          requestManager.abort(currentSessionId);
+          setSessionLoading(currentSessionId, false);
       }
-      setLoading(false);
-  }, [setLoading]);
+  }, [currentSessionId, setSessionLoading]);
 
   const sendMessage = useCallback(async (text: string, attachments: Attachment[]) => {
     const isTextEmpty = !text || text.trim().length === 0;
@@ -46,15 +46,9 @@ export function useChatService() {
     
     if ((isTextEmpty && hasNoAttachments) || !selectedModel) return;
 
-    if (isLoading && abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-    }
-
     const provider = providers.find(p => p.id === selectedModel.providerId);
     if (!provider) {
       setError('Provider not found');
-      setLoading(false);
       return;
     }
 
@@ -63,11 +57,12 @@ export function useChatService() {
     let activeSessionId = currentSessionId;
     let isNewSession = false;
     if (!activeSessionId) {
-        activeSessionId = createSession(userMessageText.slice(0, 30) || 'New Image Chat');
+        activeSessionId = createSession(''); // Ghost session
         isNewSession = true;
     }
 
-    // 1. Construct Content for Local Storage (Markdown)
+    const targetSessionId = activeSessionId;
+
     let storageContent = userMessageText;
     if (attachments.length > 0) {
         const imageMarkdown = attachments
@@ -91,48 +86,35 @@ export function useChatService() {
       modelId: selectedModel.id
     });
 
-    setLoading(true);
+    const controller = requestManager.start(targetSessionId);
+    setSessionLoading(targetSessionId, true);
     setError(null);
 
-    // --- Auto Title Generation (Fire and Forget) ---
-    // Check if we should generate a title:
-    // 1. It's a newly created session
-    // 2. OR the current session still has the default title
     let shouldGenerateTitle = isNewSession;
-    
-    if (!shouldGenerateTitle && activeSessionId) {
+    if (!shouldGenerateTitle && targetSessionId) {
         const state = useUnifiedStore.getState();
-        const session = state.data.ai?.sessions.find(s => s.id === activeSessionId);
+        const session = state.data.ai?.sessions.find(s => s.id === targetSessionId);
         if (session && (session.title === 'New Chat' || session.title === 'New Image Chat')) {
             shouldGenerateTitle = true;
         }
     }
 
-    if (shouldGenerateTitle && activeSessionId) {
-        console.log('[ChatService] Scheduling background Auto-Title generation (delayed)...');
-        // Delay 3 seconds to avoid concurrency limits (ERR_CONNECTION_CLOSED) on some providers
-        setTimeout(() => {
-            generateAutoTitle(activeSessionId, userMessageText || "Image Query", provider.id, selectedModel.id)
-                .catch(e => console.error('[ChatService] Auto-Title failed silently:', e));
-        }, 3000);
+    if (shouldGenerateTitle && targetSessionId) {
+        const titleSessionId = targetSessionId;
+        generateAutoTitle(titleSessionId, userMessageText || "Image Query", provider.id, selectedModel.id)
+            .catch(e => console.error(e));
     }
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
 
     try {
       let finalHistory = [...messages];
       
-      // Web Search Logic
       if (webSearchEnabled && userMessageText) {
-          console.log('[ChatService] Web search is ENABLED. Starting search flow...');
-          updateMessage(assistantMessageId, '🔍 正在联网搜索...');
-          
+          updateMessage(targetSessionId, assistantMessageId, '🔍 正在联网搜索...');
           const results = await performWebSearch(userMessageText, controller.signal);
           
           let searchContext = '';
           if (results.length > 0) {
-              setCitations(assistantMessageId, results);
+              setCitations(targetSessionId, assistantMessageId, results);
               searchContext = formatSearchResults(results);
           } else {
               searchContext = "No search results found.";
@@ -149,7 +131,7 @@ export function useChatService() {
               timestamp: Date.now()
           };
           finalHistory = [...finalHistory, contextMsg as any];
-          updateMessage(assistantMessageId, '🧠 正在思考...');
+          updateMessage(targetSessionId, assistantMessageId, '🧠 正在思考...');
       } else {
           const timeInfo = `${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`;
           const timeContext = {
@@ -162,7 +144,6 @@ export function useChatService() {
           finalHistory = [...finalHistory, timeContext as any];
       }
 
-      // Sanitize history
       const sanitizedHistory = finalHistory.map(msg => {
           if (typeof msg.content === 'string') {
               return { 
@@ -173,7 +154,6 @@ export function useChatService() {
           return msg;
       });
 
-      // 2. Construct Content for API (Multimodal)
       let apiMessageContent: ChatMessageContent = userMessageText;
       if (attachments.length > 0) {
           const parts: ChatMessageContentPart[] = [];
@@ -189,7 +169,7 @@ export function useChatService() {
                           image_url: { url: base64 } 
                       });
                   } catch (e) {
-                      console.error('Failed to convert image for API:', e);
+                      console.error(e);
                   }
               }
           }
@@ -203,29 +183,127 @@ export function useChatService() {
         sanitizedHistory, 
         selectedModel,
         provider,
-        (chunk) => updateMessage(assistantMessageId, chunk),
+        (chunk) => updateMessage(targetSessionId, assistantMessageId, chunk),
         controller.signal
       );
-      completeMessage(assistantMessageId);
+      completeMessage(targetSessionId, assistantMessageId);
+
+      const current = useUnifiedStore.getState().data.ai?.currentSessionId;
+      if (targetSessionId !== current) {
+          markSessionUnread(targetSessionId);
+      }
+
     } catch (error: any) {
       if (error.name === 'AbortError') {
-          console.log('[ChatService] Request aborted.');
+          // ignore
       } else {
-          console.error('[ChatService] Message failed', error);
-          setError(error instanceof Error ? error.message : 'Failed to send message');
-          updateMessage(assistantMessageId, '❌ Failed to get response');
+          const type = error.type || 'UNKNOWN';
+          const code = error.statusCode || error.status || '';
+          const detail = error.message || 'Unknown error occurred';
+          
+          const errorXml = `<error type="${type}" code="${code}">${detail}</error>`;
+          
+          setError(detail); 
+          updateMessage(targetSessionId, assistantMessageId, errorXml);
       }
     } finally {
-      if (abortControllerRef.current === controller) {
-          setLoading(false);
-          abortControllerRef.current = null;
-      }
+      requestManager.finish(targetSessionId);
+      setSessionLoading(targetSessionId, false);
     }
-  }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, setLoading, setError, messages, isLoading, webSearchEnabled, setCitations, generateAutoTitle]);
+  }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, setSessionLoading, setError, messages, webSearchEnabled, setCitations, generateAutoTitle, markSessionUnread]);
+
+  const editMessage = useCallback(async (messageId: string, newContent: string) => {
+      if (!currentSessionId || !selectedModel) return;
+      const sessionId = currentSessionId;
+      const provider = providers.find(p => p.id === selectedModel.providerId);
+      if (!provider) return;
+
+      editMessageAndTruncate(sessionId, messageId, newContent);
+
+      const assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      addMessage({
+          id: assistantMessageId,
+          role: 'assistant',
+          content: '',
+          modelId: selectedModel.id
+      });
+
+      const controller = requestManager.start(sessionId);
+      setSessionLoading(sessionId, true);
+      setError(null);
+
+      try {
+          const state = useUnifiedStore.getState();
+          const sessionMessages = state.data.ai?.messages[sessionId] || [];
+          
+          const userMsgIndex = sessionMessages.findIndex(m => m.id === messageId);
+          const history = sessionMessages.slice(0, userMsgIndex);
+          
+          let finalHistory = [...history];
+          
+          if (webSearchEnabled) {
+              updateMessage(sessionId, assistantMessageId, '🔍 正在联网搜索...');
+              const results = await performWebSearch(newContent, controller.signal);
+              
+              if (results.length > 0) {
+                  setCitations(sessionId, assistantMessageId, results);
+                  const searchContext = formatSearchResults(results);
+                  const timeInfo = `${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })} ${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
+                  finalHistory.push({
+                      role: 'system',
+                      content: SEARCH_SYSTEM_PROMPT(searchContext, timeInfo),
+                      modelId: selectedModel.id,
+                      id: `search-${Date.now()}`,
+                      timestamp: Date.now()
+                  } as any);
+                  updateMessage(sessionId, assistantMessageId, '🧠 正在思考...');
+              }
+          } else {
+               const timeInfo = `${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`;
+               finalHistory.push({
+                  role: 'system',
+                  content: TIME_SYSTEM_PROMPT(timeInfo),
+                  modelId: selectedModel.id,
+                  id: `time-${Date.now()}`,
+                  timestamp: Date.now()
+               } as any);
+          }
+
+          const sanitizedHistory = finalHistory.map(msg => {
+              if (typeof msg.content === 'string') {
+                  return { 
+                      ...msg, 
+                      content: msg.content.replace(/!\[.*?\]\(.*?\)/g, IMAGE_PLACEHOLDER) 
+                  };
+              }
+              return msg;
+          });
+
+          await openaiClient.sendMessage(
+              newContent, 
+              sanitizedHistory,
+              selectedModel,
+              provider,
+              (chunk) => updateMessage(sessionId, assistantMessageId, chunk),
+              controller.signal
+          );
+          completeMessage(sessionId, assistantMessageId);
+
+      } catch (error: any) {
+          if (error.name !== 'AbortError') {
+              const detail = error.message || 'Unknown error';
+              const errorXml = `<error type="${error.type || 'UNKNOWN'}" code="${error.statusCode || ''}">${detail}</error>`;
+              updateMessage(sessionId, assistantMessageId, errorXml);
+          }
+      } finally {
+          requestManager.finish(sessionId);
+          setSessionLoading(sessionId, false);
+      }
+  }, [currentSessionId, selectedModel, providers, editMessageAndTruncate, addMessage, updateMessage, completeMessage, setError, setSessionLoading, webSearchEnabled, setCitations]);
 
   const regenerate = useCallback(async (msgId: string) => {
-      if (isLoading || !selectedModel) return;
-      if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (!selectedModel || !currentSessionId) return;
+      const sessionId = currentSessionId;
 
       const msgIndex = messages.findIndex(m => m.id === msgId);
       if (msgIndex <= 0) return;
@@ -238,33 +316,29 @@ export function useChatService() {
       if (!provider) return;
 
       addVersion(msgId);
-      setLoading(true);
       
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-
+      const controller = requestManager.start(sessionId);
+      setSessionLoading(sessionId, true);
+      
       try {
           await openaiClient.sendMessage(
               promptMsg.content,
               history,
               selectedModel,
               provider,
-              (chunk) => updateMessage(msgId, chunk),
+              (chunk) => updateMessage(sessionId, msgId, chunk),
               controller.signal
           );
-          completeMessage(msgId);
+          completeMessage(sessionId, msgId);
       } catch (error: any) {
           if (error.name !== 'AbortError') {
-              console.error('[ChatService] Regen failed', error);
               setError('Failed to regenerate');
           }
       } finally {
-          if (abortControllerRef.current === controller) {
-              setLoading(false);
-              abortControllerRef.current = null;
-          }
+          requestManager.finish(sessionId);
+          setSessionLoading(sessionId, false);
       }
-  }, [isLoading, selectedModel, messages, providers, addVersion, setLoading, updateMessage, completeMessage, setError]);
+  }, [selectedModel, messages, providers, addVersion, setSessionLoading, updateMessage, completeMessage, setError, currentSessionId]);
 
-  return { sendMessage, regenerate, stop };
+  return { sendMessage, regenerate, editMessage, stop };
 }

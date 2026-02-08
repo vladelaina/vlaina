@@ -16,23 +16,44 @@ interface ChatSidebarProps {
 }
 
 export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
-  const { sessions, currentSessionId, createSession, switchSession, deleteSession, updateSession } = useAIStore();
+  const { 
+      sessions, 
+      currentSessionId, 
+      createSession, 
+      openNewChat,
+      switchSession, 
+      deleteSession, 
+      updateSession, 
+      isSessionLoading,
+      isSessionUnread,
+      markSessionRead
+  } = useAIStore();
   
-  // Dialog States
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // Listen for global create new event
   useEffect(() => {
     const handleCreateNew = (e: Event) => {
         const customEvent = e as CustomEvent;
         if (customEvent.detail?.view === 'chat') {
-            createSession();
+            openNewChat();
+        }
+    };
+
+    const handleDeleteChat = (e: Event) => {
+        const customEvent = e as CustomEvent;
+        if (customEvent.detail?.id) {
+            setDeleteId(customEvent.detail.id);
         }
     };
 
     window.addEventListener('neko-create-new', handleCreateNew);
-    return () => window.removeEventListener('neko-create-new', handleCreateNew);
-  }, [createSession]);
+    window.addEventListener('neko-delete-chat', handleDeleteChat);
+    
+    return () => {
+        window.removeEventListener('neko-create-new', handleCreateNew);
+        window.removeEventListener('neko-delete-chat', handleDeleteChat);
+    };
+  }, [openNewChat]);
 
   const sortedSessions = useMemo(() => {
     return [...sessions].sort((a, b) => {
@@ -42,7 +63,6 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   }, [sessions]);
 
   const handleRename = (sessionId: string, currentTitle: string) => {
-      // TODO: Replace with custom dialog if needed
       const newTitle = window.prompt("Rename chat", currentTitle);
       if (newTitle && newTitle.trim()) {
           updateSession(sessionId, { title: newTitle.trim() });
@@ -51,6 +71,11 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
 
   const handleTogglePin = (sessionId: string, isPinned?: boolean) => {
       updateSession(sessionId, { isPinned: !isPinned });
+  };
+
+  const handleSwitch = (sessionId: string, isUnread: boolean) => {
+      if (isUnread) markSessionRead(sessionId);
+      switchSession(sessionId);
   };
 
   return (
@@ -68,6 +93,9 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
             ) : (
               sortedSessions.map(session => {
                 const isActive = currentSessionId === session.id;
+                const isGenerating = isSessionLoading(session.id);
+                const isUnread = isSessionUnread(session.id);
+                
                 return (
                   <div
                     key={session.id}
@@ -77,11 +105,23 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                         ? "bg-[#F4F4F5] dark:bg-[#222] text-gray-800 dark:text-gray-200 font-medium" 
                         : "text-gray-600 dark:text-gray-400 hover:bg-[#F9F9FA] dark:hover:bg-[#1E1E1E]"
                     )}
-                    onClick={() => switchSession(session.id)}
+                    onClick={() => handleSwitch(session.id, isUnread)}
                   >
                     <div className="flex-1 truncate relative z-10 flex items-center gap-2">
-                      {session.isPinned && <MdPushPin className="w-3 h-3 flex-shrink-0 text-gray-400" />}
-                      <span className="truncate">{session.title || 'New Chat'}</span>
+                      {isGenerating && !isActive ? (
+                          <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] animate-pulse flex-shrink-0" title="Generating in background..." />
+                      ) : isUnread ? (
+                          <div className="w-2 h-2 rounded-full bg-gray-600 dark:bg-gray-300 shadow-sm flex-shrink-0" title="New messages" />
+                      ) : session.isPinned ? (
+                          <MdPushPin className="w-3 h-3 flex-shrink-0 text-gray-400" />
+                      ) : null}
+                      
+                      <span className={cn(
+                          "truncate transition-opacity", 
+                          (isGenerating || isUnread) && "font-medium text-gray-900 dark:text-gray-100"
+                      )}>
+                          {session.title || 'New Chat'}
+                      </span>
                     </div>
 
                     <div 
@@ -127,7 +167,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                               <DropdownMenuItem 
                                   onClick={(e) => {
                                       e.stopPropagation();
-                                      setDeleteId(session.id); // Open dialog
+                                      setDeleteId(session.id);
                                   }}
                                   className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
                               >
