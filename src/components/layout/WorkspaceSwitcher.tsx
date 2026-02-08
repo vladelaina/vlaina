@@ -137,7 +137,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
             <Popover.Trigger asChild>
                 <button
                     className={cn(
-                        "flex items-center gap-2 px-2 py-1 h-8 rounded-md transition-colors",
+                        "flex items-center gap-1.5 px-1.5 py-1 h-8 rounded-md transition-colors",
                         "hover:bg-[var(--neko-hover)]",
                         "text-[var(--neko-text-primary)] select-none outline-none group",
                         isOpen && "bg-[var(--neko-hover)]"
@@ -148,10 +148,10 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                         alt={displayName}
                         className="w-5 h-5 rounded-sm object-cover shadow-sm"
                     />
-                    <span className="text-[14px] font-medium truncate max-w-[120px]">
+                    <span className="text-[13px] font-medium truncate max-w-[120px] leading-none pt-[1px]">
                         {displayName}
                     </span>
-                    <MdExpandMore className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <MdExpandMore className="w-3.5 h-3.5 text-[var(--neko-text-tertiary)] opacity-0 group-hover:opacity-70 transition-all duration-200 -ml-0.5" />
                 </button>
             </Popover.Trigger>
 
