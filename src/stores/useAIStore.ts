@@ -264,6 +264,28 @@ const actions = {
       }
   },
 
+  editMessageAndTruncate: (sessionId: string, messageId: string, newContent: string) => {
+      const state = useUnifiedStore.getState();
+      const ai = state.data.ai!;
+      const messages = ai.messages[sessionId] || [];
+      const index = messages.findIndex(m => m.id === messageId);
+      if (index === -1) return;
+
+      // Keep messages up to this one (inclusive), update content
+      const newMessages = messages.slice(0, index + 1);
+      newMessages[index] = { 
+          ...newMessages[index], 
+          content: newContent,
+          // Reset versions if we are doing a destructive edit? 
+          // Or keep versions? For simplicity in this "Truncate" mode, we might just update main content.
+          // Let's just update content for now.
+      };
+      
+      state.updateAIData({
+          messages: { ...ai.messages, [sessionId]: newMessages }
+      });
+  },
+
   addVersion: (id: string) => {
       const state = useUnifiedStore.getState();
       const ai = state.data.ai!;

@@ -12,6 +12,7 @@ interface MessageItemProps {
   onCopy: (text: string) => void;
   onSpeak: (id: string, text: string) => void;
   onRegenerate: (id: string) => void;
+  onEdit?: (id: string, newContent: string) => void; // Added onEdit
   onSwitchVersion: (id: string, dir: 'prev' | 'next') => void;
   onToggleSources: (id: string) => void;
 }
@@ -24,6 +25,7 @@ export const MessageItem = memo(function MessageItem({
   onCopy,
   onSpeak,
   onRegenerate,
+  onEdit, // Destructure
   onSwitchVersion,
   onToggleSources
 }: MessageItemProps) {
@@ -43,7 +45,10 @@ export const MessageItem = memo(function MessageItem({
           )}
       >
           {isUser ? (
-              <UserMessage content={msg.content} />
+              <UserMessage 
+                  content={msg.content} 
+                  onEdit={onEdit ? (newContent) => onEdit(msg.id, newContent) : undefined}
+              />
           ) : (
               <AIMessage 
                   msg={msg}

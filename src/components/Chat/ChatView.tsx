@@ -21,7 +21,7 @@ export function ChatView() {
   } = useAIStore();
 
   const messages = currentSessionId ? (allMessages[currentSessionId] || []) : [];
-  const { sendMessage, regenerate, stop } = useChatService();
+  const { sendMessage, regenerate, editMessage, stop } = useChatService();
   
   // Check if CURRENT session is loading
   const isLoading = currentSessionId ? isSessionLoading(currentSessionId) : false;
@@ -85,6 +85,7 @@ export function ChatView() {
                     onCopy={copyToClipboard}
                     onSpeak={handleSpeak}
                     onRegenerate={regenerate}
+                    onEdit={editMessage} // Pass editMessage
                     onSwitchVersion={switchVersion}
                     onToggleSources={toggleSources}
                 />

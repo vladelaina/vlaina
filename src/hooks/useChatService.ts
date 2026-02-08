@@ -19,7 +19,8 @@ export function useChatService() {
     addMessage, 
     updateMessage, 
     completeMessage,
-    addVersion, // Ensure this is destructured
+    editMessageAndTruncate,
+    addVersion,
     setCitations,
     getSelectedModel, 
     providers, 
@@ -108,7 +109,7 @@ export function useChatService() {
     }
 
     try {
-      let finalHistory = [...messages];
+      let finalHistory = [...messages]; // This is stale for new message but ok for history
       
       if (webSearchEnabled && userMessageText) {
           updateMessage(targetSessionId, assistantMessageId, '🔍 正在联网搜索...');
@@ -217,6 +218,106 @@ export function useChatService() {
     }
   }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, setSessionLoading, setError, messages, webSearchEnabled, setCitations, generateAutoTitle, markSessionUnread]);
 
+  const editMessage = useCallback(async (messageId: string, newContent: string) => {
+      console.log('[ChatService] editMessage called', { messageId, newContentLength: newContent.length });
+      
+      if (!currentSessionId || !selectedModel) {
+          console.error('[ChatService] Edit failed: No session or model', { currentSessionId, selectedModel });
+          return;
+      }
+      const sessionId = currentSessionId;
+      const provider = providers.find(p => p.id === selectedModel.providerId);
+      if (!provider) {
+          console.error('[ChatService] Edit failed: Provider not found');
+          return;
+      }
+
+      // 1. Truncate and Update Store
+      editMessageAndTruncate(sessionId, messageId, newContent);
+
+      // 2. Prepare for Generation
+      const assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      addMessage({
+          id: assistantMessageId,
+          role: 'assistant',
+          content: '',
+          modelId: selectedModel.id
+      });
+
+      const controller = requestManager.start(sessionId);
+      setSessionLoading(sessionId, true);
+      setError(null);
+
+      try {
+          const state = useUnifiedStore.getState();
+          const sessionMessages = state.data.ai?.messages[sessionId] || [];
+          
+          const userMsgIndex = sessionMessages.findIndex(m => m.id === messageId);
+          const history = sessionMessages.slice(0, userMsgIndex);
+          
+          let finalHistory = [...history];
+          
+          if (webSearchEnabled) {
+              updateMessage(sessionId, assistantMessageId, '🔍 正在联网搜索...');
+              const results = await performWebSearch(newContent, controller.signal);
+              
+              if (results.length > 0) {
+                  setCitations(sessionId, assistantMessageId, results);
+                  const searchContext = formatSearchResults(results);
+                  const timeInfo = `${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })} ${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
+                  finalHistory.push({
+                      role: 'system',
+                      content: SEARCH_SYSTEM_PROMPT(searchContext, timeInfo),
+                      modelId: selectedModel.id,
+                      id: `search-${Date.now()}`,
+                      timestamp: Date.now()
+                  } as any);
+                  updateMessage(sessionId, assistantMessageId, '🧠 正在思考...');
+              }
+          } else {
+               const timeInfo = `${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`;
+               finalHistory.push({
+                  role: 'system',
+                  content: TIME_SYSTEM_PROMPT(timeInfo),
+                  modelId: selectedModel.id,
+                  id: `time-${Date.now()}`,
+                  timestamp: Date.now()
+               } as any);
+          }
+
+          const sanitizedHistory = finalHistory.map(msg => {
+              if (typeof msg.content === 'string') {
+                  return { 
+                      ...msg, 
+                      content: msg.content.replace(/!\[.*?\]\(.*?\)/g, IMAGE_PLACEHOLDER) 
+                  };
+              }
+              return msg;
+          });
+
+          await openaiClient.sendMessage(
+              newContent, 
+              sanitizedHistory,
+              selectedModel,
+              provider,
+              (chunk) => updateMessage(sessionId, assistantMessageId, chunk),
+              controller.signal
+          );
+          completeMessage(sessionId, assistantMessageId);
+
+      } catch (error: any) {
+          if (error.name !== 'AbortError') {
+              console.error('[ChatService] Edit failed', error);
+              const detail = error.message || 'Unknown error';
+              const errorXml = `<error type="${error.type || 'UNKNOWN'}" code="${error.statusCode || ''}">${detail}</error>`;
+              updateMessage(sessionId, assistantMessageId, errorXml);
+          }
+      } finally {
+          requestManager.finish(sessionId);
+          setSessionLoading(sessionId, false);
+      }
+  }, [currentSessionId, selectedModel, providers, editMessageAndTruncate, addMessage, updateMessage, completeMessage, setError, setSessionLoading, webSearchEnabled, setCitations]);
+
   const regenerate = useCallback(async (msgId: string) => {
       if (!selectedModel || !currentSessionId) return;
       const sessionId = currentSessionId;
@@ -231,10 +332,6 @@ export function useChatService() {
       const provider = providers.find(p => p.id === selectedModel.providerId);
       if (!provider) return;
 
-      // addVersion also needs sessionId now?
-      // No, UI actions can use currentSessionId logic inside store unless we refactor all.
-      // But addVersion implementation uses currentSessionId from Store state.
-      // Since regenerate is user-initiated on current session, it's safe.
       addVersion(msgId);
       
       const controller = requestManager.start(sessionId);
@@ -261,5 +358,5 @@ export function useChatService() {
       }
   }, [selectedModel, messages, providers, addVersion, setSessionLoading, updateMessage, completeMessage, setError, currentSessionId]);
 
-  return { sendMessage, regenerate, stop };
+  return { sendMessage, regenerate, editMessage, stop };
 }
