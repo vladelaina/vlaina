@@ -21,7 +21,7 @@ export function ShortcutsTab({
   return (
     <div className="max-w-xl">
       <div className="space-y-1">
-        {shortcuts.map((shortcut) => (
+        {shortcuts.filter(s => !s.isSystem).map((shortcut) => (
           <div
             key={shortcut.id}
             className="flex items-center justify-between py-1.5"

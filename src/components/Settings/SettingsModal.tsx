@@ -135,7 +135,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -147,9 +146,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             }}
           />
 
-          {/* Modal Container */}
           <div className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none p-4">
-            {/* Global Window Drag Region (Top Strip) */}
             <div
               className="absolute top-0 left-0 right-0 h-14 z-[105] pointer-events-auto"
               onMouseDown={(e) => {
@@ -186,19 +183,15 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               onKeyDown={handleKeyDown}
               tabIndex={-1}
             >
-              {/* Sidebar */}
               <div className="w-[260px] flex-shrink-0 bg-[#F7F7F7] dark:bg-[#141414] flex flex-col border-r border-[#EEEEEE] dark:border-[#2C2C2C]">
-                {/* Header */}
                 <div className="px-6 pt-8 pb-4">
                   <h2 className="text-[16px] font-bold text-zinc-900 dark:text-zinc-100">
                     Settings
                   </h2>
                 </div>
 
-                {/* User Profile Card */}
                 <div className="px-3 pb-6 border-b border-transparent">
                   <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-default group">
-                    {/* Avatar */}
                     <div className="w-9 h-9 rounded-lg bg-zinc-200 dark:bg-zinc-800 overflow-hidden flex-shrink-0 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
                       {avatarUrl ? (
                         <img src={avatarUrl} alt={username || 'User'} className="w-full h-full object-cover" />
@@ -209,13 +202,11 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       )}
                     </div>
 
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-50 truncate">
                           {isConnected && username ? username : 'Guest User'}
                         </span>
-                        {/* Plan Badge */}
                         <span className={cn(
                           "px-1.5 py-[1px] rounded-[4px] text-[10px] font-bold tracking-tight uppercase",
                           isProUser
@@ -232,7 +223,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   </div>
                 </div>
 
-                {/* Navigation Items */}
                 <div className="flex-1 overflow-y-auto px-3 space-y-7 py-4">
                   {sidebarGroups.map((group) => (
                     <div key={group.title}>
@@ -276,9 +266,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 </div>
               </div>
 
-              {/* Main Content */}
               <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#1E1E1E] relative">
-                {/* Close Button - Floating top right */}
                 <div className="absolute top-5 right-5 z-20">
                   <button
                     onClick={onClose}
@@ -288,7 +276,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   </button>
                 </div>
 
-                {/* Content Scroll Area */}
                 <div className="flex-1 overflow-y-auto w-full neko-scrollbar">
                   <div className={cn(
                     "w-full mx-auto",
@@ -296,7 +283,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       ? "h-full" 
                       : "px-12 py-10 max-w-[800px]"
                   )}>
-                    {/* Page Header */}
                     {activeTab !== 'ai' && (
                       <div className="mb-10">
                         <h1 className="text-[26px] font-bold text-[#111] dark:text-white mb-1.5 tracking-tight">
@@ -308,7 +294,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       </div>
                     )}
 
-                    {/* Content */}
                     <div className={cn(
                       "animate-in fade-in slide-in-from-bottom-2 duration-500",
                       activeTab === 'ai' ? "h-full" : "space-y-8"

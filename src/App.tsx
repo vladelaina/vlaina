@@ -45,7 +45,7 @@ function AppContent() {
   const toggleSettings = useCallback(() => setSettingsOpen(prev => !prev), []);
 
   useEffect(() => {
-    const handleOpenSettings = () => setSettingsOpen(true)
+    const handleOpenSettings = () => setSettingsOpen(prev => !prev)
     const handleOpenLab = () => setAppViewMode('lab') // Switch view to Lab
     
     window.addEventListener('open-settings', handleOpenSettings)
@@ -57,10 +57,7 @@ function AppContent() {
     }
   }, [setAppViewMode])
 
-  const shortcutHandlers = useMemo(() => ({
-    'open-settings': toggleSettings,
-  }), [toggleSettings]);
-  useShortcuts({ handlers: shortcutHandlers });
+  useShortcuts();
 
   useSyncInit();
   const loadCalendarEvents = useCalendarEventsStore(state => state.load);
@@ -72,18 +69,6 @@ function AppContent() {
   useEffect(() => {
     loadCalendarEvents();
   }, [loadCalendarEvents]);
-
-  useEffect(() => {
-    const handleNewWindow = async (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'N') {
-        e.preventDefault();
-        e.stopPropagation();
-        await windowCommands.createNewWindow();
-      }
-    };
-    window.addEventListener('keydown', handleNewWindow);
-    return () => window.removeEventListener('keydown', handleNewWindow);
-  }, []);
 
   useEffect(() => {
     if (!isTauri()) return;
