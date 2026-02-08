@@ -1,56 +1,45 @@
-export function toStoragePath(path: string): string {
-  return path.replace(/\\/g, '/');
-}
+import { AssetCategory } from '../types';
 
-export function toOSPath(path: string, separator: string): string {
-  if (separator === '/') {
-    return path;
-  }
-  return path.replace(/\//g, separator);
-}
-
-export function isRelativePath(path: string): boolean {
-  if (/^[A-Za-z]:[\\/]/.test(path)) {
-    return false;
-  }
-
-  if (path.startsWith('/')) {
-    return false;
-  }
-
-  if (path.startsWith('\\\\')) {
-    return false;
-  }
-
-  return true;
-}
-
-export function isValidAssetFilename(filename: string): boolean {
-  if (filename.includes('/') || filename.includes('\\')) {
-    return false;
-  }
-  if (!filename.includes('.')) {
-    return false;
-  }
-  return true;
-}
-
-export function buildAssetPath(filename: string): string {
-  if (filename.startsWith('icons/')) {
-    return `.nekotick/assets/${filename}`;
-  }
-  return `.nekotick/assets/covers/${filename}`;
-}
-
-export function buildFullAssetPath(vaultPath: string, assetFilename: string): string {
-  const sep = vaultPath.includes('\\') ? '\\' : '/';
-
-  const isIcon = assetFilename.startsWith('icons/') || assetFilename.startsWith('icons\\');
-  const normalizedFilename = assetFilename.replace(/\//g, sep);
+/**
+ * Resolves the absolute path for a system asset (icon or cover) within the vault.
+ * Always targets the .nekotick/assets directory.
+ */
+export async function resolveSystemAssetPath(
+  vaultPath: string, 
+  filename: string, 
+  category: 'covers' | 'icons'
+): Promise<string> {
+  const { join } = await import('@tauri-apps/api/path');
+  const assetsBaseDir = await join(vaultPath, '.nekotick', 'assets');
   
-  if (isIcon) {
-    return `${vaultPath}${sep}.nekotick${sep}assets${sep}${normalizedFilename}`;
+  if (category === 'icons') {
+    // Filename usually comes as 'icons/name.png' or just 'name.png'. 
+    // If it has prefix, strip it for joining, or just join carefully.
+    // Our storage format: icons are stored in 'icons' folder, filenames in DB might be 'icons/foo.png'.
+    const name = filename.replace(/^icons[\\/]/, '');
+    return join(assetsBaseDir, 'icons', name);
+  } else {
+    // Covers
+    // Filename in DB is usually just 'foo.jpg'.
+    return join(assetsBaseDir, 'covers', filename);
   }
-
-  return `${vaultPath}${sep}.nekotick${sep}assets${sep}covers${sep}${normalizedFilename}`;
 }
+
+/**
+ * Robustly joins paths ensuring OS-specific separators using Tauri API.
+ */
+export async function joinPaths(...paths: string[]): Promise<string> {
+  const { join } = await import('@tauri-apps/api/path');
+  return join(...paths);
+}
+
+/**
+ * Helper to get the directory name of a path.
+ */
+export async function getDirname(path: string): Promise<string> {
+  const { dirname } = await import('@tauri-apps/api/path');
+  return dirname(path);
+}
+
+// Deprecated synchronous helpers - removing as requested for thorough refactor.
+// If valid usage exists elsewhere, it should be migrated to async/await patterns.

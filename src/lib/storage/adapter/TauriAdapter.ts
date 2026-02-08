@@ -11,7 +11,7 @@ import {
   copyFile as fsCopyFile,
   stat as fsStat,
 } from '@tauri-apps/plugin-fs';
-import { appDataDir } from '@tauri-apps/api/path';
+import { appDataDir, join, dirname, basename } from '@tauri-apps/api/path';
 import type { StorageAdapter, FileInfo, WriteOptions, ListOptions } from './types';
 
 export class TauriAdapter implements StorageAdapter {
@@ -29,8 +29,8 @@ export class TauriAdapter implements StorageAdapter {
 
   async writeFile(path: string, content: string, options?: WriteOptions): Promise<void> {
     if (options?.recursive) {
-      const dir = this.getParentDir(path);
-      if (dir && !(await this.exists(dir))) {
+      const dir = await dirname(path);
+      if (!(await this.exists(dir))) {
         await this.mkdir(dir, true);
       }
     }
@@ -53,8 +53,8 @@ export class TauriAdapter implements StorageAdapter {
 
   async writeBinaryFile(path: string, content: Uint8Array, options?: WriteOptions): Promise<void> {
     if (options?.recursive) {
-      const dir = this.getParentDir(path);
-      if (dir && !(await this.exists(dir))) {
+      const dir = await dirname(path);
+      if (!(await this.exists(dir))) {
         await this.mkdir(dir, true);
       }
     }
@@ -102,7 +102,7 @@ export class TauriAdapter implements StorageAdapter {
         continue;
       }
 
-      const fullPath = this.joinPath(path, entry.name);
+      const fullPath = await join(path, entry.name);
       const info: FileInfo = {
         name: entry.name,
         path: fullPath,
@@ -132,7 +132,7 @@ export class TauriAdapter implements StorageAdapter {
   async stat(path: string): Promise<FileInfo | null> {
     try {
       const info = await fsStat(path);
-      const name = path.split(/[/\\]/).pop() || '';
+      const name = await basename(path);
       return {
         name,
         path,
@@ -149,38 +149,12 @@ export class TauriAdapter implements StorageAdapter {
   async getBasePath(): Promise<string> {
     if (this.basePath === null) {
       const appData = await appDataDir();
+      // Use dirname or similar if needed to ensure no trailing slash, but appDataDir usually returns clean path.
+      // Keeping original logic but verifying.
       this.basePath = appData.endsWith('\\') || appData.endsWith('/')
         ? appData.slice(0, -1)
         : appData;
     }
     return this.basePath;
-  }
-
-  private getParentDir(path: string): string | null {
-    const isWindowsPath = /^[a-zA-Z]:[\\/]/.test(path) || path.includes('\\');
-    const sep = isWindowsPath ? '\\' : '/';
-    const parts = path.split(sep);
-    if (parts.length <= 1) return null;
-    parts.pop();
-    return parts.join(sep);
-  }
-
-  private joinPath(...parts: string[]): string {
-    if (parts.length === 0) return '';
-    
-    const firstPart = parts[0] || '';
-    const isWindowsPath = /^[a-zA-Z]:[\\/]/.test(firstPart) || firstPart.includes('\\');
-    const sep = isWindowsPath ? '\\' : '/';
-    
-    return parts
-      .map((part, index) => {
-        if (index > 0) {
-          part = part.replace(/^[/\\]+/, '');
-        }
-        part = part.replace(/[/\\]+$/, '');
-        return part;
-      })
-      .filter(Boolean)
-      .join(sep);
   }
 }

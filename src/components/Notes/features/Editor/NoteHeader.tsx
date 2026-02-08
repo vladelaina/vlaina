@@ -3,7 +3,7 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { TitleInput } from './TitleInput';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
-import { buildFullAssetPath } from '@/lib/assets/core/paths';
+import { resolveSystemAssetPath } from '@/lib/assets/core/paths';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { HeroIconHeader } from '@/components/common/HeroIconHeader';
 
@@ -48,7 +48,7 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
     const imageLoader = useCallback(async (src: string) => {
         if (!vaultPath) return src;
         const relativePath = src.substring(4);
-        const fullPath = buildFullAssetPath(vaultPath, relativePath);
+        const fullPath = await resolveSystemAssetPath(vaultPath, relativePath, 'icons');
         return await loadImageAsBlob(fullPath);
     }, [vaultPath]);
 

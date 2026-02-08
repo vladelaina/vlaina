@@ -2,7 +2,7 @@ import { useRef, useEffect, useMemo, useLayoutEffect } from 'react';
 import { MdBrokenImage } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
-import { buildFullAssetPath } from '@/lib/assets/core/paths';
+import { resolveSystemAssetPath } from '@/lib/assets/core/paths';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 import { CoverPicker } from '../../../AssetLibrary';
 import { useCoverSource } from '../../hooks/useCoverSource';
@@ -86,7 +86,8 @@ export function CoverImage({
                 return;
             }
             if (!vaultPath) return;
-            const fullPath = buildFullAssetPath(vaultPath, assetPath);
+            const category = assetPath.startsWith('icons/') ? 'icons' : 'covers';
+            const fullPath = await resolveSystemAssetPath(vaultPath, assetPath, category);
             const blobUrl = await loadImageAsBlob(fullPath);
             if (assetPath === lastPreviewPathRef.current) setPreviewSrc(blobUrl);
         } catch {
