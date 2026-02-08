@@ -73,7 +73,7 @@ export function ImagesTab() {
                                 className={cn(
                                     "w-full flex items-start gap-3 p-3 rounded-lg border transition-all text-left",
                                     isSelected
-                                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-600"
+                                        ? "border-[#2783de] bg-[#2783de]/10 dark:bg-[#2783de]/20 dark:border-[#2783de]"
                                         : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
                                 )}
                             >
@@ -81,7 +81,7 @@ export function ImagesTab() {
                                 <div className={cn(
                                     "mt-0.5 w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0",
                                     isSelected
-                                        ? "border-blue-500 bg-blue-500"
+                                        ? "border-[#2783de] bg-[#2783de]"
                                         : "border-zinc-300 dark:border-zinc-600"
                                 )}>
                                     {isSelected && (
@@ -92,14 +92,14 @@ export function ImagesTab() {
                                 {/* Icon */}
                                 <Icon className={cn(
                                     "size-[18px] flex-shrink-0 mt-0.5",
-                                    isSelected ? "text-blue-600 dark:text-blue-400" : "text-zinc-400"
+                                    isSelected ? "text-[#2783de] dark:text-[#2783de]" : "text-zinc-400"
                                 )} />
 
                                 {/* Text */}
                                 <div className="flex-1 min-w-0">
                                     <div className={cn(
                                         "text-sm font-medium",
-                                        isSelected ? "text-blue-700 dark:text-blue-300" : "text-zinc-700 dark:text-zinc-300"
+                                        isSelected ? "text-[#2783de] dark:text-[#2783de]" : "text-zinc-700 dark:text-zinc-300"
                                     )}>
                                         {option.label}
                                     </div>
@@ -124,7 +124,7 @@ export function ImagesTab() {
                         value={imageVaultSubfolderName}
                         onChange={(e) => setImageVaultSubfolderName(e.target.value)}
                         placeholder="assets"
-                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#2783de] focus:border-transparent"
                     />
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
                         Images will be saved to <code className="px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">{imageVaultSubfolderName || 'assets'}/</code> in the vault root
@@ -143,7 +143,7 @@ export function ImagesTab() {
                         value={imageSubfolderName}
                         onChange={(e) => setImageSubfolderName(e.target.value)}
                         placeholder="assets"
-                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#2783de] focus:border-transparent"
                     />
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
                         Images will be saved to <code className="px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">{imageSubfolderName || 'assets'}/</code> inside the current note's folder
@@ -193,14 +193,14 @@ export function ImagesTab() {
                 className={cn(
                     "w-full flex items-center gap-3 p-2.5 rounded-lg border transition-all text-left",
                     isSelected
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-600"
+                        ? "border-[#2783de] bg-[#2783de]/10 dark:bg-[#2783de]/20 dark:border-[#2783de]"
                         : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
                 )}
             >
                 <div className={cn(
                     "w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0",
                     isSelected
-                        ? "border-blue-500 bg-blue-500"
+                        ? "border-[#2783de] bg-[#2783de]"
                         : "border-zinc-300 dark:border-zinc-600"
                 )}>
                     {isSelected && (
@@ -209,12 +209,12 @@ export function ImagesTab() {
                 </div>
                 <Icon className={cn(
                     "size-[18px] flex-shrink-0",
-                    isSelected ? "text-blue-600 dark:text-blue-400" : "text-zinc-400"
+                    isSelected ? "text-[#2783de] dark:text-[#2783de]" : "text-zinc-400"
                 )} />
                 <div className="flex-1 min-w-0">
                     <div className={cn(
                         "text-sm font-medium",
-                        isSelected ? "text-blue-700 dark:text-blue-300" : "text-zinc-700 dark:text-zinc-300"
+                        isSelected ? "text-[#2783de] dark:text-[#2783de]" : "text-zinc-700 dark:text-zinc-300"
                     )}>
                         {label}
                     </div>
