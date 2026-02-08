@@ -1,5 +1,5 @@
 import { AssetEntry, UploadResult } from './types';
-import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { getStorageAdapter } from '@/lib/storage/adapter';
 import { computeFileHash } from './core/hashing';
 import { getMimeType, generateFilename } from './core/naming';
 import { writeAssetAtomic } from './io/writer';
@@ -7,7 +7,7 @@ import { writeAssetAtomic } from './io/writer';
 export interface AssetContext {
   vaultPath: string;
   currentNotePath?: string;
-  category?: 'covers' | 'icons';
+  category?: 'covers' | 'icons' | 'content';
 }
 
 export interface AssetConfig {
@@ -101,7 +101,10 @@ export class AssetService {
 
     // 5. Write to Disk
     const buffer = new Uint8Array(await file.arrayBuffer());
-    const filePath = await joinPath(targetDir, finalFilename);
+    
+    // Use Tauri's join here too for consistency
+    const { join } = await import('@tauri-apps/api/path');
+    const filePath = await join(targetDir, finalFilename);
     
     await writeAssetAtomic(filePath, buffer);
     
@@ -133,24 +136,26 @@ export class AssetService {
     config: AssetConfig
   ): Promise<{ targetDir: string; storedPathPrefix: string }> {
     const { vaultPath, currentNotePath, category } = context;
+    const { join, dirname } = await import('@tauri-apps/api/path');
     
+    // System assets (Icons/Covers) always go to .nekotick/assets
     if (category === 'icons') {
-      const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
+      const assetsBaseDir = await join(vaultPath, '.nekotick', 'assets');
       return {
-        targetDir: await joinPath(assetsBaseDir, 'icons'),
+        targetDir: await join(assetsBaseDir, 'icons'),
         storedPathPrefix: 'icons/'
       };
     }
     
-    if (category === 'covers' && !currentNotePath) {
-       const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
+    if (category === 'covers') {
+       const assetsBaseDir = await join(vaultPath, '.nekotick', 'assets');
        return {
-         targetDir: await joinPath(assetsBaseDir, 'covers'),
+         targetDir: await join(assetsBaseDir, 'covers'),
          storedPathPrefix: ''
        };
     }
 
-    // Standard image upload logic
+    // Standard image upload logic (category === 'content' or undefined)
     switch (config.storageMode) {
       case 'vault':
       default:
@@ -162,43 +167,46 @@ export class AssetService {
       case 'vaultSubfolder':
         const vaultSubfolderName = config.imageVaultSubfolderName || 'assets';
         return {
-          targetDir: await joinPath(vaultPath, vaultSubfolderName),
+          targetDir: await join(vaultPath, vaultSubfolderName),
           storedPathPrefix: `${vaultSubfolderName}/`
         };
 
       case 'currentFolder':
         if (currentNotePath) {
-          const pathParts = currentNotePath.replace(/\\/g, '/').split('/');
-          pathParts.pop(); // remove filename
-          const currentDir = pathParts.join('/') || vaultPath;
+          // currentNotePath might be relative to vault, so resolve it first
+          const isAbsolute = currentNotePath.startsWith('/') || /^[a-zA-Z]:/.test(currentNotePath);
+          const absoluteNotePath = isAbsolute ? currentNotePath : await join(vaultPath, currentNotePath);
+          
+          const currentDir = await dirname(absoluteNotePath);
+
           return {
             targetDir: currentDir,
             storedPathPrefix: './' // Explicitly relative
           };
         } else {
            // Fallback to vault default
-           const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
            return {
-             targetDir: await joinPath(assetsBaseDir, 'covers'),
+             targetDir: vaultPath,
              storedPathPrefix: ''
            };
         }
 
       case 'subfolder':
         if (currentNotePath) {
-          const pathParts = currentNotePath.replace(/\\/g, '/').split('/');
-          pathParts.pop();
-          const noteDir = pathParts.join('/') || vaultPath;
+          const isAbsolute = currentNotePath.startsWith('/') || /^[a-zA-Z]:/.test(currentNotePath);
+          const absoluteNotePath = isAbsolute ? currentNotePath : await join(vaultPath, currentNotePath);
+          
+          const noteDir = await dirname(absoluteNotePath);
           const subfolderName = config.subfolderName || 'assets';
+          
           return {
-            targetDir: await joinPath(noteDir, subfolderName),
+            targetDir: await join(noteDir, subfolderName),
             storedPathPrefix: `./${subfolderName}/`
           };
         } else {
           // Fallback
-           const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
            return {
-             targetDir: await joinPath(assetsBaseDir, 'covers'),
+             targetDir: vaultPath,
              storedPathPrefix: ''
            };
         }

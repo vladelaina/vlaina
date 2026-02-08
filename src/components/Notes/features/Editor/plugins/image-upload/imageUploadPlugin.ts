@@ -66,7 +66,7 @@ async function handleImageUpload(file: File, view: any) {
     const { uploadAsset, currentNote } = useNotesStore.getState();
 
     try {
-        const result = await uploadAsset(file, 'covers', currentNote?.path);
+        const result = await uploadAsset(file, 'content', currentNote?.path);
 
         if (result.success && result.path) {
             const { state, dispatch } = view;

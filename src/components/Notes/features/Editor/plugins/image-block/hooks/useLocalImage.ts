@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
-import { joinPath } from '@/lib/storage/adapter';
 
 interface UseLocalImageResult {
     resolvedSrc: string;
@@ -35,7 +34,7 @@ export function useLocalImage(
             try {
                 const baseSrc = rawSrc.split('#')[0];
 
-                if (baseSrc.startsWith('http') || baseSrc.startsWith('data:') || baseSrc.startsWith('blob:')) {
+                if (baseSrc.startsWith('http') || baseSrc.startsWith('data:') || baseSrc.startsWith('blob:') || baseSrc.startsWith('asset:')) {
                     if (isMounted) {
                         setResolvedSrc(baseSrc);
                         setIsLoading(false);
@@ -43,18 +42,36 @@ export function useLocalImage(
                     return;
                 }
 
-                let fullPath = '';
-                if (baseSrc.startsWith('./') || baseSrc.startsWith('../')) {
-                    if (currentNotePath) {
-                        const normalizedPath = currentNotePath.replace(/\\/g, '/');
-                        const pathParts = normalizedPath.split('/');
-                        pathParts.pop();
+                // Use Tauri path API for robust resolution
+                const { join, dirname, isAbsolute } = await import('@tauri-apps/api/path');
 
-                        const parentDir = pathParts.join('/') || notesPath;
-                        fullPath = await joinPath(parentDir, baseSrc);
+                let fullPath = '';
+                
+                if (await isAbsolute(baseSrc)) {
+                    fullPath = baseSrc;
+                } 
+                else if (baseSrc.startsWith('./') || baseSrc.startsWith('../')) {
+                    if (currentNotePath) {
+                        const absoluteNotePath = await isAbsolute(currentNotePath) 
+                            ? currentNotePath 
+                            : await join(notesPath, currentNotePath);
+                            
+                        const parentDir = await dirname(absoluteNotePath);
+                        fullPath = await join(parentDir, baseSrc);
+                    } else {
+                        fullPath = await join(notesPath, baseSrc);
                     }
-                } else {
-                    fullPath = await joinPath(notesPath, baseSrc);
+                } 
+                else {
+                    if (currentNotePath) {
+                         const absoluteNotePath = await isAbsolute(currentNotePath) 
+                            ? currentNotePath 
+                            : await join(notesPath, currentNotePath);
+                        const parentDir = await dirname(absoluteNotePath);
+                        fullPath = await join(parentDir, baseSrc);
+                    } else {
+                        fullPath = await join(notesPath, baseSrc);
+                    }
                 }
 
                 if (fullPath) {
@@ -69,6 +86,7 @@ export function useLocalImage(
                 }
             } catch (err) {
                 if (isMounted) {
+                    console.warn(`Failed to resolve image: ${rawSrc}`, err);
                     setError(err instanceof Error ? err : new Error('Unknown error loading image'));
                     setResolvedSrc(rawSrc.split('#')[0]);
                 }

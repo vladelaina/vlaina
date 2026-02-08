@@ -1,3 +1,5 @@
+export type AssetCategory = 'covers' | 'icons' | 'content';
+
 export interface AssetEntry {
   filename: string;
   hash: string;
