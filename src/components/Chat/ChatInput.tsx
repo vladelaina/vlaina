@@ -214,7 +214,6 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                                     "text-gray-500 dark:text-gray-400",
                                     "hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200 active:scale-95"
                                 )}
-                                title="More options"
                             >
                                 <MdAdd className="w-5 h-5" />
                             </button>
@@ -249,7 +248,6 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                                 "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400",
                                 "hover:bg-blue-200 dark:hover:bg-blue-900/50"
                             )}
-                            title="Click to disable Web Search"
                         >
                             <MdLanguage className="w-3.5 h-3.5" />
                             <span>Search</span>
@@ -262,6 +260,8 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
 
                 <div className="flex items-center gap-2">
                   <ModelSelector />
+                  
+                  {/* Removed Settings Button here */}
                   
                   {isLoading && !message.trim() ? (
                       <button

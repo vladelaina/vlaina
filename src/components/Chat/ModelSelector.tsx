@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect, useMemo, memo } from 'react'
-import { MdExpandMore, MdSearch, MdSmartToy, MdCheck, MdPushPin, MdPushPin as MdPushPinOutlined } from 'react-icons/md'
+import { MdExpandMore, MdSearch, MdSmartToy, MdCheck, MdPushPin, MdPushPin as MdPushPinOutlined, MdSettings } from 'react-icons/md'
 import { useAIStore } from '@/stores/useAIStore'
 import { groupModels } from '@/lib/ai/utils'
 import { cn } from '@/lib/utils'
 import { getModelLogoById } from '@/components/Settings/tabs/ai/modelIcons'
 import type { AIModel } from '@/lib/ai/types';
 
-// Extracted Memoized Option Component for Performance
 const ModelOption = memo(({ 
     model, 
     isSelected, 
@@ -110,7 +109,6 @@ export function ModelSelector() {
       return [...filteredPinned, ...Object.values(filteredGroups).flat()];
   }, [filteredPinned, filteredGroups]);
 
-  // Keyboard Shortcuts & Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
         const isMod = e.metaKey || e.ctrlKey;
@@ -165,9 +163,8 @@ export function ModelSelector() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, flatModels, selectedModelId, focusedModelId]); // Add focusedModelId dependency
+  }, [isOpen, flatModels, selectedModelId, focusedModelId]);
 
-  // Auto-scroll to focused item
   useEffect(() => {
       if (isOpen && focusedModelId && dropdownRef.current) {
           const activeItem = dropdownRef.current.querySelector(`[data-model-id="${focusedModelId}"]`);
@@ -177,7 +174,6 @@ export function ModelSelector() {
       }
   }, [focusedModelId, isOpen]);
 
-  // Initial scroll
   useEffect(() => {
       if (isOpen && selectedModelId) {
           setFocusedModelId(selectedModelId);
@@ -231,7 +227,6 @@ export function ModelSelector() {
           "bg-transparent",
           "text-gray-700 dark:text-gray-300"
         )}
-        title={selectedModel ? selectedModel.id : 'Select Model'}
       >
         <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
             {selectedModelLogo ? (
@@ -261,23 +256,35 @@ export function ModelSelector() {
           style={{ maxHeight: '400px' }}
         >
           <div className="p-2 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-[#1E1E1E] z-10">
-            <div className="relative">
-              <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search..."
-                className={cn(
-                  "w-full pl-8 pr-3 py-1.5 rounded-lg",
-                  "bg-gray-50 dark:bg-zinc-900",
-                  "text-xs text-gray-900 dark:text-gray-100",
-                  "placeholder:text-gray-400 dark:placeholder:text-gray-500",
-                  "focus:outline-none focus:ring-1 focus:ring-gray-400"
-                )}
-                autoFocus
-              />
+            <div className="relative flex items-center gap-2">
+              <div className="relative flex-1">
+                  <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search..."
+                    className={cn(
+                      "w-full pl-8 pr-3 py-1.5 rounded-lg",
+                      "bg-gray-50 dark:bg-zinc-900",
+                      "text-xs text-gray-900 dark:text-gray-100",
+                      "placeholder:text-gray-400 dark:placeholder:text-gray-500",
+                      "focus:outline-none focus:ring-1 focus:ring-gray-400"
+                    )}
+                    autoFocus
+                  />
+              </div>
+              <button
+                  onClick={() => {
+                      setIsOpen(false);
+                      const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } });
+                      window.dispatchEvent(event);
+                  }}
+                  className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                  <MdSettings size={14} />
+              </button>
             </div>
           </div>
 
@@ -287,6 +294,7 @@ export function ModelSelector() {
                 <p className="text-xs text-gray-500">
                   {searchQuery ? 'No models found' : 'No models configured'}
                 </p>
+                {/* Removed 'Configure models' button here since we have the icon now, or keep as fallback? Keep for empty state. */}
                 <button
                   onClick={() => {
                     setIsOpen(false)
