@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, memo } from 'react'
+import { useState, useRef, useEffect, useMemo, memo, useCallback } from 'react'
 import { MdExpandMore, MdSearch, MdSmartToy, MdCheck, MdPushPin, MdPushPin as MdPushPinOutlined, MdSettings } from 'react-icons/md'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAIStore } from '@/stores/useAIStore'
@@ -12,13 +12,15 @@ const ModelOption = memo(({
     isSelected, 
     isFocused, 
     onSelect, 
-    onTogglePin 
+    onTogglePin,
+    onHover 
 }: { 
     model: AIModel; 
     isSelected: boolean; 
     isFocused: boolean; 
     onSelect: (id: string) => void; 
     onTogglePin: (e: React.MouseEvent, id: string, pinned?: boolean) => void;
+    onHover: (id: string) => void;
 }) => {
     const logo = getModelLogoById(model.id);
     
@@ -26,11 +28,12 @@ const ModelOption = memo(({
         <button
             data-model-id={model.id}
             onClick={() => onSelect(model.id)}
+            onMouseEnter={() => onHover(model.id)}
             className={cn(
                 "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md",
                 "text-left transition-colors group relative",
                 (isSelected || isFocused)
-                ? "bg-gray-100 dark:bg-zinc-800"
+                ? "bg-[#F4F4F5] dark:bg-[#222]"
                 : "bg-transparent hover:bg-gray-50 dark:hover:bg-zinc-900"
             )}
         >
@@ -56,13 +59,11 @@ const ModelOption = memo(({
                         onClick={(e) => onTogglePin(e, model.id, model.pinned)}
                         className={cn(
                             "opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700",
-                            model.pinned && "opacity-100 text-blue-500"
+                            model.pinned && "opacity-100 text-gray-900 dark:text-gray-100"
                         )}
                     >
                         {model.pinned ? <MdPushPin size={14} /> : <MdPushPinOutlined size={14} className="text-gray-400" />}
                     </div>
-
-                    {isSelected && <MdCheck className="w-3.5 h-3.5 text-black dark:text-white" />}
                 </div>
             </div>
         </button>
@@ -76,6 +77,7 @@ export function ModelSelector() {
   const [focusedModelId, setFocusedModelId] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const isKeyboardNavigating = useRef(false)
 
   const selectedModel = getSelectedModel()
   const selectedModelLogo = selectedModel ? getModelLogoById(selectedModel.id) : undefined;
@@ -107,9 +109,24 @@ export function ModelSelector() {
   }, [pinnedModels, searchQuery]);
 
   const flatModels = useMemo(() => {
-      return [...filteredPinned, ...Object.values(filteredGroups).flat()];
+      // Use default sort to match the render loop exactly
+      const sortedGroups = Object.entries(filteredGroups).sort();
+      const sortedUnpinned = sortedGroups.map(([_, models]) => models).flat();
+      return [...filteredPinned, ...sortedUnpinned];
   }, [filteredPinned, filteredGroups]);
 
+  // Reset keyboard navigation flag on mouse movement
+  useEffect(() => {
+      const handleMouseMove = () => {
+          isKeyboardNavigating.current = false;
+      };
+      if (isOpen) {
+          window.addEventListener('mousemove', handleMouseMove);
+          return () => window.removeEventListener('mousemove', handleMouseMove);
+      }
+  }, [isOpen]);
+
+  // Keyboard Shortcuts & Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
         const isMod = e.metaKey || e.ctrlKey;
@@ -119,7 +136,7 @@ export function ModelSelector() {
             setIsOpen(prev => {
                 const next = !prev;
                 if (next) {
-                    setFocusedModelId(selectedModelId || null);
+                    setFocusedModelId(null);
                     setTimeout(() => inputRef.current?.focus(), 50);
                 }
                 return next;
@@ -131,6 +148,7 @@ export function ModelSelector() {
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
+            isKeyboardNavigating.current = true;
             setFocusedModelId(curr => {
                 const idx = flatModels.findIndex(m => m.id === curr);
                 const nextIdx = idx === -1 ? 0 : (idx + 1) % flatModels.length;
@@ -140,6 +158,7 @@ export function ModelSelector() {
 
         if (e.key === 'ArrowUp') {
             e.preventDefault();
+            isKeyboardNavigating.current = true;
             setFocusedModelId(curr => {
                 const idx = flatModels.findIndex(m => m.id === curr);
                 const prevIdx = idx === -1 ? flatModels.length - 1 : (idx - 1 + flatModels.length) % flatModels.length;
@@ -164,26 +183,32 @@ export function ModelSelector() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, flatModels, selectedModelId, focusedModelId]);
+  }, [isOpen, flatModels, focusedModelId]); // Removed selectedModelId from deps as it's not used in handler logic directly (except via closures, but we use state setters)
 
+  // Auto-scroll to focused item
   useEffect(() => {
       if (isOpen && focusedModelId && dropdownRef.current) {
           const activeItem = dropdownRef.current.querySelector(`[data-model-id="${focusedModelId}"]`);
           if (activeItem) {
-              activeItem.scrollIntoView({ block: 'nearest' });
+              // Direct scroll without rAF for instant response
+              activeItem.scrollIntoView({ block: 'nearest', behavior: 'instant' } as any);
           }
       }
   }, [focusedModelId, isOpen]);
 
+  // Initial scroll
   useEffect(() => {
       if (isOpen && selectedModelId) {
           setFocusedModelId(selectedModelId);
+          // Initial scroll can use rAF to ensure layout is settled after animation start
           requestAnimationFrame(() => {
               const activeItem = dropdownRef.current?.querySelector(`[data-model-id="${selectedModelId}"]`);
               if (activeItem) {
                   activeItem.scrollIntoView({ block: 'center', behavior: 'instant' });
               }
           });
+      } else if (isOpen) {
+          setFocusedModelId(null); // Explicitly reset if no selection
       }
   }, [isOpen]);
 
@@ -203,7 +228,7 @@ export function ModelSelector() {
     }
   }, [isOpen])
 
-  const handleSelectModel = (modelId: string) => {
+  const handleSelectModel = useCallback((modelId: string) => {
     selectModel(modelId)
     setIsOpen(false)
     setSearchQuery('')
@@ -212,12 +237,12 @@ export function ModelSelector() {
         const input = document.querySelector('textarea[placeholder*="Message"]') as HTMLTextAreaElement;
         if (input) input.focus();
     }, 50);
-  }
+  }, [selectModel]);
 
-  const handleTogglePin = (e: React.MouseEvent, modelId: string, currentPinned?: boolean) => {
+  const handleTogglePin = useCallback((e: React.MouseEvent, modelId: string, currentPinned?: boolean) => {
       e.stopPropagation();
       updateModel(modelId, { pinned: !currentPinned });
-  };
+  }, [updateModel]);
 
   return (
     <div className="relative select-none" ref={dropdownRef}>
@@ -228,6 +253,7 @@ export function ModelSelector() {
           "bg-transparent",
           "text-gray-700 dark:text-gray-300"
         )}
+        title={selectedModel ? selectedModel.id : 'Select Model'}
       >
         <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
             {selectedModelLogo ? (
@@ -314,9 +340,6 @@ export function ModelSelector() {
                   <>
                       {filteredPinned.length > 0 && (
                         <div className="mb-1">
-                            <div className="px-2 py-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest bg-gray-50/50 dark:bg-white/5 sticky top-0 backdrop-blur-sm flex items-center gap-1 select-none">
-                                <MdPushPin size={10} /> Pinned
-                            </div>
                             <div className="mt-0.5 space-y-0.5">
                                 {filteredPinned.map(model => (
                                     <ModelOption 
@@ -326,17 +349,20 @@ export function ModelSelector() {
                                         isFocused={focusedModelId === model.id}
                                         onSelect={handleSelectModel}
                                         onTogglePin={handleTogglePin}
+                                        onHover={(id) => {
+                                            if (!isKeyboardNavigating.current) {
+                                                setFocusedModelId(id);
+                                            }
+                                        }}
                                     />
                                 ))}
                             </div>
+                            <div className="h-px bg-gray-100 dark:bg-zinc-800 my-1 mx-2" />
                         </div>
                       )}
 
                       {Object.entries(filteredGroups).sort().map(([group, groupModels]) => (
-                        <div key={group} className="mb-1 last:mb-0">
-                          <div className="px-2 py-1 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest bg-gray-50/50 dark:bg-white/5 sticky top-0 backdrop-blur-sm select-none">
-                            {group}
-                          </div>
+                        <div key={group} className="mb-0.5">
                           <div className="mt-0.5 space-y-0.5">
                             {groupModels.map(model => (
                                 <ModelOption 
@@ -346,6 +372,11 @@ export function ModelSelector() {
                                     isFocused={focusedModelId === model.id}
                                     onSelect={handleSelectModel}
                                     onTogglePin={handleTogglePin}
+                                    onHover={(id) => {
+                                        if (!isKeyboardNavigating.current) {
+                                            setFocusedModelId(id);
+                                        }
+                                    }}
                                 />
                             ))}
                           </div>
