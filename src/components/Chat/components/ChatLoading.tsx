@@ -2,7 +2,13 @@ import { motion } from 'framer-motion';
 
 export function ChatLoading() {
     return (
-        <div className="flex w-full justify-start pl-0 mt-4 mb-2">
+        <motion.div 
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex w-full justify-start pl-0 mt-4 mb-2"
+        >
             <div className="relative h-6 w-28 flex items-center justify-center overflow-hidden">
                 {[0, 1, 2, 3].map((i) => (
                     <motion.div
@@ -35,6 +41,6 @@ export function ChatLoading() {
                     />
                 ))}
             </div>
-        </div>
+        </motion.div>
     );
 }

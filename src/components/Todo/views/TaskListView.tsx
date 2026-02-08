@@ -163,65 +163,36 @@ export function TaskListView({
 
             <div className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-300">
                 <div className="flex-shrink-0 px-8 pb-4 pt-3 max-w-3xl mx-auto w-full">
-                    <AnimatePresence mode="wait">
-                        {isSearchExpanded || searchQuery ? (
-                            <motion.div
-                                key="search"
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                                className="flex items-start gap-1"
-                            >
-                                <div className={cn(
-                                    'flex-1 flex items-center gap-2 px-3 py-2 rounded-md',
-                                    'border border-zinc-200 dark:border-zinc-700 bg-muted/30'
-                                )}>
-                                    <MdSearch className="w-[18px] h-[18px] text-zinc-400 flex-shrink-0" />
-                                    <input
-                                        ref={searchInputRef}
-                                        type="text"
-                                        value={searchQuery}
-                                        onChange={e => setSearchQuery(e.target.value)}
-                                        onBlur={handleSearchBlur}
-                                        placeholder="Search tasks..."
-                                        className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/50 focus:ring-0"
-                                    />
-                                    <button 
-                                        onClick={() => { 
-                                            setSearchQuery(''); 
-                                            setIsSearchExpanded(false);
-                                        }}
-                                        className="flex-shrink-0 p-1 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                    >
-                                        <MdClose className="w-[18px] h-[18px]" />
-                                    </button>
-                                </div>
-                                <TaskFilterMenu />
-                                <TaskSortMenu />
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                key="input"
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                                className="flex items-start gap-1"
-                            >
-                                <TaskInput compact={false} />
-                                <button
-                                    onClick={handleSearchClick}
-                                    className="shrink-0 p-1.5 rounded-md transition-colors mt-0.5 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
-                                    title="Search tasks"
+                    <div className="flex items-start gap-1">
+                        {searchQuery ? (
+                            <div className={cn(
+                                'flex-1 flex items-center gap-2 px-3 py-2 rounded-md',
+                                'border border-zinc-200 dark:border-zinc-700 bg-muted/30'
+                            )}>
+                                <MdSearch className="w-[18px] h-[18px] text-zinc-400 flex-shrink-0" />
+                                <input
+                                    ref={searchInputRef}
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    placeholder="Search tasks..."
+                                    className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/50 focus:ring-0"
+                                />
+                                <button 
+                                    onClick={() => { 
+                                        setSearchQuery(''); 
+                                    }}
+                                    className="flex-shrink-0 p-1 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                 >
-                                    <MdSearch className="size-[18px]" />
+                                    <MdClose className="w-[18px] h-[18px]" />
                                 </button>
-                                <TaskFilterMenu />
-                                <TaskSortMenu />
-                            </motion.div>
+                            </div>
+                        ) : (
+                            <TaskInput compact={false} />
                         )}
-                    </AnimatePresence>
+                        <TaskFilterMenu />
+                        <TaskSortMenu />
+                    </div>
                 </div>
 
                 <div

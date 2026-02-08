@@ -33,19 +33,25 @@ import type { SearchResult } from './search';
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
-  content: string
+  content: string // Store string locally (markdown image syntax)
   modelId: string
   timestamp: number
   versions?: string[]
   currentVersionIndex?: number
-  citations?: SearchResult[] // New field
+  citations?: SearchResult[] 
 }
+
+export type ChatMessageContentPart = 
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string; detail?: 'auto' | 'low' | 'high' } };
+
+export type ChatMessageContent = string | ChatMessageContentPart[];
 
 export interface ChatCompletionRequest {
   model: string
   messages: Array<{
     role: string
-    content: string
+    content: ChatMessageContent
   }>
   stream: boolean
   temperature?: number
