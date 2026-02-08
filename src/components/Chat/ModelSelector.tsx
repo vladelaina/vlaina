@@ -171,6 +171,10 @@ export function ModelSelector() {
         if (e.key === 'Escape') {
             e.preventDefault();
             setIsOpen(false);
+            setTimeout(() => {
+                const input = document.querySelector('textarea[placeholder*="Message"]') as HTMLTextAreaElement;
+                if (input) input.focus();
+            }, 50);
         }
     };
 

@@ -33,14 +33,12 @@ export function ChatView() {
   const isLoading = currentSessionId ? isSessionLoading(currentSessionId) : false;
   const isEmpty = messages.length === 0;
   
-  // Auto-select model if none selected
   useEffect(() => {
       if (!selectedModel && models.length > 0) {
           selectModel(models[0].id);
       }
   }, [models, selectedModel, selectModel]);
 
-  // Track session transition to auto-focus on new chat
   const prevSessionIdRef = useRef(currentSessionId);
   useEffect(() => {
       if (currentSessionId === null && prevSessionIdRef.current !== null) {
@@ -100,11 +98,10 @@ export function ChatView() {
 
   return (
     <div className="h-full w-full flex flex-col bg-[var(--neko-bg-primary)] relative overflow-hidden">
-      {/* Messages Area */}
       <div 
         className={cn(
             "flex-1 overflow-y-auto transition-opacity duration-500",
-            isEmpty ? "opacity-0 pointer-events-none hidden" : "opacity-100" // Hide when empty to let input take full height
+            isEmpty ? "opacity-0 pointer-events-none hidden" : "opacity-100"
         )}
         ref={scrollRef}
       >
@@ -134,7 +131,6 @@ export function ChatView() {
         </div>
       </div>
 
-      {/* Input Area (Centered when empty, Bottom when active) */}
       <motion.div 
           layout
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -143,7 +139,6 @@ export function ChatView() {
               isEmpty ? "flex-1 justify-center items-center" : "flex-none"
           )}
       >
-          {/* Welcome Message (Attached to Input) */}
           <AnimatePresence>
             {isEmpty && (
                 <motion.div 
