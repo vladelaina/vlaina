@@ -90,18 +90,17 @@ export function UserMessage({ content, onEdit }: UserMessageProps) {
                 </div>
             ))}
             {displayText && (
-                <div className="milkdown inline-block bg-[#F4F4F5] dark:bg-[#2C2C2C] px-5 py-3 rounded-[20px] rounded-tr-md text-gray-900 dark:text-gray-100 text-[15px] leading-7 shadow-sm border border-black/5 dark:border-white/5 text-left break-words">
+                <div className="milkdown inline-block bg-[#F4F4F5] dark:bg-[#2C2C2C] px-4 py-2 rounded-[20px] text-gray-900 dark:text-gray-100 text-[15px] leading-6 shadow-sm border border-black/5 dark:border-white/5 text-left break-words">
                     <div className="whitespace-pre-wrap">{displayText}</div>
                 </div>
             )}
         </div>
 
         {/* Action Bar (Visible on Hover) */}
-        <div className="flex items-center gap-1 opacity-50 group-hover:opacity-100 transition-opacity duration-200 mr-1 mt-1">
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 mr-1 mt-1">
             <button 
                 onClick={handleCopy}
                 className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md transition-colors"
-                title="Copy"
             >
                 <MdContentCopy size={14} />
             </button>
