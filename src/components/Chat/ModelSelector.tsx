@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, memo } from 'react'
 import { MdExpandMore, MdSearch, MdSmartToy, MdCheck, MdPushPin, MdPushPin as MdPushPinOutlined, MdSettings } from 'react-icons/md'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAIStore } from '@/stores/useAIStore'
 import { groupModels } from '@/lib/ai/utils'
 import { cn } from '@/lib/utils'
@@ -244,77 +245,100 @@ export function ModelSelector() {
         )} />
       </button>
 
-      {isOpen && (
-        <div 
-          className={cn(
-            "absolute bottom-full right-0 mb-2 w-72",
-            "bg-white dark:bg-[#1E1E1E] rounded-xl shadow-xl",
-            "border border-gray-200 dark:border-gray-800",
-            "animate-in fade-in slide-in-from-bottom-2 duration-150 origin-bottom-right",
-            "z-50 overflow-hidden flex flex-col select-none"
-          )}
-          style={{ maxHeight: '400px' }}
-        >
-          <div className="p-2 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-[#1E1E1E] z-10">
-            <div className="relative flex items-center gap-2">
-              <div className="relative flex-1">
-                  <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search..."
-                    className={cn(
-                      "w-full pl-8 pr-3 py-1.5 rounded-lg",
-                      "bg-gray-50 dark:bg-zinc-900",
-                      "text-xs text-gray-900 dark:text-gray-100",
-                      "placeholder:text-gray-400 dark:placeholder:text-gray-500",
-                      "focus:outline-none focus:ring-1 focus:ring-gray-400"
-                    )}
-                    autoFocus
-                  />
+      <AnimatePresence>
+        {isOpen && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className={cn(
+                "absolute bottom-full right-0 mb-2 w-72",
+                "bg-white dark:bg-[#1E1E1E] rounded-xl shadow-xl",
+                "border border-gray-200 dark:border-gray-800",
+                "z-50 overflow-hidden flex flex-col select-none"
+              )}
+              style={{ maxHeight: '400px' }}
+            >
+              <div className="p-2 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-[#1E1E1E] z-10">
+                <div className="relative flex items-center gap-2">
+                  <div className="relative flex-1">
+                      <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search..."
+                        className={cn(
+                          "w-full pl-8 pr-3 py-1.5 rounded-lg",
+                          "bg-gray-50 dark:bg-zinc-900",
+                          "text-xs text-gray-900 dark:text-gray-100",
+                          "placeholder:text-gray-400 dark:placeholder:text-gray-500",
+                          "focus:outline-none focus:ring-1 focus:ring-gray-400"
+                        )}
+                        autoFocus
+                      />
+                  </div>
+                  <button
+                      onClick={() => {
+                          setIsOpen(false);
+                          const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } });
+                          window.dispatchEvent(event);
+                      }}
+                      className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                      <MdSettings size={14} />
+                  </button>
+                </div>
               </div>
-              <button
-                  onClick={() => {
-                      setIsOpen(false);
-                      const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } });
-                      window.dispatchEvent(event);
-                  }}
-                  className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
-              >
-                  <MdSettings size={14} />
-              </button>
-            </div>
-          </div>
 
-          <div className="overflow-y-auto p-1 scrollbar-thin flex-1">
-            {filteredPinned.length === 0 && Object.keys(filteredGroups).length === 0 ? (
-              <div className="py-8 text-center select-none">
-                <p className="text-xs text-gray-500">
-                  {searchQuery ? 'No models found' : 'No models configured'}
-                </p>
-                {/* Removed 'Configure models' button here since we have the icon now, or keep as fallback? Keep for empty state. */}
-                <button
-                  onClick={() => {
-                    setIsOpen(false)
-                    const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } })
-                    window.dispatchEvent(event)
-                  }}
-                  className="mt-2 text-xs text-blue-600 hover:underline"
-                >
-                  Configure models
-                </button>
-              </div>
-            ) : (
-              <>
-                  {filteredPinned.length > 0 && (
-                    <div className="mb-1">
-                        <div className="px-2 py-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest bg-gray-50/50 dark:bg-white/5 sticky top-0 backdrop-blur-sm flex items-center gap-1 select-none">
-                            <MdPushPin size={10} /> Pinned
+              <div className="overflow-y-auto p-1 scrollbar-thin flex-1">
+                {filteredPinned.length === 0 && Object.keys(filteredGroups).length === 0 ? (
+                  <div className="py-8 text-center select-none">
+                    <p className="text-xs text-gray-500">
+                      {searchQuery ? 'No models found' : 'No models configured'}
+                    </p>
+                    <button
+                      onClick={() => {
+                        setIsOpen(false)
+                        const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } })
+                        window.dispatchEvent(event)
+                      }}
+                      className="mt-2 text-xs text-blue-600 hover:underline"
+                    >
+                      Configure models
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                      {filteredPinned.length > 0 && (
+                        <div className="mb-1">
+                            <div className="px-2 py-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest bg-gray-50/50 dark:bg-white/5 sticky top-0 backdrop-blur-sm flex items-center gap-1 select-none">
+                                <MdPushPin size={10} /> Pinned
+                            </div>
+                            <div className="mt-0.5 space-y-0.5">
+                                {filteredPinned.map(model => (
+                                    <ModelOption 
+                                        key={model.id}
+                                        model={model}
+                                        isSelected={selectedModelId === model.id}
+                                        isFocused={focusedModelId === model.id}
+                                        onSelect={handleSelectModel}
+                                        onTogglePin={handleTogglePin}
+                                    />
+                                ))}
+                            </div>
                         </div>
-                        <div className="mt-0.5 space-y-0.5">
-                            {filteredPinned.map(model => (
+                      )}
+
+                      {Object.entries(filteredGroups).sort().map(([group, groupModels]) => (
+                        <div key={group} className="mb-1 last:mb-0">
+                          <div className="px-2 py-1 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest bg-gray-50/50 dark:bg-white/5 sticky top-0 backdrop-blur-sm select-none">
+                            {group}
+                          </div>
+                          <div className="mt-0.5 space-y-0.5">
+                            {groupModels.map(model => (
                                 <ModelOption 
                                     key={model.id}
                                     model={model}
@@ -324,34 +348,15 @@ export function ModelSelector() {
                                     onTogglePin={handleTogglePin}
                                 />
                             ))}
+                          </div>
                         </div>
-                    </div>
-                  )}
-
-                  {Object.entries(filteredGroups).sort().map(([group, groupModels]) => (
-                    <div key={group} className="mb-1 last:mb-0">
-                      <div className="px-2 py-1 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest bg-gray-50/50 dark:bg-white/5 sticky top-0 backdrop-blur-sm select-none">
-                        {group}
-                      </div>
-                      <div className="mt-0.5 space-y-0.5">
-                        {groupModels.map(model => (
-                            <ModelOption 
-                                key={model.id}
-                                model={model}
-                                isSelected={selectedModelId === model.id}
-                                isFocused={focusedModelId === model.id}
-                                onSelect={handleSelectModel}
-                                onTogglePin={handleTogglePin}
-                            />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-              </>
-            )}
-          </div>
-        </div>
-      )}
+                      ))}
+                  </>
+                )}
+              </div>
+            </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

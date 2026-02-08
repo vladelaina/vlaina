@@ -261,8 +261,6 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                 <div className="flex items-center gap-2">
                   <ModelSelector />
                   
-                  {/* Removed Settings Button here */}
-                  
                   {isLoading && !message.trim() ? (
                       <button
                         onClick={onStop}
