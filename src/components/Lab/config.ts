@@ -1,4 +1,4 @@
-import { MdAnimation, MdTextFields, MdPalette, MdInput } from 'react-icons/md';
+import { MdAnimation, MdInput } from 'react-icons/md';
 import { AnimationLab } from './playground/AnimationLab';
 import { InputLab } from './playground/InputLab';
 

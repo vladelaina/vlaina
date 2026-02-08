@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { computeBufferHash } from './core/hashing';
+import { computeBufferHash } from './hashing';
 
 describe('hashService', () => {
   describe('Property 5: Hash Format Correctness', () => {

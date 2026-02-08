@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { cn } from '@/lib/utils';
@@ -39,6 +39,13 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         notesPath, currentNotePath,
         updateNodeAttrs
     } = useImageBlockState({ node, view, getPos });
+
+    // Track latest interactive state (zoom/crop) that hasn't been saved yet
+    const latestStateRef = useRef<{ crop: { x: number; y: number }; zoom: number } | null>(null);
+
+    const handleStateChange = useCallback((state: { crop: { x: number; y: number }; zoom: number }) => {
+        latestStateRef.current = state;
+    }, []);
 
     // 2. Actions
     const {
@@ -140,11 +147,14 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                         zIndex: 9999, pointerEvents: 'none',
                         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
                         borderRadius: '8px', overflow: 'hidden',
+                        backgroundColor: 'var(--neko-bg-primary)',
                         ...DRAG_ALIGNMENT_STYLES[dragAlignment],
                     }}
                 >
                     <ImageCropper
-                        imageSrc={resolvedSrc} initialCropParams={cropParams}
+                        imageSrc={resolvedSrc} 
+                        initialCropParams={cropParams}
+                        overrideState={latestStateRef.current}
                         containerSize={dragSize}
                         onSave={() => {}} onCancel={() => {}}
                         isSaving={false} isActive={false}
@@ -209,6 +219,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                             }
                             setIsReady(true);
                         }}
+                        onStateChange={handleStateChange}
                     />
 
                     {(isHovered || isEditingCaption) && !isActive && !loadError && !isDragging && (

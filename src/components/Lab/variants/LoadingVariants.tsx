@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion';
-import { MdAutoAwesome } from 'react-icons/md';
 
 // --- THE SURVIVORS ---
 

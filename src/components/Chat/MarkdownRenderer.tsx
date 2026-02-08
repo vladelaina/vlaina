@@ -44,14 +44,14 @@ function parseMarkdown(text: string): string {
     let processed = text;
 
     // 1. Extract Fenced Code Blocks
-    processed = processed.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+    processed = processed.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
         const id = `__CODE_BLOCK_${Math.random().toString(36).substr(2, 9)}__`;
         codeBlockMap.set(id, `<pre><code class="language-${lang}">${escapeHtml(code)}</code></pre>`);
         return id;
     });
 
     // 2. Extract Inline Code
-    processed = processed.replace(/`([^`]+)`/g, (match, code) => {
+    processed = processed.replace(/`([^`]+)`/g, (_, code) => {
         const id = `__INLINE_CODE_${Math.random().toString(36).substr(2, 9)}__`;
         inlineCodeMap.set(id, `<code>${escapeHtml(code)}</code>`);
         return id;
