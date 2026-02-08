@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand';
-import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { getStorageAdapter } from '@/lib/storage/adapter';
 import { NotesStore } from '../types';
 import { getNotesBasePath } from '../storage';
 import { AssetEntry, UploadResult } from '@/lib/assets/types';
@@ -17,10 +17,10 @@ export interface AssetSlice {
   uploadProgress: number | null;
 
   loadAssets: (vaultPath: string) => Promise<void>;
-  uploadAsset: (file: File) => Promise<UploadResult>;
+  uploadAsset: (file: File, category?: 'covers' | 'icons' | 'content', currentNotePath?: string) => Promise<UploadResult>;
   deleteAsset: (filename: string) => Promise<void>;
   cleanupAssetTempFiles: () => Promise<void>;
-  getAssetList: () => AssetEntry[];
+  getAssetList: (category?: 'covers' | 'icons' | 'content') => AssetEntry[];
   clearAssetUrlCache: () => void;
 }
 
@@ -34,12 +34,13 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
     set({ isLoadingAssets: true });
     const storage = getStorageAdapter();
+    const { join } = await import('@tauri-apps/api/path');
 
     try {
-      const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
+      const assetsBaseDir = await join(vaultPath, '.nekotick', 'assets');
 
-      const coversDir = await joinPath(assetsBaseDir, 'covers');
-      const iconsDir = await joinPath(assetsBaseDir, 'icons');
+      const coversDir = await join(assetsBaseDir, 'covers');
+      const iconsDir = await join(assetsBaseDir, 'icons');
 
       if (!await storage.exists(coversDir)) await storage.mkdir(coversDir, true);
       if (!await storage.exists(iconsDir)) await storage.mkdir(iconsDir, true);
@@ -98,7 +99,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     }
   },
 
-  uploadAsset: async (file: File, category: 'covers' | 'icons' = 'covers', currentNotePath?: string): Promise<UploadResult> => {
+  uploadAsset: async (file: File, category: 'covers' | 'icons' | 'content' = 'content', currentNotePath?: string): Promise<UploadResult> => {
     const { notesPath, assetList } = get();
     const uiState = useUIStore.getState();
 
@@ -155,10 +156,11 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
   deleteAsset: async (filename: string) => {
     const { notesPath, assetList } = get();
     const storage = getStorageAdapter();
+    const { join } = await import('@tauri-apps/api/path');
 
     try {
       const vaultPath = notesPath || await getNotesBasePath();
-      const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
+      const assetsBaseDir = await join(vaultPath, '.nekotick', 'assets');
 
       let relativePath = filename;
       let targetDir = 'covers';
@@ -170,10 +172,9 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
         targetDir = 'covers';
       }
 
-      const separator = vaultPath.includes('\\') ? '\\' : '/';
-      const dirPath = await joinPath(assetsBaseDir, targetDir);
-      const normalizedFilename = relativePath.replace(/\//g, separator);
-      const filePath = await joinPath(dirPath, normalizedFilename);
+      // Robustly resolve file path using Tauri API
+      const dirPath = await join(assetsBaseDir, targetDir);
+      const filePath = await join(dirPath, relativePath);
 
       if (await storage.exists(filePath)) {
         await storage.deleteFile(filePath);
@@ -188,20 +189,25 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
   cleanupAssetTempFiles: async () => {
     const { notesPath } = get();
     const vaultPath = notesPath || await getNotesBasePath();
-    const coversDir = await joinPath(vaultPath, '.nekotick', 'assets', 'covers');
-    const iconsDir = await joinPath(vaultPath, '.nekotick', 'assets', 'icons');
+    const { join } = await import('@tauri-apps/api/path');
+    
+    const coversDir = await join(vaultPath, '.nekotick', 'assets', 'covers');
+    const iconsDir = await join(vaultPath, '.nekotick', 'assets', 'icons');
 
     await cleanupTempFiles(coversDir);
     await cleanupTempFiles(iconsDir);
   },
 
-  getAssetList: (category?: 'covers' | 'icons'): AssetEntry[] => {
+  getAssetList: (category?: 'covers' | 'icons' | 'content'): AssetEntry[] => {
     const list = get().assetList;
     if (!category) return list;
 
     if (category === 'icons') {
       return list.filter(a => a.filename.startsWith('icons/'));
+    } else if (category === 'covers') {
+      return list.filter(a => !a.filename.startsWith('icons/'));
     } else {
+      // content
       return list.filter(a => !a.filename.startsWith('icons/'));
     }
   },

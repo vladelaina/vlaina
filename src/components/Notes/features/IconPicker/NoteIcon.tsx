@@ -1,6 +1,6 @@
 import { UniversalIcon, type UniversalIconProps } from '@/components/common/UniversalIconPicker/UniversalIcon';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { buildFullAssetPath } from '@/lib/assets/core/paths';
+import { resolveSystemAssetPath } from '@/lib/assets/core/paths';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { useCallback } from 'react';
 import { useUIStore } from '@/stores/uiSlice';
@@ -14,7 +14,7 @@ export function NoteIcon(props: NoteIconProps) {
   const imageLoader = useCallback(async (src: string) => {
     if (!vaultPath) return src;
     const relativePath = src.substring(4);
-    const fullPath = buildFullAssetPath(vaultPath, relativePath);
+    const fullPath = await resolveSystemAssetPath(vaultPath, relativePath, 'icons');
     return await loadImageAsBlob(fullPath);
   }, [vaultPath]);
 

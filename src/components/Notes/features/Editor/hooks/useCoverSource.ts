@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { loadImageAsBlob, getCachedBlobUrl } from '@/lib/assets/io/reader';
-import { buildFullAssetPath } from '@/lib/assets/core/paths';
+import { loadImageAsBlob } from '@/lib/assets/io/reader';
+import { resolveSystemAssetPath } from '@/lib/assets/core/paths';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
-import { loadImageWithDimensions, getCachedDimensions } from './coverUtils';
+import { loadImageWithDimensions } from './coverUtils';
 
 interface UseCoverSourceProps {
     url: string | null;
@@ -11,25 +11,9 @@ interface UseCoverSourceProps {
 }
 
 export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps) {
-    const resolveSync = (targetUrl: string | null): [string | null, { width: number; height: number } | null] => {
-        if (!targetUrl) return [null, null];
-        if (targetUrl.startsWith('http')) return [targetUrl, null];
-        if (isBuiltinCover(targetUrl)) return [getBuiltinCoverUrl(targetUrl), { width: 1920, height: 1080 }];
-        if (vaultPath) {
-            try {
-                const fullPath = buildFullAssetPath(vaultPath, targetUrl);
-                const cachedBlob = getCachedBlobUrl(fullPath);
-                if (cachedBlob) {
-                    const cachedDims = getCachedDimensions(cachedBlob);
-                    return [cachedBlob, cachedDims || null];
-                }
-            } catch {
-                return [null, null];
-            }
-        }
-        return [null, null];
-    };
-
+    // Sync resolution is removed to avoid fragile synchronous path building.
+    // We rely on the async effect for robustness.
+    
     const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
     const [previewSrc, setPreviewSrc] = useState<string | null>(null);
     const [isImageReady, setIsImageReady] = useState(false);
@@ -43,22 +27,12 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
 
     if (url !== prevUrlRef.current) {
         prevUrlRef.current = url;
-        const [syncSrc, syncDims] = resolveSync(url);
-        if (syncSrc && syncDims) {
-            setResolvedSrc(syncSrc);
-            setIsImageReady(true);
-            setIsError(false);
-            cachedDimensionsRef.current = syncDims;
-            lastResolvedUrlRef.current = url;
-            prevSrcRef.current = null;
-        } else {
-            if (resolvedSrc) prevSrcRef.current = resolvedSrc;
-            setResolvedSrc(null);
-            setIsImageReady(false);
-            setIsError(false);
-            cachedDimensionsRef.current = null;
-            lastResolvedUrlRef.current = null;
-        }
+        // Immediate reset for new URL
+        setResolvedSrc(null);
+        setIsImageReady(false);
+        setIsError(false);
+        cachedDimensionsRef.current = null;
+        lastResolvedUrlRef.current = null;
     }
 
     useEffect(() => {
@@ -79,7 +53,9 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
                 imageUrl = getBuiltinCoverUrl(url);
             } else if (vaultPath) {
                 try {
-                    const fullPath = buildFullAssetPath(vaultPath, url);
+                    // Use robust async path resolution
+                    // Covers are system assets
+                    const fullPath = await resolveSystemAssetPath(vaultPath, url, 'covers');
                     imageUrl = await loadImageAsBlob(fullPath);
                 } catch (e) {
                     if (ignore) return;
