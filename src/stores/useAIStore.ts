@@ -1,15 +1,14 @@
 import { create } from 'zustand'
 import { useEffect } from 'react'
 import { useUnifiedStore } from './useUnifiedStore'
-import type { Provider, AIModel, ChatMessage, ChatSession } from '@/lib/ai/types'
+import type { Provider, AIModel, ChatMessage, ChatSession, MessageVersion } from '@/lib/ai/types'
 import { generateModelName, generateModelGroup } from '@/lib/ai/utils'
-import { appendMessageToMarkdown, saveSessionToMarkdown } from '@/lib/storage/chatStorage'
+import { saveSessionJson, loadSessionJson } from '@/lib/storage/chatStorage'
 import type { SearchResult } from '@/lib/ai/search'
 
-// 1. UI State Store (Transient)
 interface AIUIState {
-  generatingSessions: Record<string, boolean>; // Map sessionId -> isGenerating
-  unreadSessions: Record<string, boolean>; // New: Track unread status
+  generatingSessions: Record<string, boolean>;
+  unreadSessions: Record<string, boolean>;
   error: string | null;
   setSessionLoading: (sessionId: string, loading: boolean) => void;
   markSessionUnread: (sessionId: string) => void;
@@ -35,7 +34,6 @@ const useAIUIStore = create<AIUIState>((set) => ({
   setError: (error: string | null) => set({ error }),
 }));
 
-// 2. Actions
 export const actions = {
   addProvider: (provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>) => {
     const id = `provider-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
@@ -149,12 +147,28 @@ export const actions = {
       messages: { ...ai.messages, [id]: [] }
     })
     
-    saveSessionToMarkdown(newSession, []);
+    saveSessionJson(id, []);
     return id
   },
 
-  switchSession: (sessionId: string) => {
-    useUnifiedStore.getState().updateAIData({ currentSessionId: sessionId })
+  switchSession: async (sessionId: string) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    
+    state.updateAIData({ currentSessionId: sessionId });
+
+    // Precise Lazy Load: Only load if the key is missing from the messages map
+    if (!(sessionId in ai.messages)) {
+        const loadedMessages = await loadSessionJson(sessionId);
+        // Even if loadedMessages is null/empty, we set it to [] to mark it as "loaded"
+        const freshState = useUnifiedStore.getState();
+        freshState.updateAIData({
+            messages: { 
+                ...freshState.data.ai!.messages, 
+                [sessionId]: loadedMessages || [] 
+            }
+        });
+    }
   },
 
   updateSession: (id: string, updates: Partial<ChatSession>) => {
@@ -197,7 +211,11 @@ export const actions = {
       ...message,
       id: message.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       timestamp: Date.now(),
-      versions: [message.content || ''],
+      versions: [{ 
+          content: message.content || '', 
+          createdAt: Date.now(), 
+          subsequentMessages: [] 
+      }],
       currentVersionIndex: 0
     }
 
@@ -209,10 +227,7 @@ export const actions = {
       sessions: ai.sessions.map(s => s.id === currentSessionId ? { ...s, updatedAt: Date.now() } : s)
     });
 
-    if (message.role === 'user') {
-        appendMessageToMarkdown(currentSessionId, newMessage);
-    }
-    
+    saveSessionJson(currentSessionId, newMessages);
     return newMessage.id;
   },
 
@@ -223,20 +238,27 @@ export const actions = {
     
     if (sessionMessages.length === 0) return;
 
+    const newMessages = sessionMessages.map(m => {
+        if (m.id !== id) return m;
+        
+        const idx = m.currentVersionIndex ?? 0;
+        const versions = m.versions ? [...m.versions] : [{ content: m.content, createdAt: m.timestamp, subsequentMessages: [] }];
+        
+        if (versions[idx]) {
+            versions[idx] = { ...versions[idx], content };
+        }
+        
+        return { ...m, content, versions, currentVersionIndex: idx };
+    });
+
     state.updateAIData({
       messages: {
         ...ai.messages,
-        [sessionId]: sessionMessages.map(m => {
-            if (m.id !== id) return m;
-            
-            const idx = m.currentVersionIndex ?? 0;
-            const versions = m.versions ? [...m.versions] : [m.content];
-            versions[idx] = content;
-            
-            return { ...m, content, versions, currentVersionIndex: idx };
-        })
+        [sessionId]: newMessages
       }
     }, true); 
+
+    saveSessionJson(sessionId, newMessages);
   },
 
   setCitations: (sessionId: string, id: string, results: SearchResult[]) => {
@@ -246,99 +268,109 @@ export const actions = {
       
       if (sessionMessages.length === 0) return;
 
+      const newMessages = sessionMessages.map(m => {
+          if (m.id !== id) return m;
+          return { ...m, citations: results };
+      });
+
       state.updateAIData({
           messages: {
               ...ai.messages,
-              [sessionId]: sessionMessages.map(m => {
-                  if (m.id !== id) return m;
-                  return { ...m, citations: results };
-              })
+              [sessionId]: newMessages
           }
       });
+      
+      saveSessionJson(sessionId, newMessages);
   },
 
   completeMessage: (sessionId: string, id: string) => {
       const state = useUnifiedStore.getState();
       const ai = state.data.ai!;
-      const sessionMessages = ai.messages[sessionId] || [];
-      const msg = sessionMessages.find(m => m.id === id);
-      if (msg) {
-          appendMessageToMarkdown(sessionId, msg);
-          state.updateAIData({}); 
-      }
+      state.updateAIData({}); 
   },
 
-  // Helper action for edit workflow
-  editMessageAndTruncate: (sessionId: string, messageId: string, newContent: string) => {
+  editMessageAndBranch: (sessionId: string, messageId: string, newContent: string) => {
       const state = useUnifiedStore.getState();
       const ai = state.data.ai!;
       const messages = ai.messages[sessionId] || [];
       const index = messages.findIndex(m => m.id === messageId);
       if (index === -1) return;
 
-      // Keep messages up to this one (inclusive), update content
-      const newMessages = messages.slice(0, index + 1);
-      newMessages[index] = { 
-          ...newMessages[index], 
-          content: newContent
-      };
+      const targetMsg = messages[index];
+      const futureMessages = messages.slice(index + 1);
+
+      const currentIdx = targetMsg.currentVersionIndex ?? 0;
+      const versions = targetMsg.versions ? [...targetMsg.versions] : [{ content: targetMsg.content, createdAt: targetMsg.timestamp, subsequentMessages: [] }];
       
+      versions[currentIdx] = {
+          ...versions[currentIdx],
+          subsequentMessages: futureMessages
+      };
+
+      const newVersion: MessageVersion = {
+          content: newContent,
+          createdAt: Date.now(),
+          subsequentMessages: []
+      };
+      versions.push(newVersion);
+      const newIndex = versions.length - 1;
+
+      const newMessages = messages.slice(0, index + 1);
+      newMessages[index] = {
+          ...targetMsg,
+          content: newContent,
+          versions: versions,
+          currentVersionIndex: newIndex
+      };
+
       state.updateAIData({
           messages: { ...ai.messages, [sessionId]: newMessages }
       });
+
+      saveSessionJson(sessionId, newMessages);
   },
 
-  addVersion: (id: string) => {
+  switchMessageVersion: (sessionId: string, messageId: string, targetIndex: number) => {
       const state = useUnifiedStore.getState();
       const ai = state.data.ai!;
-      const { currentSessionId } = ai;
-      if (!currentSessionId) return;
+      const messages = ai.messages[sessionId] || [];
+      const index = messages.findIndex(m => m.id === messageId);
+      if (index === -1) return;
 
-      const sessionMessages = ai.messages[currentSessionId] || [];
+      const targetMsg = messages[index];
+      if (!targetMsg.versions || !targetMsg.versions[targetIndex]) return;
+
+      const currentIdx = targetMsg.currentVersionIndex ?? 0;
+      if (currentIdx === targetIndex) return;
+
+      const futureMessages = messages.slice(index + 1);
+      const versions = [...targetMsg.versions];
+      
+      versions[currentIdx] = {
+          ...versions[currentIdx],
+          subsequentMessages: futureMessages
+      };
+
+      const restoredFuture = versions[targetIndex].subsequentMessages || [];
+      
+      const newMessages = messages.slice(0, index + 1);
+      newMessages[index] = {
+          ...targetMsg,
+          content: versions[targetIndex].content,
+          currentVersionIndex: targetIndex,
+          versions: versions
+      };
+      
+      const finalMessages = [...newMessages, ...restoredFuture];
+
       state.updateAIData({
-          messages: {
-              ...ai.messages,
-              [currentSessionId]: sessionMessages.map(m => {
-                  if (m.id !== id) return m;
-                  const versions = m.versions ? [...m.versions, ''] : [m.content, ''];
-                  const newIndex = versions.length - 1;
-                  return { ...m, versions, currentVersionIndex: newIndex, content: '' };
-              })
-          }
+          messages: { ...ai.messages, [sessionId]: finalMessages }
       });
+
+      saveSessionJson(sessionId, finalMessages);
   },
-
-  switchVersion: (id: string, direction: 'prev' | 'next') => {
-      const state = useUnifiedStore.getState();
-      const ai = state.data.ai!;
-      const { currentSessionId } = ai;
-      if (!currentSessionId) return;
-
-      const sessionMessages = ai.messages[currentSessionId] || [];
-      state.updateAIData({
-          messages: {
-              ...ai.messages,
-              [currentSessionId]: sessionMessages.map(m => {
-                  if (m.id !== id) return m;
-                  const versions = m.versions || [m.content];
-                  const currentIdx = m.currentVersionIndex ?? 0;
-                  
-                  let newIdx = currentIdx;
-                  if (direction === 'prev' && currentIdx > 0) newIdx--;
-                  if (direction === 'next' && currentIdx < versions.length - 1) newIdx++;
-                  
-                  return { 
-                      ...m, 
-                      currentVersionIndex: newIdx, 
-                      content: versions[newIdx] 
-                  };
-              })
-          }
-      });
-  }
 };
 
-// 3. The Hook
 export const useAIStore = () => {
   const aiData = useUnifiedStore(s => s.data.ai);
   const uiState = useAIUIStore();

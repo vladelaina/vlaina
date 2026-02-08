@@ -20,7 +20,7 @@ export function ChatView() {
   const { 
     messages: allMessages, 
     currentSessionId, 
-    switchVersion, 
+    switchMessageVersion, 
     selectedModel,
     models,
     selectModel,
@@ -122,7 +122,7 @@ export function ChatView() {
                     onSpeak={handleSpeak}
                     onRegenerate={regenerate}
                     onEdit={editMessage}
-                    onSwitchVersion={switchVersion}
+                    onSwitchVersion={(msgId, idx) => currentSessionId && switchMessageVersion(currentSessionId, msgId, idx)}
                     onToggleSources={toggleSources}
                 />
               ))}
@@ -153,7 +153,7 @@ export function ChatView() {
                     transition={{ duration: 0.3 }}
                     className="mb-5 text-center"
                 >
-                    <h1 className="text-3xl font-bold text-gray-300 dark:text-gray-700 select-none tracking-tight">
+                    <h1 className="text-3xl font-bold text-black dark:text-white select-none tracking-tight">
                         Ciallo~(∠・ω&lt;)⌒★
                     </h1>
                 </motion.div>

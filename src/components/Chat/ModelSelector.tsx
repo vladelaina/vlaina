@@ -37,15 +37,11 @@ const ModelOption = memo(({
                 : "bg-transparent hover:bg-gray-50 dark:hover:bg-zinc-900"
             )}
         >
-            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                {logo ? (
+            {logo && (
+                <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                     <img src={logo} alt="" className="w-full h-full object-cover rounded-full" />
-                ) : (
-                    <div className="w-full h-full bg-gray-200 dark:bg-zinc-700 rounded-full flex items-center justify-center text-[8px] font-bold text-gray-600 dark:text-gray-300">
-                        {model.name.charAt(0).toUpperCase()}
-                    </div>
-                )}
-            </div>
+                </div>
+            )}
             <div className="flex-1 min-w-0 flex items-center justify-between">
                 <span className={cn(
                     "text-xs truncate font-medium",
@@ -247,13 +243,11 @@ export function ModelSelector() {
           "text-gray-700 dark:text-gray-300"
         )}
       >
-        <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-            {selectedModelLogo ? (
+        {selectedModelLogo && (
+            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                 <img src={selectedModelLogo} alt="" className="w-full h-full object-cover rounded-full" />
-            ) : (
-                <MdSmartToy className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-            )}
-        </div>
+            </div>
+        )}
         <span className="text-sm font-medium whitespace-nowrap select-none">
           {selectedModel ? selectedModel.name : 'Select Model'}
         </span>

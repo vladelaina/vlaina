@@ -14,7 +14,7 @@ interface AIMessageProps {
   onCopy: () => void;
   onSpeak: () => void;
   onRegenerate: () => void;
-  onSwitchVersion: (direction: 'prev' | 'next') => void;
+  onSwitchVersion: (targetIndex: number) => void;
   onToggleSources: () => void;
 }
 

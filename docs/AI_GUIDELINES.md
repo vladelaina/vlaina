@@ -73,3 +73,9 @@ If the request would cause the code to violate these thresholds:
   * **Usage:** `className={cn("...", iconButtonStyles)}`
 * **Rationale:** To ensure consistent hover states and interaction feedback across the application.
 * **Rationale:** To ensure visual consistency, accessibility, and professional appearance throughout the application.
+
+
+## GitHub Synchronization Constraints
+* **File Fragmentation Rule:** Since all data is synced via GitHub, we must heavily prioritize file size management.
+* **Principle:** Any feature that generates potentially unbounded data (like chat history, logs, or user-generated content) **MUST** be split into multiple smaller files (e.g., one file per session) rather than stored in a single monolithic configuration file.
+* **Goal:** To ensure efficient Git synchronization and prevent hitting file size limits.

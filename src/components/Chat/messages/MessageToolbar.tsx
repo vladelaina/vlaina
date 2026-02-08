@@ -9,7 +9,7 @@ interface MessageToolbarProps {
   onCopy: () => void;
   onSpeak: () => void;
   onRegenerate: () => void;
-  onSwitchVersion: (direction: 'prev' | 'next') => void;
+  onSwitchVersion: (targetIndex: number) => void;
   onToggleSources?: () => void;
   isSourcesOpen?: boolean;
 }
@@ -28,7 +28,8 @@ export function MessageToolbar({
   if (isLoading) return null;
 
   const versions = msg.versions || [msg.content];
-  const currentVer = (msg.currentVersionIndex ?? 0) + 1;
+  const currentIndex = msg.currentVersionIndex ?? 0;
+  const currentVer = currentIndex + 1;
   const totalVer = versions.length;
   const hasCitations = msg.citations && msg.citations.length > 0;
 
@@ -38,9 +39,9 @@ export function MessageToolbar({
             
             {totalVer > 1 && (
                 <div className="flex items-center text-xs font-medium text-gray-500 bg-gray-100 dark:bg-zinc-800 rounded-md px-1 mr-2">
-                    <button onClick={() => onSwitchVersion('prev')} disabled={currentVer <= 1} className="p-1 hover:text-black dark:hover:text-white disabled:opacity-30"><MdNavigateBefore size={14}/></button>
+                    <button onClick={() => onSwitchVersion(currentIndex - 1)} disabled={currentIndex <= 0} className="p-1 hover:text-black dark:hover:text-white disabled:opacity-30"><MdNavigateBefore size={14}/></button>
                     <span className="mx-1">{currentVer} / {totalVer}</span>
-                    <button onClick={() => onSwitchVersion('next')} disabled={currentVer >= totalVer} className="p-1 hover:text-black dark:hover:text-white disabled:opacity-30"><MdNavigateNext size={14}/></button>
+                    <button onClick={() => onSwitchVersion(currentIndex + 1)} disabled={currentIndex >= totalVer - 1} className="p-1 hover:text-black dark:hover:text-white disabled:opacity-30"><MdNavigateNext size={14}/></button>
                 </div>
             )}
             

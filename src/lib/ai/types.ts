@@ -31,14 +31,25 @@ export interface ChatSession {
 
 import type { SearchResult } from './search';
 
+export interface MessageVersion {
+    content: string;
+    createdAt: number;
+    // Snapshot of the conversation trail that followed this version
+    // This allows us to "restore" the future when switching back to this past
+    subsequentMessages: ChatMessage[]; 
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
   content: string // Store string locally (markdown image syntax)
   modelId: string
   timestamp: number
-  versions?: string[]
+  
+  // Branching Support
+  versions?: MessageVersion[]
   currentVersionIndex?: number
+  
   citations?: SearchResult[] 
 }
 

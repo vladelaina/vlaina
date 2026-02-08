@@ -1,17 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
-import { MdEdit, MdContentCopy } from 'react-icons/md';
+import { MdEdit, MdContentCopy, MdKeyboardArrowLeft, MdKeyboardArrowRight } from 'react-icons/md';
 import { LocalImage } from '../components/LocalImage';
 import { cn } from '@/lib/utils';
+import type { ChatMessage } from '@/lib/ai/types';
 
 interface UserMessageProps {
-  content: string;
-  onEdit?: (newContent: string) => void;
+  message: ChatMessage;
+  onEdit?: (id: string, newContent: string) => void;
+  onSwitchVersion?: (id: string, targetIndex: number) => void;
 }
 
-export function UserMessage({ content, onEdit }: UserMessageProps) {
+export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessageProps) {
+  const content = message.content || '';
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(content);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const versions = message.versions || [];
+  const currentIdx = message.currentVersionIndex ?? 0;
+  const hasMultipleVersions = versions.length > 1;
 
   // Parse images for display mode
   const imgRegex = /!\[.*?\]\((.*?)\)/g;
@@ -38,9 +45,16 @@ export function UserMessage({ content, onEdit }: UserMessageProps) {
 
   const handleSave = () => {
       if (editValue.trim() !== content) {
-          onEdit?.(editValue);
+          onEdit?.(message.id, editValue);
       }
       setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          handleSave();
+      }
   };
 
   const handleCopy = () => {
@@ -54,6 +68,7 @@ export function UserMessage({ content, onEdit }: UserMessageProps) {
                   ref={textareaRef}
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
                   className="w-full bg-transparent border-none outline-none resize-none text-[15px] leading-7 text-gray-900 dark:text-gray-100 font-mono"
                   rows={1}
                   autoFocus
@@ -97,29 +112,59 @@ export function UserMessage({ content, onEdit }: UserMessageProps) {
         </div>
 
         {/* Action Bar (Visible on Hover) */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 mr-1 mt-1">
-            <button 
-                onClick={handleCopy}
-                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md transition-colors"
-            >
-                <MdContentCopy size={14} />
-            </button>
-            
-            <button 
-                onClick={() => {
-                    if (onEdit) setIsEditing(true);
-                    else alert('Edit function not available');
-                }}
-                className={cn(
-                    "p-1.5 rounded-md transition-colors",
-                    onEdit 
-                        ? "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10"
-                        : "text-gray-300 cursor-not-allowed"
-                )}
-                title={onEdit ? "Edit" : "Edit Unavailable"}
-            >
-                <MdEdit size={14} />
-            </button>
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 mr-1 mt-1">
+            {/* Version Switcher */}
+            {hasMultipleVersions && onSwitchVersion && (
+                <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/5 rounded-md p-0.5 select-none">
+                    <button 
+                        onClick={() => {
+                            console.log('[UserMessage] Prev clicked', { id: message.id, target: currentIdx - 1 });
+                            currentIdx > 0 && onSwitchVersion(message.id, currentIdx - 1);
+                        }}
+                        disabled={currentIdx === 0}
+                        className="p-0.5 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
+                    >
+                        <MdKeyboardArrowLeft size={14} />
+                    </button>
+                    <span className="text-[10px] font-mono font-medium text-gray-600 dark:text-gray-400 min-w-[24px] text-center">
+                        {currentIdx + 1} / {versions.length}
+                    </span>
+                    <button 
+                        onClick={() => {
+                            console.log('[UserMessage] Next clicked', { id: message.id, target: currentIdx + 1 });
+                            currentIdx < versions.length - 1 && onSwitchVersion(message.id, currentIdx + 1);
+                        }}
+                        disabled={currentIdx === versions.length - 1}
+                        className="p-0.5 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
+                    >
+                        <MdKeyboardArrowRight size={14} />
+                    </button>
+                </div>
+            )}
+
+            <div className="flex items-center gap-1">
+                <button 
+                    onClick={handleCopy}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md transition-colors"
+                >
+                    <MdContentCopy size={14} />
+                </button>
+                
+                <button 
+                    onClick={() => {
+                        if (onEdit) setIsEditing(true);
+                    }}
+                    className={cn(
+                        "p-1.5 rounded-md transition-colors",
+                        onEdit 
+                            ? "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10"
+                            : "text-gray-300 cursor-not-allowed"
+                    )}
+                    title={onEdit ? "Edit" : "Edit Unavailable"}
+                >
+                    <MdEdit size={14} />
+                </button>
+            </div>
         </div>
     </div>
   );

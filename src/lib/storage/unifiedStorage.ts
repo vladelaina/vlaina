@@ -86,20 +86,10 @@ async function getBasePath(): Promise<string> {
 
 function getDefaultData(): UnifiedData {
   return {
-    calendars: [
-      {
-        id: 'main',
-        name: 'Main',
-        color: 'blue',
-        visible: true,
-      }
-    ],
+    calendars: [{ id: 'main', name: 'Main', color: 'blue', visible: true }],
     progress: [],
     settings: {
-      timezone: {
-        offset: DEFAULT_TIMEZONE,
-        city: 'Beijing', // 默认城市
-      },
+      timezone: { offset: DEFAULT_TIMEZONE, city: 'Beijing' },
       viewMode: DEFAULT_VIEW_MODE,
       dayCount: DEFAULT_DAY_COUNT,
     },
@@ -110,24 +100,126 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
   try {
     const storage = getStorageAdapter();
     const base = await getBasePath();
-    const jsonPath = await joinPath(base, '.nekotick', 'data.json');
+    const mainPath = await joinPath(base, '.nekotick', 'data.json');
+    const sessionsPath = await joinPath(base, '.nekotick', 'chat', 'sessions.json');
+    const channelsDir = await joinPath(base, '.nekotick', 'chat', 'channels');
 
-    if (await storage.exists(jsonPath)) {
-      const content = await storage.readFile(jsonPath);
+    let combinedData = getDefaultData();
+
+    // 1. Load Main Data
+    if (await storage.exists(mainPath)) {
+      const content = await storage.readFile(mainPath);
       const parsed = JSON.parse(content) as DataFile;
-
       if (parsed.version === 2 && parsed.data) {
-        if (!parsed.data.calendars || parsed.data.calendars.length === 0) {
-            parsed.data.calendars = getDefaultData().calendars;
-        }
-        return parsed.data;
+        combinedData = { ...combinedData, ...parsed.data };
       }
     }
 
-    return getDefaultData();
+    // Init AI State
+    combinedData.ai = {
+        providers: [],
+        models: [],
+        sessions: [],
+        selectedModelId: null,
+        currentSessionId: null,
+        webSearchEnabled: false,
+        messages: {}
+    };
+
+    // 2. Load Sessions Index
+    let providerIds: string[] = [];
+    if (await storage.exists(sessionsPath)) {
+        try {
+            const sessionsData = JSON.parse(await storage.readFile(sessionsPath));
+            combinedData.ai.sessions = sessionsData.sessions || [];
+            combinedData.ai.selectedModelId = sessionsData.selectedModelId || null;
+            combinedData.ai.currentSessionId = sessionsData.currentSessionId || null;
+            combinedData.ai.webSearchEnabled = sessionsData.webSearchEnabled || false;
+            providerIds = sessionsData.providerIds || []; // Index of channels
+        } catch (e) { console.error('Failed to load sessions.json', e); }
+    }
+
+    // 3. Load Individual Channels
+    if (providerIds.length > 0) {
+        const providerPromises = providerIds.map(async (id) => {
+            const pPath = await joinPath(channelsDir, `${id}.json`);
+            if (await storage.exists(pPath)) {
+                try {
+                    const pData = JSON.parse(await storage.readFile(pPath));
+                    return pData; // Expected: { provider: Provider, models: AIModel[] }
+                } catch (e) { return null; }
+            }
+            return null;
+        });
+
+        const loadedProviders = await Promise.all(providerPromises);
+        loadedProviders.forEach(p => {
+            if (p && p.provider) {
+                combinedData.ai!.providers.push(p.provider);
+                if (p.models) {
+                    combinedData.ai!.models.push(...p.models);
+                }
+            }
+        });
+    }
+
+    return combinedData;
   } catch (error) {
     return getDefaultData();
   }
+}
+
+async function performSplitSave(data: UnifiedData) {
+    const storage = getStorageAdapter();
+    const base = await getBasePath();
+    
+    const dotNeko = await joinPath(base, '.nekotick');
+    const chatDir = await joinPath(dotNeko, 'chat');
+    const channelsDir = await joinPath(chatDir, 'channels');
+    
+    const mainPath = await joinPath(dotNeko, 'data.json');
+    const sessionsPath = await joinPath(chatDir, 'sessions.json');
+
+    if (!(await storage.exists(channelsDir))) {
+        await storage.mkdir(channelsDir, true);
+    }
+
+    const { ai, ...mainPart } = data;
+    
+    // 1. Save Main
+    const mainFile: DataFile = {
+        version: 2,
+        lastModified: Date.now(),
+        data: mainPart as UnifiedData
+    };
+    await storage.writeFile(mainPath, JSON.stringify(mainFile, null, 2));
+
+    // 2. Save AI Data
+    if (ai) {
+        // Save Sessions Index + Provider IDs
+        const sessionsData = {
+            sessions: ai.sessions,
+            selectedModelId: ai.selectedModelId,
+            currentSessionId: ai.currentSessionId,
+            webSearchEnabled: ai.webSearchEnabled,
+            providerIds: ai.providers.map(p => p.id)
+        };
+        await storage.writeFile(sessionsPath, JSON.stringify(sessionsData, null, 2));
+
+        // Save Each Provider to its own file
+        for (const provider of ai.providers) {
+            const pModels = ai.models.filter(m => m.providerId === provider.id);
+            const pData = {
+                provider,
+                models: pModels
+            };
+            const pPath = await joinPath(channelsDir, `${provider.id}.json`);
+            await storage.writeFile(pPath, JSON.stringify(pData, null, 2));
+        }
+        
+        // TODO: Cleanup deleted provider files? 
+        // For "Simple" mandate, we skip aggressive cleanup to avoid accidental data loss.
+    }
 }
 
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -135,42 +227,16 @@ let pendingData: UnifiedData | null = null;
 
 export async function saveUnifiedData(data: UnifiedData): Promise<void> {
   pendingData = data;
-
-  if (saveTimeout) {
-    clearTimeout(saveTimeout);
-  }
+  if (saveTimeout) clearTimeout(saveTimeout);
 
   saveTimeout = setTimeout(async () => {
     if (!pendingData) return;
-
     try {
-      const storage = getStorageAdapter();
-      const base = await getBasePath();
-      const jsonPath = await joinPath(base, '.nekotick', 'data.json');
-
-      const dataFile: DataFile = {
-        version: 2,
-        lastModified: Date.now(),
-        data: pendingData,
-      };
-      await storage.writeFile(jsonPath, JSON.stringify(dataFile, null, 2));
-
+      await performSplitSave(pendingData);
       pendingData = null;
-
       triggerAutoSyncIfEligible();
-    } catch (error) {
-    }
+    } catch (error) {}
   }, 300);
-}
-
-function triggerAutoSyncIfEligible(): void {
-  const syncState = useGithubSyncStore.getState();
-  const proStatusState = useProStatusStore.getState();
-
-  if (syncState.isConnected && proStatusState.isProUser) {
-    const autoSyncManager = getAutoSyncManager();
-    autoSyncManager.triggerSync();
-  }
 }
 
 export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void> {
@@ -179,19 +245,15 @@ export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void>
     saveTimeout = null;
   }
   pendingData = null;
-
   try {
-    const storage = getStorageAdapter();
-    const base = await getBasePath();
-    const jsonPath = await joinPath(base, '.nekotick', 'data.json');
+    await performSplitSave(data);
+  } catch (error) {}
+}
 
-    const dataFile: DataFile = {
-      version: 2,
-      lastModified: Date.now(),
-      data,
-    };
-    await storage.writeFile(jsonPath, JSON.stringify(dataFile, null, 2));
-
-  } catch (error) {
+function triggerAutoSyncIfEligible(): void {
+  const syncState = useGithubSyncStore.getState();
+  const proStatusState = useProStatusStore.getState();
+  if (syncState.isConnected && proStatusState.isProUser) {
+    getAutoSyncManager().triggerSync();
   }
 }

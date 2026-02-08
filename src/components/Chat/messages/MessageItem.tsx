@@ -12,8 +12,8 @@ interface MessageItemProps {
   onCopy: (text: string) => void;
   onSpeak: (id: string, text: string) => void;
   onRegenerate: (id: string) => void;
-  onEdit?: (id: string, newContent: string) => void; // Added onEdit
-  onSwitchVersion: (id: string, dir: 'prev' | 'next') => void;
+  onEdit?: (id: string, newContent: string) => void;
+  onSwitchVersion: (id: string, targetIndex: number) => void;
   onToggleSources: (id: string) => void;
 }
 
@@ -25,7 +25,7 @@ export const MessageItem = memo(function MessageItem({
   onCopy,
   onSpeak,
   onRegenerate,
-  onEdit, // Destructure
+  onEdit, 
   onSwitchVersion,
   onToggleSources
 }: MessageItemProps) {
@@ -34,7 +34,7 @@ export const MessageItem = memo(function MessageItem({
   return (
     <div
       data-message-item="true"
-      data-role={msg.role} // Added role attribute
+      data-role={msg.role}
       className={cn(
         "flex w-full group",
         isUser ? "justify-end" : "justify-start"
@@ -48,8 +48,9 @@ export const MessageItem = memo(function MessageItem({
       >
           {isUser ? (
               <UserMessage 
-                  content={msg.content} 
-                  onEdit={onEdit ? (newContent) => onEdit(msg.id, newContent) : undefined}
+                  message={msg}
+                  onEdit={onEdit}
+                  onSwitchVersion={onSwitchVersion}
               />
           ) : (
               <AIMessage 
@@ -60,7 +61,7 @@ export const MessageItem = memo(function MessageItem({
                   onCopy={() => onCopy(msg.content)}
                   onSpeak={() => onSpeak(msg.id, msg.content)}
                   onRegenerate={() => onRegenerate(msg.id)}
-                  onSwitchVersion={(dir) => onSwitchVersion(msg.id, dir)}
+                  onSwitchVersion={(idx) => onSwitchVersion(msg.id, idx)}
                   onToggleSources={() => onToggleSources(msg.id)}
               />
           )}
