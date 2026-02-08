@@ -20,6 +20,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
       sessions, 
       currentSessionId, 
       createSession, 
+      openNewChat, // Added openNewChat
       switchSession, 
       deleteSession, 
       updateSession, 
@@ -34,7 +35,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
     const handleCreateNew = (e: Event) => {
         const customEvent = e as CustomEvent;
         if (customEvent.detail?.view === 'chat') {
-            createSession();
+            openNewChat(); // Use lazy open
         }
     };
 
@@ -55,10 +56,12 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   }, [createSession]);
 
   const sortedSessions = useMemo(() => {
-    return [...sessions].sort((a, b) => {
-        if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
-        return b.updatedAt - a.updatedAt;
-    });
+    return [...sessions]
+        .filter(s => s.title && s.title.trim() !== '')
+        .sort((a, b) => {
+            if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+            return b.updatedAt - a.updatedAt;
+        });
   }, [sessions]);
 
   const handleRename = (sessionId: string, currentTitle: string) => {

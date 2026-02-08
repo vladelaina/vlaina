@@ -28,7 +28,7 @@ export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }:
 
       if (isMod && e.shiftKey && key === 'o') {
         e.preventDefault();
-        aiActions.createSession();
+        aiActions.openNewChat();
         onFocusInput();
         return;
       }

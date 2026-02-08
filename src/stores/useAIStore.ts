@@ -126,6 +126,10 @@ export const actions = {
     useUnifiedStore.getState().updateAIData({ selectedModelId: modelId })
   },
 
+  openNewChat: () => {
+      useUnifiedStore.getState().updateAIData({ currentSessionId: null })
+  },
+
   createSession: (title = 'New Chat') => {
     const id = `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
     const state = useUnifiedStore.getState();
@@ -174,7 +178,7 @@ export const actions = {
       sessions: newSessions,
       messages: newMessages,
       currentSessionId: ai.currentSessionId === id 
-        ? (newSessions[0]?.id || null) 
+        ? null 
         : ai.currentSessionId
     });
   },

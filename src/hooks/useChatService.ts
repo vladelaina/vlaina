@@ -57,7 +57,7 @@ export function useChatService() {
     let activeSessionId = currentSessionId;
     let isNewSession = false;
     if (!activeSessionId) {
-        activeSessionId = createSession(userMessageText.slice(0, 30) || 'New Image Chat');
+        activeSessionId = createSession(''); // Ghost session
         isNewSession = true;
     }
 
@@ -101,10 +101,8 @@ export function useChatService() {
 
     if (shouldGenerateTitle && targetSessionId) {
         const titleSessionId = targetSessionId;
-        setTimeout(() => {
-            generateAutoTitle(titleSessionId, userMessageText || "Image Query", provider.id, selectedModel.id)
-                .catch(e => console.error(e));
-        }, 3000);
+        generateAutoTitle(titleSessionId, userMessageText || "Image Query", provider.id, selectedModel.id)
+            .catch(e => console.error(e));
     }
 
     try {
