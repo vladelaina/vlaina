@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, memo, useCallback } from 'react';
-import { MdSend, MdAttachFile, MdImage, MdSettings, MdStop, MdLanguage, MdAdd, MdClose } from 'react-icons/md';
+import { MdSend, MdAttachFile, MdImage, MdStop, MdLanguage, MdAdd, MdClose } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 import { ModelSelector } from './ModelSelector';
 import { useAIStore } from '@/stores/useAIStore';
@@ -18,11 +18,10 @@ interface ChatInputProps {
   onStop: () => void;
   isLoading: boolean;
   selectedModel: AIModel | undefined;
-  onOpenSettings: () => void;
   focusTrigger?: number;
 }
 
-export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, selectedModel, onOpenSettings, focusTrigger }: ChatInputProps) {
+export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, selectedModel, focusTrigger }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);

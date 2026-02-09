@@ -11,7 +11,6 @@ export function ChatShortcutsDialog({ isOpen, onOpenChange }: ChatShortcutsDialo
   
   const MODIFIER = isMac ? '⌘' : 'Ctrl';
   const SHIFT = isMac ? '⇧' : 'Shift';
-  const ALT = isMac ? '⌥' : 'Alt';
   const ESC = 'Esc';
   const DELETE = isMac ? '⌫' : 'Backspace';
 

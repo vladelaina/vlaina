@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
+import { useCalendarEventsStore } from '@/stores/calendarEventsSlice';
 import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconPreview';
 import { type ItemColor, COLOR_HEX } from '@/lib/colors';
 
@@ -32,7 +33,7 @@ export function useEventForm(event: NekoEvent) {
         }
 
         // 重新获取最新的 event 状态，以确保 icon 等信息是最新的
-        const currentEvent = useCalendarStore.getState().allEvents.find(e => e.uid === event.uid);
+        const currentEvent = useCalendarEventsStore.getState().events.find((e: NekoEvent) => e.uid === event.uid);
         const hasContent = localSummary.trim() || currentEvent?.icon;
 
         if (!hasContent) {

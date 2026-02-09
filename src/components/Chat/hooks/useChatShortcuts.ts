@@ -5,7 +5,7 @@ import { useUnifiedStore } from '@/stores/useUnifiedStore';
 interface UseChatShortcutsOptions {
   onFocusInput: () => void;
   onToggleShortcuts: () => void;
-  scrollRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }: UseChatShortcutsOptions) {

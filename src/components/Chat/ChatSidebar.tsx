@@ -19,7 +19,6 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   const { 
       sessions, 
       currentSessionId, 
-      createSession, 
       openNewChat,
       switchSession, 
       deleteSession, 

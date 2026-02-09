@@ -164,7 +164,6 @@ export function ChatView() {
                 onStop={stop}
                 isLoading={isLoading} 
                 selectedModel={selectedModel} 
-                onOpenSettings={handleOpenSettings}
                 focusTrigger={focusInputTrigger}
               />
           </motion.div>

@@ -1,6 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { DndContext, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
-import { windowCommands } from '@/lib/tauri/invoke';
 import { isTauri } from '@/lib/storage/adapter';
 
 import { AppShell } from '@/components/layout/shell/AppShell';
@@ -42,7 +41,6 @@ function AppContent() {
   const { currentVault, initialize } = useVaultStore();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const toggleSettings = useCallback(() => setSettingsOpen(prev => !prev), []);
 
   useEffect(() => {
     const handleOpenSettings = () => setSettingsOpen(prev => !prev)
