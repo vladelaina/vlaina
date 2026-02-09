@@ -297,7 +297,6 @@ export const actions = {
       const newMessages = sessionMessages.map(m => {
           if (m.id !== id) return m;
           
-          const currentIdx = m.currentVersionIndex ?? 0;
           const versions = m.versions ? [...m.versions] : [{ 
               content: typeof m.content === 'string' ? m.content : '', 
               createdAt: m.timestamp,
