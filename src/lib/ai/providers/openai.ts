@@ -1,5 +1,5 @@
 import type { AIClient } from '../client'
-import type { Provider, AIModel, ChatCompletionRequest, ChatCompletionResponse, ChatCompletionStreamChunk, ChatMessage, ChatMessageContent } from '../types'
+import type { Provider, AIModel, ChatCompletionRequest, ChatCompletionStreamChunk, ChatMessage, ChatMessageContent } from '../types'
 import { parseAPIError, parseHTTPError } from '../errors'
 import { normalizeApiHost } from '../utils'
 

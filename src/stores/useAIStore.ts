@@ -283,10 +283,8 @@ export const actions = {
       saveSessionJson(sessionId, newMessages);
   },
 
-  completeMessage: (sessionId: string, id: string) => {
-      const state = useUnifiedStore.getState();
-      const ai = state.data.ai!;
-      state.updateAIData({}); 
+  completeMessage: (_sessionId: string, _id: string) => {
+      useUnifiedStore.getState().updateAIData({}); 
   },
 
   addVersion: (id: string) => {
@@ -296,17 +294,41 @@ export const actions = {
       if (!currentSessionId) return;
 
       const sessionMessages = ai.messages[currentSessionId] || [];
+      const newMessages = sessionMessages.map(m => {
+          if (m.id !== id) return m;
+          
+          const currentIdx = m.currentVersionIndex ?? 0;
+          const versions = m.versions ? [...m.versions] : [{ 
+              content: typeof m.content === 'string' ? m.content : '', 
+              createdAt: m.timestamp,
+              subsequentMessages: []
+          }];
+          
+          const newVersion: MessageVersion = {
+              content: '',
+              createdAt: Date.now(),
+              subsequentMessages: []
+          };
+          
+          versions.push(newVersion);
+          const newIndex = versions.length - 1;
+          
+          return { 
+              ...m, 
+              content: '', 
+              versions, 
+              currentVersionIndex: newIndex 
+          };
+      });
+
       state.updateAIData({
           messages: {
               ...ai.messages,
-              [currentSessionId]: sessionMessages.map(m => {
-                  if (m.id !== id) return m;
-                  const versions = m.versions ? [...m.versions, ''] : [m.content, ''];
-                  const newIndex = versions.length - 1;
-                  return { ...m, versions, currentVersionIndex: newIndex, content: '' };
-              })
+              [currentSessionId]: newMessages
           }
       });
+
+      saveSessionJson(currentSessionId, newMessages);
   },
 
   editMessageAndBranch: (sessionId: string, messageId: string, newContent: string) => {
