@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 export function BubbleLab({ onClose }: { onClose: () => void }) {

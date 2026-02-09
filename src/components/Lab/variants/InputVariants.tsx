@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MdSend, MdAttachFile, MdImage, MdSettings, MdStop, MdLanguage, MdSmartToy, MdExpandMore } from 'react-icons/md';
+import { MdSend, MdAttachFile, MdSettings, MdStop, MdLanguage, MdExpandMore } from 'react-icons/md';
 import { cn } from '@/lib/utils';
 
 // Shared Mock Logic for Lab

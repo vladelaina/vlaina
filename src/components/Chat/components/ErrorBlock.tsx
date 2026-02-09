@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { MdErrorOutline, MdKeyboardArrowDown, MdKeyboardArrowRight, MdContentCopy } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/utils';
 
 interface ErrorBlockProps {
   type?: string;

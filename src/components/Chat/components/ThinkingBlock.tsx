@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
-import { MdKeyboardArrowDown, MdKeyboardArrowRight, MdLightbulbOutline } from 'react-icons/md';
+import { useState } from 'react';
+import { MdKeyboardArrowDown, MdKeyboardArrowRight } from 'react-icons/md';
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/utils';
 
 interface ThinkingBlockProps {
   content: string;

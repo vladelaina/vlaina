@@ -77,26 +77,6 @@ export function ChatView() {
   const copyToClipboard = useCallback((text: string) => navigator.clipboard.writeText(text), []);
   
   const handleSpeak = useCallback((msgId: string, text: string) => {
-      setSpeakingMsgId(prev => {
-          if (prev === msgId) {
-              window.speechSynthesis.cancel();
-              return null;
-          }
-          window.speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.onend = () => setSpeakingMsgId(null);
-          utterance.onerror = () => setSpeakingMsgId(null);
-          window.speechSynthesis.speak(utterance);
-          return msgId;
-      });
-  }, []);
-
-  const handleOpenSettings = useCallback(() => {
-      const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } })
-      window.dispatchEvent(event)
-  }, []);
-
-  return (
     <div className="h-full w-full flex flex-col bg-[var(--neko-bg-primary)] relative overflow-hidden">
       <div 
         className={cn(

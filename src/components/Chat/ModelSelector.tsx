@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, memo, useCallback } from 'react'
-import { MdExpandMore, MdSearch, MdCheck, MdPushPin, MdPushPin as MdPushPinOutlined, MdSettings } from 'react-icons/md'
+import { MdExpandMore, MdSearch, MdPushPin, MdPushPin as MdPushPinOutlined, MdSettings } from 'react-icons/md'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAIStore } from '@/stores/useAIStore'
 import { groupModels } from '@/lib/ai/utils'
