@@ -289,6 +289,26 @@ export const actions = {
       state.updateAIData({}); 
   },
 
+  addVersion: (id: string) => {
+      const state = useUnifiedStore.getState();
+      const ai = state.data.ai!;
+      const { currentSessionId } = ai;
+      if (!currentSessionId) return;
+
+      const sessionMessages = ai.messages[currentSessionId] || [];
+      state.updateAIData({
+          messages: {
+              ...ai.messages,
+              [currentSessionId]: sessionMessages.map(m => {
+                  if (m.id !== id) return m;
+                  const versions = m.versions ? [...m.versions, ''] : [m.content, ''];
+                  const newIndex = versions.length - 1;
+                  return { ...m, versions, currentVersionIndex: newIndex, content: '' };
+              })
+          }
+      });
+  },
+
   editMessageAndBranch: (sessionId: string, messageId: string, newContent: string) => {
       const state = useUnifiedStore.getState();
       const ai = state.data.ai!;

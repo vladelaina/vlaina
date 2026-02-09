@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import { performWebSearch, formatSearchResults } from '@/lib/ai/search';

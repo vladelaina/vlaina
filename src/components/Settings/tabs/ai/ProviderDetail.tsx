@@ -139,7 +139,6 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
   const handleFetchModels = async () => {
     if (!apiKey.trim()) return;
     setIsFetchingModels(true);
-    setFetchError(null);
     setFetchedModels([]);
 
     try {

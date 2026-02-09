@@ -1,5 +1,3 @@
-import { AssetCategory } from '../types';
-
 /**
  * Resolves the absolute path for a system asset (icon or cover) within the vault.
  * Always targets the .nekotick/assets directory.

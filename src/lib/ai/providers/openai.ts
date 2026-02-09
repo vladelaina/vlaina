@@ -31,7 +31,7 @@ export class OpenAICompatibleClient implements AIClient {
     }
     
     // Construct messages
-    const apiMessages = history.map(msg => ({
+    const apiMessages: { role: string; content: ChatMessageContent }[] = history.map(msg => ({
         role: msg.role,
         content: msg.content
     }));
@@ -53,53 +53,6 @@ export class OpenAICompatibleClient implements AIClient {
 
     // Use streamResponse even if onChunk is not provided to handle forced SSE responses
     return this.streamResponse(url, headers, body, onChunk || (() => {}), signal)
-  }
-
-  // fetchResponse is now unused but kept for reference or specific non-stream needs
-  private async fetchResponse(
-    url: string,
-    headers: Record<string, string>,
-    body: ChatCompletionRequest,
-    signal?: AbortSignal
-  ): Promise<string> {
-    console.log('[OpenAI] Starting fetchResponse');
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout)
-    
-    if (signal) {
-        signal.addEventListener('abort', () => controller.abort());
-    }
-
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-        signal: controller.signal
-      })
-
-      clearTimeout(timeoutId)
-      console.log('[OpenAI] Fetch response received', { 
-          status: response.status, 
-          ok: response.ok,
-          type: response.type,
-          contentType: response.headers.get('content-type')
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}))
-        console.error('[OpenAI] Fetch error body', errorBody);
-        throw parseHTTPError(response.status, errorBody)
-      }
-
-      const data: ChatCompletionResponse = await response.json()
-      console.log('[OpenAI] Fetch success, content length:', data.choices[0]?.message?.content?.length);
-      return data.choices[0]?.message?.content || ''
-    } catch (error) {
-      console.error('[OpenAI] Fetch exception', error);
-      clearTimeout(timeoutId)
-      throw parseAPIError(error)
-    }
   }
 
   private async streamResponse(
