@@ -76,15 +76,17 @@ export const CoverRenderer = React.memo(({
   return (
     <>
       {/* Background/Loading Placeholder */}
-      <img
-        src={displaySrc}
-        alt="Cover"
-        className={cn(
-          "absolute inset-0 w-full h-full object-cover transition-opacity duration-300 pointer-events-none",
-          isImageReady ? "opacity-0" : "opacity-100 placeholder-active"
-        )}
-        style={{ objectPosition: `${positionX}% ${positionY}%` }}
-      />
+      {displaySrc && (
+        <img
+          src={displaySrc}
+          alt="Cover"
+          className={cn(
+            "absolute inset-0 w-full h-full object-cover transition-opacity duration-300 pointer-events-none",
+            isImageReady ? "opacity-0" : "opacity-100 placeholder-active"
+          )}
+          style={{ objectPosition: `${positionX}% ${positionY}%` }}
+        />
+      )}
 
       {/* Main Cropper */}
       {!isResizing && (
@@ -94,7 +96,7 @@ export const CoverRenderer = React.memo(({
           style={{ willChange: 'transform' }}
         >
           <Cropper
-            image={displaySrc}
+            image={displaySrc || undefined}
             crop={crop}
             zoom={zoom}
             cropSize={effectiveContainerSize ?? undefined}
@@ -121,23 +123,25 @@ export const CoverRenderer = React.memo(({
           !isResizing ? "invisible" : "visible"
         )}
       >
-        <img
-          ref={frozenImgRef}
-          src={displaySrc}
-          alt="Frozen Cover"
-          style={{
-            position: 'absolute',
-            top: frozenImageState?.top ?? 0,
-            left: frozenImageState?.left ?? 0,
-            width: frozenImageState?.width ?? 0,
-            height: frozenImageState?.height ?? 0,
-            maxWidth: 'none',
-            maxHeight: 'none',
-            objectFit: 'fill',
-            opacity: isResizing ? 1 : 0,
-            transition: 'none'
-          }}
-        />
+        {displaySrc && (
+          <img
+            ref={frozenImgRef}
+            src={displaySrc}
+            alt="Frozen Cover"
+            style={{
+              position: 'absolute',
+              top: frozenImageState?.top ?? 0,
+              left: frozenImageState?.left ?? 0,
+              width: frozenImageState?.width ?? 0,
+              height: frozenImageState?.height ?? 0,
+              maxWidth: 'none',
+              maxHeight: 'none',
+              objectFit: 'fill',
+              opacity: isResizing ? 1 : 0,
+              transition: 'none'
+            }}
+          />
+        )}
       </div>
     </>
   );
