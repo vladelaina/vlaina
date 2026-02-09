@@ -3,7 +3,7 @@ import { MdSend, MdAttachFile, MdSettings, MdStop, MdLanguage, MdExpandMore } fr
 import { cn } from '@/lib/utils';
 
 // Shared Mock Logic for Lab
-function MockInput({ className, containerClassName, buttonStyle = 'default' }: any) {
+function MockInput({ className, containerClassName }: any) {
     const [msg, setMsg] = useState('');
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState(false);

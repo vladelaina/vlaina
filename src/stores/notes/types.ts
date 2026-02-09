@@ -102,7 +102,7 @@ export interface NotesActions {
   getNoteCover: (path: string) => { cover?: string; coverX?: number; coverY?: number; coverH?: number; coverScale?: number };
   setNoteCover: (path: string, cover: string | null, coverX?: number, coverY?: number, coverH?: number, coverScale?: number) => void;
   loadAssets: (vaultPath: string) => Promise<void>;
-  uploadAsset: (file: File, category?: 'covers' | 'icons', currentNotePath?: string) => Promise<UploadResult>;
+  uploadAsset: (file: File, category?: 'covers' | 'icons' | 'content', currentNotePath?: string) => Promise<UploadResult>;
   deleteAsset: (filename: string) => Promise<void>;
   cleanupAssetTempFiles: () => Promise<void>;
   getAssetList: (category?: 'covers' | 'icons') => AssetEntry[];

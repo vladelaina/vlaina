@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MdCheck, MdSearch, MdClose } from 'react-icons/md';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';

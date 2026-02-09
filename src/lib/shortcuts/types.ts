@@ -5,6 +5,7 @@ export interface ShortcutConfig {
   keys: string[];
   description: string;
   scope?: ShortcutScope;
+  isSystem?: boolean;
 }
 
 export type ShortcutHandler = () => void | Promise<void>;

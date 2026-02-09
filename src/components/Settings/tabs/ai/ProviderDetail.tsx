@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MdCheck, MdSave, MdAdd, MdDelete, MdCloudDownload, MdKeyboardArrowDown, MdKeyboardArrowRight, MdUnfoldMore, MdSelectAll, MdClear } from 'react-icons/md';
+import { MdCheck, MdAdd, MdDelete, MdCloudDownload, MdKeyboardArrowDown, MdKeyboardArrowRight, MdUnfoldMore, MdSelectAll } from 'react-icons/md';
 import { useAIStore } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import { checkModelHealth } from '@/lib/ai/healthCheck';
@@ -48,7 +48,6 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
   
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   
-  const [fetchError, setFetchError] = useState<string | null>(null);
   const [previewIcon, setPreviewIcon] = useState<string | null>(null);
 
   const [healthStatus, setHealthStatus] = useState<Record<string, HealthStatus>>({});
@@ -71,7 +70,6 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
     }
     setFetchedModels([]);
     setCollapsedGroups(new Set());
-    setFetchError(null);
     setIsAddingModel(false);
     setIsDeleting(false);
     setPreviewIcon(null);
@@ -83,12 +81,6 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
     if (initialProvider) {
       updateProvider(initialProvider.id, { name, apiKey, apiHost, updatedAt: Date.now() });
     } 
-  };
-
-  const handleCheckConnection = async () => {
-    if (!apiKey.trim()) return;
-    // setIsChecking(true); // Now handled by HealthCheckButton
-    // ... logic removed ...
   };
 
   const handleBatchHealthCheck = async () => {
@@ -153,10 +145,11 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
     try {
       const tempProvider: Provider = { id: initialProvider?.id || 'temp', name, type: 'newapi', apiHost, apiKey, enabled: true, createdAt: 0, updatedAt: 0 };
       const modelsList = await openaiClient.getModels(tempProvider);
-      if (modelsList.length === 0) setFetchError('No models found.');
-      else setFetchedModels(modelsList);
+      if (modelsList.length > 0) {
+          setFetchedModels(modelsList);
+      }
     } catch (e) {
-      setFetchError(e instanceof Error ? e.message : 'Failed to fetch models');
+      // Error handling via toast or other mechanism could be added here
     } finally {
       setIsFetchingModels(false);
     }
