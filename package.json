@@ -31,6 +31,7 @@
     "@fontsource/source-sans-3": "^5.2.9",
     "@fontsource/source-serif-4": "^5.2.9",
     "@fontsource/space-mono": "^5.2.9",
+    "@heroicons/react": "^2.2.0",
     "@milkdown/kit": "^7.17.3",
     "@milkdown/plugin-block": "^7.17.3",
     "@milkdown/plugin-math": "^7.5.9",
