@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { MarkdownRenderer } from '../MarkdownRenderer';
+import StreamingMarkdownContent from '../components/StreamingMarkdownContent';
 import { CitationList } from './CitationList';
 import { MessageToolbar } from './MessageToolbar';
-import { ThinkingBlock } from '../components/ThinkingBlock';
+import ThinkingBlock from '../components/ThinkingBlock';
 import { ErrorBlock } from '../components/ErrorBlock';
 import type { ChatMessage } from '@/lib/ai/types';
 
@@ -37,15 +37,25 @@ export function AIMessage({
   const errorCode = errorMatch ? errorMatch[2] : undefined;
   const errorContent = errorMatch ? errorMatch[3] : null;
 
-  // Clean content by removing error block for further parsing
+  // Clean content by removing error block
   const contentWithoutError = msg.content.replace(errorRegex, '');
 
   // 2. Parse Thinking Block
-  const thinkRegex = /^<think>([\s\S]*?)(?:<\/think>|$)([\s\S]*)/;
+  // Supports both <think>...</think> and just <think>... (streaming)
+  const thinkRegex = /<think>([\s\S]*?)(?:<\/think>|$)/;
   const thinkMatch = thinkRegex.exec(contentWithoutError);
   
   const thinkContent = thinkMatch ? thinkMatch[1] : null;
-  const mainContent = thinkMatch ? thinkMatch[2] : contentWithoutError;
+  // Main content is everything AFTER the think block (if closed) or empty (if still thinking)
+  let mainContent = contentWithoutError;
+  if (thinkMatch) {
+      const thinkEndIndex = contentWithoutError.indexOf('</think>');
+      if (thinkEndIndex !== -1) {
+          mainContent = contentWithoutError.substring(thinkEndIndex + 8).trim();
+      } else {
+          mainContent = ''; // Still thinking, nothing else to show yet
+      }
+  }
   
   // Determine if still thinking
   const isThinkingActive = isLoading && !!thinkContent && !contentWithoutError.includes('</think>');
@@ -57,23 +67,26 @@ export function AIMessage({
             <ErrorBlock type={errorType} code={errorCode} content={errorContent} />
         )}
 
-        {/* Thinking Block */}
+        {/* Thinking Block (Ollama Style) */}
         {thinkContent && (
             <ThinkingBlock 
-                content={thinkContent} 
-                isStreaming={isThinkingActive} 
+                thinking={thinkContent} 
+                startTime={msg.createdAt ? new Date(msg.createdAt) : new Date()}
+                endTime={!isThinkingActive ? new Date() : undefined} 
             />
         )}
 
-        {/* Main Content */}
-        {/* Only render main content if it's not empty or we are actively thinking */}
-        {(mainContent.trim() || isThinkingActive) && (
+        {/* Main Content (Ollama Style) */}
+        {(mainContent.trim() || (isLoading && !isThinkingActive)) && (
             <div className="[&>*:last-child]:mb-0">
-                <MarkdownRenderer content={mainContent || (isThinkingActive ? '' : ' ')} />
+                <StreamingMarkdownContent 
+                    content={mainContent || ' '} 
+                    isStreaming={isLoading}
+                />
             </div>
         )}
         
-        {/* Toolbar - Hide if error occurred and no content */}
+        {/* Toolbar */}
         {(!isLoading || mainContent) && !errorContent && (
             <>
                 <MessageToolbar 
@@ -104,7 +117,7 @@ export function AIMessage({
             </>
         )}
         
-        {/* Retry Button for Errors */}
+        {/* Retry Button */}
         {errorContent && (
             <div className="mt-2">
                 <button 

@@ -74,7 +74,7 @@ export function MessageToolbar({
                             : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-zinc-700"
                     )}
                 >
-                    <Icon name="ai.language" size="xs" />
+                    <Icon name="common.language" size="xs" />
                     <span>Sources</span>
                     <span className="opacity-60">{msg.citations?.length}</span>
                     {isSourcesOpen ? <Icon name="nav.chevronUp" size="xs"/> : <Icon name="nav.chevronDown" size="xs"/>}

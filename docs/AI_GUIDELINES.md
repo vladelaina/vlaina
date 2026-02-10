@@ -65,6 +65,10 @@ If the request would cause the code to violate these thresholds:
 * **Implementation:** 
   * Use Tailwind classes: `size-[20px]` or `w-[20px] h-[20px]`.
   * For components with a `size` prop (like `UniversalIcon` or `AppIcon`), use `size={20}` or `size="md"`.
+* **Naming Convention:**
+  * **No Module Prefixes:** Do not use module-specific prefixes like `ai.` for icons.
+  * **Standard Namespace:** Use `common.*` for shared actions (e.g., `common.sparkle`, `common.send`).
+  * **Strict Ban:** The prefix `ai.` is explicitly deprecated and must not be used. Use `common.` or descriptive domains (e.g., `editor.`, `file.`) instead.
 * **Specific Exceptions:**
   * **Delete/Trash Icon:** MUST use the custom `<DeleteIcon />` component (`@/components/common/DeleteIcon`).
 

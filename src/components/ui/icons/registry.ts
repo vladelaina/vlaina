@@ -1,4 +1,5 @@
 import { ComponentType, SVGProps } from 'react';
+import { PenLine, Pin } from 'lucide-react';
 import { 
   MinusIcon,
   XMarkIcon,
@@ -72,19 +73,24 @@ import {
   ClockIcon,
   StarIcon,
   HeartIcon,
-  BeakerIcon
+  BeakerIcon,
+  Bars3BottomLeftIcon,
+  Bars3BottomRightIcon,
+  Bars3Icon as AlignCenterIcon, 
+  ArrowsRightLeftIcon
 } from '@heroicons/react/24/outline';
 
 // Custom Icons
 import { NewChatIcon } from './custom/NewChatIcon';
 import { SquareCheckBigIcon } from './custom/SquareCheckBigIcon';
+import { CropIcon } from './custom/CropIcon';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement>>;
 
 export const icons: Record<string, IconSource> = {
   // --- Window Controls ---
   'window.minimize': MinusIcon,
-  'window.maximize': StopIcon, // Square equivalent
+  'window.maximize': StopIcon, 
   'window.close': XMarkIcon,
 
   // --- Common Actions ---
@@ -97,6 +103,7 @@ export const icons: Record<string, IconSource> = {
   'common.close': XMarkIcon,
   'common.check': CheckIcon,
   'common.checkCircle': CheckCircleIcon,
+  'common.radio': CheckCircleIcon, 
   'common.home': HomeIcon,
   'common.more': EllipsisHorizontalIcon,
   'common.moreVert': EllipsisVerticalIcon,
@@ -117,6 +124,12 @@ export const icons: Record<string, IconSource> = {
   'common.blocked': NoSymbolIcon,
   'common.block': NoSymbolIcon,
   'common.compose': NewChatIcon,
+  'common.rename': PenLine,
+  'common.pin': Pin,
+  'common.pinOutline': Pin,
+  'common.sparkle': SparklesIcon,
+  'common.send': PaperAirplaneIcon,
+  'common.language': LanguageIcon,
 
   // --- Navigation ---
   'nav.chevronRight': ChevronRightIcon,
@@ -172,6 +185,11 @@ export const icons: Record<string, IconSource> = {
   // --- Editor/Content ---
   'editor.code': CodeBracketIcon,
   'editor.list': ListBulletIcon,
+  'editor.crop': CropIcon,
+  'editor.alignLeft': Bars3BottomLeftIcon,
+  'editor.alignCenter': AlignCenterIcon, 
+  'editor.alignRight': Bars3BottomRightIcon,
+  'editor.checkSquare': CheckCircleIcon,
 
   // --- Media ---
   'media.play': PlayIcon,
@@ -180,16 +198,12 @@ export const icons: Record<string, IconSource> = {
   'media.mic': MicrophoneIcon,
   'media.volume': SpeakerWaveIcon,
 
-  // --- Chat/AI ---
-  'ai.sparkle': SparklesIcon,
-  'ai.send': PaperAirplaneIcon,
-  'ai.language': LanguageIcon,
-
   // --- Misc/Specific ---
   'misc.clock': ClockIcon,
   'misc.star': StarIcon,
   'misc.heart': HeartIcon,
-  'misc.activity': ChartPieIcon, // Temporary fallback
+  'misc.shuffle': ArrowsRightLeftIcon,
+  'misc.activity': ChartPieIcon, 
   'misc.lab': BeakerIcon,
   'misc.box': ArchiveBoxIcon,
 };
