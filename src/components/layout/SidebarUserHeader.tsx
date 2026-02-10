@@ -39,7 +39,8 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                     <button
                         onClick={handleCreateNew}
                         className={cn(
-                            "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0",
+                            "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0 transition-colors",
+                            "hover:bg-[#f5f5f5] dark:hover:bg-white/10",
                             iconButtonStyles
                         )}
                     >
@@ -57,7 +58,8 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                     <button
                         onClick={handleSearchClick}
                         className={cn(
-                            "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0",
+                            "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0 transition-colors",
+                            "hover:bg-[#f5f5f5] dark:hover:bg-white/10",
                             iconButtonStyles
                         )}
                     >
@@ -77,7 +79,8 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
             <button
                 onClick={toggleSidebar}
                 className={cn(
-                    "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0",
+                    "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0 transition-colors",
+                    "hover:bg-[#f5f5f5] dark:hover:bg-white/10",
                     iconButtonStyles
                 )}
             >
