@@ -241,6 +241,22 @@ function loadImageFilenameFormat(): ImageFilenameFormat {
   return 'original'; // Default: use original filename
 }
 
+function getDefaultSidebarWidth(): number {
+  if (typeof window === 'undefined') return 256;
+  
+  try {
+    const style = getComputedStyle(document.documentElement);
+    const widthVar = style.getPropertyValue('--neko-sidebar-width').trim();
+    if (widthVar.endsWith('px')) {
+      const parsed = parseFloat(widthVar);
+      return isNaN(parsed) ? 256 : parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return 256;
+}
+
 export const useUIStore = create<UIStore>()((set, get) => ({
   appViewMode: 'notes' as AppViewMode,
   setAppViewMode: (mode) => set({ appViewMode: mode }),
@@ -255,7 +271,7 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   setTaskSortMode: (mode) => set({ taskSortMode: mode }),
 
   sidebarCollapsed: loadBoolean(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, false),
-  sidebarWidth: loadNumber(STORAGE_KEY_SIDEBAR_WIDTH, 248),
+  sidebarWidth: loadNumber(STORAGE_KEY_SIDEBAR_WIDTH, getDefaultSidebarWidth()),
   toggleSidebar: () => set((state) => {
     const newState = !state.sidebarCollapsed;
     localStorage.setItem(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, String(newState));

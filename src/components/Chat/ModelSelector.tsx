@@ -33,7 +33,7 @@ const ModelOption = memo(({
                 "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md",
                 "text-left transition-colors group relative",
                 (isSelected || isFocused)
-                ? "bg-[#F4F4F5] dark:bg-[#222]"
+                ? "bg-[#f5f5f5] dark:bg-[#222]"
                 : "bg-transparent hover:bg-gray-50 dark:hover:bg-zinc-900"
             )}
         >

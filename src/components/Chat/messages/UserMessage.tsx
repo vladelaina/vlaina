@@ -162,7 +162,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
                     )}
                     title={onEdit ? "Edit" : "Edit Unavailable"}
                 >
-                    <Icon name="common.edit" size="sm" />
+                    <Icon name="common.compose" size="sm" />
                 </button>
             </div>
         </div>

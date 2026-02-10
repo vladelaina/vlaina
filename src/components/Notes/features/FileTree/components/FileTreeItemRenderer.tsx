@@ -56,12 +56,11 @@ export const FileTreeItemRenderer = ({
 
       <div
         className={cn(
-          "flex-1 flex items-center gap-2 pr-2 py-1.5 rounded-[6px] transition-all duration-200 ease-out mx-2",
-          "hover:bg-[var(--neko-bg-hover)]",
-          isActive && "bg-[var(--neko-bg-active)]",
+          "flex-1 flex items-center gap-2 pr-2 py-2 rounded-lg transition-all duration-200 ease-out mx-2",
+          "hover:bg-[#F9F9FA] dark:hover:bg-[#1E1E1E]",
+          isActive && "bg-[#f5f5f5] dark:bg-[#222]",
           isDragOver && "bg-[var(--neko-accent-light)] ring-1 ring-[var(--neko-accent)]"
         )}
-        style={isActive ? { backgroundColor: NOTES_COLORS.activeItem } : undefined}
       >
         {isFolder ? (
           <span className="w-[18px] h-[18px] flex items-center justify-center relative flex-shrink-0">
@@ -81,7 +80,7 @@ export const FileTreeItemRenderer = ({
             </span>
           </span>
         ) : (
-          <span className="w-[18px] h-[18px] flex items-center justify-center flex-shrink-0">
+          <span className="w-[20px] h-[20px] flex items-center justify-center flex-shrink-0">
             {icon ? (
               <NoteIcon icon={icon} size="md" />
             ) : (
@@ -102,7 +101,7 @@ export const FileTreeItemRenderer = ({
               if (e.key === 'Escape') onRenameCancel();
             }}
             className={cn(
-              "flex-1 min-w-0 text-[13px] px-1.5 py-0.5 rounded",
+              "flex-1 min-w-0 text-sm px-1.5 py-0.5 rounded",
               "bg-[var(--neko-bg-primary)] border border-[var(--neko-accent)]",
               "text-[var(--neko-text-primary)] outline-none"
             )}
@@ -110,7 +109,7 @@ export const FileTreeItemRenderer = ({
           />
         ) : (
           <span className={cn(
-            "flex-1 min-w-0 text-[13px] truncate text-[var(--neko-text-primary)]",
+            "flex-1 min-w-0 text-sm truncate text-[var(--neko-text-primary)]",
             isActive && "font-medium"
           )}>
             {displayName}
