@@ -1,9 +1,9 @@
 import { ComponentType, SVGProps } from 'react';
 // Lucide Imports (Primary Set)
 import { 
-  SquarePen, Trash2, Settings, User, LogOut, Moon, Sun, Laptop, 
+  SquarePen, Trash2, User, LogOut, Moon, Sun, Laptop, 
   Check, X, ChevronRight, ChevronDown, ChevronLeft, ChevronUp,
-  Search, Plus, MoreHorizontal, MoreVertical, Menu, Home, Folder,
+  Plus, MoreVertical, Home, Folder,
   FolderOpen, CloudOff, RefreshCw, Lock, Globe, Archive, Upload,
   Image as ImageIcon, Copy, ExternalLink, Link2Off, Crop, Download,
   ImageOff, Code, Share2, Star, Palette, Keyboard, FileText, Clock,
@@ -26,8 +26,12 @@ import {
 
 // Heroicons Imports
 import { 
-  BeakerIcon, ArchiveBoxIcon
+  BeakerIcon, ArchiveBoxIcon, MagnifyingGlassIcon, CogIcon, EllipsisHorizontalIcon, EllipsisVerticalIcon,
+  ChevronDoubleLeftIcon, ChevronDoubleRightIcon, Bars3Icon
 } from '@heroicons/react/24/outline';
+
+// Custom Icons
+import { NewChatIcon } from './custom';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -41,23 +45,23 @@ export const icons = {
   'common.add': Plus,
   'common.delete': Trash2,
   'common.remove': Minus,
-  'common.edit': SquarePen,
-  'common.settings': Settings,
-  'common.search': Search,
+  'common.edit': NewChatIcon,
+  'common.settings': CogIcon,
+  'common.search': MagnifyingGlassIcon,
   'common.close': X,
   'common.check': Check,
   'common.checkCircle': CheckCircle,
   'common.radio': Circle,
   'common.home': Home,
-  'common.more': MoreHorizontal,
-  'common.moreVert': MoreVertical,
+  'common.more': EllipsisHorizontalIcon,
+  'common.moreVert': EllipsisVerticalIcon,
   'common.drag': MdDragIndicator,
   'common.refresh': RefreshCw,
   'common.copy': Copy,
   'common.download': Download,
   'common.upload': Upload,
   'common.share': Share2,
-  'common.menu': Menu,
+  'common.menu': Bars3Icon,
   'common.list': List,
   'common.filter': List, // Temporary mapping
   'common.sort': MdSwapVert,
@@ -68,6 +72,7 @@ export const icons = {
   'common.error': AlertCircle, // or ShieldAlert
   'common.blocked': ShieldAlert,
   'common.block': Ban,
+  'common.compose': NewChatIcon,
 
   // --- Navigation ---
   'nav.chevronRight': ChevronRight,
@@ -78,8 +83,8 @@ export const icons = {
   'nav.arrowLeft': ArrowLeft,
   'nav.arrowUpRight': ArrowUpRight,
   'nav.back': ArrowLeft,
-  'nav.collapse': MdKeyboardDoubleArrowLeft,
-  'nav.expand': MdKeyboardDoubleArrowRight,
+  'nav.collapse': ChevronDoubleLeftIcon,
+  'nav.expand': ChevronDoubleRightIcon,
   'nav.fullscreen': Maximize,
   'nav.exitFullscreen': Minimize,
   'nav.split': Columns2,
@@ -91,7 +96,7 @@ export const icons = {
   'sidebar.calendar': MdCalendarToday,
   'sidebar.stats': MdOutlinePieChart,
   'sidebar.completed': MdOutlineCheckCircle,
-  'sidebar.collapse': MdKeyboardDoubleArrowLeft,
+  'sidebar.collapse': ChevronDoubleLeftIcon,
   'sidebar.panel': PanelLeft,
   
   // --- User/Auth ---

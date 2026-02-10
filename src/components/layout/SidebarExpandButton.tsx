@@ -13,7 +13,6 @@ export function SidebarExpandButton({
     onClick,
     isPeeking = false,
     className,
-    title = "Expand Sidebar"
 }: SidebarExpandButtonProps) {
     return (
         <div className={cn("flex items-center z-20", className)}>
@@ -24,7 +23,6 @@ export function SidebarExpandButton({
                     iconButtonStyles,
                     "group"
                 )}
-                title={title}
             >
                 {isPeeking ? (
                     <Icon size="md" name="nav.expand" />

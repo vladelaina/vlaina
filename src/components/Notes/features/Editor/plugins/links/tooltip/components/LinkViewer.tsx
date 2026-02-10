@@ -75,7 +75,7 @@ export const LinkViewer = ({
 
                 <IconButton
                     onClick={onEdit}
-                    icon={<Icon size="md" name="common.edit" />}
+                    icon={<Icon size="md" name="common.compose" />}
                 />
             </div>
 

@@ -87,7 +87,7 @@ export const FileTreeItemMenu = ({
             transition={{ type: "spring", stiffness: 400, damping: 25, mass: 0.5 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <MenuItem icon={<Icon name="common.edit" />} label="Rename" onClick={onRename} />
+            <MenuItem icon={<Icon name="common.compose" />} label="Rename" onClick={onRename} />
             <MenuItem icon={<Icon name="common.info" />} label="View Info" onClick={onClose} />
             
             {isFolder && (

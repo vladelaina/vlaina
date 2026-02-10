@@ -25,8 +25,6 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
     return (
         <div
             className="flex items-center px-3 h-10 w-full gap-1"
-            onMouseEnter={() => setSidebarHeaderHovered(true)}
-            onMouseLeave={() => setSidebarHeaderHovered(false)}
             data-tauri-drag-region
         >
             {/* User info with dropdown */}
@@ -45,7 +43,7 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                             iconButtonStyles
                         )}
                     >
-                        <Icon name="common.edit" size="sm" />
+                        <Icon name="common.compose" size="md" />
                     </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={2}>
@@ -75,14 +73,12 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                 </TooltipContent>
             </Tooltip>
 
-            {/* Collapse button - hidden by default, visible on header hover */}
+            {/* Collapse button */}
             <button
                 onClick={toggleSidebar}
                 className={cn(
                     "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0",
-                    iconButtonStyles,
-                    sidebarHeaderHovered ? "opacity-100" : "opacity-0",
-                    "transition-opacity"
+                    iconButtonStyles
                 )}
             >
                 <Icon name="sidebar.collapse" size="md" />
