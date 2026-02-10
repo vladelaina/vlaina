@@ -3,7 +3,6 @@ import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 import { EmojiTab } from './EmojiTab';
-import { IconsTab } from './IconsTab';
 import { UploadTab, type CustomIcon } from './UploadTab';
 import {
   TabType,
@@ -13,13 +12,9 @@ import {
   addToRecentIcons,
   MAX_RECENT_EMOJIS,
   loadSkinTone,
-  loadIconColor,
-  saveIconColor,
   EMOJI_CATEGORIES,
-  ICON_CATEGORIES,
 } from './constants';
 import type { ItemColor } from '@/lib/colors/index';
-import { COLOR_HEX } from '@/lib/colors/index';
 
 export interface UniversalIconPickerProps {
   onSelect: (emoji: string) => void;
@@ -43,16 +38,12 @@ export interface UniversalIconPickerProps {
   
   // Callbacks for global preferences (optional)
   onSkinToneChange?: (tone: number) => void;
-  onIconColorChange?: (color: ItemColor) => void;
   
   // Preview State Notifications (optional)
   onPreviewSkinTone?: (tone: number | null) => void;
-  onPreviewColor?: (color: string | null) => void;
 
   // Style overrides
   embedded?: boolean;
-  defaultColor?: ItemColor;
-  hideColorPicker?: boolean;
   
   // Image Loading
   imageLoader?: (src: string) => Promise<string>;
@@ -76,31 +67,18 @@ export function UniversalIconPicker({
   onDeleteCustomIcon,
   
   onSkinToneChange,
-  onIconColorChange,
   onPreviewSkinTone,
-  onPreviewColor,
 
   embedded = false,
-  defaultColor,
-  hideColorPicker,
   imageLoader,
 }: UniversalIconPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<TabType>(loadActiveTab);
   const [recentIcons, setRecentIcons] = useState<string[]>(loadRecentIcons);
   const [skinTone, setSkinTone] = useState(loadSkinTone);
-  const [iconColor, setIconColor] = useState<ItemColor>(() => defaultColor || loadIconColor());
 
   // Track active categories for random selection within current group
   const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('people');
-  const [activeIconCategory, setActiveIconCategory] = useState<string>('common');
-
-  // Sync iconColor with defaultColor prop changes (e.g. when task color changes)
-  useEffect(() => {
-    if (defaultColor) {
-      setIconColor(defaultColor);
-    }
-  }, [defaultColor]);
 
   // Track the last randomly selected icon (to add to recent on close)
   const lastRandomIconRef = useRef<string | null>(null);
@@ -126,23 +104,6 @@ export function UniversalIconPicker({
     onSelect(emoji);
     onClose();
   }, [onSelect, onClose]);
-
-  const handleIconSelect = useCallback((iconName: string, color: string) => {
-    lastRandomIconRef.current = null;
-    const iconValue = `icon:${iconName}:${color}`;
-    const updated = addToRecentIcons(iconValue, recentIconsRef.current);
-    setRecentIcons(updated);
-    onSelect(iconValue);
-    onClose();
-  }, [onSelect, onClose]);
-
-  const handleIconColorChangeInternal = useCallback((color: ItemColor) => {
-    setIconColor(color);
-    saveIconColor(color);
-    
-    // Notify parent
-    onIconColorChange?.(color);
-  }, [onIconColorChange]);
   
   const handleSkinToneChangeInternal = useCallback((tone: number) => {
     setSkinTone(tone);
@@ -186,23 +147,6 @@ export function UniversalIconPicker({
         lastRandomIconRef.current = randomEmoji.native;
         onSelect(randomEmoji.native);
       }
-    } else if (activeTab === 'icons') {
-      const currentCategory = ICON_CATEGORIES.find(c => c.id === activeIconCategory);
-      const icons = currentCategory?.icons || [];
-      if (icons.length > 0) {
-        const randomIcon = icons[Math.floor(Math.random() * icons.length)];
-        
-        let currentColorHex: string;
-        if (hideColorPicker && defaultColor) {
-             currentColorHex = COLOR_HEX[defaultColor] || COLOR_HEX['default'];
-        } else {
-             currentColorHex = COLOR_HEX[iconColor] || COLOR_HEX['default'];
-        }
-        
-        const iconValue = `icon:${randomIcon.name}:${currentColorHex}`;
-        lastRandomIconRef.current = iconValue;
-        onSelect(iconValue);
-      }
     } else if (activeTab === 'upload') {
       if (customIcons.length > 0) {
         const randomEmoji = customIcons[Math.floor(Math.random() * customIcons.length)];
@@ -210,7 +154,7 @@ export function UniversalIconPicker({
         onSelect(randomEmoji.url);
       }
     }
-  }, [activeTab, activeEmojiCategory, activeIconCategory, iconColor, onSelect, customIcons, hideColorPicker, defaultColor]);
+  }, [activeTab, activeEmojiCategory, onSelect, customIcons]);
 
   useEffect(() => {
     // If embedded, let the parent container (e.g. Popover) handle closing
@@ -246,7 +190,7 @@ export function UniversalIconPicker({
       if (e.key === 'Tab' && e.ctrlKey) {
         e.preventDefault();
         e.stopPropagation();
-        const tabs: TabType[] = ['emoji', 'icons', 'upload'];
+        const tabs: TabType[] = ['emoji', 'upload'];
         const currentIndex = tabs.indexOf(activeTab);
         const nextIndex = (currentIndex + 1) % tabs.length;
         handleTabChange(tabs[nextIndex]);
@@ -313,22 +257,6 @@ export function UniversalIconPicker({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                handleTabChange('icons');
-              }}
-              className={cn(
-                "text-sm font-medium pb-1 border-b-2 transition-all active:scale-95 whitespace-nowrap",
-                activeTab === 'icons'
-                  ? "text-[var(--neko-text-primary)] border-[#1e96eb]"
-                  : "text-[var(--neko-text-tertiary)] border-transparent hover:text-[var(--neko-text-primary)]"
-              )}
-            >
-              Icons
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
                 handleTabChange('upload');
               }}
               className={cn(
@@ -379,20 +307,6 @@ export function UniversalIconPicker({
             onCategoryChange={setActiveEmojiCategory}
             onSkinToneChange={handleSkinToneChangeInternal}
             onPreviewSkinTone={onPreviewSkinTone}
-          />
-        ) : activeTab === 'icons' ? (
-          <IconsTab
-            recentIcons={recentIcons}
-            onSelect={handleIconSelect}
-            onPreview={onPreview}
-            activeCategory={activeIconCategory}
-            onCategoryChange={setActiveIconCategory}
-            iconColor={iconColor}
-            setIconColor={handleIconColorChangeInternal}
-            currentIcon={currentIcon}
-            onIconColorChange={onIconColorChange}
-            onPreviewColor={onPreviewColor}
-            hideColorPicker={hideColorPicker}
           />
         ) : (
           <UploadTab
