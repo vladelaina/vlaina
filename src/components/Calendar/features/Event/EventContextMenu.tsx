@@ -1,8 +1,7 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MdContentCut,  MdContentCopy,  MdAddToPhotos,  MdPlayArrow,  MdPause,  MdStop  } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { ColorPicker } from '@/components/common/ColorPicker';
-import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { useMenuPosition } from './hooks/useMenuPosition';
 import { useEventContextMenu } from './hooks/useEventContextMenu';
 
@@ -85,7 +84,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
             onClick={() => handleTimerAction('start', onClose)}
             className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
           >
-            <MdPlayArrow className="size-[18px]" />
+            <Icon size="md" name="media.play" />
             <span className="flex-1 text-left">Start Timer</span>
           </button>
         )}
@@ -96,14 +95,14 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
               onClick={() => handleTimerAction('pause', onClose)}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
-              <MdPause className="size-[18px]" />
+              <Icon size="md" name="media.pause" />
               <span className="flex-1 text-left">Pause Timer</span>
             </button>
             <button
               onClick={() => handleTimerAction('stop', onClose)}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
-              <MdStop className="size-[18px]" />
+              <Icon size="md" name="media.stop" />
               <span className="flex-1 text-left">Stop Timer</span>
             </button>
           </>
@@ -115,14 +114,14 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
               onClick={() => handleTimerAction('resume', onClose)}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
-              <MdPlayArrow className="size-[18px]" />
+              <Icon size="md" name="media.play" />
               <span className="flex-1 text-left">Resume Timer</span>
             </button>
             <button
               onClick={() => handleTimerAction('stop', onClose)}
               className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
             >
-              <MdStop className="size-[18px]" />
+              <Icon size="md" name="media.stop" />
               <span className="flex-1 text-left">Stop Timer</span>
             </button>
           </>
@@ -132,13 +131,13 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
 
         {/* Actions */}
         <button className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800">
-          <MdContentCut className="size-[18px]" />
+          <Icon size="md" name="editor.cut" />
           <span className="flex-1 text-left">Cut</span>
           <span className="text-zinc-500 text-xs">Ctrl X</span>
         </button>
 
         <button className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800">
-          <MdContentCopy className="size-[18px]" />
+          <Icon size="md" name="common.copy" />
           <span className="flex-1 text-left">Copy</span>
           <span className="text-zinc-500 text-xs">Ctrl C</span>
         </button>
@@ -147,7 +146,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
           onClick={() => handleDuplicate(onClose)}
           className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800"
         >
-          <MdAddToPhotos className="size-[18px]" />
+          <Icon size="md" name="legacy.addToPhotos" />
           <span className="flex-1 text-left">Duplicate</span>
           <span className="text-zinc-500 text-xs">Ctrl D</span>
         </button>
@@ -158,7 +157,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
           onClick={() => handleDelete(onClose)}
           className="w-full px-4 py-2 flex items-center gap-3 text-sm text-red-400 hover:bg-zinc-800"
         >
-          <DeleteIcon className="size-[18px]" />
+          <Icon size="md" name="common.delete" />
           <span className="flex-1 text-left">Delete</span>
           <span className="text-zinc-500 text-xs">Del</span>
         </button>

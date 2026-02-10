@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MdKeyboardArrowDown, MdKeyboardArrowRight } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ThinkingBlockProps {
@@ -16,7 +16,7 @@ export function ThinkingBlock({ content, isStreaming }: ThinkingBlockProps) {
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
       >
-        {isOpen ? <MdKeyboardArrowDown size={16} /> : <MdKeyboardArrowRight size={16} />}
+        {isOpen ? <Icon name="nav.chevronDown" size="sm" /> : <Icon name="nav.chevronRight" size="sm" />}
         {isStreaming ? (
             <span className="animate-pulse">Thinking...</span>
         ) : (

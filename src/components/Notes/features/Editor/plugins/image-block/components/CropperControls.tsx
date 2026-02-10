@@ -1,4 +1,4 @@
-import { MdClose, MdCheck } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 
@@ -57,7 +57,7 @@ export const CropperControls = ({
                     title="Cancel"
                     aria-label="Cancel crop"
                 >
-                    <MdClose size={18} />
+                    <Icon name="common.close" size="md" />
                 </button>
                 <button
                     onClick={onSave}
@@ -66,7 +66,7 @@ export const CropperControls = ({
                     title="Save"
                     aria-label="Save crop"
                 >
-                    <MdCheck size={18} />
+                    <Icon name="common.check" size="md" />
                 </button>
             </div>
         </div>

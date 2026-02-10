@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
-import { MdCheck, MdChevronRight, MdFiberManualRecord } from "react-icons/md"
+import { Icon } from "@/components/ui/icons"
 
 import { cn } from "@/lib/utils"
 
@@ -34,7 +34,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
         {...props}
     >
         {children}
-        <MdChevronRight className="ml-auto w-[18px] h-[18px]" />
+ <Icon size="md" name="nav.chevronRight" className="ml-auto" />
     </DropdownMenuPrimitive.SubTrigger>
 ))
 DropdownMenuSubTrigger.displayName =
@@ -107,7 +107,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
     >
         <span className="absolute left-2 flex w-[18px] h-[18px] items-center justify-center">
             <DropdownMenuPrimitive.ItemIndicator>
-                <MdCheck className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.check" />
             </DropdownMenuPrimitive.ItemIndicator>
         </span>
         {children}
@@ -130,7 +130,7 @@ const DropdownMenuRadioItem = React.forwardRef<
     >
         <span className="absolute left-2 flex w-[18px] h-[18px] items-center justify-center">
             <DropdownMenuPrimitive.ItemIndicator>
-                <MdFiberManualRecord className="h-2 w-2 fill-current" />
+                <Icon name="common.radio" className="h-2 w-2 fill-current" />
             </DropdownMenuPrimitive.ItemIndicator>
         </span>
         {children}

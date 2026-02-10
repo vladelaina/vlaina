@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, memo, useCallback } from 'react'
-import { MdExpandMore, MdSearch, MdPushPin, MdPushPin as MdPushPinOutlined, MdSettings } from 'react-icons/md'
+import { Icon } from '@/components/ui/icons'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAIStore } from '@/stores/useAIStore'
 import { groupModels } from '@/lib/ai/utils'
@@ -58,7 +58,7 @@ const ModelOption = memo(({
                             model.pinned && "opacity-100 text-gray-900 dark:text-gray-100"
                         )}
                     >
-                        {model.pinned ? <MdPushPin size={14} /> : <MdPushPinOutlined size={14} className="text-gray-400" />}
+                        {model.pinned ? <Icon name="ai.pin" size="sm" /> : <Icon name="ai.pinOutline" size="sm" className="text-gray-400" />}
                     </div>
                 </div>
             </div>
@@ -255,7 +255,7 @@ export function ModelSelector() {
         <span className="text-sm font-medium whitespace-nowrap select-none">
           {selectedModel ? selectedModel.name : 'Select Model'}
         </span>
-        <MdExpandMore className={cn(
+        <Icon name="nav.chevronDown" className={cn(
           "w-4 h-4 transition-transform text-gray-400 dark:text-gray-500",
           isOpen && "rotate-180"
         )} />
@@ -279,7 +279,7 @@ export function ModelSelector() {
               <div className="p-2 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-[#1E1E1E] z-10">
                 <div className="relative flex items-center gap-2">
                   <div className="relative flex-1">
-                      <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                      <Icon name="common.search" className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
                       <input
                         ref={inputRef}
                         type="text"
@@ -304,7 +304,7 @@ export function ModelSelector() {
                       }}
                       className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                   >
-                      <MdSettings size={14} />
+                      <Icon name="common.settings" size="sm" />
                   </button>
                 </div>
               </div>

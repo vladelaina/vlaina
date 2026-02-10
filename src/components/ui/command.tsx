@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Command as CommandPrimitive } from "cmdk"
-import { MdSearch } from "react-icons/md"
+import { Icon } from "@/components/ui/icons"
 
 import { cn } from "@/lib/utils"
 import {
@@ -69,7 +69,7 @@ function CommandInput({
       data-slot="command-input-wrapper"
       className="flex h-9 items-center gap-2 border-b px-3"
     >
-      <MdSearch className="size-[18px] shrink-0 opacity-50" />
+      <Icon size="md" name="common.search" className=" shrink-0 opacity-50" />
       <CommandPrimitive.Input
         data-slot="command-input"
         className={cn(

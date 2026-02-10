@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MdClose } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { useShortcutEditor } from '@/components/Settings/hooks/useShortcutEditor';
 
 interface ShortcutsDialogProps {
@@ -83,7 +83,7 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
                           }}
                           className="absolute right-2 top-1/2 -translate-y-1/2 w-[18px] h-[18px] flex items-center justify-center bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-500 rounded-full transition-colors"
                         >
-                          <MdClose className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-300" />
+                          <Icon name="common.close" className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-300" />
                         </button>
                       )}
                     </div>
@@ -103,7 +103,7 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
                           }}
                           className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity w-[18px] h-[18px] flex items-center justify-center bg-zinc-200 dark:bg-zinc-600 hover:bg-zinc-300 dark:hover:bg-zinc-500 rounded-full"
                         >
-                          <MdClose className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-300" />
+                          <Icon name="common.close" className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-300" />
                         </button>
                       )}
                     </div>

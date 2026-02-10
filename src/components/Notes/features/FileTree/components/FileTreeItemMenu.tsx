@@ -1,11 +1,8 @@
 import React, { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import {
-  MdEdit, MdInfo, MdNoteAdd, MdContentCopy, MdOpenInNew, MdVerticalSplit, MdStar
-} from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
-import { DeleteIcon } from '@/components/common/DeleteIcon';
 
 interface MenuItemProps {
   icon: React.ReactNode;
@@ -90,26 +87,26 @@ export const FileTreeItemMenu = ({
             transition={{ type: "spring", stiffness: 400, damping: 25, mass: 0.5 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <MenuItem icon={<MdEdit />} label="Rename" onClick={onRename} />
-            <MenuItem icon={<MdInfo />} label="View Info" onClick={onClose} />
+            <MenuItem icon={<Icon name="common.edit" />} label="Rename" onClick={onRename} />
+            <MenuItem icon={<Icon name="common.info" />} label="View Info" onClick={onClose} />
             
             {isFolder && (
-              <MenuItem icon={<MdNoteAdd />} label="New Note" onClick={onNewNote} />
+              <MenuItem icon={<Icon name="file.add" />} label="New Note" onClick={onNewNote} />
             )}
             
-            <MenuItem icon={<MdContentCopy />} label="Duplicate" onClick={onClose} />
-            <MenuItem icon={<MdOpenInNew />} label="Open in new tab" onClick={onOpenNewTab} />
-            <MenuItem icon={<MdVerticalSplit />} label="Open in split view" onClick={onClose} />
+            <MenuItem icon={<Icon name="common.copy" />} label="Duplicate" onClick={onClose} />
+            <MenuItem icon={<Icon name="nav.external" />} label="Open in new tab" onClick={onOpenNewTab} />
+            <MenuItem icon={<Icon name="nav.split" />} label="Open in split view" onClick={onClose} />
             
             <MenuItem 
-              icon={isStarred ? <MdStar className="text-amber-500 fill-amber-500" /> : <MdStar />}
+              icon={isStarred ? <Icon name="misc.star" className="text-amber-500 fill-amber-500" /> : <Icon name="misc.star" />}
               label={isStarred ? "Remove from Favorites" : "Add to Favorites"}
               onClick={onToggleStar}
             />
             
             <div className="h-px bg-gray-100 dark:bg-zinc-800 my-1.5 mx-1" />
             
-            <MenuItem icon={<DeleteIcon />} label="Move to Trash" onClick={onDelete} danger />
+            <MenuItem icon={<Icon name="common.delete" />} label="Move to Trash" onClick={onDelete} danger />
           </motion.div>
         </>
       )}

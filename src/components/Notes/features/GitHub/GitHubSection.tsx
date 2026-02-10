@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MdAdd, MdRefresh, MdInventory2 } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { hasBackendCommands } from '@/lib/tauri/invoke';
@@ -63,7 +63,7 @@ export function GitHubSection() {
                 className="p-1 rounded hover:bg-[var(--neko-hover-filled)] text-[var(--neko-text-tertiary)] transition-colors disabled:opacity-50"
                 title="Refresh"
             >
-                <MdRefresh className={cn("w-[18px] h-[18px]", isLoadingRepos && "animate-spin")} />
+ <Icon size="md" name="common.refresh" className={cn("", isLoadingRepos &&"animate-spin")} />
             </button>
             <button
                 onClick={(e) => {
@@ -73,7 +73,7 @@ export function GitHubSection() {
                 className="p-1 rounded hover:bg-[var(--neko-hover-filled)] text-[var(--neko-text-tertiary)] transition-colors"
                 title="New Repository"
             >
-                <MdAdd className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.add" />
             </button>
         </>
     ) : undefined;
@@ -99,7 +99,7 @@ export function GitHubSection() {
                             )}
                         >
                             {isConnecting ? (
-                                <MdRefresh className="w-[18px] h-[18px] animate-spin" />
+ <Icon size="md" name="common.refresh" className="animate-spin" />
                             ) : (
                                 <GitHubIcon className="w-[18px] h-[18px]" />
                             )}
@@ -113,12 +113,12 @@ export function GitHubSection() {
                     </div>
                 ) : isLoadingRepos && !hasRepos ? (
                     <div className="flex items-center justify-center py-8">
-                        <MdRefresh className="w-5 h-5 animate-spin text-[var(--neko-text-tertiary)]" />
+                        <Icon name="common.refresh" className="w-5 h-5 animate-spin text-[var(--neko-text-tertiary)]" />
                     </div>
                 ) : !hasRepos ? (
                     <div className="flex flex-col items-center gap-3 py-8">
                         <div className="w-14 h-14 rounded-full bg-[var(--neko-bg-tertiary)] flex items-center justify-center">
-                            <MdInventory2 className="w-6 h-6 text-[var(--neko-text-tertiary)]" />
+                            <Icon name="file.archive" className="w-6 h-6 text-[var(--neko-text-tertiary)]" />
                         </div>
                         <span className="text-[13px] text-[var(--neko-text-tertiary)]">
                             No repositories
@@ -132,7 +132,7 @@ export function GitHubSection() {
                                 "transition-colors"
                             )}
                         >
-                            <MdAdd className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.add" />
                             New Repository
                         </button>
                     </div>

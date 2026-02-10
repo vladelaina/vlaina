@@ -1,4 +1,4 @@
-import { MdRefresh } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import type { ProgressOrCounter, ProgressItem, CounterItem } from '@/stores/useProgressStore';
 import { MetadataField, MetadataInput } from './MetadataField';
 import type { FocusTarget } from './useDetailModal';
@@ -263,7 +263,8 @@ function ResetField({
           className="flex items-center justify-center gap-1 cursor-pointer group/reset"
         >
           {resetFrequency === 'daily' ? (
-            <MdRefresh
+            <Icon
+              name="common.refresh"
               className="size-[18px] text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors"
             />
           ) : (

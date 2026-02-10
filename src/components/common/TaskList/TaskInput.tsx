@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MdAddTask } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { ALL_COLORS, SIMPLE_COLOR_STYLES, type ItemColor } from '@/lib/colors';
@@ -145,7 +145,7 @@ export function TaskInput({ compact = false }: TaskInputProps) {
                         onClick={handleSubmit}
                         className="shrink-0 p-1 rounded text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors mt-0.5"
                     >
-                        <MdAddTask className="w-[18px] h-[18px]" />
+ <Icon size="md" name="legacy.addTask" />
                     </motion.button>
                 )}
             </AnimatePresence>

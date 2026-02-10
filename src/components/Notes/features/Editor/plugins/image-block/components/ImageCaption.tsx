@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { MdEdit } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 
 interface ImageCaptionProps {
@@ -96,7 +96,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                         onEditStart();
                     }}
                 >
-                    {!originalAlt && <MdEdit size={18} className="opacity-70" />}
+                    {!originalAlt && <Icon name="common.edit" size="md" className="opacity-70" />}
                     {originalAlt || "Caption"}
                 </div>
             )}

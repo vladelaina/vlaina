@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { MdClose, MdRefresh, MdLock, MdPublic } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { cn } from '@/lib/utils';
 
@@ -97,7 +97,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                         onClick={onClose}
                         className="p-1.5 rounded-md hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] transition-colors"
                     >
-                        <MdClose className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.close" />
                     </button>
                 </div>
 
@@ -169,7 +169,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                                     "disabled:opacity-50"
                                 )}
                             >
-                                <MdLock className={cn(
+                                <Icon name="file.lock" className={cn(
                                     "w-[18px] h-[18px]",
                                     isPrivate ? "text-[var(--neko-accent)]" : "text-[var(--neko-text-tertiary)]"
                                 )} />
@@ -198,7 +198,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                                     "disabled:opacity-50"
                                 )}
                             >
-                                <MdPublic className={cn(
+                                <Icon name="file.public" className={cn(
                                     "w-[18px] h-[18px]",
                                     !isPrivate ? "text-[var(--neko-accent)]" : "text-[var(--neko-text-tertiary)]"
                                 )} />
@@ -247,7 +247,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                                 "transition-colors disabled:opacity-50"
                             )}
                         >
-                            {isCreating && <MdRefresh className="w-[18px] h-[18px] animate-spin" />}
+ {isCreating && <Icon size="md" name="common.refresh" className="animate-spin" />}
                             {isCreating ? 'Creating...' : 'Create Repository'}
                         </button>
                     </div>

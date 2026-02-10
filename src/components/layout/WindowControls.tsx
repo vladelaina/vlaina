@@ -1,5 +1,5 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { MdRemove, MdCheckBoxOutlineBlank, MdClose } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { iconButtonStyles } from '@/lib/utils';
 
 interface WindowControlsProps {
@@ -16,7 +16,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
         onClick={() => getWindow().minimize()}
         className={`h-full w-12 flex items-center justify-center transition-colors ${iconButtonStyles}`}
       >
-        <MdRemove className="size-[18px]" />
+        <Icon size="md" name="window.minimize" />
       </button>
 
       {!minimal && (
@@ -24,7 +24,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
           onClick={() => getWindow().toggleMaximize()}
           className={`h-full w-12 flex items-center justify-center transition-colors ${iconButtonStyles}`}
         >
-          <MdCheckBoxOutlineBlank className="size-[18px]" />
+          <Icon name="window.maximize" size="sm" />
         </button>
       )}
 
@@ -32,7 +32,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
         onClick={() => getWindow().close()}
         className="h-full w-12 flex items-center justify-center hover:bg-red-500 transition-colors group"
       >
-        <MdClose className="size-[18px] text-[var(--neko-text-tertiary)] group-hover:text-white" />
+        <Icon size="md" name="window.close" className="text-[var(--neko-text-tertiary)] group-hover:text-white" />
       </button>
     </div>
   );

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { MdAdd, MdRemove } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import type { ProgressOrCounter, ProgressItem, CounterItem } from '@/stores/useProgressStore';
 import { MetadataSection } from './MetadataSection';
 import type { FocusTarget } from './useDetailModal';
@@ -149,7 +149,7 @@ function QuickUpdateButton({
   onClick,
 }: QuickUpdateButtonProps) {
   const isLeft = direction === 'decrement';
-  const Icon = isLeft ? MdRemove : MdAdd;
+  const iconName = isLeft ? 'common.remove' : 'common.add';
 
   return (
     <AnimatePresence>
@@ -173,7 +173,7 @@ function QuickUpdateButton({
           }}
           tabIndex={-1}
         >
-          <Icon className="size-10" />
+          <Icon name={iconName} className="size-10" />
         </motion.button>
       )}
     </AnimatePresence>

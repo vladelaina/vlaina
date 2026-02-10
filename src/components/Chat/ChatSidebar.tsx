@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from 'react';
-import { MdMoreHoriz, MdDriveFileRenameOutline, MdPushPin, MdDelete } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { useAIStore } from '@/stores/useAIStore';
 import { cn } from '@/lib/utils';
 import {
@@ -112,7 +112,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                       ) : isUnread ? (
                           <div className="w-2 h-2 rounded-full bg-gray-600 dark:bg-gray-300 shadow-sm flex-shrink-0" title="New messages" />
                       ) : session.isPinned ? (
-                          <MdPushPin className="w-3 h-3 flex-shrink-0 text-gray-400" />
+                          <Icon name="ai.pin" className="w-3 h-3 flex-shrink-0 text-gray-400" />
                       ) : null}
                       
                       <span className={cn(
@@ -139,27 +139,27 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                       
                       <DropdownMenu>
                           <DropdownMenuTrigger 
-                              onClick={(e) => e.stopPropagation()}
+                              onClick={(e) => { e.stopPropagation(); }}
                               className={cn(
                                   "p-1 rounded transition-colors focus:outline-none",
                                   isActive ? "text-gray-500 hover:bg-black/5" : "text-gray-400 hover:bg-gray-200/50 dark:hover:bg-zinc-700"
                               )}
                           >
-                              <MdMoreHoriz className="w-4 h-4" />
+                              <Icon name="common.more" className="w-4 h-4" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-32 bg-white dark:bg-[#1C1C1C]">
                               <DropdownMenuItem onClick={(e) => {
                                   e.stopPropagation();
                                   handleRename(session.id, session.title);
                               }}>
-                                  <MdDriveFileRenameOutline className="mr-2 h-3.5 w-3.5 text-gray-500" />
+                                  <Icon name="ai.rename" className="mr-2 h-3.5 w-3.5 text-gray-500" />
                                   <span>Rename</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={(e) => {
                                   e.stopPropagation();
                                   handleTogglePin(session.id, session.isPinned);
                               }}>
-                                  <MdPushPin className="mr-2 h-3.5 w-3.5 text-gray-500" />
+                                  <Icon name="ai.pin" className="mr-2 h-3.5 w-3.5 text-gray-500" />
                                   <span>{session.isPinned ? 'Unpin' : 'Pin'}</span>
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
@@ -170,7 +170,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                   }}
                                   className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
                               >
-                                  <MdDelete className="mr-2 h-3.5 w-3.5" />
+                                  <Icon name="common.delete" className="mr-2 h-3.5 w-3.5" />
                                   <span>Delete</span>
                               </DropdownMenuItem>
                           </DropdownMenuContent>

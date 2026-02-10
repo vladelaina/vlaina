@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MdMonitorHeart } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { UniversalIconPicker as IconPicker } from '@/components/common/UniversalIconPicker';
 import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconPreview';
@@ -9,6 +9,7 @@ import { type CustomIcon } from '@/lib/storage/unifiedStorage';
 import { useUIStore } from '@/stores/uiSlice';
 import { getRandomEmoji, loadSkinTone } from '@/components/common/UniversalIconPicker/constants';
 import { type ItemColor, COLOR_HEX } from '@/lib/colors';
+import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
 
 interface HeroIconHeaderProps {
   // Identity
@@ -23,7 +24,7 @@ interface HeroIconHeaderProps {
   renderTitle?: () => React.ReactNode;
 
   // Size Control
-  iconSize?: number;
+  iconSize?: number | IconSize;
   minIconSize?: number;
   maxIconSize?: number;
   sliderValue?: number; // If provided, decouples slider from icon visual size
@@ -42,6 +43,13 @@ interface HeroIconHeaderProps {
   children?: React.ReactNode;
   compact?: boolean;
 }
+
+const resolvePixelSize = (size: number | IconSize) => {
+  if (typeof size === 'string' && size in ICON_SIZES) {
+    return ICON_SIZES[size as IconSize];
+  }
+  return size as number;
+};
 
 function HeaderIcon({ 
   itemId, 
@@ -109,6 +117,8 @@ export function HeroIconHeader({
   const [pickerPosition, setPickerPosition] = useState<{ top: number; left: number } | null>(null);
   const [isHoveringHeader, setIsHoveringHeader] = useState(false);
 
+  const resolvedIconSize = resolvePixelSize(iconSize);
+
   // Universal Preview Hook
   // We use the entity ID to namespace the preview
   const { handlePreview, handlePreviewTone, handlePreviewColor } = useIconPreview(id);
@@ -118,7 +128,7 @@ export function HeroIconHeader({
   const isPreviewing = universalPreviewTarget === id;
   const effectiveSize = (!compact && isPreviewing && universalPreviewIconSize !== null) 
     ? universalPreviewIconSize 
-    : iconSize;
+    : resolvedIconSize;
 
   // Sync CSS variable for size (VISUAL ONLY)
   useEffect(() => {
@@ -170,7 +180,7 @@ export function HeroIconHeader({
   }, [onSizeConfirm, sliderValue]);
 
   // Determine what value the slider should show
-  const currentSliderValue = sliderValue !== undefined ? sliderValue : iconSize;
+  const currentSliderValue = sliderValue !== undefined ? sliderValue : resolvedIconSize;
   
   return (
     <div
@@ -181,7 +191,7 @@ export function HeroIconHeader({
         className
       )}
       style={{
-        '--header-icon-size': `${iconSize}px`,
+        '--header-icon-size': `${resolvedIconSize}px`,
         marginTop: coverUrl ? `calc(var(--header-icon-size) * -0.618)` : undefined,
       } as React.CSSProperties}
     >
@@ -244,7 +254,7 @@ export function HeroIconHeader({
                       }}
                       className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)] transition-colors")}
                   >
-                      <MdMonitorHeart className="size-[18px]" />
+                      <Icon size="md" name="misc.activity" />
                       {!compact && <span>Add icon</span>}
                   </button>
               </div>

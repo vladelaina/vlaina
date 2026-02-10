@@ -1,12 +1,12 @@
 import { useUIStore, type ImageStorageMode } from '@/stores/uiSlice';
-import { MdHome, MdFolderOpen, MdAccountTree, MdCollections, MdEditCalendar, MdLabel, MdFormatListNumbered } from 'react-icons/md';
+import { Icon, IconName } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 
 interface StorageOption {
     id: ImageStorageMode;
     label: string;
     description: string;
-    icon: React.ElementType;
+    icon: IconName;
 }
 
 const storageOptions: StorageOption[] = [
@@ -14,25 +14,25 @@ const storageOptions: StorageOption[] = [
         id: 'vaultSubfolder',
         label: 'Vault Subfolder',
         description: 'Save to a specific folder in the vault root (e.g., assets/)',
-        icon: MdCollections,
+        icon: 'legacy.collections',
     },
     {
         id: 'subfolder',
         label: 'Note Subfolder',
         description: 'Save to a subfolder in the current note\'s directory',
-        icon: MdAccountTree,
+        icon: 'legacy.accountTree',
     },
     {
         id: 'vault',
         label: 'Vault Root',
         description: 'Save images directly to the vault root directory',
-        icon: MdHome,
+        icon: 'common.home',
     },
     {
         id: 'currentFolder',
         label: 'Current Folder',
         description: 'Save to the same folder as the current note',
-        icon: MdFolderOpen,
+        icon: 'file.folderOpen',
     },
 ];
 
@@ -64,7 +64,6 @@ export function ImagesTab() {
                 <div className="space-y-2">
                     {storageOptions.map((option) => {
                         const isSelected = imageStorageMode === option.id;
-                        const Icon = option.icon;
 
                         return (
                             <button
@@ -90,7 +89,7 @@ export function ImagesTab() {
                                 </div>
 
                                 {/* Icon */}
-                                <Icon className={cn(
+                                <Icon name={option.icon} className={cn(
                                     "size-[18px] flex-shrink-0 mt-0.5",
                                     isSelected ? "text-[#2783de] dark:text-[#2783de]" : "text-zinc-400"
                                 )} />
@@ -162,67 +161,66 @@ export function ImagesTab() {
                         id="original"
                         label="Original Name"
                         description="Keep the original filename"
-                        icon={MdLabel}
+                        icon="legacy.label"
                     />
                     <FilenameFormatOption
                         id="sequence"
                         label="Numeric Sequence"
                         description="Use sequential numbers (e.g., 1.png, 2.png)"
-                        icon={MdFormatListNumbered}
+                        icon="editor.listOrdered"
                     />
                     <FilenameFormatOption
                         id="timestamp"
                         label="Timestamp"
                         description="Use date and time (e.g., 2024-01-21_14-30-52.png)"
-                        icon={MdEditCalendar}
+                        icon="legacy.editCalendar"
                     />
                 </div>
             </div>
         </div>
     );
+}
 
+function FilenameFormatOption({ id, label, description, icon }: { id: 'original' | 'timestamp' | 'sequence'; label: string; description: string; icon: IconName }) {
+    const imageFilenameFormat = useUIStore((s) => s.imageFilenameFormat);
+    const setImageFilenameFormat = useUIStore((s) => s.setImageFilenameFormat);
+    const isSelected = imageFilenameFormat === id;
 
-    function FilenameFormatOption({ id, label, description, icon: Icon }: { id: 'original' | 'timestamp' | 'sequence'; label: string; description: string; icon: React.ElementType }) {
-        const imageFilenameFormat = useUIStore((s) => s.imageFilenameFormat);
-        const setImageFilenameFormat = useUIStore((s) => s.setImageFilenameFormat);
-        const isSelected = imageFilenameFormat === id;
-
-        return (
-            <button
-                onClick={() => setImageFilenameFormat(id)}
-                className={cn(
-                    "w-full flex items-center gap-3 p-2.5 rounded-lg border transition-all text-left",
-                    isSelected
-                        ? "border-[#2783de] bg-[#2783de]/10 dark:bg-[#2783de]/20 dark:border-[#2783de]"
-                        : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
+    return (
+        <button
+            onClick={() => setImageFilenameFormat(id)}
+            className={cn(
+                "w-full flex items-center gap-3 p-2.5 rounded-lg border transition-all text-left",
+                isSelected
+                    ? "border-[#2783de] bg-[#2783de]/10 dark:bg-[#2783de]/20 dark:border-[#2783de]"
+                    : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
+            )}
+        >
+            <div className={cn(
+                "w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                isSelected
+                    ? "border-[#2783de] bg-[#2783de]"
+                    : "border-zinc-300 dark:border-zinc-600"
+            )}>
+                {isSelected && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-white" />
                 )}
-            >
+            </div>
+            <Icon name={icon} className={cn(
+                "size-[18px] flex-shrink-0",
+                isSelected ? "text-[#2783de] dark:text-[#2783de]" : "text-zinc-400"
+            )} />
+            <div className="flex-1 min-w-0">
                 <div className={cn(
-                    "w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                    isSelected
-                        ? "border-[#2783de] bg-[#2783de]"
-                        : "border-zinc-300 dark:border-zinc-600"
+                    "text-sm font-medium",
+                    isSelected ? "text-[#2783de] dark:text-[#2783de]" : "text-zinc-700 dark:text-zinc-300"
                 )}>
-                    {isSelected && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
-                    )}
+                    {label}
                 </div>
-                <Icon className={cn(
-                    "size-[18px] flex-shrink-0",
-                    isSelected ? "text-[#2783de] dark:text-[#2783de]" : "text-zinc-400"
-                )} />
-                <div className="flex-1 min-w-0">
-                    <div className={cn(
-                        "text-sm font-medium",
-                        isSelected ? "text-[#2783de] dark:text-[#2783de]" : "text-zinc-700 dark:text-zinc-300"
-                    )}>
-                        {label}
-                    </div>
-                    <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {description}
-                    </div>
+                <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                    {description}
                 </div>
-            </button>
-        );
-    }
+            </div>
+        </button>
+    );
 }

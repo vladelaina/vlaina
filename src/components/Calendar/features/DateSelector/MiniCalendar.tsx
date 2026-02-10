@@ -1,5 +1,5 @@
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
-import { MdExpandLess, MdExpandMore, MdUndo } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useState, useEffect, useMemo } from 'react';
 import { ColorFilter } from '@/components/common/ColorFilter';
@@ -114,20 +114,20 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
                 className="p-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors mr-1"
                 title="Return to Today"
               >
-                <MdUndo className="size-[18px]" />
+                <Icon size="md" name="common.undo" />
               </button>
             )}
             <button
               onClick={prevMonth}
               className="p-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
             >
-              <MdExpandLess className="size-[18px]" />
+              <Icon size="md" name="nav.chevronUp" />
             </button>
             <button
               onClick={nextMonth}
               className="p-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
             >
-              <MdExpandMore className="size-[18px]" />
+              <Icon size="md" name="nav.chevronDown" />
             </button>
           </div>
         </div>

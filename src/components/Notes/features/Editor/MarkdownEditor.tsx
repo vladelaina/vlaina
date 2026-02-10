@@ -12,7 +12,7 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
-import { MdMoreHoriz, MdStar } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { motion } from 'framer-motion';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -176,7 +176,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
               : `${iconButtonStyles} hover:text-yellow-500`
           )}
         >
-          <MdStar className="size-[18px]" style={{ fill: starred ? "currentColor" : "none" }} />
+          <Icon size="md" name="misc.star" style={{ fill: starred ? "currentColor" : "none" }} />
         </button>
 
         <DropdownMenu>
@@ -188,7 +188,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
                 iconButtonStyles
               )}
             >
-              <MdMoreHoriz className="size-[18px]" />
+              <Icon size="md" name="common.more" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">

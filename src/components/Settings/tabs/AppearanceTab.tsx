@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
+import { Icon } from '@/components/ui/icons';
 import {
   SettingsItem,
   SettingsSectionHeader,
   SegmentedControl,
 } from '../components/SettingsControls';
 import { STORAGE_KEY_FONT_SIZE } from '@/lib/config';
-import { MdLaptop, MdDarkMode, MdLightMode, MdTextFields } from 'react-icons/md';
 
 export function AppearanceTab() {
   const { theme, setTheme } = useTheme();
@@ -38,9 +38,9 @@ export function AppearanceTab() {
         <div className="w-64">
           <SegmentedControl
             options={[
-              { value: 'system', label: 'System', icon: <MdLaptop className="w-[18px] h-[18px]" /> },
-              { value: 'light', label: 'Light', icon: <MdLightMode className="w-[18px] h-[18px]" /> },
-              { value: 'dark', label: 'Dark', icon: <MdDarkMode className="w-[18px] h-[18px]" /> },
+ { value: 'system', label: 'System', icon: <Icon size="md" name="theme.system" /> },
+ { value: 'light', label: 'Light', icon: <Icon size="md" name="theme.light" /> },
+ { value: 'dark', label: 'Dark', icon: <Icon size="md" name="theme.dark" /> },
             ]}
             value={theme || 'system'}
             onChange={setTheme}
@@ -56,7 +56,7 @@ export function AppearanceTab() {
         description="Adjust the base font size for the application"
       >
         <div className="flex items-center gap-4">
-          <MdTextFields className="w-[18px] h-[18px] text-zinc-400" />
+ <Icon size="md" name="editor.type" className="text-zinc-400" />
           <input
             type="range"
             min="12"

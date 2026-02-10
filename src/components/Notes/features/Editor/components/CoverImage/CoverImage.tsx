@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo, useLayoutEffect } from 'react';
-import { MdBrokenImage } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { resolveSystemAssetPath } from '@/lib/assets/core/paths';
@@ -260,7 +260,7 @@ export function CoverImage({
                     )}
                     onMouseDown={() => !readOnly && setShowPicker(true)}
                 >
-                    <MdBrokenImage className="w-8 h-8 mb-2 opacity-50" />
+                    <Icon name="file.brokenImage" className="w-8 h-8 mb-2 opacity-50" />
                     <span className="text-xs font-medium opacity-70">Image failed to load</span>
                     {!readOnly && <span className="text-[10px] opacity-50 mt-1">Click to replace</span>}
                 </div>

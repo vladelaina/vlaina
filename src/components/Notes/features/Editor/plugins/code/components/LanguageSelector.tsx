@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { MdSearch, MdCode, MdAutoAwesome } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { SUPPORTED_LANGUAGES } from '../../../utils/shiki';
 import { getLanguageLogo } from '../../../utils/languageLogos';
@@ -97,7 +97,7 @@ export const LanguageSelector = ({
                                 style={{ borderRadius: '0' }}
                             />
                         ) : (
-                            <MdCode className="size-[18px] text-zinc-400 group-hover/lang:text-zinc-900 dark:group-hover/lang:text-zinc-100 transition-colors" />
+                            <Icon size="md" name="editor.code" className=" text-zinc-400 group-hover/lang:text-zinc-900 dark:group-hover/lang:text-zinc-100 transition-colors" />
                         )}
                     </div>
                     <span className="text-sm font-medium text-zinc-500 group-hover/lang:text-zinc-900 dark:group-hover/lang:text-zinc-100 transition-colors">
@@ -109,7 +109,7 @@ export const LanguageSelector = ({
                 {/* Search Bar & Auto-Detect Group */}
                 <div className="p-2 bg-gray-50/50 dark:bg-zinc-900/50 border-b border-gray-100 dark:border-zinc-800">
                     <div className="relative flex items-center">
-                        <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-[18px] text-gray-400" />
+                        <Icon size="md" name="common.search" className="absolute left-2.5 top-1/2 -translate-y-1/2  text-gray-400" />
                         <input
                             autoFocus
                             className="w-full bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg pl-8 pr-10 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
@@ -128,7 +128,7 @@ export const LanguageSelector = ({
                             title="Auto Detect Language"
                             className="absolute right-1.5 p-1 rounded-md text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
                         >
-                            <MdAutoAwesome className="size-[18px]" />
+                            <Icon size="md" name="ai.sparkle" />
                         </button>
                     </div>
                 </div>
@@ -152,7 +152,7 @@ export const LanguageSelector = ({
                                         <img src={logo.url} className={cn("size-4 object-contain flex-shrink-0", logo.className)} alt={lang.name} />
                                     ) : (
                                         <div className="size-4 flex items-center justify-center flex-shrink-0">
-                                            <MdCode className="size-3.5 opacity-40" />
+                                            <Icon name="editor.code" className="size-3.5 opacity-40" />
                                         </div>
                                     )}
                                     <span>{lang.name}</span>

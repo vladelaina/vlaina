@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MdOpenInNew, MdCloud, MdCloudOff, MdRefresh, MdOutlineFileDownload, MdError } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
@@ -81,9 +81,9 @@ export function AboutTab() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {isConnected ? (
-                <MdCloud className="size-[18px] text-green-500" />
+                <Icon size="md" name="file.cloud" className=" text-green-500" />
               ) : (
-                <MdCloudOff className="size-[18px] text-zinc-400" />
+                <Icon size="md" name="file.cloudOff" className=" text-zinc-400" />
               )}
               <div>
                 <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
@@ -98,7 +98,7 @@ export function AboutTab() {
             </div>
             
             {isLoading ? (
-              <MdRefresh className="size-[18px] animate-spin text-zinc-400" />
+              <Icon size="md" name="common.refresh" className=" animate-spin text-zinc-400" />
             ) : isConnected ? (
               <button
                 onClick={handleDisconnect}
@@ -114,12 +114,12 @@ export function AboutTab() {
               >
                 {isConnecting ? (
                   <>
-                    <MdRefresh className="size-[18px] animate-spin" />
+                    <Icon size="md" name="common.refresh" className=" animate-spin" />
                     Connecting...
                   </>
                 ) : (
                   <>
-                    <MdCloud className="size-[18px]" />
+                    <Icon size="md" name="file.cloud" />
                     Connect GitHub
                   </>
                 )}
@@ -147,7 +147,7 @@ export function AboutTab() {
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 rounded-md transition-colors disabled:opacity-50"
                       title="Restore from cloud backup"
                     >
-                      <MdOutlineFileDownload className="size-[18px]" />
+                      <Icon size="md" name="common.download" />
                       Restore
                     </button>
                   )}
@@ -159,12 +159,12 @@ export function AboutTab() {
                   >
                     {isSyncing ? (
                       <>
-                        <MdRefresh className="size-[18px] animate-spin" />
+                        <Icon size="md" name="common.refresh" className=" animate-spin" />
                         Syncing...
                       </>
                     ) : (
                       <>
-                        <MdRefresh className="size-[18px]" />
+                        <Icon size="md" name="common.refresh" />
                         Sync Now
                       </>
                     )}
@@ -177,7 +177,7 @@ export function AboutTab() {
           {/* Error Message */}
           {syncError && (
             <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
-              <MdError className="size-[18px] flex-shrink-0 mt-0.5" />
+              <Icon size="md" name="common.error" className=" flex-shrink-0 mt-0.5" />
               <div className="text-xs">{syncError}</div>
             </div>
           )}
@@ -296,7 +296,7 @@ export function AboutTab() {
               onClick={openGitHub}
               className={`${settingsButtonClassName} flex items-center gap-1.5`}
             >
-              <MdOpenInNew className="size-[18px]" />
+              <Icon size="md" name="nav.external" />
               Open
             </button>
           </div>
@@ -317,7 +317,7 @@ export function AboutTab() {
               onClick={() => openUrl('https://discord.gg/TtUzNPqNJw')}
               className={`${settingsButtonClassName} flex items-center gap-1.5`}
             >
-              <MdOpenInNew className="size-[18px]" />
+              <Icon size="md" name="nav.external" />
               Join
             </button>
           </div>

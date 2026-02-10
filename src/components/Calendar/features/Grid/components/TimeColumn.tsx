@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { MdExpandMore, MdCheck } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { displayPositionToHour, minutesToPixels, CALENDAR_CONSTANTS } from '../../../utils/timeUtils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCalendarStore } from '@/stores/useCalendarStore';
@@ -163,7 +163,7 @@ export function TimeColumn({
                                 <span className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate">
                                     {currentTimezoneDisplay}
                                 </span>
-                                <MdExpandMore className="w-3 h-3 text-zinc-300 dark:text-zinc-600 flex-shrink-0 ml-1" />
+                                <Icon name="nav.chevronDown" className="w-3 h-3 text-zinc-300 dark:text-zinc-600 flex-shrink-0 ml-1" />
                             </button>
                         </div>
                     ) : (
@@ -217,7 +217,7 @@ export function TimeColumn({
                                                     </span>
                                                 </div>
                                                 {isSelected && (
-                                                    <MdCheck className="w-4 h-4 text-zinc-500 flex-shrink-0 ml-2" />
+                                                    <Icon name="common.check" className="w-4 h-4 text-zinc-500 flex-shrink-0 ml-2" />
                                                 )}
                                             </button>
                                         );

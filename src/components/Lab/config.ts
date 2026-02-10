@@ -1,4 +1,3 @@
-import { MdAnimation, MdInput } from 'react-icons/md';
 import { AnimationLab } from './playground/AnimationLab';
 import { InputLab } from './playground/InputLab';
 
@@ -7,14 +6,14 @@ export const LAB_MODULES = [
   {
     id: 'animation',
     label: 'Motion & FX',
-    icon: MdAnimation,
+    icon: 'misc.animation',
     component: AnimationLab,
     description: 'Loading indicators, transitions, and particle effects.'
   },
   {
     id: 'input',
     label: 'Input & Controls',
-    icon: MdInput,
+    icon: 'file.input',
     component: InputLab,
     description: 'Chat input field styles, buttons, and interactions.'
   }

@@ -1,18 +1,5 @@
 import React, { useMemo, useCallback } from "react";
-import {
-    MdSettings,
-    MdLogout,
-    MdExpandMore,
-    MdCalendarToday,
-    MdDescription,
-    MdMoreHoriz,
-    MdPeople,
-    MdChevronRight,
-    MdChecklist,
-    MdTranslate,
-    MdAutoAwesome,
-    MdScience,
-} from "react-icons/md";
+import { Icon } from "@/components/ui/icons";
 import * as Popover from "@radix-ui/react-popover";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
 import { useProStatusStore } from "@/stores/useProStatusStore";
@@ -151,7 +138,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                     <span className="text-[13px] font-medium truncate max-w-[120px] leading-none pt-[1px]">
                         {displayName}
                     </span>
-                    <MdExpandMore className="w-3.5 h-3.5 text-[var(--neko-text-tertiary)] opacity-0 group-hover:opacity-70 transition-all duration-200 -ml-0.5" />
+                    <Icon name="nav.chevronDown" className="w-3.5 h-3.5 text-[var(--neko-text-tertiary)] opacity-0 group-hover:opacity-70 transition-all duration-200 -ml-0.5" />
                 </button>
             </Popover.Trigger>
 
@@ -205,7 +192,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                             Cancel
                                         </button>
                                     ) : (
-                                        <MdChevronRight className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover:text-[var(--neko-text-primary)] transition-colors opacity-50 group-hover:opacity-100" />
+ <Icon size="md" name="nav.chevronRight" className="text-[var(--neko-text-tertiary)] group-hover:text-[var(--neko-text-primary)] transition-colors opacity-50 group-hover:opacity-100" />
                                     )}
                                 </div>
                                 <div className="h-[1px] bg-[var(--neko-border)] mx-2 mt-2 opacity-40" />
@@ -239,7 +226,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                 isUserMenuOpen && "text-[var(--neko-text-primary)] bg-[var(--neko-active)]"
                                             )}
                                         >
-                                            <MdMoreHoriz className="w-[18px] h-[18px] text-[var(--neko-text-secondary)]" />
+ <Icon size="md" name="common.more" className="text-[var(--neko-text-secondary)]" />
                                         </button>
                                     </div>
 
@@ -275,7 +262,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                     iconButtonStyles
                                                 )}
                                             >
-                                                <MdPeople className="w-[18px] h-[18px]" />
+ <Icon size="md" name="user.switch" />
                                                 Switch Account
                                             </button>
                                             <button
@@ -285,7 +272,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                     iconButtonStyles
                                                 )}
                                             >
-                                                <MdLogout className="w-[18px] h-[18px]" />
+ <Icon size="md" name="user.logout" />
                                                 Log out
                                             </button>
                                         </div>
@@ -313,7 +300,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                                 : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
                                                         )}
                                                     >
-                                                        <MdDescription className="w-6 h-6" />
+                                                        <Icon name="file.text" className="w-6 h-6" />
                                                     </button>
                                                 </TooltipTrigger>
                                                 <TooltipContent side="bottom" sideOffset={4}>
@@ -332,7 +319,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                                 : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
                                                         )}
                                                     >
-                                                        <MdCalendarToday className="w-6 h-6" />
+                                                        <Icon name="sidebar.calendar" className="w-6 h-6" />
                                                     </button>
                                                 </TooltipTrigger>
                                                 <TooltipContent side="bottom" sideOffset={4}>
@@ -351,7 +338,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                                 : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
                                                         )}
                                                     >
-                                                        <MdChecklist className="w-6 h-6" />
+                                                        <Icon name="editor.checkSquare" className="w-6 h-6" />
                                                     </button>
                                                 </TooltipTrigger>
                                                 <TooltipContent side="bottom" sideOffset={4}>
@@ -370,7 +357,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                                 : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
                                                         )}
                                                     >
-                                                        <MdAutoAwesome className="w-6 h-6" />
+                                                        <Icon name="ai.sparkle" className="w-6 h-6" />
                                                     </button>
                                                 </TooltipTrigger>
                                                 <TooltipContent side="bottom" sideOffset={4}>
@@ -389,7 +376,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                         : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
                                                 )}
                                             >
-                                                <MdDescription className="w-6 h-6" />
+                                                <Icon name="file.text" className="w-6 h-6" />
                                             </button>
 
                                             <button
@@ -401,7 +388,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                         : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
                                                 )}
                                             >
-                                                <MdCalendarToday className="w-6 h-6" />
+                                                <Icon name="sidebar.calendar" className="w-6 h-6" />
                                             </button>
 
                                             <button
@@ -413,7 +400,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                         : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
                                                 )}
                                             >
-                                                <MdChecklist className="w-6 h-6" />
+                                                <Icon name="editor.checkSquare" className="w-6 h-6" />
                                             </button>
 
                                             <button
@@ -425,7 +412,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                         : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
                                                 )}
                                             >
-                                                <MdAutoAwesome className="w-6 h-6" />
+                                                <Icon name="ai.sparkle" className="w-6 h-6" />
                                             </button>
                                         </>
                                     )}
@@ -441,7 +428,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                     "hover:bg-[var(--neko-hover)]"
                                 )}
                             >
-                                <MdSettings className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
+ <Icon size="md" name="common.settings" className="text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
                                 <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Settings</span>
                             </button>
 
@@ -456,7 +443,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                         "hover:bg-[var(--neko-hover)]"
                                     )}
                                 >
-                                    <MdScience className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)] group-hover/item:text-purple-500 transition-colors" />
+ <Icon size="md" name="misc.lab" className="text-[var(--neko-text-tertiary)] group-hover/item:text-purple-500 transition-colors" />
                                     <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-purple-500">Design Lab</span>
                                 </button>
                             )}
@@ -481,7 +468,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                         isLanguageMenuOpen && "bg-[var(--neko-hover)]"
                                     )}
                                 >
-                                    <MdTranslate className="w-[18px] h-[18px] text-[var(--neko-text-tertiary)]" />
+ <Icon size="md" name="ai.language" className="text-[var(--neko-text-tertiary)]" />
                                 </button>
 
                                 {isLanguageMenuOpen && (

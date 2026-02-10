@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSortable, defaultAnimateLayoutChanges, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MdChevronRight, MdExpandMore, MdMonitorHeart } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import type { NekoEvent } from '@/lib/ics/types';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
@@ -195,9 +195,9 @@ export function TaskItem({
                             className="p-0.5 transition-colors"
                         >
                             {collapsed ? (
-                                <MdChevronRight className="w-[18px] h-[18px] text-zinc-400" />
+ <Icon size="md" name="nav.chevronRight" className="text-zinc-400" />
                             ) : (
-                                <MdExpandMore className="w-[18px] h-[18px] text-zinc-400" />
+ <Icon size="md" name="nav.chevronDown" className="text-zinc-400" />
                             )}
                         </button>
                     ) : (
@@ -252,7 +252,7 @@ export function TaskItem({
                                     icon={task.icon}
                                     color={colorValue}
                                     sizeClass="h-5 w-5"
-                                    fallback={<MdMonitorHeart className="h-[18px].5 w-[18px].5 text-zinc-400 opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity" />}
+ fallback={<Icon size="md" name="misc.activity" className=".5 .5 text-zinc-400 opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity" />}
                                 />
                             </button>
                         }

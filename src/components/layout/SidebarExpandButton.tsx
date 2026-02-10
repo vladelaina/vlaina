@@ -1,5 +1,5 @@
 
-import { MdKeyboardDoubleArrowRight, MdMenu } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 
 interface SidebarExpandButtonProps {
@@ -27,11 +27,11 @@ export function SidebarExpandButton({
                 title={title}
             >
                 {isPeeking ? (
-                    <MdKeyboardDoubleArrowRight className="size-[18px]" />
+                    <Icon size="md" name="nav.expand" />
                 ) : (
                     <>
-                        <MdMenu className="size-[18px] group-hover:hidden" />
-                        <MdKeyboardDoubleArrowRight className="size-[18px] hidden group-hover:block" />
+                        <Icon size="md" name="common.menu" className=" group-hover:hidden" />
+                        <Icon size="md" name="nav.expand" className=" hidden group-hover:block" />
                     </>
                 )}
             </button>

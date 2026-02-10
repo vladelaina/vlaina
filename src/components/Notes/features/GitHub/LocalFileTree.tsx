@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MdChevronRight, MdExpandMore, MdDescription, MdFolder, MdFolderOpen, MdMoreHoriz, MdOpenInNew } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles, NOTES_COLORS } from '@/lib/utils';
@@ -201,22 +201,22 @@ function LocalFileTreeItem({
                         <span className="w-[18px] h-[18px] flex items-center justify-center relative">
                             <span className="group-hover:hidden">
                                 {isExpanded ? (
-                                    <MdFolderOpen className="w-[18px] h-[18px] text-amber-500" />
+ <Icon size="md" name="file.folderOpen" className="text-amber-500" />
                                 ) : (
-                                    <MdFolder className="w-[18px] h-[18px] text-amber-500" />
+ <Icon size="md" name="file.folder" className="text-amber-500" />
                                 )}
                             </span>
                             <span className="hidden group-hover:block text-amber-500">
                                 {isExpanded ? (
-                                    <MdExpandMore className="w-[18px] h-[18px]" />
+ <Icon size="md" name="nav.chevronDown" />
                                 ) : (
-                                    <MdChevronRight className="w-[18px] h-[18px]" />
+ <Icon size="md" name="nav.chevronRight" />
                                 )}
                             </span>
                         </span>
                     ) : (
                         <span className="w-[18px] h-[18px] flex items-center justify-center">
-                            <MdDescription className={cn("w-[18px] h-[18px] text-amber-500", getStatusColor())} />
+ <Icon size="md" name="file.text" className={cn(" text-amber-500", getStatusColor())} />
                         </span>
                     )}
 
@@ -254,7 +254,7 @@ function LocalFileTreeItem({
                             iconButtonStyles
                         )}
                     >
-                        <MdMoreHoriz className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.more" />
                     </button>
                 </div>
             </div>
@@ -277,7 +277,7 @@ function LocalFileTreeItem({
                             className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)] transition-colors"
                         >
                             <span className="w-[18px] h-[18px] flex items-center justify-center">
-                                <MdOpenInNew className="w-[18px] h-[18px]" />
+ <Icon size="md" name="nav.external" />
                             </span>
                             Open in GitHub
                         </button>

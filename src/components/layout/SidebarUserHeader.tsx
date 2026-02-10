@@ -1,5 +1,4 @@
-import { MdKeyboardDoubleArrowLeft, MdSearch } from 'react-icons/md';
-import { SquarePen } from 'lucide-react';
+import { Icon } from '@/components/ui/icons';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { useUIStore } from '@/stores/uiSlice';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -46,7 +45,7 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                             iconButtonStyles
                         )}
                     >
-                        <SquarePen className="w-[16px] h-[16px]" />
+                        <Icon name="common.edit" size="sm" />
                     </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={2}>
@@ -64,7 +63,7 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                             iconButtonStyles
                         )}
                     >
-                        <MdSearch className="w-[18px] h-[18px]" />
+                        <Icon name="common.search" size="md" />
                     </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={2}>
@@ -86,7 +85,7 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                     "transition-opacity"
                 )}
             >
-                <MdKeyboardDoubleArrowLeft className="w-[18px] h-[18px]" />
+                <Icon name="sidebar.collapse" size="md" />
             </button>
         </div>
     );

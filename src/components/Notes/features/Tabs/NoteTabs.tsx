@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { MdClose, MdDescription } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { useDisplayName, useDisplayIcon } from '@/hooks/useTitleSync';
 import { NoteIcon } from '../IconPicker/NoteIcon';
@@ -45,10 +45,11 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
 
       {icon ? (
         <span className="flex-shrink-0">
-          <NoteIcon icon={icon} size={18} />
+          <NoteIcon icon={icon} size="md" />
         </span>
       ) : (
-        <MdDescription
+        <Icon
+          name="file.text"
           className={cn(
             "w-[18px] h-[18px] flex-shrink-0",
             isActive
@@ -81,7 +82,7 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
           "hover:bg-[var(--neko-hover-filled)] text-[var(--neko-icon-secondary)]"
         )}
       >
-        <MdClose className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.close" />
       </button>
     </div>
   );

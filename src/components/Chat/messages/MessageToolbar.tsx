@@ -1,4 +1,4 @@
-import { MdContentCopy, MdVolumeUp, MdRefresh, MdNavigateBefore, MdNavigateNext, MdStop, MdLanguage, MdKeyboardArrowDown, MdKeyboardArrowUp } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/ai/types';
 
@@ -39,14 +39,14 @@ export function MessageToolbar({
             
             {totalVer > 1 && (
                 <div className="flex items-center text-xs font-medium text-gray-500 bg-gray-100 dark:bg-zinc-800 rounded-md px-1 mr-2">
-                    <button onClick={() => onSwitchVersion(currentIndex - 1)} disabled={currentIndex <= 0} className="p-1 hover:text-black dark:hover:text-white disabled:opacity-30"><MdNavigateBefore size={14}/></button>
+                    <button onClick={() => onSwitchVersion(currentIndex - 1)} disabled={currentIndex <= 0} className="p-1 hover:text-black dark:hover:text-white disabled:opacity-30"><Icon name="nav.chevronLeft" size="sm"/></button>
                     <span className="mx-1">{currentVer} / {totalVer}</span>
-                    <button onClick={() => onSwitchVersion(currentIndex + 1)} disabled={currentIndex >= totalVer - 1} className="p-1 hover:text-black dark:hover:text-white disabled:opacity-30"><MdNavigateNext size={14}/></button>
+                    <button onClick={() => onSwitchVersion(currentIndex + 1)} disabled={currentIndex >= totalVer - 1} className="p-1 hover:text-black dark:hover:text-white disabled:opacity-30"><Icon name="nav.chevronRight" size="sm"/></button>
                 </div>
             )}
             
             <button onClick={onCopy} className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800" title="Copy">
-                <MdContentCopy size={14} />
+                <Icon name="common.copy" size="sm" />
             </button>
             
             <button 
@@ -57,11 +57,11 @@ export function MessageToolbar({
                 )} 
                 title={isSpeaking ? "Stop" : "Read Aloud"}
             >
-                {isSpeaking ? <MdStop size={14} /> : <MdVolumeUp size={14} />}
+                {isSpeaking ? <Icon name="media.stop" size="sm" /> : <Icon name="media.volume" size="sm" />}
             </button>
 
             <button onClick={onRegenerate} className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800" title="Regenerate">
-                <MdRefresh size={14} />
+                <Icon name="common.refresh" size="sm" />
             </button>
 
             {hasCitations && onToggleSources && (
@@ -74,10 +74,10 @@ export function MessageToolbar({
                             : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-zinc-700"
                     )}
                 >
-                    <MdLanguage size={12} />
+                    <Icon name="ai.language" size="xs" />
                     <span>Sources</span>
                     <span className="opacity-60">{msg.citations?.length}</span>
-                    {isSourcesOpen ? <MdKeyboardArrowUp size={12}/> : <MdKeyboardArrowDown size={12}/>}
+                    {isSourcesOpen ? <Icon name="nav.chevronUp" size="xs"/> : <Icon name="nav.chevronDown" size="xs"/>}
                 </button>
             )}
         </div>

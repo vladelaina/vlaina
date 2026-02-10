@@ -1,9 +1,5 @@
 import React, { memo, useCallback } from 'react';
-import {
-  MdDescription,
-  MdClose,
-  MdAdd,
-} from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
@@ -38,10 +34,11 @@ function TabContent({ tab, isActive, icon, displayName }: TabContentProps) {
     <>
       {icon ? (
         <span className="flex-shrink-0 pointer-events-none">
-          <NoteIcon icon={icon} size={18} />
+          <NoteIcon icon={icon} size="md" />
         </span>
       ) : (
-        <MdDescription
+        <Icon
+          name="file.text"
           className="w-[18px] h-[18px] flex-shrink-0 pointer-events-none text-current opacity-70"
         />
       )}
@@ -142,7 +139,7 @@ const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick,
               "hover:text-zinc-500 dark:hover:text-zinc-400"
             )}
           >
-            <MdClose className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.close" />
           </button>
         </div>
       </TooltipTrigger>
@@ -253,7 +250,7 @@ export function NotesTabRow() {
                                         "hover:text-zinc-500 dark:hover:text-zinc-400"
                                     )}
                                 >
-                                    <MdAdd className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.add" />
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent side="bottom" sideOffset={2}>

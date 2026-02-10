@@ -1,12 +1,13 @@
 import { memo, useMemo, useState, useEffect } from 'react';
 import * as LucideIcons from 'lucide-react';
-import * as MdIcons from 'react-icons/md';
+import { icons } from '@/components/ui/icons/registry';
+import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
 import { cn } from '@/lib/utils';
 import { ICON_MAP as ICON_ITEM_MAP, EMOJI_MAP } from './constants';
 
 export interface UniversalIconProps {
   icon: string;
-  size?: number | string;
+  size?: number | string | IconSize;
   className?: string;
   rounding?: string;
   color?: string;
@@ -15,6 +16,13 @@ export interface UniversalIconProps {
   imageLoader?: (src: string) => Promise<string>;
 }
 
+const resolveSize = (size?: number | string | IconSize) => {
+  if (typeof size === 'string' && size in ICON_SIZES) {
+    return ICON_SIZES[size as IconSize];
+  }
+  return size;
+};
+
 const ImageIconRenderer = memo(function ImageIconRenderer({
   src,
   size,
@@ -22,16 +30,17 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
   rounding
 }: {
   src: string;
-  size?: number | string;
+  size?: number | string | IconSize;
   className?: string;
   rounding?: string;
 }) {
   if (!src) return null;
+  const resolvedSize = resolveSize(size);
   return (
     <img
       src={src}
       className={cn("object-cover select-none pointer-events-none", rounding || "rounded-sm", className)}
-      style={{ width: size, height: size, display: 'inline-block' }}
+      style={{ width: resolvedSize, height: resolvedSize, display: 'inline-block' }}
       draggable={false}
       alt="icon"
     />
@@ -49,22 +58,27 @@ const IconIconRenderer = memo(function IconIconRenderer({
   iconName: string;
   originalColor: string;
   forcedColor?: string;
-  size?: number | string;
+  size?: number | string | IconSize;
   className?: string;
   previewColor?: string | null;
 }) {
   const color = previewColor || forcedColor || originalColor;
   
   const IconComponent = useMemo(() => {
-    let Comp = (LucideIcons as any)[iconName];
-    if (!Comp) {
-      const mdName = iconName.startsWith('Md') ? iconName : `Md${iconName}`;
-      Comp = (MdIcons as any)[mdName] || (MdIcons as any)[iconName];
+    // 1. Try Registry First (Semantic Names)
+    if (iconName in icons) {
+      return icons[iconName as keyof typeof icons];
     }
-    return Comp || MdIcons.MdDescription;
+
+    // 2. Fallback to Lucide (Direct Names from Picker)
+    const lucideComp = (LucideIcons as any)[iconName];
+    if (lucideComp) return lucideComp;
+
+    return LucideIcons.HelpCircle; // Default fallback
   }, [iconName]);
 
-  const isCSSVariable = typeof size === 'string' && size.startsWith('var(');
+  const resolvedSize = resolveSize(size);
+  const isCSSVariable = typeof resolvedSize === 'string' && resolvedSize.startsWith('var(');
 
   return (
     <span
@@ -73,13 +87,13 @@ const IconIconRenderer = memo(function IconIconRenderer({
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: size,
-        height: size,
+        width: resolvedSize,
+        height: resolvedSize,
         lineHeight: 1,
       }}
     >
       <IconComponent
-        size={isCSSVariable ? '100%' : size}
+        size={isCSSVariable ? '100%' : resolvedSize}
         style={{
           color,
           ...(isCSSVariable ? { width: '100%', height: '100%' } : {})
@@ -96,7 +110,7 @@ const EmojiIconRenderer = memo(function EmojiIconRenderer({
   previewTone,
 }: {
   emoji: string;
-  size?: number | string;
+  size?: number | string | IconSize;
   className?: string;
   previewTone?: number | null;
 }) {
@@ -109,10 +123,12 @@ const EmojiIconRenderer = memo(function EmojiIconRenderer({
     return emoji;
   }, [emoji, previewTone]);
 
+  const resolvedSize = resolveSize(size);
+
   return (
     <span
       className={className}
-      style={{ fontSize: size, lineHeight: 1, display: 'inline-block', userSelect: 'none' }}
+      style={{ fontSize: resolvedSize, lineHeight: 1, display: 'inline-block', userSelect: 'none' }}
     >
       {displayEmoji}
     </span>
@@ -121,7 +137,7 @@ const EmojiIconRenderer = memo(function EmojiIconRenderer({
 
 export function UniversalIcon({ 
   icon, 
-  size = 18, 
+  size = 'md', 
   className, 
   rounding,
   color,
@@ -130,6 +146,7 @@ export function UniversalIcon({
   imageLoader
 }: UniversalIconProps) {
   const [imgSrc, setImgSrc] = useState<string | null>(null);
+  const resolvedSize = resolveSize(size);
 
   useEffect(() => {
     let active = true;
@@ -148,10 +165,10 @@ export function UniversalIcon({
   if (!icon) return null;
 
   if (icon.startsWith('img:')) {
-    return imgSrc ? <ImageIconRenderer src={imgSrc} size={size} className={className} rounding={rounding} /> : <div style={{ width: size, height: size }} className={className} />;
+    return imgSrc ? <ImageIconRenderer src={imgSrc} size={size} className={className} rounding={rounding} /> : <div style={{ width: resolvedSize, height: resolvedSize }} className={className} />;
   }
 
-  if (icon.startsWith('icon:') || ICON_ITEM_MAP.has(icon)) {
+  if (icon.startsWith('icon:') || ICON_ITEM_MAP.has(icon) || icon in icons || (LucideIcons as any)[icon]) {
     let iconName = icon;
     let originalColor = '#6b7280';
     if (icon.startsWith('icon:')) {

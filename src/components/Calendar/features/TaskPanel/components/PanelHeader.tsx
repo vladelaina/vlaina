@@ -1,4 +1,4 @@
-import { MdSearch, MdFullscreen, MdFullscreenExit } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 
 type PanelView = 'tasks' | 'progress';
@@ -64,7 +64,7 @@ export function PanelHeader({
                                     : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                             )}
                         >
-                            <MdSearch className="size-[18px]" />
+                            <Icon size="md" name="common.search" />
                         </button>
                     )}
 
@@ -74,7 +74,7 @@ export function PanelHeader({
                             onClick={onToggleExpand}
                             className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                         >
-                            {isExpanded ? <MdFullscreenExit className="size-[18px]" /> : <MdFullscreen className="size-[18px]" />}
+                            {isExpanded ? <Icon size="md" name="nav.exitFullscreen" /> : <Icon name="nav.fullscreen" />}
                         </button>
                     )}
                 </div>

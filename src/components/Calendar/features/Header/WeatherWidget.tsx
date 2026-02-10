@@ -1,8 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  MdSearch, MdLocationOn, MdClose, MdRefresh, MdCloudQueue
-}
-from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { isSameDay } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -130,7 +127,7 @@ export function WeatherWidget() {
                           </span>
                         )}
                         {isInitialLoading && (
-                           <MdRefresh className="size-[18px] animate-spin text-zinc-400" />
+                           <Icon size="md" name="common.refresh" className=" animate-spin text-zinc-400" />
                         )}
                       </>
                     )}
@@ -148,7 +145,7 @@ export function WeatherWidget() {
           <PopoverContent className="w-64 p-0 overflow-hidden bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800" align="end" sideOffset={8}>
           <div className="p-3 border-b border-zinc-100 dark:border-zinc-800">
             <div className="relative">
-              <MdSearch className="absolute left-2 top-1/2 -translate-y-1/2 size-[18px] text-zinc-400" />
+              <Icon size="md" name="common.search" className="absolute left-2 top-1/2 -translate-y-1/2  text-zinc-400" />
               <input
                 autoFocus
                 type="text"
@@ -168,7 +165,7 @@ export function WeatherWidget() {
                   onClick={() => selectCity(loc)}
                   className="w-full flex items-start gap-3 px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-left group"
                 >
-                  <MdLocationOn className="size-[18px] text-zinc-400 mt-0.5 group-hover:text-blue-500 transition-colors" />
+                  <Icon size="md" name="nav.location" className=" text-zinc-400 mt-0.5 group-hover:text-blue-500 transition-colors" />
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{loc.name}</span>
                     <span className="text-[10px] text-zinc-400">{loc.admin1 ? `${loc.admin1}, ` : ''}{loc.country}</span>
@@ -179,27 +176,27 @@ export function WeatherWidget() {
               <div className="p-4 text-center text-xs text-zinc-400">No cities found</div>
             ) : isSearching ? (
               <div className="p-4 flex justify-center">
-                <MdRefresh className="size-[18px] animate-spin text-zinc-400" />
+                <Icon size="md" name="common.refresh" className=" animate-spin text-zinc-400" />
               </div>
             ) : city ? (
               <div className="p-2">
                 <div className="px-2 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Current</div>
                 <div className="flex items-center justify-between px-2 py-2 bg-zinc-50 dark:bg-zinc-800/50 rounded-md">
                   <div className="flex items-center gap-2">
-                    <MdLocationOn className="size-[18px] text-blue-500" />
+                    <Icon size="md" name="nav.location" className=" text-blue-500" />
                     <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{city.name}</span>
                   </div>
                   <button 
                     onClick={removeCity}
                     className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors"
                   >
-                    <MdClose className="size-[18px] text-zinc-400" />
+                    <Icon size="md" name="common.close" className=" text-zinc-400" />
                   </button>
                 </div>
               </div>
             ) : (
               <div className="p-8 text-center flex flex-col items-center gap-2">
-                <MdCloudQueue className="size-8 text-zinc-200 dark:text-zinc-800" />
+                <Icon name="file.cloud" className="size-8 text-zinc-200 dark:text-zinc-800" />
                 <p className="text-xs text-zinc-400">Search for a city to see local weather</p>
               </div>
             )}

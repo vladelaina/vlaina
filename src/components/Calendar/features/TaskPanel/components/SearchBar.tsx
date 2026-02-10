@@ -1,4 +1,4 @@
-import { MdClose } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SearchBarProps {
@@ -33,7 +33,7 @@ export function SearchBar({ show, value, onChange, onClear }: SearchBarProps) {
                             onClick={onClear}
                             className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
                         >
-                            <MdClose className="size-[18px]" />
+                            <Icon size="md" name="common.close" />
                         </button>
                     )}
                 </div>

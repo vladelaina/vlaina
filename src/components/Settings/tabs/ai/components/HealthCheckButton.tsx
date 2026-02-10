@@ -1,4 +1,4 @@
-import { MdCheck, MdError, MdMonitorHeart } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 
 interface HealthCheckButtonProps {
@@ -26,11 +26,11 @@ export function HealthCheckButton({ onCheck, isChecking, overallStatus, disabled
         {isChecking ? (
             <div className="size-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
         ) : overallStatus === 'success' ? (
-            <MdCheck size={14} />
+            <Icon name="common.check" size="sm" />
         ) : overallStatus === 'error' ? (
-            <MdError size={14} />
+            <Icon name="common.error" size="sm" />
         ) : (
-            <MdMonitorHeart size={16} />
+            <Icon name="misc.activity" size="sm" />
         )}
     </button>
   );

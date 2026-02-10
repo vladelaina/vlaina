@@ -1,5 +1,5 @@
 import React from 'react';
-import { MdCheck, MdContentCopy, MdMoreHoriz, MdShare } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -58,7 +58,7 @@ export const CodeBlockHeader = ({
                     onClick={onCopy}
                     className={cn("flex items-center justify-center size-8 rounded-full p-0 leading-none", iconButtonStyles, copied && "text-green-500 hover:text-green-600")}
                 >
-                    {copied ? <MdCheck className="size-[18px] block" /> : <MdContentCopy className="size-[18px] block" />}
+                    {copied ? <Icon size="md" name="common.check" className=" block" /> : <Icon name="common.copy" className=" block" />}
                 </button>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -66,12 +66,12 @@ export const CodeBlockHeader = ({
                             onClick={(e) => e.stopPropagation()}
                             className={cn("flex items-center justify-center size-8 rounded-full p-0 leading-none", iconButtonStyles)}
                         >
-                            <MdMoreHoriz className="size-[18px] block" />
+                            <Icon size="md" name="common.more" className=" block" />
                         </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-32">
                          <DropdownMenuItem onClick={onShare} className="cursor-pointer text-xs">
-                            <MdShare className="mr-2 size-[18px]" />
+                            <Icon size="md" name="common.share" className="mr-2 " />
                             <span>Share</span>
                          </DropdownMenuItem>
                     </DropdownMenuContent>

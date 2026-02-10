@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { MdRefresh } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { resolveSystemAssetPath } from '@/lib/assets/core/paths';
@@ -105,7 +105,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
           />
           {!isLoaded && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <MdRefresh className="w-5 h-5 animate-spin text-[var(--neko-text-tertiary)]" />
+              <Icon name="common.refresh" className="w-5 h-5 animate-spin text-[var(--neko-text-tertiary)]" />
             </div>
           )}
         </>

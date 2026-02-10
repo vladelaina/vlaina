@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, memo, useCallback } from 'react';
-import { MdSend, MdAttachFile, MdImage, MdStop, MdLanguage, MdAdd, MdClose } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { ModelSelector } from './ModelSelector';
 import { useAIStore } from '@/stores/useAIStore';
@@ -166,14 +166,14 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                                   <img src={att.previewUrl} alt="preview" className="h-16 w-16 object-cover rounded-xl border border-black/5 dark:border-white/10" />
                               ) : (
                                   <div className="h-16 w-16 bg-gray-100 dark:bg-zinc-800 rounded-xl flex items-center justify-center border border-black/5 dark:border-white/10">
-                                      <MdAttachFile className="text-gray-400" />
+                                      <Icon name="file.attach" className="text-gray-400" />
                                   </div>
                               )}
                               <button 
                                   onClick={() => removeAttachment(att.id)}
                                   className="absolute -top-1.5 -right-1.5 bg-gray-200 dark:bg-zinc-700 text-gray-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
                               >
-                                  <MdClose size={12} />
+                                  <Icon name="common.close" size="xs" />
                               </button>
                           </div>
                       ))}
@@ -214,22 +214,22 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                                     "hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200 active:scale-95"
                                 )}
                             >
-                                <MdAdd className="w-5 h-5" />
+                                <Icon name="common.add" className="w-5 h-5" />
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" sideOffset={8} className="w-48 bg-white dark:bg-[#1E1E1E]">
                             <DropdownMenuItem onClick={toggleWebSearch} className="gap-2 cursor-pointer">
-                                <MdLanguage className={cn("w-4 h-4", webSearchEnabled ? "text-blue-500" : "text-gray-500")} />
+                                <Icon name="ai.language" className={cn("w-4 h-4", webSearchEnabled ? "text-blue-500" : "text-gray-500")} />
                                 <span>Web Search</span>
                                 {webSearchEnabled && <span className="ml-auto text-[10px] bg-blue-100 text-blue-600 px-1.5 rounded-full">ON</span>}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={triggerFileSelect} className="gap-2 cursor-pointer">
-                                <MdAttachFile className="w-4 h-4 text-gray-500" />
+                                <Icon name="file.attach" className="w-4 h-4 text-gray-500" />
                                 <span>Attach File</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={triggerFileSelect} className="gap-2 cursor-pointer">
-                                <MdImage className="w-4 h-4 text-gray-500" />
+                                <Icon name="file.image" className="w-4 h-4 text-gray-500" />
                                 <span>Add Image</span>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -244,7 +244,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                                 "hover:bg-blue-200 dark:hover:bg-blue-900/50"
                             )}
                         >
-                            <MdLanguage className="w-3.5 h-3.5" />
+                            <Icon name="ai.language" className="w-3.5 h-3.5" />
                             <span>Search</span>
                             <div className="w-3.5 h-3.5 flex items-center justify-center rounded-full bg-blue-200 dark:bg-blue-800 ml-0.5">
                                 <span className="text-[10px] font-bold">×</span>
@@ -261,7 +261,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                         onClick={onStop}
                         className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-gray-100 dark:bg-white text-black dark:text-black shadow-sm hover:scale-105 active:scale-95"
                       >
-                        <MdStop className="w-4 h-4" />
+                        <Icon name="media.stop" className="w-4 h-4" />
                       </button>
                   ) : (
                       <button
@@ -274,7 +274,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                             : "bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-default"
                         )}
                       >
-                        <MdSend className="w-3.5 h-3.5" />
+                        <Icon name="ai.send" className="w-3.5 h-3.5" />
                       </button>
                   )}
                 </div>

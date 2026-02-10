@@ -1,6 +1,7 @@
 import { useRef, useEffect, useMemo, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ICON_PER_ROW, ICON_SIZE, ROW_GAP, ICON_MAP, SCROLLBAR_CLASSNAME } from './constants';
+import { ICON_SIZES } from '@/components/ui/icons/sizes';
 import type { IconItem } from './icons';
 
 interface IconRowProps {
@@ -22,7 +23,7 @@ const IconRow = memo(
               data-color={color}
               className="w-full aspect-square flex items-center justify-center rounded-md hover:bg-[var(--neko-bg-hover)]"
             >
-              <IconComponent size={20} style={{ color }} />
+              <IconComponent size={ICON_SIZES.lg} style={{ color }} />
             </button>
           );
         })}

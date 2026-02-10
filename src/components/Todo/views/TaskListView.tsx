@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MdCheck, MdSearch, MdClose } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { cn } from '@/lib/utils';
@@ -167,7 +167,7 @@ export function TaskListView({
                                 'flex-1 flex items-center gap-2 px-3 py-2 rounded-md',
                                 'border border-zinc-200 dark:border-zinc-700 bg-muted/30'
                             )}>
-                                <MdSearch className="w-[18px] h-[18px] text-zinc-400 flex-shrink-0" />
+ <Icon size="md" name="common.search" className="text-zinc-400 flex-shrink-0" />
                                 <input
                                     ref={searchInputRef}
                                     type="text"
@@ -189,7 +189,7 @@ export function TaskListView({
                                     }}
                                     className="flex-shrink-0 p-1 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                 >
-                                    <MdClose className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.close" />
                                 </button>
                             </div>
                         ) : (
@@ -224,7 +224,7 @@ export function TaskListView({
                                         scheduledTasks.length === 0 && completedTasks.length === 0 && (
                                             <div className="py-24 text-center">
                                                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 mb-4">
-                                                    <MdCheck className="w-6 h-6 text-zinc-300 dark:text-zinc-600" />
+                                                    <Icon name="common.check" className="w-6 h-6 text-zinc-300 dark:text-zinc-600" />
                                                 </div>
                                                 <p className="text-zinc-400 dark:text-zinc-600 font-medium">All clear for now</p>
                                                 <p className="text-sm text-zinc-400/60 dark:text-zinc-600/60 mt-1">Capture tasks above</p>

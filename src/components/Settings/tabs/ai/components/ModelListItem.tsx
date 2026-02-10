@@ -1,4 +1,4 @@
-import { MdAdd, MdCheck, MdDelete, MdError } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { getModelLogoById } from '../modelIcons';
 
@@ -56,7 +56,7 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
                 )}
                 {health.status === 'error' && (
                     <div className="text-red-500 cursor-help" title={health.error}>
-                        <MdError size={14} />
+                        <Icon name="common.error" size="sm" />
                     </div>
                 )}
             </div>
@@ -69,11 +69,11 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
                     className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md opacity-0 group-hover:opacity-100 transition-opacity" 
                     title="Remove"
                 >
-                    <MdDelete className="w-4 h-4" />
+                    <Icon name="common.delete" className="w-4 h-4" />
                 </button>
             ) : (
                 <div className="text-green-600 dark:text-green-500 px-2">
-                    <MdCheck className="w-4 h-4" />
+                    <Icon name="common.check" className="w-4 h-4" />
                 </div>
             )
         ) : (
@@ -82,7 +82,7 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
                 className="p-1 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                 title="Add"
             >
-                <MdAdd className="w-4 h-4" />
+                <Icon name="common.add" className="w-4 h-4" />
             </button>
         )}
     </div>

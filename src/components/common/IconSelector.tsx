@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MdBlock, MdMoreHoriz, MdMonitorHeart } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { UniversalIconPicker } from '@/components/common/UniversalIconPicker';
 import { AppIcon } from '@/components/common/AppIcon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -69,9 +69,9 @@ export function IconSelector({
                   onMouseLeave={() => handlePreview(null)}
                 >
                   {value ? (
-                    <AppIcon icon={value} size={18} color={colorHex} />
+                    <AppIcon icon={value} size="md" color={colorHex} />
                   ) : (
-                    <MdMonitorHeart className="size-[18px] text-zinc-400" />
+                    <Icon size="md" name="misc.activity" className=" text-zinc-400" />
                   )}
                 </button>
               )}
@@ -115,7 +115,7 @@ export function IconSelector({
           )}
           title="Clear icon"
         >
-          <MdBlock className="size-[18px]" />
+          <Icon size="md" name="common.block" />
         </button>
         
         {QUICK_ICONS.slice(0, 6).map((name) => (
@@ -130,7 +130,7 @@ export function IconSelector({
                   : "text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               )}
             >
-               <AppIcon icon={name} size={18} color={colorHex} />
+               <AppIcon icon={name} size="md" color={colorHex} />
             </button>
         ))}
         
@@ -143,7 +143,7 @@ export function IconSelector({
                   )}
                   title="More icons"
                 >
-                    <MdMoreHoriz className="size-[18px]" />
+                    <Icon size="md" name="common.more" />
                 </button>
             </PopoverTrigger>
             <PopoverContent 

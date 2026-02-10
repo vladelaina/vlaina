@@ -1,11 +1,5 @@
 import { motion } from 'framer-motion';
-import { DeleteIcon } from '@/components/common/DeleteIcon';
-import {
-  MdMoreHoriz,
-  MdClose,
-  MdArchive,
-  MdRefresh,
-} from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 
 interface DetailActionsProps {
   showMenu: boolean;
@@ -32,7 +26,7 @@ export function DetailActions({
             onClick={onClose}
             className="absolute top-6 right-6 z-50 p-2 rounded-full bg-zinc-100/50 dark:bg-zinc-800/50 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 dark:text-zinc-400 transition-colors backdrop-blur-md"
         >
-            <MdClose className="size-[18px]" />
+            <Icon size="md" name="common.close" />
         </button>
       );
   }
@@ -76,7 +70,7 @@ export function DetailActions({
                       }}
                       transition={{ duration: 0.15 }}
                     >
-                      <MdMoreHoriz className="size-6" />
+                      <Icon name="common.more" className="size-6" />
                     </motion.button>
                      
                      {/* State B: The Panel (Actions) */}
@@ -101,7 +95,7 @@ export function DetailActions({
                         className="p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
                         title="Archive"
                       >
-                        <MdArchive className="size-[18px]" />
+                        <Icon size="md" name="file.archive" />
                       </button>
         
                       {/* Reset */}
@@ -110,7 +104,7 @@ export function DetailActions({
                         className="p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
                         title="Reset"
                       >
-                        <MdRefresh className="size-[18px]" />
+                        <Icon size="md" name="common.refresh" />
                       </button>
         
                       <div className="w-px h-[18px] bg-zinc-200 dark:bg-zinc-700/50 mx-1" />
@@ -121,7 +115,7 @@ export function DetailActions({
                         className="p-2 rounded-full text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:text-zinc-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
                         title="Delete"
                       >
-                        <DeleteIcon className="size-[18px]" />
+                        <Icon size="md" name="common.delete" />
                       </button>
         
                       <div className="w-px h-[18px] bg-zinc-200 dark:bg-zinc-700/50 mx-1" />
@@ -135,7 +129,7 @@ export function DetailActions({
                         }}
                         className="p-2 rounded-full text-zinc-300 hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                       >
-                        <MdClose className="size-[18px]" />
+                        <Icon size="md" name="common.close" />
                       </button>
                     </motion.div>
                   </motion.div>

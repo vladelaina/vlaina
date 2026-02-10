@@ -1,4 +1,4 @@
-import { MdAdd, MdFolderOpen } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 
 interface ActionButtonsProps {
   onCreateNew: () => void;
@@ -12,14 +12,14 @@ export function ActionButtons({ onCreateNew, onOpenLocal }: ActionButtonsProps) 
         className="vault-action-btn vault-action-btn--primary"
         onClick={onCreateNew}
       >
-        <MdAdd size={18} />
+        <Icon name="common.add" size="md" />
         Create New
       </button>
       <button 
         className="vault-action-btn vault-action-btn--secondary"
         onClick={onOpenLocal}
       >
-        <MdFolderOpen size={18} />
+        <Icon name="file.folderOpen" size="md" />
         Open Local
       </button>
     </div>

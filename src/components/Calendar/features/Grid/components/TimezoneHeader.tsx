@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { MdRemove, MdAdd, MdExpandMore, MdCheck, MdChecklist } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { format, isSameDay } from 'date-fns';
 import { CALENDAR_CONSTANTS } from '../../../utils/timeUtils';
 import { useCalendarStore } from '@/stores/useCalendarStore';
@@ -84,7 +84,7 @@ export function TimezoneHeader({ days = [] }: TimezoneHeaderProps) {
               className="p-0.5 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-sm transition-colors"
               title="Open in Today List"
             >
-              <MdChecklist className="w-[18px] h-[18px]" />
+ <Icon size="md" name="editor.checkSquare" />
             </button>
           </>
         )}
@@ -151,7 +151,7 @@ export function TimezoneHeader({ days = [] }: TimezoneHeaderProps) {
             disabled={isMaxZoomIn}
             className={`p-0.5 rounded-sm transition-colors ${isMaxZoomIn ? 'text-zinc-200 dark:text-zinc-800' : 'text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
             >
-            <MdRemove className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.remove" />
             </button>
 
             <Popover open={open} onOpenChange={setOpen}>
@@ -160,7 +160,7 @@ export function TimezoneHeader({ days = [] }: TimezoneHeaderProps) {
                         <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-tight">
                             {label}
                         </span>
-                        <MdExpandMore className="w-2.5 h-2.5 text-zinc-400" />
+                        <Icon name="nav.chevronDown" className="w-2.5 h-2.5 text-zinc-400" />
                     </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-32 p-1" align="end">
@@ -168,7 +168,7 @@ export function TimezoneHeader({ days = [] }: TimezoneHeaderProps) {
                         {['day', 'week', 'month'].map((m) => (
                             <button key={m} onClick={() => handleQuickSelect(m as any)} className="flex items-center justify-between px-2 py-1.5 text-xs rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
                                 <span className="capitalize">{m}</span>
-                                {((m === 'day' && currentDayCount === 1 && viewMode !== 'month') || (m === 'week' && currentDayCount === 7 && viewMode === 'week') || (m === 'month' && viewMode === 'month')) && <MdCheck className="w-[18px] h-[18px]" />}
+ {((m === 'day' && currentDayCount === 1 && viewMode !== 'month') || (m === 'week' && currentDayCount === 7 && viewMode === 'week') || (m === 'month' && viewMode === 'month')) && <Icon size="md" name="common.check" />}
                             </button>
                         ))}
                     </div>
@@ -180,7 +180,7 @@ export function TimezoneHeader({ days = [] }: TimezoneHeaderProps) {
             disabled={isMaxZoomOut}
             className={`p-0.5 rounded-sm transition-colors ${isMaxZoomOut ? 'text-zinc-200 dark:text-zinc-800' : 'text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
             >
-            <MdAdd className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.add" />
             </button>
         </div>
       </div>

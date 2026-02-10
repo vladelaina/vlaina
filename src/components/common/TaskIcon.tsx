@@ -1,13 +1,14 @@
 import { AppIcon } from '@/components/common/AppIcon';
 import { useUIStore } from '@/stores/uiSlice';
 import { getColorHex } from '@/lib/colors';
+import { IconSize } from '@/components/ui/icons/sizes';
 
 interface TaskIconProps {
   itemId: string;
   icon?: string;
   color?: string;
   sizeClass?: string;
-  size?: number;
+  size?: number | string | IconSize;
   enablePreview?: boolean;
   fallback?: React.ReactNode;
 }
@@ -16,8 +17,8 @@ export function TaskIcon({
   itemId, 
   icon, 
   color, 
-  sizeClass = 'size-[18px]',
-  size,
+  sizeClass,
+  size = 'md',
   enablePreview = true,
   fallback
 }: TaskIconProps) {

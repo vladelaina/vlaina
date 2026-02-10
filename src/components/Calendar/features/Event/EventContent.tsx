@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { MdCheck, MdPause } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import type { NekoEvent } from '@/lib/ics/types';
 import { formatElapsedTime } from './hooks/useEventTimer';
 
@@ -54,12 +54,12 @@ export function EventContent({
             backgroundColor: isCompleted ? colorStyles.accent : undefined,
           }}
         >
-          {isCompleted && <MdCheck className="w-2.5 h-2.5 text-white" />}
+          {isCompleted && <Icon name="common.check" className="w-2.5 h-2.5 text-white" />}
         </button>
       )}
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         <div className="flex items-start gap-1">
-          {isTimerPaused && <MdPause className="w-2.5 h-2.5 flex-shrink-0 opacity-70 mt-0.5" />}
+          {isTimerPaused && <Icon name="media.pause" className="w-2.5 h-2.5 flex-shrink-0 opacity-70 mt-0.5" />}
           <p
             className={`font-medium leading-tight whitespace-normal break-words ${isCompleted ? 'line-through opacity-60' : ''} ${heightLevel === 'micro' ? 'text-[9px]' : 'text-[11px]'}`}
             style={{ color: colorStyles.text }}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MdEdit, MdContentCopy, MdKeyboardArrowLeft, MdKeyboardArrowRight } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { LocalImage } from '../components/LocalImage';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/ai/types';
@@ -124,7 +124,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
                         disabled={currentIdx === 0}
                         className="p-0.5 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
                     >
-                        <MdKeyboardArrowLeft size={14} />
+                        <Icon name="nav.chevronLeft" size="sm" />
                     </button>
                     <span className="text-[10px] font-mono font-medium text-gray-600 dark:text-gray-400 min-w-[24px] text-center">
                         {currentIdx + 1} / {versions.length}
@@ -137,7 +137,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
                         disabled={currentIdx === versions.length - 1}
                         className="p-0.5 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
                     >
-                        <MdKeyboardArrowRight size={14} />
+                        <Icon name="nav.chevronRight" size="sm" />
                     </button>
                 </div>
             )}
@@ -145,9 +145,9 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
             <div className="flex items-center gap-1">
                 <button 
                     onClick={handleCopy}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 rounded-md transition-colors"
                 >
-                    <MdContentCopy size={14} />
+                    <Icon name="common.copy" size="sm" />
                 </button>
                 
                 <button 
@@ -162,7 +162,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
                     )}
                     title={onEdit ? "Edit" : "Edit Unavailable"}
                 >
-                    <MdEdit size={14} />
+                    <Icon name="common.edit" size="sm" />
                 </button>
             </div>
         </div>

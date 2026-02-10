@@ -1,12 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import {
-  MdChevronRight,
-  MdExpandMore,
-  MdMoreHoriz,
-  MdDescription,
-  MdFolder,
-  MdFolderOpen,
-} from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles, NOTES_COLORS } from '@/lib/utils';
 import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
 
@@ -74,25 +67,25 @@ export const FileTreeItemRenderer = ({
           <span className="w-[18px] h-[18px] flex items-center justify-center relative flex-shrink-0">
             <span className="group-hover:hidden">
               {expanded ? (
-                <MdFolderOpen className="w-[18px] h-[18px] text-amber-500" />
+ <Icon size="md" name="file.folderOpen" className="text-amber-500" />
               ) : (
-                <MdFolder className="w-[18px] h-[18px] text-amber-500" />
+ <Icon size="md" name="file.folder" className="text-amber-500" />
               )}
             </span>
             <span className="hidden group-hover:block text-amber-500">
               {expanded ? (
-                <MdExpandMore className="w-[18px] h-[18px]" />
+ <Icon size="md" name="nav.chevronDown" />
               ) : (
-                <MdChevronRight className="w-[18px] h-[18px]" />
+ <Icon size="md" name="nav.chevronRight" />
               )}
             </span>
           </span>
         ) : (
           <span className="w-[18px] h-[18px] flex items-center justify-center flex-shrink-0">
             {icon ? (
-              <NoteIcon icon={icon} size={18} />
+              <NoteIcon icon={icon} size="md" />
             ) : (
-              <MdDescription className="w-[18px] h-[18px] text-amber-500" />
+ <Icon size="md" name="file.text" className="text-amber-500" />
             )}
           </span>
         )}
@@ -138,7 +131,7 @@ export const FileTreeItemRenderer = ({
             iconButtonStyles
           )}
         >
-          <MdMoreHoriz className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.more" />
         </button>
       </div>
     </div>

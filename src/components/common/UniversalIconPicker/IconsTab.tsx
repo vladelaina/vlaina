@@ -1,5 +1,5 @@
 import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
-import { MdSearch, MdClose, MdPalette } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { VirtualIconGrid, VirtualIconSearchResults } from './VirtualIconGrid';
 import { ICON_CATEGORIES, ICON_LIST } from './icons';
@@ -7,6 +7,7 @@ import { ICON_COLORS, saveIconColor } from './constants';
 import type { IconItem } from './icons';
 import type { ItemColor } from '@/lib/colors/index';
 import { COLOR_HEX } from '@/lib/colors/index';
+import { ICON_SIZES } from '@/components/ui/icons/sizes';
 
 interface IconsTabProps {
   recentIcons: string[];
@@ -143,7 +144,7 @@ export function IconsTab({
     <div>
       <div className="px-3 pt-3 pb-2 flex items-center gap-2">
         <div className="flex-1 relative">
-          <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-[18px] text-[var(--neko-text-tertiary)]" />
+          <Icon size="md" name="common.search" className="absolute left-2.5 top-1/2 -translate-y-1/2  text-[var(--neko-text-tertiary)]" />
           <input
             ref={searchInputRef}
             type="text"
@@ -163,7 +164,7 @@ export function IconsTab({
               onClick={() => setSearchQuery('')}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors"
             >
-              <MdClose className="size-[18px]" />
+              <Icon size="md" name="common.close" />
             </button>
           )}
         </div>
@@ -174,7 +175,7 @@ export function IconsTab({
               onClick={() => setShowColorPicker(!showColorPicker)}
               className="w-7 h-7 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity"
             >
-              <MdPalette size={18} style={{ color: currentColor }} />
+              <Icon name="theme.palette" size="md" style={{ color: currentColor }} />
             </button>
             {showColorPicker && (
               <div
@@ -193,7 +194,7 @@ export function IconsTab({
                     className="w-7 h-7 flex items-center justify-center"
                     title={ic.label}
                   >
-                    <MdPalette size={18} style={{ color: ic.color }} />
+                    <Icon name="theme.palette" size="md" style={{ color: ic.color }} />
                   </button>
                 ))}
               </div>
@@ -224,7 +225,7 @@ export function IconsTab({
         <div className="flex items-center justify-around px-2 py-1.5 border-t border-[var(--neko-border)] bg-zinc-50 dark:bg-zinc-800/50">
           {ICON_CATEGORIES.map((category) => {
             const IconComponent = typeof category.emoji !== 'string'
-              ? category.emoji as React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>
+              ? category.emoji as React.ComponentType<{ size?: number | string; className?: string; style?: React.CSSProperties }>
               : null;
             return (
               <button
@@ -238,7 +239,7 @@ export function IconsTab({
                 )}
               >
                 {IconComponent ? (
-                  <IconComponent size={18} style={{ color: currentColor }} />
+                  <IconComponent size={ICON_SIZES.md} style={{ color: currentColor }} />
                 ) : (
                   category.emoji as string
                 )}

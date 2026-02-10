@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { MdCheck } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import {
     Tooltip,
     TooltipContent,
@@ -90,7 +90,7 @@ export const LinkEditor = ({
                             onClick={() => onSave(false)}
                             className="flex items-center justify-center size-8 text-[var(--neko-accent)] hover:opacity-80 rounded-full transition-all flex-shrink-0"
                         >
-                            <MdCheck className="size-[18px]" />
+                            <Icon size="md" name="common.check" />
                         </button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom">Save changes</TooltipContent>

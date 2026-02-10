@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { MdDescription, MdClose, MdAccessTime } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 
@@ -150,7 +150,7 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
           />
           {query && (
             <button onClick={() => setQuery('')} className="p-1 hover:bg-[var(--neko-hover)] rounded">
-              <MdClose className="w-[18px] h-[18px] text-[var(--neko-icon-secondary)]" />
+ <Icon size="md" name="common.close" className="text-[var(--neko-icon-secondary)]" />
             </button>
           )}
         </div>
@@ -159,7 +159,7 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
           <div className="max-h-80 overflow-auto py-2 neko-scrollbar">
             {!query.trim() && recentResults.length > 0 && (
               <div className="px-4 py-1.5 text-[10px] font-medium text-[var(--neko-text-tertiary)] uppercase tracking-wider flex items-center gap-1.5">
-                <MdAccessTime className="w-[18px] h-[18px]" />
+ <Icon size="md" name="misc.clock" />
                 Recent
               </div>
             )}
@@ -174,7 +174,7 @@ export function NoteSearch({ isOpen, onClose }: NoteSearchProps) {
                     : "hover:bg-[var(--neko-hover)]"
                 )}
               >
-                <MdDescription className="w-[18px] h-[18px] text-amber-500 flex-shrink-0" />
+ <Icon size="md" name="file.text" className="text-amber-500 flex-shrink-0" />
                 <div className="min-w-0">
                   <div className="text-[14px] text-[var(--neko-text-primary)] truncate">
                     {result.name}

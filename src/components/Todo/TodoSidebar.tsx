@@ -1,10 +1,5 @@
 import { useMemo } from 'react';
-import {
-    MdCalendarToday,
-    MdOutlinePieChart,
-    MdOutlineAssignment,
-    MdOutlineCheckCircle,
-} from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { ColorFilter } from '@/components/common/ColorFilter';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
@@ -43,7 +38,7 @@ export function TodoSidebar() {
 
 
 
-    const NavItem = ({ label, icon: Icon, count, onClick, active, customIcon }: any) => (
+    const NavItem = ({ label, iconName, count, onClick, active, customIcon }: any) => (
         <button
             onClick={onClick}
             className={cn(
@@ -54,7 +49,7 @@ export function TodoSidebar() {
             )}
         >
             <div className="flex items-center gap-3">
-                {customIcon ? customIcon : <Icon className={cn("size-[18px]", active ? "text-gray-800 dark:text-gray-200" : "text-gray-400 dark:text-gray-500")} />}
+                {customIcon ? customIcon : <Icon size="md" name={iconName} className={cn("", active ? "text-gray-800 dark:text-gray-200" : "text-gray-400 dark:text-gray-500")} />}
                 <span>{label}</span>
             </div>
             {count > 0 && (
@@ -76,7 +71,7 @@ export function TodoSidebar() {
             "relative size-[18px]",
             active ? "text-gray-800 dark:text-gray-200" : "text-gray-400 dark:text-gray-500"
         )}>
-            <MdCalendarToday className="size-[18px]" />
+            <Icon size="md" name="sidebar.calendar" />
             <span className={cn(
                 "absolute text-[7px] font-bold leading-none",
                 "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
@@ -104,7 +99,7 @@ export function TodoSidebar() {
                     <NavItem 
                         id="progress" 
                         label="Progress" 
-                        icon={MdOutlinePieChart} 
+                        iconName="sidebar.stats" 
                         count={0}
                         active={activeGroupId === 'progress'}
                         onClick={() => setActiveGroup('progress')}
@@ -112,7 +107,7 @@ export function TodoSidebar() {
                     <NavItem 
                         id="all" 
                         label="All Tasks" 
-                        icon={MdOutlineAssignment} 
+                        iconName="sidebar.todo" 
                         count={counts.all}
                         active={activeGroupId === 'all'}
                         onClick={() => setActiveGroup('all')}
@@ -120,7 +115,7 @@ export function TodoSidebar() {
                     <NavItem 
                         id="completed" 
                         label="Completed" 
-                        icon={MdOutlineCheckCircle} 
+                        iconName="sidebar.completed" 
                         count={counts.completed}
                         active={activeGroupId === 'completed'}
                         onClick={() => setActiveGroup('completed')}

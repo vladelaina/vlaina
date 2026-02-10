@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { MdChevronLeft } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { useUIStore } from '@/stores/uiSlice';
 import { LAB_MODULES, type LabId } from './config';
 
@@ -19,7 +19,7 @@ export function LabView() {
             className="p-1.5 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
             title="Exit Lab"
         >
-            <MdChevronLeft size={20} />
+            <Icon name="nav.chevronLeft" size="md" />
         </button>
         
         <div className="h-4 w-[1px] bg-gray-200 dark:bg-gray-700 mx-1" />

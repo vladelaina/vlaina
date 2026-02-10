@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MdAdd, MdFolder } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { IconButton } from '@/components/ui/icon-button';
 import { FileTree } from './FileTree';
@@ -29,7 +29,7 @@ export function WorkspaceSection({
     const headerActions = (
         <>
             <IconButton
-                icon={<MdAdd className="w-[18px] h-[18px]" />}
+ icon={<Icon size="md" name="common.add" />}
                 tooltip="New Doc"
                 onClick={() => {
                     if (!expanded) setExpanded(true);
@@ -37,7 +37,7 @@ export function WorkspaceSection({
                 }}
             />
             <IconButton
-                icon={<MdFolder className="w-[18px] h-[18px]" />}
+ icon={<Icon size="md" name="file.folder" />}
                 tooltip="New Folder"
                 onClick={() => {
                     if (!expanded) setExpanded(true);

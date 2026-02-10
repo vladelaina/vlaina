@@ -1,4 +1,4 @@
-import { MdExpandMore, MdCheck, MdArchive } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { NekoCalendar } from '@/stores/types';
@@ -31,7 +31,7 @@ export function GroupSelector({
                 <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200 truncate">
                     {currentGroup?.name || 'Inbox'}
                 </span>
-                <MdExpandMore className={cn(
+                <Icon name="nav.chevronDown" className={cn(
                     "size-[18px] text-zinc-400 transition-transform flex-shrink-0",
                     showPicker && "rotate-180"
                 )} />
@@ -61,7 +61,7 @@ export function GroupSelector({
                             >
                                 <span className="truncate">{group.name}</span>
                                 {group.id === activeGroupId && (
-                                    <MdCheck className="size-[18px] ml-auto flex-shrink-0" />
+                                    <Icon size="md" name="common.check" className=" ml-auto flex-shrink-0" />
                                 )}
                             </button>
                         ))}
@@ -77,7 +77,7 @@ export function GroupSelector({
                                     : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
                             )}
                         >
-                            <MdArchive className="size-[18px]" />
+                            <Icon size="md" name="file.archive" />
                             <span>Archive</span>
                         </button>
                     </motion.div>

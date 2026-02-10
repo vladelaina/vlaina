@@ -1,13 +1,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { MdClose, MdCheckCircle, MdError, MdWarning, MdInfo } from 'react-icons/md';
+import { Icon, IconName } from '@/components/ui/icons';
 import { useToastStore, type Toast as ToastType } from '@/stores/useToastStore';
 import { cn } from '@/lib/utils';
 
-const iconMap = {
-  success: MdCheckCircle,
-  error: MdError,
-  warning: MdWarning,
-  info: MdInfo,
+const iconMap: Record<string, IconName> = {
+  success: 'common.checkCircle',
+  error: 'common.error',
+  warning: 'common.warning',
+  info: 'common.info',
 };
 
 const colorMap = {
@@ -23,7 +23,7 @@ interface ToastItemProps {
 }
 
 function ToastItem({ toast, onClose }: ToastItemProps) {
-  const Icon = iconMap[toast.type];
+  const iconName = iconMap[toast.type] || 'common.info';
   
   return (
     <motion.div
@@ -36,13 +36,13 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
         colorMap[toast.type]
       )}
     >
-      <Icon className="h-5 w-5 flex-shrink-0" />
+      <Icon name={iconName} className="h-5 w-5 flex-shrink-0" />
       <p className="flex-1 text-sm font-medium">{toast.message}</p>
       <button
         onClick={() => onClose(toast.id)}
         className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
       >
-        <MdClose className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.close" />
       </button>
     </motion.div>
   );

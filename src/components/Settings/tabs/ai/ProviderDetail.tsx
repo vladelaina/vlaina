@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MdCheck, MdAdd, MdDelete, MdCloudDownload, MdKeyboardArrowDown, MdKeyboardArrowRight, MdUnfoldMore, MdSelectAll } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { useAIStore } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import { checkModelHealth } from '@/lib/ai/healthCheck';
@@ -214,7 +214,7 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
                         compact 
                         trigger={
                             <button className="w-10 h-10 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center hover:opacity-80 transition-all border border-gray-100 dark:border-gray-700">
-                                <AppIcon icon={previewIcon || initialProvider?.icon || 'cube'} size={24} />
+                                <AppIcon icon={previewIcon || initialProvider?.icon || 'cube'} size="lg" />
                             </button>
                         }
                      />
@@ -226,7 +226,7 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
                         <DropdownMenuTrigger asChild>
                             <button className="group flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none">
                                 <span>{initialProvider ? name : 'Select Channel'}</span>
-                                <MdUnfoldMore className="text-gray-400 group-hover:text-gray-600" size={20} />
+                                <Icon name="legacy.unfold" className="text-gray-400 group-hover:text-gray-600" size="md" />
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-[240px] bg-white dark:bg-[#1E1E1E]">
@@ -236,14 +236,14 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
                                     onClick={() => onSelectProvider(p.id)}
                                     className={cn("gap-2", p.id === initialProvider?.id && "bg-gray-100 dark:bg-zinc-800")}
                                 >
-                                    <AppIcon icon={p.icon || 'cube'} size={16} />
+                                    <AppIcon icon={p.icon || 'cube'} size="sm" />
                                     <span className="truncate">{p.name}</span>
-                                    {p.id === initialProvider?.id && <MdCheck className="ml-auto text-black dark:text-white" />}
+                                    {p.id === initialProvider?.id && <Icon name="common.check" className="ml-auto text-black dark:text-white" />}
                                 </DropdownMenuItem>
                             ))}
                             {allProviders.length > 0 && <DropdownMenuSeparator />}
                             <DropdownMenuItem onClick={onAddProvider} className="text-gray-900 dark:text-gray-100 gap-2 font-medium">
-                                <MdAdd size={16} />
+                                <Icon name="common.add" size="sm" />
                                 Create New Channel
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -258,7 +258,7 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
                         className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" 
                         title="Delete Channel"
                     >
-                        <MdDelete size={18} />
+                        <Icon name="common.delete" size="md" />
                     </button>
                 </div>
             )}
@@ -302,7 +302,7 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
                             />
                             
                             <button onClick={handleFetchModels} disabled={isFetchingModels || !apiKey} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white dark:text-black bg-black dark:bg-white hover:opacity-80 rounded-lg transition-colors border border-transparent">
-                                {isFetchingModels ? <div className="size-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <MdCloudDownload size={14} />}
+                                {isFetchingModels ? <div className="size-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Icon name="common.download" size="sm" />}
                                 Fetch Models
                             </button>
                         </div>
@@ -313,13 +313,13 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
                         <div className="bg-gray-50/50 dark:bg-white/5 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden animate-in fade-in zoom-in-95">
                             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-gray-50 dark:bg-zinc-900/50">
                                 <div className="flex items-center gap-2">
-                                    <MdCloudDownload className="text-gray-500 w-4 h-4" />
+                                    <Icon name="common.download" className="text-gray-500 w-4 h-4" />
                                     <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Discovered Remote Models</span>
                                     <span className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] px-1.5 py-0.5 rounded-md font-mono">{fetchedModels.length}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button onClick={() => handleBatchAdd(fetchedModels)} className="flex items-center gap-1 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 px-2 py-1 rounded transition-colors">
-                                        <MdSelectAll size={14} /> Add All
+                                        <Icon name="legacy.selectAll" size="sm" /> Add All
                                     </button>
                                     <div className="w-[1px] h-3 bg-gray-300 dark:bg-gray-700" />
                                     <button onClick={() => setFetchedModels([])} className="text-xs font-bold text-gray-400 hover:text-gray-600 px-2 py-1 rounded transition-colors">
@@ -337,7 +337,7 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
                                         <div key={group} className="border border-gray-100 dark:border-gray-800 rounded-lg overflow-hidden bg-white dark:bg-black/20">
                                             <div className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                                                 <button onClick={() => toggleGroup(`fetched-${group}`)} className="flex items-center gap-2 flex-1 text-left">
-                                                    {isCollapsed ? <MdKeyboardArrowRight size={16} className="text-gray-400" /> : <MdKeyboardArrowDown size={16} className="text-gray-400" />}
+                                                    {isCollapsed ? <Icon name="nav.chevronRight" size="sm" className="text-gray-400" /> : <Icon name="nav.chevronDown" size="sm" className="text-gray-400" />}
                                                     <span className="text-xs font-bold text-gray-600 dark:text-gray-400 tracking-widest">{group}</span>
                                                     <span className="text-[10px] text-gray-400">({groupModels.length})</span>
                                                 </button>
@@ -384,7 +384,7 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
                                     <div key={group} className="border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-900/50">
                                         <button onClick={() => toggleGroup(`added-${group}`)} className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50/50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                                             <div className="flex items-center gap-2">
-                                                {isCollapsed ? <MdKeyboardArrowRight size={18} className="text-gray-400" /> : <MdKeyboardArrowDown size={18} className="text-gray-400" />}
+                                                {isCollapsed ? <Icon name="nav.chevronRight" size="md" className="text-gray-400" /> : <Icon name="nav.chevronDown" size="md" className="text-gray-400" />}
                                                 <span className="text-xs font-bold text-gray-500 tracking-widest">{group}</span>
                                                 <span className="text-[10px] text-gray-400">({groupModels.length})</span>
                                             </div>
@@ -415,7 +415,7 @@ export function ProviderDetail({ provider: initialProvider, allProviders, onSele
         {initialProvider && (
             <div className="pt-4 mt-auto">
             <button onClick={() => setIsAddingModel(true)} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-gray-200 dark:border-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-all text-sm font-medium">
-                    <MdAdd size={18} /> Add Model Manually
+                    <Icon name="common.add" size="md" /> Add Model Manually
             </button>
             </div>
         )}

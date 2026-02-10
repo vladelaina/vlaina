@@ -1,4 +1,4 @@
-import { MdClose } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { useVaultStore, type VaultInfo } from '@/stores/useVaultStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -55,7 +55,7 @@ export function RecentVaultsList({ vaults, onOpen }: RecentVaultsListProps) {
                   className="vault-item__remove"
                   onClick={(e) => handleRemove(e, vault.id)}
                 >
-                  <MdClose size={18} />
+                  <Icon name="common.close" size="md" />
                 </button>
               </div>
             </TooltipTrigger>

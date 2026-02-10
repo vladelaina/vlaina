@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { startOfDay, endOfDay } from 'date-fns';
-import { MdAccessTime, MdWbSunny } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
 import { cn } from '@/lib/utils';
 import { type ItemColor } from '@/lib/colors';
@@ -103,7 +103,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         className="px-3 pb-0 max-w-none mx-0"
         compact={true}
         
-        iconSize={32} 
+        iconSize="md" 
         minIconSize={20}
         maxIconSize={150}
         
@@ -157,7 +157,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
 
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 flex justify-center">
-             <MdWbSunny className="size-[18px] text-zinc-400" />
+             <Icon size="md" name="theme.sunny" className=" text-zinc-400" />
           </div>
           <button
             onClick={() => {
@@ -220,7 +220,7 @@ export function EventEditForm({ event, mode = 'embedded', position }: EventEditF
         {!event.allDay && (
           <div className="flex items-start gap-2 mb-3">
             <div className="w-8 flex justify-center mt-0.5">
-                <MdAccessTime className="size-[18px] text-zinc-400" />
+                <Icon size="md" name="misc.clock" className=" text-zinc-400" />
             </div>
             <div className="flex items-center text-xs">
               <EditableTime

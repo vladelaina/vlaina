@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { MdClose  } from 'react-icons/md';
-import { DeleteIcon } from '@/components/common/DeleteIcon';
+import { Icon } from '@/components/ui/icons';
 
 interface DeletableItemProps {
     id: string;
@@ -61,7 +60,7 @@ export function DeletableItem({
                     className="absolute inset-0 flex items-center justify-center cursor-pointer z-30"
                 >
                     <div className="text-red-500 transition-all active:scale-90 pointer-events-none">
-                        <DeleteIcon size={24} />
+                        <Icon name="common.delete" size="lg" />
                     </div>
                 </div>
             ) : (
@@ -76,7 +75,7 @@ export function DeletableItem({
                             "scale-90 hover:scale-100"
                         )}
                     >
-                        <MdClose size={18} />
+                        <Icon name="common.close" size="md" />
                     </button>
                 )
             )}

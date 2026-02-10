@@ -1,6 +1,5 @@
-import { MdContentCopy, MdEdit, MdCheck, MdLinkOff, MdOpenInNew } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { IconButton } from '@/components/ui/icon-button';
-import { DeleteIcon } from '@/components/common/DeleteIcon';
 import {
     Tooltip,
     TooltipContent,
@@ -53,7 +52,7 @@ export const LinkViewer = ({
                             className="group flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg transition-colors max-w-[200px]"
                         >
                             <div className="flex items-center justify-center size-5 rounded text-gray-400 group-hover:text-blue-500 transition-colors">
-                                <MdOpenInNew className="size-[18px]" />
+                                <Icon size="md" name="nav.external" />
                             </div>
                             <span className="truncate text-[13px] font-medium text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
                                 {displayUrl}
@@ -71,12 +70,12 @@ export const LinkViewer = ({
             <div className="flex items-center gap-0.5">
                 <IconButton
                     onClick={onCopy}
-                    icon={showCopied ? <MdCheck className="size-[18px] text-green-500 scale-110" /> : <MdContentCopy className="size-[18px]" />}
+                    icon={showCopied ? <Icon size="md" name="common.check" className=" text-green-500 scale-110" /> : <Icon name="common.copy" />}
                 />
 
                 <IconButton
                     onClick={onEdit}
-                    icon={<MdEdit className="size-[18px]" />}
+                    icon={<Icon size="md" name="common.edit" />}
                 />
             </div>
 
@@ -86,13 +85,13 @@ export const LinkViewer = ({
                 {!isAutolink && (
                     <IconButton
                         onClick={onUnlink}
-                        icon={<MdLinkOff className="size-[18px]" />}
+                        icon={<Icon size="md" name="editor.linkOff" />}
                     />
                 )}
 
                 <IconButton
                     onClick={onRemove}
-                    icon={<DeleteIcon className="size-[18px]" />}
+                    icon={<Icon size="md" name="common.delete" />}
                     className="hover:text-red-500"
                 />
             </div>

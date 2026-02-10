@@ -1,14 +1,14 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { MdSwapVert, MdCheck, MdAccessTime, MdFlag, MdList } from 'react-icons/md';
+import { Icon, IconName } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/useGroupStore';
 import { useState, useRef, useEffect } from 'react';
 import type { TaskSortMode } from '@/stores/uiSlice';
 
-const sortOptions: { mode: TaskSortMode; label: string; icon: any }[] = [
-    { mode: 'default', label: 'Manual', icon: MdList },
-    { mode: 'time', label: 'Time', icon: MdAccessTime },
-    { mode: 'priority', label: 'Priority', icon: MdFlag },
+const sortOptions: { mode: TaskSortMode; label: string; icon: IconName }[] = [
+    { mode: 'default', label: 'Manual', icon: 'common.list' },
+    { mode: 'time', label: 'Time', icon: 'misc.clock' },
+    { mode: 'priority', label: 'Priority', icon: 'common.flag' },
 ];
 
 export function TaskSortMenu() {
@@ -39,7 +39,7 @@ export function TaskSortMenu() {
                 )}
                 title="Sort tasks"
             >
-                <MdSwapVert className="size-[18px]" />
+                <Icon size="md" name="common.sort" />
             </button>
 
             <AnimatePresence>
@@ -64,11 +64,11 @@ export function TaskSortMenu() {
                                     className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-between group"
                                 >
                                     <div className="flex items-center gap-2">
-                                        <option.icon className={cn("size-[18px]", taskSortMode === option.mode ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400")} />
+                                        <Icon size="md" name={option.icon} className={cn("", taskSortMode === option.mode ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400")} />
                                         <span>{option.label}</span>
                                     </div>
                                     {taskSortMode === option.mode && (
-                                        <MdCheck className="size-[18px] text-blue-500" />
+                                        <Icon size="md" name="common.check" className=" text-blue-500" />
                                     )}
                                 </button>
                             ))}

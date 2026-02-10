@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import { MdShuffle } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 import { EmojiTab } from './EmojiTab';
@@ -349,7 +349,7 @@ export function UniversalIconPicker({
               }}
               className={cn("p-1 -ml-1 flex items-center justify-center transition-all active:scale-90", iconButtonStyles)}
             >
-              <MdShuffle size={18} />
+              <Icon name="misc.shuffle" size="md" />
             </button>
           </div>
           {hasIcon && onRemove && (

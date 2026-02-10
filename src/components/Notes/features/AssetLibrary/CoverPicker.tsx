@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
-import { MdImage, MdUpload } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { AssetGrid } from './AssetGrid';
 import { UploadZone } from './UploadZone';
 import { EmptyState } from './EmptyState';
@@ -124,7 +124,7 @@ export function CoverPicker({
                   : "text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)]"
               )}
             >
-              <MdImage className="w-[18px] h-[18px] inline mr-1" />
+ <Icon size="md" name="file.image" className="inline mr-1" />
               Library
             </button>
             <button
@@ -136,7 +136,7 @@ export function CoverPicker({
                   : "text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)]"
               )}
             >
-              <MdUpload className="w-[18px] h-[18px] inline mr-1" />
+ <Icon size="md" name="common.upload" className="inline mr-1" />
               Upload
             </button>
           </div>

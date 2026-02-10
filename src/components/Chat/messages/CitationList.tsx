@@ -1,4 +1,4 @@
-import { MdLanguage } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import type { SearchResult } from '@/lib/ai/search';
 
 interface CitationListProps {
@@ -11,7 +11,7 @@ export function CitationList({ citations }: CitationListProps) {
   return (
     <div className="mt-3 pt-3 border-t border-black/5 dark:border-white/5">
         <div className="flex items-center gap-1.5 mb-2">
-            <MdLanguage className="text-gray-400" size={12} />
+            <Icon name="ai.language" className="text-gray-400" size="xs" />
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Sources</span>
         </div>
         <div className="flex flex-col gap-1">

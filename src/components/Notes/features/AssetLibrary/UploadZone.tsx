@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
-import { MdUpload, MdCheckCircle, MdError, MdImage } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { UploadZoneProps } from './types';
 
 type UploadStatus = 'idle' | 'dragging' | 'uploading' | 'success' | 'duplicate' | 'error';
@@ -110,7 +110,7 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
       case 'uploading':
         return (
           <div className="relative">
-            <MdUpload className={cn(iconSize, "text-[var(--neko-accent)]")} />
+            <Icon name="common.upload" className={cn(iconSize, "text-[var(--neko-accent)]")} />
             {uploadProgress !== null && !compact && (
               <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-[var(--neko-text-secondary)]">
                 {uploadProgress}%
@@ -119,13 +119,13 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
           </div>
         );
       case 'success':
-        return <MdCheckCircle className={cn(iconSize, "text-green-500")} />;
+        return <Icon name="common.checkCircle" className={cn(iconSize, "text-green-500")} />;
       case 'duplicate':
-        return <MdImage className={cn(iconSize, "text-blue-500")} />;
+        return <Icon name="file.image" className={cn(iconSize, "text-blue-500")} />;
       case 'error':
-        return <MdError className={cn(iconSize, "text-red-500")} />;
+        return <Icon name="common.error" className={cn(iconSize, "text-red-500")} />;
       default:
-        return <MdUpload className={cn(iconSize, "text-[var(--neko-text-tertiary)]")} />;
+        return <Icon name="common.upload" className={cn(iconSize, "text-[var(--neko-text-tertiary)]")} />;
     }
   };
 

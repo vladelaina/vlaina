@@ -1,4 +1,4 @@
-import { MdAdd } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { AppIcon } from '@/components/common/AppIcon';
 import { Provider } from '@/lib/ai/types';
@@ -31,7 +31,7 @@ export function ProviderSidebar({
             title="Add New Provider"
             className="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 transition-colors"
           >
-            <MdAdd className="w-4 h-4" />
+            <Icon name="common.add" className="w-4 h-4" />
           </button>
         </div>
 
@@ -54,7 +54,7 @@ export function ProviderSidebar({
                   )}
                 >
                   <div className="w-5 h-5 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
-                    <AppIcon icon={icon} size={16} className="w-full h-full object-contain" />
+                    <AppIcon icon={icon} size="sm" className="w-full h-full object-contain" />
                   </div>
                   <span className="flex-1 text-left truncate text-xs">{provider.name}</span>
                 </button>

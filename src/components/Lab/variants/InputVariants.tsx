@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MdSend, MdAttachFile, MdSettings, MdStop, MdLanguage, MdExpandMore } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 
 // Shared Mock Logic for Lab
@@ -30,14 +30,14 @@ function MockInput({ className, containerClassName }: any) {
                     <div className="flex items-center justify-between px-2 pb-2 pl-3">
                         <div className="flex items-center gap-1">
                             <button onClick={() => setSearch(!search)} className={cn("w-8 h-8 flex items-center justify-center rounded-full transition-all", search ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600" : "text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5")}>
-                                <MdLanguage className="w-4 h-4" />
+                                <Icon name="ai.language" className="w-4 h-4" />
                             </button>
                             <button className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
-                                <MdSettings className="w-4 h-4" />
+                                <Icon name="common.settings" className="w-4 h-4" />
                             </button>
                             <div className="w-[1px] h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
                             <button className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
-                                <MdAttachFile className="w-4 h-4" />
+                                <Icon name="file.attach" className="w-4 h-4" />
                             </button>
                         </div>
                         <div className="flex items-center gap-2">
@@ -45,16 +45,16 @@ function MockInput({ className, containerClassName }: any) {
                             <button className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                                 <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-[8px]">M</div>
                                 <span className="text-xs font-medium text-gray-600 dark:text-gray-300">GPT-4</span>
-                                <MdExpandMore className="w-3 h-3 text-gray-400" />
+                                <Icon name="nav.chevronDown" className="w-3 h-3 text-gray-400" />
                             </button>
 
                             {loading ? (
                                 <button onClick={() => setLoading(false)} className={cn("w-8 h-8 rounded-full flex items-center justify-center transition-all bg-black dark:bg-white text-white dark:text-black hover:opacity-80 shadow-md")}>
-                                    <MdStop className="w-3.5 h-3.5" />
+                                    <Icon name="media.stop" className="w-3.5 h-3.5" />
                                 </button>
                             ) : (
                                 <button onClick={handleSend} disabled={!msg} className={cn("w-8 h-8 rounded-full flex items-center justify-center transition-all", msg ? "bg-black dark:bg-white text-white dark:text-black shadow-md hover:scale-105" : "bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed")}>
-                                    <MdSend className="w-3.5 h-3.5" />
+                                    <Icon name="ai.send" className="w-3.5 h-3.5" />
                                 </button>
                             )}
                         </div>
@@ -100,7 +100,7 @@ export function FloatingIsland() {
                 <input placeholder="Message..." className="w-full bg-transparent outline-none px-2" />
             </div>
             <button className="w-14 h-14 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center shadow-lg hover:scale-105 transition-transform">
-                <MdSend size={20} />
+                <Icon name="ai.send" size="md" />
             </button>
         </div>
     );

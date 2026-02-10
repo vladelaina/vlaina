@@ -1,11 +1,10 @@
 import { useRef, useEffect, useState } from 'react';
-import { MdMoreHoriz,  MdAdd,  MdArchive  } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { parseDuration, formatDuration } from '@/lib/time';
 import { ColorPicker } from '@/components/common/ColorPicker';
 import type { NekoEvent } from '@/stores/useGroupStore';
-import { DeleteIcon } from '@/components/common/DeleteIcon';
 
 function formatEstimatedTimeForInput(minutes: number | undefined): string {
     if (!minutes) return '';
@@ -60,7 +59,7 @@ export function TaskItemMenu({
                         : 'opacity-0 group-hover:opacity-100 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                 )}
             >
-                <MdMoreHoriz className="w-[18px] h-[18px] text-zinc-400" />
+ <Icon size="md" name="common.more" className="text-zinc-400" />
             </button>
 
             {showMenu && (
@@ -143,7 +142,7 @@ export function TaskItemMenu({
                                 : "text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
                         )}
                     >
-                        <MdAdd className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.add" />
                         <span>Add Subtask</span>
                         {!canAddSubTask && <span className="ml-auto text-xs">(Max)</span>}
                     </button>
@@ -154,7 +153,7 @@ export function TaskItemMenu({
                             onClick={() => setShowMenu(false)}
                             className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
                         >
-                            <MdArchive className="w-[18px] h-[18px]" />
+ <Icon size="md" name="file.archive" />
                             <span>Archive</span>
                         </button>
                     )}
@@ -166,7 +165,7 @@ export function TaskItemMenu({
                         }}
                         className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
                     >
-                        <DeleteIcon className="w-[18px] h-[18px]" />
+ <Icon size="md" name="common.delete" />
                         <span>Delete</span>
                     </button>
                 </div>

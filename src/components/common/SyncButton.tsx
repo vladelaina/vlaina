@@ -1,10 +1,5 @@
 import { useState } from 'react';
-import { 
-  MdCloud, 
-  MdCloudDone, 
-  MdCloudOff, 
-  MdRefresh 
-} from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useProStatusStore } from '@/stores/useProStatusStore';
 import { cn } from '@/lib/utils';
@@ -49,12 +44,12 @@ export function SyncButton({ className }: SyncButtonProps) {
   // Get status info for tooltip
   const getStatusInfo = (): { text: string; icon: React.ReactNode } => {
     if (isSyncing || animating) {
-      return { text: 'Syncing...', icon: <MdRefresh className="size-[18px] animate-spin" /> };
+      return { text: 'Syncing...', icon: <Icon size="md" name="common.refresh" className=" animate-spin" /> };
     }
     if (syncStatus === 'error' || syncError) {
-      return { text: 'Sync failed, click to retry', icon: <MdCloudOff className="size-[18px]" /> };
+      return { text: 'Sync failed, click to retry', icon: <Icon size="md" name="file.cloudOff" /> };
     }
-    return { text: 'Synced', icon: <MdCloudDone className="size-[18px]" /> };
+    return { text: 'Synced', icon: <Icon size="md" name="file.cloud" /> };
   };
 
   const statusInfo = getStatusInfo();
@@ -79,11 +74,11 @@ export function SyncButton({ className }: SyncButtonProps) {
       >
         {/* Main icon */}
         {isSyncing || animating ? (
-          <MdRefresh className="size-[18px] animate-spin" />
+          <Icon size="md" name="common.refresh" className=" animate-spin" />
         ) : isError ? (
-          <MdCloudOff className="size-[18px]" />
+          <Icon size="md" name="file.cloudOff" />
         ) : (
-          <MdCloud className="size-[18px]" />
+          <Icon size="md" name="file.cloud" />
         )}
         
         {/* Error indicator dot */}

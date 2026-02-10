@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils';
 import { ComponentType } from 'react';
 
 interface TitleBarButtonProps {
-  icon: ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string; size?: number | string }>;
   onClick?: () => void;
   isActive?: boolean;
   className?: string;
@@ -20,7 +20,8 @@ export function TitleBarButton({ icon: Icon, onClick, isActive, className }: Tit
         className
       )}
     >
-      <Icon className="size-[18px]" />
+      {/* Fallback to pixel size for raw components that might not support 'md' */}
+      <Icon size={18} />
     </button>
   );
 }

@@ -1,8 +1,7 @@
 import { motion } from 'framer-motion';
-import { MdRefresh  } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { AppIcon } from '@/components/common/AppIcon';
 import { ItemCardProps } from './types';
-import { DeleteIcon } from '@/components/common/DeleteIcon';
 
 export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previewIcon, previewTitle, compact }: ItemCardProps) {
   const displayIcon = previewIcon !== undefined ? previewIcon : item.icon;
@@ -123,7 +122,7 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
               `}
               title="Restore to active list"
             >
-              <MdRefresh className="size-[18px]" />
+              <Icon size="md" name="common.refresh" />
             </button>
             <button
               onClick={(e) => {
@@ -133,7 +132,7 @@ export function ArchivedItemCard({ item, onClick, onAutoArchive, onDelete, previ
               className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
               title="Delete forever"
             >
-              <DeleteIcon className="size-[18px]" />
+              <Icon size="md" name="common.delete" />
             </button>
          </div>
       </motion.div>

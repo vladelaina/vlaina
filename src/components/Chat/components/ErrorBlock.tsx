@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MdErrorOutline, MdKeyboardArrowDown, MdKeyboardArrowRight, MdContentCopy } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ErrorBlockProps {
@@ -28,7 +28,7 @@ export function ErrorBlock({ type, code, content }: ErrorBlockProps) {
         className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left group transition-colors hover:bg-red-50/50 dark:hover:bg-red-900/20"
       >
         <div className="flex items-center justify-center w-5 h-5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 shrink-0">
-            <MdErrorOutline size={14} />
+            <Icon name="common.error" size="sm" />
         </div>
         
         <div className="flex-1 min-w-0">
@@ -37,7 +37,7 @@ export function ErrorBlock({ type, code, content }: ErrorBlockProps) {
             </h4>
         </div>
 
-        {isOpen ? <MdKeyboardArrowDown size={16} className="text-gray-400" /> : <MdKeyboardArrowRight size={16} className="text-gray-400" />}
+        {isOpen ? <Icon name="nav.chevronDown" size="sm" className="text-gray-400" /> : <Icon name="nav.chevronRight" size="sm" className="text-gray-400" />}
       </button>
 
       <AnimatePresence initial={false}>
@@ -58,7 +58,7 @@ export function ErrorBlock({ type, code, content }: ErrorBlockProps) {
                     className="absolute top-3 right-3 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                     title="Copy Error Details"
                 >
-                    {copied ? <span className="text-[10px] font-bold text-green-500">Copied</span> : <MdContentCopy size={12} />}
+                    {copied ? <span className="text-[10px] font-bold text-green-500">Copied</span> : <Icon name="common.copy" size="xs" />}
                 </button>
             </div>
           </motion.div>

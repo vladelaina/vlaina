@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { MdCheck } from 'react-icons/md';
+import { Icon } from '@/components/ui/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { AppIcon } from '@/components/common/AppIcon';
@@ -172,7 +172,7 @@ export function CreateModal({
                     `}
                   >
                      {previewItem.icon ? (
-                         <AppIcon icon={previewItem.icon} size={24} className="block" />
+                         <AppIcon icon={previewItem.icon} size="lg" className="block" />
                      ) : (
                          <div className="text-2xl font-light opacity-50">+</div>
                      )}
@@ -296,7 +296,7 @@ export function CreateModal({
                    >
                      <span className="relative z-10 flex items-center gap-2">
                        Begin Journey
-                       <MdCheck className="size-[18px] opacity-50 group-hover:opacity-100 transition-opacity" />
+                       <Icon size="md" name="common.check" className=" opacity-50 group-hover:opacity-100 transition-opacity" />
                      </span>
                      
                      <div className="absolute inset-0 rounded-full bg-zinc-900 dark:bg-zinc-100 blur-lg opacity-0 group-hover:opacity-30 transition-opacity duration-300" />
