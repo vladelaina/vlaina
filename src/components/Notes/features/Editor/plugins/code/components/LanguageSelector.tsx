@@ -2,7 +2,6 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { SUPPORTED_LANGUAGES } from '../../../utils/shiki';
-import { getLanguageLogo } from '../../../utils/languageLogos';
 import { guessLanguage } from '../../../utils/languageGuesser';
 import {
   DropdownMenu,
@@ -87,19 +86,7 @@ export const LanguageSelector = ({
     return (
         <DropdownMenu open={isOpen} onOpenChange={onOpenChange}>
             <DropdownMenuTrigger asChild>
-                <div className="flex items-center gap-2 group/lang cursor-pointer transition-colors select-none">
-                    <div className="size-[18px] flex items-center justify-center flex-shrink-0 overflow-hidden rounded-none">
-                        {getLanguageLogo(language) ? (
-                            <img 
-                                src={getLanguageLogo(language)?.url} 
-                                className={cn("w-full h-full object-contain block rounded-none", getLanguageLogo(language)?.className)} 
-                                alt={displayName}
-                                style={{ borderRadius: '0' }}
-                            />
-                        ) : (
-                            <Icon size="md" name="editor.code" className=" text-zinc-400 group-hover/lang:text-zinc-900 dark:group-hover/lang:text-zinc-100 transition-colors" />
-                        )}
-                    </div>
+                <div className="flex items-center group/lang cursor-pointer transition-colors select-none">
                     <span className="text-sm font-medium text-zinc-500 group-hover/lang:text-zinc-900 dark:group-hover/lang:text-zinc-100 transition-colors">
                         {displayName}
                     </span>
@@ -137,7 +124,6 @@ export const LanguageSelector = ({
                 <div ref={scrollRef} className="max-h-[240px] overflow-y-auto p-1 neko-scrollbar">
                     {filteredLanguages.length > 0 ? (
                         filteredLanguages.map((lang, index) => {
-                            const logo = getLanguageLogo(lang.id);
                             return (
                                 <DropdownMenuItem 
                                     key={lang.id} 
@@ -148,13 +134,6 @@ export const LanguageSelector = ({
                                         language === lang.id && index !== activeIndex && "text-blue-600 dark:text-blue-400 font-bold"
                                     )}
                                 >
-                                    {logo ? (
-                                        <img src={logo.url} className={cn("size-4 object-contain flex-shrink-0", logo.className)} alt={lang.name} />
-                                    ) : (
-                                        <div className="size-4 flex items-center justify-center flex-shrink-0">
-                                            <Icon name="editor.code" className="size-3.5 opacity-40" />
-                                        </div>
-                                    )}
                                     <span>{lang.name}</span>
                                 </DropdownMenuItem>
                             );

@@ -1,22 +1,16 @@
 import data from '@emoji-mart/data';
-import { ICON_LIST, ICON_CATEGORIES } from './icons';
-import type { IconItem } from './icons';
-import { COLOR_HEX, type ItemColor, COLOR_PICKER_OPTIONS } from '@/lib/colors/index';
+import { COLOR_HEX, type ItemColor } from '@/lib/colors/index';
 
-export { ICON_CATEGORIES }; // Re-export for convenience
-
-export type TabType = 'emoji' | 'icons' | 'upload';
+export type TabType = 'emoji' | 'upload';
 
 export const RECENT_ICONS_KEY = 'nekotick-recent-icons';
 export const SKIN_TONE_KEY = 'nekotick-emoji-skin-tone';
-export const ICON_COLOR_KEY = 'nekotick-icon-color-v2'; // Changed key to reset storage for new string format
+export const ICON_COLOR_KEY = 'nekotick-icon-color-v2';
 export const ACTIVE_TAB_KEY = 'nekotick-icon-picker-tab';
 export const MAX_RECENT_EMOJIS = 18;
 export const EMOJI_PER_ROW = 9;
 export const EMOJI_SIZE = 32;
 export const ROW_GAP = 2;
-export const ICON_PER_ROW = 8;
-export const ICON_SIZE = 32;
 
 export const SCROLLBAR_CLASSNAME = `
   [&::-webkit-scrollbar]:w-1.5
@@ -34,12 +28,6 @@ export const SKIN_TONES = [
   { tone: 4, emoji: '\u{1F44B}\u{1F3FE}', label: 'Medium-Dark' },
   { tone: 5, emoji: '\u{1F44B}\u{1F3FF}', label: 'Dark' },
 ];
-
-export const ICON_COLORS = COLOR_PICKER_OPTIONS.map(opt => ({
-  id: opt.name,
-  color: opt.hex,
-  label: opt.label
-}));
 
 export const CATEGORY_NAMES: Record<string, string> = {
   frequent: 'Recent',
@@ -142,10 +130,7 @@ for (const cat of EMOJI_CATEGORIES) {
   }
 }
 
-export const ICON_MAP = new Map<string, IconItem>();
-for (const icon of ICON_LIST) {
-  ICON_MAP.set(icon.name, icon);
-}
+export const ICON_MAP = new Map<string, any>(); // Empty placeholder map
 
 export function loadRecentIcons(): string[] {
   try {
@@ -163,34 +148,11 @@ export function saveRecentIcons(icons: string[]): void {
 }
 
 export function addToRecentIcons(icon: string, current: string[]): string[] {
-  const getIconName = (i: string) => {
-    if (i.startsWith('icon:')) {
-      return i.split(':')[1];
-    }
-    return i;
-  };
-
-  const iconName = getIconName(icon);
-  const filtered = current.filter(i => {
-    if (icon.startsWith('icon:') && i.startsWith('icon:')) {
-      return getIconName(i) !== iconName;
-    }
-    return i !== icon;
-  });
-
-  if (icon.startsWith('icon:')) {
-    const icons = filtered.filter(i => i.startsWith('icon:'));
-    const emojis = filtered.filter(i => !i.startsWith('icon:'));
-    const updated = [icon, ...icons.slice(0, MAX_RECENT_EMOJIS - 1), ...emojis];
-    saveRecentIcons(updated);
-    return updated;
-  } else {
-    const icons = filtered.filter(i => i.startsWith('icon:'));
-    const emojis = filtered.filter(i => !i.startsWith('icon:'));
-    const updated = [icon, ...emojis.slice(0, MAX_RECENT_EMOJIS - 1), ...icons];
-    saveRecentIcons(updated);
-    return updated;
-  }
+  const filtered = current.filter(i => i !== icon);
+  // Simple logic: just add to front, no more complex sorting between icons/emojis since we only support emojis/uploads now
+  const updated = [icon, ...filtered].slice(0, MAX_RECENT_EMOJIS);
+  saveRecentIcons(updated);
+  return updated;
 }
 
 export function loadSkinTone(): number {
@@ -226,7 +188,7 @@ export function saveIconColor(color: ItemColor): void {
 export function loadActiveTab(): TabType {
   try {
     const saved = localStorage.getItem(ACTIVE_TAB_KEY);
-    return (saved === 'emoji' || saved === 'icons' || saved === 'upload') ? saved : 'emoji';
+    return (saved === 'emoji' || saved === 'upload') ? saved : 'emoji';
   } catch {
     return 'emoji';
   }

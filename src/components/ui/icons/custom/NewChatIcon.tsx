@@ -1,3 +1,7 @@
+/*
+ * Origin: Ollama Web UI
+ * License: MIT
+ */
 import { SVGProps } from 'react';
 
 export const NewChatIcon = (props: SVGProps<SVGSVGElement>) => (

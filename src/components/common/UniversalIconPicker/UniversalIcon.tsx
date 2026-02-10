@@ -1,5 +1,4 @@
 import { memo, useMemo, useState, useEffect } from 'react';
-import * as LucideIcons from 'lucide-react';
 import { icons } from '@/components/ui/icons/registry';
 import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
 import { cn } from '@/lib/utils';
@@ -70,15 +69,13 @@ const IconIconRenderer = memo(function IconIconRenderer({
       return icons[iconName as keyof typeof icons];
     }
 
-    // 2. Fallback to Lucide (Direct Names from Picker)
-    const lucideComp = (LucideIcons as any)[iconName];
-    if (lucideComp) return lucideComp;
-
-    return LucideIcons.HelpCircle; // Default fallback
+    return null; 
   }, [iconName]);
 
   const resolvedSize = resolveSize(size);
   const isCSSVariable = typeof resolvedSize === 'string' && resolvedSize.startsWith('var(');
+
+  if (!IconComponent) return null;
 
   return (
     <span
@@ -168,7 +165,7 @@ export function UniversalIcon({
     return imgSrc ? <ImageIconRenderer src={imgSrc} size={size} className={className} rounding={rounding} /> : <div style={{ width: resolvedSize, height: resolvedSize }} className={className} />;
   }
 
-  if (icon.startsWith('icon:') || ICON_ITEM_MAP.has(icon) || icon in icons || (LucideIcons as any)[icon]) {
+  if (icon.startsWith('icon:') || ICON_ITEM_MAP.has(icon) || icon in icons) {
     let iconName = icon;
     let originalColor = '#6b7280';
     if (icon.startsWith('icon:')) {

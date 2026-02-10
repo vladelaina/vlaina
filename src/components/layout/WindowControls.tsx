@@ -24,7 +24,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
           onClick={() => getWindow().toggleMaximize()}
           className={`h-full w-12 flex items-center justify-center transition-colors ${iconButtonStyles}`}
         >
-          <Icon name="window.maximize" size="sm" />
+          <Icon name="window.maximize" size="md" />
         </button>
       )}
 

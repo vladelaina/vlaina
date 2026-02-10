@@ -338,7 +338,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                                 : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
                                                         )}
                                                     >
-                                                        <Icon name="editor.checkSquare" className="w-6 h-6" />
+                                                        <Icon name="sidebar.todo" className="w-6 h-6" />
                                                     </button>
                                                 </TooltipTrigger>
                                                 <TooltipContent side="bottom" sideOffset={4}>
@@ -400,7 +400,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                         : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
                                                 )}
                                             >
-                                                <Icon name="editor.checkSquare" className="w-6 h-6" />
+                                                <Icon name="sidebar.todo" className="w-6 h-6" />
                                             </button>
 
                                             <button
