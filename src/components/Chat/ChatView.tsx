@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAIStore } from '@/stores/useAIStore';
 import { useChatService } from '@/hooks/useChatService';
+import { useMessageAutoscroll } from '@/hooks/useMessageAutoscroll';
 import { ChatInput } from './ChatInput';
 import { MessageItem } from './messages/MessageItem';
 import { ChatLoading } from './components/ChatLoading';
@@ -9,13 +10,13 @@ import { ChatShortcutsDialog } from './components/ChatShortcutsDialog';
 import { useChatShortcuts } from './hooks/useChatShortcuts';
 import { cn } from '@/lib/utils';
 import '@/components/Notes/features/Editor/styles/core.css';
+import { Attachment } from '@/lib/storage/attachmentStorage';
 
 export function ChatView() {
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const { 
     messages: allMessages, 
@@ -32,6 +33,13 @@ export function ChatView() {
   
   const isLoading = currentSessionId ? isSessionLoading(currentSessionId) : false;
   const isEmpty = messages.length === 0;
+
+  // Use the new autoscroll hook
+  const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
+      messages,
+      isStreaming: isLoading,
+      chatId: currentSessionId
+  });
   
   useEffect(() => {
       if (!selectedModel && models.length > 0) {
@@ -50,14 +58,8 @@ export function ChatView() {
   useChatShortcuts({
       onFocusInput: () => setFocusInputTrigger(n => n + 1),
       onToggleShortcuts: () => setIsShortcutsOpen(prev => !prev),
-      scrollRef
+      scrollRef: containerRef // Pass the new ref to shortcuts
   });
-  
-  useEffect(() => {
-      if (scrollRef.current && !isEmpty) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-      }
-  }, [messages.length, isLoading, isEmpty]);
 
   useEffect(() => {
       return () => {
@@ -91,6 +93,12 @@ export function ChatView() {
       });
   }, []);
 
+  // Wrap sendMessage to trigger autoscroll behavior
+  const handleSend = useCallback((text: string, attachments: Attachment[]) => {
+      handleNewUserMessage();
+      sendMessage(text, attachments);
+  }, [handleNewUserMessage, sendMessage]);
+
   return (
     <div className="h-full w-full flex flex-col bg-[var(--neko-bg-primary)] relative overflow-hidden">
       <div 
@@ -98,29 +106,33 @@ export function ChatView() {
             "flex-1 overflow-y-auto transition-opacity duration-500",
             isEmpty ? "opacity-0 pointer-events-none hidden" : "opacity-100"
         )}
-        ref={scrollRef}
+        ref={containerRef}
       >
         <div className="max-w-3xl mx-auto px-4 py-8 pb-4 min-h-full flex flex-col">
           {!isEmpty && (
             <div className="space-y-8">
-              {messages.map((msg) => (
-                <MessageItem 
-                    key={msg.id}
-                    msg={msg}
-                    isLoading={isLoading} 
-                    isSpeaking={speakingMsgId === msg.id}
-                    isSourcesOpen={expandedSources.has(msg.id)}
-                    onCopy={copyToClipboard}
-                    onSpeak={handleSpeak}
-                    onRegenerate={regenerate}
-                    onEdit={editMessage}
-                    onSwitchVersion={(msgId, idx) => currentSessionId && switchMessageVersion(currentSessionId, msgId, idx)}
-                    onToggleSources={toggleSources}
-                />
+              {messages.map((msg, idx) => (
+                <div key={msg.id} data-message-index={idx}>
+                    <MessageItem 
+                        msg={msg}
+                        isLoading={isLoading} 
+                        isSpeaking={speakingMsgId === msg.id}
+                        isSourcesOpen={expandedSources.has(msg.id)}
+                        onCopy={copyToClipboard}
+                        onSpeak={handleSpeak}
+                        onRegenerate={regenerate}
+                        onEdit={editMessage}
+                        onSwitchVersion={(msgId, idx) => currentSessionId && switchMessageVersion(currentSessionId, msgId, idx)}
+                        onToggleSources={toggleSources}
+                    />
+                </div>
               ))}
               <AnimatePresence>
                 {isLoading && <ChatLoading key="loading" />}
               </AnimatePresence>
+              
+              {/* Dynamic Spacer */}
+              <div style={{ height: spacerHeight }} aria-hidden="true" />
             </div>
           )}
         </div>
@@ -155,7 +167,7 @@ export function ChatView() {
             className={cn("w-full", isEmpty ? "max-w-2xl px-4" : "")}
           >
               <ChatInput 
-                onSend={sendMessage} 
+                onSend={handleSend} 
                 onStop={stop}
                 isLoading={isLoading} 
                 selectedModel={selectedModel} 

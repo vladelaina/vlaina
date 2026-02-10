@@ -30,7 +30,7 @@ function MockInput({ className, containerClassName }: any) {
                     <div className="flex items-center justify-between px-2 pb-2 pl-3">
                         <div className="flex items-center gap-1">
                             <button onClick={() => setSearch(!search)} className={cn("w-8 h-8 flex items-center justify-center rounded-full transition-all", search ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600" : "text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5")}>
-                                <Icon name="ai.language" className="w-4 h-4" />
+                                <Icon name="common.language" className="w-4 h-4" />
                             </button>
                             <button className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
                                 <Icon name="common.settings" className="w-4 h-4" />
@@ -54,7 +54,7 @@ function MockInput({ className, containerClassName }: any) {
                                 </button>
                             ) : (
                                 <button onClick={handleSend} disabled={!msg} className={cn("w-8 h-8 rounded-full flex items-center justify-center transition-all", msg ? "bg-black dark:bg-white text-white dark:text-black shadow-md hover:scale-105" : "bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed")}>
-                                    <Icon name="ai.send" className="w-3.5 h-3.5" />
+                                    <Icon name="common.send" className="w-3.5 h-3.5" />
                                 </button>
                             )}
                         </div>
@@ -100,7 +100,7 @@ export function FloatingIsland() {
                 <input placeholder="Message..." className="w-full bg-transparent outline-none px-2" />
             </div>
             <button className="w-14 h-14 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center shadow-lg hover:scale-105 transition-transform">
-                <Icon name="ai.send" size="md" />
+                <Icon name="common.send" size="md" />
             </button>
         </div>
     );

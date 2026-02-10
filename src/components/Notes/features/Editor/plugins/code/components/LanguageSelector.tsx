@@ -115,7 +115,7 @@ export const LanguageSelector = ({
                             title="Auto Detect Language"
                             className="absolute right-1.5 p-1 rounded-md text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
                         >
-                            <Icon size="md" name="ai.sparkle" />
+                            <Icon size="md" name="common.sparkle" />
                         </button>
                     </div>
                 </div>

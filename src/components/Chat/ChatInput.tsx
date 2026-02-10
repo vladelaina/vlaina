@@ -219,7 +219,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" sideOffset={8} className="w-48 bg-white dark:bg-[#1E1E1E]">
                             <DropdownMenuItem onClick={toggleWebSearch} className="gap-2 cursor-pointer">
-                                <Icon name="ai.language" className={cn("w-4 h-4", webSearchEnabled ? "text-blue-500" : "text-gray-500")} />
+                                <Icon name="common.language" className={cn("w-4 h-4", webSearchEnabled ? "text-blue-500" : "text-gray-500")} />
                                 <span>Web Search</span>
                                 {webSearchEnabled && <span className="ml-auto text-[10px] bg-blue-100 text-blue-600 px-1.5 rounded-full">ON</span>}
                             </DropdownMenuItem>
@@ -244,7 +244,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                                 "hover:bg-blue-200 dark:hover:bg-blue-900/50"
                             )}
                         >
-                            <Icon name="ai.language" className="w-3.5 h-3.5" />
+                            <Icon name="common.language" className="w-3.5 h-3.5" />
                             <span>Search</span>
                             <div className="w-3.5 h-3.5 flex items-center justify-center rounded-full bg-blue-200 dark:bg-blue-800 ml-0.5">
                                 <span className="text-[10px] font-bold">×</span>
@@ -274,7 +274,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                             : "bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-default"
                         )}
                       >
-                        <Icon name="ai.send" className="w-3.5 h-3.5" />
+                        <Icon name="common.send" className="w-3.5 h-3.5" />
                       </button>
                   )}
                 </div>

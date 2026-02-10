@@ -39,7 +39,7 @@ const sidebarGroups: SidebarGroup[] = [
     items: [
       { id: 'appearance', label: 'Appearance', icon: 'theme.palette' },
       { id: 'shortcuts', label: 'Shortcuts', icon: 'editor.keyboard' },
-      { id: 'ai', label: 'AI Settings', icon: 'ai.sparkle' },
+      { id: 'ai', label: 'AI Settings', icon: 'common.sparkle' },
       { id: 'about', label: 'About NekoTick', icon: 'common.info' },
     ]
   },
