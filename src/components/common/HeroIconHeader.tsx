@@ -92,8 +92,6 @@ export function HeroIconHeader({
   id,
   icon,
   onIconChange,
-  onColorChange,
-  initialColor,
   iconSize = 60, // Default visual size
   minIconSize,
   maxIconSize,
@@ -270,7 +268,6 @@ export function HeroIconHeader({
                       onSelect={handleIconSelect}
                       onPreview={handlePreview}
                       onPreviewSkinTone={handlePreviewTone}
-                      onPreviewColor={handlePreviewColor}
                       onRemove={handleRemoveIcon}
                       onClose={handlePickerClose}
                       

@@ -148,8 +148,9 @@ export function UniversalIcon({
   useEffect(() => {
     let active = true;
     if (icon && icon.startsWith('img:')) {
-      if (imageLoader) {
-        imageLoader(icon).then(url => { if (active) setImgSrc(url); }).catch(() => { if (active) setImgSrc(null); });
+      const loader = imageLoader;
+      if (loader) {
+        loader(icon).then(url => { if (active) setImgSrc(url); }).catch(() => { if (active) setImgSrc(null); });
       } else {
         if (active) setImgSrc(icon.substring(4));
       }

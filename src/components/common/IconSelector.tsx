@@ -36,7 +36,6 @@ export function IconSelector({
   color,
   compact = false,
   trigger,
-  hideColorPicker,
   customIcons,
   onUploadFile,
   onDeleteCustomIcon,
