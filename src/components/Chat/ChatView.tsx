@@ -31,13 +31,21 @@ export function ChatView() {
   const messages = currentSessionId ? (allMessages[currentSessionId] || []) : [];
   const { sendMessage, regenerate, editMessage, stop } = useChatService();
   
-  const isLoading = currentSessionId ? isSessionLoading(currentSessionId) : false;
+  const isSessionActive = currentSessionId ? isSessionLoading(currentSessionId) : false;
+  const lastMessage = messages[messages.length - 1];
+  // Only show loading dots if we are waiting for the assistant's first response chunk
+  // (i.e., session is loading but the last message is still from the user OR empty assistant message)
+  const showLoading = isSessionActive && (
+      lastMessage?.role === 'user' || 
+      (lastMessage?.role === 'assistant' && (!lastMessage.content || !lastMessage.content.trim()))
+  );
+  
   const isEmpty = messages.length === 0;
 
   // Use the new autoscroll hook
   const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
       messages,
-      isStreaming: isLoading,
+      isStreaming: isSessionActive,
       chatId: currentSessionId
   });
   
@@ -115,7 +123,7 @@ export function ChatView() {
                 <div key={msg.id} data-message-index={idx}>
                     <MessageItem 
                         msg={msg}
-                        isLoading={isLoading} 
+                        isLoading={isSessionActive} 
                         isSpeaking={speakingMsgId === msg.id}
                         isSourcesOpen={expandedSources.has(msg.id)}
                         onCopy={copyToClipboard}
@@ -128,7 +136,7 @@ export function ChatView() {
                 </div>
               ))}
               <AnimatePresence>
-                {isLoading && <ChatLoading key="loading" />}
+                {showLoading && <ChatLoading key="loading" />}
               </AnimatePresence>
               
               {/* Dynamic Spacer */}
@@ -169,7 +177,7 @@ export function ChatView() {
               <ChatInput 
                 onSend={handleSend} 
                 onStop={stop}
-                isLoading={isLoading} 
+                isLoading={isSessionActive} 
                 selectedModel={selectedModel} 
                 focusTrigger={focusInputTrigger}
               />

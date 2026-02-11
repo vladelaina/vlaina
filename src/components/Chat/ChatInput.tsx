@@ -270,7 +270,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                         className={cn(
                           "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200",
                           canSend
-                            ? "bg-gray-100 dark:bg-white text-black dark:text-black shadow-sm hover:scale-105 active:scale-95"
+                            ? "bg-black text-white shadow-md hover:scale-105 active:scale-95"
                             : "bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-default"
                         )}
                       >

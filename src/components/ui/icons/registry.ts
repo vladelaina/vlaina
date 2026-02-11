@@ -77,20 +77,24 @@ import {
   Bars3BottomLeftIcon,
   Bars3BottomRightIcon,
   Bars3Icon as AlignCenterIcon, 
-  ArrowsRightLeftIcon
+  ArrowsRightLeftIcon,
+  CommandLineIcon,
+  ChevronUpDownIcon
 } from '@heroicons/react/24/outline';
 
 // Custom Icons
 import { NewChatIcon } from './custom/NewChatIcon';
 import { SquareCheckBigIcon } from './custom/SquareCheckBigIcon';
 import { CropIcon } from './custom/CropIcon';
+import { SendIcon } from './custom/SendIcon';
+import { SquareStopIcon } from './custom/SquareStopIcon';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement>>;
 
 export const icons: Record<string, IconSource> = {
   // --- Window Controls ---
   'window.minimize': MinusIcon,
-  'window.maximize': StopIcon, 
+  'window.maximize': StopIcon, // Reinstated Heroicons StopIcon
   'window.close': XMarkIcon,
 
   // --- Common Actions ---
@@ -128,7 +132,7 @@ export const icons: Record<string, IconSource> = {
   'common.pin': Pin,
   'common.pinOutline': Pin,
   'common.sparkle': SparklesIcon,
-  'common.send': PaperAirplaneIcon,
+  'common.send': SendIcon,
   'common.language': LanguageIcon,
 
   // --- Navigation ---
@@ -147,6 +151,7 @@ export const icons: Record<string, IconSource> = {
   'nav.split': ViewColumnsIcon,
   'nav.external': ArrowTopRightOnSquareIcon,
   'nav.location': MapPinIcon,
+  'nav.unfold': ChevronUpDownIcon,
 
   // --- Sidebar/App Modules ---
   'sidebar.todo': SquareCheckBigIcon,
@@ -190,11 +195,13 @@ export const icons: Record<string, IconSource> = {
   'editor.alignCenter': AlignCenterIcon, 
   'editor.alignRight': Bars3BottomRightIcon,
   'editor.checkSquare': CheckCircleIcon,
+  'editor.keyboard': CommandLineIcon,
+  'editor.type': SwatchIcon,
 
   // --- Media ---
   'media.play': PlayIcon,
   'media.pause': PauseIcon,
-  'media.stop': StopIcon,
+  'media.stop': SquareStopIcon,
   'media.mic': MicrophoneIcon,
   'media.volume': SpeakerWaveIcon,
 
@@ -206,6 +213,8 @@ export const icons: Record<string, IconSource> = {
   'misc.activity': ChartPieIcon, 
   'misc.lab': BeakerIcon,
   'misc.box': ArchiveBoxIcon,
+  // --- Legacy / Compatibility ---
+  'legacy.unfold': ChevronUpDownIcon,
 };
 
 export type IconName = keyof typeof icons;

@@ -109,6 +109,10 @@ export class OpenAICompatibleClient implements AIClient {
       let fullContent = ''
       let buffer = ''
       let firstTokenReceived = false;
+      
+      // State for handling 'reasoning_content' fields (DeepSeek style)
+      let hasStartedReasoning = false;
+      let hasFinishedReasoning = false;
 
       while (true) {
         const { done, value } = await reader.read()
@@ -137,17 +141,46 @@ export class OpenAICompatibleClient implements AIClient {
             try {
               const jsonStr = trimmed.slice(6)
               const chunk: ChatCompletionStreamChunk = JSON.parse(jsonStr)
-              const content = chunk.choices[0]?.delta?.content
+              const delta = chunk.choices[0]?.delta
               
-              if (content) {
-                fullContent += content
-                onChunk(fullContent)
+              if (delta) {
+                  const reasoning = (delta as any).reasoning_content;
+                  const content = delta.content;
+
+                  // Handle DeepSeek API reasoning field
+                  if (reasoning) {
+                      if (!hasStartedReasoning) {
+                          fullContent += "<think>";
+                          hasStartedReasoning = true;
+                      }
+                      fullContent += reasoning;
+                  }
+
+                  // Handle Standard Content
+                  if (content) {
+                      // If we were reasoning and now we have content, close the think tag
+                      if (hasStartedReasoning && !hasFinishedReasoning) {
+                          fullContent += "</think>";
+                          hasFinishedReasoning = true;
+                      }
+                      fullContent += content;
+                  }
+                  
+                  // Emit update if anything changed
+                  if (reasoning || content) {
+                      onChunk(fullContent);
+                  }
               }
             } catch (e) {
               console.error('[OpenAI] Failed to parse SSE chunk:', e, line)
             }
           }
         }
+      }
+      
+      // Edge case: If stream ends while reasoning, close the tag
+      if (hasStartedReasoning && !hasFinishedReasoning) {
+          fullContent += "</think>";
       }
 
       console.log('[OpenAI] Stream finished. Total length:', fullContent.length);

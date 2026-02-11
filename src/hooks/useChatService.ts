@@ -332,7 +332,14 @@ export function useChatService() {
           completeMessage(sessionId, msgId);
       } catch (error: any) {
           if (error.name !== 'AbortError') {
-              setError('Failed to regenerate');
+              const type = error.type || 'UNKNOWN';
+              const code = error.statusCode || error.status || '';
+              const detail = error.message || 'Regeneration Failed';
+              
+              const errorXml = `<error type="${type}" code="${code}">${detail}</error>`;
+              
+              setError(detail);
+              updateMessage(sessionId, msgId, errorXml);
           }
       } finally {
           requestManager.finish(sessionId);
