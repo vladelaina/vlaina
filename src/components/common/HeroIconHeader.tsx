@@ -119,7 +119,7 @@ export function HeroIconHeader({
 
   // Universal Preview Hook
   // We use the entity ID to namespace the preview
-  const { handlePreview, handlePreviewTone, handlePreviewColor } = useIconPreview(id);
+  const { handlePreview, handlePreviewTone } = useIconPreview(id);
   
   // Reactively track preview size (only for standard mode)
   const { universalPreviewTarget, universalPreviewIconSize } = useUIStore();
