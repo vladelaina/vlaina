@@ -175,7 +175,7 @@ export function ChatView() {
 
           <motion.div 
             layout
-            className={cn("w-full", isEmpty ? "max-w-2xl px-4" : "")}
+            className="w-full max-w-3xl mx-auto px-4"
           >
               <ChatInput 
                 onSend={handleSend} 

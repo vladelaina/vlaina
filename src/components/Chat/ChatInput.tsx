@@ -143,10 +143,10 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
 
           <div 
             className={cn(
-              "relative z-10 flex flex-col justify-between min-h-[96px] pt-4", // Apple-style: 96px height, 16px top padding
+              "relative z-10 flex flex-col justify-between min-h-[84px] pt-3", // More compact: 84px height, reduced top padding
               "bg-white/80 dark:bg-[#18181b]/80 backdrop-blur-xl",
               "border border-black/5 dark:border-white/10",
-              "rounded-[32px]", 
+              "rounded-[26px]", // Slightly tighter radius for shorter height
               "shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]", 
               "transition-all duration-300 ease-out",
               "hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]",
