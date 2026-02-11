@@ -45,6 +45,44 @@ export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }:
         return;
       }
 
+      // Session Switching: Ctrl+Tab (Next) / Ctrl+Shift+Tab (Prev)
+      // Only enable in Tauri environment to avoid hijacking browser tab switching
+      if (isMod && e.key === 'Tab') {
+          // Check for Tauri environment (v1 or v2)
+          const isTauri = typeof window !== 'undefined' && 
+              ('__TAURI_IPC__' in window || '__TAURI_INTERNALS__' in window || '__TAURI__' in window);
+          
+          if (!isTauri) return;
+
+          e.preventDefault();
+          const state = useUnifiedStore.getState();
+          const rawSessions = state.data.ai?.sessions || [];
+          const currentId = state.data.ai?.currentSessionId;
+          
+          if (rawSessions.length < 2) return;
+
+          // Sort sessions to match visual order (updatedAt desc)
+          const sessions = [...rawSessions].sort((a, b) => b.updatedAt - a.updatedAt);
+
+          const currentIndex = sessions.findIndex(s => s.id === currentId);
+          // Note: sessions are usually ordered by date desc, so visual order depends on Sidebar.
+          // Assuming sessions list matches sidebar visual order.
+          let nextIndex;
+
+          if (e.shiftKey) {
+              // Prev (Up/Left)
+              nextIndex = currentIndex > 0 ? currentIndex - 1 : sessions.length - 1;
+          } else {
+              // Next (Down/Right)
+              nextIndex = currentIndex < sessions.length - 1 ? currentIndex + 1 : 0;
+          }
+
+          const nextId = sessions[nextIndex].id;
+          aiActions.switchSession(nextId);
+          onFocusInput();
+          return;
+      }
+
       const state = useUnifiedStore.getState();
       const ai = state.data.ai;
       if (!ai || !ai.currentSessionId) return;

@@ -124,7 +124,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
                         disabled={currentIdx === 0}
                         className="p-0.5 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
                     >
-                        <Icon name="nav.chevronLeft" size="sm" />
+                        <Icon name="nav.chevronLeft" size="md" />
                     </button>
                     <span className="text-[10px] font-mono font-medium text-gray-600 dark:text-gray-400 min-w-[24px] text-center">
                         {currentIdx + 1} / {versions.length}
@@ -137,7 +137,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
                         disabled={currentIdx === versions.length - 1}
                         className="p-0.5 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
                     >
-                        <Icon name="nav.chevronRight" size="sm" />
+                        <Icon name="nav.chevronRight" size="md" />
                     </button>
                 </div>
             )}
@@ -147,7 +147,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
                     onClick={handleCopy}
                     className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 rounded-md transition-colors"
                 >
-                    <Icon name="common.copy" size="sm" />
+                    <Icon name="common.copy" size="md" />
                 </button>
                 
                 <button 
@@ -162,7 +162,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
                     )}
                     title={onEdit ? "Edit" : "Edit Unavailable"}
                 >
-                    <Icon name="common.compose" size="sm" />
+                    <Icon name="common.compose" size="md" />
                 </button>
             </div>
         </div>

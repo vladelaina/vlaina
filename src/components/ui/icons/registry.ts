@@ -79,7 +79,8 @@ import {
   Bars3Icon as AlignCenterIcon, 
   ArrowsRightLeftIcon,
   CommandLineIcon,
-  ChevronUpDownIcon
+  ChevronUpDownIcon,
+  Square2StackIcon
 } from '@heroicons/react/24/outline';
 
 // Custom Icons
@@ -112,7 +113,7 @@ export const icons: Record<string, IconSource> = {
   'common.more': EllipsisHorizontalIcon,
   'common.moreVert': EllipsisVerticalIcon,
   'common.refresh': ArrowPathIcon,
-  'common.copy': ClipboardIcon,
+  'common.copy': Square2StackIcon,
   'common.download': ArrowDownTrayIcon,
   'common.upload': ArrowUpTrayIcon,
   'common.share': ShareIcon,

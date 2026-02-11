@@ -191,9 +191,9 @@ export function ModelSelector() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all group",
+          "flex items-center gap-1.5 px-3 h-9 rounded-full transition-all group", // h-9 (36px), rounded-full
           "bg-transparent border-none",
-          "text-gray-700 dark:text-gray-300"
+          "text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5" // Added hover effect for touch target feedback
         )}
       >
         <span className="text-sm font-medium whitespace-nowrap">

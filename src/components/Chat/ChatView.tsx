@@ -40,7 +40,10 @@ export function ChatView() {
       (lastMessage?.role === 'assistant' && (!lastMessage.content || !lastMessage.content.trim()))
   );
   
-  const isEmpty = messages.length === 0;
+  // Only consider empty if explicitly loaded as empty array. 
+  // If undefined (loading), treat as non-empty to prevent layout jumps.
+  const isMessagesLoaded = currentSessionId ? allMessages[currentSessionId] !== undefined : true;
+  const isEmpty = isMessagesLoaded && messages.length === 0;
 
   // Use the new autoscroll hook
   const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
@@ -123,7 +126,7 @@ export function ChatView() {
                 <div key={msg.id} data-message-index={idx}>
                     <MessageItem 
                         msg={msg}
-                        isLoading={isSessionActive} 
+                        isLoading={isSessionActive && idx === messages.length - 1} 
                         isSpeaking={speakingMsgId === msg.id}
                         isSourcesOpen={expandedSources.has(msg.id)}
                         onCopy={copyToClipboard}

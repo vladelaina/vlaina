@@ -143,7 +143,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
 
           <div 
             className={cn(
-              "relative z-10",
+              "relative z-10 flex flex-col justify-between min-h-[96px] pt-4", // Apple-style: 96px height, 16px top padding
               "bg-white/80 dark:bg-[#18181b]/80 backdrop-blur-xl",
               "border border-black/5 dark:border-white/10",
               "rounded-[32px]", 
@@ -157,7 +157,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <div className="flex flex-col px-1">
+            <div className="flex flex-col px-1 w-full">
               {attachments.length > 0 && (
                   <div className="px-4 pt-4 pb-0 flex gap-2 overflow-x-auto scrollbar-none">
                       {attachments.map(att => (
@@ -209,12 +209,12 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                         <DropdownMenuTrigger asChild>
                             <button 
                                 className={cn(
-                                    "w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200",
+                                    "w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200",
                                     "text-gray-500 dark:text-gray-400",
                                     "hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200 active:scale-95"
                                 )}
                             >
-                                <Icon name="common.add" className="w-5 h-5" />
+                                <Icon name="common.add" size="md" />
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" sideOffset={8} className="w-48 bg-white dark:bg-[#1E1E1E]">
@@ -268,13 +268,13 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                         onClick={handleSend}
                         disabled={!canSend}
                         className={cn(
-                          "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200",
+                          "w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200",
                           canSend
                             ? "bg-black text-white shadow-md hover:scale-105 active:scale-95"
                             : "bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-default"
                         )}
                       >
-                        <Icon name="common.send" className="w-3.5 h-3.5" />
+                        <Icon name="common.send" className="w-4 h-4" />
                       </button>
                   )}
                 </div>

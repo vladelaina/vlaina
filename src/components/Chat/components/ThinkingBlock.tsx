@@ -32,7 +32,7 @@ export function ThinkingBlock({
     }
   }, [activelyThinking, endTime, internalEndTime]);
 
-  const finishedThinking = !activelyThinking && !!internalEndTime;
+  const finishedThinking = !activelyThinking;
 
   useEffect(() => {
     if (!activelyThinking && !hasUserInteracted) {
@@ -100,18 +100,16 @@ export function ThinkingBlock({
 
   const getDurationText = () => {
     if (activelyThinking) return "Thinking...";
-    if (!internalEndTime) return "Thought for a moment";
-    const diff = (internalEndTime.getTime() - startTime.getTime()) / 1000;
-    return diff < 1 ? "Thought for a moment" : `Thought for ${diff.toFixed(1)} seconds`;
+    return "Thought briefly";
   };
 
   return (
     <div
       className={`flex mb-4 flex-col w-full ${activelyThinking || !isCollapsed ? "text-neutral-800 dark:text-neutral-200" : "text-neutral-600 dark:text-neutral-400"}
-         hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors`}
+         hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors select-none`}
     >
       <div
-        className="flex items-center cursor-pointer group/thinking self-start relative select-none py-1"
+        className="flex items-center cursor-pointer group/thinking self-start relative py-1"
         onClick={handleToggle}
       >
         <div className="relative w-4 h-4 mr-2">
@@ -139,7 +137,7 @@ export function ThinkingBlock({
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </div>
-        <h3 className="text-[15px] font-medium select-text">
+        <h3 className="text-[15px] font-medium">
           {getDurationText()}
         </h3>
       </div>

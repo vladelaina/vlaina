@@ -214,7 +214,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                         }}
                                         className="text-xs px-2 py-1.5 rounded-md cursor-pointer hover:bg-[var(--neko-hover)] focus:bg-[var(--neko-hover)] outline-none"
                                     >
-                                        <Icon name="common.rename" className="mr-2 h-4 w-4 text-[var(--neko-text-secondary)]" />
+                                        <Icon name="common.rename" size="md" className="mr-2 text-[var(--neko-text-secondary)]" />
                                         <span className="text-[var(--neko-text-primary)]">Rename</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem 
@@ -224,7 +224,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                         }}
                                         className="text-xs px-2 py-1.5 rounded-md cursor-pointer hover:bg-[var(--neko-hover)] focus:bg-[var(--neko-hover)] outline-none"
                                     >
-                                        <Icon name="common.pin" className="mr-2 h-4 w-4 text-[var(--neko-text-secondary)]" />
+                                        <Icon name="common.pin" size="md" className="mr-2 text-[var(--neko-text-secondary)]" />
                                         <span className="text-[var(--neko-text-primary)]">{session.isPinned ? 'Unpin' : 'Pin'}</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator className="bg-[var(--neko-border)] my-1 opacity-50" />
@@ -235,7 +235,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                         }}
                                         className="text-xs px-2 py-1.5 rounded-md cursor-pointer text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 focus:bg-red-50 outline-none"
                                     >
-                                        <Icon name="common.delete" className="mr-2 h-4 w-4" />
+                                        <Icon name="common.delete" size="md" className="mr-2" />
                                         <span>Delete</span>
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>

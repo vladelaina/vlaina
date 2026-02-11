@@ -17,6 +17,8 @@ export function ChatShortcutsDialog({ isOpen, onOpenChange }: ChatShortcutsDialo
   const shortcuts = [
     { action: 'Open new chat', keys: [MODIFIER, SHIFT, 'O'] },
     { action: 'Focus chat input', keys: [SHIFT, ESC] },
+    { action: 'Previous chat', keys: [MODIFIER, SHIFT, 'Tab'] },
+    { action: 'Next chat', keys: [MODIFIER, 'Tab'] },
     { action: 'Copy last code block', keys: [MODIFIER, SHIFT, ';'] },
     { action: 'Copy last response', keys: [MODIFIER, SHIFT, 'C'] },
     { action: 'Previous message', keys: [SHIFT, '↑'] },
