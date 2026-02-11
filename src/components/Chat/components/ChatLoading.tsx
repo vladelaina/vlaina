@@ -6,10 +6,10 @@ export function ChatLoading() {
             <style dangerouslySetInnerHTML={{ __html: `
                 @keyframes nekotick-typing {
                     0%, 100% { opacity: 0.4; transform: translateY(0); }
-                    50% { opacity: 1; transform: translateY(-1px); }
+                    50% { opacity: 1; transform: translateY(-2px); }
                 }
                 .nekotick-dot {
-                    animation: nekotick-typing 1.4s infinite ease-in-out;
+                    animation: nekotick-typing 0.8s infinite ease-in-out;
                 }
             `}} />
             {[0, 1, 2].map((i) => (
@@ -17,7 +17,7 @@ export function ChatLoading() {
                     key={i}
                     className="w-1.5 h-1.5 bg-neutral-400 dark:bg-neutral-500 rounded-full nekotick-dot"
                     style={{
-                        animationDelay: `${i * 0.15}s`,
+                        animationDelay: `${i * 0.1}s`,
                     }}
                 />
             ))}
