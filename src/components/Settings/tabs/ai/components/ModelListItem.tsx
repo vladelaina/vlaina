@@ -1,6 +1,5 @@
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
-import { getModelLogoById } from '../modelIcons';
 
 export interface HealthStatus {
     status: 'loading' | 'success' | 'error';
@@ -17,8 +16,6 @@ interface ModelListItemProps {
 }
 
 export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: ModelListItemProps) {
-  const modelIcon = getModelLogoById(modelId);
-
   return (
     <div className={cn(
         "flex items-center gap-3 p-2 rounded-lg border transition-all duration-200 group relative",
@@ -26,15 +23,9 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
             ? "bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800 opacity-60"
             : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700"
     )}>
-        {/* Model Icon - Changed to rounded-full */}
+        {/* Model Icon - Fallback to generic icon */}
         <div className="w-6 h-6 rounded-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center overflow-hidden flex-shrink-0 border border-gray-100 dark:border-gray-800">
-            {modelIcon ? (
-                <img src={modelIcon} className="w-full h-full object-contain rounded-full" alt="" />
-            ) : (
-                <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-gray-400 rounded-full">
-                    {modelId.charAt(0).toUpperCase()}
-                </div>
-            )}
+            <Icon name="common.sparkle" className="w-3.5 h-3.5 text-gray-400" />
         </div>
         
         <div className="flex-1 min-w-0">
