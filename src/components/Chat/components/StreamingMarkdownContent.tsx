@@ -90,7 +90,7 @@ const CodeBlock = memo(({ className, children }: any) => {
 });
 
 const StreamingMarkdownContent: React.FC<StreamingMarkdownContentProps> = memo(
-  ({ content, isStreaming, size, startTime }) => {
+  ({ content, size, startTime }) => {
     
     // Parse <think> tags
     const { thinking, markdown, isThinkingDone } = useMemo(() => {

@@ -10,8 +10,6 @@ interface SidebarUserHeaderProps {
 }
 
 export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUserHeaderProps) {
-    const sidebarHeaderHovered = useUIStore(s => s.sidebarHeaderHovered);
-    const setSidebarHeaderHovered = useUIStore(s => s.setSidebarHeaderHovered);
     const appViewMode = useUIStore(s => s.appViewMode);
 
     const handleSearchClick = () => {

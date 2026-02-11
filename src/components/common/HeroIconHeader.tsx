@@ -271,13 +271,11 @@ export function HeroIconHeader({
                       onPreview={handlePreview}
                       onPreviewSkinTone={handlePreviewTone}
                       onPreviewColor={handlePreviewColor}
-                      onIconColorChange={onColorChange}
                       onRemove={handleRemoveIcon}
                       onClose={handlePickerClose}
                       
                       hasIcon={!!icon}
                       currentIcon={icon || undefined}
-                      defaultColor={initialColor}
                       
                       // Slider props (Hidden in compact mode as it's provided externally)
                       currentSize={!compact ? currentSliderValue : undefined}

@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Icon } from '@/components/ui/icons';
-import { cn, iconButtonStyles, NOTES_COLORS } from '@/lib/utils';
+import { cn, iconButtonStyles } from '@/lib/utils';
 import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
 
 interface FileTreeItemRendererProps {

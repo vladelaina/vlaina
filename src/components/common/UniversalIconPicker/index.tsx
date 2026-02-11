@@ -14,7 +14,6 @@ import {
   loadSkinTone,
   EMOJI_CATEGORIES,
 } from './constants';
-import type { ItemColor } from '@/lib/colors/index';
 
 export interface UniversalIconPickerProps {
   onSelect: (emoji: string) => void;
