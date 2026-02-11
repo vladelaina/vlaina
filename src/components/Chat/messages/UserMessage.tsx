@@ -13,6 +13,7 @@ interface UserMessageProps {
 export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessageProps) {
   const content = message.content || '';
   const [isEditing, setIsEditing] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const [editValue, setEditValue] = useState(content);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -59,6 +60,8 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
 
   const handleCopy = () => {
       navigator.clipboard.writeText(content);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
   };
 
   if (isEditing) {
@@ -147,7 +150,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
                     onClick={handleCopy}
                     className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 rounded-md transition-colors"
                 >
-                    <Icon name="common.copy" size="md" />
+                    {isCopied ? <Icon name="common.check" size="md" /> : <Icon name="common.copy" size="md" />}
                 </button>
                 
                 <button 
@@ -160,7 +163,6 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
                             ? "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10"
                             : "text-gray-300 cursor-not-allowed"
                     )}
-                    title={onEdit ? "Edit" : "Edit Unavailable"}
                 >
                     <Icon name="common.compose" size="md" />
                 </button>

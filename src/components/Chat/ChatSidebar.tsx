@@ -159,9 +159,9 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                         >
                           <div className="flex-1 truncate relative z-10 flex items-center gap-2">
                              {isGenerating && !isActive ? (
-                                <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] animate-pulse flex-shrink-0" title="Generating..." />
+                                <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] animate-pulse flex-shrink-0" />
                             ) : isUnread ? (
-                                <div className="w-2 h-2 rounded-full bg-blue-500 shadow-sm flex-shrink-0" title="New messages" />
+                                <div className="w-2 h-2 rounded-full bg-blue-500 shadow-sm flex-shrink-0" />
                             ) : null}
                             
                             <span className={cn(

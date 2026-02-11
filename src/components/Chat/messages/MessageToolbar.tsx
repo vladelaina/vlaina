@@ -59,9 +59,8 @@ export function MessageToolbar({
             <button 
                 onClick={handleCopy} 
                 className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors rounded-md hover:bg-black/5 dark:hover:bg-white/5" 
-                title="Copy"
             >
-                {isCopied ? <Icon name="common.check" size="md" className="text-green-500" /> : <Icon name="common.copy" size="md" />}
+                {isCopied ? <Icon name="common.check" size="md" /> : <Icon name="common.copy" size="md" />}
             </button>
             
             <button 
@@ -70,12 +69,11 @@ export function MessageToolbar({
                     "p-1.5 transition-colors rounded-md hover:bg-black/5 dark:hover:bg-white/5",
                     isSpeaking ? "text-red-500" : "text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200"
                 )} 
-                title={isSpeaking ? "Stop" : "Read Aloud"}
             >
                 {isSpeaking ? <Icon name="media.stop" size="md" /> : <Icon name="media.volume" size="md" />}
             </button>
 
-            <button onClick={onRegenerate} className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors rounded-md hover:bg-black/5 dark:hover:bg-white/5" title="Regenerate">
+            <button onClick={onRegenerate} className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors rounded-md hover:bg-black/5 dark:hover:bg-white/5">
                 <Icon name="common.refresh" size="md" />
             </button>
 
