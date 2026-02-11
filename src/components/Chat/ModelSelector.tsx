@@ -1,10 +1,7 @@
 import { useState, useRef, useEffect, useMemo, memo, useCallback } from 'react'
 import { Icon } from '@/components/ui/icons'
-import { motion, AnimatePresence } from 'framer-motion'
 import { useAIStore } from '@/stores/useAIStore'
-import { groupModels } from '@/lib/ai/utils'
 import { cn } from '@/lib/utils'
-import { getModelLogoById } from '@/components/Settings/tabs/ai/modelIcons'
 import type { AIModel } from '@/lib/ai/types';
 
 const ModelOption = memo(({ 
@@ -12,62 +9,42 @@ const ModelOption = memo(({
     isSelected, 
     isFocused, 
     onSelect, 
-    onTogglePin,
     onHover 
 }: { 
     model: AIModel; 
     isSelected: boolean; 
     isFocused: boolean; 
     onSelect: (id: string) => void; 
-    onTogglePin: (e: React.MouseEvent, id: string, pinned?: boolean) => void;
     onHover: (id: string) => void;
 }) => {
-    const logo = getModelLogoById(model.id);
-    
     return (
         <button
             data-model-id={model.id}
             onClick={() => onSelect(model.id)}
             onMouseEnter={() => onHover(model.id)}
             className={cn(
-                "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md",
-                "text-left transition-colors group relative",
+                "w-full flex items-center justify-between px-3 py-2 rounded-md text-left transition-colors duration-75", // Fast CSS transition
                 (isSelected || isFocused)
-                ? "bg-[#f5f5f5] dark:bg-[#222]"
-                : "bg-transparent hover:bg-gray-50 dark:hover:bg-zinc-900"
+                ? "bg-neutral-100 dark:bg-neutral-700/60"
+                : "bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-700/60"
             )}
         >
-            {logo && (
-                <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                    <img src={logo} alt="" className="w-full h-full object-cover rounded-full" />
-                </div>
+            <span className={cn(
+                "text-sm", 
+                isSelected ? "font-semibold text-gray-900 dark:text-gray-100" : "font-medium text-gray-600 dark:text-gray-400"
+            )}>
+                {model.name}
+            </span>
+            
+            {isSelected && (
+                <Icon name="common.check" className="w-4 h-4 text-gray-900 dark:text-gray-100 ml-4 flex-shrink-0" />
             )}
-            <div className="flex-1 min-w-0 flex items-center justify-between">
-                <span className={cn(
-                    "text-xs truncate font-medium",
-                    isSelected ? "text-black dark:text-white" : "text-gray-800 dark:text-gray-200"
-                )}>
-                    {model.name}
-                </span>
-                
-                <div className="flex items-center gap-2">
-                    <div 
-                        onClick={(e) => onTogglePin(e, model.id, model.pinned)}
-                        className={cn(
-                            "opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700",
-                            model.pinned && "opacity-100 text-gray-900 dark:text-gray-100"
-                        )}
-                    >
-                        {model.pinned ? <Icon name="ai.pin" size="sm" /> : <Icon name="ai.pinOutline" size="sm" className="text-gray-400" />}
-                    </div>
-                </div>
-            </div>
         </button>
     );
 });
 
 export function ModelSelector() {
-  const { models, selectedModelId, selectModel, getSelectedModel, updateModel } = useAIStore()
+  const { models, selectedModelId, selectModel, getSelectedModel } = useAIStore()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [focusedModelId, setFocusedModelId] = useState<string | null>(null)
@@ -76,39 +53,16 @@ export function ModelSelector() {
   const isKeyboardNavigating = useRef(false)
 
   const selectedModel = getSelectedModel()
-  const selectedModelLogo = selectedModel ? getModelLogoById(selectedModel.id) : undefined;
 
   const enabledModels = useMemo(() => models.filter(m => m.enabled), [models]);
-  const pinnedModels = useMemo(() => enabledModels.filter(m => m.pinned), [enabledModels]);
-  const unpinnedModels = useMemo(() => enabledModels.filter(m => !m.pinned), [enabledModels]);
 
-  const groupedModels = useMemo(() => groupModels(unpinnedModels), [unpinnedModels]);
-
-  const filteredGroups = useMemo(() => {
-      return Object.entries(groupedModels).reduce((acc, [group, groupModels]) => {
-        const filtered = groupModels.filter(model =>
-          model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          model.id.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-        if (filtered.length > 0) {
-          acc[group] = filtered
-        }
-        return acc
-      }, {} as Record<string, typeof enabledModels>)
-  }, [groupedModels, searchQuery]);
-
-  const filteredPinned = useMemo(() => {
-      return pinnedModels.filter(model => 
-          model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          model.id.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredModels = useMemo(() => {
+      const term = searchQuery.toLowerCase();
+      return enabledModels.filter(model => 
+          model.name.toLowerCase().includes(term) ||
+          model.id.toLowerCase().includes(term)
       );
-  }, [pinnedModels, searchQuery]);
-
-  const flatModels = useMemo(() => {
-      const sortedGroups = Object.entries(filteredGroups).sort();
-      const sortedUnpinned = sortedGroups.map(([_, models]) => models).flat();
-      return [...filteredPinned, ...sortedUnpinned];
-  }, [filteredPinned, filteredGroups]);
+  }, [enabledModels, searchQuery]);
 
   useEffect(() => {
       const handleMouseMove = () => {
@@ -143,9 +97,9 @@ export function ModelSelector() {
             e.preventDefault();
             isKeyboardNavigating.current = true;
             setFocusedModelId(curr => {
-                const idx = flatModels.findIndex(m => m.id === curr);
-                const nextIdx = idx === -1 ? 0 : (idx + 1) % flatModels.length;
-                return flatModels[nextIdx]?.id || curr;
+                const idx = filteredModels.findIndex(m => m.id === curr);
+                const nextIdx = idx === -1 ? 0 : (idx + 1) % filteredModels.length;
+                return filteredModels[nextIdx]?.id || curr;
             });
         }
 
@@ -153,9 +107,9 @@ export function ModelSelector() {
             e.preventDefault();
             isKeyboardNavigating.current = true;
             setFocusedModelId(curr => {
-                const idx = flatModels.findIndex(m => m.id === curr);
-                const prevIdx = idx === -1 ? flatModels.length - 1 : (idx - 1 + flatModels.length) % flatModels.length;
-                return flatModels[prevIdx]?.id || curr;
+                const idx = filteredModels.findIndex(m => m.id === curr);
+                const prevIdx = idx === -1 ? filteredModels.length - 1 : (idx - 1 + filteredModels.length) % filteredModels.length;
+                return filteredModels[prevIdx]?.id || curr;
             });
         }
 
@@ -163,8 +117,8 @@ export function ModelSelector() {
             e.preventDefault();
             if (focusedModelId) {
                 handleSelectModel(focusedModelId);
-            } else if (flatModels.length > 0) {
-                handleSelectModel(flatModels[0].id);
+            } else if (filteredModels.length > 0) {
+                handleSelectModel(filteredModels[0].id);
             }
         }
 
@@ -180,7 +134,7 @@ export function ModelSelector() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, flatModels, focusedModelId]);
+  }, [isOpen, filteredModels, focusedModelId]);
 
   useEffect(() => {
       if (isOpen && focusedModelId && dropdownRef.current) {
@@ -194,16 +148,10 @@ export function ModelSelector() {
   useEffect(() => {
       if (isOpen && selectedModelId) {
           setFocusedModelId(selectedModelId);
-          requestAnimationFrame(() => {
-              const activeItem = dropdownRef.current?.querySelector(`[data-model-id="${selectedModelId}"]`);
-              if (activeItem) {
-                  activeItem.scrollIntoView({ block: 'center', behavior: 'instant' });
-              }
-          });
       } else if (isOpen) {
           setFocusedModelId(null);
       }
-  }, [isOpen]);
+  }, [isOpen, selectedModelId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -232,152 +180,94 @@ export function ModelSelector() {
     }, 50);
   }, [selectModel]);
 
-  const handleTogglePin = useCallback((e: React.MouseEvent, modelId: string, currentPinned?: boolean) => {
-      e.stopPropagation();
-      updateModel(modelId, { pinned: !currentPinned });
-  }, [updateModel]);
+  const handleHover = useCallback((id: string) => {
+      if (!isKeyboardNavigating.current) {
+          setFocusedModelId(id);
+      }
+  }, []);
 
   return (
-    <div className="relative select-none" ref={dropdownRef}>
+    <div className="relative select-none w-fit" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-2 px-1 py-1.5 rounded-md transition-all",
-          "bg-transparent",
+          "flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all group",
+          "bg-transparent border-none",
           "text-gray-700 dark:text-gray-300"
         )}
       >
-        {selectedModelLogo && (
-            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                <img src={selectedModelLogo} alt="" className="w-full h-full object-cover rounded-full" />
-            </div>
-        )}
-        <span className="text-sm font-medium whitespace-nowrap select-none">
+        <span className="text-sm font-medium whitespace-nowrap">
           {selectedModel ? selectedModel.name : 'Select Model'}
         </span>
-        <Icon name="nav.chevronDown" className={cn(
-          "w-4 h-4 transition-transform text-gray-400 dark:text-gray-500",
-          isOpen && "rotate-180"
-        )} />
+        <svg
+          className={cn("h-3 w-3 opacity-70 transition-transform duration-200", isOpen && "rotate-180")}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
       </button>
 
-      <AnimatePresence>
-        {isOpen && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className={cn(
-                "absolute bottom-full right-0 mb-2 w-72",
-                "bg-white dark:bg-[#1E1E1E] rounded-xl shadow-xl",
-                "border border-gray-200 dark:border-gray-800",
-                "z-50 overflow-hidden flex flex-col select-none"
-              )}
-              style={{ maxHeight: '400px' }}
-            >
-              <div className="p-2 border-b border-gray-100 dark:border-gray-800 sticky top-0 bg-white dark:bg-[#1E1E1E] z-10">
-                <div className="relative flex items-center gap-2">
-                  <div className="relative flex-1">
-                      <Icon name="common.search" className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search..."
-                        className={cn(
-                          "w-full pl-8 pr-3 py-1.5 rounded-lg",
-                          "bg-gray-50 dark:bg-zinc-900",
-                          "text-xs text-gray-900 dark:text-gray-100",
-                          "placeholder:text-gray-400 dark:placeholder:text-gray-500",
-                          "focus:outline-none focus:ring-1 focus:ring-gray-400"
-                        )}
-                        autoFocus
-                      />
-                  </div>
-                  <button
-                      onClick={() => {
-                          setIsOpen(false);
-                          const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } });
-                          window.dispatchEvent(event);
-                      }}
-                      className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
-                  >
-                      <Icon name="common.settings" size="sm" />
-                  </button>
-                </div>
-              </div>
+      {/* Instant Dropdown (No Animation Library) */}
+      {isOpen && (
+        <div 
+          className={cn(
+            "absolute bottom-full right-0 mb-1 w-64",
+            "bg-white dark:bg-neutral-800 rounded-2xl shadow-xl",
+            "border border-neutral-100 dark:border-neutral-600/40",
+            "backdrop-blur-lg z-50 overflow-hidden flex flex-col",
+            // Optional: minimal CSS animation if desired (e.g. animate-in fade-in zoom-in-95)
+            // But for "instant" feel, we keep it raw or super fast.
+            "animate-in fade-in duration-75 zoom-in-95" 
+          )}
+          style={{ maxHeight: '320px' }}
+        >
+          <div className="flex items-center gap-1 px-1 py-2 border-b border-neutral-100 dark:border-neutral-700">
+              <input
+                ref={inputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Find model..."
+                autoCorrect="off"
+                className="flex-1 px-2 py-0.5 bg-transparent border-none outline-none text-sm text-neutral-800 dark:text-white placeholder:text-neutral-400"
+                autoFocus
+              />
+              <button
+                  onClick={() => {
+                      setIsOpen(false);
+                      const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } });
+                      window.dispatchEvent(event);
+                  }}
+                  className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+              >
+                  <Icon name="common.settings" size="md" />
+              </button>
+          </div>
 
-              <div className="overflow-y-auto p-1 scrollbar-thin flex-1">
-                {filteredPinned.length === 0 && Object.keys(filteredGroups).length === 0 ? (
-                  <div className="py-8 text-center select-none">
-                    <p className="text-xs text-gray-500">
-                      {searchQuery ? 'No models found' : 'No models configured'}
-                    </p>
-                    <button
-                      onClick={() => {
-                        setIsOpen(false)
-                        const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } })
-                        window.dispatchEvent(event)
-                      }}
-                      className="mt-2 text-xs text-blue-600 hover:underline"
-                    >
-                      Configure models
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                      {filteredPinned.length > 0 && (
-                        <div className="mb-1">
-                            <div className="mt-0.5 space-y-0.5">
-                                {filteredPinned.map(model => (
-                                    <ModelOption 
-                                        key={model.id}
-                                        model={model}
-                                        isSelected={selectedModelId === model.id}
-                                        isFocused={focusedModelId === model.id}
-                                        onSelect={handleSelectModel}
-                                        onTogglePin={handleTogglePin}
-                                        onHover={(id) => {
-                                            if (!isKeyboardNavigating.current) {
-                                                setFocusedModelId(id);
-                                            }
-                                        }}
-                                    />
-                                ))}
-                            </div>
-                            <div className="h-px bg-gray-100 dark:bg-zinc-800 my-1 mx-2" />
-                        </div>
-                      )}
-
-                      {Object.entries(filteredGroups).sort().map(([group, groupModels]) => (
-                        <div key={group} className="mb-0.5">
-                          <div className="mt-0.5 space-y-0.5">
-                            {groupModels.map(model => (
-                                <ModelOption 
-                                    key={model.id}
-                                    model={model}
-                                    isSelected={selectedModelId === model.id}
-                                    isFocused={focusedModelId === model.id}
-                                    onSelect={handleSelectModel}
-                                    onTogglePin={handleTogglePin}
-                                    onHover={(id) => {
-                                        if (!isKeyboardNavigating.current) {
-                                            setFocusedModelId(id);
-                                        }
-                                    }}
-                                />
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                  </>
-                )}
+          <div className="overflow-y-auto p-1 scrollbar-none flex-1" style={{ height: '256px' }}>
+            {filteredModels.length === 0 ? (
+              <div className="py-8 text-center text-xs text-neutral-500">
+                No models found
               </div>
-            </motion.div>
-        )}
-      </AnimatePresence>
+            ) : (
+              <div className="flex flex-col">
+                {filteredModels.map(model => (
+                                            <ModelOption 
+                                                key={model.id}
+                                                model={model}
+                                                isSelected={selectedModelId === model.id}
+                                                isFocused={focusedModelId === model.id}
+                                                onSelect={handleSelectModel}
+                                                onHover={handleHover}
+                                            />                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
