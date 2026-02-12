@@ -4,9 +4,9 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import remarkCitationParser from "@/lib/ai/plugins/remarkCitationParser";
 import CopyButton from "./CopyButton";
-import type { BundledLanguage } from "shiki";
-import { highlighter } from "@/lib/highlighter";
 import { ThinkingBlock } from "./ThinkingBlock";
+import hljs from 'highlight.js';
+import 'highlight.js/styles/github-dark.css';
 
 interface StreamingMarkdownContentProps {
   content: string;
@@ -21,70 +21,36 @@ const CodeBlock = memo(({ className, children }: any) => {
   const language = match ? match[1] : "";
   const codeText = String(children).replace(/\n$/, "");
 
-  const tokens = React.useMemo(() => {
-    if (!highlighter || !highlighter.codeToTokensBase) return null;
+  const highlightedHTML = useMemo(() => {
     try {
-      return {
-        light: highlighter.codeToTokensBase(codeText, {
-          lang: language as BundledLanguage,
-          theme: "one-light" as any,
-        }),
-        dark: highlighter.codeToTokensBase(codeText, {
-          lang: language as BundledLanguage,
-          theme: "one-dark" as any,
-        }),
-      };
+      if (language && hljs.getLanguage(language)) {
+        return hljs.highlight(codeText, { language }).value;
+      }
+      // Fallback to auto-detection or plain text
+      return hljs.highlightAuto(codeText).value;
     } catch (e) {
-      return null;
+      return codeText;
     }
   }, [codeText, language]);
 
   return (
-    <div className="relative bg-neutral-100 dark:bg-neutral-800 rounded-2xl overflow-hidden my-6">
-      <div className="flex select-none">
-        {language && (
-          <div className="text-[13px] text-neutral-500 dark:text-neutral-400 font-mono px-4 py-2">
-            {language}
-          </div>
-        )}
+    <div className="relative bg-neutral-100 dark:bg-neutral-800 rounded-2xl overflow-hidden my-6 group">
+      <div className="flex select-none px-4 py-2 items-center justify-between">
+        <span className="text-[13px] text-neutral-500 dark:text-neutral-400 font-mono">
+            {language || 'text'}
+        </span>
         <CopyButton
           content={codeText}
-          showLabels={true}
-          className="copy-button text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 ml-auto"
+          showLabels={false}
+          className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
         />
       </div>
-      <pre className="dark:hidden m-0 bg-neutral-100 text-sm overflow-x-auto p-4">
-        {tokens?.light ? (
-          <code className="font-mono text-sm">
-            {tokens.light.map((line: any, i: number) => (
-              <React.Fragment key={i}>
-                {line.map((token: any, j: number) => (
-                  <span key={j} style={{ color: token.color }}>{token.content}</span>
-                ))}
-                {i < tokens.light.length - 1 && "\n"}
-              </React.Fragment>
-            ))}
-          </code>
-        ) : (
-          <code className={className}>{children}</code>
-        )}
-      </pre>
-      <pre className="hidden dark:block m-0 bg-neutral-800 text-sm overflow-x-auto p-4">
-        {tokens?.dark ? (
-          <code className="font-mono text-sm">
-            {tokens.dark.map((line: any, i: number) => (
-              <React.Fragment key={i}>
-                {line.map((token: any, j: number) => (
-                  <span key={j} style={{ color: token.color }}>{token.content}</span>
-                ))}
-                {i < tokens.dark.length - 1 && "\n"}
-              </React.Fragment>
-            ))}
-          </code>
-        ) : (
-          <code className={className}>{children}</code>
-        )}
-      </pre>
+      <div className="overflow-x-auto p-4 pt-0">
+        <code 
+            className={`font-mono text-sm leading-relaxed hljs ${language} !bg-transparent !p-0`}
+            dangerouslySetInnerHTML={{ __html: highlightedHTML }}
+        />
+      </div>
     </div>
   );
 });
