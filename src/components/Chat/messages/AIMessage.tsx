@@ -43,7 +43,7 @@ export function AIMessage({
             <StreamingMarkdownContent 
                 content={contentWithoutError || ' '} 
                 isStreaming={isLoading}
-                startTime={msg.createdAt ? new Date(msg.createdAt) : undefined}
+                startTime={msg.timestamp ? new Date(msg.timestamp) : undefined}
             />
         </div>
 

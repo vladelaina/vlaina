@@ -1,9 +1,13 @@
 import { visit } from "unist-util-visit";
-import type { Root, RootContent } from "mdast";
+// type Root = any;
+// type RootContent = any;
+// We define them loosely to avoid dependency issues in this environment
+type Root = any;
+type RootContent = any;
 
 export default function remarkCitationParser() {
   return (tree: Root) => {
-    visit(tree, "text", (node, index, parent) => {
+    visit(tree, "text", (node: any, index: any, parent: any) => {
       const regex = /【(\d+)†L(\d+)-L(\d+)】/g;
       let match;
       let last = 0;
@@ -17,7 +21,6 @@ export default function remarkCitationParser() {
           });
         }
         pieces.push({
-          // @ts-expect-error: custom type
           type: "custom-citation" as const,
           data: {
             hName: "ol-citation",
@@ -42,7 +45,6 @@ export default function remarkCitationParser() {
           });
         }
         pieces.push({
-          // @ts-expect-error: custom type
           type: "custom-citation" as const,
           data: {
             hName: "ol-citation",

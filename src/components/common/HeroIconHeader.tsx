@@ -92,8 +92,6 @@ export function HeroIconHeader({
   id,
   icon,
   onIconChange,
-  onColorChange,
-  initialColor,
   iconSize = 60, // Default visual size
   minIconSize,
   maxIconSize,
@@ -121,7 +119,7 @@ export function HeroIconHeader({
 
   // Universal Preview Hook
   // We use the entity ID to namespace the preview
-  const { handlePreview, handlePreviewTone, handlePreviewColor } = useIconPreview(id);
+  const { handlePreview, handlePreviewTone } = useIconPreview(id);
   
   // Reactively track preview size (only for standard mode)
   const { universalPreviewTarget, universalPreviewIconSize } = useUIStore();
@@ -270,14 +268,11 @@ export function HeroIconHeader({
                       onSelect={handleIconSelect}
                       onPreview={handlePreview}
                       onPreviewSkinTone={handlePreviewTone}
-                      onPreviewColor={handlePreviewColor}
-                      onIconColorChange={onColorChange}
                       onRemove={handleRemoveIcon}
                       onClose={handlePickerClose}
                       
                       hasIcon={!!icon}
                       currentIcon={icon || undefined}
-                      defaultColor={initialColor}
                       
                       // Slider props (Hidden in compact mode as it's provided externally)
                       currentSize={!compact ? currentSliderValue : undefined}

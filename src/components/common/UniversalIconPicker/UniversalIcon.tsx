@@ -147,15 +147,23 @@ export function UniversalIcon({
 
   useEffect(() => {
     let active = true;
-    if (icon && icon.startsWith('img:')) {
-      if (imageLoader) {
-        imageLoader(icon).then(url => { if (active) setImgSrc(url); }).catch(() => { if (active) setImgSrc(null); });
+    const load = async () => {
+      if (icon && icon.startsWith('img:')) {
+        if (imageLoader) {
+          try {
+            const url = await imageLoader(icon);
+            if (active) setImgSrc(url);
+          } catch {
+            if (active) setImgSrc(null);
+          }
+        } else {
+          if (active) setImgSrc(icon.substring(4));
+        }
       } else {
-        if (active) setImgSrc(icon.substring(4));
+        setImgSrc(null);
       }
-    } else {
-      setImgSrc(null);
-    }
+    };
+    load();
     return () => { active = false; };
   }, [icon, imageLoader]);
 

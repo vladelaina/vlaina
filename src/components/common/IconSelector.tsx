@@ -36,7 +36,6 @@ export function IconSelector({
   color,
   compact = false,
   trigger,
-  hideColorPicker,
   customIcons,
   onUploadFile,
   onDeleteCustomIcon,
@@ -88,8 +87,6 @@ export function IconSelector({
                     onClose={() => setIsOpen(false)}
                     onRemove={() => handleSelect(undefined)}
                     hasIcon={!!value}
-                    defaultColor={color}
-                    hideColorPicker={hideColorPicker}
                     currentIcon={value}
                     customIcons={customIcons}
                     onUploadFile={onUploadFile}

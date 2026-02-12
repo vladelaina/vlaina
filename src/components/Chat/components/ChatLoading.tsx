@@ -1,5 +1,3 @@
-import { cn } from '@/lib/utils';
-
 export function ChatLoading() {
     return (
         <div className="flex w-fit items-center space-x-1.5 py-3 mt-2 self-start rounded-full min-w-0 select-none">
