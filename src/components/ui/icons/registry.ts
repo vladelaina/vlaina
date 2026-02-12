@@ -87,7 +87,7 @@ import { CropIcon } from './custom/CropIcon';
 import { SendIcon } from './custom/SendIcon';
 import { SquareStopIcon } from './custom/SquareStopIcon';
 
-export type IconSource = ComponentType<SVGProps<SVGSVGElement>>;
+export type IconSource = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
 export const icons: Record<string, IconSource> = {
   // --- Window Controls ---
