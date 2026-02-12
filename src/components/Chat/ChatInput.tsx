@@ -125,8 +125,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
   const canSend = (!!message.trim() || attachments.length > 0) && !!selectedModel;
 
   return (
-    <div className="p-4 pb-6">
-        <div className="max-w-3xl mx-auto relative">
+    <>
           <input 
               type="file" 
               multiple 
@@ -144,7 +143,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
           <div 
             className={cn(
               "relative z-10 flex flex-col justify-between min-h-[84px] pt-3", // More compact: 84px height, reduced top padding
-              "bg-white/80 dark:bg-[#18181b]/80 backdrop-blur-xl",
+              "bg-white dark:bg-[#18181b]",
               "border border-black/5 dark:border-white/10",
               "rounded-[26px]", // Slightly tighter radius for shorter height
               "shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]", 
@@ -279,9 +278,8 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                   )}
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-  );
-});
+                        </div>
+                      </div>
+                </>
+              );
+            });

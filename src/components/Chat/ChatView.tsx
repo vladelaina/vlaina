@@ -154,7 +154,7 @@ export function ChatView() {
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
           className={cn(
               "w-full z-10 flex flex-col",
-              isEmpty ? "flex-1 justify-center items-center" : "flex-none"
+              isEmpty ? "flex-1 justify-center items-center" : "flex-none pb-6"
           )}
       >
           <AnimatePresence>
@@ -175,7 +175,7 @@ export function ChatView() {
 
           <motion.div 
             layout
-            className="w-full max-w-3xl mx-auto px-4"
+            className="w-full max-w-[850px] mx-auto px-4"
           >
               <ChatInput 
                 onSend={handleSend} 
