@@ -187,6 +187,7 @@ export const icons: Record<string, IconSource> = {
   'file.lock': LockClosedIcon,
   'file.public': GlobeAltIcon,
   'file.attach': PaperClipIcon,
+  'file.brokenImage': ExclamationCircleIcon,
 
   // --- Editor/Content ---
   'editor.code': CodeBracketIcon,

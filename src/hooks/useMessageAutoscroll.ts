@@ -33,6 +33,7 @@ export const useMessageAutoscroll = ({
   const [isActiveInteraction, setIsActiveInteraction] = useState(false);
   const [hasSubmittedMessage, setHasSubmittedMessage] = useState(false);
   const prevChatIdRef = useRef<string | null>(chatId);
+  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
 
   const getLastUserMessageIndex = useCallback(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -191,8 +192,21 @@ export const useMessageAutoscroll = ({
       setIsActiveInteraction(false);
       setHasSubmittedMessage(false);
       prevChatIdRef.current = chatId;
+      // Mark as needing scroll on session change
+      setShouldScrollToBottom(true);
     }
   }, [chatId]);
+
+  // Handle scroll to bottom after session switch once messages are loaded
+  useLayoutEffect(() => {
+      if (shouldScrollToBottom && messages.length > 0 && containerRef.current) {
+          const container = containerRef.current;
+          // Force scroll to bottom
+          container.scrollTop = container.scrollHeight;
+          // Reset flag
+          setShouldScrollToBottom(false);
+      }
+  }, [messages, shouldScrollToBottom]);
 
   useEffect(() => {
     updateSpacerHeight();

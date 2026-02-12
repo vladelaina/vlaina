@@ -1,4 +1,4 @@
-import { createHighlighter } from 'shiki/bundle/web';
+import { createHighlighter } from 'shiki';
 
 export let highlighter: any = null;
 
