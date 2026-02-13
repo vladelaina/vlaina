@@ -1,6 +1,7 @@
 import React, { useMemo, useCallback } from "react";
 import { Icon } from "@/components/ui/icons";
 import * as Popover from "@radix-ui/react-popover";
+import { formatDistanceToNow } from "date-fns";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
 import { useProStatusStore } from "@/stores/useProStatusStore";
 import { useUIStore } from "@/stores/uiSlice";
@@ -20,7 +21,10 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
         connect,
         disconnect,
         isConnecting,
-        cancelConnect
+        cancelConnect,
+        isSyncing,
+        syncBidirectional,
+        lastSyncTime
     } = useGithubSyncStore();
     
     const { isProUser, isChecking: isProChecking } = useProStatusStore();
@@ -199,23 +203,35 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                             </div>
                         ) : (
                             <div className="relative px-3 pt-3 pb-2.5 flex items-start gap-3 group select-none">
-                                <div className="relative">
-                                    <img
-                                        src={displayAvatar}
-                                        alt={displayName}
-                                        className="w-10 h-10 rounded-lg shadow-sm border border-[var(--neko-border)] object-cover"
-                                    />
-                                    {isProUser && !isProChecking && (
-                                        <div className="absolute -bottom-1 -right-1 bg-yellow-400 text-[8px] px-1 rounded-full font-bold text-black border border-white ring-1 ring-black/5 dark:ring-white/10">
-                                            PRO
+                                <div className="flex-shrink-0 relative group/avatar">
+                                    <div className={cn(
+                                        "w-12 h-12 rounded-lg shadow-sm flex items-center justify-center transition-all duration-300 hover:scale-105 cursor-pointer overflow-hidden relative",
+                                        "bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm",
+                                        "border border-neutral-200/50 dark:border-zinc-700/50"
+                                    )}>
+                                        <img
+                                            src={displayAvatar}
+                                            alt={displayName}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    {!isProChecking && (
+                                        <div className={cn(
+                                            "absolute -bottom-1 -right-1 text-[8px] px-1 py-0.5 rounded-full font-bold border-2 border-[var(--neko-bg-primary)] shadow-sm z-10 select-none",
+                                            isProUser 
+                                                ? "bg-yellow-400 text-black" 
+                                                : "bg-neutral-200 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
+                                        )}>
+                                            {isProUser ? "PRO" : "FREE"}
                                         </div>
                                     )}
                                 </div>
-                                <div className="flex flex-col flex-1 gap-1 min-w-0">
+                                <div className="flex flex-col flex-1 gap-1 min-w-0 pt-0.5">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[13px] font-semibold text-[var(--neko-text-primary)] leading-none truncate pr-2">
+                                        <span className="text-[14px] font-bold text-[var(--neko-text-primary)] leading-none truncate pr-2">
                                             {displayName}
                                         </span>
+                                        
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -226,27 +242,42 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                                 isUserMenuOpen && "text-[var(--neko-text-primary)] bg-[var(--neko-active)]"
                                             )}
                                         >
- <Icon size="md" name="common.more" className="text-[var(--neko-text-secondary)]" />
+                                            <Icon size="md" name="common.more" className="text-[var(--neko-text-secondary)]" />
                                         </button>
                                     </div>
 
                                     <div className="flex items-center gap-1.5 leading-none h-[18px]">
                                         <div className="flex items-center gap-1.5 h-full min-w-[60px]">
-                                            {!isProChecking ? (
-                                                <>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleUpgradePlan();
-                                                        }}
-                                                        className="text-[11px] font-medium text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors whitespace-nowrap"
-                                                    >
-                                                        {isProUser ? "Pro Plan" : "Free Plan"}
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <div className="w-10 h-2 bg-[var(--neko-border)] rounded-full animate-pulse opacity-40" />
-                                            )}
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    syncBidirectional();
+                                                }}
+                                                disabled={isSyncing}
+                                                className="group/sync flex items-center gap-1.5 text-[11px] font-medium text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors cursor-pointer"
+                                            >
+                                                <span className={cn(
+                                                    "flex items-center justify-center w-3 h-3",
+                                                    isSyncing && "animate-spin text-[var(--neko-accent)]",
+                                                    !isSyncing && isProUser && "text-[var(--neko-accent)]"
+                                                )}>
+                                                    {isSyncing ? (
+                                                        <Icon name="common.loading" className="w-3 h-3" />
+                                                    ) : isProUser ? (
+                                                        <Icon name="common.cloud" className="w-3 h-3" />
+                                                    ) : (
+                                                        <Icon name="common.refresh" className="w-3 h-3 transition-transform group-hover/sync:rotate-180" />
+                                                    )}
+                                                </span>
+                                                <span className="truncate max-w-[140px]">
+                                                    {isSyncing 
+                                                        ? "Syncing..." 
+                                                        : lastSyncTime 
+                                                            ? formatDistanceToNow(lastSyncTime * 1000, { addSuffix: true })
+                                                            : "Sync now"
+                                                    }
+                                                </span>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
