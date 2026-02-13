@@ -50,7 +50,10 @@ export function ChatView() {
       (lastMessage?.role === 'assistant' && (!lastMessage.content || !lastMessage.content.trim()))
   );
   
-  const isEmpty = !currentSessionId;
+  const sessionExists = currentSessionId ? sessions.some(s => s.id === currentSessionId) : false;
+  const isMessagesLoaded = currentSessionId && sessionExists ? allMessages[currentSessionId] !== undefined : true;
+
+  const isEmpty = !currentSessionId || (isMessagesLoaded && messages.length === 0);
 
   const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
       messages,
@@ -122,6 +125,7 @@ export function ChatView() {
           messages={messages}
           isSessionActive={isSessionActive}
           showLoading={showLoading}
+          isLayoutCentered={isEmpty}
           spacerHeight={spacerHeight}
           containerRef={containerRef}
           speakingMsgId={speakingMsgId}
