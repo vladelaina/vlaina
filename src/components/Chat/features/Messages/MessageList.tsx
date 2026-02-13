@@ -8,6 +8,7 @@ interface MessageListProps {
   messages: ChatMessage[];
   isSessionActive: boolean;
   showLoading: boolean;
+  isLayoutCentered?: boolean;
   spacerHeight: number;
   containerRef: React.RefObject<HTMLDivElement | null>;
   speakingMsgId: string | null;
@@ -24,6 +25,7 @@ export function MessageList({
   messages,
   isSessionActive,
   showLoading,
+  isLayoutCentered,
   spacerHeight,
   containerRef,
   speakingMsgId,
@@ -41,7 +43,8 @@ export function MessageList({
       <div 
         className={cn(
             "flex-1 overflow-y-auto transition-opacity duration-500",
-            isEmpty ? "opacity-0 pointer-events-none" : "opacity-100"
+            isEmpty ? "opacity-0 pointer-events-none" : "opacity-100",
+            isLayoutCentered && "hidden"
         )}
         ref={containerRef}
       >
