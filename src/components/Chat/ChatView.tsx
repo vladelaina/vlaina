@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAIStore } from '@/stores/useAIStore';
+import { useUnifiedStore } from '@/stores/useUnifiedStore'; // Added
 import { useChatService } from '@/hooks/useChatService';
 import { useMessageAutoscroll } from '@/hooks/useMessageAutoscroll';
 import { ChatInput } from './ChatInput';
@@ -19,8 +20,10 @@ export function ChatView() {
   const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
 
   const { 
+    sessions,
     messages: allMessages, 
     currentSessionId, 
+    switchSession,
     switchMessageVersion, 
     selectedModel,
     models,
@@ -28,22 +31,30 @@ export function ChatView() {
     isSessionLoading
   } = useAIStore();
 
+  const loaded = useUnifiedStore(s => s.loaded); // Use source of truth for loading state
+
   const messages = currentSessionId ? (allMessages[currentSessionId] || []) : [];
+  
+  // Ensure messages are loaded when session ID exists (e.g. after refresh)
+  useEffect(() => {
+      if (currentSessionId && allMessages[currentSessionId] === undefined) {
+          switchSession(currentSessionId);
+      }
+  }, [currentSessionId, allMessages, switchSession]);
+
   const { sendMessage, regenerate, editMessage, stop } = useChatService();
   
   const isSessionActive = currentSessionId ? isSessionLoading(currentSessionId) : false;
   const lastMessage = messages[messages.length - 1];
-  // Only show loading dots if we are waiting for the assistant's first response chunk
-  // (i.e., session is loading but the last message is still from the user OR empty assistant message)
   const showLoading = isSessionActive && (
       lastMessage?.role === 'user' || 
       (lastMessage?.role === 'assistant' && (!lastMessage.content || !lastMessage.content.trim()))
   );
   
-  // Only consider empty if explicitly loaded as empty array. 
-  // If undefined (loading), treat as non-empty to prevent layout jumps.
-  const isMessagesLoaded = currentSessionId ? allMessages[currentSessionId] !== undefined : true;
-  const isEmpty = isMessagesLoaded && messages.length === 0;
+  // If we have a valid session ID, treat it as non-empty (bottom layout) immediately.
+  // Only show centered layout when strictly in "New Chat" mode (no session ID).
+  const sessionExists = currentSessionId ? sessions.some(s => s.id === currentSessionId) : false;
+  const isEmpty = !sessionExists;
 
   // Use the new autoscroll hook
   const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
@@ -60,16 +71,15 @@ export function ChatView() {
 
   const prevSessionIdRef = useRef(currentSessionId);
   useEffect(() => {
-      if (currentSessionId === null && prevSessionIdRef.current !== null) {
-          setFocusInputTrigger(n => n + 1);
-      }
+      // Auto-focus input whenever session changes or on initial mount
+      setFocusInputTrigger(n => n + 1);
       prevSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
 
   useChatShortcuts({
       onFocusInput: () => setFocusInputTrigger(n => n + 1),
       onToggleShortcuts: () => setIsShortcutsOpen(prev => !prev),
-      scrollRef: containerRef // Pass the new ref to shortcuts
+      scrollRef: containerRef 
   });
 
   useEffect(() => {
@@ -104,11 +114,13 @@ export function ChatView() {
       });
   }, []);
 
-  // Wrap sendMessage to trigger autoscroll behavior
   const handleSend = useCallback((text: string, attachments: Attachment[]) => {
       handleNewUserMessage();
       sendMessage(text, attachments);
   }, [handleNewUserMessage, sendMessage]);
+
+  // Wait for store to be ready before rendering ANY layout to prevent initial jump
+  if (!loaded) return null;
 
   return (
     <div className="h-full w-full flex flex-col bg-[var(--neko-bg-primary)] relative overflow-hidden">
@@ -142,28 +154,27 @@ export function ChatView() {
                 {showLoading && <ChatLoading key="loading" />}
               </AnimatePresence>
               
-              {/* Dynamic Spacer */}
               <div style={{ height: spacerHeight }} aria-hidden="true" />
             </div>
           )}
         </div>
       </div>
 
-      <motion.div 
-          layout
-          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      {/* Input section - Using static div instead of motion.div for the main container to avoid slide animations */}
+      <div 
           className={cn(
               "w-full z-10 flex flex-col",
               isEmpty ? "flex-1 justify-center items-center" : "flex-none pb-6"
           )}
       >
-          <AnimatePresence>
+          <AnimatePresence mode="wait">
             {isEmpty && (
                 <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.3 }}
+                    key="welcome"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
                     className="mb-5 text-center"
                 >
                     <h1 className="text-3xl font-bold text-black dark:text-white select-none tracking-tight">
@@ -173,9 +184,8 @@ export function ChatView() {
             )}
           </AnimatePresence>
 
-          <motion.div 
-            layout
-            className="w-full max-w-[850px] mx-auto px-4"
+          <div 
+            className="w-full max-w-[850px] mx-auto px-4 pointer-events-auto"
           >
               <ChatInput 
                 onSend={handleSend} 
@@ -184,8 +194,8 @@ export function ChatView() {
                 selectedModel={selectedModel} 
                 focusTrigger={focusInputTrigger}
               />
-          </motion.div>
-      </motion.div>
+          </div>
+      </div>
       
       <ChatShortcutsDialog 
         isOpen={isShortcutsOpen} 

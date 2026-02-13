@@ -10,11 +10,11 @@ export function useAutoTitle() {
           const provider = providers.find(p => p.id === providerId);
           if (!provider) return;
 
-          const prompt = `Generate a short, concise title (max 10 words) for this chat session based on the following user message.
+          const prompt = `Generate an extremely short title (max 5 words or 10 Chinese characters) for this chat session based on the following user message.
 Rules:
-1. STRICTLY use the SAME LANGUAGE as the user's message (e.g. if user types in Chinese, title MUST be in Chinese).
+1. STRICTLY use the SAME LANGUAGE as the user's message.
 2. Do not use quotes, punctuation, or "Title:".
-3. Just the title text.
+3. Keep it extremely concise.
 
 User Message: ${userText}`;
           
