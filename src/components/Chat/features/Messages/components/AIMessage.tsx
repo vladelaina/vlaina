@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import StreamingMarkdownContent from '../components/StreamingMarkdownContent';
+import MarkdownRenderer from '@/components/Chat/features/Markdown/MarkdownRenderer';
 import { CitationList } from './CitationList';
 import { MessageToolbar } from './MessageToolbar';
-import { ErrorBlock } from '../components/ErrorBlock';
+import { ErrorBlock } from './ErrorBlock';
 import type { ChatMessage } from '@/lib/ai/types';
 
 interface AIMessageProps {
@@ -40,7 +40,7 @@ export function AIMessage({
   return (
     <div className="w-full pl-0">
         <div className="[&>*:last-child]:mb-0">
-            <StreamingMarkdownContent 
+            <MarkdownRenderer 
                 content={contentWithoutError || ' '} 
                 isStreaming={isLoading}
                 startTime={msg.timestamp ? new Date(msg.timestamp) : undefined}
@@ -57,7 +57,6 @@ export function AIMessage({
             </div>
         )}
         
-        {/* Toolbar - Always visible to allow version switching */}
         <MessageToolbar 
             msg={msg}
             isSpeaking={isSpeaking}

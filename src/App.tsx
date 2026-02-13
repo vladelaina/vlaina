@@ -17,7 +17,7 @@ import { LabView } from '@/components/Lab/LabView';
 import { CalendarSidebarWrapper } from '@/components/Calendar/features/Sidebar/CalendarSidebarWrapper';
 import { TodoSidebar } from '@/components/Todo/TodoSidebar';
 import { NotesSidebarWrapper } from '@/components/Notes/features/Sidebar/NotesSidebarWrapper';
-import { ChatSidebar } from '@/components/Chat/ChatSidebar';
+import { ChatSidebar } from '@/components/Chat/features/Sidebar/ChatSidebar';
 
 import { CalendarHeaderControl } from '@/components/Calendar/features/Grid/CalendarHeaderControl';
 import { NotesTabRow } from '@/components/Notes/features/Tabs/NotesTabRow';

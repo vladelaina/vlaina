@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Icon } from '@/components/ui/icons';
-import { LocalImage } from '../components/LocalImage';
+import { LocalImage } from '@/components/Chat/common/LocalImage';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/ai/types';
 
@@ -114,14 +114,11 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
             )}
         </div>
 
-        {/* Action Bar (Visible on Hover) */}
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 mr-1 mt-1">
-            {/* Version Switcher */}
             {hasMultipleVersions && onSwitchVersion && (
                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/5 rounded-md p-0.5 select-none">
                     <button 
                         onClick={() => {
-                            console.log('[UserMessage] Prev clicked', { id: message.id, target: currentIdx - 1 });
                             currentIdx > 0 && onSwitchVersion(message.id, currentIdx - 1);
                         }}
                         disabled={currentIdx === 0}
@@ -134,7 +131,6 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
                     </span>
                     <button 
                         onClick={() => {
-                            console.log('[UserMessage] Next clicked', { id: message.id, target: currentIdx + 1 });
                             currentIdx < versions.length - 1 && onSwitchVersion(message.id, currentIdx + 1);
                         }}
                         disabled={currentIdx === versions.length - 1}
