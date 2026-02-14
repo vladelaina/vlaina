@@ -1,14 +1,13 @@
 import React, { useMemo, useCallback } from "react";
 import { Icon } from "@/components/ui/icons";
 import * as Popover from "@radix-ui/react-popover";
-import { formatDistanceToNow } from "date-fns";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
-import { useProStatusStore } from "@/stores/useProStatusStore";
-import { useUIStore } from "@/stores/uiSlice";
 import { useUserAvatar } from "@/hooks/useUserAvatar";
-import { cn, iconButtonStyles } from "@/lib/utils";
-import { isTauri } from "@/lib/storage/adapter";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import { LoginPrompt } from "./LoginPrompt";
+import { UserIdentityCard } from "./UserIdentityCard";
+import { AppNavigation } from "./AppNavigation";
+import { AppMenu } from "./AppMenu";
 
 interface WorkspaceSwitcherProps {
     onOpenSettings?: () => void;
@@ -20,48 +19,10 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
         username: githubUsername,
         connect,
         disconnect,
-        isConnecting,
-        cancelConnect,
-        isSyncing,
-        syncBidirectional,
-        lastSyncTime,
-        syncStatus,
-        syncError,
-        clearError
     } = useGithubSyncStore();
     
-    const { isProUser, isChecking: isProChecking } = useProStatusStore();
-    const { appViewMode, setAppViewMode } = useUIStore();
     const [isOpen, setIsOpen] = React.useState(false);
-    const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
     const [tooltipsEnabled, setTooltipsEnabled] = React.useState(false);
-    const [isLanguageMenuOpen, setIsLanguageMenuOpen] = React.useState(false);
-    const [isOnline, setIsOnline] = React.useState(navigator.onLine);
-    const [showSuccess, setShowSuccess] = React.useState(false);
-
-    // Refresh status when popover opens
-    React.useEffect(() => {
-        if (isOpen && isGithubConnected) {
-            const { checkStatus, checkRemoteData } = useGithubSyncStore.getState();
-            checkStatus();
-            checkRemoteData();
-        }
-    }, [isOpen, isGithubConnected]);
-
-    // Monitor online status
-    React.useEffect(() => {
-        const handleOnline = () => setIsOnline(true);
-        const handleOffline = () => setIsOnline(false);
-        window.addEventListener('online', handleOnline);
-        window.addEventListener('offline', handleOffline);
-        return () => {
-            window.removeEventListener('online', handleOnline);
-            window.removeEventListener('offline', handleOffline);
-        };
-    }, []);
-
-    // Cache static platform check
-    const isDesktop = useMemo(() => isTauri(), []);
 
     // Enable tooltips after a short delay when popover opens
     React.useEffect(() => {
@@ -73,11 +34,9 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
             return () => clearTimeout(timer);
         } else {
             setTooltipsEnabled(false);
-            setShowSuccess(false);
         }
     }, [isOpen]);
 
-    // Memoize handlers to prevent unnecessary re-renders
     const handleLogout = useCallback(async () => {
         await disconnect();
         setIsOpen(false);
@@ -86,16 +45,6 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
     const handleLogin = useCallback(async () => {
         await connect();
     }, [connect]);
-
-    const handleSync = useCallback(async () => {
-        if (!isOnline) return;
-        clearError();
-        const success = await syncBidirectional();
-        if (success) {
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 3000);
-        }
-    }, [isOnline, clearError, syncBidirectional]);
 
     const handleSwitchAccount = useCallback(async () => {
         setIsOpen(false);
@@ -107,55 +56,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
         setIsOpen(false);
     }, [onOpenSettings]);
 
-    const handleUpgradePlan = useCallback(async () => {
-        const url = "https://nekotick.com/pricing";
-        if (isDesktop) {
-            try {
-                const { openUrl } = await import('@tauri-apps/plugin-opener');
-                await openUrl(url);
-            } catch (e) {
-                console.error("Failed to open URL:", e);
-                window.open(url, "_blank");
-            }
-        } else {
-            window.open(url, "_blank");
-        }
-    }, [isDesktop]);
-
-    const handleOpenWebsite = useCallback(async () => {
-        const url = "https://nekotick.com";
-        if (isDesktop) {
-            try {
-                const { openUrl } = await import('@tauri-apps/plugin-opener');
-                await openUrl(url);
-            } catch (e) {
-                console.error("Failed to open URL:", e);
-                window.open(url, "_blank");
-            }
-        } else {
-            window.open(url, "_blank");
-        }
-    }, [isDesktop]);
-
-    // Helper to prioritize menu closing over heavy view rendering
-    const handleViewSwitch = useCallback((mode: typeof appViewMode) => {
-        if (appViewMode === mode) return;
-        setIsOpen(false);
-        // Defer state update just enough to let the menu unmount first
-        setTimeout(() => {
-            setAppViewMode(mode);
-        }, 10);
-    }, [appViewMode, setAppViewMode]);
-
-    // Reset user menu when popover closes
-    React.useEffect(() => {
-        if (!isOpen) {
-            setIsUserMenuOpen(false);
-            setIsLanguageMenuOpen(false);
-        }
-    }, [isOpen]);
-
-    // Fallback data
+    // Fallback data for trigger button
     const displayName = githubUsername || "NekoTick";
     const userAvatar = useUserAvatar();
     const displayAvatar = userAvatar || "/logo.png";
@@ -189,7 +90,6 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                         "w-[260px] z-50 rounded-xl p-1.5 select-none",
                         "bg-[var(--neko-bg-primary)] dark:bg-zinc-900",
                         "border border-[var(--neko-border)] shadow-xl",
-                        // Enter animation only - instant exit for snappy feel
                         "animate-in fade-in-0 zoom-in-95 duration-200",
                         "data-[side=bottom]:slide-in-from-top-2"
                     )}
@@ -198,458 +98,27 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                 >
                     <div className="flex flex-col">
                         {!isGithubConnected ? (
-                            <div className="p-2 pb-0">
-                                <div
-                                    className={cn(
-                                        "flex items-center gap-3 p-2 w-full rounded-lg transition-colors group text-left relative overflow-hidden",
-                                        isConnecting ? "bg-[var(--neko-hover)]" : "hover:bg-[var(--neko-hover)] cursor-pointer"
-                                    )}
-                                    onClick={() => !isConnecting && handleLogin()}
-                                >
-                                    <div className="relative shrink-0 w-10 h-10">
-                                        <img
-                                            src={displayAvatar}
-                                            alt="NekoTick"
-                                            className="w-full h-full rounded-lg border border-[var(--neko-border)] shadow-sm object-cover"
-                                        />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <span className="font-semibold text-[14px] leading-tight block text-[var(--neko-text-primary)]">
-                                            {isConnecting ? "Finishing in Browser..." : "Sign in to NekoTick"}
-                                        </span>
-                                        <span className="text-[12px] text-[var(--neko-text-tertiary)] mt-0.5 block leading-tight truncate">
-                                            {isConnecting ? "Waiting for authorization" : "Connect GitHub to sync"}
-                                        </span>
-                                    </div>
-
-                                    {isConnecting ? (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                cancelConnect();
-                                            }}
-                                            className="px-2.5 py-1 rounded-md bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-border)] text-[11px] font-medium text-[var(--neko-text-secondary)] transition-colors active:scale-95"
-                                        >
-                                            Cancel
-                                        </button>
-                                    ) : (
- <Icon size="md" name="nav.chevronRight" className="text-[var(--neko-text-tertiary)] group-hover:text-[var(--neko-text-primary)] transition-colors opacity-50 group-hover:opacity-100" />
-                                    )}
-                                </div>
-                                <div className="h-[1px] bg-[var(--neko-border)] mx-2 mt-2 opacity-40" />
-                            </div>
+                            <LoginPrompt onLogin={handleLogin} />
                         ) : (
-                            <div className="relative px-3 pt-3 pb-2.5 flex items-start gap-3 group select-none">
-                                <div className="flex-shrink-0 relative group/avatar">
-                                    <div className={cn(
-                                        "w-12 h-12 rounded-lg shadow-sm flex items-center justify-center transition-all duration-300 hover:scale-105 cursor-pointer overflow-hidden relative",
-                                        "bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm",
-                                        "border border-neutral-200/50 dark:border-zinc-700/50"
-                                    )}>
-                                        <img
-                                            src={displayAvatar}
-                                            alt={displayName}
-                                            className="w-full h-full object-cover"
-                                        />
-                                    </div>
-                                    {!isProChecking && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleUpgradePlan();
-                                            }}
-                                            className={cn(
-                                                "absolute -bottom-1 -right-1 text-[8px] px-1.5 py-0.5 rounded-full font-bold border-2 border-[var(--neko-bg-primary)] shadow-sm z-10 select-none transition-all",
-                                                "hover:scale-110 active:scale-95 cursor-pointer",
-                                                isProUser 
-                                                    ? "bg-yellow-400 text-black hover:bg-yellow-300" 
-                                                    : "bg-neutral-200 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-300 dark:hover:bg-neutral-600"
-                                            )}
-                                        >
-                                            {isProUser ? "PRO" : "FREE"}
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="flex flex-col flex-1 gap-1 min-w-0 pt-0.5">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-[14px] font-bold text-[var(--neko-text-primary)] leading-none truncate pr-2">
-                                            {displayName}
-                                        </span>
-                                        
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setIsUserMenuOpen(!isUserMenuOpen);
-                                            }}
-                                            className={cn(
-                                                "flex items-center justify-center w-5 h-5 rounded-md -mr-1 hover:bg-[var(--neko-active)] transition-colors",
-                                                isUserMenuOpen && "text-[var(--neko-text-primary)] bg-[var(--neko-active)]"
-                                            )}
-                                        >
-                                            <Icon size="md" name="common.more" className="text-[var(--neko-text-secondary)]" />
-                                        </button>
-                                    </div>
-
-                                    <div className="flex items-center gap-1.5 leading-none h-[18px]">
-                                        <div className="flex items-center gap-1.5 h-full min-w-[60px]">
-                                            <Tooltip delayDuration={300}>
-                                                <TooltipTrigger asChild>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleSync();
-                                                        }}
-                                                        disabled={isSyncing || !isOnline}
-                                                        className={cn(
-                                                            "group/sync flex items-center gap-1.5 text-[11px] font-medium transition-colors",
-                                                            !isOnline ? "text-[var(--neko-text-tertiary)] opacity-50 cursor-not-allowed" : "text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] cursor-pointer"
-                                                        )}
-                                                    >
-                                                        <span className={cn(
-                                                            "flex items-center justify-center w-3 h-3 transition-all duration-300",
-                                                            isSyncing && "animate-spin text-[var(--neko-accent)]",
-                                                            showSuccess && "text-green-500 scale-110",
-                                                            !isSyncing && !showSuccess && !syncError && isOnline && isProUser && "text-[var(--neko-accent)]",
-                                                            syncError && "text-red-500",
-                                                            !isOnline && "text-[var(--neko-text-tertiary)]"
-                                                        )}>
-                                                            {showSuccess ? (
-                                                                <Icon name="common.check" className="w-3 h-3" />
-                                                            ) : !isOnline ? (
-                                                                <Icon name="common.blocked" className="w-3 h-3" />
-                                                            ) : isSyncing ? (
-                                                                <Icon name="common.refresh" className="w-3 h-3" />
-                                                            ) : syncError ? (
-                                                                <Icon name="common.error" className="w-3 h-3" />
-                                                            ) : isProUser ? (
-                                                                <Icon name="common.cloud" className="w-3 h-3" />
-                                                            ) : (
-                                                                <Icon name="common.refresh" className="w-3 h-3 transition-transform group-hover/sync:rotate-180" />
-                                                            )}
-                                                        </span>
-                                                        <span className={cn(
-                                                            "truncate max-w-[140px]",
-                                                            syncError && "text-red-500",
-                                                            showSuccess && "text-green-500"
-                                                        )}>
-                                                            {showSuccess
-                                                                ? "Done"
-                                                                : !isOnline 
-                                                                    ? "Offline"
-                                                                    : isSyncing 
-                                                                        ? "Syncing..." 
-                                                                        : syncError
-                                                                            ? "Sync failed"
-                                                                            : lastSyncTime 
-                                                                                ? formatDistanceToNow(lastSyncTime * 1000, { addSuffix: true })
-                                                                                : "Sync now"
-                                                            }
-                                                        </span>
-                                                    </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom" className="max-w-[200px] break-words">
-                                                    {!isOnline 
-                                                        ? "Please check your internet connection" 
-                                                        : syncError 
-                                                            ? syncError 
-                                                            : showSuccess 
-                                                                ? "Data is up to date" 
-                                                                : "Synchronize your notes and settings"}
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {isUserMenuOpen && (
-                                    <>
-                                        <div className="fixed inset-0 z-[60]" onClick={() => setIsUserMenuOpen(false)} />
-                                        <div className="absolute left-[calc(100%-10px)] top-8 z-[70] w-40 p-1 rounded-lg bg-[var(--neko-bg-primary)] border border-[var(--neko-border)] shadow-xl animate-in fade-in-0 zoom-in-95 slide-in-from-top-1">
-                                            <button
-                                                onClick={handleSwitchAccount}
-                                                className={cn(
-                                                    "flex items-center gap-2 px-2 py-1.5 rounded-md w-full text-left text-[12px] font-medium transition-colors",
-                                                    iconButtonStyles
-                                                )}
-                                            >
- <Icon size="md" name="user.switch" />
-                                                Switch Account
-                                            </button>
-                                            <button
-                                                onClick={handleLogout}
-                                                className={cn(
-                                                    "flex items-center gap-2 px-2 py-1.5 rounded-md w-full text-left text-[12px] font-medium transition-colors",
-                                                    iconButtonStyles
-                                                )}
-                                            >
- <Icon size="md" name="user.logout" />
-                                                Log out
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                            <UserIdentityCard 
+                                onLogout={handleLogout} 
+                                onSwitchAccount={handleSwitchAccount} 
+                            />
                         )}
 
                         {isGithubConnected && <div className="h-[1px] bg-[var(--neko-border)] mx-3 my-1 opacity-50" />}
 
-                        <div className="px-1.5 pb-1.5 pt-0.5 space-y-0.5">
-                            <div className="flex flex-col gap-0.5 py-1">
-                                {/* View switcher as icon buttons in a row */}
-                                <div className="flex items-center justify-center gap-2 px-3 py-2">
-                                    {tooltipsEnabled ? (
-                                        <>
-                                            <Tooltip delayDuration={500}>
-                                                <TooltipTrigger asChild>
-                                                    <button
-                                                        onClick={() => handleViewSwitch('notes')}
-                                                        className={cn(
-                                                            "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
-                                                            appViewMode === 'notes'
-                                                                ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
-                                                                : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
-                                                        )}
-                                                    >
-                                                        <Icon name="file.text" className="w-6 h-6" />
-                                                    </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={4}>
-                                                    <span className="text-xs font-medium">Notes</span>
-                                                </TooltipContent>
-                                            </Tooltip>
+                        <AppNavigation 
+                            onCloseMenu={() => setIsOpen(false)} 
+                            tooltipsEnabled={tooltipsEnabled} 
+                        />
 
-                                            <Tooltip delayDuration={500}>
-                                                <TooltipTrigger asChild>
-                                                    <button
-                                                        onClick={() => handleViewSwitch('calendar')}
-                                                        className={cn(
-                                                            "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
-                                                            appViewMode === 'calendar'
-                                                                ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
-                                                                : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
-                                                        )}
-                                                    >
-                                                        <Icon name="sidebar.calendar" className="w-6 h-6" />
-                                                    </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={4}>
-                                                    <span className="text-xs font-medium">Calendar</span>
-                                                </TooltipContent>
-                                            </Tooltip>
+                        <div className="h-[1px] bg-[var(--neko-border)] mx-3 my-1 opacity-50" />
 
-                                            <Tooltip delayDuration={500}>
-                                                <TooltipTrigger asChild>
-                                                    <button
-                                                        onClick={() => handleViewSwitch('todo')}
-                                                        className={cn(
-                                                            "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
-                                                            appViewMode === 'todo'
-                                                                ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
-                                                                : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
-                                                        )}
-                                                    >
-                                                        <Icon name="sidebar.todo" className="w-6 h-6" />
-                                                    </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={4}>
-                                                    <span className="text-xs font-medium">Todos</span>
-                                                </TooltipContent>
-                                            </Tooltip>
-
-                                            <Tooltip delayDuration={500}>
-                                                <TooltipTrigger asChild>
-                                                    <button
-                                                        onClick={() => handleViewSwitch('chat')}
-                                                        className={cn(
-                                                            "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
-                                                            appViewMode === 'chat'
-                                                                ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
-                                                                : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
-                                                        )}
-                                                    >
-                                                        <Icon name="common.sparkle" className="w-6 h-6" />
-                                                    </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={4}>
-                                                    <span className="text-xs font-medium">AI Chat</span>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <button
-                                                onClick={() => handleViewSwitch('notes')}
-                                                className={cn(
-                                                    "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
-                                                    appViewMode === 'notes'
-                                                        ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
-                                                        : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
-                                                )}
-                                            >
-                                                <Icon name="file.text" className="w-6 h-6" />
-                                            </button>
-
-                                            <button
-                                                onClick={() => handleViewSwitch('calendar')}
-                                                className={cn(
-                                                    "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
-                                                    appViewMode === 'calendar'
-                                                        ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
-                                                        : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
-                                                )}
-                                            >
-                                                <Icon name="sidebar.calendar" className="w-6 h-6" />
-                                            </button>
-
-                                            <button
-                                                onClick={() => handleViewSwitch('todo')}
-                                                className={cn(
-                                                    "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
-                                                    appViewMode === 'todo'
-                                                        ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
-                                                        : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
-                                                )}
-                                            >
-                                                <Icon name="sidebar.todo" className="w-6 h-6" />
-                                            </button>
-
-                                            <button
-                                                onClick={() => handleViewSwitch('chat')}
-                                                className={cn(
-                                                    "flex items-center justify-center w-12 h-12 rounded-lg transition-all",
-                                                    appViewMode === 'chat'
-                                                        ? "bg-[var(--neko-accent-light)] text-[var(--neko-accent)] shadow-sm"
-                                                        : "bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)]"
-                                                )}
-                                            >
-                                                <Icon name="common.sparkle" className="w-6 h-6" />
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="h-[1px] bg-[var(--neko-border)] mx-3 my-1 opacity-50" />
-
-                            <button
-                                onClick={handleOpenSettings}
-                                className={cn(
-                                    "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
-                                    "hover:bg-[var(--neko-hover)]"
-                                )}
-                            >
- <Icon size="md" name="common.settings" className="text-[var(--neko-text-tertiary)] group-hover/item:text-[var(--neko-text-primary)] transition-colors" />
-                                <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Settings</span>
-                            </button>
-
-                            {import.meta.env.DEV && (
-                                <button
-                                    onClick={() => {
-                                        setIsOpen(false);
-                                        window.dispatchEvent(new Event('open-lab'));
-                                    }}
-                                    className={cn(
-                                        "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
-                                        "hover:bg-[var(--neko-hover)]"
-                                    )}
-                                >
- <Icon size="md" name="misc.lab" className="text-[var(--neko-text-tertiary)] group-hover/item:text-purple-500 transition-colors" />
-                                    <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-purple-500">Design Lab</span>
-                                </button>
-                            )}
-
-                            <div className="h-[1px] bg-[var(--neko-border)] mx-3 my-1 opacity-50" />
-
-                            {/* Powered by NekoTick with Language Selector */}
-                            <div className="relative px-3 py-2 flex items-center justify-between group/powered">
-                                <button
-                                    onClick={handleOpenWebsite}
-                                    className="text-[11px] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-secondary)] font-medium transition-colors"
-                                >
-                                    Powered by <span className="text-[var(--neko-text-secondary)]">NekoTick</span>
-                                </button>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setIsLanguageMenuOpen(!isLanguageMenuOpen);
-                                    }}
-                                    className={cn(
-                                        "flex items-center justify-center w-6 h-6 rounded-md hover:bg-[var(--neko-hover)] transition-colors",
-                                        isLanguageMenuOpen && "bg-[var(--neko-hover)]"
-                                    )}
-                                >
- <Icon size="md" name="common.language" className="text-[var(--neko-text-tertiary)]" />
-                                </button>
-
-                                {isLanguageMenuOpen && (
-                                    <>
-                                        <div className="fixed inset-0 z-[60]" onClick={() => setIsLanguageMenuOpen(false)} />
-                                        <div className="absolute right-2 bottom-full mb-1 z-[70] w-48 p-1 rounded-lg bg-[var(--neko-bg-primary)] border border-[var(--neko-border)] shadow-xl animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-1">
-                                            <button
-                                                onClick={() => {
-                                                    // TODO: Implement language change
-                                                    setIsLanguageMenuOpen(false);
-                                                }}
-                                                className={cn(
-                                                    "flex items-center justify-between px-3 py-2 rounded-md w-full text-left transition-colors",
-                                                    "hover:bg-[var(--neko-hover)]"
-                                                )}
-                                            >
-                                                <div className="flex flex-col">
-                                                    <span className="text-[13px] font-medium text-[var(--neko-text-primary)]">English</span>
-                                                    <span className="text-[11px] text-[var(--neko-text-tertiary)]">英语</span>
-                                                </div>
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    // TODO: Implement language change
-                                                    setIsLanguageMenuOpen(false);
-                                                }}
-                                                className={cn(
-                                                    "flex items-center justify-between px-3 py-2 rounded-md w-full text-left transition-colors",
-                                                    "hover:bg-[var(--neko-hover)]"
-                                                )}
-                                            >
-                                                <div className="flex flex-col">
-                                                    <span className="text-[13px] font-medium text-[var(--neko-text-primary)]">简体中文</span>
-                                                    <span className="text-[11px] text-[var(--neko-text-tertiary)]">简体中文</span>
-                                                </div>
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    // TODO: Implement language change
-                                                    setIsLanguageMenuOpen(false);
-                                                }}
-                                                className={cn(
-                                                    "flex items-center justify-between px-3 py-2 rounded-md w-full text-left transition-colors",
-                                                    "hover:bg-[var(--neko-hover)]"
-                                                )}
-                                            >
-                                                <div className="flex flex-col">
-                                                    <span className="text-[13px] font-medium text-[var(--neko-text-primary)]">繁體中文</span>
-                                                    <span className="text-[11px] text-[var(--neko-text-tertiary)]">繁体中文</span>
-                                                </div>
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    // TODO: Implement language change
-                                                    setIsLanguageMenuOpen(false);
-                                                }}
-                                                className={cn(
-                                                    "flex items-center justify-between px-3 py-2 rounded-md w-full text-left transition-colors",
-                                                    "hover:bg-[var(--neko-hover)]"
-                                                )}
-                                            >
-                                                <div className="flex flex-col">
-                                                    <span className="text-[13px] font-medium text-[var(--neko-text-primary)]">日本語</span>
-                                                    <span className="text-[11px] text-[var(--neko-text-tertiary)]">日语</span>
-                                                </div>
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        </div>
+                        <AppMenu 
+                            onOpenSettings={handleOpenSettings}
+                            onCloseMenu={() => setIsOpen(false)}
+                        />
                     </div>
                 </Popover.Content>
             </Popover.Portal>
