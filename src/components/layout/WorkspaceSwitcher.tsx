@@ -24,7 +24,10 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
         cancelConnect,
         isSyncing,
         syncBidirectional,
-        lastSyncTime
+        lastSyncTime,
+        syncStatus,
+        syncError,
+        clearError
     } = useGithubSyncStore();
     
     const { isProUser, isChecking: isProChecking } = useProStatusStore();
@@ -33,6 +36,29 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
     const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
     const [tooltipsEnabled, setTooltipsEnabled] = React.useState(false);
     const [isLanguageMenuOpen, setIsLanguageMenuOpen] = React.useState(false);
+    const [isOnline, setIsOnline] = React.useState(navigator.onLine);
+    const [showSuccess, setShowSuccess] = React.useState(false);
+
+    // Refresh status when popover opens
+    React.useEffect(() => {
+        if (isOpen && isGithubConnected) {
+            const { checkStatus, checkRemoteData } = useGithubSyncStore.getState();
+            checkStatus();
+            checkRemoteData();
+        }
+    }, [isOpen, isGithubConnected]);
+
+    // Monitor online status
+    React.useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
 
     // Cache static platform check
     const isDesktop = useMemo(() => isTauri(), []);
@@ -47,6 +73,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
             return () => clearTimeout(timer);
         } else {
             setTooltipsEnabled(false);
+            setShowSuccess(false);
         }
     }, [isOpen]);
 
@@ -59,6 +86,16 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
     const handleLogin = useCallback(async () => {
         await connect();
     }, [connect]);
+
+    const handleSync = useCallback(async () => {
+        if (!isOnline) return;
+        clearError();
+        const success = await syncBidirectional();
+        if (success) {
+            setShowSuccess(true);
+            setTimeout(() => setShowSuccess(false), 3000);
+        }
+    }, [isOnline, clearError, syncBidirectional]);
 
     const handleSwitchAccount = useCallback(async () => {
         setIsOpen(false);
@@ -216,14 +253,21 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                                         />
                                     </div>
                                     {!isProChecking && (
-                                        <div className={cn(
-                                            "absolute -bottom-1 -right-1 text-[8px] px-1 py-0.5 rounded-full font-bold border-2 border-[var(--neko-bg-primary)] shadow-sm z-10 select-none",
-                                            isProUser 
-                                                ? "bg-yellow-400 text-black" 
-                                                : "bg-neutral-200 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400"
-                                        )}>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleUpgradePlan();
+                                            }}
+                                            className={cn(
+                                                "absolute -bottom-1 -right-1 text-[8px] px-1.5 py-0.5 rounded-full font-bold border-2 border-[var(--neko-bg-primary)] shadow-sm z-10 select-none transition-all",
+                                                "hover:scale-110 active:scale-95 cursor-pointer",
+                                                isProUser 
+                                                    ? "bg-yellow-400 text-black hover:bg-yellow-300" 
+                                                    : "bg-neutral-200 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-300 dark:hover:bg-neutral-600"
+                                            )}
+                                        >
                                             {isProUser ? "PRO" : "FREE"}
-                                        </div>
+                                        </button>
                                     )}
                                 </div>
                                 <div className="flex flex-col flex-1 gap-1 min-w-0 pt-0.5">
@@ -248,36 +292,71 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
 
                                     <div className="flex items-center gap-1.5 leading-none h-[18px]">
                                         <div className="flex items-center gap-1.5 h-full min-w-[60px]">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    syncBidirectional();
-                                                }}
-                                                disabled={isSyncing}
-                                                className="group/sync flex items-center gap-1.5 text-[11px] font-medium text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors cursor-pointer"
-                                            >
-                                                <span className={cn(
-                                                    "flex items-center justify-center w-3 h-3",
-                                                    isSyncing && "animate-spin text-[var(--neko-accent)]",
-                                                    !isSyncing && isProUser && "text-[var(--neko-accent)]"
-                                                )}>
-                                                    {isSyncing ? (
-                                                        <Icon name="common.loading" className="w-3 h-3" />
-                                                    ) : isProUser ? (
-                                                        <Icon name="common.cloud" className="w-3 h-3" />
-                                                    ) : (
-                                                        <Icon name="common.refresh" className="w-3 h-3 transition-transform group-hover/sync:rotate-180" />
-                                                    )}
-                                                </span>
-                                                <span className="truncate max-w-[140px]">
-                                                    {isSyncing 
-                                                        ? "Syncing..." 
-                                                        : lastSyncTime 
-                                                            ? formatDistanceToNow(lastSyncTime * 1000, { addSuffix: true })
-                                                            : "Sync now"
-                                                    }
-                                                </span>
-                                            </button>
+                                            <Tooltip delayDuration={300}>
+                                                <TooltipTrigger asChild>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleSync();
+                                                        }}
+                                                        disabled={isSyncing || !isOnline}
+                                                        className={cn(
+                                                            "group/sync flex items-center gap-1.5 text-[11px] font-medium transition-colors",
+                                                            !isOnline ? "text-[var(--neko-text-tertiary)] opacity-50 cursor-not-allowed" : "text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] cursor-pointer"
+                                                        )}
+                                                    >
+                                                        <span className={cn(
+                                                            "flex items-center justify-center w-3 h-3 transition-all duration-300",
+                                                            isSyncing && "animate-spin text-[var(--neko-accent)]",
+                                                            showSuccess && "text-green-500 scale-110",
+                                                            !isSyncing && !showSuccess && !syncError && isOnline && isProUser && "text-[var(--neko-accent)]",
+                                                            syncError && "text-red-500",
+                                                            !isOnline && "text-[var(--neko-text-tertiary)]"
+                                                        )}>
+                                                            {showSuccess ? (
+                                                                <Icon name="common.check" className="w-3 h-3" />
+                                                            ) : !isOnline ? (
+                                                                <Icon name="common.blocked" className="w-3 h-3" />
+                                                            ) : isSyncing ? (
+                                                                <Icon name="common.refresh" className="w-3 h-3" />
+                                                            ) : syncError ? (
+                                                                <Icon name="common.error" className="w-3 h-3" />
+                                                            ) : isProUser ? (
+                                                                <Icon name="common.cloud" className="w-3 h-3" />
+                                                            ) : (
+                                                                <Icon name="common.refresh" className="w-3 h-3 transition-transform group-hover/sync:rotate-180" />
+                                                            )}
+                                                        </span>
+                                                        <span className={cn(
+                                                            "truncate max-w-[140px]",
+                                                            syncError && "text-red-500",
+                                                            showSuccess && "text-green-500"
+                                                        )}>
+                                                            {showSuccess
+                                                                ? "Done"
+                                                                : !isOnline 
+                                                                    ? "Offline"
+                                                                    : isSyncing 
+                                                                        ? "Syncing..." 
+                                                                        : syncError
+                                                                            ? "Sync failed"
+                                                                            : lastSyncTime 
+                                                                                ? formatDistanceToNow(lastSyncTime * 1000, { addSuffix: true })
+                                                                                : "Sync now"
+                                                            }
+                                                        </span>
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom" className="max-w-[200px] break-words">
+                                                    {!isOnline 
+                                                        ? "Please check your internet connection" 
+                                                        : syncError 
+                                                            ? syncError 
+                                                            : showSuccess 
+                                                                ? "Data is up to date" 
+                                                                : "Synchronize your notes and settings"}
+                                                </TooltipContent>
+                                            </Tooltip>
                                         </div>
                                     </div>
                                 </div>
