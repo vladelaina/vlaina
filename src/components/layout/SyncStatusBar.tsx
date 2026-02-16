@@ -1,18 +1,16 @@
-import React, { useMemo, useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { Icon } from "@/components/ui/icons";
 import { formatDistanceToNow } from "date-fns";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
 import { useProStatusStore } from "@/stores/useProStatusStore";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { isTauri } from "@/lib/storage/adapter";
 
 export const SyncStatusBar: React.FC = () => {
     const {
         isSyncing,
         syncBidirectional,
         lastSyncTime,
-        syncStatus,
         syncError,
         clearError,
         isConnected,

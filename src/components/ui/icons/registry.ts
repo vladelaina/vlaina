@@ -13,7 +13,6 @@ import {
   EllipsisHorizontalIcon,
   EllipsisVerticalIcon,
   ArrowPathIcon,
-  ClipboardIcon,
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
   ShareIcon,

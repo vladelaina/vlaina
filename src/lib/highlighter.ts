@@ -1,4 +1,4 @@
-import { createHighlighter, bundledThemes, bundledLanguages } from 'shiki/bundle/full';
+import { createHighlighter, bundledLanguages } from 'shiki/bundle/full';
 
 export let highlighter: any = null;
 
@@ -7,6 +7,7 @@ export async function initHighlighter() {
   
   try {
     highlighter = await createHighlighter({
+      themes: ['one-dark', 'one-light'],
       langs: [
         bundledLanguages['javascript'],
         bundledLanguages['typescript'],
@@ -25,15 +26,11 @@ export async function initHighlighter() {
         bundledLanguages['sql'],
       ],
     });
-
-    // Load themes explicitly
-    await highlighter.loadTheme('one-dark');
-    await highlighter.loadTheme('one-light');
   } catch (e) {
     console.warn("Failed to initialize Shiki highlighter:", e);
     // Return a fallback highlighter to prevent app crashes and stalling
     highlighter = {
-      codeToHtml: (code: string, options: any) => {
+      codeToHtml: (code: string, _options: any) => {
         // Basic HTML escaping for safety
         const escaped = code
           .replace(/&/g, "&amp;")

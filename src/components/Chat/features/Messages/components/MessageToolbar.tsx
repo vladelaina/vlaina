@@ -19,7 +19,7 @@ export function MessageToolbar({
   msg,
   isSpeaking,
   isLoading,
-  onCopy: parentOnCopy, 
+  onCopy: _onCopy,
   onSpeak,
   onRegenerate,
   onSwitchVersion,

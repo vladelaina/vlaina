@@ -13,7 +13,7 @@ interface ThinkingBlockProps {
 export function ThinkingBlock({
   content: thinking,
   isStreaming: activelyThinking,
-  startTime = new Date(),
+  startTime: _startTime = new Date(),
   endTime,
 }: ThinkingBlockProps) {
   const [isCollapsed, setIsCollapsed] = useState(true);

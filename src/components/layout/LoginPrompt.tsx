@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { Icon } from "@/components/ui/icons";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
 import { useUserAvatar } from "@/hooks/useUserAvatar";
