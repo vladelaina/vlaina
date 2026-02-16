@@ -1,28 +1,43 @@
 import { useState, useEffect } from 'react';
+import { Icon } from '@/components/ui/icons';
 
 interface AddModelModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (id: string, name: string) => void;
+  existingModelIds?: string[];
+  onAdd: (id: string, name: string) => boolean;
 }
 
-export function AddModelModal({ isOpen, onClose, onAdd }: AddModelModalProps) {
+export function AddModelModal({ isOpen, onClose, existingModelIds = [], onAdd }: AddModelModalProps) {
   const [modelId, setModelId] = useState('');
   const [modelName, setModelName] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   // Reset state when opening
   useEffect(() => {
     if (isOpen) {
       setModelId('');
       setModelName('');
+      setError(null);
     }
   }, [isOpen]);
 
   const handleSubmit = () => {
-    if (!modelId.trim()) return;
-    onAdd(modelId, modelName);
-    // Don't close here, let parent decide or reset? 
-    // Parent logic was: call handleAddModel, then close.
+    const trimmedId = modelId.trim();
+    const trimmedName = modelName.trim();
+    if (!trimmedId) return;
+
+    if (existingModelIds.some(id => id.toLowerCase() === trimmedId.toLowerCase())) {
+      setError('This model already exists in the current channel.');
+      return;
+    }
+
+    const ok = onAdd(trimmedId, trimmedName);
+    if (!ok) {
+      setError('Unable to add model. Please check the model ID.');
+    } else {
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
@@ -36,7 +51,7 @@ export function AddModelModal({ isOpen, onClose, onAdd }: AddModelModalProps) {
                     onClick={onClose}
                     className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                    ✕
+                    <Icon name="common.close" size="sm" />
                 </button>
             </div>
             
@@ -50,10 +65,15 @@ export function AddModelModal({ isOpen, onClose, onAdd }: AddModelModalProps) {
                         value={modelId}
                         onChange={(e) => {
                             setModelId(e.target.value);
+                            setError(null);
                             // Auto-fill name if empty or matches
                             if (!modelName || modelName === modelId) {
                                 setModelName(e.target.value);
                             }
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSubmit();
+                            if (e.key === 'Escape') onClose();
                         }}
                         placeholder="e.g. gpt-4-turbo"
                         className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -68,10 +88,20 @@ export function AddModelModal({ isOpen, onClose, onAdd }: AddModelModalProps) {
                         type="text"
                         value={modelName}
                         onChange={(e) => setModelName(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSubmit();
+                            if (e.key === 'Escape') onClose();
+                        }}
                         placeholder="e.g. GPT-4 Turbo"
                         className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                 </div>
+
+                {error && (
+                    <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-lg px-3 py-2">
+                        {error}
+                    </div>
+                )}
             </div>
 
             <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 flex justify-end gap-3 border-t border-gray-100 dark:border-gray-800">

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { ProviderDetail } from './ai/ProviderDetail';
+import { ProviderSidebar } from './ai/components/ProviderSidebar';
 
 export function AITab() {
   const { providers, addProvider } = useAIStore();
@@ -58,15 +59,18 @@ export function AITab() {
 
   return (
     <div className="flex h-full bg-white dark:bg-[#1E1E1E]">
-      {/* Main Content - Full Width */}
+      <ProviderSidebar
+        allProviders={providers}
+        selectedId={selectedProviderId || ''}
+        onSelect={handleSelectProvider}
+        onAddCustom={handleAddCustomProvider}
+      />
+
       <div className="flex-1 min-w-0 bg-white dark:bg-[#1E1E1E]">
-        <div className="h-full px-8 py-8 overflow-y-auto">
-            <ProviderDetail 
-                provider={currentProvider}
-                allProviders={providers}
-                onSelectProvider={handleSelectProvider}
-                onAddProvider={handleAddCustomProvider}
-            />
+        <div className="h-full px-6 py-6 overflow-y-auto">
+          <ProviderDetail
+            provider={currentProvider}
+          />
         </div>
       </div>
     </div>

@@ -16,20 +16,22 @@ interface ModelListItemProps {
 }
 
 export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: ModelListItemProps) {
+  const showAddAction = !isAdded && !!onAdd;
+
   return (
     <div className={cn(
-        "flex items-center gap-3 p-2 rounded-lg border transition-all duration-200 group relative",
-        isAdded && onAdd
-            ? "bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800 opacity-60"
-            : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700"
+        "flex items-center gap-2.5 px-3 py-2 rounded-md border transition-colors duration-150",
+        showAddAction
+            ? "bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+            : "bg-neutral-50 dark:bg-neutral-900/60 border-neutral-200 dark:border-neutral-800"
     )}>
-        {/* Model Icon - Fallback to generic icon */}
-        <div className="w-6 h-6 rounded-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center overflow-hidden flex-shrink-0 border border-gray-100 dark:border-gray-800">
-            <Icon name="common.sparkle" className="w-3.5 h-3.5 text-gray-400" />
-        </div>
-        
         <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+            <div className={cn(
+                "text-sm truncate",
+                showAddAction
+                    ? "font-medium text-gray-800 dark:text-gray-100"
+                    : "font-medium text-gray-600 dark:text-gray-400"
+            )}>
                 {modelId}
             </div>
         </div>
@@ -57,25 +59,26 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
             onRemove ? (
                 <button 
                     onClick={onRemove} 
-                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md opacity-0 group-hover:opacity-100 transition-opacity" 
+                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors" 
                     title="Remove"
                 >
                     <Icon name="common.delete" className="w-4 h-4" />
                 </button>
             ) : (
-                <div className="text-green-600 dark:text-green-500 px-2">
+                <div className="text-green-600 dark:text-green-500 px-1.5 flex items-center gap-1.5">
                     <Icon name="common.check" className="w-4 h-4" />
+                    <span className="text-[11px] font-medium">Added</span>
                 </div>
             )
-        ) : (
+        ) : showAddAction ? (
             <button 
                 onClick={onAdd} 
-                className="p-1 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                className="p-1 rounded-md text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                 title="Add"
             >
                 <Icon name="common.add" className="w-4 h-4" />
             </button>
-        )}
+        ) : null}
     </div>
   );
 }
