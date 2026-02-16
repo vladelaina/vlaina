@@ -12,13 +12,11 @@ interface MessageListProps {
   spacerHeight: number;
   containerRef: React.RefObject<HTMLDivElement | null>;
   speakingMsgId: string | null;
-  expandedSources: Set<string>;
   onCopy: (text: string) => void;
   onSpeak: (msgId: string, text: string) => void;
   onRegenerate: (id: string) => void;
   onEdit?: (id: string, newContent: string) => void;
   onSwitchVersion: (msgId: string, idx: number) => void;
-  onToggleSources: (msgId: string) => void;
 }
 
 export function MessageList({
@@ -29,13 +27,11 @@ export function MessageList({
   spacerHeight,
   containerRef,
   speakingMsgId,
-  expandedSources,
   onCopy,
   onSpeak,
   onRegenerate,
   onEdit,
-  onSwitchVersion,
-  onToggleSources
+  onSwitchVersion
 }: MessageListProps) {
   const isEmpty = messages.length === 0;
 
@@ -57,13 +53,11 @@ export function MessageList({
                         msg={msg}
                         isLoading={isSessionActive && idx === messages.length - 1} 
                         isSpeaking={speakingMsgId === msg.id}
-                        isSourcesOpen={expandedSources.has(msg.id)}
                         onCopy={onCopy}
                         onSpeak={onSpeak}
                         onRegenerate={onRegenerate}
                         onEdit={onEdit}
                         onSwitchVersion={onSwitchVersion}
-                        onToggleSources={onToggleSources}
                     />
                 </div>
               ))}

@@ -15,7 +15,6 @@ import { ChatShortcutsDialog } from '@/components/Chat/common/ChatShortcutsDialo
 
 export function ChatView() {
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
-  const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
 
@@ -85,15 +84,6 @@ export function ChatView() {
       };
   }, []);
 
-  const toggleSources = useCallback((msgId: string) => {
-      setExpandedSources(prev => {
-          const next = new Set(prev);
-          if (next.has(msgId)) next.delete(msgId);
-          else next.add(msgId);
-          return next;
-      });
-  }, []);
-
   const copyToClipboard = useCallback((text: string) => navigator.clipboard.writeText(text), []);
   
   const handleSpeak = useCallback((msgId: string, text: string) => {
@@ -129,13 +119,11 @@ export function ChatView() {
           spacerHeight={spacerHeight}
           containerRef={containerRef}
           speakingMsgId={speakingMsgId}
-          expandedSources={expandedSources}
           onCopy={copyToClipboard}
           onSpeak={handleSpeak}
           onRegenerate={regenerate}
           onEdit={editMessage}
           onSwitchVersion={(msgId, idx) => currentSessionId && switchMessageVersion(currentSessionId, msgId, idx)}
-          onToggleSources={toggleSources}
       />
 
       <div 

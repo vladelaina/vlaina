@@ -4,7 +4,6 @@ import { useUnifiedStore } from './useUnifiedStore'
 import type { Provider, AIModel, ChatMessage, ChatSession, MessageVersion } from '@/lib/ai/types'
 import { generateModelName, generateModelGroup } from '@/lib/ai/utils'
 import { saveSessionJson, loadSessionJson } from '@/lib/storage/chatStorage'
-import type { SearchResult } from '@/lib/ai/search'
 
 interface AIUIState {
   generatingSessions: Record<string, boolean>;
@@ -261,28 +260,6 @@ export const actions = {
     saveSessionJson(sessionId, newMessages);
   },
 
-  setCitations: (sessionId: string, id: string, results: SearchResult[]) => {
-      const state = useUnifiedStore.getState();
-      const ai = state.data.ai!;
-      const sessionMessages = ai.messages[sessionId] || [];
-      
-      if (sessionMessages.length === 0) return;
-
-      const newMessages = sessionMessages.map(m => {
-          if (m.id !== id) return m;
-          return { ...m, citations: results };
-      });
-
-      state.updateAIData({
-          messages: {
-              ...ai.messages,
-              [sessionId]: newMessages
-          }
-      });
-      
-      saveSessionJson(sessionId, newMessages);
-  },
-
   completeMessage: (_sessionId: string, _id: string) => {
       useUnifiedStore.getState().updateAIData({}); 
   },
@@ -431,15 +408,14 @@ export const useAIStore = () => {
     currentSessionId: aiData?.currentSessionId || null,
     messages: aiData?.messages || {},
     selectedModelId: aiData?.selectedModelId || null,
-    webSearchEnabled: aiData?.webSearchEnabled || false,
+    nativeWebSearchEnabled: aiData?.nativeWebSearchEnabled || false,
     
     ...uiState,
     ...actions,
-    
-    toggleWebSearch: () => {
-        const current = useUnifiedStore.getState().data.ai?.webSearchEnabled || false;
-        const next = !current;
-        useUnifiedStore.getState().updateAIData({ webSearchEnabled: next });
+
+    toggleNativeWebSearch: () => {
+        const current = useUnifiedStore.getState().data.ai?.nativeWebSearchEnabled || false;
+        useUnifiedStore.getState().updateAIData({ nativeWebSearchEnabled: !current });
     },
 
     getProvider: (id: string) => aiData?.providers.find(p => p.id === id),

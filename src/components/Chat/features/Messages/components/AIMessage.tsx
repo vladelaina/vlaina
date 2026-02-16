@@ -1,6 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
 import MarkdownRenderer from '@/components/Chat/features/Markdown/MarkdownRenderer';
-import { CitationList } from './CitationList';
 import { MessageToolbar } from './MessageToolbar';
 import { ErrorBlock } from './ErrorBlock';
 import type { ChatMessage } from '@/lib/ai/types';
@@ -9,24 +7,20 @@ interface AIMessageProps {
   msg: ChatMessage;
   isSpeaking: boolean;
   isLoading: boolean;
-  isSourcesOpen: boolean;
   onCopy: () => void;
   onSpeak: () => void;
   onRegenerate: () => void;
   onSwitchVersion: (targetIndex: number) => void;
-  onToggleSources: () => void;
 }
 
 export function AIMessage({
   msg,
   isSpeaking,
   isLoading,
-  isSourcesOpen,
   onCopy,
   onSpeak,
   onRegenerate,
-  onSwitchVersion,
-  onToggleSources
+  onSwitchVersion
 }: AIMessageProps) {
   
   const errorRegex = /<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/;
@@ -65,27 +59,7 @@ export function AIMessage({
             onSpeak={onSpeak}
             onRegenerate={onRegenerate}
             onSwitchVersion={onSwitchVersion}
-            onToggleSources={onToggleSources}
-            isSourcesOpen={isSourcesOpen}
         />
-
-        {!errorContent && (
-            <>
-                <AnimatePresence>
-                    {isSourcesOpen && msg.citations && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="overflow-hidden"
-                        >
-                            <CitationList citations={msg.citations} />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </>
-        )}
     </div>
   );
 }

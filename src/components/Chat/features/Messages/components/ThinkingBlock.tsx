@@ -100,6 +100,13 @@ export function ThinkingBlock({
 
   const getDurationText = () => {
     if (activelyThinking) return "Thinking...";
+    if (startTime && internalEndTime) {
+      const durationMs = internalEndTime.getTime() - startTime.getTime();
+      if (durationMs >= 1000) {
+        const seconds = durationMs / 1000;
+        return seconds < 10 ? `Thought for ${seconds.toFixed(1)}s` : `Thought for ${Math.round(seconds)}s`;
+      }
+    }
     return "Thought briefly";
   };
 

@@ -29,8 +29,6 @@ export interface ChatSession {
   updatedAt: number
 }
 
-import type { SearchResult } from './search';
-
 export interface MessageVersion {
     content: string;
     createdAt: number;
@@ -49,8 +47,6 @@ export interface ChatMessage {
   // Branching Support
   versions?: MessageVersion[]
   currentVersionIndex?: number
-  
-  citations?: SearchResult[] 
 }
 
 export type ChatMessageContentPart = 
@@ -69,6 +65,16 @@ export interface ChatCompletionRequest {
   temperature?: number
   max_tokens?: number
   max_completion_tokens?: number
+  tools?: Array<Record<string, any>>
+  tool_choice?: 'auto' | 'none' | Record<string, any>
+  web_search_options?: Record<string, any>
+  search_parameters?: Record<string, any>
+}
+
+export interface ChatSendOptions {
+  max_tokens?: number
+  max_completion_tokens?: number
+  nativeWebSearch?: boolean
 }
 
 export interface ChatCompletionResponse {

@@ -1,10 +1,9 @@
 import { useCallback } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
-import { performWebSearch, formatSearchResults } from '@/lib/ai/search';
 import { convertToBase64, type Attachment } from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
-import { SEARCH_SYSTEM_PROMPT, TIME_SYSTEM_PROMPT, IMAGE_PLACEHOLDER } from '@/lib/ai/prompts';
+import { TIME_SYSTEM_PROMPT, IMAGE_PLACEHOLDER } from '@/lib/ai/prompts';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
@@ -21,10 +20,9 @@ export function useChatService() {
     completeMessage,
     editMessageAndBranch,
     addVersion,
-    setCitations,
     getSelectedModel, 
     providers, 
-    webSearchEnabled,
+    nativeWebSearchEnabled,
     setSessionLoading,
     markSessionUnread,
     setError 
@@ -105,42 +103,15 @@ export function useChatService() {
 
     try {
       let finalHistory = [...messages];
-      
-      if (webSearchEnabled && userMessageText) {
-          updateMessage(targetSessionId, assistantMessageId, '🔍 正在联网搜索...');
-          const results = await performWebSearch(userMessageText, controller.signal);
-          
-          let searchContext = '';
-          if (results.length > 0) {
-              setCitations(targetSessionId, assistantMessageId, results);
-              searchContext = formatSearchResults(results);
-          } else {
-              searchContext = "No search results found.";
-          }
-          
-          const timeInfo = `${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })} ${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
-          const systemContent = SEARCH_SYSTEM_PROMPT(searchContext, timeInfo);
-
-          const contextMsg = {
-              role: 'system',
-              content: systemContent,
-              modelId: selectedModel.id,
-              id: `search-${Date.now()}`,
-              timestamp: Date.now()
-          };
-          finalHistory = [...finalHistory, contextMsg as any];
-          updateMessage(targetSessionId, assistantMessageId, '🧠 正在思考...');
-      } else {
-          const timeInfo = `${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`;
-          const timeContext = {
-              role: 'system',
-              content: TIME_SYSTEM_PROMPT(timeInfo),
-              modelId: selectedModel.id,
-              id: `time-${Date.now()}`,
-              timestamp: Date.now()
-          };
-          finalHistory = [...finalHistory, timeContext as any];
-      }
+      const timeInfo = `${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`;
+      const timeContext = {
+          role: 'system',
+          content: TIME_SYSTEM_PROMPT(timeInfo),
+          modelId: selectedModel.id,
+          id: `time-${Date.now()}`,
+          timestamp: Date.now()
+      };
+      finalHistory = [...finalHistory, timeContext as any];
 
       const sanitizedHistory = finalHistory.map(msg => {
           if (typeof msg.content === 'string') {
@@ -182,7 +153,8 @@ export function useChatService() {
         selectedModel,
         provider,
         (chunk) => updateMessage(targetSessionId, assistantMessageId, chunk),
-        controller.signal
+        controller.signal,
+        { nativeWebSearch: nativeWebSearchEnabled }
       );
       completeMessage(targetSessionId, assistantMessageId);
 
@@ -208,7 +180,7 @@ export function useChatService() {
       requestManager.finish(targetSessionId);
       setSessionLoading(targetSessionId, false);
     }
-  }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, setSessionLoading, setError, messages, webSearchEnabled, setCitations, generateAutoTitle, markSessionUnread]);
+  }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, nativeWebSearchEnabled, setSessionLoading, setError, messages, generateAutoTitle, markSessionUnread]);
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
       if (!currentSessionId || !selectedModel) return;
@@ -240,34 +212,14 @@ export function useChatService() {
           const history = sessionMessages.slice(0, userMsgIndex);
           
           let finalHistory = [...history];
-          
-          if (webSearchEnabled) {
-              updateMessage(sessionId, assistantMessageId, '🔍 正在联网搜索...');
-              const results = await performWebSearch(newContent, controller.signal);
-              
-              if (results.length > 0) {
-                  setCitations(sessionId, assistantMessageId, results);
-                  const searchContext = formatSearchResults(results);
-                  const timeInfo = `${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })} ${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
-                  finalHistory.push({
-                      role: 'system',
-                      content: SEARCH_SYSTEM_PROMPT(searchContext, timeInfo),
-                      modelId: selectedModel.id,
-                      id: `search-${Date.now()}`,
-                      timestamp: Date.now()
-                  } as any);
-                  updateMessage(sessionId, assistantMessageId, '🧠 正在思考...');
-              }
-          } else {
-               const timeInfo = `${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`;
-               finalHistory.push({
-                  role: 'system',
-                  content: TIME_SYSTEM_PROMPT(timeInfo),
-                  modelId: selectedModel.id,
-                  id: `time-${Date.now()}`,
-                  timestamp: Date.now()
-               } as any);
-          }
+          const timeInfo = `${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`;
+          finalHistory.push({
+              role: 'system',
+              content: TIME_SYSTEM_PROMPT(timeInfo),
+              modelId: selectedModel.id,
+              id: `time-${Date.now()}`,
+              timestamp: Date.now()
+          } as any);
 
           const sanitizedHistory = finalHistory.map(msg => {
               if (typeof msg.content === 'string') {
@@ -285,7 +237,8 @@ export function useChatService() {
               selectedModel,
               provider,
               (chunk) => updateMessage(sessionId, assistantMessageId, chunk),
-              controller.signal
+              controller.signal,
+              { nativeWebSearch: nativeWebSearchEnabled }
           );
           completeMessage(sessionId, assistantMessageId);
 
@@ -299,7 +252,7 @@ export function useChatService() {
           requestManager.finish(sessionId);
           setSessionLoading(sessionId, false);
       }
-  }, [currentSessionId, selectedModel, providers, editMessageAndBranch, addMessage, updateMessage, completeMessage, setError, setSessionLoading, webSearchEnabled, setCitations]);
+  }, [currentSessionId, selectedModel, providers, nativeWebSearchEnabled, editMessageAndBranch, addMessage, updateMessage, completeMessage, setError, setSessionLoading]);
 
   const regenerate = useCallback(async (msgId: string) => {
       if (!selectedModel || !currentSessionId) return;
@@ -327,7 +280,8 @@ export function useChatService() {
               selectedModel,
               provider,
               (chunk) => updateMessage(sessionId, msgId, chunk),
-              controller.signal
+              controller.signal,
+              { nativeWebSearch: nativeWebSearchEnabled }
           );
           completeMessage(sessionId, msgId);
       } catch (error: any) {
@@ -345,7 +299,7 @@ export function useChatService() {
           requestManager.finish(sessionId);
           setSessionLoading(sessionId, false);
       }
-  }, [selectedModel, messages, providers, addVersion, setSessionLoading, updateMessage, completeMessage, setError, currentSessionId]);
+  }, [selectedModel, messages, providers, nativeWebSearchEnabled, addVersion, setSessionLoading, updateMessage, completeMessage, setError, currentSessionId]);
 
   return { sendMessage, regenerate, editMessage, stop };
 }

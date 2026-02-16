@@ -1,65 +1,8 @@
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, LogicalPosition};
 use tauri::window::Color;
-use serde::Serialize;
-use scraper::{Html, Selector};
 
 // GitHub sync module
 pub mod github;
-
-#[derive(Serialize)]
-struct SearchResult {
-    title: String,
-    url: String,
-    snippet: String,
-}
-
-#[tauri::command]
-async fn search_web(query: String) -> Result<Vec<SearchResult>, String> {
-    let client = reqwest::Client::builder()
-        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let res = client.get("https://html.duckduckgo.com/html/")
-        .query(&[("q", query)])
-        .send()
-        .await
-        .map_err(|e| e.to_string())?
-        .text()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let document = Html::parse_document(&res);
-    // Selectors might panic if invalid, but these are static strings
-    let result_selector = Selector::parse(".result").map_err(|e| e.to_string())?;
-    let title_selector = Selector::parse(".result__a").map_err(|e| e.to_string())?;
-    let snippet_selector = Selector::parse(".result__snippet").map_err(|e| e.to_string())?;
-
-    let mut results = Vec::new();
-
-    for element in document.select(&result_selector) {
-        if results.len() >= 5 { break; }
-
-        let title_el = element.select(&title_selector).next();
-        let snippet_el = element.select(&snippet_selector).next();
-
-        if let (Some(t), Some(s)) = (title_el, snippet_el) {
-            let title = t.text().collect::<Vec<_>>().join("");
-            let url = t.value().attr("href").unwrap_or("").to_string();
-            let snippet = s.text().collect::<Vec<_>>().join("");
-
-            if !url.is_empty() {
-                results.push(SearchResult {
-                    title: title.trim().to_string(),
-                    url,
-                    snippet: snippet.trim().to_string(),
-                });
-            }
-        }
-    }
-
-    Ok(results)
-}
 
 // Create drag overlay window
 #[tauri::command]
@@ -308,7 +251,6 @@ pub fn run() {
             set_window_resizable,
             focus_window,
             move_to_trash,
-            search_web,
             github::commands::github_auth,
             github::commands::github_disconnect,
             github::commands::get_github_sync_status,

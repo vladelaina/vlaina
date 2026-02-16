@@ -62,7 +62,7 @@ export interface UnifiedData {
     messages: Record<string, ChatMessage[]>;
     selectedModelId: string | null;
     currentSessionId: string | null;
-    webSearchEnabled?: boolean;
+    nativeWebSearchEnabled?: boolean;
   };
 }
 
@@ -122,7 +122,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
         sessions: [],
         selectedModelId: null,
         currentSessionId: null,
-        webSearchEnabled: false,
+        nativeWebSearchEnabled: false,
         messages: {}
     };
 
@@ -134,7 +134,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             combinedData.ai.sessions = sessionsData.sessions || [];
             combinedData.ai.selectedModelId = sessionsData.selectedModelId || null;
             combinedData.ai.currentSessionId = sessionsData.currentSessionId || null;
-            combinedData.ai.webSearchEnabled = sessionsData.webSearchEnabled || false;
+            combinedData.ai.nativeWebSearchEnabled = sessionsData.nativeWebSearchEnabled || false;
             providerIds = sessionsData.providerIds || []; // Index of channels
         } catch (e) { console.error('Failed to load sessions.json', e); }
     }
@@ -201,7 +201,7 @@ async function performSplitSave(data: UnifiedData) {
             sessions: ai.sessions,
             selectedModelId: ai.selectedModelId,
             currentSessionId: ai.currentSessionId,
-            webSearchEnabled: ai.webSearchEnabled,
+            nativeWebSearchEnabled: ai.nativeWebSearchEnabled,
             providerIds: ai.providers.map(p => p.id)
         };
         await storage.writeFile(sessionsPath, JSON.stringify(sessionsData, null, 2));

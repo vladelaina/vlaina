@@ -8,26 +8,22 @@ interface MessageItemProps {
   msg: ChatMessage;
   isLoading: boolean;
   isSpeaking: boolean;
-  isSourcesOpen: boolean;
   onCopy: (text: string) => void;
   onSpeak: (id: string, text: string) => void;
   onRegenerate: (id: string) => void;
   onEdit?: (id: string, newContent: string) => void;
   onSwitchVersion: (id: string, targetIndex: number) => void;
-  onToggleSources: (id: string) => void;
 }
 
 export const MessageItem = memo(function MessageItem({
   msg,
   isLoading,
   isSpeaking,
-  isSourcesOpen,
   onCopy,
   onSpeak,
   onRegenerate,
-  onEdit, 
-  onSwitchVersion,
-  onToggleSources
+  onEdit,
+  onSwitchVersion
 }: MessageItemProps) {
   const isUser = msg.role === 'user';
 
@@ -57,12 +53,10 @@ export const MessageItem = memo(function MessageItem({
                   msg={msg}
                   isLoading={isLoading}
                   isSpeaking={isSpeaking}
-                  isSourcesOpen={isSourcesOpen}
                   onCopy={() => onCopy(msg.content)}
                   onSpeak={() => onSpeak(msg.id, msg.content)}
                   onRegenerate={() => onRegenerate(msg.id)}
                   onSwitchVersion={(idx) => onSwitchVersion(msg.id, idx)}
-                  onToggleSources={() => onToggleSources(msg.id)}
               />
           )}
       </div>

@@ -9,8 +9,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
 interface ChatInputProps {
@@ -27,7 +27,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
   const [isDragging, setIsDragging] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { webSearchEnabled, toggleWebSearch } = useAIStore();
+  const { nativeWebSearchEnabled, toggleNativeWebSearch } = useAIStore();
 
   useEffect(() => {
       if (focusTrigger && textareaRef.current) {
@@ -149,8 +149,8 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
               "shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]", 
               "transition-all duration-300 ease-out",
               "hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]",
-              "focus-within:ring-1 focus-within:ring-black/5 dark:focus-within:ring-white/10", 
-              webSearchEnabled && "ring-2 ring-blue-500/20 border-blue-200 dark:border-blue-800"
+              "focus-within:ring-1 focus-within:ring-black/5 dark:focus-within:ring-white/10",
+              nativeWebSearchEnabled && "ring-2 ring-blue-500/20 border-blue-200 dark:border-blue-800"
             )}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -217,10 +217,10 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" sideOffset={8} className="w-48 bg-white dark:bg-[#1E1E1E]">
-                            <DropdownMenuItem onClick={toggleWebSearch} className="gap-2 cursor-pointer">
-                                <Icon name="common.language" className={cn("w-4 h-4", webSearchEnabled ? "text-blue-500" : "text-gray-500")} />
+                            <DropdownMenuItem onClick={toggleNativeWebSearch} className="gap-2 cursor-pointer">
+                                <Icon name="file.public" className={cn("w-4 h-4", nativeWebSearchEnabled ? "text-blue-500" : "text-gray-500")} />
                                 <span>Web Search</span>
-                                {webSearchEnabled && <span className="ml-auto text-[10px] bg-blue-100 text-blue-600 px-1.5 rounded-full">ON</span>}
+                                {nativeWebSearchEnabled && <span className="ml-auto text-[10px] bg-blue-100 text-blue-600 px-1.5 rounded-full">ON</span>}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={triggerFileSelect} className="gap-2 cursor-pointer">
@@ -234,16 +234,16 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    {webSearchEnabled && (
+                    {nativeWebSearchEnabled && (
                         <button
-                            onClick={toggleWebSearch}
+                            onClick={toggleNativeWebSearch}
                             className={cn(
                                 "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all animate-in fade-in zoom-in duration-200",
                                 "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400",
                                 "hover:bg-blue-200 dark:hover:bg-blue-900/50"
                             )}
                         >
-                            <Icon name="common.language" className="w-3.5 h-3.5" />
+                            <Icon name="file.public" className="w-3.5 h-3.5" />
                             <span>Search</span>
                             <div className="w-3.5 h-3.5 flex items-center justify-center rounded-full bg-blue-200 dark:bg-blue-800 ml-0.5">
                                 <span className="text-[10px] font-bold">×</span>

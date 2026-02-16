@@ -79,7 +79,7 @@ const initialState: UnifiedStoreState = {
         messages: {},
         selectedModelId: null,
         currentSessionId: null,
-        webSearchEnabled: false
+        nativeWebSearchEnabled: false
     }
   },
   loaded: false,
@@ -170,4 +170,3 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
 });
 
 export { useUnifiedStore as useStore };
-

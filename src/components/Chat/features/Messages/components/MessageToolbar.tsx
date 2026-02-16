@@ -7,24 +7,20 @@ interface MessageToolbarProps {
   msg: ChatMessage;
   isSpeaking: boolean;
   isLoading: boolean;
-  onCopy: () => void;
+  onCopy: (text: string) => void;
   onSpeak: () => void;
   onRegenerate: () => void;
   onSwitchVersion: (targetIndex: number) => void;
-  onToggleSources?: () => void;
-  isSourcesOpen?: boolean;
 }
 
 export function MessageToolbar({
   msg,
   isSpeaking,
   isLoading,
-  onCopy: parentOnCopy, 
+  onCopy,
   onSpeak,
   onRegenerate,
-  onSwitchVersion,
-  onToggleSources,
-  isSourcesOpen
+  onSwitchVersion
 }: MessageToolbarProps) {
   const [isCopied, setIsCopied] = useState(false);
 
@@ -34,12 +30,11 @@ export function MessageToolbar({
   const currentIndex = msg.currentVersionIndex ?? 0;
   const currentVer = currentIndex + 1;
   const totalVer = versions.length;
-  const hasCitations = msg.citations && msg.citations.length > 0;
 
   const handleCopy = () => {
       // Strip <think> tags for clean copying
       const cleanContent = msg.content.replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '').trim();
-      navigator.clipboard.writeText(cleanContent);
+      onCopy(cleanContent);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
   };
@@ -76,23 +71,6 @@ export function MessageToolbar({
             <button onClick={onRegenerate} className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors rounded-md hover:bg-black/5 dark:hover:bg-white/5">
                 <Icon name="common.refresh" size="md" />
             </button>
-
-            {hasCitations && onToggleSources && (
-                <button 
-                    onClick={onToggleSources}
-                    className={cn(
-                        "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors ml-1",
-                        isSourcesOpen 
-                            ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" 
-                            : "bg-neutral-100 dark:bg-zinc-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-zinc-700"
-                    )}
-                >
-                    <Icon name="common.language" size="xs" />
-                    <span>Sources</span>
-                    <span className="opacity-60">{msg.citations?.length}</span>
-                    {isSourcesOpen ? <Icon name="nav.chevronUp" size="xs"/> : <Icon name="nav.chevronDown" size="xs"/>}
-                </button>
-            )}
         </div>
     </div>
   );
