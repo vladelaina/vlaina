@@ -1,23 +1,16 @@
 use crate::github::repos::RepoClient;
 use crate::github::git_ops;
-use crate::github::commands::{get_stored_github_token, get_stored_github_username};
+use crate::github::credentials::{get_stored_github_token, get_stored_github_username, get_data_dir, CONFIG_REPO_NAME, NEKOTICK_FOLDER};
 use chrono::Local;
 use std::fs;
 use std::path::PathBuf;
-use tauri::Manager;
 
-const CONFIG_REPO_NAME: &str = "nekotick-config";
-const NEKOTICK_FOLDER: &str = ".nekotick";
 const DATA_FILE_NAME: &str = "data.json";
 const CHAT_SESSIONS_FILE: &str = "chat/sessions.json";
 const CHAT_CHANNELS_DIR: &str = "chat/channels";
 
 fn sync_commit_message() -> String {
     format!("sync: {}", Local::now().format("%Y-%m-%d %H:%M:%S"))
-}
-
-fn get_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    app.path().app_data_dir().map_err(|e| e.to_string())
 }
 
 fn get_nekotick_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {

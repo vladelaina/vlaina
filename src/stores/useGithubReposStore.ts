@@ -1,12 +1,7 @@
 import { create } from 'zustand';
-import {
-  githubRepoCommands,
-  gitCommands,
-  hasBackendCommands,
-  type RepositoryInfo,
-  type FileStatus,
-  type CommitInfo,
-} from '@/lib/tauri/invoke';
+import { hasBackendCommands } from '@/lib/tauri/invoke';
+import { githubRepoCommands, type RepositoryInfo } from '@/lib/tauri/githubRepoCommands';
+import { gitCommands, type FileStatus, type CommitInfo } from '@/lib/tauri/gitCommands';
 import { useGithubSyncStore } from './useGithubSyncStore';
 import { friendlySyncError } from '@/lib/sync/syncErrors';
 

@@ -1,8 +1,8 @@
 use crate::github::config_sync;
-use crate::github::commands::{
-    GitHubSyncResult, GitHubBidirectionalSyncResult, GitHubRemoteDataInfo,
-    GitHubSyncMeta, save_github_sync_meta,
+use crate::github::types::{
+    GitHubSyncResult, GitHubBidirectionalSyncResult, GitHubRemoteDataInfo, GitHubSyncMeta,
 };
+use crate::github::credentials::save_github_sync_meta;
 
 fn persist_sync_time(app: &tauri::AppHandle, now: i64) {
     let _ = save_github_sync_meta(app, &GitHubSyncMeta { last_sync_time: Some(now) });

@@ -1,7 +1,7 @@
 //! Tauri commands for git operations
 
 use super::git_ops::{self, CommitInfo, FileStatus};
-use super::commands::{get_stored_github_token, get_stored_github_username};
+use super::credentials::{get_stored_github_token, get_stored_github_username};
 use tauri::command;
 
 /// Clone a repository to local storage

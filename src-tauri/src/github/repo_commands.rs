@@ -2,28 +2,11 @@
 //!
 //! These commands are exposed to the frontend via Tauri's IPC.
 
-use crate::github::repos::{RepoClient, Repository, TreeEntry, FileContent, CommitResult, get_display_name};
+use crate::github::credentials::get_stored_github_token;
+use crate::github::repos::{RepoClient, get_display_name};
+use crate::github::types::{Repository, TreeEntry, FileContent, CommitResult};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
-use tauri::Manager;
 
-const NEKOTICK_FOLDER: &str = ".nekotick";
-const STORE_FOLDER: &str = "store";
-const GITHUB_CREDS_FILE: &str = "github_credentials.json";
-
-/// Stored GitHub credentials (same as in commands.rs)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct GitHubCredentials {
-    access_token: String,
-    username: String,
-    #[serde(default)]
-    github_id: Option<u64>,
-    #[serde(default)]
-    avatar_url: Option<String>,
-}
-
-/// Repository with display name for frontend
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RepositoryInfo {
@@ -56,33 +39,8 @@ impl From<Repository> for RepositoryInfo {
     }
 }
 
-/// Get the data directory path
-fn get_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    app.path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())
-}
-
-/// Get GitHub credentials file path
-fn get_github_creds_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let mut path = get_data_dir(app)?;
-    path.push(NEKOTICK_FOLDER);
-    path.push(STORE_FOLDER);
-    path.push(GITHUB_CREDS_FILE);
-    Ok(path)
-}
-
-/// Load GitHub credentials
-fn load_github_credentials(app: &tauri::AppHandle) -> Option<GitHubCredentials> {
-    let path = get_github_creds_path(app).ok()?;
-    let content = fs::read_to_string(&path).ok()?;
-    serde_json::from_str(&content).ok()
-}
-
-/// Get access token from credentials
 fn get_access_token(app: &tauri::AppHandle) -> Result<String, String> {
-    load_github_credentials(app)
-        .map(|c| c.access_token)
+    get_stored_github_token(app)
         .ok_or_else(|| "Not connected to GitHub".to_string())
 }
 

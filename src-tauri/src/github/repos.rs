@@ -3,72 +3,15 @@
 //! Provides methods to interact with GitHub Repository API for browsing
 //! and managing user repositories with `nekotick-` prefix.
 
+use crate::github::types::{
+    GitHubUser, Repository, TreeEntry, FileContent, CommitResult,
+};
+use crate::github::credentials::CONFIG_REPO_NAME;
 use serde::{Deserialize, Serialize};
 use base64::{engine::general_purpose::STANDARD, Engine};
 
 const GITHUB_API_BASE: &str = "https://api.github.com";
 const NEKOTICK_PREFIX: &str = "nekotick-";
-const CONFIG_REPO_NAME: &str = "nekotick-config";
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GitHubUser {
-    pub login: String,
-    pub id: u64,
-    pub avatar_url: Option<String>,
-    pub name: Option<String>,
-    pub email: Option<String>,
-}
-
-/// GitHub repository info (from GitHub API - uses snake_case)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Repository {
-    pub id: u64,
-    pub name: String,
-    pub full_name: String,
-    pub owner: RepositoryOwner,
-    pub private: bool,
-    pub html_url: String,
-    pub default_branch: String,
-    pub updated_at: String,
-    pub description: Option<String>,
-}
-
-/// Repository owner info
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RepositoryOwner {
-    pub login: String,
-    pub id: u64,
-}
-
-/// Tree entry (file or directory) - for frontend (camelCase)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TreeEntry {
-    pub path: String,
-    pub name: String,
-    pub entry_type: String,  // "file" or "dir"
-    pub sha: String,
-    pub size: Option<u64>,
-}
-
-/// File content from GitHub API - for frontend (camelCase)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FileContent {
-    pub path: String,
-    pub content: String,
-    pub sha: String,
-    pub encoding: String,
-}
-
-/// Commit result after file update - for frontend (camelCase)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CommitResult {
-    pub sha: String,
-    pub message: String,
-    pub html_url: Option<String>,
-}
 
 /// Create repository request
 #[derive(Debug, Clone, Serialize)]
