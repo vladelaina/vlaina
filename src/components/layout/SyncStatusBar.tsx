@@ -15,7 +15,7 @@ export const SyncStatusBar: React.FC = () => {
         syncStatus,
         syncError,
         clearError,
-        isGithubConnected,
+        isConnected,
         checkStatus,
         checkRemoteData
     } = useGithubSyncStore();
@@ -26,11 +26,11 @@ export const SyncStatusBar: React.FC = () => {
 
     // Refresh status when component mounts (or popover opens)
     useEffect(() => {
-        if (isGithubConnected) {
+        if (isConnected) {
             checkStatus();
             checkRemoteData();
         }
-    }, [isGithubConnected, checkStatus, checkRemoteData]);
+    }, [isConnected, checkStatus, checkRemoteData]);
 
     // Monitor online status
     useEffect(() => {
@@ -103,8 +103,8 @@ export const SyncStatusBar: React.FC = () => {
                                     : isSyncing 
                                         ? "Syncing..." 
                                         : syncError
-                                            ? "Sync failed"
-                                            : lastSyncTime 
+                                            ? syncError
+                                            : lastSyncTime
                                                 ? formatDistanceToNow(lastSyncTime * 1000, { addSuffix: true })
                                                 : "Sync now"
                             }

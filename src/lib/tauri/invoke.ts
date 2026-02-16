@@ -61,7 +61,7 @@ export const githubCommands = {
       connected: boolean;
       username: string | null;
       avatarUrl: string | null;
-      gistId: string | null;
+      configRepoReady: boolean;
       lastSyncTime: number | null;
       hasRemoteData: boolean;
       remoteModifiedTime: string | null;
@@ -70,7 +70,7 @@ export const githubCommands = {
         connected: false,
         username: null,
         avatarUrl: null,
-        gistId: null,
+        configRepoReady: false,
         lastSyncTime: null,
         hasRemoteData: false,
         remoteModifiedTime: null,
@@ -101,7 +101,7 @@ export const githubCommands = {
       success: boolean;
       timestamp: number | null;
       error: string | null;
-    }>('sync_to_github', undefined, {
+    }>('sync_config_to_github', undefined, {
       webFallback: {
         success: false,
         timestamp: null,
@@ -115,7 +115,7 @@ export const githubCommands = {
       success: boolean;
       timestamp: number | null;
       error: string | null;
-    }>('restore_from_github', undefined, {
+    }>('restore_config_from_github', undefined, {
       webFallback: {
         success: false,
         timestamp: null,
@@ -131,7 +131,7 @@ export const githubCommands = {
       pulledFromCloud: boolean;
       pushedToCloud: boolean;
       error: string | null;
-    }>('sync_github_bidirectional', undefined, {
+    }>('sync_config_bidirectional', undefined, {
       webFallback: {
         success: false,
         timestamp: null,
@@ -146,12 +146,10 @@ export const githubCommands = {
     return safeInvoke<{
       exists: boolean;
       modifiedTime: string | null;
-      gistId: string | null;
-    }>('check_github_remote_data', undefined, {
+    }>('check_config_remote_data', undefined, {
       webFallback: {
         exists: false,
         modifiedTime: null,
-        gistId: null,
       },
     });
   },
@@ -178,7 +176,6 @@ interface WebGithubCredentials {
   username: string;
   githubId?: number;
   avatarUrl?: string;
-  gistId?: string;
   lastSyncTime?: number;
 }
 
@@ -238,13 +235,12 @@ export const webGithubCommands = {
     }
   },
 
-  getStatus(): { connected: boolean; username: string | null; avatarUrl: string | null; gistId: string | null; lastSyncTime: number | null } {
+  getStatus(): { connected: boolean; username: string | null; avatarUrl: string | null; lastSyncTime: number | null } {
     const creds = getWebGithubCredentials();
     return {
       connected: !!creds,
       username: creds?.username || null,
       avatarUrl: creds?.avatarUrl || null,
-      gistId: creds?.gistId || null,
       lastSyncTime: creds?.lastSyncTime || null,
     };
   },
@@ -275,14 +271,6 @@ export const webGithubCommands = {
 
   getAccessToken(): string | null {
     return getWebGithubCredentials()?.accessToken || null;
-  },
-
-  updateGistId(gistId: string): void {
-    const creds = getWebGithubCredentials();
-    if (creds) {
-      creds.gistId = gistId;
-      saveWebGithubCredentials(creds);
-    }
   },
 
   updateLastSyncTime(timestamp: number): void {
@@ -504,6 +492,10 @@ export const gitCommands = {
       webFallback: '',
     });
     return result || '';
+  },
+
+  async syncRepo(owner: string, repo: string, message: string): Promise<void> {
+    await safeInvoke('sync_github_repo', { owner, repo, message });
   },
 
   async deleteLocalRepo(owner: string, repo: string): Promise<void> {

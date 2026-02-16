@@ -8,6 +8,16 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 
 const GITHUB_API_BASE: &str = "https://api.github.com";
 const NEKOTICK_PREFIX: &str = "nekotick-";
+const CONFIG_REPO_NAME: &str = "nekotick-config";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitHubUser {
+    pub login: String,
+    pub id: u64,
+    pub avatar_url: Option<String>,
+    pub name: Option<String>,
+    pub email: Option<String>,
+}
 
 /// GitHub repository info (from GitHub API - uses snake_case)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -192,7 +202,49 @@ impl RepoClient {
         RepoApiError::ApiError(format!("{}: {}", status, error_text))
     }
 
-    /// List user's repositories with nekotick- prefix
+    pub async fn get_user_info(&self) -> Result<GitHubUser, RepoApiError> {
+        let response = self.client
+            .get(format!("{}/user", GITHUB_API_BASE))
+            .headers(self.build_headers())
+            .send()
+            .await
+            .map_err(|e| RepoApiError::NetworkError(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(self.handle_error(response).await);
+        }
+
+        response
+            .json::<GitHubUser>()
+            .await
+            .map_err(|e| RepoApiError::ParseError(e.to_string()))
+    }
+
+    pub async fn find_repo_by_name(&self, owner: &str, name: &str) -> Result<Option<Repository>, RepoApiError> {
+        let response = self.client
+            .get(format!("{}/repos/{}/{}", GITHUB_API_BASE, owner, name))
+            .headers(self.build_headers())
+            .send()
+            .await
+            .map_err(|e| RepoApiError::NetworkError(e.to_string()))?;
+
+        if response.status() == 404 {
+            return Ok(None);
+        }
+
+        if !response.status().is_success() {
+            return Err(self.handle_error(response).await);
+        }
+
+        let repo: Repository = response
+            .json()
+            .await
+            .map_err(|e| RepoApiError::ParseError(e.to_string()))?;
+
+        Ok(Some(repo))
+    }
+
+    /// List user's repositories with nekotick- prefix (excludes nekotick-config)
     pub async fn list_nekotick_repos(&self) -> Result<Vec<Repository>, RepoApiError> {
         let mut all_repos = Vec::new();
         let mut page = 1;
@@ -224,10 +276,9 @@ impl RepoClient {
                 break;
             }
 
-            // Filter repos with nekotick- prefix
             let nekotick_repos: Vec<Repository> = repos
                 .into_iter()
-                .filter(|r| r.name.starts_with(NEKOTICK_PREFIX))
+                .filter(|r| r.name.starts_with(NEKOTICK_PREFIX) && r.name != CONFIG_REPO_NAME)
                 .collect();
 
             all_repos.extend(nekotick_repos);

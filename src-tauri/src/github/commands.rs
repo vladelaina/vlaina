@@ -1,17 +1,13 @@
-//! Tauri commands for GitHub Gist sync
-//!
-//! These commands are exposed to the frontend via Tauri's IPC.
-
 use crate::github::{
-    gist_api::GistClient,
+    repos::RepoClient,
     oauth::GitHubOAuthClient,
+    config_sync,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use tauri::Manager;
 
-const DATA_FILE_NAME: &str = "data.json";
 const NEKOTICK_FOLDER: &str = ".nekotick";
 const STORE_FOLDER: &str = "store";
 const GITHUB_CREDS_FILE: &str = "github_credentials.json";
@@ -49,7 +45,7 @@ pub struct GitHubSyncStatus {
     pub connected: bool,
     pub username: Option<String>,
     pub avatar_url: Option<String>,
-    pub gist_id: Option<String>,
+    pub config_repo_ready: bool,
     pub last_sync_time: Option<i64>,
     pub has_remote_data: bool,
     pub remote_modified_time: Option<String>,
@@ -98,7 +94,6 @@ pub struct ProStatusResult {
 pub struct GitHubRemoteDataInfo {
     pub exists: bool,
     pub modified_time: Option<String>,
-    pub gist_id: Option<String>,
 }
 
 /// Stored GitHub credentials
@@ -110,14 +105,13 @@ struct GitHubCredentials {
     github_id: Option<u64>,
     #[serde(default)]
     avatar_url: Option<String>,
-    gist_id: Option<String>,
 }
 
 /// GitHub sync metadata
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct GitHubSyncMeta {
-    last_sync_time: Option<i64>,
+pub struct GitHubSyncMeta {
+    pub last_sync_time: Option<i64>,
 }
 
 /// Get the data directory path
@@ -181,6 +175,16 @@ pub fn get_stored_github_username(app: &tauri::AppHandle) -> Option<String> {
     load_github_credentials(app).map(|c| c.username)
 }
 
+/// Save GitHub sync metadata
+pub fn save_github_sync_meta(app: &tauri::AppHandle, meta: &GitHubSyncMeta) -> Result<(), String> {
+    let path = get_github_sync_meta_path(app)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let content = serde_json::to_string_pretty(meta).map_err(|e| e.to_string())?;
+    fs::write(&path, content).map_err(|e| e.to_string())
+}
+
 /// Load GitHub sync metadata
 fn load_github_sync_meta(app: &tauri::AppHandle) -> GitHubSyncMeta {
     if let Ok(path) = get_github_sync_meta_path(app) {
@@ -191,16 +195,6 @@ fn load_github_sync_meta(app: &tauri::AppHandle) -> GitHubSyncMeta {
         }
     }
     GitHubSyncMeta::default()
-}
-
-/// Save GitHub sync metadata
-fn save_github_sync_meta(app: &tauri::AppHandle, meta: &GitHubSyncMeta) -> Result<(), String> {
-    let path = get_github_sync_meta_path(app)?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    let content = serde_json::to_string_pretty(meta).map_err(|e| e.to_string())?;
-    fs::write(&path, content).map_err(|e| e.to_string())
 }
 
 /// Start GitHub OAuth2 authorization flow
@@ -303,8 +297,8 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
     };
 
     // Get user info
-    let gist_client = GistClient::new(tokens.access_token.clone());
-    let user_info = match gist_client.get_user_info().await {
+    let client = RepoClient::new(tokens.access_token.clone());
+    let user_info = match client.get_user_info().await {
         Ok(u) => u,
         Err(e) => {
             return Ok(GitHubAuthResult {
@@ -315,16 +309,12 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
         }
     };
 
-    // Check for existing gist
-    let existing_gist = gist_client.find_nekotick_gist().await.ok().flatten();
-
     // Store credentials
     let creds = GitHubCredentials {
         access_token: tokens.access_token.clone(),
         username: user_info.login.clone(),
         github_id: Some(user_info.id),
         avatar_url: user_info.avatar_url.clone(),
-        gist_id: existing_gist.map(|g| g.id),
     };
 
     if let Err(e) = save_github_credentials(&app, &creds) {
@@ -334,6 +324,13 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
             error: Some(e),
         });
     }
+
+    // Ensure config repo exists (fire and forget, don't block login)
+    let token_for_config = tokens.access_token.clone();
+    let username_for_config = user_info.login.clone();
+    tokio::spawn(async move {
+        let _ = config_sync::ensure_config_repo(&token_for_config, &username_for_config).await;
+    });
 
     // Register user with cloud API (fire and forget, don't block login)
     let access_token_for_register = tokens.access_token.clone();
@@ -368,14 +365,14 @@ pub async fn get_github_sync_status(app: tauri::AppHandle) -> Result<GitHubSyncS
     
     match load_github_credentials(&app) {
         Some(creds) => {
-            let has_remote = creds.gist_id.is_some();
+            let config_ready = config_sync::check_config_remote(&app).await.map(|(exists, _)| exists).unwrap_or(false);
             Ok(GitHubSyncStatus {
                 connected: true,
                 username: Some(creds.username),
                 avatar_url: creds.avatar_url,
-                gist_id: creds.gist_id,
+                config_repo_ready: config_ready,
                 last_sync_time: sync_meta.last_sync_time,
-                has_remote_data: has_remote,
+                has_remote_data: config_ready,
                 remote_modified_time: None,
             })
         }
@@ -383,261 +380,13 @@ pub async fn get_github_sync_status(app: tauri::AppHandle) -> Result<GitHubSyncS
             connected: false,
             username: None,
             avatar_url: None,
-            gist_id: None,
+            config_repo_ready: false,
             last_sync_time: None,
             has_remote_data: false,
             remote_modified_time: None,
         }),
     }
 }
-
-/// Check if remote data exists on GitHub
-#[tauri::command]
-pub async fn check_github_remote_data(app: tauri::AppHandle) -> Result<GitHubRemoteDataInfo, String> {
-    let creds = load_github_credentials(&app)
-        .ok_or("Not connected to GitHub")?;
-
-    let gist_client = GistClient::new(creds.access_token);
-
-    // If we have a stored gist_id, check if it still exists
-    if let Some(gist_id) = &creds.gist_id {
-        match gist_client.get_gist(gist_id).await {
-            Ok(gist) => {
-                return Ok(GitHubRemoteDataInfo {
-                    exists: true,
-                    modified_time: Some(gist.updated_at),
-                    gist_id: Some(gist.id),
-                });
-            }
-            Err(_) => {
-                // Gist might have been deleted, try to find another one
-            }
-        }
-    }
-
-    // Try to find existing gist
-    match gist_client.find_nekotick_gist().await {
-        Ok(Some(gist)) => Ok(GitHubRemoteDataInfo {
-            exists: true,
-            modified_time: Some(gist.updated_at),
-            gist_id: Some(gist.id),
-        }),
-        Ok(None) => Ok(GitHubRemoteDataInfo {
-            exists: false,
-            modified_time: None,
-            gist_id: None,
-        }),
-        Err(e) => Err(e.to_string()),
-    }
-}
-
-/// Sync local data to GitHub Gist
-#[tauri::command]
-pub async fn sync_to_github(app: tauri::AppHandle) -> Result<GitHubSyncResult, String> {
-    let mut creds = load_github_credentials(&app)
-        .ok_or("Not connected to GitHub")?;
-
-    let base_path = get_data_dir(&app)?;
-    let data_json_path = base_path.join(NEKOTICK_FOLDER).join(STORE_FOLDER).join(DATA_FILE_NAME);
-
-    if !data_json_path.exists() {
-        return Ok(GitHubSyncResult {
-            success: false,
-            timestamp: None,
-            error: Some("No local data to sync".to_string()),
-        });
-    }
-
-    let content = fs::read_to_string(&data_json_path)
-        .map_err(|e| format!("Failed to read data.json: {}", e))?;
-
-    let gist_client = GistClient::new(creds.access_token.clone());
-    
-    // Upload to gist (create or update)
-    let gist = gist_client
-        .upload_data(creds.gist_id.as_deref(), &content)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    // Update stored gist_id if it was newly created
-    if creds.gist_id.is_none() {
-        creds.gist_id = Some(gist.id);
-        save_github_credentials(&app, &creds)?;
-    }
-
-    // Update sync metadata
-    let now = chrono::Utc::now().timestamp();
-    let meta = GitHubSyncMeta {
-        last_sync_time: Some(now),
-    };
-    save_github_sync_meta(&app, &meta)?;
-
-    Ok(GitHubSyncResult {
-        success: true,
-        timestamp: Some(now),
-        error: None,
-    })
-}
-
-/// Restore data from GitHub Gist
-#[tauri::command]
-pub async fn restore_from_github(app: tauri::AppHandle) -> Result<GitHubSyncResult, String> {
-    let creds = load_github_credentials(&app)
-        .ok_or("Not connected to GitHub")?;
-
-    let gist_id = creds.gist_id.as_ref()
-        .ok_or("No remote gist found")?;
-
-    let gist_client = GistClient::new(creds.access_token);
-    
-    // Download data from gist
-    let content = gist_client
-        .download_data(gist_id)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    // Ensure local directory exists
-    let base_path = get_data_dir(&app)?;
-    let store_dir = base_path.join(NEKOTICK_FOLDER).join(STORE_FOLDER);
-    fs::create_dir_all(&store_dir).map_err(|e| e.to_string())?;
-
-    let data_json_path = store_dir.join(DATA_FILE_NAME);
-    let backup_path = store_dir.join(format!("{}.backup", DATA_FILE_NAME));
-
-    // Backup existing local data
-    if data_json_path.exists() {
-        fs::copy(&data_json_path, &backup_path)
-            .map_err(|e| format!("Failed to create backup: {}", e))?;
-    }
-
-    // Write remote data to local
-    if let Err(e) = fs::write(&data_json_path, &content) {
-        // Restore from backup on failure
-        if backup_path.exists() {
-            let _ = fs::copy(&backup_path, &data_json_path);
-        }
-        return Err(format!("Failed to write data.json: {}", e));
-    }
-
-    // Update sync metadata
-    let now = chrono::Utc::now().timestamp();
-    let meta = GitHubSyncMeta {
-        last_sync_time: Some(now),
-    };
-    save_github_sync_meta(&app, &meta)?;
-
-    Ok(GitHubSyncResult {
-        success: true,
-        timestamp: Some(now),
-        error: None,
-    })
-}
-
-/// Bidirectional sync with GitHub
-#[tauri::command]
-pub async fn sync_github_bidirectional(app: tauri::AppHandle) -> Result<GitHubBidirectionalSyncResult, String> {
-    let mut creds = load_github_credentials(&app)
-        .ok_or("Not connected to GitHub")?;
-
-    let base_path = get_data_dir(&app)?;
-    let data_json_path = base_path.join(NEKOTICK_FOLDER).join(STORE_FOLDER).join(DATA_FILE_NAME);
-
-    let gist_client = GistClient::new(creds.access_token.clone());
-
-    let mut pulled_from_cloud = false;
-    let mut pushed_to_cloud = false;
-
-    // Get local modification time
-    let local_modified = if data_json_path.exists() {
-        fs::metadata(&data_json_path)
-            .ok()
-            .and_then(|m| m.modified().ok())
-            .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as i64)
-    } else {
-        None
-    };
-
-    // Check remote
-    let remote_gist = if let Some(gist_id) = &creds.gist_id {
-        gist_client.get_gist(gist_id).await.ok()
-    } else {
-        gist_client.find_nekotick_gist().await.ok().flatten()
-    };
-
-    // Pull from cloud if remote is newer
-    if let Some(gist) = &remote_gist {
-        let should_pull = match local_modified {
-            Some(local_time) => {
-                // Parse remote time (ISO 8601 format)
-                if let Ok(remote_dt) = chrono::DateTime::parse_from_rfc3339(&gist.updated_at) {
-                    remote_dt.timestamp() > local_time
-                } else {
-                    false
-                }
-            }
-            None => true, // Remote exists, local doesn't
-        };
-
-        if should_pull {
-            // Download remote data
-            let content = gist_client
-                .download_data(&gist.id)
-                .await
-                .map_err(|e| e.to_string())?;
-
-            // Ensure local directory exists
-            let store_dir = base_path.join(NEKOTICK_FOLDER).join(STORE_FOLDER);
-            fs::create_dir_all(&store_dir).map_err(|e| e.to_string())?;
-
-            // Backup existing local data
-            if data_json_path.exists() {
-                let backup_path = store_dir.join(format!("{}.backup", DATA_FILE_NAME));
-                let _ = fs::copy(&data_json_path, &backup_path);
-            }
-
-            // Write remote data to local
-            fs::write(&data_json_path, &content)
-                .map_err(|e| format!("Failed to write local data: {}", e))?;
-
-            pulled_from_cloud = true;
-        }
-    }
-
-    // Push local data to cloud
-    if data_json_path.exists() {
-        let content = fs::read_to_string(&data_json_path)
-            .map_err(|e| format!("Failed to read data.json: {}", e))?;
-
-        let gist = gist_client
-            .upload_data(creds.gist_id.as_deref(), &content)
-            .await
-            .map_err(|e| e.to_string())?;
-
-        // Update stored gist_id if it was newly created
-        if creds.gist_id.is_none() {
-            creds.gist_id = Some(gist.id);
-            save_github_credentials(&app, &creds)?;
-        }
-
-        pushed_to_cloud = true;
-    }
-
-    // Update sync metadata
-    let now = chrono::Utc::now().timestamp();
-    let meta = GitHubSyncMeta {
-        last_sync_time: Some(now),
-    };
-    save_github_sync_meta(&app, &meta)?;
-
-    Ok(GitHubBidirectionalSyncResult {
-        success: true,
-        timestamp: Some(now),
-        pulled_from_cloud,
-        pushed_to_cloud,
-        error: None,
-    })
-}
-
 
 /// Check PRO status from cloud API
 #[tauri::command]

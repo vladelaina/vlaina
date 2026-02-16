@@ -18,8 +18,9 @@ struct GitHubCredentials {
     access_token: String,
     username: String,
     #[serde(default)]
+    github_id: Option<u64>,
+    #[serde(default)]
     avatar_url: Option<String>,
-    gist_id: Option<String>,
 }
 
 /// Repository with display name for frontend

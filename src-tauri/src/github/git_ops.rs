@@ -136,40 +136,40 @@ pub fn open_repo(owner: &str, repo: &str) -> Result<Repository, GitError> {
 }
 
 /// Pull latest changes from remote
+/// If local and remote have diverged, reset to remote (caller handles merging via file copy)
 pub fn pull_repo(owner: &str, repo: &str, token: &str) -> Result<(), GitError> {
     let repo = open_repo(owner, repo)?;
-    
-    // Fetch from origin
+
     let mut remote = repo.find_remote("origin")?;
     let callbacks = create_callbacks(token);
     let mut fetch_options = FetchOptions::new();
     fetch_options.remote_callbacks(callbacks);
-    
+
     remote.fetch(&["main", "master"], Some(&mut fetch_options), None)?;
-    
-    // Get the fetch head
-    let fetch_head = repo.find_reference("FETCH_HEAD")?;
+
+    let fetch_head = match repo.find_reference("FETCH_HEAD") {
+        Ok(r) => r,
+        Err(_) => return Ok(()),
+    };
     let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
-    
-    // Perform merge (fast-forward if possible)
+
     let (analysis, _) = repo.merge_analysis(&[&fetch_commit])?;
-    
+
     if analysis.is_up_to_date() {
         return Ok(());
     }
-    
-    if analysis.is_fast_forward() {
-        // Fast-forward merge
-        let refname = "refs/heads/main";
-        let mut reference = match repo.find_reference(refname) {
-            Ok(r) => r,
-            Err(_) => repo.find_reference("refs/heads/master")?,
-        };
-        reference.set_target(fetch_commit.id(), "Fast-forward")?;
-        repo.set_head(reference.name().unwrap())?;
-        repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
-    }
-    
+
+    let refname = "refs/heads/main";
+    let mut reference = match repo.find_reference(refname) {
+        Ok(r) => r,
+        Err(_) => repo.find_reference("refs/heads/master")?,
+    };
+    reference.set_target(fetch_commit.id(), "pull: reset to remote")?;
+    let ref_name = reference.name()
+        .ok_or_else(|| GitError::Git(git2::Error::from_str("Reference has no name")))?;
+    repo.set_head(ref_name)?;
+    repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
+
     Ok(())
 }
 
@@ -203,24 +203,32 @@ pub fn commit_all(
 ) -> Result<String, GitError> {
     let repo = open_repo(owner, repo_name)?;
     let mut index = repo.index()?;
-    
-    // Add all changes
+
+    index.update_all(["*"].iter(), None)?;
     index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
     index.write()?;
-    
+
     let tree_id = index.write_tree()?;
     let tree = repo.find_tree(tree_id)?;
-    
-    let signature = Signature::now(author_name, author_email)?;
-    
-    // Get parent commit
+
     let parent = match repo.head() {
-        Ok(head) => Some(repo.find_commit(head.target().unwrap())?),
+        Ok(head) => {
+            let oid = head.target()
+                .ok_or_else(|| GitError::Git(git2::Error::from_str("HEAD has no target")))?;
+            Some(repo.find_commit(oid)?)
+        }
         Err(_) => None,
     };
-    
+
+    if let Some(ref p) = parent {
+        if p.tree_id() == tree_id {
+            return Ok(String::new());
+        }
+    }
+
+    let signature = Signature::now(author_name, author_email)?;
     let parents: Vec<&git2::Commit> = parent.iter().collect();
-    
+
     let commit_id = repo.commit(
         Some("HEAD"),
         &signature,
@@ -229,7 +237,7 @@ pub fn commit_all(
         &tree,
         &parents,
     )?;
-    
+
     Ok(commit_id.to_string())
 }
 
@@ -347,6 +355,65 @@ pub fn get_file_diff(
     })?;
     
     Ok(diff_text)
+}
+
+/// Sync a repository safely: backup local changes → pull → restore → commit → push
+/// Prevents data loss when local and remote have diverged
+pub fn sync_repo(
+    owner: &str,
+    repo: &str,
+    token: &str,
+    message: &str,
+    author_name: &str,
+    author_email: &str,
+) -> Result<(), GitError> {
+    let local_path = get_repo_local_path(owner, repo)?;
+
+    let changed_files = get_status(owner, repo)?;
+    let mut backups: Vec<(String, Vec<u8>)> = Vec::new();
+    let mut deleted_paths: Vec<String> = Vec::new();
+    for f in &changed_files {
+        let full = local_path.join(&f.path);
+        if f.status == "deleted" {
+            deleted_paths.push(f.path.clone());
+        } else if full.exists() {
+            let data = std::fs::read(&full)?;
+            backups.push((f.path.clone(), data));
+        }
+    }
+
+    if let Err(e) = pull_repo(owner, repo, token) {
+        for (rel_path, data) in &backups {
+            let full = local_path.join(rel_path);
+            if let Some(parent) = full.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&full, data);
+        }
+        return Err(e);
+    }
+
+    for (rel_path, data) in &backups {
+        let full = local_path.join(rel_path);
+        if let Some(parent) = full.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&full, data)?;
+    }
+
+    for rel_path in &deleted_paths {
+        let full = local_path.join(rel_path);
+        if full.exists() {
+            let _ = std::fs::remove_file(&full);
+        }
+    }
+
+    let commit_id = commit_all(owner, repo, message, author_name, author_email)?;
+    if !commit_id.is_empty() {
+        push_repo(owner, repo, token)?;
+    }
+
+    Ok(())
 }
 
 /// Delete a local repository

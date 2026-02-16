@@ -2,6 +2,20 @@ import { create } from 'zustand';
 import { githubCommands, hasBackendCommands, webGithubCommands, handleOAuthCallback } from '@/lib/tauri/invoke';
 import { useProStatusStore } from '@/stores/useProStatusStore';
 import { downloadAndSaveAvatar, getLocalAvatarUrl } from '@/lib/assets/avatarManager';
+import { friendlySyncError } from '@/lib/sync/syncErrors';
+import { resetAutoSyncManager } from '@/lib/sync/autoSyncManager';
+import { flushPendingSave } from '@/lib/storage/unifiedStorage';
+
+const SYNC_TIMEOUT_MS = 60000;
+
+function withSyncTimeout<T>(promise: Promise<T>): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Sync timeout')), SYNC_TIMEOUT_MS)
+    ),
+  ]);
+}
 
 export type GithubSyncStatusType = 'idle' | 'pending' | 'syncing' | 'success' | 'error';
 
@@ -10,7 +24,7 @@ interface GithubSyncState {
   username: string | null;
   avatarUrl: string | null;
   localAvatarUrl: string | null;
-  gistId: string | null;
+  configRepoReady: boolean;
   isSyncing: boolean;
   isConnecting: boolean;
   lastSyncTime: number | null;
@@ -66,8 +80,8 @@ const initialState: GithubSyncState = {
   isConnected: persisted.isConnected,
   username: persisted.username,
   avatarUrl: persisted.avatarUrl,
-  localAvatarUrl: null, // Always init as null, re-fetch on checking status
-  gistId: null,
+  localAvatarUrl: null,
+  configRepoReady: false,
   isSyncing: false,
   isConnecting: false,
   lastSyncTime: null,
@@ -93,7 +107,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
             isConnected: status.connected,
             username: status.username,
             avatarUrl: status.avatarUrl,
-            gistId: status.gistId,
+            configRepoReady: status.configRepoReady,
             lastSyncTime: status.lastSyncTime,
             hasRemoteData: status.hasRemoteData,
             remoteModifiedTime: status.remoteModifiedTime,
@@ -126,7 +140,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
                   set({ localAvatarUrl: newLocal });
                 }
               }
-            });
+            }).catch(() => {});
           }
 
           if (status.connected) {
@@ -154,7 +168,6 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         isConnected: status.connected,
         username: status.username,
         avatarUrl: status.avatarUrl,
-        gistId: status.gistId,
         lastSyncTime: status.lastSyncTime,
         isLoading: false,
       };
@@ -220,7 +233,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
                 const newLocal = await getLocalAvatarUrl(currentUsername);
                 if (newLocal) set({ localAvatarUrl: newLocal });
               }
-            });
+            }).catch(() => {});
           }
 
           try {
@@ -242,7 +255,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
           return true;
         } else {
           set({
-            syncError: result?.error || 'Authorization failed',
+            syncError: friendlySyncError(result?.error || 'Authorization failed'),
             isConnecting: false,
           });
           return false;
@@ -250,7 +263,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       } catch (error) {
         clearTimeout(timeoutId);
         const errorMsg = error instanceof Error ? error.message : String(error);
-        set({ syncError: errorMsg, isConnecting: false });
+        set({ syncError: friendlySyncError(errorMsg), isConnecting: false });
         return false;
       }
     } else {
@@ -269,7 +282,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       } catch (error) {
         clearTimeout(timeoutId);
         const errorMsg = error instanceof Error ? error.message : String(error);
-        set({ syncError: errorMsg, isConnecting: false });
+        set({ syncError: friendlySyncError(errorMsg), isConnecting: false });
         return false;
       }
     }
@@ -320,7 +333,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
 
       return true;
     } else {
-      set({ syncError: result.error || 'OAuth failed', isConnecting: false });
+      set({ syncError: friendlySyncError(result.error || 'OAuth failed'), isConnecting: false });
       return false;
     }
   },
@@ -336,6 +349,12 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
   },
 
   disconnect: async () => {
+    const timeoutId = (window as any).__nekotick_auth_timeout;
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      (window as any).__nekotick_auth_timeout = null;
+    }
+
     if (hasBackendCommands()) {
       try {
         await githubCommands.githubDisconnect();
@@ -346,15 +365,21 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       webGithubCommands.disconnect();
     }
 
+    resetAutoSyncManager();
+
     set({
       isConnected: false,
+      isConnecting: false,
       username: null,
       avatarUrl: null,
       localAvatarUrl: null,
-      gistId: null,
+      configRepoReady: false,
       hasRemoteData: false,
       remoteModifiedTime: null,
       syncError: null,
+      isSyncing: false,
+      syncStatus: 'idle',
+      lastSyncTime: null,
     });
 
     localStorage.removeItem(GITHUB_USER_PERSIST_KEY);
@@ -364,6 +389,8 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
 
   syncToCloud: async () => {
     const state = get();
+
+    if (state.isSyncing) return false;
 
     if (!hasBackendCommands()) {
       set({ syncError: 'Sync is not available on this platform' });
@@ -376,10 +403,13 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
     }
 
     set({ isSyncing: true, syncError: null, syncStatus: 'syncing' });
+    console.log('[Sync:Config] push start');
+    const t0 = performance.now();
     try {
-      const result = await githubCommands.syncToGithub();
+      const result = await withSyncTimeout(githubCommands.syncToGithub());
 
       if (result?.success) {
+        console.log(`[Sync:Config] push success ${((performance.now() - t0) / 1000).toFixed(1)}s`);
         set({
           lastSyncTime: result.timestamp,
           isSyncing: false,
@@ -388,8 +418,9 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         });
         return true;
       } else {
+        console.error(`[Sync:Config] push failed:`, result?.error);
         set({
-          syncError: result?.error || 'Sync failed',
+          syncError: friendlySyncError(result?.error || 'Sync failed'),
           isSyncing: false,
           syncStatus: 'error',
         });
@@ -397,8 +428,9 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[Sync:Config] push error:`, errorMsg);
       set({
-        syncError: errorMsg,
+        syncError: friendlySyncError(errorMsg),
         isSyncing: false,
         syncStatus: 'error',
       });
@@ -408,6 +440,8 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
 
   syncBidirectional: async () => {
     const state = get();
+
+    if (state.isSyncing) return false;
 
     if (!hasBackendCommands()) {
       set({ syncError: 'Sync is not available on this platform' });
@@ -420,10 +454,13 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
     }
 
     set({ isSyncing: true, syncStatus: 'syncing', syncError: null });
+    console.log('[Sync:Config] bidirectional start');
+    const t0 = performance.now();
     try {
-      const result = await githubCommands.syncGithubBidirectional();
+      const result = await withSyncTimeout(githubCommands.syncGithubBidirectional());
 
       if (result?.success) {
+        console.log(`[Sync:Config] bidirectional success (pulled: ${result.pulledFromCloud}, pushed: ${result.pushedToCloud}) ${((performance.now() - t0) / 1000).toFixed(1)}s`);
         set({
           lastSyncTime: result.timestamp,
           isSyncing: false,
@@ -432,13 +469,15 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         });
 
         if (result.pulledFromCloud) {
+          await flushPendingSave();
           window.location.reload();
         }
 
         return true;
       } else {
+        console.error(`[Sync:Config] bidirectional failed:`, result?.error);
         set({
-          syncError: result?.error || 'Sync failed',
+          syncError: friendlySyncError(result?.error || 'Sync failed'),
           isSyncing: false,
           syncStatus: 'error',
         });
@@ -446,8 +485,9 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[Sync:Config] bidirectional error:`, errorMsg);
       set({
-        syncError: errorMsg,
+        syncError: friendlySyncError(errorMsg),
         isSyncing: false,
         syncStatus: 'error',
       });
@@ -457,6 +497,8 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
 
   restoreFromCloud: async () => {
     const state = get();
+
+    if (state.isSyncing) return false;
 
     if (!hasBackendCommands()) {
       set({ syncError: 'Restore is not available on this platform' });
@@ -469,20 +511,25 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
     }
 
     set({ isSyncing: true, syncError: null, syncStatus: 'syncing' });
+    console.log('[Sync:Config] restore start');
+    const t0 = performance.now();
     try {
-      const result = await githubCommands.restoreFromGithub();
+      const result = await withSyncTimeout(githubCommands.restoreFromGithub());
 
       if (result?.success) {
+        console.log(`[Sync:Config] restore success ${((performance.now() - t0) / 1000).toFixed(1)}s`);
         set({
           lastSyncTime: result.timestamp,
           isSyncing: false,
           syncStatus: 'idle',
         });
+        await flushPendingSave();
         window.location.reload();
         return true;
       } else {
+        console.error(`[Sync:Config] restore failed:`, result?.error);
         set({
-          syncError: result?.error || 'Restore failed',
+          syncError: friendlySyncError(result?.error || 'Restore failed'),
           isSyncing: false,
           syncStatus: 'error',
         });
@@ -490,8 +537,9 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[Sync:Config] restore error:`, errorMsg);
       set({
-        syncError: errorMsg,
+        syncError: friendlySyncError(errorMsg),
         isSyncing: false,
         syncStatus: 'error',
       });
@@ -508,7 +556,6 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         set({
           hasRemoteData: info.exists,
           remoteModifiedTime: info.modifiedTime,
-          gistId: info.gistId,
         });
       }
     } catch (error) {
