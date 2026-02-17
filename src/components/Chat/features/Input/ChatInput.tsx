@@ -27,12 +27,18 @@ interface ChatInputProps {
   focusTrigger?: number;
 }
 
+const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
+const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
+
 export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, selectedModel, focusTrigger }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const submitAfterCompositionRef = useRef(false);
+  const hasExplicitMultilineRef = useRef(false);
   const { nativeWebSearchEnabled, toggleNativeWebSearch } = useAIStore();
 
   useEffect(() => {
@@ -41,9 +47,19 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
       }
   }, [focusTrigger]);
 
-  const handleSend = () => {
-    if (!message.trim() && attachments.length === 0) return;
-    onSend(message, attachments);
+  const handleSend = (overrideMessage?: string) => {
+    const rawMessage = overrideMessage ?? message;
+    const cleanedMessage = rawMessage.replace(INVISIBLE_BREAK_REGEX, '');
+    const normalizedMessage = cleanedMessage.replace(UNIVERSAL_NEWLINE_REGEX, '\n');
+    const outgoingMessage = hasExplicitMultilineRef.current
+      ? normalizedMessage
+      : normalizedMessage.replace(/\s*\n+\s*/g, '');
+
+    if (!outgoingMessage.trim() && attachments.length === 0) return;
+
+    submitAfterCompositionRef.current = false;
+    hasExplicitMultilineRef.current = false;
+    onSend(outgoingMessage, attachments);
     setMessage('');
     setAttachments([]);
     
@@ -55,8 +71,19 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    const native = e.nativeEvent as KeyboardEvent & { isComposing?: boolean; keyCode?: number };
+    if (e.key === 'Enter' && e.shiftKey) {
+      hasExplicitMultilineRef.current = true;
+      return;
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      if (isComposing || native.isComposing || native.keyCode === 229) {
+        submitAfterCompositionRef.current = true;
+        return;
+      }
+      submitAfterCompositionRef.current = false;
       handleSend();
     }
   };
@@ -77,6 +104,11 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
   };
 
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+      const pastedText = e.clipboardData.getData('text/plain');
+      if (pastedText.includes('\n')) {
+          hasExplicitMultilineRef.current = true;
+      }
+
       const items = Array.from(e.clipboardData.items);
       const files = items
           .filter(item => item.kind === 'file')
@@ -184,7 +216,25 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                 <textarea
                   ref={textareaRef}
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setMessage(nextValue);
+                    if (!nextValue.includes('\n')) {
+                      hasExplicitMultilineRef.current = false;
+                    }
+                  }}
+                  onCompositionStart={() => {
+                    setIsComposing(true);
+                  }}
+                  onCompositionEnd={() => {
+                    setIsComposing(false);
+                    if (!submitAfterCompositionRef.current) return;
+
+                    submitAfterCompositionRef.current = false;
+                    requestAnimationFrame(() => {
+                      handleSend(textareaRef.current?.value ?? message);
+                    });
+                  }}
                   onKeyDown={handleKeyDown}
                   onPaste={handlePaste}
                   placeholder={
@@ -259,7 +309,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                       </button>
                   ) : (
                       <button
-                        onClick={handleSend}
+                        onClick={() => handleSend()}
                         disabled={!canSend}
                         className={cn(
                           "w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200",

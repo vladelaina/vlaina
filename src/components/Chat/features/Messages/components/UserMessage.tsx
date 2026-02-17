@@ -82,10 +82,11 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
       const native = e.nativeEvent as KeyboardEvent & { isComposing?: boolean; keyCode?: number };
-      if (isComposing || native.isComposing || native.keyCode === 229) {
-          return;
-      }
       if (e.key === 'Enter' && !e.shiftKey) {
+          if (isComposing || native.isComposing || native.keyCode === 229) {
+              e.preventDefault();
+              return;
+          }
           e.preventDefault();
           e.stopPropagation();
           handleSave();
@@ -145,7 +146,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
         </motion.div>
       ) : (
         <div className="w-full flex flex-col items-end">
-          <div className="flex flex-col items-end gap-2">
+          <div className="w-full flex flex-col items-end gap-2">
             {images.map((src, i) => (
               <div key={i} className="rounded-xl overflow-hidden border border-black/5 dark:border-white/10 shadow-sm bg-white dark:bg-zinc-800">
                 <LocalImage
@@ -157,7 +158,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
               </div>
             ))}
             {displayText && (
-              <div className="milkdown inline-block max-w-[85%] bg-[#F4F4F5] dark:bg-[#2C2C2C] px-4 py-2 rounded-[20px] text-gray-900 dark:text-gray-100 text-[15px] leading-6 shadow-sm border border-black/5 dark:border-white/5 text-left break-words overflow-hidden">
+              <div className="inline-block max-w-[85%] bg-[#F4F4F5] dark:bg-[#2C2C2C] px-4 py-2 rounded-[20px] text-gray-900 dark:text-gray-100 text-[15px] leading-6 shadow-sm border border-black/5 dark:border-white/5 text-left overflow-hidden">
                 <div className="whitespace-pre-wrap break-words">{displayText}</div>
               </div>
             )}

@@ -8,6 +8,9 @@ import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
 
+const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
+const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
+
 export function useChatService() {
   const { generateAutoTitle } = useAutoTitle();
 
@@ -48,7 +51,10 @@ export function useChatService() {
       return;
     }
 
-    const userMessageText = text.trim();
+    const normalizedInput = text
+      .replace(INVISIBLE_BREAK_REGEX, '')
+      .replace(UNIVERSAL_NEWLINE_REGEX, '\n');
+    const userMessageText = normalizedInput.trim();
     
     let activeSessionId = currentSessionId;
     let isNewSession = false;
