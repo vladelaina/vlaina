@@ -19,7 +19,7 @@ export function MessageToolbar({
   msg,
   isSpeaking,
   isLoading,
-  onCopy: parentOnCopy, 
+  onCopy,
   onSpeak,
   onRegenerate,
   onSwitchVersion,
@@ -39,7 +39,7 @@ export function MessageToolbar({
   const handleCopy = () => {
       // Strip <think> tags for clean copying
       const cleanContent = msg.content.replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '').trim();
-      navigator.clipboard.writeText(cleanContent);
+      navigator.clipboard.writeText(cleanContent).catch(() => onCopy());
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
   };

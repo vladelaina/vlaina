@@ -88,6 +88,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.53.3",
     "@tailwindcss/postcss": "^4.1.17",
     "@tauri-apps/cli": "^2",
     "@testing-library/jest-dom": "^6.9.1",

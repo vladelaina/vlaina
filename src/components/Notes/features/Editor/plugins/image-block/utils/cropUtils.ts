@@ -14,6 +14,7 @@ export interface ParsedImageSource {
     crop: CropParams | null;
     align: Alignment | null;
     width: string | null;
+    extras: string[];
 }
 
 function normalizeAlign(value: string | null | undefined): Alignment | null {
@@ -27,6 +28,14 @@ function normalizeWidth(value: string | null | undefined): string | null {
     const trimmed = value.trim();
     if (!trimmed || trimmed === 'auto') return null;
     return trimmed;
+}
+
+function safeDecode(value: string): string {
+    try {
+        return decodeURIComponent(value);
+    } catch {
+        return value;
+    }
 }
 
 function parseCropToken(token: string): CropParams | null {
@@ -44,18 +53,25 @@ function parseCropToken(token: string): CropParams | null {
 
 export function parseImageSource(src: string): ParsedImageSource {
     if (!src) {
-        return { baseSrc: '', crop: null, align: null, width: null };
+        return { baseSrc: '', crop: null, align: null, width: null, extras: [] };
     }
 
-    const [baseSrc, fragment] = src.split('#');
+    const hashIndex = src.indexOf('#');
+    if (hashIndex === -1) {
+        return { baseSrc: src, crop: null, align: null, width: null, extras: [] };
+    }
+
+    const baseSrc = src.slice(0, hashIndex);
+    const fragment = src.slice(hashIndex + 1);
     if (!fragment) {
-        return { baseSrc, crop: null, align: null, width: null };
+        return { baseSrc, crop: null, align: null, width: null, extras: [] };
     }
 
     const tokens = fragment.split('&').filter(Boolean);
     let crop: CropParams | null = null;
     let align: Alignment | null = null;
     let width: string | null = null;
+    const extras: string[] = [];
 
     for (const token of tokens) {
         if (!crop) {
@@ -67,27 +83,30 @@ export function parseImageSource(src: string): ParsedImageSource {
         }
 
         if (token.startsWith('a=')) {
-            align = normalizeAlign(decodeURIComponent(token.substring(2)));
+            align = normalizeAlign(safeDecode(token.substring(2)));
             continue;
         }
 
         if (token.startsWith('w=')) {
-            width = normalizeWidth(decodeURIComponent(token.substring(2)));
+            width = normalizeWidth(safeDecode(token.substring(2)));
             continue;
         }
+
+        extras.push(token);
     }
 
-    return { baseSrc, crop, align, width };
+    return { baseSrc, crop, align, width, extras };
 }
 
 export function buildImageSource(
     baseSrc: string,
-    options: { crop?: CropParams | null; align?: Alignment | null; width?: string | null }
+    options: { crop?: CropParams | null; align?: Alignment | null; width?: string | null; extras?: string[] }
 ): string {
     const parts: string[] = [];
     const crop = options.crop ?? null;
     const align = options.align ?? null;
     const width = normalizeWidth(options.width ?? null);
+    const extras = (options.extras ?? []).filter(Boolean);
 
     if (crop) {
         parts.push(
@@ -101,6 +120,10 @@ export function buildImageSource(
 
     if (width) {
         parts.push(`w=${encodeURIComponent(width)}`);
+    }
+
+    if (extras.length > 0) {
+        parts.push(...extras);
     }
 
     if (parts.length === 0) return baseSrc;

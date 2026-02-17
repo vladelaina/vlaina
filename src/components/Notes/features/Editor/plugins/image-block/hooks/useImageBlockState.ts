@@ -25,7 +25,7 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
     const [isHovered, setIsHovered] = useState(false);
     const [isEditingCaption, setIsEditingCaption] = useState(false);
     const [isActive, setIsActive] = useState(false); // Cropper Active
-    const [isReady, setIsReady] = useState(!!node.attrs.width);
+    const [isReady, setIsReady] = useState(!!(parsedSource.width || node.attrs.width));
     
     // Image Data
     const [naturalRatio, setNaturalRatio] = useState<number | null>(null);
@@ -78,6 +78,9 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
             const mergedWidth = incomingWidth ?? incomingParsed?.width ?? latestParsed.width ?? null;
             const mergedCrop = incomingParsed?.crop ?? latestParsed.crop ?? null;
             const mergedBaseSrc = incomingParsed?.baseSrc || latestParsed.baseSrc || '';
+            const mergedExtras = incomingParsed?.extras
+                ? Array.from(new Set([...latestParsed.extras, ...incomingParsed.extras]))
+                : latestParsed.extras;
 
             const nextAttrs = { ...latestAttrs, ...attrs };
             delete nextAttrs.align;
@@ -86,6 +89,7 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
                 crop: mergedCrop,
                 align: mergedAlign,
                 width: mergedWidth,
+                extras: mergedExtras,
             });
             view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, nextAttrs));
         }

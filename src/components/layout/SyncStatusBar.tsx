@@ -1,21 +1,19 @@
-import React, { useMemo, useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { Icon } from "@/components/ui/icons";
 import { formatDistanceToNow } from "date-fns";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
 import { useProStatusStore } from "@/stores/useProStatusStore";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { isTauri } from "@/lib/storage/adapter";
 
 export const SyncStatusBar: React.FC = () => {
     const {
+        isConnected,
         isSyncing,
         syncBidirectional,
         lastSyncTime,
-        syncStatus,
         syncError,
         clearError,
-        isGithubConnected,
         checkStatus,
         checkRemoteData
     } = useGithubSyncStore();
@@ -26,11 +24,11 @@ export const SyncStatusBar: React.FC = () => {
 
     // Refresh status when component mounts (or popover opens)
     useEffect(() => {
-        if (isGithubConnected) {
+        if (isConnected) {
             checkStatus();
             checkRemoteData();
         }
-    }, [isGithubConnected, checkStatus, checkRemoteData]);
+    }, [isConnected, checkStatus, checkRemoteData]);
 
     // Monitor online status
     useEffect(() => {

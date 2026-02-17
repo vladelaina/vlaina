@@ -69,6 +69,7 @@ export function useImageDrag({
                 crop: parsed.crop,
                 align: nextAlign,
                 width: preservedWidth,
+                extras: parsed.extras,
             }),
         };
 
@@ -113,10 +114,11 @@ export function useImageDrag({
         }
 
         dispatch(tr);
-    }, [view, getPos, containerRef]);
+    }, [view, getPos]);
 
     const handlePointerDown = useCallback((e: React.PointerEvent) => {
         if (isActive || loadError) return;
+        if (!e.isPrimary || e.button !== 0) return;
 
         const target = e.target as HTMLElement;
         if (target.closest('button') || target.closest('input') || target.closest('[data-resize-handle]')) {
@@ -215,9 +217,11 @@ export function useImageDrag({
             }
         };
 
-        const onPointerUp = () => {
+        const finishDrag = (shouldCommit: boolean) => {
             window.removeEventListener('pointermove', onPointerMove, true);
             window.removeEventListener('pointerup', onPointerUp, true);
+            window.removeEventListener('pointercancel', onPointerCancel, true);
+            window.removeEventListener('blur', onPointerCancel, true);
             document.documentElement.classList.remove('dragging-image');
 
             if (longPressTimeoutRef.current) {
@@ -232,7 +236,7 @@ export function useImageDrag({
                     ? targetPos
                     : (sourcePos !== undefined ? sourcePos : null);
 
-            if (isLongPressTriggered && finalTargetPos !== null) {
+            if (shouldCommit && isLongPressTriggered && finalTargetPos !== null) {
                 moveNodeToPosition(finalTargetPos, finalAlignment);
             }
 
@@ -247,7 +251,10 @@ export function useImageDrag({
             dragCleanupRef.current = null;
         };
 
-        dragCleanupRef.current = onPointerUp;
+        const onPointerUp = () => finishDrag(true);
+        const onPointerCancel = () => finishDrag(false);
+
+        dragCleanupRef.current = onPointerCancel;
 
         longPressTimeoutRef.current = setTimeout(() => {
             if (!isLongPressTriggered) {
@@ -257,6 +264,8 @@ export function useImageDrag({
 
         window.addEventListener('pointermove', onPointerMove, true);
         window.addEventListener('pointerup', onPointerUp, true);
+        window.addEventListener('pointercancel', onPointerCancel, true);
+        window.addEventListener('blur', onPointerCancel, true);
     }, [view, getPos, containerRef, imageNaturalSize, isActive, loadError, moveNodeToPosition, currentAlignment]);
 
     // Empty handlers for React event binding

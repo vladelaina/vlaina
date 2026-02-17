@@ -1,4 +1,4 @@
-import { createHighlighter, bundledThemes, bundledLanguages } from 'shiki/bundle/full';
+import { createHighlighter } from 'shiki/bundle/full';
 
 export let highlighter: any = null;
 
@@ -7,33 +7,30 @@ export async function initHighlighter() {
   
   try {
     highlighter = await createHighlighter({
+      themes: ['github-dark', 'github-light'],
       langs: [
-        bundledLanguages['javascript'],
-        bundledLanguages['typescript'],
-        bundledLanguages['python'],
-        bundledLanguages['html'],
-        bundledLanguages['css'],
-        bundledLanguages['json'],
-        bundledLanguages['markdown'],
-        bundledLanguages['bash'],
-        bundledLanguages['c'],
-        bundledLanguages['cpp'],
-        bundledLanguages['csharp'],
-        bundledLanguages['java'],
-        bundledLanguages['go'],
-        bundledLanguages['rust'],
-        bundledLanguages['sql'],
+        'javascript',
+        'typescript',
+        'python',
+        'html',
+        'css',
+        'json',
+        'markdown',
+        'bash',
+        'c',
+        'cpp',
+        'csharp',
+        'java',
+        'go',
+        'rust',
+        'sql',
       ],
     });
-
-    // Load themes explicitly
-    await highlighter.loadTheme('one-dark');
-    await highlighter.loadTheme('one-light');
   } catch (e) {
     console.warn("Failed to initialize Shiki highlighter:", e);
     // Return a fallback highlighter to prevent app crashes and stalling
     highlighter = {
-      codeToHtml: (code: string, options: any) => {
+      codeToHtml: (code: string) => {
         // Basic HTML escaping for safety
         const escaped = code
           .replace(/&/g, "&amp;")

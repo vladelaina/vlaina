@@ -3,8 +3,11 @@ import { loadImageAsBase64 } from './io/reader';
 
 const SYSTEM_DIR_NAME = '.nekotick';
 const SYSTEM_SUBDIR = 'system';
+const AVATAR_FETCH_TIMEOUT_MS = 8000;
+const AVATAR_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
 
 const pendingDownloads = new Map<string, Promise<string | null>>();
+const failedDownloads = new Map<string, number>();
 
 function getAvatarFilename(username: string): string {
     const safeUsername = username.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -14,13 +17,25 @@ function getAvatarFilename(username: string): string {
 export async function downloadAndSaveAvatar(url: string, username: string): Promise<string | null> {
     if (!url || !username) return null;
 
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
+
+    const downloadKey = `${username}|${url}`;
+    const lastFailedAt = failedDownloads.get(downloadKey);
+    if (lastFailedAt && Date.now() - lastFailedAt < AVATAR_RETRY_COOLDOWN_MS) {
+        return null;
+    }
+
     if (pendingDownloads.has(username)) {
         return pendingDownloads.get(username) || null;
     }
 
     const downloadPromise = (async () => {
         try {
-            const response = await fetch(url);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), AVATAR_FETCH_TIMEOUT_MS);
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
             if (!response.ok) {
                 throw new Error(`Failed to fetch avatar: ${response.statusText}`);
             }
@@ -41,10 +56,16 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
             const avatarPath = await joinPath(systemDir, filename);
             await storage.writeBinaryFile(avatarPath, uint8Array);
 
+            failedDownloads.delete(downloadKey);
 
             return avatarPath;
         } catch (error) {
-            console.error('[AvatarManager] Failed to save avatar locally:', error);
+            failedDownloads.set(downloadKey, Date.now());
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                console.warn('[AvatarManager] Avatar fetch timed out, will retry later.');
+            } else {
+                console.warn('[AvatarManager] Failed to save avatar locally:', error);
+            }
             return null;
         } finally {
             pendingDownloads.delete(username);

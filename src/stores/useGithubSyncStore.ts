@@ -40,6 +40,20 @@ interface GithubSyncActions {
 type GithubSyncStore = GithubSyncState & GithubSyncActions;
 
 const GITHUB_USER_PERSIST_KEY = 'nekotick_github_user_identity';
+const PRO_STATUS_ERROR_LOG_COOLDOWN_MS = 60 * 1000;
+let lastProStatusErrorLogAt = 0;
+
+function canUseNetwork(): boolean {
+  return typeof navigator === 'undefined' || navigator.onLine !== false;
+}
+
+function logProStatusError(error: unknown) {
+  if (!canUseNetwork()) return;
+  const now = Date.now();
+  if (now - lastProStatusErrorLogAt < PRO_STATUS_ERROR_LOG_COOLDOWN_MS) return;
+  lastProStatusErrorLogAt = now;
+  console.warn('Failed to check PRO status:', error);
+}
 
 interface PersistedUser {
   isConnected: boolean;
@@ -129,7 +143,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
             });
           }
 
-          if (status.connected) {
+          if (status.connected && canUseNetwork()) {
             try {
               const proStatus = await githubCommands.checkProStatus();
               if (proStatus) {
@@ -139,7 +153,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
                 );
               }
             } catch (e) {
-              console.error('Failed to check PRO status:', e);
+              logProStatusError(e);
             }
             get().checkRemoteData();
           }
@@ -166,7 +180,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         avatarUrl: status.avatarUrl,
       }));
 
-      if (status.connected) {
+      if (status.connected && canUseNetwork()) {
         try {
           const proStatus = await webGithubCommands.checkProStatus();
           useProStatusStore.getState().setProStatus(
@@ -174,7 +188,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
             proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
           );
         } catch (e) {
-          console.error('Failed to check PRO status:', e);
+          logProStatusError(e);
         }
       }
     }
@@ -223,18 +237,22 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
             });
           }
 
-          try {
-            const proStatus = await githubCommands.checkProStatus();
-            if (proStatus) {
-              useProStatusStore.getState().setProStatus(
-                proStatus.isPro,
-                proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
-              );
-            } else {
+          if (canUseNetwork()) {
+            try {
+              const proStatus = await githubCommands.checkProStatus();
+              if (proStatus) {
+                useProStatusStore.getState().setProStatus(
+                  proStatus.isPro,
+                  proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
+                );
+              } else {
+                useProStatusStore.getState().setIsChecking(false);
+              }
+            } catch (e) {
+              logProStatusError(e);
               useProStatusStore.getState().setIsChecking(false);
             }
-          } catch (e) {
-            console.error('Failed to check PRO status:', e);
+          } else {
             useProStatusStore.getState().setIsChecking(false);
           }
 
@@ -308,14 +326,16 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
         avatarUrl: result.avatarUrl || null,
       }));
 
-      try {
-        const proStatus = await webGithubCommands.checkProStatus();
-        useProStatusStore.getState().setProStatus(
-          proStatus.isPro,
-          proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
-        );
-      } catch (e) {
-        console.error('Failed to check PRO status:', e);
+      if (canUseNetwork()) {
+        try {
+          const proStatus = await webGithubCommands.checkProStatus();
+          useProStatusStore.getState().setProStatus(
+            proStatus.isPro,
+            proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
+          );
+        } catch (e) {
+          logProStatusError(e);
+        }
       }
 
       return true;

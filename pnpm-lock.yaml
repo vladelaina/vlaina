@@ -231,6 +231,9 @@ importers:
         specifier: ^5.0.8
         version: 5.0.8(@types/react@19.2.7)(react@19.2.1)
     devDependencies:
+      '@rollup/rollup-linux-x64-gnu':
+        specifier: 4.53.3
+        version: 4.53.3
       '@tailwindcss/postcss':
         specifier: ^4.1.17
         version: 4.1.17
@@ -5452,8 +5455,7 @@ snapshots:
   '@rollup/rollup-linux-s390x-gnu@4.53.3':
     optional: true
 
-  '@rollup/rollup-linux-x64-gnu@4.53.3':
-    optional: true
+  '@rollup/rollup-linux-x64-gnu@4.53.3': {}
 
   '@rollup/rollup-linux-x64-musl@4.53.3':
     optional: true
