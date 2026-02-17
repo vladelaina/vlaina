@@ -251,14 +251,15 @@ pub fn run() {
             set_window_resizable,
             focus_window,
             move_to_trash,
-            github::commands::github_auth,
-            github::commands::github_disconnect,
-            github::commands::get_github_sync_status,
-            github::commands::check_github_remote_data,
-            github::commands::sync_to_github,
-            github::commands::restore_from_github,
-            github::commands::sync_github_bidirectional,
-            github::commands::check_pro_status,
+            github::auth_commands::github_auth,
+            github::auth_commands::github_disconnect,
+            github::auth_commands::get_github_sync_status,
+            github::auth_commands::check_pro_status,
+            // Config sync commands
+            github::config_commands::sync_config_to_github,
+            github::config_commands::restore_config_from_github,
+            github::config_commands::sync_config_bidirectional,
+            github::config_commands::check_config_remote_data,
             // GitHub Repository commands
             github::repo_commands::list_github_repos,
             github::repo_commands::get_repo_tree,
@@ -276,6 +277,7 @@ pub fn run() {
             github::git_commands::get_repo_status,
             github::git_commands::get_repo_log,
             github::git_commands::get_file_diff,
+            github::git_commands::sync_github_repo,
             github::git_commands::delete_local_repo,
             github::git_commands::list_local_repos
         ])

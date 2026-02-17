@@ -18,6 +18,7 @@ const DEFAULT_CONFIG: AutoSyncConfig = {
 class AutoSyncManagerImpl {
   private config: AutoSyncConfig;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private cooldownTimer: ReturnType<typeof setTimeout> | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private lastSyncTime: number = 0;
   private retryCount: number = 0;
@@ -27,9 +28,8 @@ class AutoSyncManagerImpl {
   }
 
   triggerSync(): void {
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer);
-    }
+    this.clearTimers();
+    this.retryCount = 0;
 
     if (!this.canSync()) {
       return;
@@ -38,6 +38,7 @@ class AutoSyncManagerImpl {
     useGithubSyncStore.getState().setSyncStatus('pending');
 
     this.debounceTimer = setTimeout(() => {
+      this.debounceTimer = null;
       this.executeSync();
     }, this.config.debounceMs);
   }
@@ -76,7 +77,8 @@ class AutoSyncManagerImpl {
     if (!this.isCooldownPassed()) {
       const remainingCooldown = this.config.cooldownMs - (Date.now() - this.lastSyncTime);
 
-      this.debounceTimer = setTimeout(() => {
+      this.cooldownTimer = setTimeout(() => {
+        this.cooldownTimer = null;
         this.executeSync();
       }, remainingCooldown);
 
@@ -91,6 +93,7 @@ class AutoSyncManagerImpl {
 
     if (success) {
       this.lastSyncTime = Date.now();
+      this.retryCount = 0;
       return true;
     } else {
       this.scheduleRetry();
@@ -111,6 +114,7 @@ class AutoSyncManagerImpl {
     const delay = this.config.retryDelays[Math.min(retryCount, this.config.retryDelays.length - 1)];
 
     this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
       this.executeSync();
     }, delay);
   }
@@ -123,6 +127,10 @@ class AutoSyncManagerImpl {
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
+    }
+    if (this.cooldownTimer) {
+      clearTimeout(this.cooldownTimer);
+      this.cooldownTimer = null;
     }
     if (this.retryTimer) {
       clearTimeout(this.retryTimer);

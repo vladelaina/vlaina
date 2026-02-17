@@ -1,13 +1,9 @@
 import { create } from 'zustand';
-import { 
-  githubRepoCommands, 
-  gitCommands,
-  hasBackendCommands,
-  type RepositoryInfo,
-  type FileStatus,
-  type CommitInfo,
-} from '@/lib/tauri/invoke';
+import { hasBackendCommands } from '@/lib/tauri/invoke';
+import { githubRepoCommands, type RepositoryInfo } from '@/lib/tauri/githubRepoCommands';
+import { gitCommands, type FileStatus, type CommitInfo } from '@/lib/tauri/gitCommands';
 import { useGithubSyncStore } from './useGithubSyncStore';
+import { friendlySyncError } from '@/lib/sync/syncErrors';
 
 export type SyncStatus = 'synced' | 'syncing' | 'has_changes' | 'error' | 'not_cloned';
 
@@ -61,6 +57,12 @@ const initialState: GithubReposState = {
   cloningRepos: new Set(),
 };
 
+function syncCommitMessage(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `sync: ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+
 export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
   ...initialState,
 
@@ -74,7 +76,8 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
     set({ isLoadingRepos: true, error: null });
     
     try {
-      const repos = await githubRepoCommands.listRepos();
+      const allRepos = await githubRepoCommands.listRepos();
+      const repos = allRepos.filter(r => r.name !== 'nekotick-config');
       
       const clonedRepos = new Set<number>();
       const localPaths = new Map<number, string>();
@@ -118,7 +121,7 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       set({ 
-        error: errorMsg, 
+        error: friendlySyncError(errorMsg), 
         isLoadingRepos: false,
         repositories: [],
       });
@@ -142,7 +145,7 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
       return repo;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      set({ error: errorMsg });
+      set({ error: friendlySyncError(errorMsg) });
       return null;
     }
   },
@@ -200,7 +203,7 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
         const cloningRepos = new Set(state.cloningRepos);
         cloningRepos.delete(repoId);
         const syncStatus = new Map(state.syncStatus).set(repoId, 'error');
-        return { error: errorMsg, cloningRepos, syncStatus };
+        return { error: friendlySyncError(errorMsg), cloningRepos, syncStatus };
       });
       return false;
     }
@@ -246,26 +249,22 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
     set(state => ({
       syncStatus: new Map(state.syncStatus).set(repoId, 'syncing'),
     }));
-    
+
+    console.log(`[Sync:Repo] ${repo.name} sync start`);
+    const t0 = performance.now();
     try {
-      const status = get().gitStatus.get(repoId) || [];
-      if (status.length > 0) {
-        await gitCommands.commitChanges(repo.owner, repo.name, 'Sync changes from NekoTick');
-      }
-      
-      await gitCommands.pullRepo(repo.owner, repo.name);
-      
-      await gitCommands.pushRepo(repo.owner, repo.name);
-      
+      await gitCommands.syncRepo(repo.owner, repo.name, syncCommitMessage());
       await get().refreshGitStatus(repoId);
-      
+
+      console.log(`[Sync:Repo] ${repo.name} sync success ${((performance.now() - t0) / 1000).toFixed(1)}s`);
       set(state => ({
         syncStatus: new Map(state.syncStatus).set(repoId, 'synced'),
       }));
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[Sync:Repo] ${repo.name} sync error:`, errorMsg);
       set(state => ({
-        error: errorMsg,
+        error: friendlySyncError(errorMsg),
         syncStatus: new Map(state.syncStatus).set(repoId, 'error'),
       }));
     }
@@ -274,22 +273,26 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
   pullChanges: async (repoId) => {
     const repo = get().repositories.find(r => r.id === repoId);
     if (!repo) return;
-    
+
     set(state => ({
       syncStatus: new Map(state.syncStatus).set(repoId, 'syncing'),
     }));
-    
+
+    console.log(`[Sync:Repo] ${repo.name} pull start`);
+    const t0 = performance.now();
     try {
-      await gitCommands.pullRepo(repo.owner, repo.name);
+      await gitCommands.syncRepo(repo.owner, repo.name, syncCommitMessage());
       await get().refreshGitStatus(repoId);
-      
+
+      console.log(`[Sync:Repo] ${repo.name} pull success ${((performance.now() - t0) / 1000).toFixed(1)}s`);
       set(state => ({
         syncStatus: new Map(state.syncStatus).set(repoId, 'synced'),
       }));
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[Sync:Repo] ${repo.name} pull error:`, errorMsg);
       set(state => ({
-        error: errorMsg,
+        error: friendlySyncError(errorMsg),
         syncStatus: new Map(state.syncStatus).set(repoId, 'error'),
       }));
     }
@@ -298,27 +301,26 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
   pushChanges: async (repoId) => {
     const repo = get().repositories.find(r => r.id === repoId);
     if (!repo) return;
-    
+
     set(state => ({
       syncStatus: new Map(state.syncStatus).set(repoId, 'syncing'),
     }));
-    
+
+    console.log(`[Sync:Repo] ${repo.name} push start`);
+    const t0 = performance.now();
     try {
-      const status = get().gitStatus.get(repoId) || [];
-      if (status.length > 0) {
-        await gitCommands.commitChanges(repo.owner, repo.name, 'Update from NekoTick');
-      }
-      
-      await gitCommands.pushRepo(repo.owner, repo.name);
+      await gitCommands.syncRepo(repo.owner, repo.name, syncCommitMessage());
       await get().refreshGitStatus(repoId);
-      
+
+      console.log(`[Sync:Repo] ${repo.name} push success ${((performance.now() - t0) / 1000).toFixed(1)}s`);
       set(state => ({
         syncStatus: new Map(state.syncStatus).set(repoId, 'synced'),
       }));
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[Sync:Repo] ${repo.name} push error:`, errorMsg);
       set(state => ({
-        error: errorMsg,
+        error: friendlySyncError(errorMsg),
         syncStatus: new Map(state.syncStatus).set(repoId, 'error'),
       }));
     }
@@ -333,7 +335,7 @@ export const useGithubReposStore = create<GithubReposStore>((set, get) => ({
       await get().refreshGitStatus(repoId);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      set({ error: errorMsg });
+      set({ error: friendlySyncError(errorMsg) });
     }
   },
 

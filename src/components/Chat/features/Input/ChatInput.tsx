@@ -6,6 +6,12 @@ import { useAIStore } from '@/stores/useAIStore';
 import type { AIModel } from '@/lib/ai/types';
 import { saveAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
 import {
+  chatComposerFrameClass,
+  chatComposerInputBlockClass,
+  chatComposerSurfaceClass,
+  chatComposerTextareaClass
+} from './composerStyles';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -142,14 +148,9 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
 
           <div 
             className={cn(
-              "relative z-10 flex flex-col justify-between min-h-[84px] pt-3", // More compact: 84px height, reduced top padding
-              "bg-white dark:bg-[#18181b]",
-              "border border-black/5 dark:border-white/10",
-              "rounded-[26px]", // Slightly tighter radius for shorter height
-              "shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]", 
-              "transition-all duration-300 ease-out",
-              "hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]",
-              "focus-within:ring-1 focus-within:ring-black/5 dark:focus-within:ring-white/10",
+              "relative z-10",
+              chatComposerFrameClass,
+              chatComposerSurfaceClass,
               nativeWebSearchEnabled && "ring-2 ring-blue-500/20 border-blue-200 dark:border-blue-800"
             )}
             onDragOver={handleDragOver}
@@ -179,7 +180,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                   </div>
               )}
 
-              <div className="relative px-4 pt-4 pb-2">
+              <div className={chatComposerInputBlockClass}>
                 <textarea
                   ref={textareaRef}
                   value={message}
@@ -192,13 +193,7 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                         : (isLoading ? "Type to interrupt..." : "Message...")
                   }
                   rows={1}
-                  className={cn(
-                    "w-full resize-none bg-transparent",
-                    "text-[15px] leading-6 text-[var(--neko-text-primary)]",
-                    "placeholder:text-gray-400 dark:placeholder:text-gray-500",
-                    "focus:outline-none",
-                    "max-h-[320px] min-h-[24px]"
-                  )}
+                  className={chatComposerTextareaClass}
                 />
               </div>
 

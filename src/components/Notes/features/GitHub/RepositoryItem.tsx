@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Icon } from '@/components/ui/icons';
 import { ToggleIcon } from '@/components/common/ToggleIcon';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
-import { type RepositoryInfo } from '@/lib/tauri/invoke';
+import { type RepositoryInfo } from '@/lib/tauri/githubRepoCommands';
 import { LocalFileTree } from './LocalFileTree';
 import { cn, iconButtonStyles } from '@/lib/utils';
 

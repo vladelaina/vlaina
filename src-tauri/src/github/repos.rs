@@ -3,62 +3,15 @@
 //! Provides methods to interact with GitHub Repository API for browsing
 //! and managing user repositories with `nekotick-` prefix.
 
+use crate::github::types::{
+    GitHubUser, Repository, TreeEntry, FileContent, CommitResult,
+};
+use crate::github::credentials::CONFIG_REPO_NAME;
 use serde::{Deserialize, Serialize};
 use base64::{engine::general_purpose::STANDARD, Engine};
 
 const GITHUB_API_BASE: &str = "https://api.github.com";
 const NEKOTICK_PREFIX: &str = "nekotick-";
-
-/// GitHub repository info (from GitHub API - uses snake_case)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Repository {
-    pub id: u64,
-    pub name: String,
-    pub full_name: String,
-    pub owner: RepositoryOwner,
-    pub private: bool,
-    pub html_url: String,
-    pub default_branch: String,
-    pub updated_at: String,
-    pub description: Option<String>,
-}
-
-/// Repository owner info
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RepositoryOwner {
-    pub login: String,
-    pub id: u64,
-}
-
-/// Tree entry (file or directory) - for frontend (camelCase)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TreeEntry {
-    pub path: String,
-    pub name: String,
-    pub entry_type: String,  // "file" or "dir"
-    pub sha: String,
-    pub size: Option<u64>,
-}
-
-/// File content from GitHub API - for frontend (camelCase)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FileContent {
-    pub path: String,
-    pub content: String,
-    pub sha: String,
-    pub encoding: String,
-}
-
-/// Commit result after file update - for frontend (camelCase)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CommitResult {
-    pub sha: String,
-    pub message: String,
-    pub html_url: Option<String>,
-}
 
 /// Create repository request
 #[derive(Debug, Clone, Serialize)]
@@ -192,7 +145,49 @@ impl RepoClient {
         RepoApiError::ApiError(format!("{}: {}", status, error_text))
     }
 
-    /// List user's repositories with nekotick- prefix
+    pub async fn get_user_info(&self) -> Result<GitHubUser, RepoApiError> {
+        let response = self.client
+            .get(format!("{}/user", GITHUB_API_BASE))
+            .headers(self.build_headers())
+            .send()
+            .await
+            .map_err(|e| RepoApiError::NetworkError(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(self.handle_error(response).await);
+        }
+
+        response
+            .json::<GitHubUser>()
+            .await
+            .map_err(|e| RepoApiError::ParseError(e.to_string()))
+    }
+
+    pub async fn find_repo_by_name(&self, owner: &str, name: &str) -> Result<Option<Repository>, RepoApiError> {
+        let response = self.client
+            .get(format!("{}/repos/{}/{}", GITHUB_API_BASE, owner, name))
+            .headers(self.build_headers())
+            .send()
+            .await
+            .map_err(|e| RepoApiError::NetworkError(e.to_string()))?;
+
+        if response.status() == 404 {
+            return Ok(None);
+        }
+
+        if !response.status().is_success() {
+            return Err(self.handle_error(response).await);
+        }
+
+        let repo: Repository = response
+            .json()
+            .await
+            .map_err(|e| RepoApiError::ParseError(e.to_string()))?;
+
+        Ok(Some(repo))
+    }
+
+    /// List user's repositories with nekotick- prefix (excludes nekotick-config)
     pub async fn list_nekotick_repos(&self) -> Result<Vec<Repository>, RepoApiError> {
         let mut all_repos = Vec::new();
         let mut page = 1;
@@ -224,10 +219,9 @@ impl RepoClient {
                 break;
             }
 
-            // Filter repos with nekotick- prefix
             let nekotick_repos: Vec<Repository> = repos
                 .into_iter()
-                .filter(|r| r.name.starts_with(NEKOTICK_PREFIX))
+                .filter(|r| r.name.starts_with(NEKOTICK_PREFIX) && r.name != CONFIG_REPO_NAME)
                 .collect();
 
             all_repos.extend(nekotick_repos);

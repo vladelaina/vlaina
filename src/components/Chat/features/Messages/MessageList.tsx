@@ -44,7 +44,7 @@ export function MessageList({
         )}
         ref={containerRef}
       >
-        <div className="max-w-3xl mx-auto px-4 py-8 pb-4 min-h-full flex flex-col">
+        <div className="w-full max-w-[850px] mx-auto px-4 py-8 pb-4 min-h-full flex flex-col">
           {!isEmpty && (
             <div className="space-y-8">
               {messages.map((msg, idx) => (

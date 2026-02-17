@@ -235,8 +235,26 @@ export async function saveUnifiedData(data: UnifiedData): Promise<void> {
       await performSplitSave(pendingData);
       pendingData = null;
       triggerAutoSyncIfEligible();
-    } catch (error) {}
+    } catch (error) {
+      console.error('[Storage] save failed:', error);
+    }
   }, 300);
+}
+
+export async function flushPendingSave(): Promise<void> {
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+  }
+  if (pendingData) {
+    const data = pendingData;
+    pendingData = null;
+    try {
+      await performSplitSave(data);
+    } catch (error) {
+      console.error('[Storage] flush save failed:', error);
+    }
+  }
 }
 
 export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void> {
@@ -247,7 +265,9 @@ export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void>
   pendingData = null;
   try {
     await performSplitSave(data);
-  } catch (error) {}
+  } catch (error) {
+    console.error('[Storage] immediate save failed:', error);
+  }
 }
 
 function triggerAutoSyncIfEligible(): void {

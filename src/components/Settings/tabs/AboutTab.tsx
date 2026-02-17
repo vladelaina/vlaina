@@ -184,7 +184,7 @@ export function AboutTab() {
         </div>
         
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
-          Sync your data to GitHub Gist for backup and cross-device access
+          Sync your data to GitHub for backup and cross-device access
         </p>
       </div>
 

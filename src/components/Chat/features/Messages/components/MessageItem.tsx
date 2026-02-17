@@ -39,7 +39,7 @@ export const MessageItem = memo(function MessageItem({
       <div 
           className={cn(
               "flex flex-col min-w-0",
-              isUser ? "items-end max-w-[85%]" : "w-full items-start"
+              isUser ? "items-end w-full" : "w-full items-start"
           )}
       >
           {isUser ? (

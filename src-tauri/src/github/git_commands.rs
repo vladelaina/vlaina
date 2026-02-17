@@ -1,7 +1,7 @@
 //! Tauri commands for git operations
 
 use super::git_ops::{self, CommitInfo, FileStatus};
-use super::commands::{get_stored_github_token, get_stored_github_username};
+use super::credentials::{get_stored_github_token, get_stored_github_username};
 use tauri::command;
 
 /// Clone a repository to local storage
@@ -131,6 +131,26 @@ pub async fn get_file_diff(
 ) -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
         git_ops::get_file_diff(&owner, &repo, &file_path).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Sync repository safely: backup → pull → restore → commit → push
+#[command]
+pub async fn sync_github_repo(
+    app: tauri::AppHandle,
+    owner: String,
+    repo: String,
+    message: String,
+) -> Result<(), String> {
+    let token = get_stored_github_token(&app).ok_or("Not authenticated with GitHub")?;
+    let username = get_stored_github_username(&app).unwrap_or_else(|| "NekoTick User".to_string());
+    let email = format!("{}@users.noreply.github.com", username);
+
+    tokio::task::spawn_blocking(move || {
+        git_ops::sync_repo(&owner, &repo, &token, &message, &username, &email)
+            .map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?
