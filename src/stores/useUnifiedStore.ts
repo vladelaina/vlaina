@@ -79,6 +79,7 @@ const initialState: UnifiedStoreState = {
         messages: {},
         selectedModelId: null,
         currentSessionId: null,
+        temporaryChatEnabled: false,
         nativeWebSearchEnabled: false
     }
   },

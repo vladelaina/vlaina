@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { cn } from '@/lib/utils';
+import { isTemporarySession } from '@/lib/ai/temporaryChat';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +41,10 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   } = useAIStore();
   
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const visibleSessions = useMemo(
+    () => sessions.filter((session) => !isTemporarySession(session)),
+    [sessions]
+  );
 
   useEffect(() => {
     const handleCreateNew = (e: Event) => {
@@ -81,7 +86,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
     const weekStart = todayStart - 6 * 86400000;
     const monthStart = todayStart - 29 * 86400000;
 
-    [...sessions].sort((a, b) => b.updatedAt - a.updatedAt).forEach(session => {
+    [...visibleSessions].sort((a, b) => b.updatedAt - a.updatedAt).forEach(session => {
       if (session.isPinned) {
         groups['Pinned'].push(session);
         return;
@@ -102,7 +107,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
     });
 
     return groups;
-  }, [sessions]);
+  }, [visibleSessions]);
 
   const handleRename = (sessionId: string, currentTitle: string) => {
       const newTitle = window.prompt("Rename chat", currentTitle);
@@ -120,7 +125,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
       switchSession(sessionId);
   };
 
-  const hasSessions = sessions.length > 0;
+  const hasSessions = visibleSessions.length > 0;
 
   return (
     <>

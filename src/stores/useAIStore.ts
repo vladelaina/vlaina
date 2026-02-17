@@ -4,21 +4,32 @@ import { useUnifiedStore } from './useUnifiedStore'
 import type { Provider, AIModel, ChatMessage, ChatSession, MessageVersion } from '@/lib/ai/types'
 import { generateModelName, generateModelGroup } from '@/lib/ai/utils'
 import { saveSessionJson, loadSessionJson } from '@/lib/storage/chatStorage'
+import {
+  createTemporarySession,
+  isTemporarySession,
+  isTemporarySessionId,
+  shouldPersistSession,
+  stripTemporaryData
+} from '@/lib/ai/temporaryChat';
 
 interface AIUIState {
   generatingSessions: Record<string, boolean>;
   unreadSessions: Record<string, boolean>;
   error: string | null;
+  temporaryReturnSessionId: string | null;
   setSessionLoading: (sessionId: string, loading: boolean) => void;
   markSessionUnread: (sessionId: string) => void;
   markSessionRead: (sessionId: string) => void;
   setError: (error: string | null) => void;
+  setTemporaryReturnSessionId: (sessionId: string | null) => void;
+  clearSessionState: (sessionId: string) => void;
 }
 
 const useAIUIStore = create<AIUIState>((set) => ({
   generatingSessions: {},
   unreadSessions: {},
   error: null,
+  temporaryReturnSessionId: null,
   setSessionLoading: (id, loading) => set((state) => ({
       generatingSessions: { ...state.generatingSessions, [id]: loading }
   })),
@@ -31,7 +42,41 @@ const useAIUIStore = create<AIUIState>((set) => ({
       return { unreadSessions: newUnread };
   }),
   setError: (error: string | null) => set({ error }),
+  setTemporaryReturnSessionId: (sessionId) => set({ temporaryReturnSessionId: sessionId }),
+  clearSessionState: (sessionId) => set((state) => {
+      const generatingSessions = { ...state.generatingSessions };
+      const unreadSessions = { ...state.unreadSessions };
+      delete generatingSessions[sessionId];
+      delete unreadSessions[sessionId];
+      return { generatingSessions, unreadSessions };
+  }),
 }));
+
+function clearTemporaryUIState(sessionIds: string[]) {
+  const uiState = useAIUIStore.getState();
+  sessionIds.forEach((id) => uiState.clearSessionState(id));
+}
+
+function stripTemporaryForMutation(ai: {
+  sessions: ChatSession[];
+  messages: Record<string, ChatMessage[]>;
+}) {
+  const stripped = stripTemporaryData(ai);
+  clearTemporaryUIState(stripped.temporarySessionIds);
+  return stripped;
+}
+
+function buildTemporarySessionState(
+  stripped: { sessions: ChatSession[]; messages: Record<string, ChatMessage[]> },
+  modelId: string
+) {
+  const temporarySession = createTemporarySession(modelId);
+  return {
+    sessions: [temporarySession, ...stripped.sessions],
+    messages: { ...stripped.messages, [temporarySession.id]: [] },
+    currentSessionId: temporarySession.id
+  };
+}
 
 export const actions = {
   addProvider: (provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -123,21 +168,91 @@ export const actions = {
     useUnifiedStore.getState().updateAIData({ selectedModelId: modelId })
   },
 
+  toggleTemporaryChat: (enabled?: boolean) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    const uiState = useAIUIStore.getState();
+    const nextEnabled = enabled ?? !ai.temporaryChatEnabled;
+
+    if (nextEnabled === !!ai.temporaryChatEnabled) {
+      return;
+    }
+
+    if (nextEnabled) {
+      const returnSessionId = ai.currentSessionId && !isTemporarySessionId(ai.currentSessionId)
+        ? ai.currentSessionId
+        : uiState.temporaryReturnSessionId;
+      const stripped = stripTemporaryForMutation(ai);
+      const temporaryState = buildTemporarySessionState(stripped, ai.selectedModelId || '');
+
+      state.updateAIData({
+        temporaryChatEnabled: true,
+        sessions: temporaryState.sessions,
+        messages: temporaryState.messages,
+        currentSessionId: temporaryState.currentSessionId
+      });
+      uiState.setTemporaryReturnSessionId(returnSessionId || null);
+      return;
+    }
+
+    const stripped = stripTemporaryForMutation(ai);
+    const restoreSessionId = uiState.temporaryReturnSessionId && stripped.sessions.some((session) => session.id === uiState.temporaryReturnSessionId)
+      ? uiState.temporaryReturnSessionId
+      : null;
+
+    state.updateAIData({
+      temporaryChatEnabled: false,
+      sessions: stripped.sessions,
+      messages: stripped.messages,
+      currentSessionId: restoreSessionId
+    });
+    uiState.setTemporaryReturnSessionId(null);
+  },
+
   openNewChat: () => {
-      useUnifiedStore.getState().updateAIData({ currentSessionId: null })
+      const state = useUnifiedStore.getState();
+      const ai = state.data.ai!;
+
+      if (!ai.temporaryChatEnabled) {
+        state.updateAIData({ currentSessionId: null });
+        return;
+      }
+
+      const uiState = useAIUIStore.getState();
+      const stripped = stripTemporaryForMutation(ai);
+      state.updateAIData({
+        temporaryChatEnabled: false,
+        sessions: stripped.sessions,
+        messages: stripped.messages,
+        currentSessionId: null
+      });
+      uiState.setTemporaryReturnSessionId(null);
   },
 
   createSession: (title = 'New Chat') => {
-    const id = `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
-    
+    const now = Date.now();
+
+    if (ai.temporaryChatEnabled) {
+      const stripped = stripTemporaryForMutation(ai);
+      const temporaryState = buildTemporarySessionState(stripped, ai.selectedModelId || '');
+
+      state.updateAIData({
+        sessions: temporaryState.sessions,
+        currentSessionId: temporaryState.currentSessionId,
+        messages: temporaryState.messages
+      });
+      return temporaryState.currentSessionId;
+    }
+
+    const id = `session-${now}-${Math.random().toString(36).substring(2, 11)}`
     const newSession: ChatSession = {
       id,
       title,
       modelId: ai.selectedModelId || '',
-      createdAt: Date.now(),
-      updatedAt: Date.now()
+      createdAt: now,
+      updatedAt: now
     }
 
     state.updateAIData({
@@ -153,11 +268,37 @@ export const actions = {
   switchSession: async (sessionId: string) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
-    
-    state.updateAIData({ currentSessionId: sessionId });
+
+    if (ai.temporaryChatEnabled && !isTemporarySessionId(sessionId)) {
+      const uiState = useAIUIStore.getState();
+      const stripped = stripTemporaryForMutation(ai);
+      uiState.setTemporaryReturnSessionId(null);
+
+      state.updateAIData({
+        temporaryChatEnabled: false,
+        sessions: stripped.sessions,
+        messages: stripped.messages,
+        currentSessionId: sessionId
+      });
+    } else {
+      state.updateAIData({ currentSessionId: sessionId });
+      if (isTemporarySessionId(sessionId)) {
+        if (!(sessionId in ai.messages)) {
+          const freshState = useUnifiedStore.getState();
+          freshState.updateAIData({
+            messages: {
+              ...freshState.data.ai!.messages,
+              [sessionId]: []
+            }
+          }, true);
+        }
+        return;
+      }
+    }
 
     // Precise Lazy Load: Only load if the key is missing from the messages map
-    if (!(sessionId in ai.messages)) {
+    const latestAI = useUnifiedStore.getState().data.ai!;
+    if (!(sessionId in latestAI.messages)) {
         const loadedMessages = await loadSessionJson(sessionId);
         // Even if loadedMessages is null/empty, we set it to [] to mark it as "loaded"
         const freshState = useUnifiedStore.getState();
@@ -183,6 +324,27 @@ export const actions = {
   deleteSession: (id: string) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
+
+    if (isTemporarySessionId(id)) {
+      const stripped = stripTemporaryForMutation(ai);
+
+      if (ai.temporaryChatEnabled) {
+        const temporaryState = buildTemporarySessionState(stripped, ai.selectedModelId || '');
+        state.updateAIData({
+          sessions: temporaryState.sessions,
+          messages: temporaryState.messages,
+          currentSessionId: temporaryState.currentSessionId
+        });
+      } else {
+        state.updateAIData({
+          sessions: stripped.sessions,
+          messages: stripped.messages,
+          currentSessionId: ai.currentSessionId === id ? null : ai.currentSessionId
+        });
+      }
+      return;
+    }
+
     const newSessions = ai.sessions.filter(s => s.id !== id);
     const newMessages = { ...ai.messages };
     delete newMessages[id];
@@ -197,7 +359,21 @@ export const actions = {
   },
 
   clearSessions: () => {
-    useUnifiedStore.getState().updateAIData({ sessions: [], messages: {}, currentSessionId: null })
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+
+    if (ai.temporaryChatEnabled) {
+      stripTemporaryForMutation(ai);
+      const temporaryState = buildTemporarySessionState({ sessions: [], messages: {} }, ai.selectedModelId || '');
+      state.updateAIData({
+        sessions: temporaryState.sessions,
+        messages: temporaryState.messages,
+        currentSessionId: temporaryState.currentSessionId
+      });
+      return;
+    }
+
+    state.updateAIData({ sessions: [], messages: {}, currentSessionId: null });
   },
 
   addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'> & { id?: string }) => {
@@ -226,7 +402,9 @@ export const actions = {
       sessions: ai.sessions.map(s => s.id === currentSessionId ? { ...s, updatedAt: Date.now() } : s)
     });
 
-    saveSessionJson(currentSessionId, newMessages);
+    if (shouldPersistSession(ai, currentSessionId)) {
+      saveSessionJson(currentSessionId, newMessages);
+    }
     return newMessage.id;
   },
 
@@ -257,7 +435,9 @@ export const actions = {
       }
     }, true); 
 
-    saveSessionJson(sessionId, newMessages);
+    if (shouldPersistSession(ai, sessionId)) {
+      saveSessionJson(sessionId, newMessages);
+    }
   },
 
   completeMessage: (_sessionId: string, _id: string) => {
@@ -304,7 +484,9 @@ export const actions = {
           }
       });
 
-      saveSessionJson(currentSessionId, newMessages);
+      if (shouldPersistSession(ai, currentSessionId)) {
+        saveSessionJson(currentSessionId, newMessages);
+      }
   },
 
   editMessageAndBranch: (sessionId: string, messageId: string, newContent: string) => {
@@ -345,7 +527,9 @@ export const actions = {
           messages: { ...ai.messages, [sessionId]: newMessages }
       });
 
-      saveSessionJson(sessionId, newMessages);
+      if (shouldPersistSession(ai, sessionId)) {
+        saveSessionJson(sessionId, newMessages);
+      }
   },
 
   switchMessageVersion: (sessionId: string, messageId: string, targetIndex: number) => {
@@ -385,7 +569,9 @@ export const actions = {
           messages: { ...ai.messages, [sessionId]: finalMessages }
       });
 
-      saveSessionJson(sessionId, finalMessages);
+      if (shouldPersistSession(ai, sessionId)) {
+        saveSessionJson(sessionId, finalMessages);
+      }
   },
 };
 
@@ -408,6 +594,7 @@ export const useAIStore = () => {
     currentSessionId: aiData?.currentSessionId || null,
     messages: aiData?.messages || {},
     selectedModelId: aiData?.selectedModelId || null,
+    temporaryChatEnabled: !!aiData?.temporaryChatEnabled,
     nativeWebSearchEnabled: aiData?.nativeWebSearchEnabled || false,
     
     ...uiState,
@@ -422,6 +609,10 @@ export const useAIStore = () => {
     getModel: (id: string) => aiData?.models.find(m => m.id === id),
     getSelectedModel: () => aiData?.selectedModelId ? aiData.models.find(m => m.id === aiData.selectedModelId) : undefined,
     getModelsByProvider: (pid: string) => aiData?.models.filter(m => m.providerId === pid && m.enabled) || [],
+    isTemporarySession: (sessionId: string) => {
+      const session = aiData?.sessions.find((item) => item.id === sessionId);
+      return isTemporarySessionId(sessionId) || isTemporarySession(session);
+    },
     
     isSessionLoading: (sessionId: string) => !!uiState.generatingSessions[sessionId],
     isSessionUnread: (sessionId: string) => !!uiState.unreadSessions[sessionId],

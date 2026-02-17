@@ -1,5 +1,5 @@
 import { ComponentType, SVGProps } from 'react';
-import { PenLine, Pin } from 'lucide-react';
+import { MessageSquareDashed, PenLine, Pin } from 'lucide-react';
 import { 
   MinusIcon,
   XMarkIcon,
@@ -132,6 +132,7 @@ export const icons: Record<string, IconSource> = {
   'common.sparkle': SparklesIcon,
   'common.send': SendIcon,
   'common.language': LanguageIcon,
+  'chat.temporary': MessageSquareDashed,
 
   // --- Navigation ---
   'nav.chevronRight': ChevronRightIcon,

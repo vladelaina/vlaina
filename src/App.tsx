@@ -18,6 +18,7 @@ import { CalendarSidebarWrapper } from '@/components/Calendar/features/Sidebar/C
 import { TodoSidebar } from '@/components/Todo/TodoSidebar';
 import { NotesSidebarWrapper } from '@/components/Notes/features/Sidebar/NotesSidebarWrapper';
 import { ChatSidebar } from '@/components/Chat/features/Sidebar/ChatSidebar';
+import { TemporaryChatToggle } from '@/components/Chat/features/Temporary/TemporaryChatToggle';
 
 import { CalendarHeaderControl } from '@/components/Calendar/features/Grid/CalendarHeaderControl';
 import { NotesTabRow } from '@/components/Notes/features/Tabs/NotesTabRow';
@@ -27,6 +28,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
+import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
 
 function AppContent() {
   const {
@@ -39,6 +41,8 @@ function AppContent() {
     setAppViewMode
   } = useUIStore();
   const { currentVault, initialize } = useVaultStore();
+  const { showInTitleBar, titleBarReadOnly } = useTemporaryTogglePresentation();
+  const shouldShowTemporaryToggleInTitleBar = appViewMode === 'chat' && showInTitleBar;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -114,6 +118,8 @@ function AppContent() {
   } else if (appViewMode === 'todo') {
   } else if (appViewMode === 'notes' && currentVault) {
     centerSlot = <NotesTabRow />;
+  } else if (shouldShowTemporaryToggleInTitleBar) {
+    rightSlot = <TemporaryChatToggle readOnly={titleBarReadOnly} />;
   }
 
   let mainContent = null;

@@ -37,6 +37,7 @@ export interface CustomIcon {
 }
 
 import type { Provider, AIModel, ChatMessage, ChatSession } from '@/lib/ai/types';
+import { isTemporarySession } from '@/lib/ai/temporaryChat';
 
 export interface TimezoneInfo {
   offset: number;
@@ -62,6 +63,7 @@ export interface UnifiedData {
     messages: Record<string, ChatMessage[]>;
     selectedModelId: string | null;
     currentSessionId: string | null;
+    temporaryChatEnabled?: boolean;
     nativeWebSearchEnabled?: boolean;
   };
 }
@@ -122,6 +124,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
         sessions: [],
         selectedModelId: null,
         currentSessionId: null,
+        temporaryChatEnabled: false,
         nativeWebSearchEnabled: false,
         messages: {}
     };
@@ -131,9 +134,15 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     if (await storage.exists(sessionsPath)) {
         try {
             const sessionsData = JSON.parse(await storage.readFile(sessionsPath));
-            combinedData.ai.sessions = sessionsData.sessions || [];
+            const loadedSessions = Array.isArray(sessionsData.sessions) ? sessionsData.sessions : [];
+            combinedData.ai.sessions = loadedSessions.filter((session: ChatSession) => !isTemporarySession(session));
             combinedData.ai.selectedModelId = sessionsData.selectedModelId || null;
-            combinedData.ai.currentSessionId = sessionsData.currentSessionId || null;
+            const currentSessionId = sessionsData.currentSessionId || null;
+            const hasCurrentSession = currentSessionId
+              ? combinedData.ai.sessions.some((session) => session.id === currentSessionId)
+              : false;
+            combinedData.ai.currentSessionId = hasCurrentSession ? currentSessionId : null;
+            combinedData.ai.temporaryChatEnabled = !!sessionsData.temporaryChatEnabled;
             combinedData.ai.nativeWebSearchEnabled = sessionsData.nativeWebSearchEnabled || false;
             providerIds = sessionsData.providerIds || []; // Index of channels
         } catch (e) { console.error('Failed to load sessions.json', e); }
@@ -196,11 +205,17 @@ async function performSplitSave(data: UnifiedData) {
 
     // 2. Save AI Data
     if (ai) {
+        const persistedSessions = ai.sessions.filter((session) => !isTemporarySession(session));
+        const persistedSessionIds = new Set(persistedSessions.map((session) => session.id));
+
         // Save Sessions Index + Provider IDs
         const sessionsData = {
-            sessions: ai.sessions,
+            sessions: persistedSessions,
             selectedModelId: ai.selectedModelId,
-            currentSessionId: ai.currentSessionId,
+            currentSessionId: ai.currentSessionId && persistedSessionIds.has(ai.currentSessionId)
+              ? ai.currentSessionId
+              : null,
+            temporaryChatEnabled: !!ai.temporaryChatEnabled,
             nativeWebSearchEnabled: ai.nativeWebSearchEnabled,
             providerIds: ai.providers.map(p => p.id)
         };

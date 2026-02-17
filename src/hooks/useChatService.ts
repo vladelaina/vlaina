@@ -25,6 +25,8 @@ export function useChatService() {
     addVersion,
     getSelectedModel, 
     providers, 
+    temporaryChatEnabled,
+    isTemporarySession,
     nativeWebSearchEnabled,
     setSessionLoading,
     markSessionUnread,
@@ -92,8 +94,10 @@ export function useChatService() {
     setSessionLoading(targetSessionId, true);
     setError(null);
 
-    let shouldGenerateTitle = isNewSession;
-    if (!shouldGenerateTitle && targetSessionId) {
+    const isTemporaryTarget = isTemporarySession(targetSessionId);
+
+    let shouldGenerateTitle = isNewSession && !temporaryChatEnabled && !isTemporaryTarget;
+    if (!shouldGenerateTitle && targetSessionId && !temporaryChatEnabled && !isTemporaryTarget) {
         const state = useUnifiedStore.getState();
         const session = state.data.ai?.sessions.find(s => s.id === targetSessionId);
         if (session && (session.title === 'New Chat' || session.title === 'New Image Chat')) {
@@ -165,7 +169,7 @@ export function useChatService() {
       completeMessage(targetSessionId, assistantMessageId);
 
       const current = useUnifiedStore.getState().data.ai?.currentSessionId;
-      if (targetSessionId !== current) {
+      if (targetSessionId !== current && !isTemporarySession(targetSessionId)) {
           markSessionUnread(targetSessionId);
       }
 
@@ -186,7 +190,7 @@ export function useChatService() {
       requestManager.finish(targetSessionId);
       setSessionLoading(targetSessionId, false);
     }
-  }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, nativeWebSearchEnabled, setSessionLoading, setError, messages, generateAutoTitle, markSessionUnread]);
+  }, [currentSessionId, createSession, addMessage, updateMessage, completeMessage, selectedModel, providers, temporaryChatEnabled, isTemporarySession, nativeWebSearchEnabled, setSessionLoading, setError, messages, generateAutoTitle, markSessionUnread]);
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
       if (!currentSessionId || !selectedModel) return;

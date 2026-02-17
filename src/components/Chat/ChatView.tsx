@@ -15,6 +15,8 @@ import { ChatInput } from '@/components/Chat/features/Input/ChatInput';
 import { MessageList } from '@/components/Chat/features/Messages/MessageList';
 import { WelcomeScreen } from '@/components/Chat/layout/WelcomeScreen';
 import { ChatShortcutsDialog } from '@/components/Chat/common/ChatShortcutsDialog';
+import { TemporaryChatToggle } from '@/components/Chat/features/Temporary/TemporaryChatToggle';
+import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
 
 export function ChatView() {
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
@@ -56,6 +58,7 @@ export function ChatView() {
   const isMessagesLoaded = currentSessionId && sessionExists ? allMessages[currentSessionId] !== undefined : true;
 
   const isEmpty = !currentSessionId || (isMessagesLoaded && messages.length === 0);
+  const { showInChatArea } = useTemporaryTogglePresentation();
 
   const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
       messages,
@@ -127,7 +130,12 @@ export function ChatView() {
       className="h-full w-full flex flex-col bg-[var(--neko-bg-primary)] relative overflow-hidden"
       onMouseDownCapture={handleChatAreaMouseDownCapture}
     >
-      
+      {showInChatArea && (
+        <div className="absolute top-3 right-4 z-30 pointer-events-auto">
+          <TemporaryChatToggle />
+        </div>
+      )}
+
       <MessageList 
           messages={messages}
           isSessionActive={isSessionActive}

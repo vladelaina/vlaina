@@ -25,6 +25,7 @@ export interface ChatSession {
   title: string
   modelId: string
   isPinned?: boolean
+  isTemporary?: boolean
   createdAt: number
   updatedAt: number
 }
