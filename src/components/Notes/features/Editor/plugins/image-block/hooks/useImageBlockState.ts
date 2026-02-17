@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
-import { parseCropFragment, CropParams } from '../utils/cropUtils';
+import { parseImageSource, buildImageSource, CropParams } from '../utils/cropUtils';
 import { useLocalImage } from './useLocalImage';
 import type { Alignment } from '../types';
 
@@ -13,9 +13,11 @@ interface UseImageBlockStateProps {
 }
 
 export function useImageBlockState({ node, view, getPos }: UseImageBlockStateProps) {
+    const parsedSource = useMemo(() => parseImageSource(node.attrs.src || ''), [node.attrs.src]);
+
     // Node Attributes
-    const [width, setWidth] = useState(node.attrs.width || 'auto');
-    const [alignment, setAlignment] = useState<Alignment>((node.attrs.align as Alignment) || 'center');
+    const [width, setWidth] = useState(parsedSource.width || 'auto');
+    const [alignment, setAlignment] = useState<Alignment>(parsedSource.align || 'center');
     const [captionInput, setCaptionInput] = useState(node.attrs.alt || '');
 
     // Visual State
@@ -35,7 +37,8 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
     const currentNotePath = useNotesStore(s => s.currentNote?.path);
 
     // Source Resolution
-    const { baseSrc, params: initialParams } = useMemo(() => parseCropFragment(node.attrs.src || ''), [node.attrs.src]);
+    const baseSrc = parsedSource.baseSrc;
+    const initialParams = parsedSource.crop;
     const { resolvedSrc, isLoading, error: loadError } = useLocalImage(baseSrc, notesPath, currentNotePath);
 
     // Sync from Node
@@ -48,18 +51,43 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
     }, [loadError]);
 
     useEffect(() => {
-        const newAlignment = (node.attrs.align as Alignment) || 'center';
+        const newAlignment = parsedSource.align || ((node.attrs.align as Alignment) || 'center');
         if (alignment !== newAlignment) setAlignment(newAlignment);
         
-        const newWidth = node.attrs.width || 'auto';
+        const newWidth = parsedSource.width || node.attrs.width || 'auto';
         if (width !== newWidth) setWidth(newWidth);
-    }, [node.attrs.align, node.attrs.width]);
+    }, [node.attrs.align, node.attrs.width, node.attrs.src, parsedSource.align, parsedSource.width]);
 
     // Helpers
     const updateNodeAttrs = useCallback((attrs: Record<string, any>) => {
         const pos = getPos();
         if (pos !== undefined) {
-            view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...attrs }));
+            const latestNode = view.state.doc.nodeAt(pos);
+            const latestAttrs =
+                latestNode && latestNode.type.name === 'image'
+                    ? latestNode.attrs
+                    : node.attrs;
+            const latestParsed = parseImageSource(latestAttrs.src || '');
+
+            const incomingAlign = attrs.align as Alignment | undefined;
+            const incomingWidth = attrs.width as string | null | undefined;
+            const incomingSrc = typeof attrs.src === 'string' ? attrs.src : undefined;
+            const incomingParsed = incomingSrc ? parseImageSource(incomingSrc) : null;
+
+            const mergedAlign = incomingAlign ?? incomingParsed?.align ?? latestParsed.align ?? null;
+            const mergedWidth = incomingWidth ?? incomingParsed?.width ?? latestParsed.width ?? null;
+            const mergedCrop = incomingParsed?.crop ?? latestParsed.crop ?? null;
+            const mergedBaseSrc = incomingParsed?.baseSrc || latestParsed.baseSrc || '';
+
+            const nextAttrs = { ...latestAttrs, ...attrs };
+            delete nextAttrs.align;
+            delete nextAttrs.width;
+            nextAttrs.src = buildImageSource(mergedBaseSrc, {
+                crop: mergedCrop,
+                align: mergedAlign,
+                width: mergedWidth,
+            });
+            view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, nextAttrs));
         }
     }, [view, getPos, node.attrs]);
 

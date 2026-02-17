@@ -2,6 +2,7 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { setDragState, clearDragState, calculateDropPosition, calculateAlignmentFromPosition, imageDragPluginKey } from '../imageDragPlugin';
 import type { Alignment } from '../types';
+import { parseImageSource, buildImageSource } from '../utils/cropUtils';
 
 const LONG_PRESS_DELAY_MS = 300;
 
@@ -55,28 +56,20 @@ export function useImageDrag({
         }
 
         const imageNodeSize = imageNode.nodeSize;
-        if (targetPos === pos || targetPos === pos + imageNodeSize) {
-            return;
-        }
+        const isSamePosition = targetPos === pos || targetPos === pos + imageNodeSize;
+        const parsed = parseImageSource(imageNode.attrs.src || '');
+        const currentAlign = parsed.align || 'center';
 
-        const currentWidth = imageNode.attrs.width;
-        const containerWidth = containerRef.current?.offsetWidth;
-        const parentWidth = containerRef.current?.parentElement?.offsetWidth;
-        
-        let preservedWidth = currentWidth;
-        if (!preservedWidth && containerWidth && parentWidth) {
-            const calculatedPercent = (containerWidth / parentWidth) * 100;
-            preservedWidth = `${Math.min(100, calculatedPercent)}%`;
-        }
-        
-        if (!preservedWidth) {
-            preservedWidth = null;
-        }
+        const preservedWidth = parsed.width ?? null;
+        const nextAlign = (newAlignment || currentAlign || 'center') as Alignment;
 
         const updatedAttrs = {
             ...imageNode.attrs,
-            align: (newAlignment || imageNode.attrs.align || 'center') as Alignment,
-            width: preservedWidth
+            src: buildImageSource(parsed.baseSrc, {
+                crop: parsed.crop,
+                align: nextAlign,
+                width: preservedWidth,
+            }),
         };
 
         const tr = state.tr;
@@ -90,6 +83,19 @@ export function useImageDrag({
             editorView: null,
             alignment: 'center',
         });
+
+        if (isSamePosition) {
+            const hasAlignmentChange = nextAlign !== currentAlign;
+            const hasWidthChange = false;
+
+            if (!hasAlignmentChange && !hasWidthChange) {
+                return;
+            }
+
+            tr.setNodeMarkup(pos, undefined, updatedAttrs);
+            dispatch(tr);
+            return;
+        }
 
         if (targetPos > pos) {
             const slice = state.doc.slice(pos, pos + imageNodeSize);
@@ -135,6 +141,7 @@ export function useImageDrag({
 
         const triggerDragStart = () => {
             isLongPressTriggered = true;
+            dragAlignmentRef.current = currentAlignment;
             document.documentElement.classList.add('dragging-image');
             setIsDragging(true);
             setDragPosition({ x: initialLeft, y: initialTop });
@@ -220,9 +227,13 @@ export function useImageDrag({
 
             const targetPos = dragTargetPosRef.current;
             const finalAlignment = dragAlignmentRef.current;
+            const finalTargetPos =
+                targetPos !== null
+                    ? targetPos
+                    : (sourcePos !== undefined ? sourcePos : null);
 
-            if (isLongPressTriggered && targetPos !== null) {
-                moveNodeToPosition(targetPos, finalAlignment);
+            if (isLongPressTriggered && finalTargetPos !== null) {
+                moveNodeToPosition(finalTargetPos, finalAlignment);
             }
 
             clearDragState(view);

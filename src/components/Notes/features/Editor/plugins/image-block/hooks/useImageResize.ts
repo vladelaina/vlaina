@@ -49,6 +49,7 @@ export function useImageResize({
         const startHeight = height || containerRef.current?.offsetHeight || 0;
         const parentWidth = containerRef.current?.parentElement?.offsetWidth || 1;
         const aspectRatio = startHeight > 0 ? startWidth / startHeight : 1;
+        let latestWidthValue = width;
 
         const onMouseMove = (moveEvent: MouseEvent) => {
             if (isProportional) {
@@ -57,8 +58,9 @@ export function useImageResize({
 
                 const newWidthPx = startWidth + delta * 2;
                 const newWidthPercent = Math.min(100, Math.max(10, (newWidthPx / parentWidth) * 100));
+                latestWidthValue = `${newWidthPercent}%`;
 
-                setWidth(`${newWidthPercent}%`);
+                setWidth(latestWidthValue);
                 const expectedHeight = newWidthPx / aspectRatio;
                 setDragDimensions({ width: newWidthPx, height: expectedHeight });
             } else {
@@ -78,7 +80,7 @@ export function useImageResize({
             await restoreIfNeeded();
 
             if (isProportional) {
-                updateNodeAttrs({ width });
+                updateNodeAttrs({ width: latestWidthValue });
                 setHeight(undefined);
             }
         };
