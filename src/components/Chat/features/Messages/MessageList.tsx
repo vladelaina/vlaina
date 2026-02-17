@@ -37,6 +37,7 @@ export function MessageList({
 
   return (
       <div 
+        data-chat-scrollable="true"
         className={cn(
             "flex-1 overflow-y-auto transition-opacity duration-500",
             isEmpty ? "opacity-0 pointer-events-none" : "opacity-100",

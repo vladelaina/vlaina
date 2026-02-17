@@ -1,12 +1,15 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useAIStore } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useChatService } from '@/hooks/useChatService';
 import { useMessageAutoscroll } from '@/hooks/useMessageAutoscroll';
 import { useChatShortcuts } from './hooks/useChatShortcuts';
+import { useComposerClickFocus } from './hooks/useComposerClickFocus';
 import { cn } from '@/lib/utils';
 import { Attachment } from '@/lib/storage/attachmentStorage';
+import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
+import { logFocusTrace } from '@/lib/debug/focusTrace';
 
 import { ChatInput } from '@/components/Chat/features/Input/ChatInput';
 import { MessageList } from '@/components/Chat/features/Messages/MessageList';
@@ -66,14 +69,18 @@ export function ChatView() {
       }
   }, [models, selectedModel, selectModel]);
 
-  const prevSessionIdRef = useRef(currentSessionId);
   useEffect(() => {
       setFocusInputTrigger(n => n + 1);
-      prevSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
 
   useChatShortcuts({
-      onFocusInput: () => setFocusInputTrigger(n => n + 1),
+      onFocusInput: () => {
+          logFocusTrace('chatView.shortcut.focusInput');
+          if (!focusComposerInput()) {
+              logFocusTrace('chatView.shortcut.focusInput.fallbackTrigger');
+              setFocusInputTrigger(n => n + 1);
+          }
+      },
       onToggleShortcuts: () => setIsShortcutsOpen(prev => !prev),
       scrollRef: containerRef 
   });
@@ -106,10 +113,20 @@ export function ChatView() {
       sendMessage(text, attachments);
   }, [handleNewUserMessage, sendMessage]);
 
+  const handleChatAreaMouseDownCapture = useComposerClickFocus({
+    requestFocusFallback: () => {
+      logFocusTrace('chatView.chatArea.focusFallbackTrigger');
+      setFocusInputTrigger(n => n + 1);
+    }
+  });
+
   if (!loaded) return null;
 
   return (
-    <div className="h-full w-full flex flex-col bg-[var(--neko-bg-primary)] relative overflow-hidden">
+    <div
+      className="h-full w-full flex flex-col bg-[var(--neko-bg-primary)] relative overflow-hidden"
+      onMouseDownCapture={handleChatAreaMouseDownCapture}
+    >
       
       <MessageList 
           messages={messages}
