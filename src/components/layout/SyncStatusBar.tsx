@@ -8,12 +8,12 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 
 export const SyncStatusBar: React.FC = () => {
     const {
+        isConnected,
         isSyncing,
         syncBidirectional,
         lastSyncTime,
         syncError,
         clearError,
-        isConnected,
         checkStatus,
         checkRemoteData
     } = useGithubSyncStore();

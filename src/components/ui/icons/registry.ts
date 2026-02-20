@@ -182,6 +182,7 @@ export const icons: Record<string, IconSource> = {
   'file.imagePlus': DocumentPlusIcon,
   'file.archive': ArchiveBoxIcon,
   'file.cloud': CloudIcon,
+  'file.cloudOff': NoSymbolIcon,
   'file.lock': LockClosedIcon,
   'file.public': GlobeAltIcon,
   'file.attach': PaperClipIcon,

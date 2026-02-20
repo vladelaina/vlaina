@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { cn } from '@/lib/utils';
-import { ALIGNMENT_CLASSES, getContainerStyle, computeAspectRatio } from './utils/styleUtils';
+import { getContainerStyle, computeAspectRatio } from './utils/styleUtils';
 import { ImageToolbar } from './components/ImageToolbar';
 import { ImageCaption } from './components/ImageCaption';
 import { ImageCropper } from './components/ImageCropper';
@@ -14,6 +14,11 @@ import { useImageDrag } from './hooks/useImageDrag';
 import { useImageResize } from './hooks/useImageResize';
 
 const HOVER_HIDE_DELAY_MS = 300;
+const WRAPPER_ALIGNMENT_CLASSES: Record<'left' | 'center' | 'right', string> = {
+    left: 'justify-start',
+    center: 'justify-center',
+    right: 'justify-end',
+};
 
 interface ImageBlockProps {
     node: Node;
@@ -163,14 +168,19 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 </div>
             )}
             
-            <div className={cn("w-full flex my-2 justify-center group/image", isDragging && "hidden")}>
+            <div
+                className={cn(
+                    "w-full flex my-2 group/image",
+                    WRAPPER_ALIGNMENT_CLASSES[alignment],
+                    isDragging && "hidden"
+                )}
+            >
                 <div
                     ref={containerRef}
                     data-dragging={isDragging ? "true" : undefined}
                     draggable={false}
                     className={cn(
                         "relative flex flex-col leading-none text-[0px] select-none",
-                        ALIGNMENT_CLASSES[alignment],
                         (isHovered || isEditingCaption || isActive) ? "z-10" : ""
                     )}
                     style={containerStyle}
@@ -197,7 +207,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                             setNaturalRatio(media.naturalWidth / media.naturalHeight);
                             setImageNaturalSize({ width: media.naturalWidth, height: media.naturalHeight });
 
-                            if (node.attrs.width === undefined) {
+                            if (width === 'auto') {
                                 const containerWidth = containerRef.current?.parentElement?.offsetWidth;
                                 if (containerWidth) {
                                     const percent = (media.naturalWidth / containerWidth) * 100;

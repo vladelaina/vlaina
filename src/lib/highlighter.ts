@@ -1,4 +1,4 @@
-import { createHighlighter, bundledLanguages } from 'shiki/bundle/full';
+import { createHighlighter } from 'shiki/bundle/full';
 
 export let highlighter: any = null;
 
@@ -7,23 +7,23 @@ export async function initHighlighter() {
   
   try {
     highlighter = await createHighlighter({
-      themes: ['one-dark-pro', 'one-light'],
+      themes: ['github-dark', 'github-light'],
       langs: [
-        bundledLanguages['javascript'],
-        bundledLanguages['typescript'],
-        bundledLanguages['python'],
-        bundledLanguages['html'],
-        bundledLanguages['css'],
-        bundledLanguages['json'],
-        bundledLanguages['markdown'],
-        bundledLanguages['bash'],
-        bundledLanguages['c'],
-        bundledLanguages['cpp'],
-        bundledLanguages['csharp'],
-        bundledLanguages['java'],
-        bundledLanguages['go'],
-        bundledLanguages['rust'],
-        bundledLanguages['sql'],
+        'javascript',
+        'typescript',
+        'python',
+        'html',
+        'css',
+        'json',
+        'markdown',
+        'bash',
+        'c',
+        'cpp',
+        'csharp',
+        'java',
+        'go',
+        'rust',
+        'sql',
       ],
     });
   } catch (e) {

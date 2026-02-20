@@ -13,7 +13,7 @@ interface ThinkingBlockProps {
 export function ThinkingBlock({
   content: thinking,
   isStreaming: activelyThinking,
-  startTime = new Date(),
+  startTime,
   endTime,
 }: ThinkingBlockProps) {
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -101,10 +101,10 @@ export function ThinkingBlock({
   const getDurationText = () => {
     if (activelyThinking) return "Thinking...";
     if (startTime && internalEndTime) {
-      const durationMs = internalEndTime.getTime() - startTime.getTime();
+      const durationMs = Math.max(0, internalEndTime.getTime() - startTime.getTime());
       if (durationMs >= 1000) {
-        const seconds = durationMs / 1000;
-        return seconds < 10 ? `Thought for ${seconds.toFixed(1)}s` : `Thought for ${Math.round(seconds)}s`;
+        const seconds = (durationMs / 1000).toFixed(1).replace(/\.0$/, "");
+        return `Thought for ${seconds}s`;
       }
     }
     return "Thought briefly";
