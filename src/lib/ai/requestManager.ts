@@ -26,8 +26,15 @@ export class RequestManager {
     /**
      * Mark a session as finished (remove controller without aborting).
      */
-    finish(sessionId: string) {
-        this.controllers.delete(sessionId);
+    finish(sessionId: string, controller?: AbortController) {
+        if (!controller) {
+            this.controllers.delete(sessionId);
+            return;
+        }
+        const current = this.controllers.get(sessionId);
+        if (current === controller) {
+            this.controllers.delete(sessionId);
+        }
     }
 
     /**
