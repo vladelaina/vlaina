@@ -3,6 +3,7 @@ import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { useUIStore } from '@/stores/uiSlice';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 
 interface SidebarUserHeaderProps {
     onOpenSettings?: () => void;
@@ -67,8 +68,7 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                 <TooltipContent side="bottom" sideOffset={2}>
                     <span className="flex items-center gap-1.5">
                         Search
-                        <kbd className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-zinc-700">Ctrl</kbd>
-                        <kbd className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-zinc-700">F</kbd>
+                        <ShortcutKeys keys={['Ctrl', 'F']} />
                     </span>
                 </TooltipContent>
             </Tooltip>

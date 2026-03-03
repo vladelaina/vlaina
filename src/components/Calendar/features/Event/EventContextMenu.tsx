@@ -15,6 +15,9 @@ interface EventContextMenuProps {
 
 export function EventContextMenu({ eventId, position, currentColor = 'blue', timerState = 'idle', onClose }: EventContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+  const modifierKey = isMac ? '⌘' : 'Ctrl';
+  const deleteKeyLabel = isMac ? '⌫' : 'Del';
   const adjustedPosition = useMenuPosition({ 
     initialPosition: position, 
     menuRef: menuRef as React.RefObject<HTMLDivElement>
@@ -133,13 +136,13 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
         <button className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800">
           <Icon size="md" name="editor.cut" />
           <span className="flex-1 text-left">Cut</span>
-          <span className="text-zinc-500 text-xs">Ctrl X</span>
+          <span className="text-zinc-500 text-xs">{modifierKey} X</span>
         </button>
 
         <button className="w-full px-4 py-2 flex items-center gap-3 text-sm text-zinc-300 hover:bg-zinc-800">
           <Icon size="md" name="common.copy" />
           <span className="flex-1 text-left">Copy</span>
-          <span className="text-zinc-500 text-xs">Ctrl C</span>
+          <span className="text-zinc-500 text-xs">{modifierKey} C</span>
         </button>
 
         <button
@@ -148,7 +151,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
         >
           <Icon size="md" name="legacy.addToPhotos" />
           <span className="flex-1 text-left">Duplicate</span>
-          <span className="text-zinc-500 text-xs">Ctrl D</span>
+          <span className="text-zinc-500 text-xs">{modifierKey} D</span>
         </button>
 
         <div className="h-px bg-zinc-700 my-2" />
@@ -159,7 +162,7 @@ export function EventContextMenu({ eventId, position, currentColor = 'blue', tim
         >
           <Icon size="md" name="common.delete" />
           <span className="flex-1 text-left">Delete</span>
-          <span className="text-zinc-500 text-xs">Del</span>
+          <span className="text-zinc-500 text-xs">{deleteKeyLabel}</span>
         </button>
       </div>
     </>,

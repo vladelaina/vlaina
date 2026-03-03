@@ -33,9 +33,23 @@ const EXTRA_BUTTONS: ToolbarButtonConfig[] = [
   { action: 'delete', icon: EDITOR_ICONS.trash, tooltip: 'Delete' },
 ];
 
+const IS_MAC = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+
+function toPlatformShortcutLabel(shortcut: string): string {
+  if (!IS_MAC) {
+    return shortcut;
+  }
+  return shortcut
+    .replace(/\bCtrl\b/g, '⌘')
+    .replace(/\bControl\b/g, '⌘')
+    .replace(/\bAlt\b/g, '⌥')
+    .replace(/\bOption\b/g, '⌥');
+}
+
 function renderButton(config: ToolbarButtonConfig, activeMarks: Set<string>, extraContent?: string): string {
   const isActive = config.mark && activeMarks.has(config.mark);
-  const shortcutAttr = config.shortcut ? `data-shortcut="${config.shortcut}"` : '';
+  const shortcutLabel = config.shortcut ? toPlatformShortcutLabel(config.shortcut) : '';
+  const shortcutAttr = shortcutLabel ? `data-shortcut="${shortcutLabel}"` : '';
 
   return `
     <button class="toolbar-btn has-tooltip ${isActive ? 'active' : ''}" 

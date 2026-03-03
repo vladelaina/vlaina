@@ -4,6 +4,7 @@ import { useAIStore } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useChatService } from '@/hooks/useChatService';
 import { useMessageAutoscroll } from '@/hooks/useMessageAutoscroll';
+import { useShortcuts } from '@/hooks/useShortcuts';
 import { useChatShortcuts } from './hooks/useChatShortcuts';
 import { useComposerClickFocus } from './hooks/useComposerClickFocus';
 import { cn } from '@/lib/utils';
@@ -32,7 +33,8 @@ export function ChatView() {
     selectedModel,
     models,
     selectModel,
-    isSessionLoading
+    isSessionLoading,
+    toggleTemporaryChat
   } = useAIStore();
 
   const loaded = useUnifiedStore(s => s.loaded);
@@ -59,6 +61,17 @@ export function ChatView() {
 
   const isEmpty = !currentSessionId || (isMessagesLoaded && messages.length === 0);
   const { showInChatArea } = useTemporaryTogglePresentation();
+
+  useShortcuts({
+    scope: 'chat',
+    handlers: isEmpty
+      ? {
+          toggleTemporaryChatWelcome: () => {
+            toggleTemporaryChat();
+          }
+        }
+      : {}
+  });
 
   const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
       messages,

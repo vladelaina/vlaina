@@ -76,6 +76,9 @@ If the request would cause the code to violate these thresholds:
 * **Icon Buttons:** Use the shared `iconButtonStyles` constant from `@/lib/utils` for standard, borderless icon buttons (e.g., window controls, toolbar actions).
   * **Style:** Transparent background, tertiary text color by default, primary text color on hover.
   * **Usage:** `className={cn("...", iconButtonStyles)}`
+* **Shortcut Hints:** For compact shortcut display in tooltips/header actions, use `ShortcutKeys` from `@/components/ui/shortcut-keys`.
+  * **Strict Rule:** Do not hand-write `<kbd>` style classes in feature code for this compact style.
+  * **Usage:** `<ShortcutKeys keys={['Ctrl', '\\']} />`
 * **Rationale:** To ensure consistent hover states and interaction feedback across the application.
 * **Rationale:** To ensure visual consistency, accessibility, and professional appearance throughout the application.
 

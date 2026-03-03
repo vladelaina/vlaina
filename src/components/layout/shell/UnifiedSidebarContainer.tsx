@@ -5,6 +5,7 @@ import { SPRING_PREMIUM } from '@/lib/animations';
 import { HoverPeekOverlay } from '@/components/ui/HoverPeekOverlay';
 import { useShellSidebarResize } from './useShellSidebarResize';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 
 interface UnifiedSidebarContainerProps {
   children: ReactNode;
@@ -91,8 +92,7 @@ export function UnifiedSidebarContainer({
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={5} className="flex items-center gap-1.5 text-xs">
               <span>Toggle Sidebar</span>
-              <kbd className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-zinc-700 text-zinc-100 font-sans">Ctrl</kbd>
-              <kbd className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-zinc-700 text-zinc-100 font-sans">\</kbd>
+              <ShortcutKeys keys={['Ctrl', '\\']} />
             </TooltipContent>
           </Tooltip>
         </>

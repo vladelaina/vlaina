@@ -1,5 +1,5 @@
 import { ComponentType, SVGProps } from 'react';
-import { MessageCircleDashed, PenLine, Pin } from 'lucide-react';
+import { PenLine, Pin } from 'lucide-react';
 import { 
   MinusIcon,
   XMarkIcon,
@@ -81,11 +81,13 @@ import {
 } from '@heroicons/react/24/outline';
 
 // Custom Icons
-import { NewChatIcon } from './custom/NewChatIcon';
-import { SquareCheckBigIcon } from './custom/SquareCheckBigIcon';
-import { CropIcon } from './custom/CropIcon';
-import { SendIcon } from './custom/SendIcon';
-import { SquareStopIcon } from './custom/SquareStopIcon';
+import { NewChatIcon } from './custom/mit/NewChatIcon';
+import { SquareCheckBigIcon } from './custom/mit/SquareCheckBigIcon';
+import { CropIcon } from './custom/mit/CropIcon';
+import { SendIcon } from './custom/mit/SendIcon';
+import { SquareStopIcon } from './custom/mit/SquareStopIcon';
+import { TemporaryChatOffIcon } from './custom/mit/TemporaryChatOffIcon';
+import { TemporaryChatOnIcon } from './custom/mit/TemporaryChatOnIcon';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
@@ -132,7 +134,8 @@ export const icons: Record<string, IconSource> = {
   'common.sparkle': SparklesIcon,
   'common.send': SendIcon,
   'common.language': LanguageIcon,
-  'chat.temporary': MessageCircleDashed,
+  'chat.temporary.off': TemporaryChatOffIcon,
+  'chat.temporary.on': TemporaryChatOnIcon,
 
   // --- Navigation ---
   'nav.chevronRight': ChevronRightIcon,

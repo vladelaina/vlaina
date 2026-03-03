@@ -1,5 +1,6 @@
 import { Icon } from '@/components/ui/icons';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { useAIStore } from '@/stores/useAIStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { hasUserMessage } from '@/lib/ai/temporaryChat';
@@ -47,24 +48,11 @@ export function TemporaryChatToggle({ readOnly = false }: TemporaryChatTogglePro
             iconButtonStyles
           )}
         >
-          <Icon name="chat.temporary" size="md" />
-          {temporaryChatEnabled && (
-            <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <Icon name="common.check" size={10} className="translate-y-[0.5px]" />
-            </span>
-          )}
+          <Icon name={temporaryChatEnabled ? 'chat.temporary.on' : 'chat.temporary.off'} size="md" />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="bottom" sideOffset={2}>
-        <span className="text-xs">
-          {!temporaryChatEnabled
-            ? 'Enable Temporary Chat'
-            : readOnly
-              ? 'Temporary Chat: On'
-            : canDisableTemporaryChat
-              ? 'Temporary Chat: On (Click to Disable)'
-              : 'Temporary Chat: Locked for Current Conversation'}
-        </span>
+      <TooltipContent side="bottom" sideOffset={2} className="flex items-center gap-1.5 text-xs">
+        <ShortcutKeys keys={['Ctrl', 'Shift', 'J']} />
       </TooltipContent>
     </Tooltip>
   );
