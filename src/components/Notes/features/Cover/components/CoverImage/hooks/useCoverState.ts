@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { DEFAULT_HEIGHT } from '../../../hooks/coverUtils';
+import { DEFAULT_HEIGHT } from '../../../utils/coverUtils';
 
 interface UseCoverStateProps {
   initialHeight?: number;
@@ -18,10 +18,11 @@ export function useCoverState({
   const [coverHeight, setCoverHeight] = useState(initialHeight ?? DEFAULT_HEIGHT);
   const lastHeightProp = useRef(initialHeight);
 
-  if (initialHeight !== undefined && initialHeight !== lastHeightProp.current) {
+  useEffect(() => {
+    if (initialHeight === undefined || initialHeight === lastHeightProp.current) return;
     lastHeightProp.current = initialHeight;
     setCoverHeight(initialHeight);
-  }
+  }, [initialHeight]);
 
   // Visual State
   const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null);
@@ -54,7 +55,7 @@ export function useCoverState({
         setZoom(safeZoom);
       }
     }
-  }, [scale, isInteracting]);
+  }, [scale, isInteracting, zoom]);
 
   return {
     coverHeight,

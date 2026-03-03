@@ -1,0 +1,82 @@
+import {
+  calculateEffectiveResizeHeight,
+  calculateFinalCropFromResize,
+  calculateVerticalShift,
+  type ResizeSnapshot,
+} from '../../../utils/coverResizeMath';
+
+interface ResizeFrame {
+  effectiveHeight: number;
+  shiftY: number;
+}
+
+interface StartCoverResizeSessionProps {
+  startY: number;
+  startHeight: number;
+  snapshot: ResizeSnapshot;
+  onFrame: (frame: ResizeFrame) => void;
+  onCommit: (frame: ResizeFrame & { finalCrop: { x: number; y: number } }) => void;
+}
+
+export function startCoverResizeSession({
+  startY,
+  startHeight,
+  snapshot,
+  onFrame,
+  onCommit,
+}: StartCoverResizeSessionProps) {
+  let rafId: number | null = null;
+  let disposed = false;
+
+  const buildFrame = (clientY: number): ResizeFrame => {
+    const delta = clientY - startY;
+    const effectiveHeight = calculateEffectiveResizeHeight(
+      startHeight,
+      delta,
+      snapshot.maxMechanicalHeight
+    );
+    const shiftY = calculateVerticalShift(
+      effectiveHeight,
+      snapshot.maxVisualHeightNoShift,
+      snapshot.maxShiftDown
+    );
+    return { effectiveHeight, shiftY };
+  };
+
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    document.removeEventListener('mousemove', handleMove);
+    document.removeEventListener('mouseup', handleUp);
+  };
+
+  const handleMove = (event: MouseEvent) => {
+    if (disposed) return;
+    if (rafId !== null) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+      const frame = buildFrame(event.clientY);
+      onFrame(frame);
+    });
+  };
+
+  const handleUp = (event: MouseEvent) => {
+    if (disposed) return;
+    const frame = buildFrame(event.clientY);
+    const finalCrop = calculateFinalCropFromResize(
+      snapshot,
+      frame.effectiveHeight,
+      frame.shiftY
+    );
+    onCommit({ ...frame, finalCrop });
+    dispose();
+  };
+
+  document.addEventListener('mousemove', handleMove);
+  document.addEventListener('mouseup', handleUp);
+
+  return dispose;
+}

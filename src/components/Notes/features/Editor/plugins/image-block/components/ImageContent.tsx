@@ -1,6 +1,7 @@
 import { Icon } from '@/components/ui/icons';
 import { ImageCropper } from './ImageCropper';
 import { CropParams } from '../utils/cropUtils';
+import type { CropArea, LoadedMediaSize, CropperViewportState, ResizeDirection } from '../types';
 
 interface ImageContentProps {
     isLoading: boolean;
@@ -11,11 +12,11 @@ interface ImageContentProps {
     containerSize: { width: number; height: number };
     isSaving: boolean;
     isActive: boolean;
-    onSave: (percentageCrop: any, ratio: number) => void;
+    onSave: (percentageCrop: CropArea, ratio: number) => void;
     onCancel: () => void;
-    onResizeStart: (direction: any) => (e: React.MouseEvent) => void;
-    onMediaLoaded: (media: any) => void;
-    onStateChange?: (state: { crop: { x: number; y: number }; zoom: number }) => void;
+    onResizeStart: (direction: ResizeDirection) => (e: React.MouseEvent) => void;
+    onMediaLoaded: (media: LoadedMediaSize) => void;
+    onStateChange?: (state: CropperViewportState) => void;
 }
 
 export const ImageContent = ({

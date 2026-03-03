@@ -1,14 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { CropParams, calculateRestoredCrop } from '../utils/cropUtils';
+import type { CropperViewportState, LoadedMediaSize } from '../types';
 
 const ZOOM_COVER_MULTIPLIER = 1.001;
 
 interface UseCropperStateProps {
     initialCropParams: CropParams | null;
     containerSize: { width: number; height: number };
-    onMediaLoaded?: (mediaSize: { width: number; height: number; naturalWidth: number; naturalHeight: number }) => void;
-    overrideState?: { crop: { x: number; y: number }; zoom: number } | null;
-    onStateChange?: (state: { crop: { x: number; y: number }; zoom: number }) => void;
+    onMediaLoaded?: (mediaSize: LoadedMediaSize) => void;
+    overrideState?: CropperViewportState | null;
+    onStateChange?: (state: CropperViewportState) => void;
 }
 
 export function useCropperState({ 
@@ -66,7 +67,7 @@ export function useCropperState({
         }
     }, [zoom, minZoomLimit]);
 
-    const onMediaLoaded = useCallback((mediaSize: { width: number, height: number, naturalWidth: number, naturalHeight: number }) => {
+    const onMediaLoaded = useCallback((mediaSize: LoadedMediaSize) => {
         mediaSizeRef.current = mediaSize;
         if (externalOnMediaLoaded) {
             externalOnMediaLoaded(mediaSize);

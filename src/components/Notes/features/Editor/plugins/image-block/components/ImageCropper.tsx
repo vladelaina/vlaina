@@ -6,6 +6,7 @@ import { InvisibleResizeHandles } from './InvisibleResizeHandles';
 import { CropperControls } from './CropperControls';
 import { useCropperState } from '../hooks/useCropperState';
 import { useCropperInteraction } from '../hooks/useCropperInteraction';
+import type { CropArea, CropperViewportState, LoadedMediaSize, ResizeDirection } from '../types';
 
 const MAX_ZOOM = 5;
 
@@ -13,14 +14,14 @@ interface ImageCropperProps {
     imageSrc: string;
     initialCropParams: CropParams | null;
     containerSize: { width: number; height: number };
-    onSave: (percentageCrop: any, ratio: number) => void;
+    onSave: (percentageCrop: CropArea, ratio: number) => void;
     onCancel: () => void;
     isSaving: boolean;
-    onResizeStart?: (direction: 'left' | 'right' | 'top' | 'bottom' | 'bottom-left' | 'bottom-right') => (e: React.MouseEvent) => void;
+    onResizeStart?: (direction: ResizeDirection) => (e: React.MouseEvent) => void;
     isActive: boolean;
-    onMediaLoaded?: (mediaSize: { width: number; height: number; naturalWidth: number; naturalHeight: number }) => void;
-    overrideState?: { crop: { x: number; y: number }; zoom: number } | null;
-    onStateChange?: (state: { crop: { x: number; y: number }; zoom: number }) => void;
+    onMediaLoaded?: (mediaSize: LoadedMediaSize) => void;
+    overrideState?: CropperViewportState | null;
+    onStateChange?: (state: CropperViewportState) => void;
 }
 
 export const ImageCropper: React.FC<ImageCropperProps> = ({

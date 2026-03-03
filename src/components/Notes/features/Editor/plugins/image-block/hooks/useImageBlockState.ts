@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
-import { parseImageSource, buildImageSource, CropParams } from '../utils/cropUtils';
+import { parseImageSource, CropParams } from '../utils/cropUtils';
+import { getImageAlignment, getImageWidth } from '../utils/imageNodeAttrs';
+import { applyImageNodeAttrsAtPos } from '../commands/imageNodeCommands';
 import { useLocalImage } from './useLocalImage';
-import type { Alignment } from '../types';
+import type { Alignment, ImageNodeAttrs } from '../types';
 
 interface UseImageBlockStateProps {
     node: Node;
@@ -13,11 +15,14 @@ interface UseImageBlockStateProps {
 }
 
 export function useImageBlockState({ node, view, getPos }: UseImageBlockStateProps) {
-    const parsedSource = useMemo(() => parseImageSource(node.attrs.src || ''), [node.attrs.src]);
+    const nodeSrc = typeof node.attrs.src === 'string' ? node.attrs.src : '';
+    const parsedSource = useMemo(() => parseImageSource(nodeSrc), [nodeSrc]);
+    const canonicalAlignment = getImageAlignment(node.attrs);
+    const canonicalWidth = getImageWidth(node.attrs);
 
     // Node Attributes
-    const [width, setWidth] = useState(parsedSource.width || 'auto');
-    const [alignment, setAlignment] = useState<Alignment>(parsedSource.align || 'center');
+    const [width, setWidth] = useState(canonicalWidth || 'auto');
+    const [alignment, setAlignment] = useState<Alignment>(canonicalAlignment);
     const [captionInput, setCaptionInput] = useState(node.attrs.alt || '');
 
     // Visual State
@@ -25,11 +30,10 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
     const [isHovered, setIsHovered] = useState(false);
     const [isEditingCaption, setIsEditingCaption] = useState(false);
     const [isActive, setIsActive] = useState(false); // Cropper Active
-    const [isReady, setIsReady] = useState(!!(parsedSource.width || node.attrs.width));
+    const [isReady, setIsReady] = useState(!!canonicalWidth);
     
     // Image Data
     const [naturalRatio, setNaturalRatio] = useState<number | null>(null);
-    const [imageNaturalSize, setImageNaturalSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
     const [cropParams, setCropParams] = useState<CropParams | null>(null);
 
     // Global Store
@@ -51,49 +55,19 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
     }, [loadError]);
 
     useEffect(() => {
-        const newAlignment = parsedSource.align || ((node.attrs.align as Alignment) || 'center');
+        const newAlignment = getImageAlignment(node.attrs);
         if (alignment !== newAlignment) setAlignment(newAlignment);
         
-        const newWidth = parsedSource.width || node.attrs.width || 'auto';
+        const newWidth = getImageWidth(node.attrs) || 'auto';
         if (width !== newWidth) setWidth(newWidth);
-    }, [node.attrs.align, node.attrs.width, node.attrs.src, parsedSource.align, parsedSource.width]);
+    }, [node.attrs.src, node.attrs.align, node.attrs.width, alignment, width]);
 
     // Helpers
-    const updateNodeAttrs = useCallback((attrs: Record<string, any>) => {
+    const updateNodeAttrs = useCallback((attrs: ImageNodeAttrs) => {
         const pos = getPos();
-        if (pos !== undefined) {
-            const latestNode = view.state.doc.nodeAt(pos);
-            const latestAttrs =
-                latestNode && latestNode.type.name === 'image'
-                    ? latestNode.attrs
-                    : node.attrs;
-            const latestParsed = parseImageSource(latestAttrs.src || '');
-
-            const incomingAlign = attrs.align as Alignment | undefined;
-            const incomingWidth = attrs.width as string | null | undefined;
-            const incomingSrc = typeof attrs.src === 'string' ? attrs.src : undefined;
-            const incomingParsed = incomingSrc ? parseImageSource(incomingSrc) : null;
-
-            const mergedAlign = incomingAlign ?? incomingParsed?.align ?? latestParsed.align ?? null;
-            const mergedWidth = incomingWidth ?? incomingParsed?.width ?? latestParsed.width ?? null;
-            const mergedCrop = incomingParsed?.crop ?? latestParsed.crop ?? null;
-            const mergedBaseSrc = incomingParsed?.baseSrc || latestParsed.baseSrc || '';
-            const mergedExtras = incomingParsed?.extras
-                ? Array.from(new Set([...latestParsed.extras, ...incomingParsed.extras]))
-                : latestParsed.extras;
-
-            const nextAttrs = { ...latestAttrs, ...attrs };
-            delete nextAttrs.align;
-            delete nextAttrs.width;
-            nextAttrs.src = buildImageSource(mergedBaseSrc, {
-                crop: mergedCrop,
-                align: mergedAlign,
-                width: mergedWidth,
-                extras: mergedExtras,
-            });
-            view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, nextAttrs));
-        }
-    }, [view, getPos, node.attrs]);
+        if (pos === undefined) return;
+        applyImageNodeAttrsAtPos(view, pos, attrs);
+    }, [view, getPos]);
 
     return {
         width, setWidth,
@@ -105,7 +79,6 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
         isActive, setIsActive,
         isReady, setIsReady,
         naturalRatio, setNaturalRatio,
-        imageNaturalSize, setImageNaturalSize,
         cropParams, setCropParams,
         baseSrc, resolvedSrc, isLoading, loadError,
         notesPath, currentNotePath,
