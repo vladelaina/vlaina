@@ -9,6 +9,7 @@ import { isSameDay, format } from 'date-fns';
 import { Icon } from '@/components/ui/icons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MiniCalendar } from '@/components/Calendar/features/DateSelector/MiniCalendar';
+import { matchesSelectedStatus } from './taskStatusFilter';
 
 export function TodayView() {
     const { tasks, toggleTask, updateTask, deleteTask, updateTaskIcon } = useGroupStore();
@@ -16,7 +17,7 @@ export function TodayView() {
         selectedDate
     } = useCalendarStore();
 
-    const { selectedColors, taskSortMode, setAppViewMode } = useUIStore();
+    const { selectedColors, selectedStatuses, taskSortMode, setAppViewMode } = useUIStore();
     const [searchQuery, setSearchQuery] = useState('');
     const [datePickerOpen, setDatePickerOpen] = useState(false);
 
@@ -28,6 +29,7 @@ export function TodayView() {
 
         return tasks.filter(t => {
             if (t.parentId) return false;
+            if (!matchesSelectedStatus(t, selectedStatuses)) return false;
             if (!selectedColors.includes(t.color || 'default')) return false;
             if (!t.dtstart) return false;
 
@@ -40,7 +42,7 @@ export function TodayView() {
             }
             return true;
         });
-    }, [tasks, selectedColors, searchQuery, selectedDate]);
+    }, [tasks, selectedColors, selectedStatuses, searchQuery, selectedDate]);
 
     const displayTasks = useMemo(() => {
         return sortTasks(filteredTasks, taskSortMode);

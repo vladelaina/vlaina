@@ -1,6 +1,7 @@
 import { useCalendarEventsStore } from './calendarEventsSlice';
 import { useUIStore } from './uiSlice';
 import { DEFAULT_GROUP_ID, DEFAULT_GROUP_NAME } from '@/lib/config';
+import { formatDateKey } from '@/lib/date';
 import type { ItemColor } from './types';
 import type { NekoEvent, NekoCalendar } from '@/lib/ics/types';
 
@@ -36,8 +37,8 @@ export function useGroupStore() {
     reorderGroups: (_activeId: string, _overId: string) => {
     },
 
-    addTask: async (summary: string, calendarId: string, _color?: ItemColor) => {
-        await eventStore.addTask(summary, calendarId);
+    addTask: async (summary: string, groupId: string, color?: ItemColor) => {
+        await eventStore.addTask(summary, groupId, undefined, color);
     },
 
     addSubTask: async (parentId: string, summary: string) => {
@@ -85,8 +86,8 @@ export function useGroupStore() {
         await eventStore.deleteEvent(uid);
     },
 
-    deleteCompletedTasks: async (calendarId: string) => {
-        await deleteCompletedTasks(calendarId);
+    deleteCompletedTasks: async (scopeId: string) => {
+        await deleteCompletedTasks(scopeId);
     },
 
     reorderTasks: async (activeId: string, overId: string) => {
@@ -97,17 +98,35 @@ export function useGroupStore() {
         await eventStore.moveTaskToGroup(taskId, targetGroupId, overTaskId);
     },
 
-    archiveCompletedTasks: async (calendarId: string) => {
-        await deleteCompletedTasks(calendarId); 
+    archiveCompletedTasks: async (scopeId: string) => {
+        await deleteCompletedTasks(scopeId); 
     },
 
     loadData: eventStore.load,
   };
 }
 
-async function deleteCompletedTasks(calendarId: string) {
+async function deleteCompletedTasks(scopeId: string) {
     const store = useCalendarEventsStore.getState();
-    const tasksToDelete = store.events.filter(e => e.calendarId === calendarId && e.completed);
+    const selectedDate = useUIStore.getState().selectedDate;
+    const selectedDateKey = formatDateKey(selectedDate);
+
+    const tasksToDelete = store.events.filter(e => {
+        if (!e.completed) return false;
+        if (scopeId === '__archive__') return false;
+
+        if (scopeId === 'all' || scopeId === 'completed' || scopeId === 'progress') {
+            return true;
+        }
+
+        if (scopeId === 'today') {
+            if (!e.dtstart) return false;
+            return formatDateKey(new Date(e.dtstart)) === selectedDateKey;
+        }
+
+        return (e.groupId || DEFAULT_GROUP_ID) === scopeId;
+    });
+
     for (const task of tasksToDelete) {
         await store.deleteEvent(task.uid);
     }

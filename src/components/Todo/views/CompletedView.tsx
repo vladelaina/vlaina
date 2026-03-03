@@ -2,40 +2,38 @@ import { useState, useMemo } from 'react';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { sortTasks } from '@/components/common/TaskList';
-import { DEFAULT_GROUP_ID } from '@/lib/config';
 import { TaskListView } from './TaskListView';
 import { matchesSelectedStatus } from './taskStatusFilter';
 
-export function InboxView() {
+export function CompletedView() {
     const { tasks } = useGroupStore();
     const { selectedColors, selectedStatuses, taskSortMode } = useUIStore();
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredTasks = useMemo(() => {
-        const filtered = tasks
-            .filter(t => {
-                if (t.parentId) return false;
-                if ((t.groupId || DEFAULT_GROUP_ID) !== DEFAULT_GROUP_ID) return false;
-                if (!matchesSelectedStatus(t, selectedStatuses)) return false;
-                if (!selectedColors.includes(t.color || 'default')) return false;
-                if (searchQuery.trim()) {
-                    const query = searchQuery.toLowerCase();
-                    if (!t.summary.toLowerCase().includes(query)) return false;
-                }
-                return true;
-            });
-        
+        const filtered = tasks.filter(t => {
+            if (t.parentId) return false;
+            if (!t.completed) return false;
+            if (!matchesSelectedStatus(t, selectedStatuses)) return false;
+            if (!selectedColors.includes(t.color || 'default')) return false;
+            if (searchQuery.trim()) {
+                const query = searchQuery.toLowerCase();
+                if (!t.summary.toLowerCase().includes(query)) return false;
+            }
+            return true;
+        });
+
         return sortTasks(filtered, taskSortMode);
     }, [tasks, selectedColors, selectedStatuses, searchQuery, taskSortMode]);
 
     return (
         <TaskListView
-            title="Inbox"
+            title="Completed"
             tasks={filteredTasks}
             allTasks={tasks}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            showScheduledSection={true}
+            showScheduledSection={false}
         />
     );
 }

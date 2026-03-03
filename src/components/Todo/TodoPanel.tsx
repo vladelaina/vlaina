@@ -1,7 +1,7 @@
 import { useGroupStore } from '@/stores/useGroupStore';
 import { DEFAULT_GROUP_ID } from '@/lib/config';
 
-import { TasksView, TodayView, InboxView, ProgressView } from './views';
+import { TasksView, TodayView, InboxView, ProgressView, CompletedView } from './views';
 
 export function TodoPanel() {
     const { activeGroupId } = useGroupStore();
@@ -11,6 +11,8 @@ export function TodoPanel() {
             return <ProgressView />;
         case 'today':
             return <TodayView />;
+        case 'completed':
+            return <CompletedView />;
         case 'all':
             return <TasksView />;
         case DEFAULT_GROUP_ID:

@@ -3,16 +3,18 @@ import { useGroupStore } from '@/stores/useGroupStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { sortTasks } from '@/components/common/TaskList';
 import { TaskListView } from './TaskListView';
+import { matchesSelectedStatus } from './taskStatusFilter';
 
 export function TasksView() {
     const { tasks } = useGroupStore();
-    const { selectedColors, taskSortMode } = useUIStore();
+    const { selectedColors, selectedStatuses, taskSortMode } = useUIStore();
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredTasks = useMemo(() => {
         const filtered = tasks
             .filter(t => {
                 if (t.parentId) return false;
+                if (!matchesSelectedStatus(t, selectedStatuses)) return false;
                 if (!selectedColors.includes(t.color || 'default')) return false;
                 if (searchQuery.trim()) {
                     const query = searchQuery.toLowerCase();
@@ -22,7 +24,7 @@ export function TasksView() {
             });
             
         return sortTasks(filtered, taskSortMode);
-    }, [tasks, selectedColors, searchQuery, taskSortMode]);
+    }, [tasks, selectedColors, selectedStatuses, searchQuery, taskSortMode]);
 
     return (
         <TaskListView

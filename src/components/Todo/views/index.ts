@@ -3,3 +3,4 @@ export { TasksView } from './TasksView';
 export { TodayView } from './TodayView';
 export { InboxView } from './InboxView';
 export { ProgressView } from './ProgressView';
+export { CompletedView } from './CompletedView';

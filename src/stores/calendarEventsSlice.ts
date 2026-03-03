@@ -25,7 +25,7 @@ interface CalendarEventsState {
     updateEvent: (uid: string, updates: Partial<NekoEvent>) => Promise<void>;
     deleteEvent: (uid: string) => Promise<void>;
 
-    addTask: (content: string, groupId: string, calendarId?: string) => Promise<void>;
+    addTask: (content: string, groupId: string, calendarId?: string, color?: ItemColor) => Promise<void>;
     addSubTask: (parentId: string, content: string) => Promise<void>;
     updateTaskOrder: (activeId: string, overId: string) => Promise<void>;
     moveTaskToGroup: (taskId: string, targetGroupId: string, overTaskId?: string | null) => Promise<void>;
@@ -99,7 +99,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
         await get().save();
     },
 
-    addTask: async (content, groupId, calendarId) => {
+    addTask: async (content, groupId, calendarId, color) => {
         const state = get();
         const targetCalendarId = calendarId || state.calendars[0]?.id || 'main';
         
@@ -114,6 +114,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             calendarId: targetCalendarId,
             groupId: groupId,
             order: groupTasks.length,
+            color: color || DEFAULT_COLOR,
             completed: false,
             estimatedMinutes: 15,
         };
