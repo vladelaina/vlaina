@@ -1,4 +1,5 @@
 import { useCallback, useRef, useEffect } from 'react';
+import type { ImageNodeAttrs, ResizeDirection } from '../types';
 
 interface UseImageResizeOptions {
     containerRef: React.RefObject<HTMLDivElement | null>;
@@ -7,11 +8,9 @@ interface UseImageResizeOptions {
     setWidth: (width: string) => void;
     setHeight: (height: number | undefined) => void;
     setDragDimensions: (dims: { width: number; height: number } | null) => void;
-    updateNodeAttrs: (attrs: Record<string, any>) => void;
+    updateNodeAttrs: (attrs: ImageNodeAttrs) => void;
     restoreIfNeeded: () => Promise<void>;
 }
-
-type ResizeDirection = 'left' | 'right' | 'top' | 'bottom' | 'bottom-left' | 'bottom-right';
 
 export function useImageResize({
     containerRef,

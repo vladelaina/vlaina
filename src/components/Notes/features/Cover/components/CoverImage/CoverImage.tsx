@@ -6,7 +6,7 @@ import { resolveSystemAssetPath } from '@/lib/assets/core/paths';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 import { CoverPicker } from '../../../AssetLibrary';
 import { useCoverSource } from '../../hooks/useCoverSource';
-import { calculateCropPixels } from '../../hooks/coverUtils';
+import { calculateCropPixels } from '../../utils/coverUtils';
 import { useCoverState } from './hooks/useCoverState';
 import { useCoverInteraction } from './hooks/useCoverInteraction';
 import { useCoverResize } from './hooks/useCoverResize';
@@ -55,7 +55,7 @@ export function CoverImage({
     const {
         resolvedSrc, previewSrc, isImageReady, setPreviewSrc, setIsImageReady,
         prevSrcRef, isError, isSelectingRef
-    } = useCoverSource({ url, vaultPath, onUpdate });
+    } = useCoverSource({ url, vaultPath });
 
     // Handlers (Re-implemented here to access both source and state)
     const handleCoverSelect = (assetPath: string) => {
@@ -122,7 +122,7 @@ export function CoverImage({
         onCropperCropChange, onCropperZoomChange
     } = useCoverInteraction({
         mediaSize, effectiveContainerSize, zoom, setZoom, crop, setCrop,
-        coverHeight, url, positionX, positionY, scale, readOnly,
+        coverHeight, url, readOnly,
         onUpdate, setIsInteracting, showPicker, setShowPicker
     });
 
@@ -135,7 +135,7 @@ export function CoverImage({
     } = useCoverResize({
         mediaSize, effectiveContainerSize, zoom, crop,
         coverHeight, setCoverHeight, setCrop, setIsResizing, isManualResizingRef,
-        containerRef, wrapperRef, onUpdate, url, positionX, positionY, scale
+        containerRef, wrapperRef, onUpdate, url, scale
     });
 
     // Sync Crop Props (Moved here because it needs ignoreCropSyncRef from Resize hook)

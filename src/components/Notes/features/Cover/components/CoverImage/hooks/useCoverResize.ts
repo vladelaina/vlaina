@@ -4,7 +4,7 @@ import {
   MAX_HEIGHT, 
   getBaseDimensions, 
   calculateCropPercentage 
-} from '../../../hooks/coverUtils';
+} from '../../../utils/coverUtils';
 
 interface UseCoverResizeProps {
   mediaSize: { width: number; height: number } | null;
@@ -20,8 +20,6 @@ interface UseCoverResizeProps {
   wrapperRef: React.RefObject<HTMLDivElement | null>;
   onUpdate: (url: string | null, x: number, y: number, h?: number, s?: number) => void;
   url: string | null;
-  positionX: number;
-  positionY: number;
   scale: number;
 }
 
@@ -180,7 +178,22 @@ export function useCoverResize({
 
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
-  }, [mediaSize, effectiveContainerSize, zoom, crop, coverHeight]);
+  }, [
+    mediaSize,
+    effectiveContainerSize,
+    zoom,
+    crop,
+    coverHeight,
+    setCoverHeight,
+    setCrop,
+    setIsResizing,
+    isManualResizingRef,
+    containerRef,
+    wrapperRef,
+    onUpdate,
+    url,
+    scale
+  ]);
 
   return {
     handleResizeMouseDown,

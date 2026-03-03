@@ -2,18 +2,17 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { TitleInput } from './TitleInput';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
-import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
 import { resolveSystemAssetPath } from '@/lib/assets/core/paths';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { HeroIconHeader } from '@/components/common/HeroIconHeader';
+import { CoverAddOverlay } from '../Cover';
 
 interface NoteHeaderProps {
     coverUrl: string | null;
-    onCoverUpdate: (url: string | null, x: number, y: number, h?: number, scale?: number) => void;
-    setShowCoverPicker: (show: boolean) => void;
+    onAddCover: () => void;
 }
 
-export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: NoteHeaderProps) {
+export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
     const currentNotePath = useNotesStore(s => s.currentNote?.path);
     const setNoteIcon = useNotesStore(s => s.setNoteIcon);
     const setGlobalIconSize = useNotesStore(s => s.setGlobalIconSize);
@@ -123,24 +122,7 @@ export function NoteHeader({ coverUrl, onCoverUpdate, setShowCoverPicker }: Note
                 />
             )}
         >
-            {!coverUrl && (
-                <div
-                    className="absolute top-0 left-0 right-0 h-20 cursor-pointer hover:bg-[var(--neko-hover)]/30 transition-colors pointer-events-auto"
-                    onClick={() => {
-                        const allCovers = useNotesStore.getState().getAssetList('covers');
-                        let randomCover: string;
-
-                        if (allCovers.length > 0) {
-                            const randomIndex = Math.floor(Math.random() * allCovers.length);
-                            randomCover = allCovers[randomIndex].filename;
-                        } else {
-                            randomCover = getRandomBuiltinCover();
-                        }
-                        onCoverUpdate(randomCover, 50, 50, 200, 1);
-                        setShowCoverPicker(true);
-                    }}
-                />
-            )}
+            <CoverAddOverlay visible={!coverUrl} onAddCover={onAddCover} />
         </HeroIconHeader>
     );
 }

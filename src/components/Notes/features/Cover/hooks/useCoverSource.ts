@@ -2,15 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { resolveSystemAssetPath } from '@/lib/assets/core/paths';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
-import { loadImageWithDimensions } from './coverUtils';
+import { loadImageWithDimensions } from '../utils/coverUtils';
 
 interface UseCoverSourceProps {
     url: string | null;
     vaultPath: string;
-    onUpdate: (url: string | null, x: number, y: number, h?: number, s?: number) => void;
 }
 
-export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps) {
+export function useCoverSource({ url, vaultPath }: UseCoverSourceProps) {
     // Sync resolution is removed to avoid fragile synchronous path building.
     // We rely on the async effect for robustness.
     
@@ -21,24 +20,24 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
 
     const prevSrcRef = useRef<string | null>(null);
     const prevUrlRef = useRef<string | null>(null);
-    const lastResolvedUrlRef = useRef<string | null>(null);
-    const cachedDimensionsRef = useRef<{ width: number; height: number } | null>(null);
+    const lastResolvedKeyRef = useRef<string | null>(null);
     const isSelectingRef = useRef(false);
 
-    if (url !== prevUrlRef.current) {
+    useEffect(() => {
+        if (url === prevUrlRef.current) return;
+
         prevUrlRef.current = url;
-        // Immediate reset for new URL
         setResolvedSrc(null);
         setIsImageReady(false);
         setIsError(false);
-        cachedDimensionsRef.current = null;
-        lastResolvedUrlRef.current = null;
-    }
+        lastResolvedKeyRef.current = null;
+    }, [url]);
 
     useEffect(() => {
         let ignore = false;
         async function resolve() {
-            if (url === lastResolvedUrlRef.current && resolvedSrc) return;
+            const resolveKey = `${vaultPath}::${url ?? ''}`;
+            if (resolveKey === lastResolvedKeyRef.current && resolvedSrc) return;
             if (!url) {
                 setResolvedSrc(null);
                 setPreviewSrc(null);
@@ -78,16 +77,15 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
                 isSelectingRef.current = false;
                 return;
             }
-            cachedDimensionsRef.current = dimensions;
             setResolvedSrc(imageUrl);
             setPreviewSrc(null);
             setIsError(false);
             isSelectingRef.current = false;
-            lastResolvedUrlRef.current = url;
+            lastResolvedKeyRef.current = resolveKey;
         }
         resolve();
         return () => { ignore = true; };
-    }, [url, vaultPath, onUpdate]);
+    }, [url, vaultPath, resolvedSrc]);
 
     return {
         resolvedSrc,
@@ -97,7 +95,6 @@ export function useCoverSource({ url, vaultPath, onUpdate }: UseCoverSourceProps
         setIsImageReady,
         isError,
         prevSrcRef,
-        isSelectingRef,
-        cachedDimensionsRef
+        isSelectingRef
     };
 }

@@ -3,7 +3,7 @@ import {
   calculateCropPercentage, 
   getBaseDimensions, 
   MAX_SCALE 
-} from '../../../hooks/coverUtils';
+} from '../../../utils/coverUtils';
 
 interface UseCoverInteractionProps {
   mediaSize: { width: number; height: number } | null;
@@ -14,9 +14,6 @@ interface UseCoverInteractionProps {
   setCrop: (crop: { x: number; y: number }) => void;
   coverHeight: number;
   url: string | null;
-  positionX: number;
-  positionY: number;
-  scale: number;
   readOnly: boolean;
   onUpdate: (url: string | null, x: number, y: number, h?: number, s?: number) => void;
   setIsInteracting: (interacting: boolean) => void;

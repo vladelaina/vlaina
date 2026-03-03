@@ -2,6 +2,13 @@ import React, { useMemo } from 'react';
 import Cropper from 'react-easy-crop';
 import { cn } from '@/lib/utils';
 
+interface LoadedCoverMedia {
+  width: number;
+  height: number;
+  naturalWidth: number;
+  naturalHeight: number;
+}
+
 interface CoverRendererProps {
   displaySrc: string;
   isImageReady: boolean;
@@ -19,7 +26,7 @@ interface CoverRendererProps {
   onCropperZoomChange: (zoom: number) => void;
   onInteractionStart: () => void;
   onInteractionEnd: () => void;
-  onMediaLoaded: (media: any) => void;
+  onMediaLoaded: (media: LoadedCoverMedia) => void;
   positionX: number;
   positionY: number;
 }
