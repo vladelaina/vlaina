@@ -1,52 +1,41 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useAIStore } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import { checkModelHealth } from '@/lib/ai/healthCheck';
 import { Provider } from '@/lib/ai/types';
-import { AppIcon } from '@/components/common/AppIcon';
 import { ModelListItem, HealthStatus } from './components/ModelListItem';
-import { AddModelModal } from './components/AddModelModal';
-import { HealthCheckButton } from './components/HealthCheckButton';
-import { generateModelGroup } from '@/lib/ai/utils';
-import { IconSelector } from '@/components/common/IconSelector';
-import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 interface ProviderDetailProps {
   provider: Provider | undefined;
 }
 
+type ConnectionStatus = 'idle' | 'checking' | 'success' | 'error';
+
 export function ProviderDetail({ provider: initialProvider }: ProviderDetailProps) {
-  const {
-    updateProvider,
-    deleteProvider,
-    models,
-    addModel,
-    addModels,
-    deleteModel
-  } = useAIStore();
+  const { updateProvider, models, addModel, addModels, deleteModel } = useAIStore();
 
   const [name, setName] = useState(initialProvider?.name || '');
   const [apiKey, setApiKey] = useState(initialProvider?.apiKey || '');
   const [apiHost, setApiHost] = useState(initialProvider?.apiHost || '');
 
-  const [isAddingModel, setIsAddingModel] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [modelQuery, setModelQuery] = useState('');
+  const [quickAddModelId, setQuickAddModelId] = useState('');
+  const [quickAddError, setQuickAddError] = useState('');
+  const [fetchError, setFetchError] = useState('');
+
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [fetchedModels, setFetchedModels] = useState<string[]>([]);
-  const [modelQuery, setModelQuery] = useState('');
 
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-
-  const [previewIcon, setPreviewIcon] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
+  const [connectionMessage, setConnectionMessage] = useState('');
 
   const [healthStatus, setHealthStatus] = useState<Record<string, HealthStatus>>({});
   const [isHealthChecking, setIsHealthChecking] = useState(false);
   const [healthCheckOverall, setHealthCheckOverall] = useState<'idle' | 'success' | 'error'>('idle');
 
-  const providerModels = initialProvider
-    ? models.filter(m => m.providerId === initialProvider.id)
-    : [];
+  const providerModels = initialProvider ? models.filter((m) => m.providerId === initialProvider.id) : [];
+  const providerModelIdSet = useMemo(() => new Set(providerModels.map((m) => m.id)), [providerModels]);
 
   useEffect(() => {
     if (initialProvider) {
@@ -58,95 +47,153 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
       setApiKey('');
       setApiHost('');
     }
-    setFetchedModels([]);
-    setCollapsedGroups(new Set());
-    setIsAddingModel(false);
-    setIsDeleting(false);
-    setPreviewIcon(null);
+
+    setQuickAddModelId('');
+    setQuickAddError('');
+    setFetchError('');
     setModelQuery('');
+    setFetchedModels([]);
+    setConnectionStatus('idle');
+    setConnectionMessage('');
     setHealthStatus({});
     setHealthCheckOverall('idle');
   }, [initialProvider]);
+
+  const canUseConnectionActions = Boolean(initialProvider && apiHost.trim() && apiKey.trim());
+  const canBenchmark = canUseConnectionActions && providerModels.length > 0;
+
+  const sortedFetchedModels = useMemo(() => {
+    return [...new Set(fetchedModels)].sort((a, b) => a.localeCompare(b));
+  }, [fetchedModels]);
+
+  const normalizedQuery = modelQuery.trim().toLowerCase();
+  const filteredProviderModels = useMemo(() => {
+    const base = [...providerModels].sort((a, b) => a.id.localeCompare(b.id));
+    if (!normalizedQuery) return base;
+    return base.filter((m) => `${m.id} ${m.name}`.toLowerCase().includes(normalizedQuery));
+  }, [providerModels, normalizedQuery]);
+
+  const filteredFetchedModels = useMemo(() => {
+    if (!normalizedQuery) return sortedFetchedModels;
+    return sortedFetchedModels.filter((id) => id.toLowerCase().includes(normalizedQuery));
+  }, [sortedFetchedModels, normalizedQuery]);
+
+  const buildTempProvider = (): Provider | null => {
+    if (!initialProvider) return null;
+    return {
+      ...initialProvider,
+      name,
+      apiHost,
+      apiKey,
+      updatedAt: Date.now(),
+    };
+  };
 
   const handleSave = () => {
     if (!initialProvider) return;
     updateProvider(initialProvider.id, { name, apiKey, apiHost, updatedAt: Date.now() });
   };
 
-  const handleBatchHealthCheck = async () => {
-    if (!initialProvider || !apiKey) return;
+  const handleTestConnection = async () => {
+    if (!canUseConnectionActions) {
+      setConnectionStatus('error');
+      setConnectionMessage('Base URL and API Key are required.');
+      return;
+    }
+
+    const tempProvider = buildTempProvider();
+    if (!tempProvider) return;
+
+    setConnectionStatus('checking');
+    setConnectionMessage('Testing connection...');
+
+    try {
+      const ok = await openaiClient.testConnection(tempProvider);
+      if (ok) {
+        setConnectionStatus('success');
+        setConnectionMessage('Connection successful.');
+      } else {
+        setConnectionStatus('error');
+        setConnectionMessage('Connection failed. Please verify URL and key.');
+      }
+    } catch {
+      setConnectionStatus('error');
+      setConnectionMessage('Connection failed. Please verify URL and key.');
+    }
+  };
+
+  const handleBenchmarkModels = async () => {
+    if (!initialProvider || !canBenchmark) return;
 
     setIsHealthChecking(true);
     setHealthCheckOverall('idle');
 
-    const initialStatus: Record<string, HealthStatus> = {};
-    providerModels.forEach(m => {
-      initialStatus[m.id] = { status: 'loading' };
+    const loadingStatus: Record<string, HealthStatus> = {};
+    providerModels.forEach((m) => {
+      loadingStatus[m.id] = { status: 'loading' };
     });
-    setHealthStatus(initialStatus);
+    setHealthStatus(loadingStatus);
 
-    const tempProvider = { ...initialProvider, apiKey, apiHost };
+    const tempProvider = buildTempProvider();
+    if (!tempProvider) {
+      setIsHealthChecking(false);
+      return;
+    }
 
     try {
-      if (providerModels.length === 0) {
-        const success = await openaiClient.testConnection(tempProvider);
-        setHealthCheckOverall(success ? 'success' : 'error');
-      } else {
-        const results = await Promise.all(providerModels.map(async (model) => {
+      const results = await Promise.all(
+        providerModels.map(async (model) => {
           try {
             const res = await checkModelHealth(tempProvider, model);
             return { id: model.id, ...res };
           } catch (e: any) {
-            return { id: model.id, status: 'error', error: e.message };
+            return { id: model.id, status: 'error' as const, error: e?.message || 'Unknown error' };
           }
-        }));
+        })
+      );
 
-        const newStatus: Record<string, HealthStatus> = {};
-        let hasError = false;
+      const nextStatus: Record<string, HealthStatus> = {};
+      let hasError = false;
 
-        results.forEach((res: any) => {
-          newStatus[res.id] = {
-            status: res.status,
-            latency: res.latency,
-            error: res.error
-          };
-          if (res.status === 'error') hasError = true;
-        });
+      results.forEach((res) => {
+        nextStatus[res.id] = {
+          status: res.status,
+          latency: 'latency' in res ? res.latency : undefined,
+          error: res.error,
+        };
+        if (res.status === 'error') hasError = true;
+      });
 
-        setHealthStatus(newStatus);
-        setHealthCheckOverall(hasError ? 'error' : 'success');
-      }
+      setHealthStatus(nextStatus);
+      setHealthCheckOverall(hasError ? 'error' : 'success');
     } catch {
       setHealthCheckOverall('error');
     } finally {
       setIsHealthChecking(false);
-      setTimeout(() => setHealthCheckOverall('idle'), 3000);
     }
   };
 
   const handleFetchModels = async () => {
-    if (!apiKey.trim()) return;
+    if (!canUseConnectionActions) {
+      setFetchError('Please provide Base URL and API Key first.');
+      return;
+    }
+
+    const tempProvider = buildTempProvider();
+    if (!tempProvider) return;
 
     setIsFetchingModels(true);
+    setFetchError('');
     setFetchedModels([]);
 
     try {
-      const tempProvider: Provider = {
-        id: initialProvider?.id || 'temp',
-        name,
-        type: 'newapi',
-        apiHost,
-        apiKey,
-        enabled: true,
-        createdAt: 0,
-        updatedAt: 0
-      };
       const modelsList = await openaiClient.getModels(tempProvider);
-      if (modelsList.length > 0) {
-        setFetchedModels(modelsList);
+      setFetchedModels(modelsList);
+      if (modelsList.length === 0) {
+        setFetchError('Connected, but no models were returned.');
       }
     } catch {
-      // Intentionally no-op; UI state is enough for now.
+      setFetchError('Unable to fetch models from the current endpoint.');
     } finally {
       setIsFetchingModels(false);
     }
@@ -156,14 +203,14 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
     if (!id.trim() || !initialProvider) return false;
 
     const trimmedId = id.trim();
-    const exists = providerModels.some(m => m.id.toLowerCase() === trimmedId.toLowerCase());
-    if (exists) return false;
+    const existsInProvider = providerModels.some((m) => m.id.toLowerCase() === trimmedId.toLowerCase());
+    if (existsInProvider) return false;
 
     addModel({
       id: trimmedId,
       name: displayName?.trim() || trimmedId,
       providerId: initialProvider.id,
-      enabled: true
+      enabled: true,
     });
 
     return true;
@@ -172,341 +219,319 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
   const handleBatchAdd = (ids: string[]) => {
     if (!initialProvider || ids.length === 0) return;
 
-    const existingIds = new Set(providerModels.map(m => m.id.toLowerCase()));
+    const existingIds = new Set(providerModels.map((m) => m.id.toLowerCase()));
     const newIds = ids
-      .map(id => id.trim())
-      .filter(id => id && !existingIds.has(id.toLowerCase()));
+      .map((id) => id.trim())
+      .filter((id) => id && !existingIds.has(id.toLowerCase()));
 
     if (newIds.length === 0) return;
 
-    addModels(newIds.map(id => ({
-      id,
-      name: id,
-      providerId: initialProvider.id,
-      enabled: true
-    })));
+    addModels(
+      newIds.map((id) => ({
+        id,
+        name: id,
+        providerId: initialProvider.id,
+        enabled: true,
+      }))
+    );
   };
 
-  const toggleGroup = (groupKey: string) => {
-    const newSet = new Set(collapsedGroups);
-    if (newSet.has(groupKey)) {
-      newSet.delete(groupKey);
-    } else {
-      newSet.add(groupKey);
+  const handleClearAllModels = () => {
+    if (providerModels.length === 0) return;
+    providerModels.forEach((model) => {
+      deleteModel(model.id);
+    });
+    setHealthStatus({});
+    setHealthCheckOverall('idle');
+  };
+
+  const handleQuickAdd = () => {
+    const modelId = quickAddModelId.trim();
+    if (!modelId) return;
+
+    const ok = handleAddModel(modelId);
+    if (!ok) {
+      setQuickAddError('Model already exists in this channel, or ID is invalid.');
+      return;
     }
-    setCollapsedGroups(newSet);
+
+    setQuickAddError('');
+    setQuickAddModelId('');
   };
 
-  const groupModelsList = (modelIds: string[]) => {
-    return modelIds.reduce((acc, id) => {
-      const group = generateModelGroup(id);
-      if (!acc[group]) acc[group] = [];
-      acc[group].push(id);
-      return acc;
-    }, {} as Record<string, string[]>);
-  };
+  if (!initialProvider) {
+    return (
+      <div className="h-full rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-white/5 flex items-center justify-center">
+        <p className="text-sm text-gray-400">Please create or select a channel.</p>
+      </div>
+    );
+  }
 
-  const normalizedQuery = modelQuery.trim().toLowerCase();
-  const filteredFetchedModels = normalizedQuery
-    ? fetchedModels.filter(id => id.toLowerCase().includes(normalizedQuery))
-    : fetchedModels;
-  const filteredProviderModels = normalizedQuery
-    ? providerModels.filter(m => `${m.id} ${m.name}`.toLowerCase().includes(normalizedQuery))
-    : providerModels;
-
-  const fetchedGroups = groupModelsList(filteredFetchedModels);
-  const addedGroups = groupModelsList(filteredProviderModels.map(m => m.id));
-  const providerModelIdSet = new Set(providerModels.map(m => m.id));
+  const datalistId = `provider-model-options-${initialProvider.id}`;
 
   return (
-    <>
-      <div className="h-full max-w-6xl mx-auto flex flex-col gap-5">
-        {!initialProvider ? (
-          <div className="h-full rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-white/5 flex items-center justify-center">
-            <p className="text-sm text-gray-400">Please create or select a channel from the left sidebar.</p>
+    <div className="max-w-5xl mx-auto flex flex-col gap-4">
+        <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#202020] p-6">
+          <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-medium text-gray-500">Base URL</label>
+              <input
+                type="text"
+                value={apiHost}
+                onChange={(e) => {
+                  setApiHost(e.target.value);
+                  setConnectionStatus('idle');
+                  setConnectionMessage('');
+                  setFetchError('');
+                }}
+                onBlur={handleSave}
+                placeholder="https://api.example.com"
+                className="w-full h-11 px-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:ring-2 focus:ring-gray-500/20"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-medium text-gray-500">API Key</label>
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => {
+                  setApiKey(e.target.value);
+                  setConnectionStatus('idle');
+                  setConnectionMessage('');
+                  setFetchError('');
+                }}
+                onBlur={handleSave}
+                placeholder="sk-..."
+                className="w-full h-11 px-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm font-mono outline-none focus:ring-2 focus:ring-gray-500/20"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-medium text-gray-500">Channel Label (optional)</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={handleSave}
+                placeholder="New Channel"
+                className="w-full h-10 px-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:ring-2 focus:ring-gray-500/20"
+              />
+            </div>
           </div>
-        ) : (
-          <>
-            <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#202020] px-6 py-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <IconSelector
-                    value={initialProvider.icon || 'cube'}
-                    onChange={(icon) => updateProvider(initialProvider.id, { icon })}
-                    onHover={setPreviewIcon}
-                    compact
-                    trigger={
-                      <button className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-gray-800/80 flex items-center justify-center transition-all border border-gray-200 dark:border-gray-700">
-                        <AppIcon icon={previewIcon || initialProvider.icon || 'cube'} size="lg" />
-                      </button>
-                    }
-                  />
 
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Channel</p>
-                    <h2 className="text-[28px] leading-8 font-bold text-gray-900 dark:text-gray-100 mt-0.5">{name || 'Untitled Channel'}</h2>
-                    <p className="text-xs text-gray-500 mt-1.5">Use the left sidebar to switch channels.</p>
-                  </div>
-                </div>
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleSave}
+              className="h-9 px-4 text-xs font-semibold rounded-lg bg-black text-white dark:bg-white dark:text-black hover:opacity-85 transition-opacity"
+            >
+              Save
+            </button>
+            <button
+              onClick={handleTestConnection}
+              disabled={!canUseConnectionActions || connectionStatus === 'checking'}
+              className="h-9 px-4 text-xs font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {connectionStatus === 'checking' ? 'Testing...' : 'Test Connection'}
+            </button>
+            {connectionMessage && (
+              <span
+                className={`text-xs px-2.5 py-1 rounded-md border ${
+                  connectionStatus === 'success'
+                    ? 'text-green-700 dark:text-green-400 border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-900/20'
+                    : connectionStatus === 'error'
+                    ? 'text-red-700 dark:text-red-400 border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-900/20'
+                    : 'text-gray-500 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-white/5'
+                }`}
+              >
+                {connectionMessage}
+              </span>
+            )}
+          </div>
+        </section>
 
+        <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#202020] flex flex-col">
+          <div className="px-6 pt-5 pb-4 border-b border-gray-200 dark:border-gray-800">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Models <span className="text-gray-400 font-normal">({providerModels.length})</span>
+                </h3>
+                <p className="mt-1 text-xs text-gray-500">Choose available models and benchmark response speed.</p>
+              </div>
+
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setIsDeleting(true)}
-                  className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                  title="Delete Channel"
+                  onClick={handleFetchModels}
+                  disabled={!canUseConnectionActions || isFetchingModels}
+                  className="h-8 px-3 text-xs font-semibold rounded-lg bg-black text-white dark:bg-white dark:text-black disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-85 transition-opacity flex items-center gap-1.5"
                 >
-                  <Icon name="common.delete" size="md" />
+                  {isFetchingModels ? (
+                    <div className="size-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Icon name="common.download" size="sm" />
+                  )}
+                  Fetch Models
+                </button>
+                <button
+                  onClick={handleBenchmarkModels}
+                  disabled={!canBenchmark || isHealthChecking}
+                  className="h-8 px-3 text-xs font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                >
+                  {isHealthChecking ? (
+                    <div className="size-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Icon name="misc.activity" size="sm" />
+                  )}
+                  Benchmark
                 </button>
               </div>
-            </section>
+            </div>
 
-            <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#202020] px-6 py-5">
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Connection</h3>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-2">
+              <input
+                type="text"
+                value={quickAddModelId}
+                onChange={(e) => {
+                  setQuickAddModelId(e.target.value);
+                  setQuickAddError('');
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleQuickAdd();
+                  }
+                }}
+                list={datalistId}
+                placeholder="Enter model ID or select from fetched results"
+                className="h-10 px-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:ring-2 focus:ring-gray-500/20"
+              />
+              <button
+                onClick={handleQuickAdd}
+                className="h-10 px-4 text-xs font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+              >
+                Add Model
+              </button>
+              <datalist id={datalistId}>
+                {sortedFetchedModels.map((id) => (
+                  <option key={id} value={id} />
+                ))}
+              </datalist>
+            </div>
+
+            {(quickAddError || fetchError) && (
+              <p className="mt-2 text-xs text-red-600 dark:text-red-400">{quickAddError || fetchError}</p>
+            )}
+
+            <div className="mt-3 relative">
+              <Icon name="common.search" className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={modelQuery}
+                onChange={(e) => setModelQuery(e.target.value)}
+                placeholder="Filter selected and discovered models..."
+                className="w-full h-10 pl-9 pr-9 text-sm rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 outline-none focus:ring-2 focus:ring-gray-500/20"
+              />
+              {modelQuery && (
                 <button
-                  onClick={handleSave}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-black text-white dark:bg-white dark:text-black hover:opacity-85 transition-opacity"
+                  onClick={() => setModelQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400"
+                  title="Clear"
                 >
-                  Save
+                  <Icon name="common.close" size="xs" />
                 </button>
-              </div>
+              )}
+            </div>
+          </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-[11px] font-medium text-gray-500">Channel Name</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    onBlur={handleSave}
-                    placeholder="New Channel"
-                    className="w-full h-10 px-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:ring-2 focus:ring-gray-500/20"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-medium text-gray-500">Base URL</label>
-                  <input
-                    type="text"
-                    value={apiHost}
-                    onChange={(e) => setApiHost(e.target.value)}
-                    onBlur={handleSave}
-                    placeholder="https://api.example.com"
-                    className="w-full h-10 px-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:ring-2 focus:ring-gray-500/20"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-medium text-gray-500">API Key</label>
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    onBlur={handleSave}
-                    placeholder="sk-..."
-                    className="w-full h-10 px-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm font-mono outline-none focus:ring-2 focus:ring-gray-500/20"
-                  />
+          <div className="p-5 space-y-4">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-white/[0.02]">
+              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Selected Models</p>
+                <div className="flex items-center gap-2">
+                  {healthCheckOverall !== 'idle' && (
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
+                        healthCheckOverall === 'success'
+                          ? 'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20'
+                          : 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20'
+                      }`}
+                    >
+                      {healthCheckOverall === 'success' ? 'Benchmark Passed' : 'Benchmark Has Errors'}
+                    </span>
+                  )}
+                  <button
+                    onClick={handleClearAllModels}
+                    disabled={providerModels.length === 0}
+                    className="text-xs font-semibold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Clear All
+                  </button>
                 </div>
               </div>
-            </section>
 
-            <section className="flex-1 min-h-0 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#202020] flex flex-col">
-              <div className="px-6 pt-5 pb-4 border-b border-gray-200 dark:border-gray-800">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                  <div className="flex items-baseline gap-2">
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Models</h3>
-                    <span className="text-xs text-gray-400">({providerModels.length})</span>
+              <div className="p-3 space-y-1.5">
+                {providerModels.length === 0 ? (
+                  <div className="text-center py-10 text-gray-400 bg-white/60 dark:bg-black/10 rounded-lg border border-dashed border-gray-200 dark:border-gray-800">
+                    <p className="text-sm">No models selected yet.</p>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <HealthCheckButton
-                      onCheck={handleBatchHealthCheck}
-                      isChecking={isHealthChecking}
-                      overallStatus={healthCheckOverall}
-                      disabled={!apiKey}
+                ) : filteredProviderModels.length === 0 ? (
+                  <div className="text-center py-10 text-gray-400 bg-white/60 dark:bg-black/10 rounded-lg border border-dashed border-gray-200 dark:border-gray-800">
+                    <p className="text-sm">No selected models match your filter.</p>
+                  </div>
+                ) : (
+                  filteredProviderModels.map((model) => (
+                    <ModelListItem
+                      key={model.id}
+                      modelId={model.id}
+                      isAdded={true}
+                      onRemove={() => deleteModel(model.id)}
+                      health={healthStatus[model.id]}
                     />
-                    <button
-                      onClick={handleFetchModels}
-                      disabled={isFetchingModels || !apiKey}
-                      className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg bg-black text-white dark:bg-white dark:text-black disabled:opacity-50 hover:opacity-85 transition-opacity"
-                    >
-                      {isFetchingModels ? <div className="size-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Icon name="common.download" size="sm" />}
-                      Fetch Models
-                    </button>
-                    <button
-                      onClick={() => setIsAddingModel(true)}
-                      className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                    >
-                      <Icon name="common.add" size="sm" />
-                      Add Manual
-                    </button>
-                  </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {sortedFetchedModels.length > 0 && (
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-white/[0.02]">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Discovered Models</p>
+                  <button
+                    onClick={() => handleBatchAdd(filteredFetchedModels)}
+                    className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
+                  >
+                    Add All Visible
+                  </button>
                 </div>
 
-                <div className="relative">
-                  <Icon name="common.search" className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={modelQuery}
-                    onChange={(e) => setModelQuery(e.target.value)}
-                    placeholder="Filter models by name or ID..."
-                    className="w-full h-10 pl-9 pr-9 text-sm rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 outline-none focus:ring-2 focus:ring-gray-500/20"
-                  />
-                  {modelQuery && (
-                    <button
-                      onClick={() => setModelQuery('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400"
-                      title="Clear"
-                    >
-                      <Icon name="common.close" size="xs" />
-                    </button>
+                <div className="p-3 space-y-1.5">
+                  {filteredFetchedModels.length === 0 ? (
+                    <div className="text-center py-10 text-gray-400 bg-white/60 dark:bg-black/10 rounded-lg border border-dashed border-gray-200 dark:border-gray-800">
+                      <p className="text-sm">No discovered models match your filter.</p>
+                    </div>
+                  ) : (
+                    filteredFetchedModels.map((id) => (
+                      <ModelListItem
+                        key={id}
+                        modelId={id}
+                        isAdded={providerModelIdSet.has(id)}
+                        onAdd={() => {
+                          const ok = handleAddModel(id);
+                          if (!ok) {
+                            setQuickAddError('Model already exists in this channel, or ID is invalid.');
+                          } else {
+                            setQuickAddError('');
+                          }
+                        }}
+                      />
+                    ))
                   )}
                 </div>
               </div>
-
-              <div className="flex-1 min-h-0 overflow-y-auto p-5">
-                <div className={`grid gap-4 ${fetchedModels.length > 0 ? 'xl:grid-cols-2' : 'grid-cols-1'}`}>
-                  <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-white/[0.02] min-h-[280px] flex flex-col">
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Configured</p>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                      {providerModels.length === 0 ? (
-                        <div className="text-center py-12 text-gray-400 bg-white/60 dark:bg-black/10 rounded-lg border border-dashed border-gray-200 dark:border-gray-800">
-                          <p className="text-sm">No models configured.</p>
-                        </div>
-                      ) : filteredProviderModels.length === 0 ? (
-                        <div className="text-center py-12 text-gray-400 bg-white/60 dark:bg-black/10 rounded-lg border border-dashed border-gray-200 dark:border-gray-800">
-                          <p className="text-sm">No configured models match your filter.</p>
-                        </div>
-                      ) : (
-                        Object.entries(addedGroups).sort().map(([group, groupModels]) => {
-                          const isCollapsed = collapsedGroups.has(`added-${group}`);
-
-                          return (
-                            <div key={group} className="space-y-2">
-                              <button
-                                onClick={() => toggleGroup(`added-${group}`)}
-                                className="w-full flex items-center gap-2 px-1 text-left"
-                              >
-                                {isCollapsed ? <Icon name="nav.chevronRight" size="sm" className="text-gray-400" /> : <Icon name="nav.chevronDown" size="sm" className="text-gray-400" />}
-                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{group}</span>
-                                <span className="text-[10px] text-gray-400">({groupModels.length})</span>
-                              </button>
-
-                              {!isCollapsed && (
-                                <div className="space-y-1.5 pl-1">
-                                  {groupModels.map((id) => (
-                                    <ModelListItem
-                                      key={id}
-                                      modelId={id}
-                                      isAdded={true}
-                                      onRemove={() => deleteModel(id)}
-                                      health={healthStatus[id]}
-                                    />
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-
-                  {fetchedModels.length > 0 && (
-                    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-white/[0.02] min-h-[280px] flex flex-col">
-                      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Discovered</p>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleBatchAdd(filteredFetchedModels)}
-                            className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
-                          >
-                            Add All
-                          </button>
-                          <button
-                            onClick={() => setFetchedModels([])}
-                            className="text-xs font-medium text-gray-400 hover:text-gray-600"
-                          >
-                            Hide
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                        {Object.entries(fetchedGroups).length === 0 ? (
-                          <div className="text-center py-12 text-xs text-gray-400">
-                            No discovered models match your filter.
-                          </div>
-                        ) : (
-                          Object.entries(fetchedGroups).sort().map(([group, groupModels]) => {
-                            const isCollapsed = collapsedGroups.has(`fetched-${group}`);
-                            const allAdded = groupModels.every((id) => providerModelIdSet.has(id));
-
-                            return (
-                              <div key={group} className="space-y-2">
-                                <div className="w-full flex items-center justify-between px-1">
-                                  <button onClick={() => toggleGroup(`fetched-${group}`)} className="flex items-center gap-2 flex-1 text-left">
-                                    {isCollapsed ? <Icon name="nav.chevronRight" size="sm" className="text-gray-400" /> : <Icon name="nav.chevronDown" size="sm" className="text-gray-400" />}
-                                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{group}</span>
-                                    <span className="text-[10px] text-gray-400">({groupModels.length})</span>
-                                  </button>
-
-                                  {!allAdded && (
-                                    <button
-                                      onClick={() => handleBatchAdd(groupModels)}
-                                      className="text-[10px] font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                                    >
-                                      Add Group
-                                    </button>
-                                  )}
-                                </div>
-
-                                {!isCollapsed && (
-                                  <div className="space-y-1.5 pl-1">
-                                    {groupModels.map((id) => (
-                                      <ModelListItem
-                                        key={id}
-                                        modelId={id}
-                                        isAdded={providerModelIdSet.has(id)}
-                                        onAdd={() => handleAddModel(id)}
-                                      />
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
-          </>
-        )}
+            )}
+          </div>
+        </section>
       </div>
-
-      <AddModelModal
-        isOpen={isAddingModel}
-        onClose={() => setIsAddingModel(false)}
-        existingModelIds={providerModels.map(m => m.id)}
-        onAdd={(id, displayName) => handleAddModel(id, displayName)}
-      />
-
-      <ConfirmDialog
-        isOpen={isDeleting}
-        onClose={() => setIsDeleting(false)}
-        onConfirm={() => {
-          if (initialProvider) deleteProvider(initialProvider.id);
-        }}
-        title="Delete Channel"
-        description="Are you sure you want to delete this channel? All configuration and models will be lost."
-        confirmText="Delete"
-        variant="danger"
-      />
-    </>
   );
 }
