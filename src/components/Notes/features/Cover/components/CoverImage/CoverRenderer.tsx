@@ -1,35 +1,9 @@
-import React, { useMemo } from 'react';
-import Cropper from 'react-easy-crop';
-import { cn } from '@/lib/utils';
-
-interface LoadedCoverMedia {
-  width: number;
-  height: number;
-  naturalWidth: number;
-  naturalHeight: number;
-}
-
-interface CoverRendererProps {
-  displaySrc: string;
-  isImageReady: boolean;
-  isResizing: boolean;
-  wrapperRef: React.RefObject<HTMLDivElement | null>;
-  frozenImgRef: React.RefObject<HTMLImageElement | null>;
-  frozenImageState: { top: number; left: number; width: number; height: number } | null;
-  crop: { x: number; y: number };
-  zoom: number;
-  effectiveContainerSize: { width: number; height: number } | null;
-  effectiveMinZoom: number;
-  effectiveMaxZoom: number;
-  objectFitMode: 'contain' | 'horizontal-cover' | 'vertical-cover';
-  onCropperCropChange: (crop: { x: number; y: number }) => void;
-  onCropperZoomChange: (zoom: number) => void;
-  onInteractionStart: () => void;
-  onInteractionEnd: () => void;
-  onMediaLoaded: (media: LoadedCoverMedia) => void;
-  positionX: number;
-  positionY: number;
-}
+import React from 'react';
+import { CoverPlaceholderLayer } from './layers/CoverPlaceholderLayer';
+import { CoverCropperLayer } from './layers/CoverCropperLayer';
+import { CoverFrozenLayer } from './layers/CoverFrozenLayer';
+import type { CoverRendererProps } from './coverRenderer.types';
+export type { CoverRendererProps, LoadedCoverMedia } from './coverRenderer.types';
 
 export const CoverRenderer = React.memo(({
   displaySrc,
@@ -52,104 +26,37 @@ export const CoverRenderer = React.memo(({
   positionX,
   positionY
 }: CoverRendererProps) => {
-
-  const cropperStyle = useMemo(() => ({
-    containerStyle: { backgroundColor: 'transparent' },
-    cropAreaStyle: { 
-      border: 'none', 
-      boxShadow: 'none', 
-      color: 'transparent',
-      outline: 'none',
-      background: 'transparent'
-    },
-    mediaStyle: {
-      willChange: 'transform',
-      backfaceVisibility: 'hidden' as 'hidden',
-      transform: 'translateZ(0)',
-      maxWidth: 'none',
-      maxHeight: 'none'
-    }
-  }), []);
-
-  const mediaProps = useMemo(() => ({
-    style: {
-      willChange: 'transform',
-      backfaceVisibility: 'hidden' as 'hidden',
-      transform: 'translateZ(0)',
-      maxWidth: 'none',
-    }
-  }), []);
-
   return (
     <>
-      {/* Background/Loading Placeholder */}
-      {displaySrc && (
-        <img
-          src={displaySrc}
-          alt="Cover"
-          className={cn(
-            "absolute inset-0 w-full h-full object-cover transition-opacity duration-300 pointer-events-none",
-            isImageReady ? "opacity-0" : "opacity-100 placeholder-active"
-          )}
-          style={{ objectPosition: `${positionX}% ${positionY}%` }}
-        />
-      )}
-
-      {/* Main Cropper */}
-      {!isResizing && (
-        <div
-          ref={wrapperRef}
-          className={cn("absolute inset-0 transition-opacity duration-300", isImageReady ? "opacity-100" : "opacity-0")}
-          style={{ willChange: 'transform' }}
-        >
-          <Cropper
-            image={displaySrc || undefined}
-            crop={crop}
-            zoom={zoom}
-            cropSize={effectiveContainerSize ?? undefined}
-            minZoom={effectiveMinZoom}
-            maxZoom={effectiveMaxZoom}
-            objectFit={objectFitMode}
-            restrictPosition={true}
-            showGrid={false}
-            onCropChange={onCropperCropChange}
-            onZoomChange={onCropperZoomChange}
-            onInteractionStart={onInteractionStart}
-            onInteractionEnd={onInteractionEnd}
-            onMediaLoaded={onMediaLoaded}
-            style={cropperStyle}
-            mediaProps={mediaProps}
-          />
-        </div>
-      )}
-
-      {/* Frozen Layer for Resize Performance */}
-      <div
-        className={cn(
-          "absolute inset-0 pointer-events-none overflow-hidden transition-none",
-          !isResizing ? "invisible" : "visible"
-        )}
-      >
-        {displaySrc && (
-          <img
-            ref={frozenImgRef}
-            src={displaySrc}
-            alt="Frozen Cover"
-            style={{
-              position: 'absolute',
-              top: frozenImageState?.top ?? 0,
-              left: frozenImageState?.left ?? 0,
-              width: frozenImageState?.width ?? 0,
-              height: frozenImageState?.height ?? 0,
-              maxWidth: 'none',
-              maxHeight: 'none',
-              objectFit: 'fill',
-              opacity: isResizing ? 1 : 0,
-              transition: 'none'
-            }}
-          />
-        )}
-      </div>
+      <CoverPlaceholderLayer
+        displaySrc={displaySrc}
+        isImageReady={isImageReady}
+        positionX={positionX}
+        positionY={positionY}
+      />
+      <CoverCropperLayer
+        displaySrc={displaySrc}
+        isImageReady={isImageReady}
+        isResizing={isResizing}
+        wrapperRef={wrapperRef}
+        crop={crop}
+        zoom={zoom}
+        effectiveContainerSize={effectiveContainerSize}
+        effectiveMinZoom={effectiveMinZoom}
+        effectiveMaxZoom={effectiveMaxZoom}
+        objectFitMode={objectFitMode}
+        onCropperCropChange={onCropperCropChange}
+        onCropperZoomChange={onCropperZoomChange}
+        onInteractionStart={onInteractionStart}
+        onInteractionEnd={onInteractionEnd}
+        onMediaLoaded={onMediaLoaded}
+      />
+      <CoverFrozenLayer
+        displaySrc={displaySrc}
+        isResizing={isResizing}
+        frozenImgRef={frozenImgRef}
+        frozenImageState={frozenImageState}
+      />
     </>
   );
 });

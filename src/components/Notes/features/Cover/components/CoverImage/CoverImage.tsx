@@ -1,16 +1,13 @@
-import { useRef, useEffect, useMemo, useLayoutEffect } from 'react';
-import { Icon } from '@/components/ui/icons';
-import { cn } from '@/lib/utils';
-import { loadImageAsBlob } from '@/lib/assets/io/reader';
-import { resolveSystemAssetPath } from '@/lib/assets/core/paths';
-import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
-import { CoverPicker } from '../../../AssetLibrary';
+import { useRef, useMemo, useLayoutEffect } from 'react';
 import { useCoverSource } from '../../hooks/useCoverSource';
-import { calculateCropPixels } from '../../utils/coverUtils';
 import { useCoverState } from './hooks/useCoverState';
 import { useCoverInteraction } from './hooks/useCoverInteraction';
 import { useCoverResize } from './hooks/useCoverResize';
-import { CoverRenderer } from './CoverRenderer';
+import { useCoverPickerBridge } from './hooks/useCoverPickerBridge';
+import { useCoverContainerObserver } from './hooks/useCoverContainerObserver';
+import { CoverImageShell } from './CoverImageShell';
+import { useCoverPositionSync } from './hooks/useCoverPositionSync';
+import { useCoverMediaSync } from './hooks/useCoverMediaSync';
 
 interface CoverImageProps {
     url: string | null;
@@ -37,267 +34,149 @@ export function CoverImage({
     pickerOpen,
     onPickerOpenChange,
 }: CoverImageProps) {
+  const {
+    coverHeight, setCoverHeight,
+    containerSize, setContainerSize,
+    mediaSize, setMediaSize,
+    crop, setCrop,
+    zoom, setZoom,
+    isInteracting, setIsInteracting,
+    isResizing, setIsResizing,
+    isManualResizingRef,
+    showPicker, setShowPicker,
+  } = useCoverState({ initialHeight, scale, pickerOpen, onPickerOpenChange });
 
-    // 1. Core State
-    const {
-        coverHeight, setCoverHeight,
-        containerSize, setContainerSize,
-        mediaSize, setMediaSize,
-        crop, setCrop,
-        zoom, setZoom,
-        isInteracting, setIsInteracting,
-        isResizing, setIsResizing,
-        isManualResizingRef,
-        showPicker, setShowPicker
-    } = useCoverState({ initialHeight, scale, pickerOpen, onPickerOpenChange });
+  const {
+    resolvedSrc, previewSrc, isImageReady, setPreviewSrc, setIsImageReady,
+    prevSrcRef, isError, isSelectingRef,
+  } = useCoverSource({ url, vaultPath });
 
-    // 2. Data Source
-    const {
-        resolvedSrc, previewSrc, isImageReady, setPreviewSrc, setIsImageReady,
-        prevSrcRef, isError, isSelectingRef
-    } = useCoverSource({ url, vaultPath });
+  const {
+    handleCoverSelect,
+    handlePreview,
+    handlePickerClose,
+  } = useCoverPickerBridge({
+    url,
+    coverHeight,
+    vaultPath,
+    onUpdate,
+    setPreviewSrc,
+    isSelectingRef,
+    setShowPicker,
+  });
 
-    // Handlers (Re-implemented here to access both source and state)
-    const handleCoverSelect = (assetPath: string) => {
-        if (assetPath === url) {
-            setPreviewSrc(null);
-            isSelectingRef.current = false;
-            onUpdate(assetPath, 50, 50, coverHeight, 1);
-            setShowPicker(false);
-            return;
-        }
-        isSelectingRef.current = true;
-        onUpdate(assetPath, 50, 50, coverHeight, 1);
-        setShowPicker(false);
-    };
+  useLayoutEffect(() => {
+    if (!previewSrc) return;
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setIsImageReady(false);
+  }, [previewSrc, setCrop, setZoom, setIsImageReady]);
 
-    const lastPreviewPathRef = useRef<string | null>(null);
-    const handlePreview = async (assetPath: string | null) => {
-        lastPreviewPathRef.current = assetPath;
-        if (assetPath) isSelectingRef.current = false;
+  const effectiveContainerSize = useMemo(() => {
+    if (!containerSize) return null;
+    return { width: containerSize.width, height: coverHeight };
+  }, [containerSize, coverHeight]);
 
-        if (!assetPath) {
-            if (!isSelectingRef.current) setPreviewSrc(null);
-            return;
-        }
-        try {
-            if (isBuiltinCover(assetPath)) {
-                setPreviewSrc(getBuiltinCoverUrl(assetPath));
-                return;
-            }
-            if (!vaultPath) return;
-            const category = assetPath.startsWith('icons/') ? 'icons' : 'covers';
-            const fullPath = await resolveSystemAssetPath(vaultPath, assetPath, category);
-            const blobUrl = await loadImageAsBlob(fullPath);
-            if (assetPath === lastPreviewPathRef.current) setPreviewSrc(blobUrl);
-        } catch {
-            if (assetPath === lastPreviewPathRef.current) setPreviewSrc(null);
-        }
-    };
+  const {
+    objectFitMode, effectiveMinZoom, effectiveMaxZoom,
+    handleInteractionStart, handleInteractionEnd,
+    onCropperCropChange, onCropperZoomChange,
+  } = useCoverInteraction({
+    mediaSize, effectiveContainerSize, zoom, setZoom, crop, setCrop,
+    coverHeight, url, readOnly,
+    onUpdate, setIsInteracting, showPicker, setShowPicker,
+  });
 
-    const handlePickerClose = () => {
-        if (!isSelectingRef.current) {
-            setPreviewSrc(null);
-        }
-        setShowPicker(false);
-    };
+  const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
-    useLayoutEffect(() => {
-        if (previewSrc) {
-            setCrop({ x: 0, y: 0 });
-            setZoom(1);
-            setIsImageReady(false);
-        }
-    }, [previewSrc, setCrop, setZoom, setIsImageReady]);
+  const {
+    handleResizeMouseDown, frozenImageState, frozenImgRef, ignoreCropSyncRef,
+  } = useCoverResize({
+    mediaSize, effectiveContainerSize, zoom, crop,
+    coverHeight, setCoverHeight, setCrop, setIsResizing, isManualResizingRef,
+    containerRef, wrapperRef, onUpdate, url, scale,
+  });
 
-    const effectiveContainerSize = useMemo(() => {
-        if (!containerSize) return null;
-        return { width: containerSize.width, height: coverHeight };
-    }, [containerSize, coverHeight]);
+  useCoverPositionSync({
+    positionX,
+    positionY,
+    scale,
+    mediaSize,
+    effectiveContainerSize,
+    zoom,
+    isInteracting,
+    isResizing,
+    ignoreCropSyncRef,
+    setCrop,
+  });
 
-    // 3. Interaction Logic (Zoom, Pan, Save)
-    const {
-        objectFitMode, effectiveMinZoom, effectiveMaxZoom,
-        handleInteractionStart, handleInteractionEnd,
-        onCropperCropChange, onCropperZoomChange
-    } = useCoverInteraction({
-        mediaSize, effectiveContainerSize, zoom, setZoom, crop, setCrop,
-        coverHeight, url, readOnly,
-        onUpdate, setIsInteracting, showPicker, setShowPicker
-    });
+  useCoverContainerObserver({
+    containerRef,
+    isManualResizingRef,
+    setContainerSize,
+  });
 
-    const containerRef = useRef<HTMLDivElement>(null);
-    const wrapperRef = useRef<HTMLDivElement>(null);
+  const displaySrc = previewSrc || resolvedSrc || prevSrcRef.current || '';
+  const isPreviewing = previewSrc && !isSelectingRef.current;
+  const effectiveCrop = isPreviewing ? { x: 0, y: 0 } : crop;
+  const effectiveZoom = isPreviewing ? 1 : zoom;
 
-    // 4. Resize Logic (Complex Physics)
-    const {
-        handleResizeMouseDown, frozenImageState, frozenImgRef, ignoreCropSyncRef
-    } = useCoverResize({
-        mediaSize, effectiveContainerSize, zoom, crop,
-        coverHeight, setCoverHeight, setCrop, setIsResizing, isManualResizingRef,
-        containerRef, wrapperRef, onUpdate, url, scale
-    });
+  const { handleMediaLoaded } = useCoverMediaSync({
+    effectiveContainerSize,
+    isImageReady,
+    previewSrc,
+    positionX,
+    positionY,
+    zoom,
+    setMediaSize,
+    setCrop,
+    setZoom,
+    setIsImageReady,
+  });
 
-    // Sync Crop Props (Moved here because it needs ignoreCropSyncRef from Resize hook)
-    useEffect(() => {
-        if (isInteracting || isResizing || !mediaSize || !effectiveContainerSize) return;
-        if (ignoreCropSyncRef.current) {
-            ignoreCropSyncRef.current = false;
-            return;
-        }
-        const pixels = calculateCropPixels(
-            { x: positionX, y: positionY },
-            mediaSize,
-            effectiveContainerSize,
-            zoom
-        );
-        setCrop(pixels);
-    }, [positionX, positionY, scale, mediaSize, effectiveContainerSize, isInteracting, isResizing, zoom, setCrop]);
-
-    // Resize Observer for Container
-    useEffect(() => {
-        const el = containerRef.current;
-        if (!el) return;
-        let rafId: number;
-        const observer = new ResizeObserver(entries => {
-            if (rafId) cancelAnimationFrame(rafId);
-            rafId = requestAnimationFrame(() => {
-                for (const entry of entries) {
-                    const { width, height } = entry.contentRect;
-                    const roundedWidth = Math.round(width);
-                    const roundedHeight = Math.round(height);
-                    if (isManualResizingRef.current) return;
-                    setContainerSize(prev => {
-                        if (prev?.width === roundedWidth && prev?.height === roundedHeight) return prev;
-                        return { width: roundedWidth, height: roundedHeight };
-                    });
-                }
-            });
-        });
-        observer.observe(el);
-        return () => {
-            observer.disconnect();
-            if (rafId) cancelAnimationFrame(rafId);
-        };
-    }, []);
-
-
-    // --- RENDER ---
-    if (!url && !showPicker && !previewSrc) return null;
-
-    if (!url) {
-        return (
-            <div className="relative w-full">
-                {previewSrc && (
-                    <div className="relative w-full h-[200px] shrink-0 overflow-hidden">
-                        <img src={previewSrc} alt="Preview" className="w-full h-full object-cover" />
-                    </div>
-                )}
-                <CoverPicker
-                    isOpen={showPicker}
-                    onClose={handlePickerClose}
-                    onSelect={handleCoverSelect}
-                    onPreview={handlePreview}
-                    vaultPath={vaultPath}
-                />
-            </div>
-        );
-    }
-
-    const displaySrc = previewSrc || resolvedSrc || prevSrcRef.current || '';
-    const isPreviewing = previewSrc && !isSelectingRef.current;
-    const effectiveCrop = isPreviewing ? { x: 0, y: 0 } : crop;
-    const effectiveZoom = isPreviewing ? 1 : zoom;
-
-    return (
-        <div
-            className={cn("relative w-full bg-muted/20 shrink-0 select-none overflow-hidden group")}
-            style={{ height: coverHeight }}
-            ref={containerRef}
-        >
-            <CoverRenderer
-                displaySrc={displaySrc}
-                isImageReady={isImageReady}
-                isResizing={isResizing}
-                wrapperRef={wrapperRef}
-                frozenImgRef={frozenImgRef}
-                frozenImageState={frozenImageState}
-                crop={effectiveCrop}
-                zoom={effectiveZoom}
-                effectiveContainerSize={effectiveContainerSize}
-                effectiveMinZoom={effectiveMinZoom}
-                effectiveMaxZoom={effectiveMaxZoom}
-                objectFitMode={objectFitMode}
-                onCropperCropChange={onCropperCropChange}
-                onCropperZoomChange={onCropperZoomChange}
-                onInteractionStart={handleInteractionStart}
-                onInteractionEnd={handleInteractionEnd}
-                onMediaLoaded={(media) => {
-                    setMediaSize({ width: media.naturalWidth, height: media.naturalHeight });
-                    if (effectiveContainerSize && !isImageReady) {
-                        const targetX = previewSrc ? 50 : positionX;
-                        const targetY = previewSrc ? 50 : positionY;
-                        const targetZoom = previewSrc ? 1 : zoom;
-                        const pixels = calculateCropPixels({ x: targetX, y: targetY }, { width: media.naturalWidth, height: media.naturalHeight }, effectiveContainerSize, targetZoom);
-                        setCrop(pixels);
-                        setZoom(targetZoom);
-                    } else if (!isImageReady) {
-                        setCrop({ x: 0, y: 0 });
-                        setZoom(1);
-                    }
-                    if (!isImageReady) setIsImageReady(true);
-                }}
-                positionX={positionX}
-                positionY={positionY}
-            />
-
-            {/* Error Overlay */}
-            {isError && (
-                <div
-                    className={cn(
-                        "absolute inset-0 flex flex-col items-center justify-center bg-muted/20 text-muted-foreground z-10",
-                        !readOnly && "cursor-pointer hover:bg-muted/30 transition-colors"
-                    )}
-                    onMouseDown={() => !readOnly && setShowPicker(true)}
-                >
-                    <Icon name="file.brokenImage" className="w-8 h-8 mb-2 opacity-50" />
-                    <span className="text-xs font-medium opacity-70">Image failed to load</span>
-                    {!readOnly && <span className="text-[10px] opacity-50 mt-1">Click to replace</span>}
-                </div>
-            )}
-
-            {/* Overlay Triggers */}
-            {!displaySrc && !isError && (
-                <div
-                    className="absolute inset-0 flex items-center justify-center text-muted-foreground cursor-pointer z-10"
-                    onMouseDown={() => !readOnly && setShowPicker(true)}
-                >
-                    {!readOnly && <span className="text-xs">Click to change cover</span>}
-                </div>
-            )}
-
-            {readOnly && <div className="absolute inset-0 z-20" />}
-
-            {!readOnly && (
-                <div
-                    className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-40 opacity-0 hover:opacity-100 transition-opacity"
-                    onMouseDown={handleResizeMouseDown}
-                    onDoubleClick={() => {
-                        const goldenHeight = Math.round(window.innerHeight * 0.236);
-                        setCoverHeight(goldenHeight);
-                        onUpdate(url, positionX, positionY, goldenHeight, scale);
-                    }}
-                />
-            )}
-
-            <CoverPicker
-                isOpen={showPicker}
-                onClose={handlePickerClose}
-                onSelect={handleCoverSelect}
-                onRemove={url ? () => onUpdate(null, 50, 50) : undefined}
-                onPreview={handlePreview}
-                vaultPath={vaultPath}
-            />
-        </div>
-    );
+  return (
+    <CoverImageShell
+      url={url}
+      readOnly={readOnly}
+      vaultPath={vaultPath}
+      showPicker={showPicker}
+      previewSrc={previewSrc}
+      isError={isError}
+      displaySrc={displaySrc}
+      coverHeight={coverHeight}
+      positionX={positionX}
+      positionY={positionY}
+      containerRef={containerRef}
+      onOpenPicker={() => setShowPicker(true)}
+      onClosePicker={handlePickerClose}
+      onSelectCover={handleCoverSelect}
+      onPreview={handlePreview}
+      onRemoveCover={() => onUpdate(null, 50, 50)}
+      onResizeMouseDown={handleResizeMouseDown}
+      onResetHeight={() => {
+        const goldenHeight = Math.round(window.innerHeight * 0.236);
+        setCoverHeight(goldenHeight);
+        onUpdate(url, positionX, positionY, goldenHeight, scale);
+      }}
+      rendererProps={{
+        isImageReady,
+        isResizing,
+        wrapperRef,
+        frozenImgRef,
+        frozenImageState,
+        crop: effectiveCrop,
+        zoom: effectiveZoom,
+        effectiveContainerSize,
+        effectiveMinZoom,
+        effectiveMaxZoom,
+        objectFitMode,
+        onCropperCropChange,
+        onCropperZoomChange,
+        onInteractionStart: handleInteractionStart,
+        onInteractionEnd: handleInteractionEnd,
+        onMediaLoaded: handleMediaLoaded,
+      }}
+    />
+  );
 }
