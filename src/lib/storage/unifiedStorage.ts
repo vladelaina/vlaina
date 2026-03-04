@@ -65,6 +65,8 @@ export interface UnifiedData {
     currentSessionId: string | null;
     temporaryChatEnabled?: boolean;
     nativeWebSearchEnabled?: boolean;
+    customSystemPrompt?: string;
+    includeTimeContext?: boolean;
   };
 }
 
@@ -126,6 +128,8 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
         currentSessionId: null,
         temporaryChatEnabled: false,
         nativeWebSearchEnabled: false,
+        customSystemPrompt: '',
+        includeTimeContext: true,
         messages: {}
     };
 
@@ -144,6 +148,8 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             combinedData.ai.currentSessionId = hasCurrentSession ? currentSessionId : null;
             combinedData.ai.temporaryChatEnabled = !!sessionsData.temporaryChatEnabled;
             combinedData.ai.nativeWebSearchEnabled = sessionsData.nativeWebSearchEnabled || false;
+            combinedData.ai.customSystemPrompt = typeof sessionsData.customSystemPrompt === 'string' ? sessionsData.customSystemPrompt : '';
+            combinedData.ai.includeTimeContext = sessionsData.includeTimeContext !== false;
             providerIds = sessionsData.providerIds || []; // Index of channels
         } catch (e) { console.error('Failed to load sessions.json', e); }
     }
@@ -218,6 +224,8 @@ async function performSplitSave(data: UnifiedData) {
               : null,
             temporaryChatEnabled: !!ai.temporaryChatEnabled,
             nativeWebSearchEnabled: ai.nativeWebSearchEnabled,
+            customSystemPrompt: ai.customSystemPrompt || '',
+            includeTimeContext: ai.includeTimeContext !== false,
             providerIds: ai.providers.map(p => p.id)
         };
         await storage.writeFile(sessionsPath, JSON.stringify(sessionsData, null, 2));

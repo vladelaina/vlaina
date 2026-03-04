@@ -2,8 +2,8 @@ import { useCallback } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import { convertToBase64, type Attachment } from '@/lib/storage/attachmentStorage';
-import type { ChatMessage, ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
-import { TIME_SYSTEM_PROMPT, IMAGE_PLACEHOLDER } from '@/lib/ai/prompts';
+import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
+import { buildRequestHistory } from '@/lib/ai/requestContext';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
@@ -11,52 +11,6 @@ import { requestManager } from '@/lib/ai/requestManager';
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
 const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
-
-function formatTimeByOffset(offset: number): string {
-  const now = new Date();
-  const utcMs = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
-  const targetMs = utcMs + offset * 60 * 60 * 1000;
-  const targetDate = new Date(targetMs);
-
-  const year = targetDate.getUTCFullYear();
-  const month = String(targetDate.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(targetDate.getUTCDate()).padStart(2, '0');
-  const hours = String(targetDate.getUTCHours()).padStart(2, '0');
-  const minutes = String(targetDate.getUTCMinutes()).padStart(2, '0');
-  const seconds = String(targetDate.getUTCSeconds()).padStart(2, '0');
-
-  const sign = offset >= 0 ? '+' : '-';
-  const absoluteOffset = Math.abs(offset);
-  const offsetHours = Math.floor(absoluteOffset);
-  const offsetMinutes = Math.round((absoluteOffset - offsetHours) * 60);
-  const offsetText = `${sign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
-
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} GMT${offsetText}`;
-}
-
-function createTimeContext(modelId: string) {
-  const offset = useUnifiedStore.getState().data.settings.timezone.offset;
-  const timeInfo = formatTimeByOffset(offset);
-  return {
-    role: 'system',
-    content: TIME_SYSTEM_PROMPT(timeInfo),
-    modelId,
-    id: `time-${Date.now()}`,
-    timestamp: Date.now(),
-  };
-}
-
-function sanitizeHistory(messages: ChatMessage[]): ChatMessage[] {
-  return messages.map((msg) => {
-    if (typeof msg.content === 'string') {
-      return {
-        ...msg,
-        content: msg.content.replace(/!\[.*?\]\(.*?\)/g, IMAGE_PLACEHOLDER),
-      };
-    }
-    return msg;
-  });
-}
 
 function createChunkScheduler(onFlush: (content: string) => void) {
   let pendingContent: string | null = null;
@@ -141,6 +95,8 @@ export function useChatService() {
     temporaryChatEnabled,
     isTemporarySession,
     nativeWebSearchEnabled,
+    customSystemPrompt,
+    includeTimeContext,
     setSessionLoading,
     markSessionUnread,
     setError,
@@ -231,8 +187,14 @@ export function useChatService() {
       );
 
       try {
-        const finalHistory = [...messages, createTimeContext(selectedModel.id) as ChatMessage];
-        const sanitizedHistory = sanitizeHistory(finalHistory);
+        const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
+        const requestHistory = buildRequestHistory({
+          history: messages,
+          modelId: selectedModel.id,
+          timezoneOffset,
+          includeTimeContext,
+          customSystemPrompt
+        });
 
         let apiMessageContent: ChatMessageContent = userMessageText;
         if (attachments.length > 0) {
@@ -260,7 +222,7 @@ export function useChatService() {
 
         await openaiClient.sendMessage(
           apiMessageContent,
-          sanitizedHistory,
+          requestHistory,
           selectedModel,
           provider,
           (chunk) => streamScheduler.push(chunk),
@@ -304,6 +266,8 @@ export function useChatService() {
       temporaryChatEnabled,
       isTemporarySession,
       nativeWebSearchEnabled,
+      customSystemPrompt,
+      includeTimeContext,
       setSessionLoading,
       setError,
       messages,
@@ -350,13 +314,18 @@ export function useChatService() {
           return;
         }
         const history = sessionMessages.slice(0, userMsgIndex);
-
-        const finalHistory = [...history, createTimeContext(selectedModel.id) as ChatMessage];
-        const sanitizedHistory = sanitizeHistory(finalHistory);
+        const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
+        const requestHistory = buildRequestHistory({
+          history,
+          modelId: selectedModel.id,
+          timezoneOffset,
+          includeTimeContext,
+          customSystemPrompt
+        });
 
         await openaiClient.sendMessage(
           newContent,
-          sanitizedHistory,
+          requestHistory,
           selectedModel,
           provider,
           (chunk) => streamScheduler.push(chunk),
@@ -385,6 +354,8 @@ export function useChatService() {
       selectedModel,
       providers,
       nativeWebSearchEnabled,
+      customSystemPrompt,
+      includeTimeContext,
       editMessageAndBranch,
       addMessage,
       updateMessage,
@@ -419,9 +390,18 @@ export function useChatService() {
       );
 
       try {
+        const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
+        const requestHistory = buildRequestHistory({
+          history,
+          modelId: selectedModel.id,
+          timezoneOffset,
+          includeTimeContext,
+          customSystemPrompt
+        });
+
         await openaiClient.sendMessage(
           promptMsg.content,
-          history,
+          requestHistory,
           selectedModel,
           provider,
           (chunk) => streamScheduler.push(chunk),
@@ -454,6 +434,8 @@ export function useChatService() {
       messages,
       providers,
       nativeWebSearchEnabled,
+      customSystemPrompt,
+      includeTimeContext,
       addVersion,
       setSessionLoading,
       updateMessage,

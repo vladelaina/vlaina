@@ -169,6 +169,14 @@ export const actions = {
     useUnifiedStore.getState().updateAIData({ selectedModelId: modelId })
   },
 
+  setCustomSystemPrompt: (prompt: string) => {
+    useUnifiedStore.getState().updateAIData({ customSystemPrompt: prompt });
+  },
+
+  setIncludeTimeContext: (enabled: boolean) => {
+    useUnifiedStore.getState().updateAIData({ includeTimeContext: enabled });
+  },
+
   toggleTemporaryChat: (enabled?: boolean) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
@@ -676,6 +684,8 @@ export const useAIStore = () => {
     selectedModelId: aiData?.selectedModelId || null,
     temporaryChatEnabled: !!aiData?.temporaryChatEnabled,
     nativeWebSearchEnabled: aiData?.nativeWebSearchEnabled || false,
+    customSystemPrompt: aiData?.customSystemPrompt || '',
+    includeTimeContext: aiData?.includeTimeContext !== false,
     
     ...uiState,
     ...actions,

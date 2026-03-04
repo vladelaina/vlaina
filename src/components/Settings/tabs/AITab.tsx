@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { ProviderDetail } from './ai/ProviderDetail';
+import { AIBehaviorSettings } from './ai/AIBehaviorSettings';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 
@@ -83,6 +84,8 @@ export function AITab() {
   return (
     <div className="h-full bg-white dark:bg-[#1E1E1E]">
       <div className="h-full px-6 py-6 overflow-y-auto">
+        <AIBehaviorSettings />
+
         <div className="max-w-5xl mx-auto mb-4 flex items-center gap-2">
           <div ref={dropdownRef} className="relative flex-1">
             <button
