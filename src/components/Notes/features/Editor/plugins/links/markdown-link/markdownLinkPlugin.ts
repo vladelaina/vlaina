@@ -1,6 +1,7 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Fragment, Slice } from '@milkdown/kit/prose/model';
+import { isStandaloneFencedCodeBlock } from '../../clipboard/fencedCodePaste';
 
 export const markdownLinkPluginKey = new PluginKey('markdown-link-paste');
 
@@ -130,6 +131,7 @@ export const markdownLinkPlugin = $prose(() => {
 
                 const text = clipboardData.getData('text/plain');
                 if (!text) return false;
+                if (isStandaloneFencedCodeBlock(text)) return false;
 
                 LINK_REGEX.lastIndex = 0;
                 if (!LINK_REGEX.test(text)) {

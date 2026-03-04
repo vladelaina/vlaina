@@ -17,10 +17,7 @@ export function sanitizeHtml(html: string): string {
     if (!html) return html;
 
     try {
-        console.log('[Clipboard/Sanitizer] Raw HTML length:', html.length);
-        const sanitized = DOMPurify.sanitize(html, DOM_PURIFY_CONFIG);
-        console.log('[Clipboard/Sanitizer] Sanitized HTML length:', sanitized.length);
-        return sanitized;
+        return DOMPurify.sanitize(html, DOM_PURIFY_CONFIG);
     } catch (e) {
         console.error('[Clipboard/Sanitizer] Failed to sanitize HTML:', e);
         return html;
