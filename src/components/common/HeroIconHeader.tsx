@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { UniversalIconPicker as IconPicker } from '@/components/common/UniversalIconPicker';
@@ -112,7 +111,6 @@ export function HeroIconHeader({
   const headerRef = useRef<HTMLDivElement>(null);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
   const [showIconPicker, setShowIconPicker] = useState(false);
-  const [pickerPosition, setPickerPosition] = useState<{ top: number; left: number } | null>(null);
   const [isHoveringHeader, setIsHoveringHeader] = useState(false);
 
   const resolvedIconSize = resolvePixelSize(iconSize);
@@ -134,16 +132,6 @@ export function HeroIconHeader({
       headerRef.current.style.setProperty('--header-icon-size', `${effectiveSize}px`);
     }
   }, [effectiveSize]);
-
-  const updatePickerPosition = () => {
-    if (iconButtonRef.current) {
-      const rect = iconButtonRef.current.getBoundingClientRect();
-      setPickerPosition({
-        top: rect.bottom + 40, // Fine-tuned offset
-        left: rect.left,
-      });
-    }
-  };
 
   const handleIconSelect = (newIcon: string) => {
     onIconChange(newIcon);
@@ -220,7 +208,6 @@ export function HeroIconHeader({
                   <button
                       ref={iconButtonRef}
                       onClick={() => {
-                        updatePickerPosition();
                         setShowIconPicker(true);
                       }}
                       className="hover:scale-105 transition-transform cursor-pointer flex items-center group"
@@ -250,7 +237,6 @@ export function HeroIconHeader({
                           const currentSkinTone = loadSkinTone();
                           const randomEmoji = getRandomEmoji(currentSkinTone);
                           onIconChange(randomEmoji);
-                          updatePickerPosition();
                           setShowIconPicker(true);
                       }}
                       className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)] transition-colors")}
@@ -261,10 +247,10 @@ export function HeroIconHeader({
               </div>
           )}
 
-          {showIconPicker && pickerPosition && createPortal(
-              <div 
-                className="fixed z-[9999]"
-                style={{ top: pickerPosition.top, left: pickerPosition.left }}
+          {showIconPicker && (
+              <div
+                className="absolute z-[9999] top-full mt-2"
+                style={{ left: !compact ? `calc(var(--header-icon-size) * -0.1)` : 0 }}
                 data-no-auto-close="true"
               >
                   <IconPicker
@@ -289,8 +275,7 @@ export function HeroIconHeader({
                       onDeleteCustomIcon={onDeleteCustomIcon}
                       imageLoader={imageLoader}
                   />
-              </div>,
-              document.body
+              </div>
           )}
         </div>
 
