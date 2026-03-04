@@ -23,6 +23,7 @@ export interface NekoEvent {
     parentId?: string;
     collapsed?: boolean;
     estimatedMinutes?: number;
+    tags?: string[];
 }
 
 export interface NekoCalendar {
@@ -48,5 +49,6 @@ export const NEKO_X_PROPS = {
     PARENT_ID: 'X-NEKO-PARENT-ID',
     COLLAPSED: 'X-NEKO-COLLAPSED',
     ESTIMATED_MINUTES: 'X-NEKO-ESTIMATED-MINUTES',
+    TAGS: 'X-NEKO-TAGS',
 } as const;
 

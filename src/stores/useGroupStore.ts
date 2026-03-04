@@ -37,8 +37,8 @@ export function useGroupStore() {
     reorderGroups: (_activeId: string, _overId: string) => {
     },
 
-    addTask: async (summary: string, groupId: string, color?: ItemColor) => {
-        await eventStore.addTask(summary, groupId, undefined, color);
+    addTask: async (summary: string, groupId: string, color?: ItemColor, tags?: string[]) => {
+        await eventStore.addTask(summary, groupId, undefined, color, tags);
     },
 
     addSubTask: async (parentId: string, summary: string) => {

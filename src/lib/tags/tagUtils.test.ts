@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest';
+import type { NekoEvent } from '@/lib/ics/types';
+import {
+  normalizeTag,
+  normalizeTags,
+  serializeTags,
+  deserializeTags,
+  taskHasTag,
+  matchesSelectedTag,
+  collectUniqueTags,
+  countTasksByTag,
+} from './tagUtils';
+
+function createTask(overrides: Partial<NekoEvent> = {}): NekoEvent {
+  return {
+    uid: 'task-1',
+    summary: 'Task',
+    dtstart: new Date('2026-03-04T08:00:00.000Z'),
+    dtend: new Date('2026-03-04T08:30:00.000Z'),
+    allDay: false,
+    calendarId: 'main',
+    ...overrides,
+  };
+}
+
+describe('tagUtils', () => {
+  it('normalizes spacing for a single tag', () => {
+    expect(normalizeTag('  Deep   Work  ')).toBe('Deep Work');
+  });
+
+  it('normalizes and deduplicates tags case-insensitively', () => {
+    expect(normalizeTags([' Work ', 'work', 'Learning', 'learning '])).toEqual(['Work', 'Learning']);
+  });
+
+  it('serializes and deserializes tags round-trip', () => {
+    const serialized = serializeTags(['Work', 'Learning']);
+    expect(serialized).toBeTruthy();
+    expect(deserializeTags(serialized)).toEqual(['Work', 'Learning']);
+  });
+
+  it('checks if a task has a specific tag and matches selected filter', () => {
+    const task = createTask({ tags: ['Learning', 'Work'] });
+    expect(taskHasTag(task, 'work')).toBe(true);
+    expect(taskHasTag(task, 'Personal')).toBe(false);
+    expect(matchesSelectedTag(task, 'Learning')).toBe(true);
+    expect(matchesSelectedTag(task, null)).toBe(true);
+  });
+
+  it('collects unique tags and counts tasks by tag', () => {
+    const tasks: NekoEvent[] = [
+      createTask({ uid: '1', tags: ['Work', 'Learning'] }),
+      createTask({ uid: '2', tags: ['work'] }),
+      createTask({ uid: '3', tags: ['Personal'] }),
+    ];
+
+    expect(collectUniqueTags(tasks)).toEqual(['Learning', 'Personal', 'Work']);
+    expect(countTasksByTag(tasks, 'work')).toBe(2);
+  });
+});

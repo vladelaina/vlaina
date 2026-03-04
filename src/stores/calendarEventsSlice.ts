@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { NekoEvent, NekoCalendar } from '@/lib/ics/types';
 import type { ItemColor } from '@/lib/colors';
 import { DEFAULT_COLOR } from '@/lib/colors';
+import { normalizeTags } from '@/lib/tags/tagUtils';
 import { getDescendantIds, getChildren, reorderSiblings } from './taskTreeUtils';
 import {
     loadCalendarsMeta,
@@ -25,7 +26,7 @@ interface CalendarEventsState {
     updateEvent: (uid: string, updates: Partial<NekoEvent>) => Promise<void>;
     deleteEvent: (uid: string) => Promise<void>;
 
-    addTask: (content: string, groupId: string, calendarId?: string, color?: ItemColor) => Promise<void>;
+    addTask: (content: string, groupId: string, calendarId?: string, color?: ItemColor, tags?: string[]) => Promise<void>;
     addSubTask: (parentId: string, content: string) => Promise<void>;
     updateTaskOrder: (activeId: string, overId: string) => Promise<void>;
     moveTaskToGroup: (taskId: string, targetGroupId: string, overTaskId?: string | null) => Promise<void>;
@@ -99,9 +100,10 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
         await get().save();
     },
 
-    addTask: async (content, groupId, calendarId, color) => {
+    addTask: async (content, groupId, calendarId, color, tags) => {
         const state = get();
         const targetCalendarId = calendarId || state.calendars[0]?.id || 'main';
+        const normalizedTags = normalizeTags(tags);
         
         const groupTasks = getChildren(state.events, null, groupId);
         
@@ -115,6 +117,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             groupId: groupId,
             order: groupTasks.length,
             color: color || DEFAULT_COLOR,
+            tags: normalizedTags.length > 0 ? normalizedTags : undefined,
             completed: false,
             estimatedMinutes: 15,
         };

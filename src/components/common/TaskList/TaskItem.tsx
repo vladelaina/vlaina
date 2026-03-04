@@ -8,6 +8,7 @@ import type { NekoEvent } from '@/lib/ics/types';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
 import { formatDuration } from '@/lib/time';
 import { getColorHex } from '@/lib/colors';
+import { normalizeTags } from '@/lib/tags/tagUtils';
 import { IconSelector } from '@/components/common/IconSelector';
 import { TaskIcon } from '@/components/common/TaskIcon';
 import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconPreview';
@@ -161,6 +162,7 @@ export function TaskItem({
 
     const startDate = task.dtstart ? new Date(task.dtstart).getTime() : undefined;
     const endDate = task.dtend ? new Date(task.dtend).getTime() : undefined;
+    const taskTags = normalizeTags(task.tags);
 
 
     return (
@@ -297,6 +299,19 @@ export function TaskItem({
 
 
                             )}
+                        </div>
+                    )}
+
+                    {taskTags.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                            {taskTags.map(tag => (
+                                <span
+                                    key={`${task.uid}-tag-${tag}`}
+                                    className="inline-flex px-2 py-0.5 rounded-md text-[11px] bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+                                >
+                                    #{tag}
+                                </span>
+                            ))}
                         </div>
                     )}
 

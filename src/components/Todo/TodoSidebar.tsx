@@ -1,9 +1,12 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { ColorFilter } from '@/components/common/ColorFilter';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
+import { useUIStore, ALL_STATUSES } from '@/stores/uiSlice';
 import { getTodayKey, formatDateKey } from '@/lib/date';
+import { collectUniqueTags } from '@/lib/tags/tagUtils';
+import { TagFilterList } from './tags';
 
 export function TodoSidebar() {
     const { 
@@ -11,6 +14,7 @@ export function TodoSidebar() {
         activeGroupId, 
         setActiveGroup
     } = useGroupStore();
+    const { selectedTag, setSelectedTag, setSelectedStatuses, setHideCompleted } = useUIStore();
 
     const todayDate = new Date().getDate(); // 获取今天的日期数字
 
@@ -36,7 +40,32 @@ export function TodoSidebar() {
         return c;
     }, [tasks]);
 
+    const availableTags = useMemo(
+        () => collectUniqueTags(tasks.filter(task => !task.parentId)),
+        [tasks]
+    );
 
+    useEffect(() => {
+        if (!selectedTag) return;
+        const stillExists = availableTags.some(tag => tag.toLocaleLowerCase() === selectedTag.toLocaleLowerCase());
+        if (!stillExists) {
+            setSelectedTag(null);
+        }
+    }, [availableTags, selectedTag, setSelectedTag]);
+
+
+
+    const handleSelectGroup = (groupId: string) => {
+        setSelectedTag(null);
+        setActiveGroup(groupId);
+    };
+
+    const handleSelectTag = (tag: string | null) => {
+        setSelectedTag(tag);
+        setActiveGroup('all');
+        setSelectedStatuses(ALL_STATUSES);
+        setHideCompleted(false);
+    };
 
     const NavItem = ({ label, iconName, count, onClick, active, customIcon }: any) => (
         <button
@@ -91,11 +120,11 @@ export function TodoSidebar() {
                     <div className="flex flex-col gap-0.5">
                         <NavItem 
                             id="all" 
-                            label="All Tasks" 
+                            label="Tasks" 
                             iconName="sidebar.todo" 
                             count={counts.all}
                             active={activeGroupId === 'all'}
-                            onClick={() => setActiveGroup('all')}
+                            onClick={() => handleSelectGroup('all')}
                         />
                         <NavItem 
                             id="progress" 
@@ -103,7 +132,7 @@ export function TodoSidebar() {
                             iconName="sidebar.stats" 
                             count={0}
                             active={activeGroupId === 'progress'}
-                            onClick={() => setActiveGroup('progress')}
+                            onClick={() => handleSelectGroup('progress')}
                         />
                         <NavItem 
                             id="today" 
@@ -111,7 +140,7 @@ export function TodoSidebar() {
                             customIcon={<CalendarIcon active={activeGroupId === 'today'} />}
                             count={counts.today}
                             active={activeGroupId === 'today'}
-                            onClick={() => setActiveGroup('today')}
+                            onClick={() => handleSelectGroup('today')}
                         />
                         <NavItem 
                             id="completed" 
@@ -119,7 +148,7 @@ export function TodoSidebar() {
                             iconName="sidebar.completed" 
                             count={counts.completed}
                             active={activeGroupId === 'completed'}
-                            onClick={() => setActiveGroup('completed')}
+                            onClick={() => handleSelectGroup('completed')}
                         />
                     </div>
                 </div>
@@ -130,6 +159,11 @@ export function TodoSidebar() {
                     </h3>
                     <div className="px-3 py-2">
                         <ColorFilter />
+                        <TagFilterList
+                            tasks={tasks}
+                            selectedTag={selectedTag}
+                            onSelectTag={handleSelectTag}
+                        />
                     </div>
                 </div>
             </div>

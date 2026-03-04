@@ -13,6 +13,7 @@ const STORAGE_KEY_IMAGE_STORAGE_MODE = 'nekotick_image_storage_mode';
 const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'nekotick_image_subfolder_name';
 const STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME = 'nekotick_image_vault_subfolder_name';
 const STORAGE_KEY_IMAGE_FILENAME_FORMAT = 'nekotick_image_filename_format';
+const STORAGE_KEY_TAG_FILTER = 'nekotick_tag_filter';
 
 export type TaskStatus = 'todo' | 'scheduled' | 'completed';
 export const ALL_STATUSES: TaskStatus[] = ['todo', 'scheduled', 'completed'];
@@ -79,6 +80,9 @@ interface UIStore {
   setSelectedStatuses: (statuses: TaskStatus[]) => void;
   toggleStatus: (status: TaskStatus) => void;
   toggleAllStatuses: () => void;
+
+  selectedTag: string | null;
+  setSelectedTag: (tag: string | null) => void;
 
   archiveTimeView: TimeView;
   archiveDayRange: number | 'all';
@@ -195,6 +199,25 @@ function loadStatusFilter(): TaskStatus[] {
 
 function saveStatusFilter(statuses: TaskStatus[]): void {
   localStorage.setItem(STORAGE_KEY_STATUS_FILTER, JSON.stringify(statuses));
+}
+
+function loadTagFilter(): string | null {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_TAG_FILTER);
+    if (!saved) return null;
+    const value = saved.trim();
+    return value.length > 0 ? value : null;
+  } catch {
+  }
+  return null;
+}
+
+function saveTagFilter(tag: string | null): void {
+  if (!tag) {
+    localStorage.removeItem(STORAGE_KEY_TAG_FILTER);
+    return;
+  }
+  localStorage.setItem(STORAGE_KEY_TAG_FILTER, tag);
 }
 
 function loadImageStorageMode(): ImageStorageMode {
@@ -372,6 +395,12 @@ export const useUIStore = create<UIStore>()((set, get) => ({
       saveStatusFilter(newStatuses);
       return { selectedStatuses: newStatuses };
     });
+  },
+
+  selectedTag: loadTagFilter(),
+  setSelectedTag: (tag) => {
+    saveTagFilter(tag);
+    set({ selectedTag: tag });
   },
 
   archiveTimeView: 'day',

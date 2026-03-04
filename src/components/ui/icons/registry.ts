@@ -59,6 +59,7 @@ import {
   LockClosedIcon,
   GlobeAltIcon,
   PaperClipIcon,
+  TagIcon,
   CodeBracketIcon,
   PlayIcon,
   PauseIcon,
@@ -128,6 +129,7 @@ export const icons: Record<string, IconSource> = {
   'common.blocked': NoSymbolIcon,
   'common.block': NoSymbolIcon,
   'common.compose': NewChatIcon,
+  'common.tag': TagIcon,
   'common.rename': PenLine,
   'common.pin': Pin,
   'common.pinOutline': Pin,
@@ -218,6 +220,7 @@ export const icons: Record<string, IconSource> = {
   'misc.lab': BeakerIcon,
   'misc.box': ArchiveBoxIcon,
   // --- Legacy / Compatibility ---
+  'legacy.addTask': PlusIcon,
   'legacy.unfold': ChevronUpDownIcon,
 };
 

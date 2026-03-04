@@ -4,6 +4,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { sortTasks } from '@/components/common/TaskList';
 import { formatDateKey } from '@/lib/date';
+import { matchesSelectedTag } from '@/lib/tags/tagUtils';
 import { TaskListView } from './TaskListView';
 import { isSameDay, format } from 'date-fns';
 import { Icon } from '@/components/ui/icons';
@@ -17,7 +18,7 @@ export function TodayView() {
         selectedDate
     } = useCalendarStore();
 
-    const { selectedColors, selectedStatuses, taskSortMode, setAppViewMode } = useUIStore();
+    const { selectedColors, selectedStatuses, selectedTag, taskSortMode, setAppViewMode } = useUIStore();
     const [searchQuery, setSearchQuery] = useState('');
     const [datePickerOpen, setDatePickerOpen] = useState(false);
 
@@ -30,6 +31,7 @@ export function TodayView() {
         return tasks.filter(t => {
             if (t.parentId) return false;
             if (!matchesSelectedStatus(t, selectedStatuses)) return false;
+            if (!matchesSelectedTag(t, selectedTag)) return false;
             if (!selectedColors.includes(t.color || 'default')) return false;
             if (!t.dtstart) return false;
 
@@ -42,7 +44,7 @@ export function TodayView() {
             }
             return true;
         });
-    }, [tasks, selectedColors, selectedStatuses, searchQuery, selectedDate]);
+    }, [tasks, selectedColors, selectedStatuses, selectedTag, searchQuery, selectedDate]);
 
     const displayTasks = useMemo(() => {
         return sortTasks(filteredTasks, taskSortMode);
