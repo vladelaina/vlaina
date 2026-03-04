@@ -32,7 +32,7 @@ export default function CopyButton({ content, className, showLabels = false }: C
       )}
       title={copied ? "Copied!" : "Copy to clipboard"}
     >
-      <Icon name={copied ? "common.check" : "common.copy"} size="sm" className={cn(copied && "text-green-500")} />
+      <Icon name={copied ? "common.check" : "common.copy"} size="md" className={cn(copied && "text-green-500")} />
       {showLabels && (
         <span className="text-[11px] font-medium uppercase tracking-wider">
           {copied ? "Copied" : "Copy"}

@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 
 interface ChatShortcutsDialogProps {
   isOpen: boolean;
@@ -8,24 +8,20 @@ interface ChatShortcutsDialogProps {
 
 export function ChatShortcutsDialog({ isOpen, onOpenChange }: ChatShortcutsDialogProps) {
   const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-  
-  const MODIFIER = isMac ? '⌘' : 'Ctrl';
-  const SHIFT = isMac ? '⇧' : 'Shift';
-  const ESC = 'Esc';
-  const DELETE = isMac ? '⌫' : 'Backspace';
+  const deleteKey = isMac ? '⌫' : 'Backspace';
 
   const shortcuts = [
-    { action: 'Open new chat', keys: [MODIFIER, SHIFT, 'O'] },
-    { action: 'Open temporary chat (toggle if empty)', keys: [MODIFIER, SHIFT, 'J'] },
-    { action: 'Focus chat input', keys: [SHIFT, ESC] },
-    { action: 'Previous chat', keys: [MODIFIER, SHIFT, 'Tab'] },
-    { action: 'Next chat', keys: [MODIFIER, 'Tab'] },
-    { action: 'Copy last code block', keys: [MODIFIER, SHIFT, ';'] },
-    { action: 'Copy last response', keys: [MODIFIER, SHIFT, 'C'] },
-    { action: 'Previous message', keys: [SHIFT, '↑'] },
-    { action: 'Next message', keys: [SHIFT, '↓'] },
-    { action: 'Delete chat', keys: [MODIFIER, SHIFT, DELETE] },
-    { action: 'Show shortcuts', keys: [MODIFIER, '/'] },
+    { action: 'Open new chat', keys: ['Ctrl', 'Shift', 'O'] },
+    { action: 'Open temporary chat (toggle if empty)', keys: ['Ctrl', 'Shift', 'J'] },
+    { action: 'Focus chat input', keys: ['Shift', 'Esc'] },
+    { action: 'Previous chat', keys: ['Ctrl', 'Shift', 'Tab'] },
+    { action: 'Next chat', keys: ['Ctrl', 'Tab'] },
+    { action: 'Copy last code block', keys: ['Ctrl', 'Shift', ';'] },
+    { action: 'Copy last response', keys: ['Ctrl', 'Shift', 'C'] },
+    { action: 'Previous message', keys: ['Shift', '↑'] },
+    { action: 'Next message', keys: ['Shift', '↓'] },
+    { action: 'Delete chat', keys: ['Ctrl', 'Shift', deleteKey] },
+    { action: 'Show shortcuts', keys: ['Ctrl', '/'] },
   ];
 
   return (
@@ -49,20 +45,7 @@ export function ChatShortcutsDialog({ isOpen, onOpenChange }: ChatShortcutsDialo
               <span className="text-[14px] text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 font-medium transition-colors">
                 {shortcut.action}
               </span>
-              <div className="flex items-center gap-1.5">
-                {shortcut.keys.map((key, kIndex) => (
-                  <kbd 
-                    key={kIndex}
-                    className={cn(
-                        "min-w-[28px] h-7 px-2 flex items-center justify-center rounded-lg text-[13px] font-bold border-b-2 shadow-sm transition-all",
-                        "bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-gray-400 border-b-gray-300 dark:border-b-zinc-600 active:border-b-0 active:translate-y-[1px]",
-                        isMac ? "font-sans" : "font-mono"
-                    )}
-                  >
-                    {key}
-                  </kbd>
-                ))}
-              </div>
+              <ShortcutKeys keys={shortcut.keys} />
             </div>
           ))}
         </div>

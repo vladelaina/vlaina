@@ -23,7 +23,7 @@ const ModelOption = memo(({
             onClick={() => onSelect(model.id)}
             onMouseEnter={() => onHover(model.id)}
             className={cn(
-                "w-full flex items-center justify-between px-3 py-2 rounded-md text-left transition-colors duration-75", // Fast CSS transition
+                "w-full flex items-center justify-between px-3 py-2 rounded-md text-left transition-colors duration-75",
                 (isSelected || isFocused)
                 ? "bg-neutral-100 dark:bg-neutral-700/60"
                 : "bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-700/60"
@@ -37,7 +37,7 @@ const ModelOption = memo(({
             </span>
             
             {isSelected && (
-                <Icon name="common.check" className="w-4 h-4 text-gray-900 dark:text-gray-100 ml-4 flex-shrink-0" />
+                <Icon name="common.check" size="md" className="text-gray-900 dark:text-gray-100 ml-4 flex-shrink-0" />
             )}
         </button>
     );
@@ -191,16 +191,16 @@ export function ModelSelector() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-1.5 px-3 h-9 rounded-full transition-all group", // h-9 (36px), rounded-full
+          "flex items-center gap-1.5 px-3 h-9 rounded-full transition-all group",
           "bg-transparent border-none",
-          "text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5" // Added hover effect for touch target feedback
+          "text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5"
         )}
       >
         <span className="text-sm font-medium whitespace-nowrap">
           {selectedModel ? selectedModel.name : 'Select Model'}
         </span>
         <svg
-          className={cn("h-3 w-3 opacity-70 transition-transform duration-200", isOpen && "rotate-180")}
+          className={cn("h-5 w-5 opacity-70 transition-transform duration-200", isOpen && "rotate-180")}
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -210,7 +210,6 @@ export function ModelSelector() {
         </svg>
       </button>
 
-      {/* Instant Dropdown (No Animation Library) */}
       {isOpen && (
         <div 
           className={cn(
@@ -218,8 +217,6 @@ export function ModelSelector() {
             "bg-white dark:bg-neutral-800 rounded-2xl shadow-xl",
             "border border-neutral-100 dark:border-neutral-600/40",
             "backdrop-blur-lg z-50 overflow-hidden flex flex-col",
-            // Optional: minimal CSS animation if desired (e.g. animate-in fade-in zoom-in-95)
-            // But for "instant" feel, we keep it raw or super fast.
             "animate-in fade-in duration-75 zoom-in-95" 
           )}
           style={{ maxHeight: '320px' }}

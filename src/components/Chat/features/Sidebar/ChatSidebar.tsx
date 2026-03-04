@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
-import { cn } from '@/lib/utils';
+import { cn, iconButtonStyles } from '@/lib/utils';
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
 import {
   DropdownMenu,
@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
 
 interface ChatSidebarProps {
@@ -196,7 +197,8 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                 <DropdownMenuTrigger 
                                     onClick={(e) => { e.stopPropagation(); }}
                                     className={cn(
-                                        "p-1 rounded-md transition-colors focus:outline-none",
+                                        "p-1 rounded-md focus:outline-none",
+                                        iconButtonStyles,
                                         isActive 
                                           ? "text-gray-500 hover:bg-black/5 dark:text-gray-400 dark:hover:bg-white/10" 
                                           : "text-gray-400 hover:bg-gray-200/50 dark:hover:bg-zinc-700"
@@ -240,7 +242,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                         }}
                                         className="text-xs px-2 py-1.5 rounded-md cursor-pointer text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 focus:bg-red-50 outline-none"
                                     >
-                                        <Icon name="common.delete" size="md" className="mr-2" />
+                                        <DeleteIcon className="mr-2" />
                                         <span>Delete</span>
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>

@@ -32,7 +32,6 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
   const currentIdx = message.currentVersionIndex ?? 0;
   const hasMultipleVersions = versions.length > 1;
 
-  // Parse images for display mode
   const imgRegex = /!\[.*?\]\((.*?)\)/g;
   const images: string[] = [];
   let displayText = content;
@@ -42,12 +41,10 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
   }
   displayText = displayText.replace(imgRegex, '').trim();
 
-  // Reset edit value when content prop changes (if not currently editing)
   useEffect(() => {
       if (!isEditing) setEditValue(content);
   }, [content, isEditing]);
 
-  // Ensure caret lands at the end after entering edit mode.
   useEffect(() => {
       if (!isEditing || !editTextareaRef.current) return;
       const el = editTextareaRef.current;
@@ -59,7 +56,6 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
       });
   }, [isEditing]);
 
-  // Match main composer behavior: grow textarea from content scrollHeight.
   useEffect(() => {
       if (!isEditing || !editTextareaRef.current) return;
       const el = editTextareaRef.current;

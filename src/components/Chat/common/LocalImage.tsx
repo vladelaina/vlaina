@@ -17,7 +17,6 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
         let active = true;
 
         const loadLocalImage = async () => {
-            // 1. Standard Web URL or Base64 -> Use directly
             if ((src.startsWith('http') && !src.includes('asset.localhost')) || src.startsWith('https')) {
                 setDisplaySrc(src);
                 return;
@@ -27,29 +26,22 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
                 return;
             }
 
-            // 2. Tauri Asset URL -> Read from FS
             if (isTauri()) {
                 try {
-                    // Fix: Handle assetUrl correctly
-                    // Src: http://asset.localhost/C%3A%5CUsers%5C...%5Cattachments%5Cfilename.png
                     const decoded = decodeURIComponent(src);
                     
                     let filename = '';
                     if (decoded.includes('attachments')) {
                         const parts = decoded.split('attachments');
-                        // parts[1] is like '\filename.png' or '/filename.png'
                         filename = parts.pop()?.replace(/^[\\/]/, '') || '';
                     } else {
-                        // Fallback
                         filename = decoded.split(/[\\/]/).pop() || '';
                     }
 
                     if (!filename) throw new Error('Invalid filename parsing');
 
-                    // Read from AppData/attachments
                     const data = await readFile(`attachments/${filename}`, { baseDir: BaseDirectory.AppData });
                     
-                    // Convert to Base64
                     let binary = '';
                     const len = data.byteLength;
                     for (let i = 0; i < len; i++) {
@@ -57,7 +49,6 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
                     }
                     const base64 = window.btoa(binary);
                     
-                    // Guess mime type from extension
                     const ext = filename.split('.').pop()?.toLowerCase();
                     const mime = ext === 'png' ? 'image/png' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/webp';
                     
@@ -69,7 +60,6 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
                     setError(true);
                 }
             } else {
-                // Browser fallback
                 setDisplaySrc(src);
             }
         };
