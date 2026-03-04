@@ -1,34 +1,82 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { DndContext, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { isTauri } from '@/lib/storage/adapter';
 
 import { AppShell } from '@/components/layout/shell/AppShell';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
-import { SettingsModal } from '@/components/Settings';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
-
-import { CalendarView } from '@/components/Calendar/CalendarView';
-import { NotesView } from '@/components/Notes/NotesView';
-import { TodoView } from '@/components/Todo/TodoView';
-import { ChatView } from '@/components/Chat/ChatView';
-import { LabView } from '@/components/Lab/LabView';
-
-import { CalendarSidebarWrapper } from '@/components/Calendar/features/Sidebar/CalendarSidebarWrapper';
-import { TodoSidebar } from '@/components/Todo/TodoSidebar';
-import { NotesSidebarWrapper } from '@/components/Notes/features/Sidebar/NotesSidebarWrapper';
-import { ChatSidebar } from '@/components/Chat/features/Sidebar/ChatSidebar';
-import { TemporaryChatToggle } from '@/components/Chat/features/Temporary/TemporaryChatToggle';
-
-import { CalendarHeaderControl } from '@/components/Calendar/features/Grid/CalendarHeaderControl';
-import { NotesTabRow } from '@/components/Notes/features/Tabs/NotesTabRow';
-
 import { useCalendarEventsStore } from '@/stores/calendarEventsSlice';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
+
+const SettingsModal = lazy(async () => {
+  const mod = await import('@/components/Settings');
+  return { default: mod.SettingsModal };
+});
+
+const CalendarView = lazy(async () => {
+  const mod = await import('@/components/Calendar/CalendarView');
+  return { default: mod.CalendarView };
+});
+
+const NotesView = lazy(async () => {
+  const mod = await import('@/components/Notes/NotesView');
+  return { default: mod.NotesView };
+});
+
+const TodoView = lazy(async () => {
+  const mod = await import('@/components/Todo/TodoView');
+  return { default: mod.TodoView };
+});
+
+const ChatView = lazy(async () => {
+  const mod = await import('@/components/Chat/ChatView');
+  return { default: mod.ChatView };
+});
+
+const LabView = lazy(async () => {
+  const mod = await import('@/components/Lab/LabView');
+  return { default: mod.LabView };
+});
+
+const CalendarSidebarWrapper = lazy(async () => {
+  const mod = await import('@/components/Calendar/features/Sidebar/CalendarSidebarWrapper');
+  return { default: mod.CalendarSidebarWrapper };
+});
+
+const TodoSidebar = lazy(async () => {
+  const mod = await import('@/components/Todo/TodoSidebar');
+  return { default: mod.TodoSidebar };
+});
+
+const NotesSidebarWrapper = lazy(async () => {
+  const mod = await import('@/components/Notes/features/Sidebar/NotesSidebarWrapper');
+  return { default: mod.NotesSidebarWrapper };
+});
+
+const ChatSidebar = lazy(async () => {
+  const mod = await import('@/components/Chat/features/Sidebar/ChatSidebar');
+  return { default: mod.ChatSidebar };
+});
+
+const TemporaryChatToggle = lazy(async () => {
+  const mod = await import('@/components/Chat/features/Temporary/TemporaryChatToggle');
+  return { default: mod.TemporaryChatToggle };
+});
+
+const CalendarHeaderControl = lazy(async () => {
+  const mod = await import('@/components/Calendar/features/Grid/CalendarHeaderControl');
+  return { default: mod.CalendarHeaderControl };
+});
+
+const NotesTabRow = lazy(async () => {
+  const mod = await import('@/components/Notes/features/Tabs/NotesTabRow');
+  return { default: mod.NotesTabRow };
+});
 
 function AppContent() {
   const {
@@ -98,15 +146,39 @@ function AppContent() {
   let sidebarPeekContent = null;
 
   if (appViewMode === 'calendar') {
-    sidebarContent = <CalendarSidebarWrapper />;
+    sidebarContent = (
+      <Suspense fallback={null}>
+        <CalendarSidebarWrapper />
+      </Suspense>
+    );
   } else if (appViewMode === 'todo') {
-    sidebarContent = <TodoSidebar />;
+    sidebarContent = (
+      <Suspense fallback={null}>
+        <TodoSidebar />
+      </Suspense>
+    );
   } else if (appViewMode === 'chat') {
-    sidebarContent = <ChatSidebar isPeeking={false} />;
-    sidebarPeekContent = <ChatSidebar isPeeking={true} />;
+    sidebarContent = (
+      <Suspense fallback={null}>
+        <ChatSidebar isPeeking={false} />
+      </Suspense>
+    );
+    sidebarPeekContent = (
+      <Suspense fallback={null}>
+        <ChatSidebar isPeeking={true} />
+      </Suspense>
+    );
   } else if (appViewMode === 'notes' && currentVault) {
-    sidebarContent = <NotesSidebarWrapper isPeeking={false} />;
-    sidebarPeekContent = <NotesSidebarWrapper isPeeking={true} />;
+    sidebarContent = (
+      <Suspense fallback={null}>
+        <NotesSidebarWrapper isPeeking={false} />
+      </Suspense>
+    );
+    sidebarPeekContent = (
+      <Suspense fallback={null}>
+        <NotesSidebarWrapper isPeeking={true} />
+      </Suspense>
+    );
   }
   // Lab Mode: No sidebar content by default
 
@@ -114,30 +186,64 @@ function AppContent() {
   let rightSlot = null;
 
   if (appViewMode === 'calendar') {
-    centerSlot = <CalendarHeaderControl />;
+    centerSlot = (
+      <Suspense fallback={null}>
+        <CalendarHeaderControl />
+      </Suspense>
+    );
   } else if (appViewMode === 'todo') {
   } else if (appViewMode === 'notes' && currentVault) {
-    centerSlot = <NotesTabRow />;
+    centerSlot = (
+      <Suspense fallback={null}>
+        <NotesTabRow />
+      </Suspense>
+    );
   } else if (shouldShowTemporaryToggleInTitleBar) {
-    rightSlot = <TemporaryChatToggle readOnly={titleBarReadOnly} />;
+    rightSlot = (
+      <Suspense fallback={null}>
+        <TemporaryChatToggle readOnly={titleBarReadOnly} />
+      </Suspense>
+    );
   }
 
   let mainContent = null;
   if (appViewMode === 'calendar') {
-    mainContent = <CalendarView />;
+    mainContent = (
+      <Suspense fallback={null}>
+        <CalendarView />
+      </Suspense>
+    );
   } else if (appViewMode === 'todo') {
-    mainContent = <TodoView />;
+    mainContent = (
+      <Suspense fallback={null}>
+        <TodoView />
+      </Suspense>
+    );
   } else if (appViewMode === 'chat') {
-    mainContent = <ChatView />;
+    mainContent = (
+      <Suspense fallback={null}>
+        <ChatView />
+      </Suspense>
+    );
   } else if (appViewMode === 'lab') {
-    mainContent = <LabView />;
+    mainContent = (
+      <Suspense fallback={null}>
+        <LabView />
+      </Suspense>
+    );
   } else {
-    mainContent = <NotesView />;
+    mainContent = (
+      <Suspense fallback={null}>
+        <NotesView />
+      </Suspense>
+    );
   }
 
   return (
     <DndContext sensors={sensors}>
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <Suspense fallback={null}>
+        <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      </Suspense>
 
       <AppShell
         sidebarWidth={sidebarWidth}

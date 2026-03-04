@@ -1,41 +1,5 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "katex/dist/katex.min.css";
-
-/* Local Font Imports (Fontsource) */
-@import "@fontsource/inter/300.css";
-@import "@fontsource/inter/400.css";
-@import "@fontsource/inter/500.css";
-@import "@fontsource/inter/600.css";
-@import "@fontsource/inter/700.css";
-
-@import "@fontsource/poppins/300.css";
-@import "@fontsource/poppins/400.css";
-@import "@fontsource/poppins/500.css";
-@import "@fontsource/poppins/600.css";
-@import "@fontsource/poppins/700.css";
-
-@import "@fontsource/lora/400.css";
-@import "@fontsource/lora/500.css";
-@import "@fontsource/lora/600.css";
-@import "@fontsource/lora/700.css";
-@import "@fontsource/lora/400-italic.css";
-
-@import "@fontsource/jetbrains-mono/400.css";
-@import "@fontsource/jetbrains-mono/500.css";
-@import "@fontsource/jetbrains-mono/600.css";
-@import "@fontsource/jetbrains-mono/700.css";
-
-@import "@fontsource/source-code-pro/400.css";
-@import "@fontsource/source-code-pro/500.css";
-@import "@fontsource/source-code-pro/600.css";
-@import "@fontsource/source-code-pro/700.css";
-
-@import "@fontsource/kalam/300.css";
-@import "@fontsource/kalam/400.css";
-@import "@fontsource/kalam/700.css";
-
-@import "@fontsource/bebas-neue/400.css";
 
 @custom-variant dark (&:is(.dark *));
 

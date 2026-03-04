@@ -1,14 +1,18 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
-import { UniversalIconPicker as IconPicker } from '@/components/common/UniversalIconPicker';
 import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconPreview';
 import { AppIcon } from '@/components/common/AppIcon';
 import { type CustomIcon } from '@/lib/storage/unifiedStorage';
 import { useUIStore } from '@/stores/uiSlice';
-import { getRandomEmoji, loadSkinTone } from '@/components/common/UniversalIconPicker/constants';
+import { getRandomEmojiFromPreference } from '@/components/common/UniversalIconPicker/randomEmoji';
 import { type ItemColor, COLOR_HEX } from '@/lib/colors';
 import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
+
+const IconPicker = lazy(async () => {
+  const mod = await import('@/components/common/UniversalIconPicker/index');
+  return { default: mod.UniversalIconPicker };
+});
 
 interface HeroIconHeaderProps {
   // Identity
@@ -237,10 +241,11 @@ export function HeroIconHeader({
                   <button
                       ref={iconButtonRef}
                       onClick={() => {
-                          const currentSkinTone = loadSkinTone();
-                          const randomEmoji = getRandomEmoji(currentSkinTone);
-                          onIconChange(randomEmoji);
-                          setShowIconPicker(true);
+                          void (async () => {
+                            const randomEmoji = await getRandomEmojiFromPreference();
+                            onIconChange(randomEmoji);
+                            setShowIconPicker(true);
+                          })();
                       }}
                       className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)] transition-colors")}
                   >
@@ -256,28 +261,30 @@ export function HeroIconHeader({
                 style={{ left: !compact ? `calc(var(--header-icon-size) * -0.1)` : 0 }}
                 data-no-auto-close="true"
               >
-                  <IconPicker
-                      onSelect={handleIconSelect}
-                      onPreview={handlePreview}
-                      onPreviewSkinTone={handlePreviewTone}
-                      onRemove={handleRemoveIcon}
-                      onClose={handlePickerClose}
-                      
-                      hasIcon={!!icon}
-                      currentIcon={icon || undefined}
-                      
-                      // Slider props (Hidden in compact mode as it's provided externally)
-                      currentSize={!compact ? currentSliderValue : undefined}
-                      minSize={!compact ? minIconSize : undefined}
-                      maxSize={!compact ? maxIconSize : undefined}
-                      onSizeChange={!compact ? handleLocalSizeChange : undefined}
-                      onSizeConfirm={!compact ? handleLocalSizeConfirm : undefined}
+                  <Suspense fallback={null}>
+                    <IconPicker
+                        onSelect={handleIconSelect}
+                        onPreview={handlePreview}
+                        onPreviewSkinTone={handlePreviewTone}
+                        onRemove={handleRemoveIcon}
+                        onClose={handlePickerClose}
+                        
+                        hasIcon={!!icon}
+                        currentIcon={icon || undefined}
+                        
+                        // Slider props (Hidden in compact mode as it's provided externally)
+                        currentSize={!compact ? currentSliderValue : undefined}
+                        minSize={!compact ? minIconSize : undefined}
+                        maxSize={!compact ? maxIconSize : undefined}
+                        onSizeChange={!compact ? handleLocalSizeChange : undefined}
+                        onSizeConfirm={!compact ? handleLocalSizeConfirm : undefined}
 
-                      customIcons={customIcons}
-                      onUploadFile={onUploadFile}
-                      onDeleteCustomIcon={onDeleteCustomIcon}
-                      imageLoader={imageLoader}
-                  />
+                        customIcons={customIcons}
+                        onUploadFile={onUploadFile}
+                        onDeleteCustomIcon={onDeleteCustomIcon}
+                        imageLoader={imageLoader}
+                    />
+                  </Suspense>
               </div>
           )}
         </div>

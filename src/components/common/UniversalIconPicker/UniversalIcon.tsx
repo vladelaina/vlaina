@@ -2,7 +2,7 @@ import { memo, useMemo, useState, useEffect } from 'react';
 import { icons } from '@/components/ui/icons/registry';
 import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
 import { cn } from '@/lib/utils';
-import { ICON_MAP as ICON_ITEM_MAP, EMOJI_MAP } from './constants';
+import { resolveEmojiForSkinTone } from './randomEmoji';
 
 export interface UniversalIconProps {
   icon: string;
@@ -111,13 +111,27 @@ const EmojiIconRenderer = memo(function EmojiIconRenderer({
   className?: string;
   previewTone?: number | null;
 }) {
-  const displayEmoji = useMemo(() => {
-    if (previewTone === null || previewTone === undefined) return emoji;
-    const item = EMOJI_MAP.get(emoji);
-    if (item && item.skins && item.skins.length > previewTone) {
-      return previewTone === 0 ? item.native : (item.skins[previewTone]?.native || item.native);
+  const [displayEmoji, setDisplayEmoji] = useState(emoji);
+
+  useEffect(() => {
+    let active = true;
+    if (previewTone === null || previewTone === undefined) {
+      setDisplayEmoji(emoji);
+      return () => {
+        active = false;
+      };
     }
-    return emoji;
+
+    void (async () => {
+      const resolved = await resolveEmojiForSkinTone(emoji, previewTone);
+      if (active) {
+        setDisplayEmoji(resolved);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
   }, [emoji, previewTone]);
 
   const resolvedSize = resolveSize(size);
@@ -173,7 +187,7 @@ export function UniversalIcon({
     return imgSrc ? <ImageIconRenderer src={imgSrc} size={size} className={className} rounding={rounding} /> : <div style={{ width: resolvedSize, height: resolvedSize }} className={className} />;
   }
 
-  if (icon.startsWith('icon:') || ICON_ITEM_MAP.has(icon) || icon in icons) {
+  if (icon.startsWith('icon:') || icon in icons) {
     let iconName = icon;
     let originalColor = '#6b7280';
     if (icon.startsWith('icon:')) {

@@ -9,7 +9,6 @@ import {
   saveNoteMetadata,
   setNoteEntry,
 } from '../storage';
-import { EMOJI_MAP } from "@/components/common/UniversalIconPicker/constants";
 
 export interface FeatureSlice {
   recentNotes: NotesStore['recentNotes'];
@@ -31,7 +30,7 @@ export interface FeatureSlice {
   getNoteIcon: (path: string) => string | undefined;
   setNoteIcon: (path: string, emoji: string | null) => void;
   updateAllIconColors: (newColor: string) => void;
-  updateAllEmojiSkinTones: (newTone: number) => void;
+  updateAllEmojiSkinTones: (newTone: number) => Promise<void>;
   getNoteCover: (path: string) => { cover?: string; coverX?: number; coverY?: number; coverH?: number; coverScale?: number };
   setNoteCover: (path: string, cover: string | null, coverX?: number, coverY?: number, coverH?: number, coverScale?: number) => void;
   getNoteIconSize: (path: string) => number | undefined;
@@ -217,9 +216,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     }
   },
 
-  updateAllEmojiSkinTones: (newTone: number) => {
+  updateAllEmojiSkinTones: async (newTone: number) => {
     const { noteMetadata, notesPath } = get();
     if (!noteMetadata || !notesPath) return;
+    const { EMOJI_MAP } = await import('@/components/common/UniversalIconPicker/constants');
 
     let hasChanges = false;
     const updatedNotes = { ...noteMetadata.notes };

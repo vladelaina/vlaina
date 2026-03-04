@@ -1,8 +1,13 @@
+import { lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UniversalIconPicker } from '@/components/common/UniversalIconPicker';
 import { ItemCard } from '../ItemCard';
 import { CreateType, ProgressFormData, CounterFormData } from './types';
 import { type CustomIcon } from '@/lib/storage/unifiedStorage';
+
+const UniversalIconPicker = lazy(async () => {
+  const mod = await import('@/components/common/UniversalIconPicker/index');
+  return { default: mod.UniversalIconPicker };
+});
 
 interface PreviewSectionProps {
   isPickingIcon: boolean;
@@ -62,20 +67,22 @@ export function PreviewSection({
                 }}
             >
                 <div className="flex-1 overflow-hidden p-6 flex flex-col items-center justify-center">
-                    <UniversalIconPicker 
-                        onSelect={(icon) => {
-                            setProgressForm((prev: ProgressFormData) => ({ ...prev, icon }));
-                            setCounterForm((prev: CounterFormData) => ({ ...prev, icon }));
-                            setIsPickingIcon(false);
-                        }}
-                        onClose={() => setIsPickingIcon(false)}
-                        currentIcon={type === 'progress' ? progressForm.icon : counterForm.icon}
-                        embedded
-                        customIcons={customIcons}
-                        onUploadFile={onUploadFile}
-                        onDeleteCustomIcon={onDeleteCustomIcon}
-                        imageLoader={imageLoader}
-                    />
+                    <Suspense fallback={null}>
+                        <UniversalIconPicker 
+                            onSelect={(icon) => {
+                                setProgressForm((prev: ProgressFormData) => ({ ...prev, icon }));
+                                setCounterForm((prev: CounterFormData) => ({ ...prev, icon }));
+                                setIsPickingIcon(false);
+                            }}
+                            onClose={() => setIsPickingIcon(false)}
+                            currentIcon={type === 'progress' ? progressForm.icon : counterForm.icon}
+                            embedded
+                            customIcons={customIcons}
+                            onUploadFile={onUploadFile}
+                            onDeleteCustomIcon={onDeleteCustomIcon}
+                            imageLoader={imageLoader}
+                        />
+                    </Suspense>
                     <button 
                         onClick={() => setIsPickingIcon(false)}
                         className="mt-6 text-xs font-medium text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors uppercase tracking-wider"
