@@ -3,7 +3,8 @@ import { useEffect } from 'react'
 import { useUnifiedStore } from './useUnifiedStore'
 import type { Provider, AIModel, ChatMessage, ChatSession, MessageVersion } from '@/lib/ai/types'
 import { generateModelName, generateModelGroup } from '@/lib/ai/utils'
-import { saveSessionJson, loadSessionJson } from '@/lib/storage/chatStorage'
+import { saveSessionJson, loadSessionJson, scheduleSessionJsonSave, cancelSessionJsonSave, deleteSessionJson } from '@/lib/storage/chatStorage'
+import { requestManager } from '@/lib/ai/requestManager'
 import {
   createTemporarySession,
   isTemporarySession,
@@ -324,6 +325,10 @@ export const actions = {
   deleteSession: (id: string) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
+    const uiState = useAIUIStore.getState();
+    requestManager.abort(id);
+    cancelSessionJsonSave(id);
+    uiState.clearSessionState(id);
 
     if (isTemporarySessionId(id)) {
       const stripped = stripTemporaryForMutation(ai);
@@ -356,11 +361,21 @@ export const actions = {
         ? null 
         : ai.currentSessionId
     });
+    void deleteSessionJson(id);
   },
 
   clearSessions: () => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
+    const uiState = useAIUIStore.getState();
+    ai.sessions.forEach((session) => {
+      requestManager.abort(session.id);
+      cancelSessionJsonSave(session.id);
+      uiState.clearSessionState(session.id);
+      if (!isTemporarySession(session)) {
+        void deleteSessionJson(session.id);
+      }
+    });
 
     if (ai.temporaryChatEnabled) {
       stripTemporaryForMutation(ai);
@@ -436,12 +451,18 @@ export const actions = {
     }, true); 
 
     if (shouldPersistSession(ai, sessionId)) {
-      saveSessionJson(sessionId, newMessages);
+      scheduleSessionJsonSave(sessionId, newMessages);
     }
   },
 
-  completeMessage: (_sessionId: string, _id: string) => {
-      useUnifiedStore.getState().updateAIData({}); 
+  completeMessage: (sessionId: string, _id: string) => {
+      const state = useUnifiedStore.getState();
+      const ai = state.data.ai!;
+      const sessionMessages = ai.messages[sessionId];
+      if (sessionMessages && shouldPersistSession(ai, sessionId)) {
+        void saveSessionJson(sessionId, sessionMessages);
+      }
+      state.updateAIData({}); 
   },
 
   addVersion: (id: string) => {
