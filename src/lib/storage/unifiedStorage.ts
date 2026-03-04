@@ -207,6 +207,7 @@ async function performSplitSave(data: UnifiedData) {
     if (ai) {
         const persistedSessions = ai.sessions.filter((session) => !isTemporarySession(session));
         const persistedSessionIds = new Set(persistedSessions.map((session) => session.id));
+        const activeProviderIds = new Set(ai.providers.map((provider) => provider.id));
 
         // Save Sessions Index + Provider IDs
         const sessionsData = {
@@ -231,9 +232,22 @@ async function performSplitSave(data: UnifiedData) {
             const pPath = await joinPath(channelsDir, `${provider.id}.json`);
             await storage.writeFile(pPath, JSON.stringify(pData, null, 2));
         }
-        
-        // TODO: Cleanup deleted provider files? 
-        // For "Simple" mandate, we skip aggressive cleanup to avoid accidental data loss.
+
+        const channelEntries = await storage.listDir(channelsDir).catch(() => []);
+        for (const entry of channelEntries) {
+            if (!entry.isFile || !entry.name.endsWith('.json')) {
+                continue;
+            }
+            const providerId = entry.name.slice(0, -5);
+            if (activeProviderIds.has(providerId)) {
+                continue;
+            }
+            try {
+                await storage.deleteFile(entry.path);
+            } catch (error) {
+                console.warn('[Storage] failed to cleanup stale provider channel file:', entry.path, error);
+            }
+        }
     }
 }
 
