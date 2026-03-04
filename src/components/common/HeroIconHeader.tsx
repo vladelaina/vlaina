@@ -185,6 +185,7 @@ export function HeroIconHeader({
       className={cn(
         "relative transition-[margin-top] duration-75 ease-out w-full",
         !compact && "max-w-3xl mx-auto px-10",
+        !compact && coverUrl && "pointer-events-none",
         className
       )}
       style={{
@@ -195,7 +196,7 @@ export function HeroIconHeader({
       {children}
       
       {/* Main Container: Flex row for compact, Block for standard */}
-      <div className={cn(compact ? "flex items-center gap-3 py-2" : "")}>
+      <div className={cn(compact ? "flex items-center gap-3 py-2" : "pointer-events-none")}>
         
         {/* Icon Area */}
         <div
@@ -204,6 +205,7 @@ export function HeroIconHeader({
               "transition-[padding,opacity]",
               !compact && "w-fit",
               !compact && "z-30",
+              !compact && "pointer-events-auto",
               !compact && "pb-4",
               !compact && (coverUrl ? "pt-0" : "pt-10") // Default top padding only for standard mode
           )}
@@ -309,12 +311,12 @@ export function HeroIconHeader({
       {!compact && (
         <>
           {renderTitle && (
-              <div className="mb-4">
+              <div className="mb-4 pointer-events-auto">
                   {renderTitle()}
               </div>
           )}
           {title !== undefined && !renderTitle && (
-              <div className="mb-4 text-4xl font-bold text-[var(--neko-text-primary)] break-words outline-none placeholder:text-[var(--neko-text-tertiary)]">
+              <div className="mb-4 pointer-events-auto text-4xl font-bold text-[var(--neko-text-primary)] break-words outline-none placeholder:text-[var(--neko-text-tertiary)]">
                   {title}
               </div>
           )}
