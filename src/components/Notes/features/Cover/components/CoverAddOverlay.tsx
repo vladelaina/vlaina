@@ -8,8 +8,12 @@ export function CoverAddOverlay({ visible, onAddCover }: CoverAddOverlayProps) {
 
   return (
     <div
-      className="absolute top-0 left-0 right-0 h-20 cursor-pointer hover:bg-[var(--neko-hover)]/30 transition-colors pointer-events-auto"
-      onClick={onAddCover}
+      className="absolute inset-x-0 top-0 h-20 w-full z-30 cursor-pointer hover:bg-[var(--neko-hover)]/30 transition-colors pointer-events-auto"
+      onMouseDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onAddCover();
+      }}
     />
   );
 }
