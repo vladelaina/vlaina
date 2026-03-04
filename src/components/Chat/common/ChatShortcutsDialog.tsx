@@ -16,7 +16,7 @@ export function ChatShortcutsDialog({ isOpen, onOpenChange }: ChatShortcutsDialo
 
   const shortcuts = [
     { action: 'Open new chat', keys: [MODIFIER, SHIFT, 'O'] },
-    { action: 'Toggle temporary chat (welcome)', keys: [MODIFIER, SHIFT, 'J'] },
+    { action: 'Open temporary chat (toggle if empty)', keys: [MODIFIER, SHIFT, 'J'] },
     { action: 'Focus chat input', keys: [SHIFT, ESC] },
     { action: 'Previous chat', keys: [MODIFIER, SHIFT, 'Tab'] },
     { action: 'Next chat', keys: [MODIFIER, 'Tab'] },

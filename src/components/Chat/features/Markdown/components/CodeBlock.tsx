@@ -1,4 +1,5 @@
 import { memo, useMemo } from 'react';
+import { isValidElement } from 'react';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
 import CopyButton from '@/components/Chat/common/CopyButton';
@@ -6,14 +7,39 @@ import CopyButton from '@/components/Chat/common/CopyButton';
 interface CodeBlockProps {
   className?: string;
   children: React.ReactNode;
+  isStreaming?: boolean;
 }
 
-export const CodeBlock = memo(({ className, children }: CodeBlockProps) => {
-  const match = /language-(\w+)/.exec(className || "");
-  const language = match ? match[1] : "";
-  const codeText = String(children).replace(/\n$/, "");
+function extractCodePayload(
+  className: string | undefined,
+  children: React.ReactNode,
+): { language: string; codeText: string } {
+  if (isValidElement(children)) {
+    const props = children.props as {
+      className?: string;
+      children?: React.ReactNode;
+    };
+    const nestedClassName = props.className || className || '';
+    const nestedMatch = /language-(\w+)/.exec(nestedClassName);
+    const nestedLanguage = nestedMatch ? nestedMatch[1] : '';
+    const nestedCodeText = String(props.children ?? '').replace(/\n$/, '');
+    return { language: nestedLanguage, codeText: nestedCodeText };
+  }
+
+  const match = /language-(\w+)/.exec(className || '');
+  const language = match ? match[1] : '';
+  const codeText = String(children).replace(/\n$/, '');
+  return { language, codeText };
+}
+
+export const CodeBlock = memo(({ className, children, isStreaming = false }: CodeBlockProps) => {
+  const { language, codeText } = extractCodePayload(className, children);
 
   const highlightedHTML = useMemo(() => {
+    if (isStreaming) {
+      return null;
+    }
+
     try {
       if (language && hljs.getLanguage(language)) {
         return hljs.highlight(codeText, { language }).value;
@@ -22,7 +48,7 @@ export const CodeBlock = memo(({ className, children }: CodeBlockProps) => {
     } catch (e) {
       return codeText;
     }
-  }, [codeText, language]);
+  }, [codeText, isStreaming, language]);
 
   return (
     <div className="relative bg-neutral-100 dark:bg-neutral-800 rounded-2xl overflow-hidden my-6 group">
@@ -37,10 +63,18 @@ export const CodeBlock = memo(({ className, children }: CodeBlockProps) => {
         />
       </div>
       <div className="overflow-x-auto p-4 pt-0">
-        <code 
+        {highlightedHTML ? (
+          <code
             className={`font-mono text-sm leading-relaxed hljs ${language} !bg-transparent !p-0`}
             dangerouslySetInnerHTML={{ __html: highlightedHTML }}
-        />
+          />
+        ) : (
+          <pre className="m-0 p-0 bg-transparent">
+            <code className={`font-mono text-sm leading-relaxed ${language}`}>
+              {codeText}
+            </code>
+          </pre>
+        )}
       </div>
     </div>
   );

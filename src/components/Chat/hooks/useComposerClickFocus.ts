@@ -1,6 +1,5 @@
 import { useCallback, type MouseEvent } from 'react';
 import { focusComposerInput, isComposerFocusTarget } from '@/lib/ui/composerFocusRegistry';
-import { logFocusTrace } from '@/lib/debug/focusTrace';
 
 const NON_FOCUSABLE_SELECTOR = [
   'textarea',
@@ -74,32 +73,22 @@ interface UseComposerClickFocusParams {
 export function useComposerClickFocus({ requestFocusFallback }: UseComposerClickFocusParams) {
   return useCallback((event: MouseEvent<HTMLDivElement>) => {
     if (event.button !== 0) {
-      logFocusTrace('chatArea.mousedown.skip.nonLeftButton', { button: event.button });
       return;
     }
     if (!shouldFocusComposer(event.target)) {
-      logFocusTrace('chatArea.mousedown.skip.nonEmptyTarget', {
-        targetTag: (event.target as Element | null)?.tagName ?? null
-      });
       return;
     }
     if (isScrollbarTrackHit(event.target, event)) {
-      logFocusTrace('chatArea.mousedown.skip.scrollbarTrack');
       return;
     }
 
     const selection = window.getSelection();
     if (selection && !selection.isCollapsed) {
-      logFocusTrace('chatArea.mousedown.skip.selectionActive', {
-        selectionTextLength: selection.toString().length
-      });
       return;
     }
 
     event.preventDefault();
-    logFocusTrace('chatArea.mousedown.focus.request');
     if (!focusComposerInput()) {
-      logFocusTrace('chatArea.mousedown.focus.fallbackTrigger');
       requestFocusFallback();
     }
   }, [requestFocusFallback]);

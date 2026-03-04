@@ -17,7 +17,6 @@ export class RequestManager {
     abort(sessionId: string) {
         const controller = this.controllers.get(sessionId);
         if (controller) {
-            console.log(`[RequestManager] Aborting request for session: ${sessionId}`);
             controller.abort();
             this.controllers.delete(sessionId);
         }

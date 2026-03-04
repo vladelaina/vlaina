@@ -33,6 +33,27 @@ export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }:
         return;
       }
 
+      if (isMod && e.shiftKey && key === 'j') {
+        e.preventDefault();
+        const state = useUnifiedStore.getState();
+        const aiState = state.data.ai;
+        const temporaryEnabled = !!aiState?.temporaryChatEnabled;
+        const currentSessionId = aiState?.currentSessionId || null;
+        const currentMessages = currentSessionId ? (aiState?.messages?.[currentSessionId] || []) : [];
+        const isCurrentTemporaryChatEmpty = temporaryEnabled && currentMessages.length === 0;
+
+        if (!temporaryEnabled) {
+          aiActions.toggleTemporaryChat(true);
+        } else if (isCurrentTemporaryChatEmpty) {
+          aiActions.toggleTemporaryChat(false);
+        } else {
+          aiActions.createSession('New Chat');
+        }
+
+        onFocusInput();
+        return;
+      }
+
       if (e.shiftKey && e.key === 'ArrowUp') {
         e.preventDefault();
         navigateMessages('prev');

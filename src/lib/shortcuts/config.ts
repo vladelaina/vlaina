@@ -14,7 +14,7 @@ export const DEFAULT_SHORTCUTS: ShortcutConfig[] = [
   
   // App Specific
   { id: 'newTab', keys: ['Ctrl', 'T'], description: 'New tab', scope: 'notes' },
-  { id: 'toggleTemporaryChatWelcome', keys: ['Ctrl', 'Shift', 'J'], description: 'Toggle temporary chat (welcome screen)', scope: 'chat', isSystem: true },
+  { id: 'toggleTemporaryChatWelcome', keys: ['Ctrl', 'Shift', 'J'], description: 'Open temporary chat (toggle if empty)', scope: 'chat', isSystem: true },
   
   // Actions
   { id: 'toggleDrawer', keys: ['Ctrl', 'D'], description: 'Toggle drawer', scope: 'global' },

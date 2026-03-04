@@ -3,7 +3,6 @@ import { cn, NOTES_COLORS } from '@/lib/utils';
 import { WindowControls } from '@/components/layout/WindowControls';
 import { SidebarExpandButton } from '@/components/layout/SidebarExpandButton';
 import { blurComposerInput, isComposerInputFocused } from '@/lib/ui/composerFocusRegistry';
-import { logFocusTrace } from '@/lib/debug/focusTrace';
 
 interface UnifiedTitleBarProps {
   leftSlot?: ReactNode;
@@ -31,27 +30,19 @@ export function UnifiedTitleBar({
   showWindowControls = true
 }: UnifiedTitleBarProps) {
   const handleTitleBarMouseDownCapture = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    logFocusTrace('titlebar.mousedown.capture', {
-      button: e.button,
-      targetTag: (e.target as Element | null)?.tagName ?? null
-    });
-
     if (e.button !== 0) return;
 
     const target = e.target as Element | null;
     if (target?.closest('button, a, input, textarea, select, [role="button"]')) {
-      logFocusTrace('titlebar.mousedown.skip.interactive');
       return;
     }
 
     if (!isComposerInputFocused()) {
-      logFocusTrace('titlebar.mousedown.skip.composerNotFocused');
       return;
     }
 
     requestAnimationFrame(() => {
-      const result = blurComposerInput();
-      logFocusTrace('titlebar.blur.request', { result });
+      blurComposerInput();
     });
   }, []);
 

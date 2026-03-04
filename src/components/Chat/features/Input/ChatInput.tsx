@@ -6,7 +6,6 @@ import { useAIStore } from '@/stores/useAIStore';
 import type { AIModel } from '@/lib/ai/types';
 import { saveAttachment, type Attachment } from '@/lib/storage/attachmentStorage';
 import { registerComposerFocusAdapter } from '@/lib/ui/composerFocusRegistry';
-import { logFocusTrace } from '@/lib/debug/focusTrace';
 import {
   chatComposerFrameClass,
   chatComposerInputBlockClass,
@@ -46,7 +45,6 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
 
   useEffect(() => {
       if (focusTrigger && textareaRef.current) {
-          logFocusTrace('chatInput.focusTrigger.focus', { focusTrigger });
           textareaRef.current.focus();
       }
   }, [focusTrigger]);
@@ -56,27 +54,20 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
           focus: () => {
               const input = textareaRef.current;
               if (!input) {
-                  logFocusTrace('chatInput.adapter.focus.missingInput');
                   return false;
               }
               input.focus({ preventScroll: true });
               const pos = input.value.length;
               input.setSelectionRange(pos, pos);
-              logFocusTrace('chatInput.adapter.focus.done', {
-                caret: pos
-              });
               return true;
           },
           blur: () => {
               const input = textareaRef.current;
               if (!input) {
-                  logFocusTrace('chatInput.adapter.blur.missingInput');
                   return false;
               }
               input.blur();
-              const result = document.activeElement !== input;
-              logFocusTrace('chatInput.adapter.blur.done', { result });
-              return result;
+              return document.activeElement !== input;
           },
           isFocused: () => {
               const result = document.activeElement === textareaRef.current;
@@ -260,16 +251,6 @@ export const ChatInput = memo(function ChatInput({ onSend, onStop, isLoading, se
                 <textarea
                   ref={textareaRef}
                   value={message}
-                  onFocus={() => {
-                    logFocusTrace('chatInput.textarea.focus', {
-                      valueLength: textareaRef.current?.value.length ?? 0
-                    });
-                  }}
-                  onBlur={() => {
-                    logFocusTrace('chatInput.textarea.blur', {
-                      valueLength: textareaRef.current?.value.length ?? 0
-                    });
-                  }}
                   onChange={(e) => {
                     const nextValue = e.target.value;
                     setMessage(nextValue);

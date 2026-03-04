@@ -4,13 +4,11 @@ import { useAIStore } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useChatService } from '@/hooks/useChatService';
 import { useMessageAutoscroll } from '@/hooks/useMessageAutoscroll';
-import { useShortcuts } from '@/hooks/useShortcuts';
 import { useChatShortcuts } from './hooks/useChatShortcuts';
 import { useComposerClickFocus } from './hooks/useComposerClickFocus';
 import { cn } from '@/lib/utils';
 import { Attachment } from '@/lib/storage/attachmentStorage';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
-import { logFocusTrace } from '@/lib/debug/focusTrace';
 
 import { ChatInput } from '@/components/Chat/features/Input/ChatInput';
 import { MessageList } from '@/components/Chat/features/Messages/MessageList';
@@ -34,7 +32,6 @@ export function ChatView() {
     models,
     selectModel,
     isSessionLoading,
-    toggleTemporaryChat
   } = useAIStore();
 
   const loaded = useUnifiedStore(s => s.loaded);
@@ -62,17 +59,6 @@ export function ChatView() {
   const isEmpty = !currentSessionId || (isMessagesLoaded && messages.length === 0);
   const { showInChatArea } = useTemporaryTogglePresentation();
 
-  useShortcuts({
-    scope: 'chat',
-    handlers: isEmpty
-      ? {
-          toggleTemporaryChatWelcome: () => {
-            toggleTemporaryChat();
-          }
-        }
-      : {}
-  });
-
   const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
       messages,
       isStreaming: isSessionActive,
@@ -91,9 +77,7 @@ export function ChatView() {
 
   useChatShortcuts({
       onFocusInput: () => {
-          logFocusTrace('chatView.shortcut.focusInput');
           if (!focusComposerInput()) {
-              logFocusTrace('chatView.shortcut.focusInput.fallbackTrigger');
               setFocusInputTrigger(n => n + 1);
           }
       },
@@ -131,7 +115,6 @@ export function ChatView() {
 
   const handleChatAreaMouseDownCapture = useComposerClickFocus({
     requestFocusFallback: () => {
-      logFocusTrace('chatView.chatArea.focusFallbackTrigger');
       setFocusInputTrigger(n => n + 1);
     }
   });

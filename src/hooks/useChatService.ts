@@ -10,6 +10,7 @@ import { requestManager } from '@/lib/ai/requestManager';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
+const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
 
 function formatTimeByOffset(offset: number): string {
   const now = new Date();
@@ -55,6 +56,72 @@ function sanitizeHistory(messages: ChatMessage[]): ChatMessage[] {
     }
     return msg;
   });
+}
+
+function createChunkScheduler(onFlush: (content: string) => void) {
+  let pendingContent: string | null = null;
+  let frameId: number | null = null;
+  let frameKind: 'raf' | 'timeout' | null = null;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const clearScheduledFlush = () => {
+    if (frameId !== null) {
+      if (frameKind === 'raf' && typeof window !== 'undefined') {
+        window.cancelAnimationFrame(frameId);
+      } else {
+        clearTimeout(frameId);
+      }
+      frameId = null;
+      frameKind = null;
+    }
+
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+  };
+
+  const flush = () => {
+    if (pendingContent === null) {
+      clearScheduledFlush();
+      return;
+    }
+
+    const nextContent = pendingContent;
+    pendingContent = null;
+    clearScheduledFlush();
+    onFlush(nextContent);
+  };
+
+  const scheduleFlush = () => {
+    if (frameId === null) {
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        frameKind = 'raf';
+        frameId = window.requestAnimationFrame(() => flush());
+      } else {
+        frameKind = 'timeout';
+        frameId = setTimeout(() => flush(), 16) as unknown as number;
+      }
+    }
+
+    if (timeoutId === null) {
+      timeoutId = setTimeout(() => flush(), STREAM_CHUNK_FLUSH_MAX_DELAY_MS);
+    }
+  };
+
+  return {
+    push(content: string) {
+      pendingContent = content;
+      scheduleFlush();
+    },
+    flushNow() {
+      flush();
+    },
+    cancel() {
+      pendingContent = null;
+      clearScheduledFlush();
+    },
+  };
 }
 
 export function useChatService() {
@@ -159,6 +226,10 @@ export function useChatService() {
         );
       }
 
+      const streamScheduler = createChunkScheduler((nextContent) =>
+        updateMessage(targetSessionId, assistantMessageId, nextContent)
+      );
+
       try {
         const finalHistory = [...messages, createTimeContext(selectedModel.id) as ChatMessage];
         const sanitizedHistory = sanitizeHistory(finalHistory);
@@ -192,10 +263,11 @@ export function useChatService() {
           sanitizedHistory,
           selectedModel,
           provider,
-          (chunk) => updateMessage(targetSessionId, assistantMessageId, chunk),
+          (chunk) => streamScheduler.push(chunk),
           controller.signal,
           { nativeWebSearch: nativeWebSearchEnabled }
         );
+        streamScheduler.flushNow();
         completeMessage(targetSessionId, assistantMessageId);
 
         const current = useUnifiedStore.getState().data.ai?.currentSessionId;
@@ -203,6 +275,7 @@ export function useChatService() {
           markSessionUnread(targetSessionId);
         }
       } catch (error: any) {
+        streamScheduler.flushNow();
         if (error.name === 'AbortError') {
           return;
         }
@@ -215,6 +288,7 @@ export function useChatService() {
         setError(detail);
         updateMessage(targetSessionId, assistantMessageId, errorXml);
       } finally {
+        streamScheduler.cancel();
         requestManager.finish(targetSessionId, controller);
         setSessionLoading(targetSessionId, false);
       }
@@ -263,6 +337,10 @@ export function useChatService() {
       setSessionLoading(sessionId, true);
       setError(null);
 
+      const streamScheduler = createChunkScheduler((nextContent) =>
+        updateMessage(sessionId, assistantMessageId, nextContent)
+      );
+
       try {
         const state = useUnifiedStore.getState();
         const sessionMessages = state.data.ai?.messages[sessionId] || [];
@@ -281,12 +359,14 @@ export function useChatService() {
           sanitizedHistory,
           selectedModel,
           provider,
-          (chunk) => updateMessage(sessionId, assistantMessageId, chunk),
+          (chunk) => streamScheduler.push(chunk),
           controller.signal,
           { nativeWebSearch: nativeWebSearchEnabled }
         );
+        streamScheduler.flushNow();
         completeMessage(sessionId, assistantMessageId);
       } catch (error: any) {
+        streamScheduler.flushNow();
         if (error.name === 'AbortError') {
           return;
         }
@@ -295,6 +375,7 @@ export function useChatService() {
         const errorXml = `<error type="${error.type || 'UNKNOWN'}" code="${error.statusCode || ''}">${detail}</error>`;
         updateMessage(sessionId, assistantMessageId, errorXml);
       } finally {
+        streamScheduler.cancel();
         requestManager.finish(sessionId, controller);
         setSessionLoading(sessionId, false);
       }
@@ -333,18 +414,24 @@ export function useChatService() {
       const controller = requestManager.start(sessionId);
       setSessionLoading(sessionId, true);
 
+      const streamScheduler = createChunkScheduler((nextContent) =>
+        updateMessage(sessionId, msgId, nextContent)
+      );
+
       try {
         await openaiClient.sendMessage(
           promptMsg.content,
           history,
           selectedModel,
           provider,
-          (chunk) => updateMessage(sessionId, msgId, chunk),
+          (chunk) => streamScheduler.push(chunk),
           controller.signal,
           { nativeWebSearch: nativeWebSearchEnabled }
         );
+        streamScheduler.flushNow();
         completeMessage(sessionId, msgId);
       } catch (error: any) {
+        streamScheduler.flushNow();
         if (error.name === 'AbortError') {
           return;
         }
@@ -357,6 +444,7 @@ export function useChatService() {
         setError(detail);
         updateMessage(sessionId, msgId, errorXml);
       } finally {
+        streamScheduler.cancel();
         requestManager.finish(sessionId, controller);
         setSessionLoading(sessionId, false);
       }

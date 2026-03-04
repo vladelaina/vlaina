@@ -1,6 +1,5 @@
 import React, { memo, useMemo } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Streamdown, defaultRemarkPlugins } from "streamdown";
 import remarkMath from "remark-math";
 import remarkCitationParser from "@/lib/ai/plugins/remarkCitationParser";
 import { ThinkingBlock } from "@/components/Chat/features/Messages/components/ThinkingBlock";
@@ -15,7 +14,7 @@ interface MarkdownRendererProps {
 }
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
-  ({ content, size, startTime }) => {
+  ({ content, size, startTime, isStreaming = false }) => {
     
     const { thinking, markdown, isThinkingDone } = useMemo(() => {
         const text = content || "";
@@ -38,6 +37,14 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
         return { thinking, markdown, isThinkingDone: true };
     }, [content]);
 
+    const remarkPlugins = useMemo(
+      () =>
+        [defaultRemarkPlugins.gfm, remarkMath, remarkCitationParser].filter(
+          Boolean,
+        ),
+      [],
+    );
+
     return (
       <div className="flex flex-col">
         {thinking !== null && (
@@ -59,31 +66,34 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
                 break-words
                 `}
             >
-                <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkMath, remarkCitationParser]}
+                <Streamdown
+                parseIncompleteMarkdown={isStreaming}
+                isAnimating={isStreaming}
+                controls={false}
+                remarkPlugins={remarkPlugins}
                 components={{
-                    code({ node, className, children, ...props }) {
-                    const match = /language-(\w+)/.exec(className || "");
-                    const isInline = !match && !String(children).includes("\n");
-                    
-                    if (isInline) {
-                        return (
-                        <code className="bg-neutral-100 dark:bg-neutral-800 rounded px-1 py-0.5 text-sm" {...props}>
-                            {children}
-                        </code>
-                        );
-                    }
+                    code({ className, children, ...props }: any) {
+                      const match = /language-(\w+)/.exec(className || "");
+                      const isInline = !match && !String(children).includes("\n");
+                      
+                      if (isInline) {
+                          return (
+                          <code className="bg-neutral-100 dark:bg-neutral-800 rounded px-1 py-0.5 text-sm" {...props}>
+                              {children}
+                          </code>
+                          );
+                      }
 
-                    return (
-                        <CodeBlock className={className} {...props}>
-                        {children}
-                        </CodeBlock>
-                    );
+                      return (
+                          <CodeBlock className={className} isStreaming={isStreaming} {...props}>
+                            {children}
+                          </CodeBlock>
+                      );
                     },
                 }}
                 >
                 {markdown}
-                </ReactMarkdown>
+                </Streamdown>
             </div>
         )}
       </div>
