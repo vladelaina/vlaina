@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { NekoEvent } from '@/lib/ics/types';
 import { cn } from '@/lib/utils';
-import { collectUniqueTags, countTasksByTag } from '@/lib/tags/tagUtils';
+import { collectUniqueTags } from '@/lib/tags/tagUtils';
 
 interface TagFilterListProps {
   tasks: NekoEvent[];
@@ -17,44 +17,35 @@ export function TagFilterList({ tasks, selectedTag, onSelectTag }: TagFilterList
     return null;
   }
 
-  const allCount = topLevelTasks.length;
-
   return (
-    <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
-      <div className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 mb-2 uppercase tracking-wide">
-        Labels
-      </div>
-
-      <div className="flex flex-col gap-1">
+    <div className="mt-2">
+      <div className="flex flex-wrap gap-2">
         <button
           onClick={() => onSelectTag(null)}
           className={cn(
-            'w-full px-2 py-1.5 rounded-md text-xs flex items-center justify-between transition-colors',
+            'h-10 px-4 rounded-2xl text-[15px] font-medium transition-colors',
             selectedTag === null
-              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200'
-              : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+              ? 'bg-amber-300 text-amber-950 dark:bg-amber-400 dark:text-amber-950'
+              : 'bg-zinc-200 text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600'
           )}
         >
-          <span>All</span>
-          <span className="text-[10px] text-zinc-400">{allCount}</span>
+          All Labels
         </button>
 
         {tags.map(tag => {
-          const count = countTasksByTag(topLevelTasks, tag);
           const active = selectedTag?.toLocaleLowerCase() === tag.toLocaleLowerCase();
           return (
             <button
               key={tag}
               onClick={() => onSelectTag(tag)}
               className={cn(
-                'w-full px-2 py-1.5 rounded-md text-xs flex items-center justify-between transition-colors',
+                'h-10 px-4 rounded-2xl text-[15px] font-medium transition-colors',
                 active
-                  ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                  ? 'bg-amber-300 text-amber-950 dark:bg-amber-400 dark:text-amber-950'
+                  : 'bg-zinc-200 text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600'
               )}
             >
-              <span className="truncate pr-2">#{tag}</span>
-              <span className="text-[10px] text-zinc-400">{count}</span>
+              #{tag}
             </button>
           );
         })}

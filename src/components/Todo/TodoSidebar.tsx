@@ -44,6 +44,7 @@ export function TodoSidebar() {
         () => collectUniqueTags(tasks.filter(task => !task.parentId)),
         [tasks]
     );
+    const shouldShowTagFilters = availableTags.length > 0 || selectedTag !== null;
 
     useEffect(() => {
         if (!selectedTag) return;
@@ -154,16 +155,20 @@ export function TodoSidebar() {
                 </div>
 
                 <div className="flex flex-col gap-0.5">
-                    <h3 className="px-3 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 select-none uppercase tracking-wider">
-                        TAGS
-                    </h3>
                     <div className="px-3 py-2">
                         <ColorFilter />
-                        <TagFilterList
-                            tasks={tasks}
-                            selectedTag={selectedTag}
-                            onSelectTag={handleSelectTag}
-                        />
+                        {shouldShowTagFilters && (
+                            <div className="mt-3">
+                                <h3 className="px-1 py-1 text-sm font-semibold text-zinc-500 dark:text-zinc-400 select-none">
+                                    Labels
+                                </h3>
+                                <TagFilterList
+                                    tasks={tasks}
+                                    selectedTag={selectedTag}
+                                    onSelectTag={handleSelectTag}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

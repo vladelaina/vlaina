@@ -41,6 +41,10 @@ export function TaskInput({ compact = false }: TaskInputProps) {
         }
     };
 
+    const handleRemoveTag = (targetTag: string) => {
+        setTags(prev => prev.filter(tag => tag.toLocaleLowerCase() !== targetTag.toLocaleLowerCase()));
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -161,9 +165,23 @@ export function TaskInput({ compact = false }: TaskInputProps) {
                         {tags.map(tag => (
                             <span
                                 key={`input-tag-${tag}`}
-                                className="inline-flex px-2 py-0.5 rounded-md text-[11px] bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+                                className="group inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
                             >
                                 #{tag}
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => handleRemoveTag(tag)}
+                                    aria-label={`Remove tag ${tag}`}
+                                    className={cn(
+                                        'inline-flex items-center justify-center rounded text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-opacity',
+                                        'opacity-0 pointer-events-none',
+                                        'group-hover:opacity-100 group-hover:pointer-events-auto',
+                                        'group-focus-within:opacity-100 group-focus-within:pointer-events-auto'
+                                    )}
+                                >
+                                    <Icon size="xs" name="common.close" />
+                                </button>
                             </span>
                         ))}
                     </div>
