@@ -1,3 +1,5 @@
+import { getExternalLinkProps } from "@/lib/navigation/externalLinks";
+
 interface ErrorBlockProps {
   type?: string;
   code?: string;
@@ -22,11 +24,9 @@ const renderWithLinks = (text: string) => {
       return (
         <a
           key={index}
-          href={part}
-          target="_blank"
-          rel="noopener noreferrer"
+          {...getExternalLinkProps(part)}
+          data-no-focus-input="true"
           className="underline break-all"
-          onClick={(e) => e.stopPropagation()}
         >
           {part}
         </a>

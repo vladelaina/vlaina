@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
+import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
 
 interface UseChatShortcutsOptions {
   onFocusInput: () => void;
@@ -13,6 +14,12 @@ export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }:
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
+
+      if (shouldBlockBrowserReservedShortcut(e)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
 
       if (isMod && e.key === '/') {
         e.preventDefault();

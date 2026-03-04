@@ -2,6 +2,7 @@ import React, { memo, useMemo } from "react";
 import { Streamdown, defaultRemarkPlugins } from "streamdown";
 import remarkMath from "remark-math";
 import remarkCitationParser from "@/lib/ai/plugins/remarkCitationParser";
+import { getExternalLinkProps } from "@/lib/navigation/externalLinks";
 import { ThinkingBlock } from "@/components/Chat/features/Messages/components/ThinkingBlock";
 import { CodeBlock } from "./components/CodeBlock";
 
@@ -72,6 +73,17 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
                 controls={false}
                 remarkPlugins={remarkPlugins}
                 components={{
+                    a({ href, children, ...props }: any) {
+                      return (
+                        <a
+                          {...props}
+                          {...getExternalLinkProps(typeof href === "string" ? href : null)}
+                          data-no-focus-input="true"
+                        >
+                          {children}
+                        </a>
+                      );
+                    },
                     code({ className, children, ...props }: any) {
                       const match = /language-(\w+)/.exec(className || "");
                       const isInline = !match && !String(children).includes("\n");

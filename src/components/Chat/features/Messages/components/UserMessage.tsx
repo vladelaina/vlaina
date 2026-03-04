@@ -12,6 +12,7 @@ import {
   chatComposerTextareaClass
 } from '../../Input/composerStyles';
 import type { ChatMessage } from '@/lib/ai/types';
+import { normalizeExternalHref, openExternalHref } from '@/lib/navigation/externalLinks';
 
 interface UserMessageProps {
   message: ChatMessage;
@@ -157,7 +158,14 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
                   src={src}
                   alt="attachment"
                   className="max-w-xs max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                  onClick={() => window.open(src, '_blank')}
+                  onClick={() => {
+                    const safeExternalHref = normalizeExternalHref(src);
+                    if (safeExternalHref) {
+                      void openExternalHref(safeExternalHref);
+                      return;
+                    }
+                    window.open(src, '_blank', 'noopener,noreferrer');
+                  }}
                 />
               </div>
             ))}

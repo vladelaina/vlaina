@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import { getExternalLinkProps } from "@/lib/navigation/externalLinks";
 
 interface ThinkingBlockProps {
   content: string;
@@ -162,7 +163,22 @@ export function ThinkingBlock({
           ref={contentRef}
           className="transition-transform duration-300 opacity-90 select-text leading-relaxed prose prose-neutral dark:prose-invert max-w-none"
         >
-          <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkMath]}
+            components={{
+              a({ href, children, ...props }: any) {
+                return (
+                  <a
+                    {...props}
+                    {...getExternalLinkProps(typeof href === "string" ? href : null)}
+                    data-no-focus-input="true"
+                  >
+                    {children}
+                  </a>
+                );
+              },
+            }}
+          >
             {thinking}
           </ReactMarkdown>
         </div>
