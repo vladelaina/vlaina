@@ -2,34 +2,13 @@ import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { CoverPicker } from '../../../AssetLibrary';
 import { CoverRenderer } from './CoverRenderer';
-import type { CoverRendererProps } from './coverRenderer.types';
-
-interface CoverImageShellProps {
-  url: string | null;
-  readOnly: boolean;
-  vaultPath: string;
-  showPicker: boolean;
-  previewSrc: string | null;
-  isError: boolean;
-  displaySrc: string;
-  coverHeight: number;
-  positionX: number;
-  positionY: number;
-  containerRef: React.RefObject<HTMLDivElement | null>;
-  onOpenPicker: () => void;
-  onClosePicker: () => void;
-  onSelectCover: (assetPath: string) => void;
-  onPreview: (assetPath: string | null) => void;
-  onRemoveCover: () => void;
-  onResizeMouseDown: (e: React.MouseEvent) => void;
-  onResetHeight: () => void;
-  rendererProps: Omit<CoverRendererProps, 'displaySrc' | 'positionX' | 'positionY'>;
-}
+import type { CoverImageControllerModel } from './coverImage.types';
 
 export function CoverImageShell({
   url,
   readOnly,
   vaultPath,
+  phase,
   showPicker,
   previewSrc,
   isError,
@@ -46,8 +25,8 @@ export function CoverImageShell({
   onResizeMouseDown,
   onResetHeight,
   rendererProps,
-}: CoverImageShellProps) {
-  if (!url && !showPicker && !previewSrc) {
+}: CoverImageControllerModel) {
+  if (phase === 'idle' && !showPicker) {
     return null;
   }
 

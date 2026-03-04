@@ -16,6 +16,8 @@ interface CoverCropperLayerProps {
   objectFitMode: 'contain' | 'horizontal-cover' | 'vertical-cover';
   onCropperCropChange: (crop: { x: number; y: number }) => void;
   onCropperZoomChange: (zoom: number) => void;
+  onPointerIntent: () => void;
+  onNonPointerIntent: () => void;
   onInteractionStart: () => void;
   onInteractionEnd: () => void;
   onMediaLoaded: (media: LoadedCoverMedia) => void;
@@ -34,6 +36,8 @@ export function CoverCropperLayer({
   objectFitMode,
   onCropperCropChange,
   onCropperZoomChange,
+  onPointerIntent,
+  onNonPointerIntent,
   onInteractionStart,
   onInteractionEnd,
   onMediaLoaded,
@@ -72,6 +76,9 @@ export function CoverCropperLayer({
       ref={wrapperRef}
       className={cn('absolute -inset-px', isImageReady ? 'opacity-100' : 'opacity-0')}
       style={{ willChange: 'transform' }}
+      onPointerDownCapture={onPointerIntent}
+      onWheelCapture={onNonPointerIntent}
+      onKeyDownCapture={onNonPointerIntent}
     >
       <Cropper
         image={displaySrc || undefined}
@@ -82,6 +89,7 @@ export function CoverCropperLayer({
         maxZoom={effectiveMaxZoom}
         objectFit={objectFitMode}
         restrictPosition={true}
+        zoomWithScroll={true}
         showGrid={false}
         onCropChange={onCropperCropChange}
         onZoomChange={onCropperZoomChange}

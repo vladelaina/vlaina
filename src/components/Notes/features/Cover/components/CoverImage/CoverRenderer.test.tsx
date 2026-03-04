@@ -30,6 +30,8 @@ function buildProps(overrides?: Partial<CoverRendererProps>): CoverRendererProps
     objectFitMode: 'horizontal-cover',
     onCropperCropChange: vi.fn(),
     onCropperZoomChange: vi.fn(),
+    onPointerIntent: vi.fn(),
+    onNonPointerIntent: vi.fn(),
     onInteractionStart: vi.fn(),
     onInteractionEnd: vi.fn(),
     onMediaLoaded: vi.fn(),

@@ -2,6 +2,8 @@
 export const MIN_HEIGHT = 120;
 export const MAX_HEIGHT = 500;
 export const DEFAULT_HEIGHT = 255;
+export const DEFAULT_POSITION_PERCENT = 50;
+export const DEFAULT_SCALE = 1;
 export const MAX_SCALE = 10;
 export const DRAG_THRESHOLD = 5;
 export const SAVE_DEBOUNCE_MS = 200;
@@ -101,8 +103,8 @@ export function calculateCropPixels(
     const maxTranslateY = (scaledH - containerSize.height) / 2;
 
     // Map 0-100% to +Max -> -Max translation
-    const x = ((50 - positionPercent.x) / 50) * maxTranslateX;
-    const y = ((50 - positionPercent.y) / 50) * maxTranslateY;
+    const x = ((DEFAULT_POSITION_PERCENT - positionPercent.x) / DEFAULT_POSITION_PERCENT) * maxTranslateX;
+    const y = ((DEFAULT_POSITION_PERCENT - positionPercent.y) / DEFAULT_POSITION_PERCENT) * maxTranslateY;
 
     // Pixel Rounding for Stability
     return {
@@ -127,19 +129,19 @@ export function calculateCropPercentage(
     const maxTranslateY = (scaledH - containerSize.height) / 2;
 
     // Prevent divide by zero if perfect fit
-    let percentX = 50;
-    let percentY = 50;
+    let percentX = DEFAULT_POSITION_PERCENT;
+    let percentY = DEFAULT_POSITION_PERCENT;
 
     if (maxTranslateX > 0) {
         // x = ((50 - P) / 50) * Max
         // x / Max = (50 - P) / 50
         // (x / Max) * 50 = 50 - P
         // P = 50 - (x / Max) * 50
-        percentX = 50 - (cropPixels.x / maxTranslateX) * 50;
+        percentX = DEFAULT_POSITION_PERCENT - (cropPixels.x / maxTranslateX) * DEFAULT_POSITION_PERCENT;
     }
 
     if (maxTranslateY > 0) {
-        percentY = 50 - (cropPixels.y / maxTranslateY) * 50;
+        percentY = DEFAULT_POSITION_PERCENT - (cropPixels.y / maxTranslateY) * DEFAULT_POSITION_PERCENT;
     }
 
     // Clamp to 0-100 for safety

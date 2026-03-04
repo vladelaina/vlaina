@@ -64,6 +64,8 @@ export function useCoverInteraction({
     handleInteractionEnd,
     onCropperCropChange,
     onCropperZoomChange,
+    markPointerIntent,
+    markNonPointerIntent,
   } = useCoverInteractionHandlers({
     readOnly,
     cachedBounds,
@@ -86,6 +88,8 @@ export function useCoverInteraction({
     handleInteractionEnd,
     onCropperCropChange,
     onCropperZoomChange,
+    markPointerIntent,
+    markNonPointerIntent,
     saveToDb
   };
 }

@@ -1,0 +1,43 @@
+import { renderHook } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { useCoverPreviewReset } from './useCoverPreviewReset';
+
+describe('useCoverPreviewReset', () => {
+  it('does nothing when preview source is empty', () => {
+    const setCrop = vi.fn();
+    const setZoom = vi.fn();
+    const setIsImageReady = vi.fn();
+
+    renderHook(() =>
+      useCoverPreviewReset({
+        previewSrc: null,
+        setCrop,
+        setZoom,
+        setIsImageReady,
+      })
+    );
+
+    expect(setCrop).not.toHaveBeenCalled();
+    expect(setZoom).not.toHaveBeenCalled();
+    expect(setIsImageReady).not.toHaveBeenCalled();
+  });
+
+  it('resets crop/zoom/ready when preview starts', () => {
+    const setCrop = vi.fn();
+    const setZoom = vi.fn();
+    const setIsImageReady = vi.fn();
+
+    renderHook(() =>
+      useCoverPreviewReset({
+        previewSrc: '/covers/preview.webp',
+        setCrop,
+        setZoom,
+        setIsImageReady,
+      })
+    );
+
+    expect(setCrop).toHaveBeenCalledWith({ x: 0, y: 0 });
+    expect(setZoom).toHaveBeenCalledWith(1);
+    expect(setIsImageReady).toHaveBeenCalledWith(false);
+  });
+});

@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCoverSource } from './useCoverSource';
 
@@ -131,5 +131,63 @@ describe('useCoverSource', () => {
       expect(result.current.resolvedSrc).toBeNull();
     });
     expect(result.current.prevSrcRef.current).toBe('blob:cover-a');
+  });
+
+  it('clears committing state when preview starts', async () => {
+    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.nekotick/assets/covers/a.png');
+    hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-a');
+
+    const { result } = renderHook(() =>
+      useCoverSource({ url: 'covers/a.png', vaultPath: '/vault-a' })
+    );
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:cover-a');
+    });
+
+    act(() => {
+      result.current.beginSelectionCommit();
+    });
+    expect(result.current.isSelectionCommitting).toBe(true);
+
+    act(() => {
+      result.current.setPreviewSrc('/covers/preview.webp');
+    });
+    expect(result.current.previewSrc).toBe('/covers/preview.webp');
+    expect(result.current.isSelectionCommitting).toBe(false);
+  });
+
+  it('clears committing state after new cover resolves', async () => {
+    hoisted.resolveSystemAssetPath.mockImplementation(async (_vaultPath: string, assetPath: string) => {
+      if (assetPath === 'covers/a.png') return '/vault/.nekotick/assets/covers/a.png';
+      if (assetPath === 'covers/b.png') return '/vault/.nekotick/assets/covers/b.png';
+      return '/vault/.nekotick/assets/covers/unknown.png';
+    });
+    hoisted.loadImageAsBlob.mockImplementation(async (fullPath: string) => {
+      if (fullPath.includes('/a.png')) return 'blob:cover-a';
+      if (fullPath.includes('/b.png')) return 'blob:cover-b';
+      return 'blob:cover-unknown';
+    });
+
+    const { result, rerender } = renderHook(
+      ({ url }) => useCoverSource({ url, vaultPath: '/vault-a' }),
+      { initialProps: { url: 'covers/a.png' as string | null } }
+    );
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:cover-a');
+    });
+
+    act(() => {
+      result.current.beginSelectionCommit();
+    });
+    expect(result.current.isSelectionCommitting).toBe(true);
+
+    rerender({ url: 'covers/b.png' });
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:cover-b');
+    });
+    expect(result.current.isSelectionCommitting).toBe(false);
   });
 });

@@ -47,15 +47,12 @@ export function useCoverState({
     }
   }, [onPickerOpenChange]);
 
-  // Sync zoom prop when not interacting
+  // Sync zoom only when external scale prop changes.
+  // This avoids overriding in-progress wheel/keyboard zoom with stale prop values.
   useEffect(() => {
-    if (!isInteracting) {
-      const safeZoom = Math.max(scale, 1);
-      if (zoom !== safeZoom) {
-        setZoom(safeZoom);
-      }
-    }
-  }, [scale, isInteracting, zoom]);
+    const safeZoom = Math.max(scale, 1);
+    setZoom((prevZoom) => (Math.abs(prevZoom - safeZoom) > 0.0001 ? safeZoom : prevZoom));
+  }, [scale]);
 
   return {
     coverHeight,
