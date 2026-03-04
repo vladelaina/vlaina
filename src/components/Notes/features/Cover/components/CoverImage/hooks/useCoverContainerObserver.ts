@@ -4,12 +4,14 @@ interface UseCoverContainerObserverOptions {
   containerRef: React.RefObject<HTMLDivElement | null>;
   isManualResizingRef: React.MutableRefObject<boolean>;
   setContainerSize: React.Dispatch<React.SetStateAction<{ width: number; height: number } | null>>;
+  observeKey?: string | null;
 }
 
 export function useCoverContainerObserver({
   containerRef,
   isManualResizingRef,
   setContainerSize,
+  observeKey,
 }: UseCoverContainerObserverOptions) {
   useEffect(() => {
     const el = containerRef.current;
@@ -25,6 +27,7 @@ export function useCoverContainerObserver({
           const roundedWidth = Math.round(width);
           const roundedHeight = Math.round(height);
           if (isManualResizingRef.current) return;
+          if (roundedWidth <= 0 || roundedHeight <= 0) return;
 
           setContainerSize((prev) => {
             if (prev?.width === roundedWidth && prev?.height === roundedHeight) {
@@ -41,5 +44,5 @@ export function useCoverContainerObserver({
       observer.disconnect();
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [containerRef, isManualResizingRef, setContainerSize]);
+  }, [containerRef, isManualResizingRef, setContainerSize, observeKey]);
 }

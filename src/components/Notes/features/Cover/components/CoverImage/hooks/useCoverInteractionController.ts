@@ -116,6 +116,7 @@ export function useCoverInteractionController({
     containerRef,
     isManualResizingRef,
     setContainerSize,
+    observeKey: url,
   });
 
   return {

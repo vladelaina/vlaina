@@ -30,15 +30,14 @@ export function useCoverDisplayModel({
   const [readySrc, setReadySrc] = useState<string | null>(null);
 
   const mediaSrc = previewSrc || resolvedSrc || prevSrcRef.current || '';
-  const isPreviewingPhase = phase === 'previewing' || phase === 'committing';
-  const isPreviewing = Boolean(previewSrc) && isPreviewingPhase;
-  const displayPositionX = isPreviewing ? DEFAULT_POSITION_PERCENT : positionX;
-  const displayPositionY = isPreviewing ? DEFAULT_POSITION_PERCENT : positionY;
-  const effectiveCrop = isPreviewing ? { x: 0, y: 0 } : crop;
-  const effectiveZoom = isPreviewing ? DEFAULT_SCALE : zoom;
-  const syncPositionX = isPreviewing ? DEFAULT_POSITION_PERCENT : positionX;
-  const syncPositionY = isPreviewing ? DEFAULT_POSITION_PERCENT : positionY;
-  const syncZoom = isPreviewing ? DEFAULT_SCALE : zoom;
+  const useSelectionDefaults = phase === 'previewing' || phase === 'committing';
+  const displayPositionX = useSelectionDefaults ? DEFAULT_POSITION_PERCENT : positionX;
+  const displayPositionY = useSelectionDefaults ? DEFAULT_POSITION_PERCENT : positionY;
+  const effectiveCrop = useSelectionDefaults ? { x: 0, y: 0 } : crop;
+  const effectiveZoom = useSelectionDefaults ? DEFAULT_SCALE : zoom;
+  const syncPositionX = useSelectionDefaults ? DEFAULT_POSITION_PERCENT : positionX;
+  const syncPositionY = useSelectionDefaults ? DEFAULT_POSITION_PERCENT : positionY;
+  const syncZoom = useSelectionDefaults ? DEFAULT_SCALE : zoom;
   const sourceIsReady = Boolean(mediaSrc) && readySrc === mediaSrc;
   const placeholderSrc = sourceIsReady
     ? mediaSrc

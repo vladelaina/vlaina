@@ -60,6 +60,7 @@ export function useCoverSelectionFlow({
     coverHeight,
     endSelectionCommit,
     onUpdate,
+    previewSrc,
     setPreviewSrc,
     setShowPicker,
     url,

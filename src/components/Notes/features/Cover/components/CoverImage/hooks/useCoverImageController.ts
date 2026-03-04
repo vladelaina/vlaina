@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useCoverState } from './useCoverState';
 import { useCoverDisplayModel } from './useCoverDisplayModel';
 import { useCoverPreviewReset } from './useCoverPreviewReset';
@@ -6,7 +6,7 @@ import { useCoverSelectionFlow } from './useCoverSelectionFlow';
 import { useCoverInteractionController } from './useCoverInteractionController';
 import { useCoverMediaController } from './useCoverMediaController';
 import type { CoverImageControllerModel, CoverImageProps } from '../coverImage.types';
-import { DEFAULT_POSITION_PERCENT } from '../../../utils/coverUtils';
+import { DEFAULT_POSITION_PERCENT, getCachedDimensions } from '../../../utils/coverUtils';
 
 interface UseCoverImageControllerProps extends Omit<CoverImageProps, 'height' | 'scale' | 'readOnly'> {
   initialHeight?: number;
@@ -66,6 +66,7 @@ export function useCoverImageController({
 
   const effectiveContainerSize = useMemo(() => {
     if (!containerSize) return null;
+    if (containerSize.width <= 0 || coverHeight <= 0) return null;
     return { width: containerSize.width, height: coverHeight };
   }, [containerSize, coverHeight]);
 
@@ -94,6 +95,25 @@ export function useCoverImageController({
     isImageReady,
     setIsImageReady,
   });
+
+  // Prime media size from cached dimensions as soon as source switches.
+  // This avoids first-frame wrong objectFit axis before cropper onMediaLoaded fires.
+  useEffect(() => {
+    if (!mediaSrc) {
+      setMediaSize(null);
+      return;
+    }
+
+    const cached = getCachedDimensions(mediaSrc);
+    if (!cached) return;
+
+    setMediaSize((prev) => {
+      if (prev?.width === cached.width && prev?.height === cached.height) {
+        return prev;
+      }
+      return { width: cached.width, height: cached.height };
+    });
+  }, [mediaSrc, setMediaSize]);
 
   const {
     objectFitMode,

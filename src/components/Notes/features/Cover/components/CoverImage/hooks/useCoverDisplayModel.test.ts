@@ -86,6 +86,14 @@ describe('useCoverDisplayModel', () => {
       })
     );
 
+    expect(result.current.displayPositionX).toBe(50);
+    expect(result.current.displayPositionY).toBe(50);
+    expect(result.current.effectiveCrop).toEqual({ x: 0, y: 0 });
+    expect(result.current.effectiveZoom).toBe(1);
+    expect(result.current.syncPositionX).toBe(50);
+    expect(result.current.syncPositionY).toBe(50);
+    expect(result.current.syncZoom).toBe(1);
+
     act(() => {
       result.current.handleSourceReady('/covers/resolved.webp');
     });
