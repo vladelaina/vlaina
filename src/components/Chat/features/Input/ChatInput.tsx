@@ -129,6 +129,7 @@ export const ChatInput = memo(function ChatInput({
             hasDraftMessage={!!message.trim()}
             onStop={onStop}
             onSend={() => handleSend()}
+            composerInputRef={textareaRef}
           />
         </div>
       </div>

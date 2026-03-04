@@ -1,6 +1,7 @@
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { ModelSelector } from '../ModelSelector';
+import type { RefObject } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,7 @@ interface ChatInputActionsProps {
   hasDraftMessage: boolean;
   onStop: () => void;
   onSend: () => void;
+  composerInputRef: RefObject<HTMLTextAreaElement | null>;
 }
 
 export function ChatInputActions({
@@ -29,6 +31,7 @@ export function ChatInputActions({
   hasDraftMessage,
   onStop,
   onSend,
+  composerInputRef,
 }: ChatInputActionsProps) {
   return (
     <div className="flex items-center justify-between px-2 pb-2 pl-3">
@@ -88,7 +91,7 @@ export function ChatInputActions({
       </div>
 
       <div className="flex items-center gap-2">
-        <ModelSelector />
+        <ModelSelector composerInputRef={composerInputRef} />
 
         {isLoading && !hasDraftMessage ? (
           <button
