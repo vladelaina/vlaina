@@ -1,24 +1,19 @@
 import { useState } from 'react';
 import { Icon } from '@/components/ui/icons';
-import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/ai/types';
 
 interface MessageToolbarProps {
   msg: ChatMessage;
-  isSpeaking: boolean;
   isLoading: boolean;
   onCopy: (text: string) => void;
-  onSpeak: () => void;
   onRegenerate: () => void;
   onSwitchVersion: (targetIndex: number) => void;
 }
 
 export function MessageToolbar({
   msg,
-  isSpeaking,
   isLoading,
   onCopy,
-  onSpeak,
   onRegenerate,
   onSwitchVersion
 }: MessageToolbarProps) {
@@ -56,16 +51,6 @@ export function MessageToolbar({
                 className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors rounded-md hover:bg-black/5 dark:hover:bg-white/5" 
             >
                 {isCopied ? <Icon name="common.check" size="md" /> : <Icon name="common.copy" size="md" />}
-            </button>
-            
-            <button 
-                onClick={onSpeak} 
-                className={cn(
-                    "p-1.5 transition-colors rounded-md hover:bg-black/5 dark:hover:bg-white/5",
-                    isSpeaking ? "text-red-500" : "text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200"
-                )} 
-            >
-                {isSpeaking ? <Icon name="media.stop" size="md" /> : <Icon name="media.volume" size="md" />}
             </button>
 
             <button onClick={onRegenerate} className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors rounded-md hover:bg-black/5 dark:hover:bg-white/5">

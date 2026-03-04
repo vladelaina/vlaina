@@ -64,7 +64,6 @@ import {
   PauseIcon,
   StopIcon,
   MicrophoneIcon,
-  SpeakerWaveIcon,
   SparklesIcon,
   LanguageIcon,
   ClockIcon,
@@ -207,7 +206,6 @@ export const icons: Record<string, IconSource> = {
   'media.pause': PauseIcon,
   'media.stop': SquareStopIcon,
   'media.mic': MicrophoneIcon,
-  'media.volume': SpeakerWaveIcon,
 
   // --- Misc/Specific ---
   'misc.clock': ClockIcon,

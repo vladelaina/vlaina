@@ -18,7 +18,6 @@ import { TemporaryChatToggle } from '@/components/Chat/features/Temporary/Tempor
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
 
 export function ChatView() {
-  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
 
@@ -85,28 +84,7 @@ export function ChatView() {
       scrollRef: containerRef 
   });
 
-  useEffect(() => {
-      return () => {
-          window.speechSynthesis.cancel();
-      };
-  }, []);
-
   const copyToClipboard = useCallback((text: string) => navigator.clipboard.writeText(text), []);
-  
-  const handleSpeak = useCallback((msgId: string, text: string) => {
-      setSpeakingMsgId(prev => {
-          if (prev === msgId) {
-              window.speechSynthesis.cancel();
-              return null;
-          }
-          window.speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.onend = () => setSpeakingMsgId(null);
-          utterance.onerror = () => setSpeakingMsgId(null);
-          window.speechSynthesis.speak(utterance);
-          return msgId;
-      });
-  }, []);
 
   const handleSend = useCallback((text: string, attachments: Attachment[]) => {
       handleNewUserMessage();
@@ -139,9 +117,7 @@ export function ChatView() {
           isLayoutCentered={isEmpty}
           spacerHeight={spacerHeight}
           containerRef={containerRef}
-          speakingMsgId={speakingMsgId}
           onCopy={copyToClipboard}
-          onSpeak={handleSpeak}
           onRegenerate={regenerate}
           onEdit={editMessage}
           onSwitchVersion={(msgId, idx) => currentSessionId && switchMessageVersion(currentSessionId, msgId, idx)}

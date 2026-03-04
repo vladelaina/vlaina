@@ -5,20 +5,16 @@ import type { ChatMessage } from '@/lib/ai/types';
 
 interface AIMessageProps {
   msg: ChatMessage;
-  isSpeaking: boolean;
   isLoading: boolean;
   onCopy: () => void;
-  onSpeak: () => void;
   onRegenerate: () => void;
   onSwitchVersion: (targetIndex: number) => void;
 }
 
 export function AIMessage({
   msg,
-  isSpeaking,
   isLoading,
   onCopy,
-  onSpeak,
   onRegenerate,
   onSwitchVersion
 }: AIMessageProps) {
@@ -53,10 +49,8 @@ export function AIMessage({
         
         <MessageToolbar 
             msg={msg}
-            isSpeaking={isSpeaking}
             isLoading={isLoading}
             onCopy={onCopy}
-            onSpeak={onSpeak}
             onRegenerate={onRegenerate}
             onSwitchVersion={onSwitchVersion}
         />

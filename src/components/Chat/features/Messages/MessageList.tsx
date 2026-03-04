@@ -11,9 +11,7 @@ interface MessageListProps {
   isLayoutCentered?: boolean;
   spacerHeight: number;
   containerRef: React.RefObject<HTMLDivElement | null>;
-  speakingMsgId: string | null;
   onCopy: (text: string) => void;
-  onSpeak: (msgId: string, text: string) => void;
   onRegenerate: (id: string) => void;
   onEdit?: (id: string, newContent: string) => void;
   onSwitchVersion: (msgId: string, idx: number) => void;
@@ -26,9 +24,7 @@ export function MessageList({
   isLayoutCentered,
   spacerHeight,
   containerRef,
-  speakingMsgId,
   onCopy,
-  onSpeak,
   onRegenerate,
   onEdit,
   onSwitchVersion
@@ -53,9 +49,7 @@ export function MessageList({
                     <MessageItem 
                         msg={msg}
                         isLoading={isSessionActive && idx === messages.length - 1} 
-                        isSpeaking={speakingMsgId === msg.id}
                         onCopy={onCopy}
-                        onSpeak={onSpeak}
                         onRegenerate={onRegenerate}
                         onEdit={onEdit}
                         onSwitchVersion={onSwitchVersion}
