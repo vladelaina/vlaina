@@ -57,7 +57,10 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
                     }
                 } catch (e) {
                     console.error('[LocalImage] Failed to load local image:', src, e);
-                    setError(true);
+                    // Fall back to raw source for non-attachment paths (e.g. model-generated file/blob URLs).
+                    if (active) {
+                        setDisplaySrc(src);
+                    }
                 }
             } else {
                 setDisplaySrc(src);
@@ -69,7 +72,16 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
         return () => { active = false; };
     }, [src]);
 
-    if (error) return null;
+    if (error) {
+        return (
+            <div
+                className={`flex items-center justify-center text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 ${className ?? ''}`}
+                style={{ minHeight: '100px', minWidth: '100px' }}
+            >
+                Image unavailable
+            </div>
+        );
+    }
     if (!displaySrc) return <div className={`animate-pulse bg-gray-200 dark:bg-zinc-800 ${className}`} style={{ minHeight: '100px', minWidth: '100px' }} />;
 
     return (

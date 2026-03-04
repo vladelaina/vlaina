@@ -1,10 +1,13 @@
 import React, { memo, useMemo } from "react";
-import { Streamdown, defaultRemarkPlugins } from "streamdown";
+import { Streamdown, defaultRemarkPlugins, defaultRehypePlugins } from "streamdown";
+import rehypeSanitize from "rehype-sanitize";
 import remarkMath from "remark-math";
 import remarkCitationParser from "@/lib/ai/plugins/remarkCitationParser";
 import { getExternalLinkProps } from "@/lib/navigation/externalLinks";
 import { ThinkingBlock } from "@/components/Chat/features/Messages/components/ThinkingBlock";
+import { LocalImage } from "@/components/Chat/common/LocalImage";
 import { CodeBlock } from "./components/CodeBlock";
+import { createMarkdownSanitizeSchema, normalizeRenderableImageSrc } from "./imagePolicy";
 
 interface MarkdownRendererProps {
   content: string;
@@ -46,6 +49,13 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       [],
     );
 
+    const sanitizeSchema = useMemo(() => createMarkdownSanitizeSchema(), []);
+
+    const rehypePlugins = useMemo(
+      () => [defaultRehypePlugins.raw, [rehypeSanitize, sanitizeSchema]] as any[],
+      [sanitizeSchema]
+    );
+
     return (
       <div className="flex flex-col">
         {thinking !== null && (
@@ -72,6 +82,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
                 isAnimating={isStreaming}
                 controls={false}
                 remarkPlugins={remarkPlugins}
+                rehypePlugins={rehypePlugins}
                 components={{
                     a({ href, children, ...props }: any) {
                       return (
@@ -100,6 +111,31 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
                           <CodeBlock className={className} isStreaming={isStreaming} {...props}>
                             {children}
                           </CodeBlock>
+                      );
+                    },
+                    img({ src, alt }: any) {
+                      const safeSrc = normalizeRenderableImageSrc(typeof src === "string" ? src : null);
+                      if (!safeSrc) {
+                        return (
+                          <span className="inline-block rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-zinc-800 dark:text-gray-400">
+                            [Image unavailable]
+                          </span>
+                        );
+                      }
+
+                      return (
+                        <span className="not-prose my-3 block" data-no-focus-input="true">
+                          <span className="block overflow-hidden rounded-xl border border-black/5 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900">
+                            <LocalImage
+                              src={safeSrc}
+                              alt={typeof alt === "string" ? alt : "image"}
+                              className="max-h-[420px] w-auto max-w-full object-contain"
+                              onClick={() => {
+                                window.open(safeSrc, "_blank", "noopener,noreferrer");
+                              }}
+                            />
+                          </span>
+                        </span>
                       );
                     },
                 }}
