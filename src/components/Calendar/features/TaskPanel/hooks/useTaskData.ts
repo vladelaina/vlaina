@@ -1,13 +1,11 @@
 import { useMemo } from 'react';
 import type { NekoEvent } from '@/stores/types';
-import type { TaskStatus } from '@/stores/uiSlice';
 import { getColorPriority } from '@/lib/colors';
 
 interface UseTaskDataProps {
     tasks: NekoEvent[];
     activeGroupId: string;
     selectedColors: string[];
-    selectedStatuses: TaskStatus[];
     searchQuery: string;
     hideCompleted: boolean;
 }
@@ -25,7 +23,6 @@ export function useTaskData({
     tasks,
     activeGroupId,
     selectedColors,
-    selectedStatuses,
     searchQuery,
     hideCompleted,
 }: UseTaskDataProps): UseTaskDataResult {
@@ -52,16 +49,12 @@ export function useTaskData({
         const scheduled = notCompleted.filter((_t, i) => startDates[i] !== null);
         const unscheduled = notCompleted.filter((_t, i) => startDates[i] === null);
 
-        const showTodo = selectedStatuses.includes('todo' as TaskStatus);
-        const showScheduled = selectedStatuses.includes('scheduled' as TaskStatus);
-        const showCompleted = selectedStatuses.includes('completed' as TaskStatus);
-
         return {
-            incompleteTasks: showTodo ? unscheduled : [],
-            scheduledTasks: showScheduled ? scheduled : [],
-            completedTasks: (hideCompleted || !showCompleted) ? [] : topLevelTasks.filter((t) => t.completed),
+            incompleteTasks: unscheduled,
+            scheduledTasks: scheduled,
+            completedTasks: hideCompleted ? [] : topLevelTasks.filter((t) => t.completed),
         };
-    }, [tasks, activeGroupId, selectedColors, selectedStatuses, searchQuery, hideCompleted]);
+    }, [tasks, activeGroupId, selectedColors, searchQuery, hideCompleted]);
 
     const incompleteTaskIds = useMemo(() => {
         const ids: string[] = [];

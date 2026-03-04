@@ -2,15 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
-import { ALL_STATUSES } from '@/stores/uiSlice';
-import type { TaskStatus } from '@/stores/uiSlice';
 import { useState, useRef, useEffect } from 'react';
-
-const statusLabels: Record<TaskStatus, string> = {
-    todo: 'Todo',
-    scheduled: 'Scheduled',
-    completed: 'Done',
-};
 
 export function TaskFilterMenu() {
     const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -19,8 +11,7 @@ export function TaskFilterMenu() {
     const { activeGroupId, archiveCompletedTasks, deleteCompletedTasks } = useGroupStore();
     const {
         hideCompleted, setHideCompleted,
-        hideActualTime, setHideActualTime,
-        selectedStatuses, toggleStatus, toggleAllStatuses
+        hideActualTime, setHideActualTime
     } = useUIStore();
 
     useEffect(() => {
@@ -70,43 +61,6 @@ export function TaskFilterMenu() {
                         exit={{ opacity: 0, y: -4 }}
                         className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50"
                     >
-                        <div className="px-3 py-2 border-b border-zinc-200 dark:border-zinc-700">
-                            <div className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">Status Filter</div>
-                            <div className="flex items-center gap-1">
-                                {ALL_STATUSES.map(s => (
-                                    <button
-                                        key={s}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            toggleStatus(s);
-                                        }}
-                                        className={cn(
-                                            "px-2 py-0.5 text-[10px] rounded-md border transition-all",
-                                            selectedStatuses.includes(s)
-                                                ? "border-zinc-400 dark:border-zinc-500 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
-                                                : "border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-600"
-                                        )}
-                                    >
-                                        {statusLabels[s]}
-                                    </button>
-                                ))}
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleAllStatuses();
-                                    }}
-                                    className={cn(
-                                        "px-2 py-0.5 text-[10px] rounded-md border transition-all",
-                                        selectedStatuses.length === ALL_STATUSES.length
-                                            ? "border-zinc-400 dark:border-zinc-500 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"
-                                            : "border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:border-zinc-300 dark:hover:border-zinc-600"
-                                    )}
-                                >
-                                    All
-                                </button>
-                            </div>
-                        </div>
-
                         <button
                             onClick={() => {
                                 setHideCompleted(!hideCompleted);

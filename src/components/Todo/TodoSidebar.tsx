@@ -3,7 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { ColorFilter } from '@/components/common/ColorFilter';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
-import { useUIStore, ALL_STATUSES } from '@/stores/uiSlice';
+import { useUIStore } from '@/stores/uiSlice';
 import { getTodayKey, formatDateKey } from '@/lib/date';
 import { collectUniqueTags } from '@/lib/tags/tagUtils';
 import { TagFilterList } from './tags';
@@ -14,7 +14,7 @@ export function TodoSidebar() {
         activeGroupId, 
         setActiveGroup
     } = useGroupStore();
-    const { selectedTag, setSelectedTag, setSelectedStatuses, setHideCompleted } = useUIStore();
+    const { selectedTag, setSelectedTag, setHideCompleted } = useUIStore();
 
     const todayDate = new Date().getDate(); // 获取今天的日期数字
 
@@ -64,7 +64,6 @@ export function TodoSidebar() {
     const handleSelectTag = (tag: string | null) => {
         setSelectedTag(tag);
         setActiveGroup('all');
-        setSelectedStatuses(ALL_STATUSES);
         setHideCompleted(false);
     };
 

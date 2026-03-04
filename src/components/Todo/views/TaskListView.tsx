@@ -15,7 +15,6 @@ interface TaskListViewProps {
     allTasks: any[];
     searchQuery: string;
     setSearchQuery: (q: string) => void;
-    showScheduledSection?: boolean;
     onToggleTask?: (id: string) => void;
     onUpdateTask?: (id: string, content: string) => void;
     onDeleteTask?: (id: string) => void;
@@ -28,7 +27,6 @@ export function TaskListView({
     allTasks,
     searchQuery,
     setSearchQuery,
-    showScheduledSection = true,
     onToggleTask,
     onUpdateTask,
     onDeleteTask,
@@ -46,7 +44,6 @@ export function TaskListView({
         reorderTasks,
         addSubTask,
         toggleCollapse,
-        updateTaskTime,
         archiveCompletedTasks,
         deleteCompletedTasks,
         activeGroupId,
@@ -54,7 +51,6 @@ export function TaskListView({
 
     const { setDraggingTaskId, hideCompleted, draggingTaskId } = useUIStore();
 
-    const [scheduledExpanded, setScheduledExpanded] = useState(true);
     const [completedExpanded, setCompletedExpanded] = useState(false);
     const [showCompletedMenu, setShowCompletedMenu] = useState(false);
     
@@ -94,17 +90,9 @@ export function TaskListView({
         setSubTaskContent('');
     }, [addingSubTaskFor, subTaskContent, addSubTask]);
 
-    const incompleteTasks = filteredTasks.filter(t => {
-        if (t.completed) return false;
-        if (showScheduledSection && t.dtstart) return false;
-        return true;
-    });
-    const scheduledTasks = showScheduledSection
-        ? filteredTasks.filter(t => !t.completed && t.dtstart)
-        : [];
+    const incompleteTasks = filteredTasks.filter(t => !t.completed);
     const completedTasks = hideCompleted ? [] : filteredTasks.filter(t => t.completed);
 
-    const SCHEDULED_DIVIDER_ID = '__divider_scheduled__';
     const COMPLETED_DIVIDER_ID = '__divider_completed__';
 
     const getChildren = useCallback((parentId: string) => {
@@ -115,7 +103,6 @@ export function TaskListView({
 
     const allSortableIds = [
         ...incompleteTasks.map(t => t.uid),
-        ...(scheduledTasks.length > 0 ? [SCHEDULED_DIVIDER_ID, ...(scheduledExpanded ? scheduledTasks.map(t => t.uid) : [])] : []),
         ...(completedTasks.length > 0 ? [COMPLETED_DIVIDER_ID, ...(completedExpanded ? completedTasks.map(t => t.uid) : [])] : []),
     ];
 
@@ -208,7 +195,6 @@ export function TaskListView({
                         <TaskDragContext
                             allTasks={allTasks}
                             reorderTasks={reorderTasks}
-                            updateTaskTime={updateTaskTime}
                             toggleTask={toggleTask}
                             setDraggingTaskId={setDraggingTaskId}
                             getChildCount={(id) => getChildren(id).length}
@@ -221,7 +207,7 @@ export function TaskListView({
                                     items={incompleteTasks}
                                     renderItem={(task) => renderTaskItem(task, 0)}
                                     emptyState={
-                                        scheduledTasks.length === 0 && completedTasks.length === 0 && (
+                                        completedTasks.length === 0 && (
                                             <div className="py-24 text-center">
                                                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 mb-4">
                                                     <Icon name="common.check" className="w-6 h-6 text-zinc-300 dark:text-zinc-600" />
@@ -232,17 +218,6 @@ export function TaskListView({
                                         )
                                     }
                                 />
-
-                                {showScheduledSection && scheduledTasks.length > 0 && (
-                                    <TodoListSection
-                                        title="Scheduled"
-                                        id={SCHEDULED_DIVIDER_ID}
-                                        items={scheduledTasks}
-                                        renderItem={(task) => renderTaskItem(task, 0)}
-                                        isExpanded={scheduledExpanded}
-                                        onToggleExpand={() => setScheduledExpanded(!scheduledExpanded)}
-                                    />
-                                )}
 
                                 {completedTasks.length > 0 && (
                                     <TodoListSection
