@@ -179,7 +179,6 @@ export function HeroIconHeader({
 
   // Determine what value the slider should show
   const currentSliderValue = sliderValue !== undefined ? sliderValue : resolvedIconSize;
-  
   return (
     <div
       ref={headerRef}
@@ -203,6 +202,8 @@ export function HeroIconHeader({
           className={cn(
               "duration-150 relative",
               "transition-[padding,opacity]",
+              !compact && "w-fit",
+              !compact && "z-30",
               !compact && "pb-4",
               !compact && (coverUrl ? "pt-0" : "pt-10") // Default top padding only for standard mode
           )}

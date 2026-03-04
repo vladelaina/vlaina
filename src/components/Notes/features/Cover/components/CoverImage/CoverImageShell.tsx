@@ -89,7 +89,7 @@ export function CoverImageShell({
 
       {!readOnly && (
         <div
-          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-40 opacity-0 hover:opacity-100 transition-opacity"
+          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-10 opacity-0 hover:opacity-100 transition-opacity"
           onMouseDown={onResizeMouseDown}
           onDoubleClick={onResetHeight}
         />
