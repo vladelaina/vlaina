@@ -3,6 +3,7 @@ import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { resolveSystemAssetPath } from '@/lib/assets/core/paths';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 import { loadImageWithDimensions } from '../utils/coverUtils';
+import { coverDebug } from '../utils/debug';
 
 interface UseCoverSourceProps {
     url: string | null;
@@ -24,14 +25,34 @@ export function useCoverSource({ url, vaultPath }: UseCoverSourceProps) {
     const isSelectingRef = useRef(false);
 
     useEffect(() => {
+        if (!resolvedSrc) return;
+        prevSrcRef.current = resolvedSrc;
+    }, [resolvedSrc]);
+
+    useEffect(() => {
         if (url === prevUrlRef.current) return;
+
+        if (url) {
+            const fallbackSrc = previewSrc || resolvedSrc || prevSrcRef.current;
+            if (fallbackSrc) {
+                prevSrcRef.current = fallbackSrc;
+            }
+        } else {
+            prevSrcRef.current = null;
+        }
 
         prevUrlRef.current = url;
         setResolvedSrc(null);
         setIsImageReady(false);
         setIsError(false);
         lastResolvedKeyRef.current = null;
-    }, [url]);
+        coverDebug('useCoverSource', 'source-switch', {
+            nextUrl: url,
+            fallbackSrc: prevSrcRef.current ? prevSrcRef.current.slice(0, 120) : null,
+            hasPreview: Boolean(previewSrc),
+            hasResolved: Boolean(resolvedSrc),
+        });
+    }, [url, previewSrc, resolvedSrc]);
 
     useEffect(() => {
         let ignore = false;
@@ -43,8 +64,10 @@ export function useCoverSource({ url, vaultPath }: UseCoverSourceProps) {
                 setPreviewSrc(null);
                 setIsError(false);
                 isSelectingRef.current = false;
+                coverDebug('useCoverSource', 'source-cleared');
                 return;
             }
+
             let imageUrl: string;
             if (url.startsWith('http')) {
                 imageUrl = url;
@@ -62,6 +85,10 @@ export function useCoverSource({ url, vaultPath }: UseCoverSourceProps) {
                     setPreviewSrc(null);
                     setIsError(true);
                     isSelectingRef.current = false;
+                    coverDebug('useCoverSource', 'resolve-failed', {
+                        assetPath: url,
+                        error: e instanceof Error ? e.message : String(e),
+                    });
                     return;
                 }
             } else {
@@ -75,6 +102,11 @@ export function useCoverSource({ url, vaultPath }: UseCoverSourceProps) {
                 setPreviewSrc(null);
                 setIsError(true);
                 isSelectingRef.current = false;
+                coverDebug('useCoverSource', 'resolve-failed', {
+                    url,
+                    imageUrl: typeof imageUrl === 'string' ? imageUrl.slice(0, 120) : '',
+                    error: 'invalid-image-dimensions',
+                });
                 return;
             }
             setResolvedSrc(imageUrl);
@@ -82,6 +114,13 @@ export function useCoverSource({ url, vaultPath }: UseCoverSourceProps) {
             setIsError(false);
             isSelectingRef.current = false;
             lastResolvedKeyRef.current = resolveKey;
+            coverDebug('useCoverSource', 'resolve-ready', {
+                url,
+                imageUrl: typeof imageUrl === 'string' ? imageUrl.slice(0, 120) : '',
+                width: dimensions.width,
+                height: dimensions.height,
+                previewCleared: true,
+            });
         }
         resolve();
         return () => { ignore = true; };

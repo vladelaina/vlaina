@@ -6,7 +6,7 @@ import {
 } from './coverInteractionMath';
 
 describe('coverInteractionMath', () => {
-  it('resolves object fit mode with expected aspect rules', () => {
+  it('resolves explicit cover axis from aspect ratio', () => {
     expect(resolveCoverObjectFitMode(null, null)).toBe('horizontal-cover');
     expect(
       resolveCoverObjectFitMode(
@@ -20,6 +20,21 @@ describe('coverInteractionMath', () => {
         { width: 800, height: 600 }
       )
     ).toBe('vertical-cover');
+  });
+
+  it('uses strict aspect comparison near equal ratios', () => {
+    expect(
+      resolveCoverObjectFitMode(
+        { width: 1781, height: 1000 },
+        { width: 1780, height: 1000 }
+      )
+    ).toBe('vertical-cover');
+    expect(
+      resolveCoverObjectFitMode(
+        { width: 1779, height: 1000 },
+        { width: 1780, height: 1000 }
+      )
+    ).toBe('horizontal-cover');
   });
 
   it('calculates translate bounds from media/container/zoom', () => {

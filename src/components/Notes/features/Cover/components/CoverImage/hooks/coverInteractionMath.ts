@@ -24,9 +24,7 @@ export function resolveCoverObjectFitMode(
   const imageAspect = mediaSize.width / mediaSize.height;
   const containerAspect = containerSize.width / containerSize.height;
 
-  if (Math.abs(imageAspect - containerAspect) < 0.01) {
-    return 'horizontal-cover';
-  }
+  // Keep explicit cover axis so first media layout is never computed as contain.
   return imageAspect > containerAspect ? 'vertical-cover' : 'horizontal-cover';
 }
 

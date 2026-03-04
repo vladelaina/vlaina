@@ -20,7 +20,7 @@ export function CoverPlaceholderLayer({
       src={displaySrc}
       alt="Cover"
       className={cn(
-        'absolute inset-0 w-full h-full object-cover transition-opacity duration-300 pointer-events-none',
+        'absolute -inset-px w-auto h-auto min-w-[calc(100%+2px)] min-h-[calc(100%+2px)] object-cover pointer-events-none',
         isImageReady ? 'opacity-0' : 'opacity-100 placeholder-active'
       )}
       style={{ objectPosition: `${positionX}% ${positionY}%` }}

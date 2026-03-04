@@ -109,4 +109,27 @@ describe('useCoverSource', () => {
     expect(hoisted.resolveSystemAssetPath).toHaveBeenNthCalledWith(1, '/vault-a', 'covers/a.png', 'covers');
     expect(hoisted.resolveSystemAssetPath).toHaveBeenNthCalledWith(2, '/vault-b', 'covers/a.png', 'covers');
   });
+
+  it('keeps previous source while switching to a new cover', async () => {
+    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.nekotick/assets/covers/a.png');
+    hoisted.loadImageAsBlob
+      .mockResolvedValueOnce('blob:cover-a')
+      .mockImplementationOnce(() => new Promise<string>(() => {}));
+
+    const { result, rerender } = renderHook(
+      ({ url }) => useCoverSource({ url, vaultPath: '/vault-a' }),
+      { initialProps: { url: 'covers/a.png' as string | null } }
+    );
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:cover-a');
+    });
+
+    rerender({ url: 'covers/b.png' });
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBeNull();
+    });
+    expect(result.current.prevSrcRef.current).toBe('blob:cover-a');
+  });
 });

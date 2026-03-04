@@ -70,7 +70,7 @@ export function CoverCropperLayer({
   return (
     <div
       ref={wrapperRef}
-      className={cn('absolute inset-0 transition-opacity duration-300', isImageReady ? 'opacity-100' : 'opacity-0')}
+      className={cn('absolute -inset-px', isImageReady ? 'opacity-100' : 'opacity-0')}
       style={{ willChange: 'transform' }}
     >
       <Cropper

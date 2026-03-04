@@ -9,6 +9,7 @@ export interface LoadedCoverMedia {
 
 export interface CoverRendererProps {
   displaySrc: string;
+  placeholderSrc?: string;
   isImageReady: boolean;
   isResizing: boolean;
   wrapperRef: RefObject<HTMLDivElement | null>;

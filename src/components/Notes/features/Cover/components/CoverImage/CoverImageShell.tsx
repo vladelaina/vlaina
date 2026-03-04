@@ -72,7 +72,7 @@ export function CoverImageShell({
 
   return (
     <div
-      className={cn('relative w-full bg-muted/20 shrink-0 select-none overflow-hidden group')}
+      className={cn('relative w-full bg-[var(--neko-bg-primary)] shrink-0 select-none overflow-hidden group')}
       style={{ height: coverHeight }}
       ref={containerRef}
     >

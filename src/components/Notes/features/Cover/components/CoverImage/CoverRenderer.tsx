@@ -7,6 +7,7 @@ export type { CoverRendererProps, LoadedCoverMedia } from './coverRenderer.types
 
 export const CoverRenderer = React.memo(({
   displaySrc,
+  placeholderSrc,
   isImageReady,
   isResizing,
   wrapperRef,
@@ -29,7 +30,7 @@ export const CoverRenderer = React.memo(({
   return (
     <>
       <CoverPlaceholderLayer
-        displaySrc={displaySrc}
+        displaySrc={placeholderSrc || displaySrc}
         isImageReady={isImageReady}
         positionX={positionX}
         positionY={positionY}
