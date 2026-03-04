@@ -22,6 +22,7 @@ export const CoverRenderer = React.memo(({
   onCropperCropChange,
   onCropperZoomChange,
   onPointerIntent,
+  onPointerMoveIntent,
   onNonPointerIntent,
   onInteractionStart,
   onInteractionEnd,
@@ -51,6 +52,7 @@ export const CoverRenderer = React.memo(({
         onCropperCropChange={onCropperCropChange}
         onCropperZoomChange={onCropperZoomChange}
         onPointerIntent={onPointerIntent}
+        onPointerMoveIntent={onPointerMoveIntent}
         onNonPointerIntent={onNonPointerIntent}
         onInteractionStart={onInteractionStart}
         onInteractionEnd={onInteractionEnd}

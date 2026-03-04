@@ -31,6 +31,7 @@ function buildProps(overrides?: Partial<CoverRendererProps>): CoverRendererProps
     onCropperCropChange: vi.fn(),
     onCropperZoomChange: vi.fn(),
     onPointerIntent: vi.fn(),
+    onPointerMoveIntent: vi.fn(),
     onNonPointerIntent: vi.fn(),
     onInteractionStart: vi.fn(),
     onInteractionEnd: vi.fn(),

@@ -14,6 +14,7 @@ interface UseCoverInteractionHandlersProps {
   crop: { x: number; y: number };
   zoom: number;
   saveToDb: (crop: { x: number; y: number }, zoom: number) => void;
+  ignoreCropSyncRef: React.MutableRefObject<boolean>;
 }
 
 export function useCoverInteractionHandlers({
@@ -28,9 +29,12 @@ export function useCoverInteractionHandlers({
   crop,
   zoom,
   saveToDb,
+  ignoreCropSyncRef,
 }: UseCoverInteractionHandlersProps) {
   const dragOccurredRef = useRef(false);
   const nonPointerChangeRef = useRef(false);
+  const pointerMovedRef = useRef(false);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const wasPickerOpenRef = useRef(false);
   const interactionStartCropRef = useRef(crop);
   const interactionStartZoomRef = useRef(zoom);
@@ -41,6 +45,7 @@ export function useCoverInteractionHandlers({
     setIsInteracting(true);
     dragOccurredRef.current = false;
     nonPointerChangeRef.current = false;
+    pointerMovedRef.current = false;
     wasPickerOpenRef.current = showPicker;
     interactionStartCropRef.current = crop;
     interactionStartZoomRef.current = zoom;
@@ -52,14 +57,28 @@ export function useCoverInteractionHandlers({
     setIsInteracting(false);
 
     if (dragOccurredRef.current || nonPointerChangeRef.current) {
+      ignoreCropSyncRef.current = true;
       saveToDb(crop, zoom);
+      pointerStartRef.current = null;
       return;
     }
 
-    if (readOnly) return;
-    if (!allowPickerToggleRef.current) return;
+    if (pointerMovedRef.current) {
+      pointerStartRef.current = null;
+      return;
+    }
+
+    if (readOnly) {
+      pointerStartRef.current = null;
+      return;
+    }
+    if (!allowPickerToggleRef.current) {
+      pointerStartRef.current = null;
+      return;
+    }
     setShowPicker(!wasPickerOpenRef.current);
-  }, [readOnly, crop, zoom, saveToDb, setShowPicker, setIsInteracting]);
+    pointerStartRef.current = null;
+  }, [readOnly, crop, zoom, saveToDb, setShowPicker, setIsInteracting, ignoreCropSyncRef]);
 
   const onCropperCropChange = useCallback((newCrop: { x: number; y: number }) => {
     if (readOnly || showPicker) return;
@@ -97,8 +116,23 @@ export function useCoverInteractionHandlers({
     }
   }, [readOnly, showPicker, effectiveMinZoom, zoom, setZoom]);
 
-  const markPointerIntent = useCallback(() => {
+  const markPointerIntent = useCallback((x?: number, y?: number) => {
     interactionIntentRef.current = 'pointer';
+    pointerMovedRef.current = false;
+    if (typeof x === 'number' && typeof y === 'number') {
+      pointerStartRef.current = { x, y };
+    } else {
+      pointerStartRef.current = null;
+    }
+  }, []);
+
+  const markPointerMoveIntent = useCallback((x: number, y: number) => {
+    if (!pointerStartRef.current) return;
+    const dx = Math.abs(x - pointerStartRef.current.x);
+    const dy = Math.abs(y - pointerStartRef.current.y);
+    if (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD) {
+      pointerMovedRef.current = true;
+    }
   }, []);
 
   const markNonPointerIntent = useCallback(() => {
@@ -113,6 +147,7 @@ export function useCoverInteractionHandlers({
     onCropperCropChange,
     onCropperZoomChange,
     markPointerIntent,
+    markPointerMoveIntent,
     markNonPointerIntent,
   };
 }

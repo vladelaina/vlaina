@@ -23,7 +23,8 @@ export interface CoverRendererProps {
   objectFitMode: 'contain' | 'horizontal-cover' | 'vertical-cover';
   onCropperCropChange: (crop: { x: number; y: number }) => void;
   onCropperZoomChange: (zoom: number) => void;
-  onPointerIntent: () => void;
+  onPointerIntent: (x?: number, y?: number) => void;
+  onPointerMoveIntent: (x: number, y: number) => void;
   onNonPointerIntent: () => void;
   onInteractionStart: () => void;
   onInteractionEnd: () => void;

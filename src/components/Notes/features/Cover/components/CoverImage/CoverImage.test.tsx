@@ -56,6 +56,7 @@ describe('CoverImage', () => {
         onCropperCropChange: vi.fn(),
         onCropperZoomChange: vi.fn(),
         onPointerIntent: vi.fn(),
+        onPointerMoveIntent: vi.fn(),
         onNonPointerIntent: vi.fn(),
         onInteractionStart: vi.fn(),
         onInteractionEnd: vi.fn(),

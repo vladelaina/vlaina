@@ -55,27 +55,6 @@ export function useCoverInteractionController({
   setContainerSize,
   suspendPositionSync,
 }: UseCoverInteractionControllerProps) {
-  const {
-    objectFitMode, effectiveMinZoom, effectiveMaxZoom,
-    handleInteractionStart, handleInteractionEnd,
-    onCropperCropChange, onCropperZoomChange,
-    markPointerIntent, markNonPointerIntent,
-  } = useCoverInteraction({
-    mediaSize,
-    effectiveContainerSize,
-    zoom,
-    setZoom,
-    crop,
-    setCrop,
-    coverHeight,
-    url,
-    readOnly,
-    onUpdate,
-    setIsInteracting,
-    showPicker,
-    setShowPicker,
-  });
-
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -96,6 +75,28 @@ export function useCoverInteractionController({
     onUpdate,
     url,
     scale,
+  });
+
+  const {
+    objectFitMode, effectiveMinZoom, effectiveMaxZoom,
+    handleInteractionStart, handleInteractionEnd,
+    onCropperCropChange, onCropperZoomChange,
+    markPointerIntent, markPointerMoveIntent, markNonPointerIntent,
+  } = useCoverInteraction({
+    mediaSize,
+    effectiveContainerSize,
+    zoom,
+    setZoom,
+    crop,
+    setCrop,
+    coverHeight,
+    url,
+    readOnly,
+    onUpdate,
+    setIsInteracting,
+    showPicker,
+    setShowPicker,
+    ignoreCropSyncRef,
   });
 
   useCoverPositionSync({
@@ -126,6 +127,7 @@ export function useCoverInteractionController({
     onCropperCropChange,
     onCropperZoomChange,
     markPointerIntent,
+    markPointerMoveIntent,
     markNonPointerIntent,
     containerRef,
     wrapperRef,

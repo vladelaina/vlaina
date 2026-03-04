@@ -15,6 +15,7 @@ function createProps(overrides?: Partial<Parameters<typeof useCoverInteractionHa
     crop: { x: 0, y: 0 },
     zoom: 1,
     saveToDb: vi.fn(),
+    ignoreCropSyncRef: { current: false },
     ...overrides,
   };
 }
@@ -36,6 +37,7 @@ describe('useCoverInteractionHandlers', () => {
     expect(props.setIsInteracting).toHaveBeenNthCalledWith(2, false);
     expect(props.setShowPicker).toHaveBeenCalledWith(true);
     expect(props.saveToDb).not.toHaveBeenCalled();
+    expect(props.ignoreCropSyncRef.current).toBe(false);
   });
 
   it('persists crop on drag commit instead of toggling picker', () => {
@@ -63,6 +65,7 @@ describe('useCoverInteractionHandlers', () => {
 
     expect(props.saveToDb).toHaveBeenCalledWith({ x: 0, y: 20 }, 1);
     expect(props.setShowPicker).not.toHaveBeenCalled();
+    expect(props.ignoreCropSyncRef.current).toBe(true);
   });
 
   it('ignores crop and zoom updates while picker is open', () => {
@@ -121,5 +124,24 @@ describe('useCoverInteractionHandlers', () => {
 
     expect(props.saveToDb).toHaveBeenCalledWith({ x: 2, y: 0 }, 1);
     expect(props.setShowPicker).not.toHaveBeenCalled();
+    expect(props.ignoreCropSyncRef.current).toBe(true);
+  });
+
+  it('does not open picker when pointer moved but crop is clamped', () => {
+    const props = createProps();
+    const { result } = renderHook((nextProps) => useCoverInteractionHandlers(nextProps), {
+      initialProps: props,
+    });
+
+    act(() => {
+      result.current.markPointerIntent(100, 100);
+      result.current.handleInteractionStart();
+      result.current.markPointerMoveIntent(100, 112);
+      result.current.handleInteractionEnd();
+    });
+
+    expect(props.setShowPicker).not.toHaveBeenCalled();
+    expect(props.saveToDb).not.toHaveBeenCalled();
+    expect(props.ignoreCropSyncRef.current).toBe(false);
   });
 });

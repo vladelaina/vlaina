@@ -21,6 +21,7 @@ interface UseCoverInteractionProps {
   setIsInteracting: (interacting: boolean) => void;
   showPicker: boolean;
   setShowPicker: (show: boolean) => void;
+  ignoreCropSyncRef: React.MutableRefObject<boolean>;
 }
 
 export function useCoverInteraction({
@@ -36,7 +37,8 @@ export function useCoverInteraction({
   onUpdate,
   setIsInteracting,
   showPicker,
-  setShowPicker
+  setShowPicker,
+  ignoreCropSyncRef,
 }: UseCoverInteractionProps) {
   const effectiveMinZoom = 1;
   const effectiveMaxZoom = MAX_SCALE;
@@ -65,6 +67,7 @@ export function useCoverInteraction({
     onCropperCropChange,
     onCropperZoomChange,
     markPointerIntent,
+    markPointerMoveIntent,
     markNonPointerIntent,
   } = useCoverInteractionHandlers({
     readOnly,
@@ -78,6 +81,7 @@ export function useCoverInteraction({
     crop,
     zoom,
     saveToDb,
+    ignoreCropSyncRef,
   });
 
   return {
@@ -89,6 +93,7 @@ export function useCoverInteraction({
     onCropperCropChange,
     onCropperZoomChange,
     markPointerIntent,
+    markPointerMoveIntent,
     markNonPointerIntent,
     saveToDb
   };

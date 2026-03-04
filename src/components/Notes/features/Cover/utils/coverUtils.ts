@@ -106,10 +106,10 @@ export function calculateCropPixels(
     const x = ((DEFAULT_POSITION_PERCENT - positionPercent.x) / DEFAULT_POSITION_PERCENT) * maxTranslateX;
     const y = ((DEFAULT_POSITION_PERCENT - positionPercent.y) / DEFAULT_POSITION_PERCENT) * maxTranslateY;
 
-    // Pixel Rounding for Stability
+    // Keep sub-pixel precision to avoid zoom/crop jitter on tiny adjustments.
     return {
-        x: Math.round(x),
-        y: Math.round(y)
+        x: Math.abs(x) < 1e-6 ? 0 : x,
+        y: Math.abs(y) < 1e-6 ? 0 : y
     };
 }
 
