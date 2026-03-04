@@ -19,7 +19,6 @@ export function useTemporaryTogglePresentation() {
     temporaryChatEnabled,
     hasUserMessageInCurrentSession,
     showInTitleBar,
-    showInChatArea,
-    titleBarReadOnly: showInTitleBar
+    showInChatArea
   };
 }

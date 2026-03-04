@@ -41,7 +41,7 @@ function AppContent() {
     setAppViewMode
   } = useUIStore();
   const { currentVault, initialize } = useVaultStore();
-  const { showInTitleBar, titleBarReadOnly } = useTemporaryTogglePresentation();
+  const { showInTitleBar } = useTemporaryTogglePresentation();
   const shouldShowTemporaryToggleInTitleBar = appViewMode === 'chat' && showInTitleBar;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -119,7 +119,7 @@ function AppContent() {
   } else if (appViewMode === 'notes' && currentVault) {
     centerSlot = <NotesTabRow />;
   } else if (shouldShowTemporaryToggleInTitleBar) {
-    rightSlot = <TemporaryChatToggle readOnly={titleBarReadOnly} />;
+    rightSlot = <TemporaryChatToggle mode="promote" />;
   }
 
   let mainContent = null;

@@ -230,6 +230,65 @@ export const actions = {
       uiState.setTemporaryReturnSessionId(null);
   },
 
+  promoteTemporarySession: () => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    const uiState = useAIUIStore.getState();
+    const currentSessionId = ai.currentSessionId;
+
+    if (!ai.temporaryChatEnabled || !isTemporarySessionId(currentSessionId)) {
+      return null;
+    }
+    const temporarySessionId = currentSessionId as string;
+
+    const temporarySession = ai.sessions.find((session) => session.id === temporarySessionId);
+    if (!temporarySession || !isTemporarySession(temporarySession)) {
+      return null;
+    }
+
+    const now = Date.now();
+    const promotedSessionId = `session-${now}-${Math.random().toString(36).substring(2, 11)}`;
+    const promotedSession: ChatSession = {
+      id: promotedSessionId,
+      title: 'New Chat',
+      modelId: temporarySession.modelId || ai.selectedModelId || '',
+      isPinned: temporarySession.isPinned,
+      createdAt: temporarySession.createdAt || now,
+      updatedAt: now
+    };
+
+    const sessionsWithoutOtherTemporary = ai.sessions.filter((session) => {
+      if (!isTemporarySession(session)) return true;
+      return session.id === temporarySessionId;
+    });
+    const nextSessions = sessionsWithoutOtherTemporary.map((session) =>
+      session.id === temporarySessionId ? promotedSession : session
+    );
+
+    const nextMessages = Object.fromEntries(
+      Object.entries(ai.messages).filter(([sessionId]) =>
+        !isTemporarySessionId(sessionId) || sessionId === temporarySessionId
+      )
+    ) as Record<string, ChatMessage[]>;
+    nextMessages[promotedSessionId] = nextMessages[temporarySessionId] || [];
+    delete nextMessages[temporarySessionId];
+
+    requestManager.abort(temporarySessionId);
+    cancelSessionJsonSave(temporarySessionId);
+    uiState.clearSessionState(temporarySessionId);
+    uiState.setTemporaryReturnSessionId(null);
+
+    state.updateAIData({
+      temporaryChatEnabled: false,
+      sessions: nextSessions,
+      messages: nextMessages,
+      currentSessionId: promotedSessionId
+    });
+
+    void saveSessionJson(promotedSessionId, nextMessages[promotedSessionId] || []);
+    return promotedSessionId;
+  },
+
   createSession: (title = 'New Chat') => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
