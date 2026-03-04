@@ -91,6 +91,11 @@ export function EventBlock({ event, layout, hourHeight, onToggle, onDragStart, o
           zIndex,
         }}
         className={`absolute ${cursorClass} select-none`}
+        draggable={false}
+        onDragStart={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         onClick={handleClick}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}

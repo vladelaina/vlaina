@@ -261,6 +261,11 @@ export function AllDayArea({
                 color: textColor,
                 transition: 'box-shadow 0.15s, opacity 0.15s',
               }}
+              draggable={false}
+              onDragStart={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
               onClick={(e) => handleEventClick(e, event.uid)}
               onMouseDown={(e) => handleEventMouseDown(e, event.uid)}
               onContextMenu={(e) => handleContextMenu(e, event.uid)}

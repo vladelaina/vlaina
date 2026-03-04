@@ -10,6 +10,7 @@ import { MiniCalendar } from '../../DateSelector/MiniCalendar';
 import { WeatherWidget } from '../../Header/WeatherWidget';
 
 const GUTTER_WIDTH = CALENDAR_CONSTANTS.GUTTER_WIDTH as number;
+const QUICK_MODES = ['day', 'week', 'month'] as const;
 
 interface TimezoneHeaderProps {
   days?: Date[]; 
@@ -165,8 +166,8 @@ export function TimezoneHeader({ days = [] }: TimezoneHeaderProps) {
                 </PopoverTrigger>
                 <PopoverContent className="w-32 p-1" align="end">
                     <div className="flex flex-col gap-0.5">
-                        {['day', 'week', 'month'].map((m) => (
-                            <button key={m} onClick={() => handleQuickSelect(m as any)} className="flex items-center justify-between px-2 py-1.5 text-xs rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                        {QUICK_MODES.map((m) => (
+                            <button key={m} onClick={() => handleQuickSelect(m)} className="flex items-center justify-between px-2 py-1.5 text-xs rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
                                 <span className="capitalize">{m}</span>
  {((m === 'day' && currentDayCount === 1 && viewMode !== 'month') || (m === 'week' && currentDayCount === 7 && viewMode === 'week') || (m === 'month' && viewMode === 'month')) && <Icon size="md" name="common.check" />}
                             </button>

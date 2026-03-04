@@ -47,7 +47,12 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
       if (!start || isNaN(start.getTime()) || !end || isNaN(end.getTime())) continue;
 
       const startDay = startOfDay(start);
-      const endDay = startOfDay(end);
+      // Treat end as exclusive boundary to avoid marking an extra day
+      // when an event ends exactly at 00:00.
+      const effectiveEndTs = end.getTime() > start.getTime()
+        ? end.getTime() - 1
+        : end.getTime();
+      const endDay = startOfDay(new Date(effectiveEndTs));
       const finalDay = endDay.getTime() >= startDay.getTime() ? endDay : startDay;
 
       let cursor = startDay;

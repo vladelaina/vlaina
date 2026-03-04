@@ -148,10 +148,9 @@ export function useDragToCreate({
                 return;
             }
 
-// Pass the pre-generated dragId to the creation callback
-            if (dragId) {
-                onEventCreated(startDate, endDate, { x: e.clientX, y: e.clientY }, dragId);
-            }
+            // Prefer pre-generated dragId to keep ghost/event identity aligned,
+            // but never block event creation if it's temporarily unavailable.
+            onEventCreated(startDate, endDate, { x: e.clientX, y: e.clientY }, dragId || undefined);
         }
 
         setDragStart(null);

@@ -152,7 +152,14 @@ export function BaseTimeGrid({ days, onToggle }: BaseTimeGridProps) {
           />
 
           {/* Canvas */}
-          <div ref={canvasRef} className="flex-1 relative" onMouseDown={handleCanvasMouseDown}>
+          <div
+            ref={canvasRef}
+            className="flex-1 relative"
+            onMouseDown={handleCanvasMouseDown}
+            onDragStart={(e) => {
+              e.preventDefault();
+            }}
+          >
             <GridLines
               hourHeight={hourHeight}
               columnCount={columnCount}
