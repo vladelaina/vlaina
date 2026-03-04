@@ -72,6 +72,8 @@ export function UniversalIconPicker({
   imageLoader,
 }: UniversalIconPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  const onPreviewRef = useRef(onPreview);
   const [activeTab, setActiveTab] = useState<TabType>(loadActiveTab);
   const [recentIcons, setRecentIcons] = useState<string[]>(loadRecentIcons);
   const [skinTone, setSkinTone] = useState(loadSkinTone);
@@ -95,14 +97,16 @@ export function UniversalIconPicker({
   // Use ref to store latest recentIcons to avoid callback dependency changes
   const recentIconsRef = useRef(recentIcons);
   recentIconsRef.current = recentIcons;
+  onCloseRef.current = onClose;
+  onPreviewRef.current = onPreview;
 
   const handleEmojiSelect = useCallback((emoji: string) => {
     lastRandomIconRef.current = null;
     const updated = addToRecentIcons(emoji, recentIconsRef.current);
     setRecentIcons(updated);
     onSelect(emoji);
-    onClose();
-  }, [onSelect, onClose]);
+    onCloseRef.current();
+  }, [onSelect]);
   
   const handleSkinToneChangeInternal = useCallback((tone: number) => {
     setSkinTone(tone);
@@ -117,14 +121,14 @@ export function UniversalIconPicker({
     setRecentIcons(updated);
     onSelect(assetUrl);
     // UploadTab handles closing itself usually, but we ensure consistency
-    onClose();
-  }, [onSelect, onClose]);
+    onCloseRef.current();
+  }, [onSelect]);
 
   const handleRemove = useCallback(() => {
     lastRandomIconRef.current = null;
     onRemove?.();
-    onClose();
-  }, [onRemove, onClose]);
+    onCloseRef.current();
+  }, [onRemove]);
 
   // Add random icon to recent when closing (if user kept it)
   const handleClose = useCallback(() => {
@@ -133,8 +137,8 @@ export function UniversalIconPicker({
       setRecentIcons(updated);
       lastRandomIconRef.current = null;
     }
-    onClose();
-  }, [onClose]);
+    onCloseRef.current();
+  }, []);
 
   // Random selection within current category only
   const handleRandom = useCallback(() => {
@@ -167,7 +171,7 @@ export function UniversalIconPicker({
       // Don't close if interacting with the cropper or sliders (which might portal or just look outside)
       // But standard logic usually applies.
       if (containerRef.current && !containerRef.current.contains(target as Node)) {
-        onPreview?.(null);
+        onPreviewRef.current?.(null);
         handleClose();
       }
     };
@@ -178,12 +182,12 @@ export function UniversalIconPicker({
       clearTimeout(timer);
       document.removeEventListener('mousedown', onClickOutside);
     };
-  }, [handleClose, onPreview, embedded]);
+  }, [handleClose, embedded]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onPreview?.(null);
+        onPreviewRef.current?.(null);
         handleClose();
       }
       if (e.key === 'Tab' && e.ctrlKey) {
@@ -197,7 +201,7 @@ export function UniversalIconPicker({
     };
     document.addEventListener('keydown', onKeyDown, true);
     return () => document.removeEventListener('keydown', onKeyDown, true);
-  }, [handleClose, onPreview, activeTab, handleTabChange]);
+  }, [handleClose, activeTab, handleTabChange]);
 
   return (
     <div

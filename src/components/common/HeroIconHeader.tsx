@@ -61,7 +61,9 @@ function HeaderIcon({
   sizeVar: string,
   imageLoader?: (src: string) => Promise<string>
 }) {
-    const { universalPreviewTarget, universalPreviewIcon, universalPreviewColor } = useUIStore();
+    const universalPreviewTarget = useUIStore(s => s.universalPreviewTarget);
+    const universalPreviewIcon = useUIStore(s => s.universalPreviewIcon);
+    const universalPreviewColor = useUIStore(s => s.universalPreviewColor);
     
     const isPreviewing = universalPreviewTarget === itemId;
     const previewIcon = (isPreviewing && universalPreviewIcon) ? universalPreviewIcon : null;
@@ -120,7 +122,8 @@ export function HeroIconHeader({
   const { handlePreview, handlePreviewTone } = useIconPreview(id);
   
   // Reactively track preview size (only for standard mode)
-  const { universalPreviewTarget, universalPreviewIconSize } = useUIStore();
+  const universalPreviewTarget = useUIStore(s => s.universalPreviewTarget);
+  const universalPreviewIconSize = useUIStore(s => s.universalPreviewIconSize);
   const isPreviewing = universalPreviewTarget === id;
   const effectiveSize = (!compact && isPreviewing && universalPreviewIconSize !== null) 
     ? universalPreviewIconSize 
@@ -133,19 +136,19 @@ export function HeroIconHeader({
     }
   }, [effectiveSize]);
 
-  const handleIconSelect = (newIcon: string) => {
+  const handleIconSelect = useCallback((newIcon: string) => {
     onIconChange(newIcon);
-  };
+  }, [onIconChange]);
 
-  const handleRemoveIcon = () => {
+  const handleRemoveIcon = useCallback(() => {
     onIconChange(null);
-  };
+  }, [onIconChange]);
 
-  const handlePickerClose = () => {
+  const handlePickerClose = useCallback(() => {
     setShowIconPicker(false);
     setIsHoveringHeader(false);
     handlePreview(null);
-  };
+  }, [handlePreview]);
 
   // High-performance size update (direct DOM)
   const handleLocalSizeChange = useCallback((newSize: number) => {
