@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, cleanup } from "@testing-library/react";
+import { render, cleanup, waitFor } from "@testing-library/react";
 import type { RefObject } from "react";
 import { useChatShortcuts } from "./useChatShortcuts";
 
@@ -9,6 +9,8 @@ const mocked = vi.hoisted(() => ({
   openNewChat: vi.fn(),
   switchSession: vi.fn(),
   getState: vi.fn(),
+  writeText: vi.fn(),
+  dispatchChatMessageCopied: vi.fn(),
 }));
 
 vi.mock("@/stores/useAIStore", () => ({
@@ -24,6 +26,10 @@ vi.mock("@/stores/useUnifiedStore", () => ({
   useUnifiedStore: {
     getState: mocked.getState,
   },
+}));
+
+vi.mock("@/components/Chat/common/copyFeedback", () => ({
+  dispatchChatMessageCopied: mocked.dispatchChatMessageCopied,
 }));
 
 function TestHarness({
@@ -92,6 +98,10 @@ describe("useChatShortcuts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocked.getState.mockReturnValue(createState());
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: mocked.writeText },
+      configurable: true,
+    });
   });
 
   afterEach(() => {
@@ -180,6 +190,27 @@ describe("useChatShortcuts", () => {
     expect(event.defaultPrevented).toBe(true);
     expect(mocked.openNewChat).toHaveBeenCalledTimes(1);
     expect(onFocusInput).toHaveBeenCalledTimes(1);
+  });
+
+  it("copies last assistant response without think content on Ctrl+Shift+C", async () => {
+    setup({
+      state: createState({
+        messages: {
+          "session-1": [
+            { id: "u1", role: "user", content: "ask" },
+            { id: "a1", role: "assistant", content: "Visible<think>hidden</think> answer" },
+          ],
+        },
+      }),
+    });
+
+    const event = fireKeydown({ key: "c", ctrlKey: true, shiftKey: true });
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(mocked.writeText).toHaveBeenCalledWith("Visible answer");
+    await waitFor(() => {
+      expect(mocked.dispatchChatMessageCopied).toHaveBeenCalledWith("a1");
+    });
   });
 
   it("navigates to previous user message with Shift+ArrowUp", () => {

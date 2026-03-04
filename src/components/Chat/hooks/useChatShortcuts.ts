@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
+import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
+import { dispatchChatMessageCopied } from '@/components/Chat/common/copyFeedback';
 
 interface UseChatShortcutsOptions {
   onFocusInput: () => void;
@@ -120,7 +122,18 @@ export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }:
         e.preventDefault();
         const lastAI = [...currentMsgs].reverse().find(m => m.role === 'assistant');
         if (lastAI) {
-          navigator.clipboard.writeText(lastAI.content);
+          try {
+            const copyRequest = navigator.clipboard.writeText(stripThinkingContent(lastAI.content));
+            void Promise.resolve(copyRequest)
+              .then(() => {
+                dispatchChatMessageCopied(lastAI.id);
+              })
+              .catch((error) => {
+                console.error('[useChatShortcuts] Failed to copy response:', error);
+              });
+          } catch (error) {
+            console.error('[useChatShortcuts] Failed to copy response:', error);
+          }
         }
         return;
       }
@@ -129,13 +142,21 @@ export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }:
         e.preventDefault();
         const lastAI = [...currentMsgs].reverse().find(m => m.role === 'assistant');
         if (lastAI) {
+          const visibleContent = stripThinkingContent(lastAI.content);
           const codeBlockRegex = /```[\s\S]*?```/g;
-          const matches = lastAI.content.match(codeBlockRegex);
+          const matches = visibleContent.match(codeBlockRegex);
           if (matches && matches.length > 0) {
             const lastCode = matches[matches.length - 1]
               .replace(/```\w*\n?/, '')
               .replace(/```$/, '');
-            navigator.clipboard.writeText(lastCode);
+            try {
+              const copyRequest = navigator.clipboard.writeText(lastCode);
+              void Promise.resolve(copyRequest).catch((error) => {
+                console.error('[useChatShortcuts] Failed to copy code block:', error);
+              });
+            } catch (error) {
+              console.error('[useChatShortcuts] Failed to copy code block:', error);
+            }
           }
         }
         return;
