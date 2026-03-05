@@ -70,6 +70,11 @@
   font-family: var(--neko-font-mono-family);
 }
 
+.milkdown .code-block-container[data-collapsed="true"] .code-block-editable {
+  display: none;
+  pointer-events: none;
+}
+
 /* Slash Menu */
 .slash-menu {
   position: fixed;

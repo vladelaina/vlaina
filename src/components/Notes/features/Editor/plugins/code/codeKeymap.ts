@@ -1,7 +1,12 @@
 import { $prose } from '@milkdown/kit/utils';
 import { keymap } from '@milkdown/kit/prose/keymap';
-import { TextSelection } from '@milkdown/kit/prose/state';
+import { Plugin, Selection, TextSelection } from '@milkdown/kit/prose/state';
 import { normalizeLanguage } from '../../utils/shiki';
+import {
+    isClickInBottomBlankSpace,
+    isCursorAtCodeBlockEnd,
+    moveSelectionAfterNode,
+} from './codeBlockSelectionUtils';
 
 function convertToCodeBlock(state: any, dispatch: any, lang: string) {
     const { selection, schema } = state;
@@ -26,8 +31,25 @@ function convertToCodeBlock(state: any, dispatch: any, lang: string) {
     return true;
 }
 
+function moveCursorAfterCodeBlock(state: any, dispatch: any): boolean {
+    const { selection } = state;
+    if (!isCursorAtCodeBlockEnd(selection)) return false;
+
+    if (!dispatch) return true;
+
+    const tr = state.tr;
+    const { $from } = selection;
+    const codeBlockPos = $from.before();
+    moveSelectionAfterNode(tr, codeBlockPos, $from.parent.nodeSize);
+    dispatch(tr.scrollIntoView());
+    return true;
+}
+
 export const codeEnterKeymap = $prose(() => {
     return keymap({
+        'ArrowDown': (state, dispatch) => {
+            return moveCursorAfterCodeBlock(state, dispatch);
+        },
         'Enter': (state, dispatch) => {
             const { selection } = state;
             
@@ -81,4 +103,36 @@ export const codeEnterKeymap = $prose(() => {
     });
 });
 
-export const codeBlockPlugins = [codeEnterKeymap];
+export const codeBlockBlankAreaClickPlugin = $prose(() => {
+    return new Plugin({
+        props: {
+            handleDOMEvents: {
+                mousedown(view, event) {
+                    if (!(event instanceof MouseEvent)) return false;
+                    if (event.target !== view.dom) return false;
+
+                    const root = view.dom as HTMLElement;
+                    if (!isClickInBottomBlankSpace(root, event.clientY)) return false;
+
+                    const tr = view.state.tr;
+                    const doc = tr.doc;
+                    const lastNode = doc.lastChild;
+                    const docEnd = doc.content.size;
+
+                    if (lastNode?.type.name === 'code_block') {
+                        moveSelectionAfterNode(tr, docEnd - lastNode.nodeSize, lastNode.nodeSize);
+                    } else {
+                        tr.setSelection(Selection.near(tr.doc.resolve(docEnd), 1));
+                    }
+
+                    view.dispatch(tr.scrollIntoView());
+                    view.focus();
+                    event.preventDefault();
+                    return true;
+                }
+            }
+        }
+    });
+});
+
+export const codeBlockPlugins = [codeEnterKeymap, codeBlockBlankAreaClickPlugin];

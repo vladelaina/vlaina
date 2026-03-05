@@ -6,6 +6,7 @@ import { EditorView } from '@milkdown/kit/prose/view';
 import { normalizeLanguage } from '../../utils/shiki';
 import type { CodeBlockAttrs } from './types';
 import { CodeBlockNodeView } from './CodeBlockNodeView';
+import { moveSelectionAfterNode } from './codeBlockSelectionUtils';
 
 // Code block attributes
 export const codeBlockIdAttr = $nodeAttr('code_block', () => ({
@@ -23,6 +24,11 @@ export const codeBlockIdAttr = $nodeAttr('code_block', () => ({
     default: false,
     get: (dom: HTMLElement) => dom.dataset.wrap === 'true',
     set: (value: boolean) => ({ 'data-wrap': String(value) })
+  },
+  collapsed: {
+    default: false,
+    get: (dom: HTMLElement) => dom.dataset.collapsed === 'true',
+    set: (value: boolean) => ({ 'data-collapsed': String(value) })
   }
 }));
 
@@ -37,7 +43,8 @@ export const codeBlockSchema = $node('code_block', () => ({
   attrs: {
     language: { default: null },
     lineNumbers: { default: true },
-    wrap: { default: false }
+    wrap: { default: false },
+    collapsed: { default: false }
   },
   parseDOM: [{
     tag: 'pre',
@@ -50,7 +57,8 @@ export const codeBlockSchema = $node('code_block', () => ({
       return {
         language: langMatch ? langMatch[1] : null,
         lineNumbers: el.dataset.lineNumbers !== 'false',
-        wrap: el.dataset.wrap === 'true'
+        wrap: el.dataset.wrap === 'true',
+        collapsed: el.dataset.collapsed === 'true'
       };
     }
   }],
@@ -62,6 +70,7 @@ export const codeBlockSchema = $node('code_block', () => ({
         'data-language': attrs.language || '',
         'data-line-numbers': String(attrs.lineNumbers),
         'data-wrap': String(attrs.wrap),
+        'data-collapsed': String(attrs.collapsed),
         class: 'code-block-wrapper'
       },
       ['code', { class: attrs.language ? `language-${attrs.language}` : '' }, 0]
@@ -100,9 +109,39 @@ export const codeBlockNodeViewPlugin = $prose(() => {
   });
 });
 
+function findCodeBlockContext(state: EditorView['state']) {
+  const { $from } = state.selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const node = $from.node(depth);
+    if (node.type.name === 'code_block') {
+      return {
+        node,
+        pos: $from.before(depth),
+      };
+    }
+  }
+  return null;
+}
+
+export const collapsedCodeBlockSelectionGuardPlugin = $prose(() => {
+  return new Plugin({
+    appendTransaction: (_transactions, _oldState, newState) => {
+      const context = findCodeBlockContext(newState);
+      if (!context) return null;
+      if (!context.node.attrs.collapsed) return null;
+
+      const { node, pos } = context;
+      const tr = newState.tr;
+      moveSelectionAfterNode(tr, pos, node.nodeSize);
+      return tr.scrollIntoView();
+    },
+  });
+});
+
 // Combined code plugin
 export const codePlugin = [
   codeBlockIdAttr,
   codeBlockSchema,
-  codeBlockNodeViewPlugin
+  codeBlockNodeViewPlugin,
+  collapsedCodeBlockSelectionGuardPlugin,
 ];

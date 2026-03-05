@@ -100,9 +100,28 @@ export class CodeBlockNodeView implements NodeView {
         });
         
         this.dom.appendChild(this.contentDOM);
+        this.applyCollapsedState();
         
         this.root = createRoot(this.headerDOM);
         this.render();
+    }
+
+    private applyCollapsedState() {
+        const isCollapsed = Boolean(this.node.attrs.collapsed);
+        this.dom.setAttribute('data-collapsed', String(isCollapsed));
+
+        if (isCollapsed) {
+            this.contentDOM.style.display = 'none';
+            this.contentDOM.contentEditable = 'false';
+            this.contentDOM.setAttribute('aria-hidden', 'true');
+            this.contentDOM.tabIndex = -1;
+            return;
+        }
+
+        this.contentDOM.style.display = '';
+        this.contentDOM.contentEditable = 'true';
+        this.contentDOM.removeAttribute('aria-hidden');
+        this.contentDOM.removeAttribute('tabindex');
     }
 
     render() {
@@ -118,6 +137,7 @@ export class CodeBlockNodeView implements NodeView {
     update(node: Node) {
         if (node.type !== this.node.type) return false;
         this.node = node;
+        this.applyCollapsedState();
         this.render();
         return true;
     }
