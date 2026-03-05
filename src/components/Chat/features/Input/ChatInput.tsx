@@ -1,6 +1,5 @@
 import { memo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { useAIStore } from '@/stores/useAIStore';
 import type { AIModel } from '@/lib/ai/types';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import {
@@ -29,7 +28,6 @@ export const ChatInput = memo(function ChatInput({
   selectedModel,
   focusTrigger,
 }: ChatInputProps) {
-  const { nativeWebSearchEnabled, toggleNativeWebSearch } = useAIStore();
   const {
     attachments,
     isDragging,
@@ -71,6 +69,39 @@ export const ChatInput = memo(function ChatInput({
     [handlePaste, markExplicitMultiline]
   );
 
+  const focusComposerToEnd = useCallback(() => {
+    const input = textareaRef.current;
+    if (!input) {
+      return;
+    }
+    input.focus({ preventScroll: true });
+    const pos = input.value.length;
+    input.setSelectionRange(pos, pos);
+  }, [textareaRef]);
+
+  const handleHiddenFileInputChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      await handleFileChange(e);
+      requestAnimationFrame(() => {
+        focusComposerToEnd();
+      });
+    },
+    [focusComposerToEnd, handleFileChange]
+  );
+
+  const handleTriggerFileSelect = useCallback(() => {
+    triggerFileSelect();
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const restoreFocus = () => {
+      requestAnimationFrame(() => {
+        focusComposerToEnd();
+      });
+    };
+    window.addEventListener('focus', restoreFocus, { capture: true, once: true });
+  }, [focusComposerToEnd, triggerFileSelect]);
+
   const canSend = (!!message.trim() || attachments.length > 0) && !!selectedModel;
 
   return (
@@ -80,7 +111,7 @@ export const ChatInput = memo(function ChatInput({
         multiple
         className="hidden"
         ref={fileInputRef}
-        onChange={handleFileChange}
+        onChange={handleHiddenFileInputChange}
       />
 
       {isDragging && (
@@ -95,8 +126,7 @@ export const ChatInput = memo(function ChatInput({
         className={cn(
           'relative z-10',
           chatComposerFrameClass,
-          chatComposerSurfaceClass,
-          nativeWebSearchEnabled && 'ring-2 ring-blue-500/20 border-blue-200 dark:border-blue-800'
+          chatComposerSurfaceClass
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -121,9 +151,7 @@ export const ChatInput = memo(function ChatInput({
           </div>
 
           <ChatInputActions
-            nativeWebSearchEnabled={nativeWebSearchEnabled}
-            onToggleNativeWebSearch={toggleNativeWebSearch}
-            onTriggerFileSelect={triggerFileSelect}
+            onTriggerFileSelect={handleTriggerFileSelect}
             isLoading={isLoading}
             canSend={canSend}
             hasDraftMessage={!!message.trim()}

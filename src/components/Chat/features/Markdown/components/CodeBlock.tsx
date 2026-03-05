@@ -64,7 +64,7 @@ export const CodeBlock = memo(({ className, children, isStreaming = false }: Cod
       <div className="overflow-x-auto p-4 pt-0">
         {highlightedHTML ? (
           <code
-            className={`font-mono text-sm leading-relaxed hljs ${language} !bg-transparent !p-0`}
+            className={`block whitespace-pre font-mono text-sm leading-relaxed hljs ${language} !bg-transparent !p-0`}
             dangerouslySetInnerHTML={{ __html: highlightedHTML }}
           />
         ) : (

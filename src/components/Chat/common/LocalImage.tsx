@@ -9,6 +9,18 @@ interface LocalImageProps {
     onClick?: () => void;
 }
 
+function inferMimeTypeFromFilename(filename: string): string {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    if (ext === 'png') return 'image/png';
+    if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+    if (ext === 'webp') return 'image/webp';
+    if (ext === 'gif') return 'image/gif';
+    if (ext === 'bmp') return 'image/bmp';
+    if (ext === 'avif') return 'image/avif';
+    if (ext === 'svg') return 'image/svg+xml';
+    return 'application/octet-stream';
+}
+
 export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
     const [displaySrc, setDisplaySrc] = useState<string>('');
     const [error, setError] = useState(false);
@@ -49,8 +61,7 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
                     }
                     const base64 = window.btoa(binary);
                     
-                    const ext = filename.split('.').pop()?.toLowerCase();
-                    const mime = ext === 'png' ? 'image/png' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/webp';
+                    const mime = inferMimeTypeFromFilename(filename);
                     
                     if (active) {
                         setDisplaySrc(`data:${mime};base64,${base64}`);

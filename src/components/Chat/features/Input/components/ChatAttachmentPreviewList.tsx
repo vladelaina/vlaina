@@ -1,4 +1,5 @@
 import { Icon } from '@/components/ui/icons';
+import { LocalImage } from '@/components/Chat/common/LocalImage';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 
 interface ChatAttachmentPreviewListProps {
@@ -16,9 +17,9 @@ export function ChatAttachmentPreviewList({ attachments, onRemove }: ChatAttachm
       {attachments.map((attachment) => (
         <div key={attachment.id} className="relative group shrink-0">
           {attachment.type.startsWith('image/') ? (
-            <img
+            <LocalImage
               src={attachment.previewUrl}
-              alt="preview"
+              alt={attachment.name || "preview"}
               className="h-16 w-16 object-cover rounded-xl border border-black/5 dark:border-white/10"
             />
           ) : (

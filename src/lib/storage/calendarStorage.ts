@@ -76,42 +76,39 @@ export async function loadAllEvents(): Promise<NekoEvent[]> {
 
         return allEvents;
     } catch (error) {
+        console.error('[CalendarStorage] Failed to load calendar events:', error);
         return [];
     }
 }
 
 export async function saveAllEvents(events: NekoEvent[], calendars: NekoCalendar[]): Promise<void> {
-    try {
-        const storage = getStorageAdapter();
-        await ensureCalendarsDir();
-        const calendarsDir = await getCalendarsDir();
+    const storage = getStorageAdapter();
+    await ensureCalendarsDir();
+    const calendarsDir = await getCalendarsDir();
 
-        const eventsByCalendar = new Map<string, NekoEvent[]>();
-        for (const calendar of calendars) {
-            eventsByCalendar.set(calendar.id, []);
-        }
+    const eventsByCalendar = new Map<string, NekoEvent[]>();
+    for (const calendar of calendars) {
+        eventsByCalendar.set(calendar.id, []);
+    }
 
-        for (const event of events) {
-            const calendarEvents = eventsByCalendar.get(event.calendarId);
-            if (calendarEvents) {
-                calendarEvents.push(event);
-            } else {
-                const firstCalendar = calendars[0];
-                if (firstCalendar) {
-                    event.calendarId = firstCalendar.id;
-                    eventsByCalendar.get(firstCalendar.id)?.push(event);
-                }
+    for (const event of events) {
+        const calendarEvents = eventsByCalendar.get(event.calendarId);
+        if (calendarEvents) {
+            calendarEvents.push(event);
+        } else {
+            const firstCalendar = calendars[0];
+            if (firstCalendar) {
+                event.calendarId = firstCalendar.id;
+                eventsByCalendar.get(firstCalendar.id)?.push(event);
             }
         }
+    }
 
-        for (const calendar of calendars) {
-            const calendarEvents = eventsByCalendar.get(calendar.id) || [];
-            const icsContent = generateICS(calendarEvents, calendar);
-            const icsPath = await joinPath(calendarsDir, `${calendar.id}.ics`);
-            await storage.writeFile(icsPath, icsContent);
-        }
-
-    } catch (error) {
+    for (const calendar of calendars) {
+        const calendarEvents = eventsByCalendar.get(calendar.id) || [];
+        const icsContent = generateICS(calendarEvents, calendar);
+        const icsPath = await joinPath(calendarsDir, `${calendar.id}.ics`);
+        await storage.writeFile(icsPath, icsContent);
     }
 }
 

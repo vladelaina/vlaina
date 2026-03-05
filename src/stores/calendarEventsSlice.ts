@@ -13,6 +13,31 @@ import {
     deleteCalendar as deleteCalendarFromStorage,
     updateCalendar as updateCalendarInStorage,
 } from '@/lib/storage/calendarStorage';
+import { createPersistenceQueue } from '@/lib/storage/persistenceEngine';
+
+type CalendarPersistPayload = {
+    calendars: NekoCalendar[];
+    events: NekoEvent[];
+};
+
+function cloneCalendarPayload(calendars: NekoCalendar[], events: NekoEvent[]): CalendarPersistPayload {
+    return {
+        calendars: calendars.map((calendar) => ({ ...calendar })),
+        events: events.map((event) => ({ ...event })),
+    };
+}
+
+const calendarPersistQueue = createPersistenceQueue<CalendarPersistPayload>({
+    debounceMs: 120,
+    maxWaitMs: 1800,
+    write: async ({ calendars, events }) => {
+        await saveCalendarsMeta(calendars);
+        await saveAllEvents(events, calendars);
+    },
+    onError: (error) => {
+        console.error('[CalendarEventsStore] Failed to persist calendar data:', error);
+    },
+});
 
 interface CalendarEventsState {
     calendars: NekoCalendar[];
@@ -21,6 +46,7 @@ interface CalendarEventsState {
 
     load: () => Promise<void>;
     save: () => Promise<void>;
+    flushPersistence: () => Promise<void>;
 
     addEvent: (event: Omit<NekoEvent, 'uid'> & { uid?: string }) => Promise<void>;
     updateEvent: (
@@ -62,14 +88,20 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             set({ calendars, events, loaded: true });
 
         } catch (error) {
+            console.error('[CalendarEventsStore] Failed to load calendar data:', error);
             set({ loaded: true });
         }
     },
 
     save: async () => {
         const { calendars, events } = get();
-        await saveCalendarsMeta(calendars);
-        await saveAllEvents(events, calendars);
+        calendarPersistQueue.schedule(cloneCalendarPayload(calendars, events));
+    },
+
+    flushPersistence: async () => {
+        const { calendars, events } = get();
+        calendarPersistQueue.schedule(cloneCalendarPayload(calendars, events), { debounceMs: 0, maxWaitMs: 0 });
+        await calendarPersistQueue.flush();
     },
 
     addEvent: async (eventData) => {
@@ -83,7 +115,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             events: [...state.events, newEvent],
         }));
 
-        await get().save();
+        await get().flushPersistence();
     },
 
     updateEvent: async (uid, updates, options) => {
@@ -93,7 +125,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             ),
         }));
         if (options?.persist ?? true) {
-            await get().save();
+            await get().flushPersistence();
         }
     },
 
@@ -102,7 +134,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             events: state.events.filter(e => e.uid !== uid),
         }));
 
-        await get().save();
+        await get().flushPersistence();
     },
 
     addTask: async (content, groupId, calendarId, color, tags) => {
@@ -185,7 +217,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             })
         }));
 
-        await get().save();
+        await get().flushPersistence();
     },
 
     moveTaskToGroup: async (taskId, targetGroupId, overTaskId) => {
@@ -217,7 +249,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             })
         }));
 
-        await get().save();
+        await get().flushPersistence();
     },
 
     toggleTaskCollapse: async (uid) => {
@@ -258,7 +290,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
                 c.id === id ? { ...c, visible: !c.visible } : c
             ),
         }));
-        get().save();
+        void get().save();
     },
 
     startTimer: (uid) => {
@@ -269,7 +301,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
                     : e
             ),
         }));
-        get().save();
+        void get().save();
     },
 
     pauseTimer: (uid) => {
@@ -286,7 +318,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
                     : e
             ),
         }));
-        get().save();
+        void get().save();
     },
 
     resumeTimer: (uid) => {
@@ -297,7 +329,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
                     : e
             ),
         }));
-        get().save();
+        void get().save();
     },
 
     stopTimer: (uid) => {
@@ -316,7 +348,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
                     : e
             ),
         }));
-        get().save();
+        void get().save();
     },
 
     toggleComplete: (uid) => {
@@ -325,6 +357,6 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
                 e.uid === uid ? { ...e, completed: !e.completed } : e
             ),
         }));
-        get().save();
+        void get().save();
     },
 }));

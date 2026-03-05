@@ -12,6 +12,7 @@ import {
   shouldPersistSession,
   stripTemporaryData
 } from '@/lib/ai/temporaryChat';
+import { extractMarkdownImageSources } from '@/components/Chat/common/messageClipboard';
 
 interface AIUIState {
   generatingSessions: Record<string, boolean>;
@@ -364,11 +365,9 @@ export const actions = {
       }
     }
 
-    // Precise Lazy Load: Only load if the key is missing from the messages map
     const latestAI = useUnifiedStore.getState().data.ai!;
     if (!(sessionId in latestAI.messages)) {
         const loadedMessages = await loadSessionJson(sessionId);
-        // Even if loadedMessages is null/empty, we set it to [] to mark it as "loaded"
         const freshState = useUnifiedStore.getState();
         freshState.updateAIData({
             messages: { 
@@ -466,6 +465,12 @@ export const actions = {
 
     const newMessage: ChatMessage = {
       ...message,
+      imageSources:
+        message.role === 'user'
+          ? (message.imageSources && message.imageSources.length > 0
+              ? message.imageSources
+              : extractMarkdownImageSources(message.content || ''))
+          : message.imageSources,
       id: message.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       timestamp: Date.now(),
       versions: [{ 
@@ -607,6 +612,7 @@ export const actions = {
       newMessages[index] = {
           ...targetMsg,
           content: newContent,
+          imageSources: extractMarkdownImageSources(newContent),
           versions: versions,
           currentVersionIndex: newIndex
       };
@@ -647,6 +653,7 @@ export const actions = {
       newMessages[index] = {
           ...targetMsg,
           content: versions[targetIndex].content,
+          imageSources: extractMarkdownImageSources(versions[targetIndex].content),
           currentVersionIndex: targetIndex,
           versions: versions
       };
@@ -675,6 +682,25 @@ export const useAIStore = () => {
       }
   }, [loaded, load]);
 
+  useEffect(() => {
+    if (!loaded || !aiData?.temporaryChatEnabled) {
+      return;
+    }
+
+    const currentSessionId = aiData.currentSessionId;
+    const currentSession = currentSessionId
+      ? aiData.sessions.find((session) => session.id === currentSessionId)
+      : null;
+    const hasActiveTemporarySession =
+      isTemporarySessionId(currentSessionId) || isTemporarySession(currentSession);
+
+    if (hasActiveTemporarySession) {
+      return;
+    }
+
+    useUnifiedStore.getState().updateAIData({ temporaryChatEnabled: false });
+  }, [aiData?.currentSessionId, aiData?.sessions, aiData?.temporaryChatEnabled, loaded]);
+
   return {
     providers: aiData?.providers || [],
     models: aiData?.models || [],
@@ -683,17 +709,11 @@ export const useAIStore = () => {
     messages: aiData?.messages || {},
     selectedModelId: aiData?.selectedModelId || null,
     temporaryChatEnabled: !!aiData?.temporaryChatEnabled,
-    nativeWebSearchEnabled: aiData?.nativeWebSearchEnabled || false,
     customSystemPrompt: aiData?.customSystemPrompt || '',
     includeTimeContext: aiData?.includeTimeContext !== false,
     
     ...uiState,
     ...actions,
-
-    toggleNativeWebSearch: () => {
-        const current = useUnifiedStore.getState().data.ai?.nativeWebSearchEnabled || false;
-        useUnifiedStore.getState().updateAIData({ nativeWebSearchEnabled: !current });
-    },
 
     getProvider: (id: string) => aiData?.providers.find(p => p.id === id),
     getModel: (id: string) => aiData?.models.find(m => m.id === id),
