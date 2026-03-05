@@ -4,23 +4,22 @@ import { useAIStore } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useChatService } from '@/hooks/useChatService';
 import { useMessageAutoscroll } from '@/hooks/useMessageAutoscroll';
-import { useShortcuts } from '@/hooks/useShortcuts';
 import { useChatShortcuts } from './hooks/useChatShortcuts';
 import { useComposerClickFocus } from './hooks/useComposerClickFocus';
 import { cn } from '@/lib/utils';
 import { Attachment } from '@/lib/storage/attachmentStorage';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
-import { logFocusTrace } from '@/lib/debug/focusTrace';
+import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
 
 import { ChatInput } from '@/components/Chat/features/Input/ChatInput';
 import { MessageList } from '@/components/Chat/features/Messages/MessageList';
+import { SelectionInsertButton } from '@/components/Chat/features/Messages/components/SelectionInsertButton';
 import { WelcomeScreen } from '@/components/Chat/layout/WelcomeScreen';
 import { ChatShortcutsDialog } from '@/components/Chat/common/ChatShortcutsDialog';
 import { TemporaryChatToggle } from '@/components/Chat/features/Temporary/TemporaryChatToggle';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
 
 export function ChatView() {
-  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
 
@@ -34,7 +33,6 @@ export function ChatView() {
     models,
     selectModel,
     isSessionLoading,
-    toggleTemporaryChat
   } = useAIStore();
 
   const loaded = useUnifiedStore(s => s.loaded);
@@ -62,17 +60,6 @@ export function ChatView() {
   const isEmpty = !currentSessionId || (isMessagesLoaded && messages.length === 0);
   const { showInChatArea } = useTemporaryTogglePresentation();
 
-  useShortcuts({
-    scope: 'chat',
-    handlers: isEmpty
-      ? {
-          toggleTemporaryChatWelcome: () => {
-            toggleTemporaryChat();
-          }
-        }
-      : {}
-  });
-
   const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
       messages,
       isStreaming: isSessionActive,
@@ -91,9 +78,7 @@ export function ChatView() {
 
   useChatShortcuts({
       onFocusInput: () => {
-          logFocusTrace('chatView.shortcut.focusInput');
           if (!focusComposerInput()) {
-              logFocusTrace('chatView.shortcut.focusInput.fallbackTrigger');
               setFocusInputTrigger(n => n + 1);
           }
       },
@@ -101,28 +86,7 @@ export function ChatView() {
       scrollRef: containerRef 
   });
 
-  useEffect(() => {
-      return () => {
-          window.speechSynthesis.cancel();
-      };
-  }, []);
-
-  const copyToClipboard = useCallback((text: string) => navigator.clipboard.writeText(text), []);
-  
-  const handleSpeak = useCallback((msgId: string, text: string) => {
-      setSpeakingMsgId(prev => {
-          if (prev === msgId) {
-              window.speechSynthesis.cancel();
-              return null;
-          }
-          window.speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.onend = () => setSpeakingMsgId(null);
-          utterance.onerror = () => setSpeakingMsgId(null);
-          window.speechSynthesis.speak(utterance);
-          return msgId;
-      });
-  }, []);
+  const copyToClipboard = useCallback((text: string) => copyMessageContentToClipboard(text), []);
 
   const handleSend = useCallback((text: string, attachments: Attachment[]) => {
       handleNewUserMessage();
@@ -131,7 +95,6 @@ export function ChatView() {
 
   const handleChatAreaMouseDownCapture = useComposerClickFocus({
     requestFocusFallback: () => {
-      logFocusTrace('chatView.chatArea.focusFallbackTrigger');
       setFocusInputTrigger(n => n + 1);
     }
   });
@@ -156,9 +119,7 @@ export function ChatView() {
           isLayoutCentered={isEmpty}
           spacerHeight={spacerHeight}
           containerRef={containerRef}
-          speakingMsgId={speakingMsgId}
           onCopy={copyToClipboard}
-          onSpeak={handleSpeak}
           onRegenerate={regenerate}
           onEdit={editMessage}
           onSwitchVersion={(msgId, idx) => currentSessionId && switchMessageVersion(currentSessionId, msgId, idx)}
@@ -191,6 +152,7 @@ export function ChatView() {
         isOpen={isShortcutsOpen} 
         onOpenChange={setIsShortcutsOpen} 
       />
+      <SelectionInsertButton />
     </div>
   );
 }

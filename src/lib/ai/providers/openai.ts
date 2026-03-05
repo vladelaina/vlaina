@@ -15,13 +15,6 @@ export class OpenAICompatibleClient implements AIClient {
     signal?: AbortSignal,
     options?: ChatSendOptions
   ): Promise<string> {
-    console.log('[OpenAI] sendMessage called', { 
-        messageLength: typeof message === 'string' ? message.length : 'multimodal', 
-        historyLength: history.length, 
-        model: model.id,
-        provider: provider.name
-    });
-
     const host = normalizeApiHost(provider.apiHost)
     const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
     const url = `${baseUrl}/chat/completions`
@@ -45,14 +38,6 @@ export class OpenAICompatibleClient implements AIClient {
       ...requestOptions
     }
 
-    console.log('[OpenAI] Request constructed', { 
-        url, 
-        headers: { ...headers, Authorization: 'Bearer ***' }, 
-        bodyModel: baseBody.model,
-        messagesCount: baseBody.messages.length,
-        nativeWebSearch
-    });
-
     const emit = onChunk || (() => {})
     if (!nativeWebSearch) {
       // Use streamResponse even if onChunk is not provided to handle forced SSE responses
@@ -63,20 +48,14 @@ export class OpenAICompatibleClient implements AIClient {
     for (const patch of searchPatches) {
       const body: ChatCompletionRequest = { ...baseBody, ...patch }
       try {
-        console.log('[OpenAI] Trying native web search strategy', patch)
         return await this.streamResponse(url, headers, body, emit, signal)
       } catch (error: any) {
         if (!this.isSearchCompatibilityError(error)) {
           throw error
         }
-        console.warn('[OpenAI] Native search strategy unsupported, trying next/fallback', {
-          strategy: patch,
-          error: error?.message
-        })
       }
     }
 
-    console.warn('[OpenAI] Native web search unavailable for this provider/model, falling back to plain chat')
     return this.streamResponse(url, headers, baseBody, emit, signal)
   }
 
@@ -141,8 +120,6 @@ export class OpenAICompatibleClient implements AIClient {
     onChunk: (chunk: string) => void,
     signal?: AbortSignal
   ): Promise<string> {
-    const startTime = Date.now();
-    console.log('[OpenAI] Starting streamResponse at', new Date(startTime).toISOString());
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), this.timeout)
 
@@ -158,24 +135,16 @@ export class OpenAICompatibleClient implements AIClient {
         signal: controller.signal
       })
 
-      const tt_header = Date.now() - startTime;
       clearTimeout(timeoutId)
-      console.log('[OpenAI] Stream headers received', { 
-          status: response.status, 
-          ok: response.ok,
-          contentType: response.headers.get('content-type'),
-          latencyMs: tt_header
-      });
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
         let errorBody;
         try {
             errorBody = JSON.parse(errorText);
-        } catch (e) {
+        } catch {
             errorBody = { message: errorText }; // Keep raw text if not JSON
         }
-        console.error('[OpenAI] Stream error', { status: response.status, errorBody });
         throw parseHTTPError(response.status, errorBody)
       }
 
@@ -187,7 +156,6 @@ export class OpenAICompatibleClient implements AIClient {
       const decoder = new TextDecoder()
       let fullContent = ''
       let buffer = ''
-      let firstTokenReceived = false;
       
       // State for handling 'reasoning_content' fields (DeepSeek style)
       let hasStartedReasoning = false;
@@ -195,14 +163,8 @@ export class OpenAICompatibleClient implements AIClient {
 
       while (true) {
         const { done, value } = await reader.read()
-        
-        if (!firstTokenReceived && value) {
-            firstTokenReceived = true;
-            console.log('[OpenAI] Time to First Byte (TTFB):', Date.now() - startTime, 'ms');
-        }
-        
+
         if (done) {
-            console.log('[OpenAI] Stream reading done. Total duration:', Date.now() - startTime, 'ms');
             break
         }
 
@@ -250,8 +212,8 @@ export class OpenAICompatibleClient implements AIClient {
                       onChunk(fullContent);
                   }
               }
-            } catch (e) {
-              console.error('[OpenAI] Failed to parse SSE chunk:', e, line)
+            } catch {
+              // Ignore malformed SSE chunk and continue parsing the stream.
             }
           }
         }
@@ -262,15 +224,12 @@ export class OpenAICompatibleClient implements AIClient {
           fullContent += "</think>";
       }
 
-      console.log('[OpenAI] Stream finished. Total length:', fullContent.length);
       return fullContent
     } catch (error) {
+      clearTimeout(timeoutId)
       if (error instanceof Error && error.name === 'AbortError') {
-          console.log('[OpenAI] Request aborted by user');
           throw error;
       }
-      console.error('[OpenAI] Stream exception', error);
-      clearTimeout(timeoutId)
       throw parseAPIError(error)
     }
   }
@@ -280,7 +239,6 @@ export class OpenAICompatibleClient implements AIClient {
       const host = normalizeApiHost(provider.apiHost)
       const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
       const url = `${baseUrl}/models`
-      console.log('[OpenAI] Testing connection to', url);
       
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 10000)
@@ -294,52 +252,44 @@ export class OpenAICompatibleClient implements AIClient {
       })
 
       clearTimeout(timeoutId)
-      console.log('[OpenAI] Test connection result:', response.status);
       return response.ok
-    } catch (e) {
-      console.error('[OpenAI] Test connection failed:', e);
+    } catch {
       return false
     }
   }
 
   async getModels(provider: Provider): Promise<string[]> {
-    try {
-      const host = normalizeApiHost(provider.apiHost)
-      const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
-      const url = `${baseUrl}/models`
-      console.log('[OpenAI] Fetching models from', url);
+    const host = normalizeApiHost(provider.apiHost)
+    const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
+    const url = `${baseUrl}/models`
 
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${provider.apiKey}`
-        },
-        signal: controller.signal
-      })
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${provider.apiKey}`
+      },
+      signal: controller.signal
+    })
 
-      clearTimeout(timeoutId)
+    clearTimeout(timeoutId)
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch models: ${response.status}`)
-      }
-
-      const data = await response.json()
-      
-      if (data.data && Array.isArray(data.data)) {
-        return data.data.map((m: any) => m.id)
-      }
-      if (data.models && Array.isArray(data.models)) {
-        return data.models.map((m: any) => m.name || m.model)
-      }
-      
-      return []
-    } catch (error) {
-      console.error('[OpenAI] Fetch models failed:', error)
-      throw error
+    if (!response.ok) {
+      throw new Error(`Failed to fetch models: ${response.status}`)
     }
+
+    const data = await response.json()
+    
+    if (data.data && Array.isArray(data.data)) {
+      return data.data.map((m: any) => m.id)
+    }
+    if (data.models && Array.isArray(data.models)) {
+      return data.models.map((m: any) => m.name || m.model)
+    }
+    
+    return []
   }
 }
 

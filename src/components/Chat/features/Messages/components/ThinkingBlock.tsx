@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import { getExternalLinkProps } from "@/lib/navigation/externalLinks";
 
 interface ThinkingBlockProps {
   content: string;
@@ -13,24 +14,13 @@ interface ThinkingBlockProps {
 export function ThinkingBlock({
   content: thinking,
   isStreaming: activelyThinking,
-  startTime,
-  endTime,
 }: ThinkingBlockProps) {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [contentHeight, setContentHeight] = useState<number>(0);
   const [hasOverflow, setHasOverflow] = useState(false);
-  const [internalEndTime, setInternalEndTime] = useState<Date | undefined>(endTime);
   const contentRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (endTime) {
-      setInternalEndTime(endTime);
-    } else if (!activelyThinking && !internalEndTime) {
-      setInternalEndTime(new Date());
-    }
-  }, [activelyThinking, endTime, internalEndTime]);
 
   const finishedThinking = !activelyThinking;
 
@@ -98,17 +88,7 @@ export function ThinkingBlock({
     return contentHeight ? `${contentHeight}px` : "none";
   };
 
-  const getDurationText = () => {
-    if (activelyThinking) return "Thinking...";
-    if (startTime && internalEndTime) {
-      const durationMs = Math.max(0, internalEndTime.getTime() - startTime.getTime());
-      if (durationMs >= 1000) {
-        const seconds = (durationMs / 1000).toFixed(1).replace(/\.0$/, "");
-        return `Thought for ${seconds}s`;
-      }
-    }
-    return "Thought briefly";
-  };
+  const titleText = activelyThinking ? "Thought..." : "Reasoning";
 
   return (
     <div
@@ -145,7 +125,7 @@ export function ThinkingBlock({
           </svg>
         </div>
         <h3 className="text-[15px] font-medium">
-          {getDurationText()}
+          {titleText}
         </h3>
       </div>
       <div
@@ -162,7 +142,22 @@ export function ThinkingBlock({
           ref={contentRef}
           className="transition-transform duration-300 opacity-90 select-text leading-relaxed prose prose-neutral dark:prose-invert max-w-none"
         >
-          <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkMath]}
+            components={{
+              a({ href, children, ...props }: any) {
+                return (
+                  <a
+                    {...props}
+                    {...getExternalLinkProps(typeof href === "string" ? href : null)}
+                    data-no-focus-input="true"
+                  >
+                    {children}
+                  </a>
+                );
+              },
+            }}
+          >
             {thinking}
           </ReactMarkdown>
         </div>

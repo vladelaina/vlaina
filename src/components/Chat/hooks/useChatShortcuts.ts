@@ -1,6 +1,11 @@
 import { useEffect } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
+import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
+import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
+import { dispatchChatMessageCopied } from '@/components/Chat/common/copyFeedback';
+import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
+import { isComposerFocusTarget, selectComposerInputAll } from '@/lib/ui/composerFocusRegistry';
 
 interface UseChatShortcutsOptions {
   onFocusInput: () => void;
@@ -10,9 +15,23 @@ interface UseChatShortcutsOptions {
 
 export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }: UseChatShortcutsOptions) {
   useEffect(() => {
+    const isEditableTarget = (target: EventTarget | null): boolean => {
+      if (!(target instanceof Element)) return false;
+      if (target instanceof HTMLInputElement) return true;
+      if (target instanceof HTMLTextAreaElement) return true;
+      if ((target as HTMLElement).isContentEditable) return true;
+      return !!target.closest('[contenteditable="true"]');
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
+
+      if (shouldBlockBrowserReservedShortcut(e)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
 
       if (isMod && e.key === '/') {
         e.preventDefault();
@@ -33,6 +52,38 @@ export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }:
         return;
       }
 
+      if (isMod && !e.shiftKey && !e.altKey && key === 'a') {
+        if (isEditableTarget(e.target) && !isComposerFocusTarget(e.target)) {
+          return;
+        }
+        e.preventDefault();
+        if (!selectComposerInputAll()) {
+          onFocusInput();
+        }
+        return;
+      }
+
+      if (isMod && e.shiftKey && key === 'j') {
+        e.preventDefault();
+        const state = useUnifiedStore.getState();
+        const aiState = state.data.ai;
+        const temporaryEnabled = !!aiState?.temporaryChatEnabled;
+        const currentSessionId = aiState?.currentSessionId || null;
+        const currentMessages = currentSessionId ? (aiState?.messages?.[currentSessionId] || []) : [];
+        const isCurrentTemporaryChatEmpty = temporaryEnabled && currentMessages.length === 0;
+
+        if (!temporaryEnabled) {
+          aiActions.toggleTemporaryChat(true);
+        } else if (isCurrentTemporaryChatEmpty) {
+          aiActions.toggleTemporaryChat(false);
+        } else {
+          aiActions.createSession('New Chat');
+        }
+
+        onFocusInput();
+        return;
+      }
+
       if (e.shiftKey && e.key === 'ArrowUp') {
         e.preventDefault();
         navigateMessages('prev');
@@ -45,10 +96,7 @@ export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }:
         return;
       }
 
-      // Session Switching: Ctrl+Tab (Next) / Ctrl+Shift+Tab (Prev)
-      // Only enable in Tauri environment to avoid hijacking browser tab switching
       if (isMod && e.key === 'Tab') {
-          // Check for Tauri environment (v1 or v2)
           const isTauri = typeof window !== 'undefined' && 
               ('__TAURI_IPC__' in window || '__TAURI_INTERNALS__' in window || '__TAURI__' in window);
           
@@ -61,19 +109,14 @@ export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }:
           
           if (rawSessions.length < 2) return;
 
-          // Sort sessions to match visual order (updatedAt desc)
           const sessions = [...rawSessions].sort((a, b) => b.updatedAt - a.updatedAt);
 
           const currentIndex = sessions.findIndex(s => s.id === currentId);
-          // Note: sessions are usually ordered by date desc, so visual order depends on Sidebar.
-          // Assuming sessions list matches sidebar visual order.
           let nextIndex;
 
           if (e.shiftKey) {
-              // Prev (Up/Left)
               nextIndex = currentIndex > 0 ? currentIndex - 1 : sessions.length - 1;
           } else {
-              // Next (Down/Right)
               nextIndex = currentIndex < sessions.length - 1 ? currentIndex + 1 : 0;
           }
 
@@ -100,7 +143,18 @@ export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }:
         e.preventDefault();
         const lastAI = [...currentMsgs].reverse().find(m => m.role === 'assistant');
         if (lastAI) {
-          navigator.clipboard.writeText(lastAI.content);
+          try {
+            const copyRequest = copyMessageContentToClipboard(stripThinkingContent(lastAI.content));
+            void Promise.resolve(copyRequest)
+              .then(() => {
+                dispatchChatMessageCopied(lastAI.id);
+              })
+              .catch((error) => {
+                console.error('[useChatShortcuts] Failed to copy response:', error);
+              });
+          } catch (error) {
+            console.error('[useChatShortcuts] Failed to copy response:', error);
+          }
         }
         return;
       }
@@ -109,13 +163,21 @@ export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }:
         e.preventDefault();
         const lastAI = [...currentMsgs].reverse().find(m => m.role === 'assistant');
         if (lastAI) {
+          const visibleContent = stripThinkingContent(lastAI.content);
           const codeBlockRegex = /```[\s\S]*?```/g;
-          const matches = lastAI.content.match(codeBlockRegex);
+          const matches = visibleContent.match(codeBlockRegex);
           if (matches && matches.length > 0) {
             const lastCode = matches[matches.length - 1]
               .replace(/```\w*\n?/, '')
               .replace(/```$/, '');
-            navigator.clipboard.writeText(lastCode);
+            try {
+              const copyRequest = navigator.clipboard.writeText(lastCode);
+              void Promise.resolve(copyRequest).catch((error) => {
+                console.error('[useChatShortcuts] Failed to copy code block:', error);
+              });
+            } catch (error) {
+              console.error('[useChatShortcuts] Failed to copy code block:', error);
+            }
           }
         }
         return;

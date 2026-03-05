@@ -1,5 +1,5 @@
 import { ComponentType, SVGProps } from 'react';
-import { PenLine, Pin } from 'lucide-react';
+import { PenLine, Pin, Quote } from 'lucide-react';
 import { 
   MinusIcon,
   XMarkIcon,
@@ -59,12 +59,12 @@ import {
   LockClosedIcon,
   GlobeAltIcon,
   PaperClipIcon,
+  TagIcon,
   CodeBracketIcon,
   PlayIcon,
   PauseIcon,
   StopIcon,
   MicrophoneIcon,
-  SpeakerWaveIcon,
   SparklesIcon,
   LanguageIcon,
   ClockIcon,
@@ -128,6 +128,8 @@ export const icons: Record<string, IconSource> = {
   'common.blocked': NoSymbolIcon,
   'common.block': NoSymbolIcon,
   'common.compose': NewChatIcon,
+  'common.quote': Quote,
+  'common.tag': TagIcon,
   'common.rename': PenLine,
   'common.pin': Pin,
   'common.pinOutline': Pin,
@@ -207,7 +209,6 @@ export const icons: Record<string, IconSource> = {
   'media.pause': PauseIcon,
   'media.stop': SquareStopIcon,
   'media.mic': MicrophoneIcon,
-  'media.volume': SpeakerWaveIcon,
 
   // --- Misc/Specific ---
   'misc.clock': ClockIcon,
@@ -218,6 +219,7 @@ export const icons: Record<string, IconSource> = {
   'misc.lab': BeakerIcon,
   'misc.box': ArchiveBoxIcon,
   // --- Legacy / Compatibility ---
+  'legacy.addTask': PlusIcon,
   'legacy.unfold': ChevronUpDownIcon,
 };
 

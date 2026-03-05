@@ -66,3 +66,31 @@ export function shouldPersistSession(
 export function hasUserMessage(messages: ChatMessage[]): boolean {
   return messages.some((message) => message.role === 'user');
 }
+
+const IMAGE_MARKDOWN_REGEX = /!\[.*?\]\(.*?\)/g;
+const TITLE_SOURCE_MAX_LENGTH = 1200;
+
+export function buildTitleSourceFromMessages(messages: ChatMessage[]): string {
+  const userSnippets = messages
+    .filter((message) => message.role === 'user')
+    .map((message) =>
+      message.content
+        .replace(IMAGE_MARKDOWN_REGEX, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    )
+    .filter(Boolean);
+
+  if (userSnippets.length === 0) {
+    return 'Image Query';
+  }
+
+  const combined = userSnippets.join('\n').trim();
+  if (!combined) {
+    return 'Image Query';
+  }
+
+  return combined.length > TITLE_SOURCE_MAX_LENGTH
+    ? combined.slice(0, TITLE_SOURCE_MAX_LENGTH)
+    : combined;
+}

@@ -1,24 +1,21 @@
 import MarkdownRenderer from '@/components/Chat/features/Markdown/MarkdownRenderer';
 import { MessageToolbar } from './MessageToolbar';
 import { ErrorBlock } from './ErrorBlock';
+import { ChatLoading } from './ChatLoading';
 import type { ChatMessage } from '@/lib/ai/types';
 
 interface AIMessageProps {
   msg: ChatMessage;
-  isSpeaking: boolean;
   isLoading: boolean;
-  onCopy: () => void;
-  onSpeak: () => void;
+  onCopy: (text: string) => Promise<void> | void;
   onRegenerate: () => void;
   onSwitchVersion: (targetIndex: number) => void;
 }
 
 export function AIMessage({
   msg,
-  isSpeaking,
   isLoading,
   onCopy,
-  onSpeak,
   onRegenerate,
   onSwitchVersion
 }: AIMessageProps) {
@@ -30,6 +27,7 @@ export function AIMessage({
   const errorContent = errorMatch ? errorMatch[3] : null;
 
   const contentWithoutError = msg.content.replace(errorRegex, '');
+  const shouldShowInlineLoading = isLoading && !!contentWithoutError.trim();
 
   return (
     <div className="w-full pl-0">
@@ -50,13 +48,17 @@ export function AIMessage({
                 />
             </div>
         )}
+
+        {shouldShowInlineLoading && (
+            <div className="-mt-1 mb-1">
+                <ChatLoading />
+            </div>
+        )}
         
         <MessageToolbar 
             msg={msg}
-            isSpeaking={isSpeaking}
             isLoading={isLoading}
             onCopy={onCopy}
-            onSpeak={onSpeak}
             onRegenerate={onRegenerate}
             onSwitchVersion={onSwitchVersion}
         />

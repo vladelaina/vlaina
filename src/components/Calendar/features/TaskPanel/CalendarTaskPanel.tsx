@@ -48,7 +48,6 @@ export function CalendarTaskPanel({
   const {
     hideCompleted,
     selectedColors,
-    selectedStatuses,
     setDraggingTaskId,
     setDraggingToCalendarTaskId,
   } = useUIStore();
@@ -69,7 +68,6 @@ export function CalendarTaskPanel({
     tasks,
     activeGroupId,
     selectedColors,
-    selectedStatuses,
     searchQuery: uiState.searchQuery,
     hideCompleted,
   });

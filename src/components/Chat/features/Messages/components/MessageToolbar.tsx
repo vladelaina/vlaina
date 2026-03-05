@@ -1,76 +1,141 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
-import { cn } from '@/lib/utils';
+import { cn, iconButtonStyles } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/ai/types';
+import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
+import { CHAT_MESSAGE_COPIED_EVENT } from '@/components/Chat/common/copyFeedback';
+
+const COPY_FEEDBACK_DURATION_MS = 1200;
+const COPY_FEEDBACK_CLOSING_MS = 160;
+
+type CopyFeedbackSource = 'manual' | 'shortcut' | null;
 
 interface MessageToolbarProps {
   msg: ChatMessage;
-  isSpeaking: boolean;
   isLoading: boolean;
-  onCopy: (text: string) => void;
-  onSpeak: () => void;
+  onCopy: (text: string) => Promise<void> | void;
   onRegenerate: () => void;
   onSwitchVersion: (targetIndex: number) => void;
 }
 
 export function MessageToolbar({
   msg,
-  isSpeaking,
   isLoading,
   onCopy,
-  onSpeak,
   onRegenerate,
   onSwitchVersion
 }: MessageToolbarProps) {
   const [isCopied, setIsCopied] = useState(false);
-
-  if (isLoading) return null;
-
+  const [isCopyClosing, setIsCopyClosing] = useState(false);
+  const [copyFeedbackSource, setCopyFeedbackSource] = useState<CopyFeedbackSource>(null);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const versions = msg.versions || [msg.content];
   const currentIndex = msg.currentVersionIndex ?? 0;
   const currentVer = currentIndex + 1;
   const totalVer = versions.length;
 
-  const handleCopy = () => {
-      // Strip <think> tags for clean copying
-      const cleanContent = msg.content.replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '').trim();
-      onCopy(cleanContent);
+  const triggerCopiedState = useCallback((source: CopyFeedbackSource) => {
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
+      setIsCopyClosing(false);
+      setCopyFeedbackSource(source);
+      if (copiedTimerRef.current) {
+          clearTimeout(copiedTimerRef.current);
+      }
+      if (closingTimerRef.current) {
+          clearTimeout(closingTimerRef.current);
+      }
+      copiedTimerRef.current = setTimeout(() => {
+          setIsCopied(false);
+          setIsCopyClosing(true);
+          copiedTimerRef.current = null;
+          closingTimerRef.current = setTimeout(() => {
+              setIsCopyClosing(false);
+              setCopyFeedbackSource(null);
+              closingTimerRef.current = null;
+          }, COPY_FEEDBACK_CLOSING_MS);
+      }, COPY_FEEDBACK_DURATION_MS);
+  }, []);
+
+  useEffect(() => {
+      const handleCopied = (event: Event) => {
+          const copiedEvent = event as CustomEvent<{ messageId?: string }>;
+          if (copiedEvent.detail?.messageId !== msg.id) {
+              return;
+          }
+          triggerCopiedState('shortcut');
+      };
+
+      window.addEventListener(CHAT_MESSAGE_COPIED_EVENT, handleCopied);
+      return () => {
+          window.removeEventListener(CHAT_MESSAGE_COPIED_EVENT, handleCopied);
+      };
+  }, [msg.id, triggerCopiedState]);
+
+  useEffect(() => {
+      return () => {
+          if (copiedTimerRef.current) {
+              clearTimeout(copiedTimerRef.current);
+          }
+          if (closingTimerRef.current) {
+              clearTimeout(closingTimerRef.current);
+          }
+      };
+  }, []);
+
+  const handleCopy = async () => {
+      const cleanContent = stripThinkingContent(msg.content);
+      try {
+          await onCopy(cleanContent);
+          triggerCopiedState('manual');
+      } catch (error) {
+          console.error('[MessageToolbar] Failed to copy message:', error);
+      }
   };
+
+  if (isLoading) return null;
+
+  const isCopyFeedbackVisible = isCopied || isCopyClosing;
+  const secondaryActionClass = cn(
+    "transition-opacity duration-200",
+    isCopyClosing
+      ? "opacity-0 pointer-events-none"
+      : isCopied
+        ? copyFeedbackSource === 'manual'
+          ? "opacity-100 pointer-events-auto"
+          : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
+        : "opacity-100"
+  );
 
   return (
     <div className="flex flex-col mt-1">
-        <div className="flex items-center gap-1 select-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div
+          className={cn(
+            "flex items-center gap-1 select-none transition-opacity duration-200",
+            isCopied ? "opacity-100" : isCopyClosing ? "opacity-0" : "opacity-0 group-hover:opacity-100"
+          )}
+        >
             
             {totalVer > 1 && (
-                <div className="flex items-center text-xs font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors mr-2">
-                    <button onClick={() => onSwitchVersion(currentIndex - 1)} disabled={currentIndex <= 0} className="p-1 disabled:opacity-30 hover:bg-black/5 dark:hover:bg-white/5 rounded"><Icon name="nav.chevronLeft" size="xs"/></button>
+                <div className={cn("flex items-center text-xs font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors mr-2", secondaryActionClass)}>
+                    <button onClick={() => onSwitchVersion(currentIndex - 1)} disabled={currentIndex <= 0} className={cn("p-1 disabled:opacity-30 hover:bg-black/5 dark:hover:bg-white/5 rounded", iconButtonStyles)}><Icon name="nav.chevronLeft" size="md"/></button>
                     <span className="mx-1 font-mono">{currentVer}/{totalVer}</span>
-                    <button onClick={() => onSwitchVersion(currentIndex + 1)} disabled={currentIndex >= totalVer - 1} className="p-1 disabled:opacity-30 hover:bg-black/5 dark:hover:bg-white/5 rounded"><Icon name="nav.chevronRight" size="xs"/></button>
+                    <button onClick={() => onSwitchVersion(currentIndex + 1)} disabled={currentIndex >= totalVer - 1} className={cn("p-1 disabled:opacity-30 hover:bg-black/5 dark:hover:bg-white/5 rounded", iconButtonStyles)}><Icon name="nav.chevronRight" size="md"/></button>
                 </div>
             )}
             
             <button 
                 onClick={handleCopy} 
-                className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors rounded-md hover:bg-black/5 dark:hover:bg-white/5" 
+                className={cn("p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5", iconButtonStyles)} 
             >
-                {isCopied ? <Icon name="common.check" size="md" /> : <Icon name="common.copy" size="md" />}
-            </button>
-            
-            <button 
-                onClick={onSpeak} 
-                className={cn(
-                    "p-1.5 transition-colors rounded-md hover:bg-black/5 dark:hover:bg-white/5",
-                    isSpeaking ? "text-red-500" : "text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200"
-                )} 
-            >
-                {isSpeaking ? <Icon name="media.stop" size="md" /> : <Icon name="media.volume" size="md" />}
+                {isCopyFeedbackVisible ? <Icon name="common.check" size="md" /> : <Icon name="common.copy" size="md" />}
             </button>
 
-            <button onClick={onRegenerate} className="p-1.5 text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors rounded-md hover:bg-black/5 dark:hover:bg-white/5">
+            {!isCopyClosing && (
+              <button onClick={onRegenerate} className={cn("p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5", iconButtonStyles, secondaryActionClass)}>
                 <Icon name="common.refresh" size="md" />
-            </button>
+              </button>
+            )}
         </div>
     </div>
   );

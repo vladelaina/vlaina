@@ -11,3 +11,8 @@
 - **Tooltips**: Use the standard `Tooltip` component from `@/components/ui/tooltip`.
   - Style: Black background (`bg-foreground`), White text (`text-background`).
   - Do NOT create custom tooltip implementations.
+
+## Testing Structure
+- Unit/component tests should stay close to implementation files under `src/**` using `*.test.ts` / `*.test.tsx`.
+- Cross-module integration tests should live under `test/integration/**`.
+- End-to-end style tests/scripts should live under `test/e2e/**`.

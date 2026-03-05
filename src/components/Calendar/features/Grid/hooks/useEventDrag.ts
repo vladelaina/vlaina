@@ -12,7 +12,11 @@ import {
 interface UseEventDragProps {
     config: Omit<TimeGridDragConfig, 'use24Hour'>;
     displayItems: NekoEvent[];
-    onUpdateEvent: (uid: string, updates: Partial<NekoEvent>) => void;
+    onUpdateEvent: (
+        uid: string,
+        updates: Partial<NekoEvent>,
+        options?: { persist?: boolean }
+    ) => void;
 }
 
 interface UseEventDragReturn {
@@ -126,7 +130,7 @@ export function useEventDrag({
                         allDay: false,
                         dtstart: newStartDate,
                         dtend: newEndDate,
-                    });
+                    }, { persist: false });
                     setDragTimeIndicator({
                         startMinutes: snappedMinutes,
                         endMinutes: snappedMinutes + 60,
@@ -137,7 +141,7 @@ export function useEventDrag({
                     allDay: true,
                     dtstart: new Date(eventDrag.originalStart),
                     dtend: new Date(eventDrag.originalEnd),
-                });
+                }, { persist: false });
                 setDragTimeIndicator(null);
             }
             return;
@@ -188,7 +192,7 @@ export function useEventDrag({
             onUpdateEvent(eventDrag.eventId, {
                 dtstart: new Date(newStart),
                 dtend: new Date(newEnd),
-            });
+            }, { persist: false });
             setDragTimeIndicator({
                 startMinutes: new Date(newStart).getHours() * 60 + new Date(newStart).getMinutes(),
                 endMinutes: new Date(newEnd).getHours() * 60 + new Date(newEnd).getMinutes(),
@@ -225,7 +229,7 @@ export function useEventDrag({
             onUpdateEvent(eventDrag.eventId, {
                 dtstart: new Date(newStart),
                 dtend: new Date(newEnd),
-            });
+            }, { persist: false });
             setDragTimeIndicator({
                 startMinutes: new Date(newStart).getHours() * 60 + new Date(newStart).getMinutes(),
                 endMinutes: new Date(newEnd).getHours() * 60 + new Date(newEnd).getMinutes(),
@@ -266,7 +270,7 @@ export function useEventDrag({
             onUpdateEvent(eventDrag.eventId, {
                 dtstart: new Date(finalStart),
                 dtend: new Date(finalEnd),
-            });
+            }, { persist: false });
             
             setDragTimeIndicator({
                 startMinutes: new Date(finalStart).getHours() * 60 + new Date(finalStart).getMinutes(),
@@ -279,6 +283,7 @@ export function useEventDrag({
     const handleMouseUp = useCallback(() => {
         if (!eventDrag) return;
 
+        let committed = false;
         if (isAllDayDropTarget && eventDrag.edge === null && !eventDrag.originalIsAllDay) {
             const event = displayItems.find(item => item.uid === eventDrag.eventId);
             if (event) {
@@ -287,7 +292,12 @@ export function useEventDrag({
                     dtstart: startOfDay(event.dtstart),
                     dtend: endOfDay(event.dtstart),
                 });
+                committed = true;
             }
+        }
+        if (!committed) {
+            // Commit the latest in-memory drag update once.
+            onUpdateEvent(eventDrag.eventId, {}, { persist: true });
         }
 
         setEventDrag(null);
@@ -301,7 +311,7 @@ export function useEventDrag({
                 allDay: eventDrag.originalIsAllDay,
                 dtstart: new Date(eventDrag.originalStart),
                 dtend: new Date(eventDrag.originalEnd),
-            });
+            }, { persist: true });
             setEventDrag(null);
             setDragTimeIndicator(null);
             setIsAllDayDropTarget(false);

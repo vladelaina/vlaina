@@ -1,7 +1,9 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import type { ProgressOrCounter, ProgressItem, CounterItem } from '@/stores/useProgressStore';
 import { MetadataField, MetadataInput } from './MetadataField';
 import type { FocusTarget } from './useDetailModal';
+import { normalizeTags } from '@/lib/tags/tagUtils';
 
 type DraftKey = keyof ProgressItem | keyof CounterItem;
 
@@ -145,6 +147,17 @@ function ProgressMetadata({
           onDirectUpdate={onDirectUpdate}
         />
       </div>
+
+      <div className="col-span-2 min-w-0">
+        <TagsField
+          tags={displayItem.tags}
+          isEditing={isEditing}
+          focusTarget={focusTarget}
+          onStartEdit={onStartEdit}
+          onCommit={onCommit}
+          onUpdateDraft={onUpdateDraft}
+        />
+      </div>
     </div>
   );
 }
@@ -169,9 +182,9 @@ function CounterMetadata({
   onDirectUpdate,
 }: CounterMetadataProps) {
   return (
-    <div className="flex items-center justify-center gap-8 w-full max-w-sm">
+    <div className="grid grid-cols-2 gap-x-8 gap-y-6 w-full max-w-sm">
       {/* Step */}
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0">
         <MetadataField
           label="Step"
           isEditing={isEditing}
@@ -189,7 +202,7 @@ function CounterMetadata({
       </div>
 
       {/* Unit */}
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0">
         <MetadataField
           label="Unit"
           isEditing={isEditing}
@@ -209,13 +222,114 @@ function CounterMetadata({
       </div>
 
       {/* Reset */}
-      <ResetField
-        resetFrequency={displayItem.resetFrequency}
-        isEditing={isEditing}
-        onUpdateDraft={onUpdateDraft}
-        onDirectUpdate={onDirectUpdate}
-      />
+      <div className="col-span-2 flex justify-center">
+        <ResetField
+          resetFrequency={displayItem.resetFrequency}
+          isEditing={isEditing}
+          onUpdateDraft={onUpdateDraft}
+          onDirectUpdate={onDirectUpdate}
+        />
+      </div>
+
+      <div className="col-span-2 min-w-0">
+        <TagsField
+          tags={displayItem.tags}
+          isEditing={isEditing}
+          focusTarget={focusTarget}
+          onStartEdit={onStartEdit}
+          onCommit={onCommit}
+          onUpdateDraft={onUpdateDraft}
+        />
+      </div>
     </div>
+  );
+}
+
+interface TagsFieldProps {
+  tags?: string[] | null;
+  isEditing: boolean;
+  focusTarget: FocusTarget;
+  onStartEdit: (target: FocusTarget) => void;
+  onCommit: () => void;
+  onUpdateDraft: (key: DraftKey, value: unknown) => void;
+}
+
+function formatTagsDisplay(tags?: string[] | null): string {
+  const normalized = normalizeTags(tags);
+  if (normalized.length === 0) return '—';
+  return normalized.map(tag => `#${tag}`).join(' ');
+}
+
+function formatTagsInput(tags?: string[] | null): string {
+  return normalizeTags(tags).join(', ');
+}
+
+function parseTagInput(value: string): string[] {
+  const cleaned = value
+    .split(',')
+    .map(token => token.replace(/^#+/, '').trim())
+    .filter(Boolean);
+  return normalizeTags(cleaned);
+}
+
+function TagsField({
+  tags,
+  isEditing,
+  focusTarget,
+  onStartEdit,
+  onCommit,
+  onUpdateDraft,
+}: TagsFieldProps) {
+  const isEditingTags = isEditing && focusTarget === 'tags';
+  const normalizedInput = useMemo(() => formatTagsInput(tags), [tags]);
+  const [inputValue, setInputValue] = useState(normalizedInput);
+  const previousEditingTagsRef = useRef(false);
+
+  useEffect(() => {
+    if (isEditingTags && !previousEditingTagsRef.current) {
+      setInputValue(normalizedInput);
+    }
+    if (!isEditingTags) {
+      setInputValue(normalizedInput);
+    }
+    previousEditingTagsRef.current = isEditingTags;
+  }, [isEditingTags, normalizedInput]);
+
+  return (
+    <MetadataField
+      label="Tags"
+      isEditing={isEditing}
+      onStartEdit={() => onStartEdit('tags')}
+      displayValue={formatTagsDisplay(tags)}
+      isEmpty={normalizeTags(tags).length === 0}
+      className="items-start"
+      displayClassName="text-sm leading-relaxed whitespace-normal break-words w-full"
+    >
+      <input
+        autoFocus={focusTarget === 'tags'}
+        type="text"
+        value={inputValue}
+        onChange={(event) => {
+          const nextValue = event.target.value;
+          setInputValue(nextValue);
+          onUpdateDraft('tags', parseTagInput(nextValue));
+        }}
+        className="
+          w-full bg-transparent border-none outline-none text-left
+          font-medium text-sm text-zinc-900 dark:text-zinc-100
+          caret-zinc-400 p-0
+          placeholder:text-zinc-200 dark:placeholder:text-zinc-700
+        "
+        placeholder="tag1, tag2"
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.stopPropagation();
+            onCommit();
+          }
+        }}
+        onClick={(event) => event.stopPropagation()}
+      />
+    </MetadataField>
   );
 }
 

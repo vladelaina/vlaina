@@ -2,59 +2,80 @@ import { useCallback } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import { convertToBase64, type Attachment } from '@/lib/storage/attachmentStorage';
-import type { ChatMessage, ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
-import { TIME_SYSTEM_PROMPT, IMAGE_PLACEHOLDER } from '@/lib/ai/prompts';
+import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
+import { buildRequestHistory } from '@/lib/ai/requestContext';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
+const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
 
-function formatTimeByOffset(offset: number): string {
-  const now = new Date();
-  const utcMs = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
-  const targetMs = utcMs + offset * 60 * 60 * 1000;
-  const targetDate = new Date(targetMs);
+function createChunkScheduler(onFlush: (content: string) => void) {
+  let pendingContent: string | null = null;
+  let frameId: number | null = null;
+  let frameKind: 'raf' | 'timeout' | null = null;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  const year = targetDate.getUTCFullYear();
-  const month = String(targetDate.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(targetDate.getUTCDate()).padStart(2, '0');
-  const hours = String(targetDate.getUTCHours()).padStart(2, '0');
-  const minutes = String(targetDate.getUTCMinutes()).padStart(2, '0');
-  const seconds = String(targetDate.getUTCSeconds()).padStart(2, '0');
-
-  const sign = offset >= 0 ? '+' : '-';
-  const absoluteOffset = Math.abs(offset);
-  const offsetHours = Math.floor(absoluteOffset);
-  const offsetMinutes = Math.round((absoluteOffset - offsetHours) * 60);
-  const offsetText = `${sign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
-
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} GMT${offsetText}`;
-}
-
-function createTimeContext(modelId: string) {
-  const offset = useUnifiedStore.getState().data.settings.timezone.offset;
-  const timeInfo = formatTimeByOffset(offset);
-  return {
-    role: 'system',
-    content: TIME_SYSTEM_PROMPT(timeInfo),
-    modelId,
-    id: `time-${Date.now()}`,
-    timestamp: Date.now(),
-  };
-}
-
-function sanitizeHistory(messages: ChatMessage[]): ChatMessage[] {
-  return messages.map((msg) => {
-    if (typeof msg.content === 'string') {
-      return {
-        ...msg,
-        content: msg.content.replace(/!\[.*?\]\(.*?\)/g, IMAGE_PLACEHOLDER),
-      };
+  const clearScheduledFlush = () => {
+    if (frameId !== null) {
+      if (frameKind === 'raf' && typeof window !== 'undefined') {
+        window.cancelAnimationFrame(frameId);
+      } else {
+        clearTimeout(frameId);
+      }
+      frameId = null;
+      frameKind = null;
     }
-    return msg;
-  });
+
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+  };
+
+  const flush = () => {
+    if (pendingContent === null) {
+      clearScheduledFlush();
+      return;
+    }
+
+    const nextContent = pendingContent;
+    pendingContent = null;
+    clearScheduledFlush();
+    onFlush(nextContent);
+  };
+
+  const scheduleFlush = () => {
+    if (frameId === null) {
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        frameKind = 'raf';
+        frameId = window.requestAnimationFrame(() => flush());
+      } else {
+        frameKind = 'timeout';
+        frameId = setTimeout(() => flush(), 16) as unknown as number;
+      }
+    }
+
+    if (timeoutId === null) {
+      timeoutId = setTimeout(() => flush(), STREAM_CHUNK_FLUSH_MAX_DELAY_MS);
+    }
+  };
+
+  return {
+    push(content: string) {
+      pendingContent = content;
+      scheduleFlush();
+    },
+    flushNow() {
+      flush();
+    },
+    cancel() {
+      pendingContent = null;
+      clearScheduledFlush();
+    },
+  };
 }
 
 export function useChatService() {
@@ -74,6 +95,8 @@ export function useChatService() {
     temporaryChatEnabled,
     isTemporarySession,
     nativeWebSearchEnabled,
+    customSystemPrompt,
+    includeTimeContext,
     setSessionLoading,
     markSessionUnread,
     setError,
@@ -159,9 +182,19 @@ export function useChatService() {
         );
       }
 
+      const streamScheduler = createChunkScheduler((nextContent) =>
+        updateMessage(targetSessionId, assistantMessageId, nextContent)
+      );
+
       try {
-        const finalHistory = [...messages, createTimeContext(selectedModel.id) as ChatMessage];
-        const sanitizedHistory = sanitizeHistory(finalHistory);
+        const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
+        const requestHistory = buildRequestHistory({
+          history: messages,
+          modelId: selectedModel.id,
+          timezoneOffset,
+          includeTimeContext,
+          customSystemPrompt
+        });
 
         let apiMessageContent: ChatMessageContent = userMessageText;
         if (attachments.length > 0) {
@@ -189,13 +222,14 @@ export function useChatService() {
 
         await openaiClient.sendMessage(
           apiMessageContent,
-          sanitizedHistory,
+          requestHistory,
           selectedModel,
           provider,
-          (chunk) => updateMessage(targetSessionId, assistantMessageId, chunk),
+          (chunk) => streamScheduler.push(chunk),
           controller.signal,
           { nativeWebSearch: nativeWebSearchEnabled }
         );
+        streamScheduler.flushNow();
         completeMessage(targetSessionId, assistantMessageId);
 
         const current = useUnifiedStore.getState().data.ai?.currentSessionId;
@@ -203,6 +237,7 @@ export function useChatService() {
           markSessionUnread(targetSessionId);
         }
       } catch (error: any) {
+        streamScheduler.flushNow();
         if (error.name === 'AbortError') {
           return;
         }
@@ -215,6 +250,7 @@ export function useChatService() {
         setError(detail);
         updateMessage(targetSessionId, assistantMessageId, errorXml);
       } finally {
+        streamScheduler.cancel();
         requestManager.finish(targetSessionId, controller);
         setSessionLoading(targetSessionId, false);
       }
@@ -230,6 +266,8 @@ export function useChatService() {
       temporaryChatEnabled,
       isTemporarySession,
       nativeWebSearchEnabled,
+      customSystemPrompt,
+      includeTimeContext,
       setSessionLoading,
       setError,
       messages,
@@ -263,6 +301,10 @@ export function useChatService() {
       setSessionLoading(sessionId, true);
       setError(null);
 
+      const streamScheduler = createChunkScheduler((nextContent) =>
+        updateMessage(sessionId, assistantMessageId, nextContent)
+      );
+
       try {
         const state = useUnifiedStore.getState();
         const sessionMessages = state.data.ai?.messages[sessionId] || [];
@@ -272,21 +314,28 @@ export function useChatService() {
           return;
         }
         const history = sessionMessages.slice(0, userMsgIndex);
-
-        const finalHistory = [...history, createTimeContext(selectedModel.id) as ChatMessage];
-        const sanitizedHistory = sanitizeHistory(finalHistory);
+        const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
+        const requestHistory = buildRequestHistory({
+          history,
+          modelId: selectedModel.id,
+          timezoneOffset,
+          includeTimeContext,
+          customSystemPrompt
+        });
 
         await openaiClient.sendMessage(
           newContent,
-          sanitizedHistory,
+          requestHistory,
           selectedModel,
           provider,
-          (chunk) => updateMessage(sessionId, assistantMessageId, chunk),
+          (chunk) => streamScheduler.push(chunk),
           controller.signal,
           { nativeWebSearch: nativeWebSearchEnabled }
         );
+        streamScheduler.flushNow();
         completeMessage(sessionId, assistantMessageId);
       } catch (error: any) {
+        streamScheduler.flushNow();
         if (error.name === 'AbortError') {
           return;
         }
@@ -295,6 +344,7 @@ export function useChatService() {
         const errorXml = `<error type="${error.type || 'UNKNOWN'}" code="${error.statusCode || ''}">${detail}</error>`;
         updateMessage(sessionId, assistantMessageId, errorXml);
       } finally {
+        streamScheduler.cancel();
         requestManager.finish(sessionId, controller);
         setSessionLoading(sessionId, false);
       }
@@ -304,6 +354,8 @@ export function useChatService() {
       selectedModel,
       providers,
       nativeWebSearchEnabled,
+      customSystemPrompt,
+      includeTimeContext,
       editMessageAndBranch,
       addMessage,
       updateMessage,
@@ -333,18 +385,33 @@ export function useChatService() {
       const controller = requestManager.start(sessionId);
       setSessionLoading(sessionId, true);
 
+      const streamScheduler = createChunkScheduler((nextContent) =>
+        updateMessage(sessionId, msgId, nextContent)
+      );
+
       try {
+        const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
+        const requestHistory = buildRequestHistory({
+          history,
+          modelId: selectedModel.id,
+          timezoneOffset,
+          includeTimeContext,
+          customSystemPrompt
+        });
+
         await openaiClient.sendMessage(
           promptMsg.content,
-          history,
+          requestHistory,
           selectedModel,
           provider,
-          (chunk) => updateMessage(sessionId, msgId, chunk),
+          (chunk) => streamScheduler.push(chunk),
           controller.signal,
           { nativeWebSearch: nativeWebSearchEnabled }
         );
+        streamScheduler.flushNow();
         completeMessage(sessionId, msgId);
       } catch (error: any) {
+        streamScheduler.flushNow();
         if (error.name === 'AbortError') {
           return;
         }
@@ -357,6 +424,7 @@ export function useChatService() {
         setError(detail);
         updateMessage(sessionId, msgId, errorXml);
       } finally {
+        streamScheduler.cancel();
         requestManager.finish(sessionId, controller);
         setSessionLoading(sessionId, false);
       }
@@ -366,6 +434,8 @@ export function useChatService() {
       messages,
       providers,
       nativeWebSearchEnabled,
+      customSystemPrompt,
+      includeTimeContext,
       addVersion,
       setSessionLoading,
       updateMessage,

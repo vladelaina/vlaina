@@ -2,6 +2,14 @@ import ICAL from 'ical.js';
 import type { NekoEvent } from './types';
 import type { ItemColor } from '@/lib/colors';
 import { NEKO_X_PROPS } from './types';
+import { deserializeTags } from '@/lib/tags/tagUtils';
+
+function isMidnight(date: Date): boolean {
+    return date.getHours() === 0
+        && date.getMinutes() === 0
+        && date.getSeconds() === 0
+        && date.getMilliseconds() === 0;
+}
 
 export function parseICS(icsContent: string, defaultCalendarId: string = 'default'): NekoEvent[] {
     const jcalData = ICAL.parse(icsContent);
@@ -40,12 +48,30 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
         const nekoParentId = vevent.getFirstPropertyValue(NEKO_X_PROPS.PARENT_ID.toLowerCase()) as string | null;
         const nekoCollapsed = vevent.getFirstPropertyValue(NEKO_X_PROPS.COLLAPSED.toLowerCase()) as string | null;
         const nekoEstimatedMinutes = vevent.getFirstPropertyValue(NEKO_X_PROPS.ESTIMATED_MINUTES.toLowerCase()) as string | null;
+        const nekoTags = vevent.getFirstPropertyValue(NEKO_X_PROPS.TAGS.toLowerCase()) as string | null;
+
+        const startDate = dtstart.toJSDate();
+        let endDate: Date;
+
+        if (dtend) {
+            const parsedEnd = dtend.toJSDate();
+            // RFC 5545 all-day events are end-exclusive; normalize to inclusive end.
+            if (dtstart.isDate && isMidnight(parsedEnd) && parsedEnd.getTime() > startDate.getTime()) {
+                endDate = new Date(parsedEnd.getTime() - 1);
+            } else {
+                endDate = parsedEnd;
+            }
+        } else if (dtstart.isDate) {
+            endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000 - 1);
+        } else {
+            endDate = new Date(startDate.getTime() + 30 * 60 * 1000);
+        }
 
         const nekoEvent: NekoEvent = {
             uid: event.uid || crypto.randomUUID(),
             summary: event.summary || '',
-            dtstart: dtstart.toJSDate(),
-            dtend: dtend ? dtend.toJSDate() : new Date(dtstart.toJSDate().getTime() + 30 * 60 * 1000),
+            dtstart: startDate,
+            dtend: endDate,
             allDay: dtstart.isDate,
             description: event.description || undefined,
             location: event.location || undefined,
@@ -64,6 +90,7 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
             parentId: nekoParentId || undefined,
             collapsed: nekoCollapsed === 'TRUE',
             estimatedMinutes: nekoEstimatedMinutes ? parseInt(nekoEstimatedMinutes, 10) : undefined,
+            tags: deserializeTags(nekoTags),
         };
 
         events.push(nekoEvent);

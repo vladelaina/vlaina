@@ -1,9 +1,11 @@
 import { useEffect, useMemo } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
+import { isTauri } from '@/lib/storage/adapter';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore as useAppUIStore } from '@/stores/uiSlice';
 import { getShortcuts, getKeysFromEvent, matchShortcut, ShortcutScope, ShortcutHandler } from '@/lib/shortcuts';
+import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
 
 interface UseShortcutsOptions {
   scope?: ShortcutScope;
@@ -53,6 +55,11 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       if (e.key === 'F11') {
         e.preventDefault();
         await windowCommands.toggleFullscreen();
+        return;
+      }
+
+      if (isTauri() && shouldBlockBrowserReservedShortcut(e)) {
+        e.preventDefault();
         return;
       }
       

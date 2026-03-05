@@ -1,8 +1,20 @@
-import { useState, useRef, useEffect, useMemo, memo, useCallback } from 'react'
+import { useState, useRef, useEffect, useMemo, memo, useCallback, type RefObject } from 'react'
 import { Icon } from '@/components/ui/icons'
 import { useAIStore } from '@/stores/useAIStore'
 import { cn } from '@/lib/utils'
+import { useModelSelectorKeyboard } from './hooks/useModelSelectorKeyboard'
+import { useModelSelectorScroll } from './hooks/useModelSelectorScroll'
 import type { AIModel } from '@/lib/ai/types';
+
+function debugModelSelectorLog(message: string, payload?: Record<string, unknown>) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    if (window.localStorage.getItem('debug:model-selector') !== '1') {
+        return;
+    }
+    console.info('[ModelSelector]', message, payload ?? {});
+}
 
 const ModelOption = memo(({ 
     model, 
@@ -23,7 +35,7 @@ const ModelOption = memo(({
             onClick={() => onSelect(model.id)}
             onMouseEnter={() => onHover(model.id)}
             className={cn(
-                "w-full flex items-center justify-between px-3 py-2 rounded-md text-left transition-colors duration-75", // Fast CSS transition
+                "w-full flex items-center justify-between px-3 py-2 rounded-md text-left transition-colors duration-75",
                 (isSelected || isFocused)
                 ? "bg-neutral-100 dark:bg-neutral-700/60"
                 : "bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-700/60"
@@ -37,18 +49,23 @@ const ModelOption = memo(({
             </span>
             
             {isSelected && (
-                <Icon name="common.check" className="w-4 h-4 text-gray-900 dark:text-gray-100 ml-4 flex-shrink-0" />
+                <Icon name="common.check" size="md" className="text-gray-900 dark:text-gray-100 ml-4 flex-shrink-0" />
             )}
         </button>
     );
 });
 
-export function ModelSelector() {
+interface ModelSelectorProps {
+  composerInputRef: RefObject<HTMLTextAreaElement | null>
+}
+
+export function ModelSelector({ composerInputRef }: ModelSelectorProps) {
   const { models, selectedModelId, selectModel, getSelectedModel } = useAIStore()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [focusedModelId, setFocusedModelId] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const isKeyboardNavigating = useRef(false)
 
@@ -64,6 +81,61 @@ export function ModelSelector() {
       );
   }, [enabledModels, searchQuery]);
 
+  const {
+      requestCenterScroll,
+      requestNearestScroll,
+      clearScrollMode,
+  } = useModelSelectorScroll({
+      isOpen,
+      focusedModelId,
+      listRef,
+      onDebugLog: debugModelSelectorLog,
+  });
+
+  const focusSearchInput = useCallback(() => {
+      setTimeout(() => inputRef.current?.focus(), 50);
+  }, []);
+
+  const focusComposerInput = useCallback(() => {
+      setTimeout(() => {
+          const input = composerInputRef.current;
+          if (input) {
+              input.focus({ preventScroll: true });
+              const position = input.value.length;
+              input.setSelectionRange(position, position);
+          }
+      }, 50);
+  }, [composerInputRef]);
+
+  const setKeyboardNavigating = useCallback((value: boolean) => {
+      isKeyboardNavigating.current = value;
+  }, []);
+
+  const openSelector = useCallback((source: 'button' | 'shortcut') => {
+      const initialFocusedId = selectedModelId ?? null;
+      requestCenterScroll();
+      setFocusedModelId(initialFocusedId);
+      debugModelSelectorLog('open-initial-focus', { selectedModelId: initialFocusedId, from: source });
+      setIsOpen(true);
+      focusSearchInput();
+  }, [focusSearchInput, requestCenterScroll, selectedModelId]);
+
+  const closeSelector = useCallback((restoreComposerFocus = false) => {
+      clearScrollMode();
+      setIsOpen(false);
+      if (restoreComposerFocus) {
+          focusComposerInput();
+      }
+  }, [clearScrollMode, focusComposerInput]);
+
+  const toggleSelector = useCallback((source: 'button' | 'shortcut') => {
+      if (isOpen) {
+          closeSelector(false);
+          return;
+      }
+      openSelector(source);
+  }, [closeSelector, isOpen, openSelector]);
+
   useEffect(() => {
       const handleMouseMove = () => {
           isKeyboardNavigating.current = false;
@@ -74,89 +146,29 @@ export function ModelSelector() {
       }
   }, [isOpen]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-        const isMod = e.metaKey || e.ctrlKey;
-        
-        if (isMod && e.key.toLowerCase() === 'm') {
-            e.preventDefault();
-            setIsOpen(prev => {
-                const next = !prev;
-                if (next) {
-                    setFocusedModelId(null);
-                    setTimeout(() => inputRef.current?.focus(), 50);
-                }
-                return next;
-            });
-            return;
-        }
+  const handleSelectModel = useCallback((modelId: string) => {
+    selectModel(modelId)
+    closeSelector(true)
+    setSearchQuery('')
+  }, [closeSelector, selectModel]);
 
-        if (!isOpen) return;
-
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            isKeyboardNavigating.current = true;
-            setFocusedModelId(curr => {
-                const idx = filteredModels.findIndex(m => m.id === curr);
-                const nextIdx = idx === -1 ? 0 : (idx + 1) % filteredModels.length;
-                return filteredModels[nextIdx]?.id || curr;
-            });
-        }
-
-        if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            isKeyboardNavigating.current = true;
-            setFocusedModelId(curr => {
-                const idx = filteredModels.findIndex(m => m.id === curr);
-                const prevIdx = idx === -1 ? filteredModels.length - 1 : (idx - 1 + filteredModels.length) % filteredModels.length;
-                return filteredModels[prevIdx]?.id || curr;
-            });
-        }
-
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (focusedModelId) {
-                handleSelectModel(focusedModelId);
-            } else if (filteredModels.length > 0) {
-                handleSelectModel(filteredModels[0].id);
-            }
-        }
-
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            setIsOpen(false);
-            setTimeout(() => {
-                const input = document.querySelector('textarea[placeholder*="Message"]') as HTMLTextAreaElement;
-                if (input) input.focus();
-            }, 50);
-        }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, filteredModels, focusedModelId]);
-
-  useEffect(() => {
-      if (isOpen && focusedModelId && dropdownRef.current) {
-          const activeItem = dropdownRef.current.querySelector(`[data-model-id="${focusedModelId}"]`);
-          if (activeItem) {
-              activeItem.scrollIntoView({ block: 'nearest', behavior: 'instant' } as any);
-          }
-      }
-  }, [focusedModelId, isOpen]);
-
-  useEffect(() => {
-      if (isOpen && selectedModelId) {
-          setFocusedModelId(selectedModelId);
-      } else if (isOpen) {
-          setFocusedModelId(null);
-      }
-  }, [isOpen, selectedModelId]);
+  useModelSelectorKeyboard({
+      isOpen,
+      filteredModels,
+      focusedModelId,
+      setFocusedModelId,
+      setKeyboardNavigating,
+      onShortcutToggle: () => toggleSelector('shortcut'),
+      onClose: () => closeSelector(true),
+      onSelectModel: handleSelectModel,
+      requestNearestScroll,
+      clearScrollMode,
+  });
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
+        closeSelector(false)
       }
     }
 
@@ -167,40 +179,30 @@ export function ModelSelector() {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [isOpen])
-
-  const handleSelectModel = useCallback((modelId: string) => {
-    selectModel(modelId)
-    setIsOpen(false)
-    setSearchQuery('')
-    
-    setTimeout(() => {
-        const input = document.querySelector('textarea[placeholder*="Message"]') as HTMLTextAreaElement;
-        if (input) input.focus();
-    }, 50);
-  }, [selectModel]);
+  }, [closeSelector, isOpen])
 
   const handleHover = useCallback((id: string) => {
       if (!isKeyboardNavigating.current) {
+          clearScrollMode();
           setFocusedModelId(id);
       }
-  }, []);
+  }, [clearScrollMode]);
 
   return (
     <div className="relative select-none w-fit" ref={dropdownRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => toggleSelector('button')}
         className={cn(
-          "flex items-center gap-1.5 px-3 h-9 rounded-full transition-all group", // h-9 (36px), rounded-full
+          "flex items-center gap-1.5 px-3 h-9 rounded-full transition-all group",
           "bg-transparent border-none",
-          "text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5" // Added hover effect for touch target feedback
+          "text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5"
         )}
       >
         <span className="text-sm font-medium whitespace-nowrap">
           {selectedModel ? selectedModel.name : 'Select Model'}
         </span>
         <svg
-          className={cn("h-3 w-3 opacity-70 transition-transform duration-200", isOpen && "rotate-180")}
+          className={cn("h-5 w-5 opacity-70 transition-transform duration-200", isOpen && "rotate-180")}
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -210,7 +212,6 @@ export function ModelSelector() {
         </svg>
       </button>
 
-      {/* Instant Dropdown (No Animation Library) */}
       {isOpen && (
         <div 
           className={cn(
@@ -218,8 +219,6 @@ export function ModelSelector() {
             "bg-white dark:bg-neutral-800 rounded-2xl shadow-xl",
             "border border-neutral-100 dark:border-neutral-600/40",
             "backdrop-blur-lg z-50 overflow-hidden flex flex-col",
-            // Optional: minimal CSS animation if desired (e.g. animate-in fade-in zoom-in-95)
-            // But for "instant" feel, we keep it raw or super fast.
             "animate-in fade-in duration-75 zoom-in-95" 
           )}
           style={{ maxHeight: '320px' }}
@@ -237,7 +236,7 @@ export function ModelSelector() {
               />
               <button
                   onClick={() => {
-                      setIsOpen(false);
+                      closeSelector(false);
                       const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } });
                       window.dispatchEvent(event);
                   }}
@@ -247,7 +246,7 @@ export function ModelSelector() {
               </button>
           </div>
 
-          <div className="overflow-y-auto p-1 scrollbar-none flex-1" style={{ height: '256px' }}>
+          <div ref={listRef} className="overflow-y-auto p-1 scrollbar-none flex-1" style={{ height: '256px' }}>
             {filteredModels.length === 0 ? (
               <div className="py-8 text-center text-xs text-neutral-500">
                 No models found

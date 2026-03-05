@@ -80,7 +80,9 @@ const initialState: UnifiedStoreState = {
         selectedModelId: null,
         currentSessionId: null,
         temporaryChatEnabled: false,
-        nativeWebSearchEnabled: false
+        nativeWebSearchEnabled: false,
+        customSystemPrompt: '',
+        includeTimeContext: true
     }
   },
   loaded: false,
@@ -102,6 +104,9 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
       // Ensure AI data structure exists
       if (!data.ai) {
           data.ai = { ...initialState.data.ai! };
+      } else {
+          data.ai.customSystemPrompt = data.ai.customSystemPrompt || '';
+          data.ai.includeTimeContext = data.ai.includeTimeContext !== false;
       }
       
       set({ data, loaded: true });

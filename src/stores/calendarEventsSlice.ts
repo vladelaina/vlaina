@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { NekoEvent, NekoCalendar } from '@/lib/ics/types';
 import type { ItemColor } from '@/lib/colors';
 import { DEFAULT_COLOR } from '@/lib/colors';
+import { normalizeTags } from '@/lib/tags/tagUtils';
 import { getDescendantIds, getChildren, reorderSiblings } from './taskTreeUtils';
 import {
     loadCalendarsMeta,
@@ -22,10 +23,14 @@ interface CalendarEventsState {
     save: () => Promise<void>;
 
     addEvent: (event: Omit<NekoEvent, 'uid'> & { uid?: string }) => Promise<void>;
-    updateEvent: (uid: string, updates: Partial<NekoEvent>) => Promise<void>;
+    updateEvent: (
+        uid: string,
+        updates: Partial<NekoEvent>,
+        options?: { persist?: boolean }
+    ) => Promise<void>;
     deleteEvent: (uid: string) => Promise<void>;
 
-    addTask: (content: string, groupId: string, calendarId?: string) => Promise<void>;
+    addTask: (content: string, groupId: string, calendarId?: string, color?: ItemColor, tags?: string[]) => Promise<void>;
     addSubTask: (parentId: string, content: string) => Promise<void>;
     updateTaskOrder: (activeId: string, overId: string) => Promise<void>;
     moveTaskToGroup: (taskId: string, targetGroupId: string, overTaskId?: string | null) => Promise<void>;
@@ -81,14 +86,15 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
         await get().save();
     },
 
-    updateEvent: async (uid, updates) => {
+    updateEvent: async (uid, updates, options) => {
         set(state => ({
             events: state.events.map(e =>
                 e.uid === uid ? { ...e, ...updates } : e
             ),
         }));
-
-        await get().save();
+        if (options?.persist ?? true) {
+            await get().save();
+        }
     },
 
     deleteEvent: async (uid) => {
@@ -99,9 +105,10 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
         await get().save();
     },
 
-    addTask: async (content, groupId, calendarId) => {
+    addTask: async (content, groupId, calendarId, color, tags) => {
         const state = get();
         const targetCalendarId = calendarId || state.calendars[0]?.id || 'main';
+        const normalizedTags = normalizeTags(tags);
         
         const groupTasks = getChildren(state.events, null, groupId);
         
@@ -114,6 +121,8 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             calendarId: targetCalendarId,
             groupId: groupId,
             order: groupTasks.length,
+            color: color || DEFAULT_COLOR,
+            tags: normalizedTags.length > 0 ? normalizedTags : undefined,
             completed: false,
             estimatedMinutes: 15,
         };

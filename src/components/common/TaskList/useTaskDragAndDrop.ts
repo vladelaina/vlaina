@@ -15,12 +15,9 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import type { NekoEvent } from '@/stores/types';
 
-const DEFAULT_DURATION_MS = 25 * 60 * 1000;
-
 interface UseTaskDragAndDropProps {
     tasks: NekoEvent[];
     reorderTasks: (activeId: string, overId: string, makeChild?: boolean) => void;
-    updateTaskTime: (taskId: string, startDate?: number | null, endDate?: number | null) => void;
     toggleTask: (taskId: string) => void;
     setDraggingTaskId: (id: string | null) => void;
 }
@@ -28,7 +25,6 @@ interface UseTaskDragAndDropProps {
 export function useTaskDragAndDrop({
     tasks,
     reorderTasks,
-    updateTaskTime,
     toggleTask,
     setDraggingTaskId,
 }: UseTaskDragAndDropProps) {
@@ -92,18 +88,6 @@ export function useTaskDragAndDrop({
 
         const overIdStr = over.id as string;
 
-        if (overIdStr === '__divider_scheduled__') {
-            const startDate = activeTask.dtstart ? new Date(activeTask.dtstart).getTime() : null;
-            if (startDate) {
-                updateTaskTime(activeTask.uid, null, null);
-            } else if (!activeTask.completed) {
-                const startTime = Date.now();
-                const endTime = startTime + DEFAULT_DURATION_MS;
-                updateTaskTime(activeTask.uid, startTime, endTime);
-            }
-            return;
-        }
-
         if (overIdStr === '__divider_completed__') {
             return;
         }
@@ -111,44 +95,18 @@ export function useTaskDragAndDrop({
         const overTask = tasks.find(t => t.uid === over.id);
         if (!overTask) return;
 
-        const activeStartDate = activeTask.dtstart ? new Date(activeTask.dtstart).getTime() : null;
-        const overStartDate = overTask.dtstart ? new Date(overTask.dtstart).getTime() : null;
-        const activeIsScheduled = !!activeStartDate;
         const activeIsCompleted = activeTask.completed;
-        const overIsScheduled = !!overStartDate;
         const overIsCompleted = overTask.completed;
 
-        const isCrossSection = (activeIsScheduled !== overIsScheduled) || (activeIsCompleted !== overIsCompleted);
+        const isCrossSection = activeIsCompleted !== overIsCompleted;
 
         if (isCrossSection) {
-            if (activeIsScheduled && !activeIsCompleted && !overIsScheduled && !overIsCompleted) {
-                updateTaskTime(activeTask.uid, null, null);
-                return;
-            }
-            if (!activeIsScheduled && !activeIsCompleted && overIsScheduled && !overIsCompleted) {
-                const startTime = Date.now();
-                const endTime = startTime + DEFAULT_DURATION_MS;
-                updateTaskTime(activeTask.uid, startTime, endTime);
-                return;
-            }
-            if (activeIsScheduled && !activeIsCompleted && overIsCompleted) {
-                updateTaskTime(activeTask.uid, null, null);
+            if (!activeIsCompleted && overIsCompleted) {
                 toggleTask(activeTask.uid);
                 return;
             }
-            if (!activeIsScheduled && !activeIsCompleted && overIsCompleted) {
+            if (activeIsCompleted && !overIsCompleted) {
                 toggleTask(activeTask.uid);
-                return;
-            }
-            if (activeIsCompleted && !overIsScheduled && !overIsCompleted) {
-                toggleTask(activeTask.uid);
-                return;
-            }
-            if (activeIsCompleted && overIsScheduled && !overIsCompleted) {
-                toggleTask(activeTask.uid);
-                const startTime = Date.now();
-                const endTime = startTime + DEFAULT_DURATION_MS;
-                updateTaskTime(activeTask.uid, startTime, endTime);
                 return;
             }
             return;
@@ -157,7 +115,7 @@ export function useTaskDragAndDrop({
         const INDENT_THRESHOLD = 28;
         const makeChild = dragIndent > INDENT_THRESHOLD;
         reorderTasks(active.id as string, over.id as string, makeChild);
-    }, [tasks, dragIndent, reorderTasks, updateTaskTime, toggleTask, setDraggingTaskId]);
+    }, [tasks, dragIndent, reorderTasks, toggleTask, setDraggingTaskId]);
 
     return {
         sensors,

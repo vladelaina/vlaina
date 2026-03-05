@@ -89,7 +89,7 @@ function AppContent() {
     setAppViewMode
   } = useUIStore();
   const { currentVault, initialize } = useVaultStore();
-  const { showInTitleBar, titleBarReadOnly } = useTemporaryTogglePresentation();
+  const { showInTitleBar } = useTemporaryTogglePresentation();
   const shouldShowTemporaryToggleInTitleBar = appViewMode === 'chat' && showInTitleBar;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -201,7 +201,7 @@ function AppContent() {
   } else if (shouldShowTemporaryToggleInTitleBar) {
     rightSlot = (
       <Suspense fallback={null}>
-        <TemporaryChatToggle readOnly={titleBarReadOnly} />
+        <TemporaryChatToggle mode="promote" />
       </Suspense>
     );
   }

@@ -1,9 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
+import { useUIStore } from '@/stores/uiSlice';
 import { ALL_COLORS, SIMPLE_COLOR_STYLES, type ItemColor } from '@/lib/colors';
+import { collectUniqueTags, isSystemTagFilter, normalizeTags } from '@/lib/tags/tagUtils';
+import { TagPicker } from '@/components/Todo/tags';
 
 interface TaskInputProps {
     compact?: boolean;
@@ -13,18 +16,33 @@ export function TaskInput({ compact = false }: TaskInputProps) {
     const [content, setContent] = useState('');
     const [isFocused, setIsFocused] = useState(false);
     const [color, setColor] = useState<ItemColor>('default');
+    const [tags, setTags] = useState<string[]>([]);
     const [showColorMenu, setShowColorMenu] = useState(false);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const colorMenuRef = useRef<HTMLDivElement>(null);
 
-    const { addTask, activeGroupId } = useGroupStore();
+    const { addTask, activeGroupId, tasks } = useGroupStore();
+    const { selectedTag } = useUIStore();
+    const hasTags = tags.length > 0;
+
+    const suggestedTags = useMemo(() => collectUniqueTags(tasks), [tasks]);
+
+    useEffect(() => {
+        setTags(selectedTag && !isSystemTagFilter(selectedTag) ? [selectedTag] : []);
+    }, [selectedTag]);
 
     const handleSubmit = () => {
         if (content.trim() && activeGroupId) {
-            addTask(content.trim(), activeGroupId, color);
+            const normalizedTags = normalizeTags(tags);
+            addTask(content.trim(), activeGroupId, color, normalizedTags);
             setContent('');
+            setTags(selectedTag && !isSystemTagFilter(selectedTag) ? [selectedTag] : []);
             inputRef.current?.focus();
         }
+    };
+
+    const handleRemoveTag = (targetTag: string) => {
+        setTags(prev => prev.filter(tag => tag.toLocaleLowerCase() !== targetTag.toLocaleLowerCase()));
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -37,10 +55,14 @@ export function TaskInput({ compact = false }: TaskInputProps) {
     useEffect(() => {
         const textarea = inputRef.current;
         if (textarea) {
+            if (!hasTags) {
+                textarea.style.height = '24px';
+                return;
+            }
             textarea.style.height = 'auto';
             textarea.style.height = `${Math.min(textarea.scrollHeight, compact ? 80 : 120)}px`;
         }
-    }, [content, compact]);
+    }, [content, compact, hasTags]);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -58,7 +80,8 @@ export function TaskInput({ compact = false }: TaskInputProps) {
     return (
         <div
             className={cn(
-                'flex-1 flex items-start gap-2 px-2 py-1.5 rounded-md transition-all duration-200',
+                'flex-1 flex gap-2 px-2 py-1.5 rounded-md transition-all duration-200',
+                hasTags ? 'items-start' : 'items-center',
                 'border',
                 isFocused
                     ? 'border-zinc-200 dark:border-zinc-700 bg-muted/30'
@@ -66,7 +89,7 @@ export function TaskInput({ compact = false }: TaskInputProps) {
             )}
         >
             {/* Color picker */}
-            <div className="relative shrink-0 pt-0.5" ref={colorMenuRef}>
+            <div className={cn("relative shrink-0", hasTags && "pt-0.5")} ref={colorMenuRef}>
                 <button
                     onClick={() => setShowColorMenu(!showColorMenu)}
                     className={cn(
@@ -117,22 +140,59 @@ export function TaskInput({ compact = false }: TaskInputProps) {
                 </AnimatePresence>
             </div>
 
-            {/* Input field */}
-            <textarea
-                ref={inputRef}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                onKeyDown={handleKeyDown}
-                placeholder="New task..."
-                rows={1}
-                className={cn(
-                    'flex-1 bg-transparent border-none outline-none resize-none py-0.5',
-                    'text-sm text-foreground placeholder:text-muted-foreground/50',
-                    'focus:ring-0 leading-relaxed min-h-[20px]',
-                    compact ? 'max-h-[80px]' : 'max-h-[120px]'
+            <div className="flex-1 min-w-0">
+                {/* Input field */}
+                <textarea
+                    ref={inputRef}
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="New task..."
+                    rows={1}
+                    className={cn(
+                        'w-full bg-transparent border-none outline-none resize-none p-0 m-0',
+                        'text-sm text-foreground placeholder:text-muted-foreground/50',
+                        'focus:ring-0',
+                        hasTags ? 'py-0.5 leading-relaxed min-h-[20px]' : 'relative top-[2px] h-[24px] leading-[24px]',
+                        compact ? 'max-h-[80px]' : 'max-h-[120px]'
+                    )}
+                />
+
+                {tags.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                        {tags.map(tag => (
+                            <span
+                                key={`input-tag-${tag}`}
+                                className="group inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+                            >
+                                #{tag}
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => handleRemoveTag(tag)}
+                                    aria-label={`Remove tag ${tag}`}
+                                    className={cn(
+                                        'inline-flex items-center justify-center rounded text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-opacity',
+                                        'opacity-0 pointer-events-none',
+                                        'group-hover:opacity-100 group-hover:pointer-events-auto',
+                                        'group-focus-within:opacity-100 group-focus-within:pointer-events-auto'
+                                    )}
+                                >
+                                    <Icon size="xs" name="common.close" />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
                 )}
+            </div>
+
+            <TagPicker
+                value={tags}
+                onChange={setTags}
+                suggestedTags={suggestedTags}
+                visible={isFocused}
             />
 
             {/* Submit button */}
@@ -143,7 +203,10 @@ export function TaskInput({ compact = false }: TaskInputProps) {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.8 }}
                         onClick={handleSubmit}
-                        className="shrink-0 p-1 rounded text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors mt-0.5"
+                        className={cn(
+                            "shrink-0 p-1 rounded text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors",
+                            hasTags && "mt-0.5"
+                        )}
                     >
  <Icon size="md" name="legacy.addTask" />
                     </motion.button>
@@ -152,6 +215,3 @@ export function TaskInput({ compact = false }: TaskInputProps) {
         </div>
     );
 }
-
-
-

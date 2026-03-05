@@ -1,6 +1,14 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, type ComponentProps } from 'react';
 import { createPortal } from 'react-dom';
-import { DndContext, DragOverlay, DragMoveEvent } from '@dnd-kit/core';
+import {
+    DndContext,
+    DragOverlay,
+    type CollisionDetection,
+    type DragEndEvent,
+    type DragMoveEvent,
+    type DragOverEvent,
+    type DragStartEvent,
+} from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { NekoEvent } from '@/lib/ics/types';
 import { TaskInput, SortableDivider } from '@/components/common/TaskList';
@@ -18,13 +26,13 @@ interface TaskListViewProps {
     allTasks: NekoEvent[];
 
     // DnD
-    sensors: any;
-    customCollisionDetection: any;
+    sensors: ComponentProps<typeof DndContext>['sensors'];
+    customCollisionDetection: CollisionDetection;
     activeId: string | null;
-    onDragStart: (event: any) => void;
+    onDragStart: (event: DragStartEvent) => void;
     onDragMove: (event: DragMoveEvent) => void;
-    onDragOver: (event: any) => void;
-    onDragEnd: (event: any) => void;
+    onDragOver: (event: DragOverEvent) => void;
+    onDragEnd: (event: DragEndEvent) => void;
     isOverCalendar: boolean;
 
     // Actions
