@@ -34,16 +34,15 @@ export class CodeBlockNodeView implements NodeView {
             'group/code',
             'transition-all'
         );
-        // Prevent cursor from entering the UI parts
-        this.dom.contentEditable = 'false';
         
         // 1. Header container for React
         this.headerDOM = document.createElement('div');
+        // Keep header controls non-editable, but let ProseMirror manage the main editable area.
+        this.headerDOM.contentEditable = 'false';
         this.dom.appendChild(this.headerDOM);
 
         // 2. Editable content container
         this.contentDOM = document.createElement('pre');
-        this.contentDOM.contentEditable = 'true';
         this.contentDOM.className = 'code-block-editable m-0 px-4 pb-4 pt-1 overflow-x-auto text-sm font-mono leading-relaxed bg-transparent outline-none';
         
         // Handle Ctrl+A to select all code in the block
@@ -112,14 +111,12 @@ export class CodeBlockNodeView implements NodeView {
 
         if (isCollapsed) {
             this.contentDOM.style.display = 'none';
-            this.contentDOM.contentEditable = 'false';
             this.contentDOM.setAttribute('aria-hidden', 'true');
             this.contentDOM.tabIndex = -1;
             return;
         }
 
         this.contentDOM.style.display = '';
-        this.contentDOM.contentEditable = 'true';
         this.contentDOM.removeAttribute('aria-hidden');
         this.contentDOM.removeAttribute('tabindex');
     }
@@ -144,12 +141,21 @@ export class CodeBlockNodeView implements NodeView {
 
     // Only block specific UI interactions
     stopEvent(event: Event) {
-        const target = event.target as HTMLElement;
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return false;
         if (target.closest('button')) return true;
         return false;
     }
 
-    ignoreMutation() {
+    ignoreMutation(mutation: MutationRecord | { type: 'selection'; target: globalThis.Node }) {
+        // Always let ProseMirror observe selection changes.
+        if (mutation.type === 'selection') return false;
+
+        const target = mutation.target;
+        // Changes inside the editable code body must be observed.
+        if (this.contentDOM.contains(target)) return false;
+
+        // Header/UI mutations are managed by React and should be ignored by ProseMirror.
         return true;
     }
 
