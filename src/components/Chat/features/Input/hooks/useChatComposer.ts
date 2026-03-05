@@ -53,6 +53,32 @@ export function useChatComposer({
       },
       isFocused: () => document.activeElement === textareaRef.current,
       containsTarget: (target) => target instanceof Node && !!composerRootRef.current?.contains(target),
+      insertText: (text) => {
+        const normalized = text
+          .replace(INVISIBLE_BREAK_REGEX, '')
+          .replace(UNIVERSAL_NEWLINE_REGEX, '\n')
+          .trim();
+        if (!normalized) {
+          return false;
+        }
+
+        hasExplicitMultilineRef.current = true;
+        setMessage((prev) => {
+          const separator = prev && !prev.endsWith('\n') ? '\n' : '';
+          return `${prev}${separator}${normalized}`;
+        });
+
+        requestAnimationFrame(() => {
+          const input = textareaRef.current;
+          if (!input) {
+            return;
+          }
+          input.focus({ preventScroll: true });
+          const pos = input.value.length;
+          input.setSelectionRange(pos, pos);
+        });
+        return true;
+      },
     });
 
     return unregister;

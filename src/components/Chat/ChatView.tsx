@@ -13,6 +13,7 @@ import { copyMessageContentToClipboard } from '@/components/Chat/common/messageC
 
 import { ChatInput } from '@/components/Chat/features/Input/ChatInput';
 import { MessageList } from '@/components/Chat/features/Messages/MessageList';
+import { SelectionInsertButton } from '@/components/Chat/features/Messages/components/SelectionInsertButton';
 import { WelcomeScreen } from '@/components/Chat/layout/WelcomeScreen';
 import { ChatShortcutsDialog } from '@/components/Chat/common/ChatShortcutsDialog';
 import { TemporaryChatToggle } from '@/components/Chat/features/Temporary/TemporaryChatToggle';
@@ -151,6 +152,7 @@ export function ChatView() {
         isOpen={isShortcutsOpen} 
         onOpenChange={setIsShortcutsOpen} 
       />
+      <SelectionInsertButton />
     </div>
   );
 }

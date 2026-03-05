@@ -1,5 +1,5 @@
 import { ComponentType, SVGProps } from 'react';
-import { PenLine, Pin } from 'lucide-react';
+import { PenLine, Pin, Quote } from 'lucide-react';
 import { 
   MinusIcon,
   XMarkIcon,
@@ -127,6 +127,7 @@ export const icons: Record<string, IconSource> = {
   'common.blocked': NoSymbolIcon,
   'common.block': NoSymbolIcon,
   'common.compose': NewChatIcon,
+  'common.quote': Quote,
   'common.rename': PenLine,
   'common.pin': Pin,
   'common.pinOutline': Pin,

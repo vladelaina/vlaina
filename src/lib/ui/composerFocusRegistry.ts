@@ -3,6 +3,7 @@ export interface ComposerFocusAdapter {
   blur?: () => boolean;
   isFocused: () => boolean;
   containsTarget?: (target: EventTarget | null) => boolean;
+  insertText?: (text: string) => boolean;
 }
 
 let activeAdapter: ComposerFocusAdapter | null = null;
@@ -49,6 +50,37 @@ export function selectComposerInputAll(): boolean {
   const length = input.value.length;
   input.setSelectionRange(0, length);
   return document.activeElement === input;
+}
+
+export function insertTextIntoComposer(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  const fromAdapter = activeAdapter?.insertText?.(trimmed) ?? false;
+  if (fromAdapter) {
+    return true;
+  }
+
+  const input = queryComposerTextarea();
+  if (!input) {
+    return false;
+  }
+
+  input.focus({ preventScroll: true });
+  const current = input.value;
+  const separator = current && !current.endsWith('\n') ? '\n' : '';
+  const next = `${current}${separator}${trimmed}`;
+  const setter = Object.getOwnPropertyDescriptor(
+    HTMLTextAreaElement.prototype,
+    'value'
+  )?.set;
+  setter?.call(input, next);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  const pos = next.length;
+  input.setSelectionRange(pos, pos);
+  return true;
 }
 
 export function isComposerInputFocused(): boolean {
