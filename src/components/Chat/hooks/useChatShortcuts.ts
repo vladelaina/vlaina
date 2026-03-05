@@ -5,6 +5,7 @@ import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuard
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { dispatchChatMessageCopied } from '@/components/Chat/common/copyFeedback';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
+import { isComposerFocusTarget, selectComposerInputAll } from '@/lib/ui/composerFocusRegistry';
 
 interface UseChatShortcutsOptions {
   onFocusInput: () => void;
@@ -14,6 +15,14 @@ interface UseChatShortcutsOptions {
 
 export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }: UseChatShortcutsOptions) {
   useEffect(() => {
+    const isEditableTarget = (target: EventTarget | null): boolean => {
+      if (!(target instanceof Element)) return false;
+      if (target instanceof HTMLInputElement) return true;
+      if (target instanceof HTMLTextAreaElement) return true;
+      if ((target as HTMLElement).isContentEditable) return true;
+      return !!target.closest('[contenteditable="true"]');
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
@@ -40,6 +49,17 @@ export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }:
         e.preventDefault();
         aiActions.openNewChat();
         onFocusInput();
+        return;
+      }
+
+      if (isMod && !e.shiftKey && !e.altKey && key === 'a') {
+        if (isEditableTarget(e.target) && !isComposerFocusTarget(e.target)) {
+          return;
+        }
+        e.preventDefault();
+        if (!selectComposerInputAll()) {
+          onFocusInput();
+        }
         return;
       }
 

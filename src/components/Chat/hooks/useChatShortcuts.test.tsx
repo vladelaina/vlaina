@@ -11,6 +11,8 @@ const mocked = vi.hoisted(() => ({
   getState: vi.fn(),
   writeText: vi.fn(),
   dispatchChatMessageCopied: vi.fn(),
+  isComposerFocusTarget: vi.fn(),
+  selectComposerInputAll: vi.fn(),
 }));
 
 vi.mock("@/stores/useAIStore", () => ({
@@ -30,6 +32,11 @@ vi.mock("@/stores/useUnifiedStore", () => ({
 
 vi.mock("@/components/Chat/common/copyFeedback", () => ({
   dispatchChatMessageCopied: mocked.dispatchChatMessageCopied,
+}));
+
+vi.mock("@/lib/ui/composerFocusRegistry", () => ({
+  isComposerFocusTarget: mocked.isComposerFocusTarget,
+  selectComposerInputAll: mocked.selectComposerInputAll,
 }));
 
 function TestHarness({
@@ -98,6 +105,8 @@ describe("useChatShortcuts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocked.getState.mockReturnValue(createState());
+    mocked.isComposerFocusTarget.mockReturnValue(false);
+    mocked.selectComposerInputAll.mockReturnValue(true);
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: mocked.writeText },
       configurable: true,
@@ -135,6 +144,16 @@ describe("useChatShortcuts", () => {
 
     expect(event.defaultPrevented).toBe(true);
     expect(onFocusInput).toHaveBeenCalledTimes(1);
+  });
+
+  it("intercepts Ctrl+A to select composer content instead of selecting page text", () => {
+    const { onFocusInput } = setup();
+
+    const event = fireKeydown({ key: "a", ctrlKey: true });
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(mocked.selectComposerInputAll).toHaveBeenCalledTimes(1);
+    expect(onFocusInput).not.toHaveBeenCalled();
   });
 
   it("opens temporary chat on Ctrl+Shift+J when temporary mode is disabled", () => {

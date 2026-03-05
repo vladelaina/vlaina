@@ -18,8 +18,9 @@ export const chatComposerInputBlockClass = [
 
 export const chatComposerTextareaClass = [
   "w-full resize-none bg-transparent",
+  "select-none focus:select-text",
   "text-[15px] leading-6 text-[var(--neko-text-primary)]",
-  "placeholder:text-gray-400 dark:placeholder:text-gray-500",
+  "placeholder:text-gray-400 dark:placeholder:text-gray-500 placeholder:select-none",
   "focus:outline-none",
   "max-h-[320px] min-h-[24px]"
 ].join(" ");

@@ -40,6 +40,17 @@ export function focusComposerInput(): boolean {
   return result;
 }
 
+export function selectComposerInputAll(): boolean {
+  const input = queryComposerTextarea();
+  if (!input) {
+    return false;
+  }
+  input.focus({ preventScroll: true });
+  const length = input.value.length;
+  input.setSelectionRange(0, length);
+  return document.activeElement === input;
+}
+
 export function isComposerInputFocused(): boolean {
   let result = activeAdapter?.isFocused() ?? false;
   if (!result) {
