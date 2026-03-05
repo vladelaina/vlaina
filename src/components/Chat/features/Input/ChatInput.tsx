@@ -71,6 +71,39 @@ export const ChatInput = memo(function ChatInput({
     [handlePaste, markExplicitMultiline]
   );
 
+  const focusComposerToEnd = useCallback(() => {
+    const input = textareaRef.current;
+    if (!input) {
+      return;
+    }
+    input.focus({ preventScroll: true });
+    const pos = input.value.length;
+    input.setSelectionRange(pos, pos);
+  }, [textareaRef]);
+
+  const handleHiddenFileInputChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      await handleFileChange(e);
+      requestAnimationFrame(() => {
+        focusComposerToEnd();
+      });
+    },
+    [focusComposerToEnd, handleFileChange]
+  );
+
+  const handleTriggerFileSelect = useCallback(() => {
+    triggerFileSelect();
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const restoreFocus = () => {
+      requestAnimationFrame(() => {
+        focusComposerToEnd();
+      });
+    };
+    window.addEventListener('focus', restoreFocus, { capture: true, once: true });
+  }, [focusComposerToEnd, triggerFileSelect]);
+
   const canSend = (!!message.trim() || attachments.length > 0) && !!selectedModel;
 
   return (
@@ -80,7 +113,7 @@ export const ChatInput = memo(function ChatInput({
         multiple
         className="hidden"
         ref={fileInputRef}
-        onChange={handleFileChange}
+        onChange={handleHiddenFileInputChange}
       />
 
       {isDragging && (
@@ -123,7 +156,7 @@ export const ChatInput = memo(function ChatInput({
           <ChatInputActions
             nativeWebSearchEnabled={nativeWebSearchEnabled}
             onToggleNativeWebSearch={toggleNativeWebSearch}
-            onTriggerFileSelect={triggerFileSelect}
+            onTriggerFileSelect={handleTriggerFileSelect}
             isLoading={isLoading}
             canSend={canSend}
             hasDraftMessage={!!message.trim()}

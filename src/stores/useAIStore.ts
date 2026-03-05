@@ -682,6 +682,25 @@ export const useAIStore = () => {
       }
   }, [loaded, load]);
 
+  useEffect(() => {
+    if (!loaded || !aiData?.temporaryChatEnabled) {
+      return;
+    }
+
+    const currentSessionId = aiData.currentSessionId;
+    const currentSession = currentSessionId
+      ? aiData.sessions.find((session) => session.id === currentSessionId)
+      : null;
+    const hasActiveTemporarySession =
+      isTemporarySessionId(currentSessionId) || isTemporarySession(currentSession);
+
+    if (hasActiveTemporarySession) {
+      return;
+    }
+
+    useUnifiedStore.getState().updateAIData({ temporaryChatEnabled: false });
+  }, [aiData?.currentSessionId, aiData?.sessions, aiData?.temporaryChatEnabled, loaded]);
+
   return {
     providers: aiData?.providers || [],
     models: aiData?.models || [],

@@ -147,7 +147,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
               ? combinedData.ai.sessions.some((session) => session.id === currentSessionId)
               : false;
             combinedData.ai.currentSessionId = hasCurrentSession ? currentSessionId : null;
-            combinedData.ai.temporaryChatEnabled = !!sessionsData.temporaryChatEnabled;
+            combinedData.ai.temporaryChatEnabled = false;
             combinedData.ai.nativeWebSearchEnabled = sessionsData.nativeWebSearchEnabled || false;
             combinedData.ai.customSystemPrompt = typeof sessionsData.customSystemPrompt === 'string' ? sessionsData.customSystemPrompt : '';
             combinedData.ai.includeTimeContext = sessionsData.includeTimeContext !== false;
@@ -223,7 +223,7 @@ async function performSplitSave(data: UnifiedData) {
             currentSessionId: ai.currentSessionId && persistedSessionIds.has(ai.currentSessionId)
               ? ai.currentSessionId
               : null,
-            temporaryChatEnabled: !!ai.temporaryChatEnabled,
+            temporaryChatEnabled: false,
             nativeWebSearchEnabled: ai.nativeWebSearchEnabled,
             customSystemPrompt: ai.customSystemPrompt || '',
             includeTimeContext: ai.includeTimeContext !== false,
