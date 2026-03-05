@@ -66,8 +66,20 @@ export function useGroupStore() {
 
     updateTaskTime: async (uid: string, startDate?: number | null, endDate?: number | null, isAllDay?: boolean) => {
         const updates: Partial<NekoEvent> = {};
-        if (startDate !== undefined) updates.dtstart = startDate ? new Date(startDate) : undefined;
-        if (endDate !== undefined) updates.dtend = endDate ? new Date(endDate) : undefined;
+        if (startDate !== undefined) {
+            if (startDate === null) updates.scheduled = false;
+            else {
+                updates.dtstart = new Date(startDate);
+                updates.scheduled = true;
+            }
+        }
+        if (endDate !== undefined) {
+            if (endDate === null) updates.scheduled = false;
+            else {
+                updates.dtend = new Date(endDate);
+                updates.scheduled = true;
+            }
+        }
         if (isAllDay !== undefined) updates.allDay = isAllDay;
         
         await eventStore.updateEvent(uid, updates);
@@ -86,7 +98,7 @@ export function useGroupStore() {
     },
 
     deleteCompletedTasks: async (calendarId: string) => {
-        await deleteCompletedTasks(calendarId);
+        await eventStore.deleteCompletedEventsInCalendar(calendarId);
     },
 
     reorderTasks: async (activeId: string, overId: string) => {
@@ -98,19 +110,11 @@ export function useGroupStore() {
     },
 
     archiveCompletedTasks: async (calendarId: string) => {
-        await deleteCompletedTasks(calendarId); 
+        await eventStore.deleteCompletedEventsInCalendar(calendarId);
     },
 
     loadData: eventStore.load,
   };
-}
-
-async function deleteCompletedTasks(calendarId: string) {
-    const store = useCalendarEventsStore.getState();
-    const tasksToDelete = store.events.filter(e => e.calendarId === calendarId && e.completed);
-    for (const task of tasksToDelete) {
-        await store.deleteEvent(task.uid);
-    }
 }
 
 useGroupStore.getState = () => {

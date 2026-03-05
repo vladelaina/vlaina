@@ -47,6 +47,7 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
         const nekoParentId = vevent.getFirstPropertyValue(NEKO_X_PROPS.PARENT_ID.toLowerCase()) as string | null;
         const nekoCollapsed = vevent.getFirstPropertyValue(NEKO_X_PROPS.COLLAPSED.toLowerCase()) as string | null;
         const nekoEstimatedMinutes = vevent.getFirstPropertyValue(NEKO_X_PROPS.ESTIMATED_MINUTES.toLowerCase()) as string | null;
+        const nekoScheduled = vevent.getFirstPropertyValue(NEKO_X_PROPS.SCHEDULED.toLowerCase()) as string | null;
 
         const startDate = dtstart.toJSDate();
         let endDate: Date;
@@ -70,6 +71,7 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
             summary: event.summary || '',
             dtstart: startDate,
             dtend: endDate,
+            scheduled: nekoScheduled === 'FALSE' ? false : true,
             allDay: dtstart.isDate,
             description: event.description || undefined,
             location: event.location || undefined,

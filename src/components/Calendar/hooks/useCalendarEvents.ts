@@ -12,6 +12,7 @@ export function useCalendarEvents(): NekoEvent[] {
   const displayItems = useMemo(() => {
     const filtered = events.filter(e => {
       if (e.uid === editingEventId) return true;
+      if (e.scheduled === false) return false;
 
       if (!selectedColors.includes(e.color || 'default')) return false;
 

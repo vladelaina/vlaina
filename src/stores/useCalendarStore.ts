@@ -75,6 +75,9 @@ export function useCalendarStore() {
     allEvents: eventsStore.events,
     calendars: eventsStore.calendars,
     loaded: eventsStore.loaded,
+    storageStatus: eventsStore.storageStatus,
+    lastStorageError: eventsStore.lastStorageError,
+    lastStorageErrorAt: eventsStore.lastStorageErrorAt,
 
     viewMode: settingsStore.data.settings.viewMode,
     dayCount: settingsStore.data.settings.dayCount,
@@ -96,6 +99,7 @@ export function useCalendarStore() {
     universalPreviewIconSize: uiStore.universalPreviewIconSize,
 
     load,
+    runStorageHealthCheck: eventsStore.runStorageHealthCheck,
 
     addEvent,
     updateEvent,

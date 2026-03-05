@@ -195,10 +195,11 @@ export function usePanelDragAndDrop({
 
     if (!over) return;
 
-    const overId = over.id as string;
+      const overId = over.id as string;
+      const activeIsScheduled = activeTask.scheduled !== false;
 
-    if (overId === '__divider_scheduled__') {
-      if (activeTask.dtstart) {
+      if (overId === '__divider_scheduled__') {
+      if (activeIsScheduled) {
 
       } else if (!activeTask.completed) {
         const startTime = Date.now();
@@ -221,9 +222,8 @@ export function usePanelDragAndDrop({
         return;
       }
 
-      const activeIsScheduled = !!activeTask.dtstart;
       const activeIsCompleted = activeTask.completed;
-      const overIsScheduled = !!overTask.dtstart;
+      const overIsScheduled = overTask.scheduled !== false;
       const overIsCompleted = overTask.completed;
 
       const isCrossSection = (activeIsScheduled !== overIsScheduled) || (activeIsCompleted !== overIsCompleted);

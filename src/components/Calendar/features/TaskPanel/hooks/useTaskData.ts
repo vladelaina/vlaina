@@ -48,9 +48,8 @@ export function useTaskData({
             });
 
         const notCompleted = topLevelTasks.filter((t) => !t.completed);
-        const startDates = notCompleted.map(t => t.dtstart ? new Date(t.dtstart).getTime() : null);
-        const scheduled = notCompleted.filter((_t, i) => startDates[i] !== null);
-        const unscheduled = notCompleted.filter((_t, i) => startDates[i] === null);
+        const scheduled = notCompleted.filter((t) => t.scheduled !== false);
+        const unscheduled = notCompleted.filter((t) => t.scheduled === false);
 
         const showTodo = selectedStatuses.includes('todo' as TaskStatus);
         const showScheduled = selectedStatuses.includes('scheduled' as TaskStatus);

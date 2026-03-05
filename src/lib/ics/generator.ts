@@ -11,6 +11,7 @@ export function generateICS(events: NekoEvent[], calendar: NekoCalendar): string
 
     for (const event of events) {
         if (event.calendarId !== calendar.id) continue;
+        if (event.scheduled === false) continue;
 
         const eventData: ICalEventData = {
             id: event.uid,
