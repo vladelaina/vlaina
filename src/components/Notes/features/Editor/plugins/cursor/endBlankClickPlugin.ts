@@ -1,10 +1,11 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, Selection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import { isClickBelowLastBlock, resolveTailBlankClickAction } from './endBlankClickUtils';
 
 export const endBlankClickPluginKey = new PluginKey('endBlankClick');
 
-const moveCursorToNewTailLine = (view: any): boolean => {
+const moveCursorToNewTailLine = (view: EditorView): boolean => {
     const { state } = view;
     const action = resolveTailBlankClickAction(state);
     if (!action) return false;
@@ -35,7 +36,7 @@ export const endBlankClickPlugin = $prose(() => {
                     if (!view.dom.contains(event.target)) return false;
                     if (event.target.closest('.heading-toggle-btn')) return false;
                     if (event.target !== view.dom) return false;
-                    if (!isClickBelowLastBlock(view.dom as HTMLElement, event.clientY)) return false;
+                    if (!isClickBelowLastBlock(view.dom, event.clientY)) return false;
 
                     const handled = moveCursorToNewTailLine(view);
                     if (!handled) return false;
