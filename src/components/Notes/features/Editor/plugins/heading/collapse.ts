@@ -4,6 +4,7 @@ import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import {
     collectCollapsedRanges,
     collectTopLevelNodes,
+    findCollapsedSectionByHeading,
     findCollapsedRangeContainingPos,
     findCollapsedRangeIntersectingSelection,
     getCollapsedNodePositions,
@@ -77,10 +78,12 @@ const createToggleWidgetDecoration = (
                 </svg>
             `;
 
-            button.addEventListener('mousedown', (event) => {
+            const handleTogglePointer = (event: Event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                if (!hasContent) return;
+                if (!hasContent) {
+                    return;
+                }
 
                 const action: CollapseMetaAction = {
                     type: isCollapsed ? 'expand' : 'collapse',
@@ -89,13 +92,23 @@ const createToggleWidgetDecoration = (
                 const tr = view.state.tr.setMeta(COLLAPSE_PLUGIN_KEY, action);
                 view.dispatch(tr);
                 view.focus();
-            });
+            };
+
+            if (typeof PointerEvent !== 'undefined') {
+                button.addEventListener('pointerdown', handleTogglePointer);
+            } else {
+                button.addEventListener('mousedown', handleTogglePointer);
+            }
 
             return button;
         },
         {
             side: -1,
             key: `toggle-${headingPos}-${isCollapsed ? '1' : '0'}-${hasContent ? '1' : '0'}`,
+            stopEvent(event) {
+                const target = event.target;
+                return target instanceof HTMLElement && !!target.closest('.heading-toggle-btn');
+            },
         },
     );
 };
@@ -171,6 +184,34 @@ export const collapsePlugin = $prose(() => {
             const nodes = collectTopLevelNodes(newState.doc);
             const collapsedRanges = collectCollapsedRanges(nodes, pluginState.collapsedHeadings);
             if (collapsedRanges.length === 0) return null;
+
+            const collapseAction = transactions
+                .map((tr) => parseCollapseMetaAction(tr.getMeta(COLLAPSE_PLUGIN_KEY)))
+                .find((action): action is CollapseMetaAction => !!action && action.type === 'collapse');
+
+            if (collapseAction) {
+                const collapsedSection = findCollapsedSectionByHeading(collapsedRanges, collapseAction.headingPos);
+                if (collapsedSection) {
+                    const { from, to, empty } = newState.selection;
+                    const intersectsCollapsedSection = empty
+                        ? from >= collapsedSection.from && from <= collapsedSection.to
+                        : to > collapsedSection.from && from < collapsedSection.to;
+
+                    if (intersectsCollapsedSection) {
+                        const tr = newState.tr;
+                        const targetPos = resolveTailRedirectPos(
+                            newState.doc,
+                            collapseAction.headingPos,
+                            collapsedSection.from,
+                        );
+                        const redirectResult = setSelectionAtPos(tr, targetPos, -1);
+                        if (redirectResult.changed) {
+                            tr.setMeta(COLLAPSE_SELECTION_GUARD_META, true);
+                            return tr.scrollIntoView();
+                        }
+                    }
+                }
+            }
 
             const { from, to, empty } = newState.selection;
             const collapsedRange = empty

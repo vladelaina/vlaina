@@ -31,8 +31,10 @@ export const endBlankClickPlugin = $prose(() => {
                 mousedown(view, event) {
                     if (!(event instanceof MouseEvent)) return false;
                     if (event.button !== 0) return false;
-                    if (!(event.target instanceof Node)) return false;
+                    if (!(event.target instanceof HTMLElement)) return false;
                     if (!view.dom.contains(event.target)) return false;
+                    if (event.target.closest('.heading-toggle-btn')) return false;
+                    if (event.target !== view.dom) return false;
                     if (!isClickBelowLastBlock(view.dom as HTMLElement, event.clientY)) return false;
 
                     const handled = moveCursorToNewTailLine(view);

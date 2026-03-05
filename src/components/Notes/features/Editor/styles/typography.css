@@ -152,6 +152,8 @@
   border-radius: 4px;
   color: var(--neko-text-tertiary);
   user-select: none;
+  pointer-events: auto;
+  z-index: 2;
 }
 
 .heading-toggle-btn:hover {
