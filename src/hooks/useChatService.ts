@@ -216,7 +216,6 @@ export function useChatService() {
     providers,
     temporaryChatEnabled,
     isTemporarySession,
-    nativeWebSearchEnabled,
     customSystemPrompt,
     includeTimeContext,
     setSessionLoading,
@@ -356,8 +355,7 @@ export function useChatService() {
           selectedModel,
           provider,
           (chunk) => streamScheduler.push(chunk),
-          controller.signal,
-          { nativeWebSearch: nativeWebSearchEnabled }
+          controller.signal
         );
         streamScheduler.flushNow();
         completeMessage(targetSessionId, assistantMessageId);
@@ -395,7 +393,6 @@ export function useChatService() {
       providers,
       temporaryChatEnabled,
       isTemporarySession,
-      nativeWebSearchEnabled,
       customSystemPrompt,
       includeTimeContext,
       setSessionLoading,
@@ -459,8 +456,7 @@ export function useChatService() {
           selectedModel,
           provider,
           (chunk) => streamScheduler.push(chunk),
-          controller.signal,
-          { nativeWebSearch: nativeWebSearchEnabled }
+          controller.signal
         );
         streamScheduler.flushNow();
         completeMessage(sessionId, assistantMessageId);
@@ -483,7 +479,6 @@ export function useChatService() {
       currentSessionId,
       selectedModel,
       providers,
-      nativeWebSearchEnabled,
       customSystemPrompt,
       includeTimeContext,
       editMessageAndBranch,
@@ -535,8 +530,7 @@ export function useChatService() {
           selectedModel,
           provider,
           (chunk) => streamScheduler.push(chunk),
-          controller.signal,
-          { nativeWebSearch: nativeWebSearchEnabled }
+          controller.signal
         );
         streamScheduler.flushNow();
         completeMessage(sessionId, msgId);
@@ -563,7 +557,6 @@ export function useChatService() {
       selectedModel,
       messages,
       providers,
-      nativeWebSearchEnabled,
       customSystemPrompt,
       includeTimeContext,
       addVersion,

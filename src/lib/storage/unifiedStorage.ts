@@ -65,7 +65,6 @@ export interface UnifiedData {
     selectedModelId: string | null;
     currentSessionId: string | null;
     temporaryChatEnabled?: boolean;
-    nativeWebSearchEnabled?: boolean;
     customSystemPrompt?: string;
     includeTimeContext?: boolean;
   };
@@ -128,7 +127,6 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
         selectedModelId: null,
         currentSessionId: null,
         temporaryChatEnabled: false,
-        nativeWebSearchEnabled: false,
         customSystemPrompt: '',
         includeTimeContext: true,
         messages: {}
@@ -148,7 +146,6 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
               : false;
             combinedData.ai.currentSessionId = hasCurrentSession ? currentSessionId : null;
             combinedData.ai.temporaryChatEnabled = false;
-            combinedData.ai.nativeWebSearchEnabled = sessionsData.nativeWebSearchEnabled || false;
             combinedData.ai.customSystemPrompt = typeof sessionsData.customSystemPrompt === 'string' ? sessionsData.customSystemPrompt : '';
             combinedData.ai.includeTimeContext = sessionsData.includeTimeContext !== false;
             providerIds = sessionsData.providerIds || []; // Index of channels
@@ -224,7 +221,6 @@ async function performSplitSave(data: UnifiedData) {
               ? ai.currentSessionId
               : null,
             temporaryChatEnabled: false,
-            nativeWebSearchEnabled: ai.nativeWebSearchEnabled,
             customSystemPrompt: ai.customSystemPrompt || '',
             includeTimeContext: ai.includeTimeContext !== false,
             providerIds: ai.providers.map(p => p.id)

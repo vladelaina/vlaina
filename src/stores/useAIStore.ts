@@ -709,17 +709,11 @@ export const useAIStore = () => {
     messages: aiData?.messages || {},
     selectedModelId: aiData?.selectedModelId || null,
     temporaryChatEnabled: !!aiData?.temporaryChatEnabled,
-    nativeWebSearchEnabled: aiData?.nativeWebSearchEnabled || false,
     customSystemPrompt: aiData?.customSystemPrompt || '',
     includeTimeContext: aiData?.includeTimeContext !== false,
     
     ...uiState,
     ...actions,
-
-    toggleNativeWebSearch: () => {
-        const current = useUnifiedStore.getState().data.ai?.nativeWebSearchEnabled || false;
-        useUnifiedStore.getState().updateAIData({ nativeWebSearchEnabled: !current });
-    },
 
     getProvider: (id: string) => aiData?.providers.find(p => p.id === id),
     getModel: (id: string) => aiData?.models.find(m => m.id === id),

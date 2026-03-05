@@ -80,7 +80,6 @@ const initialState: UnifiedStoreState = {
         selectedModelId: null,
         currentSessionId: null,
         temporaryChatEnabled: false,
-        nativeWebSearchEnabled: false,
         customSystemPrompt: '',
         includeTimeContext: true
     }

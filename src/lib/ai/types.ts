@@ -66,14 +66,11 @@ export interface ChatCompletionRequest {
   max_completion_tokens?: number
   tools?: Array<Record<string, any>>
   tool_choice?: 'auto' | 'none' | Record<string, any>
-  web_search_options?: Record<string, any>
-  search_parameters?: Record<string, any>
 }
 
 export interface ChatSendOptions {
   max_tokens?: number
   max_completion_tokens?: number
-  nativeWebSearch?: boolean
 }
 
 export interface ChatCompletionResponse {

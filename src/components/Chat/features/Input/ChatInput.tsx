@@ -1,6 +1,5 @@
 import { memo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { useAIStore } from '@/stores/useAIStore';
 import type { AIModel } from '@/lib/ai/types';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import {
@@ -29,7 +28,6 @@ export const ChatInput = memo(function ChatInput({
   selectedModel,
   focusTrigger,
 }: ChatInputProps) {
-  const { nativeWebSearchEnabled, toggleNativeWebSearch } = useAIStore();
   const {
     attachments,
     isDragging,
@@ -128,8 +126,7 @@ export const ChatInput = memo(function ChatInput({
         className={cn(
           'relative z-10',
           chatComposerFrameClass,
-          chatComposerSurfaceClass,
-          nativeWebSearchEnabled && 'ring-2 ring-blue-500/20 border-blue-200 dark:border-blue-800'
+          chatComposerSurfaceClass
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -154,8 +151,6 @@ export const ChatInput = memo(function ChatInput({
           </div>
 
           <ChatInputActions
-            nativeWebSearchEnabled={nativeWebSearchEnabled}
-            onToggleNativeWebSearch={toggleNativeWebSearch}
             onTriggerFileSelect={handleTriggerFileSelect}
             isLoading={isLoading}
             canSend={canSend}

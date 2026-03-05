@@ -278,7 +278,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
             {parsedContent.text && (
               <div
                 data-no-focus-input="true"
-                className="inline-block max-w-[85%] bg-[#F4F4F5] dark:bg-[#2C2C2C] px-4 py-2 rounded-[20px] text-gray-900 dark:text-gray-100 text-[15px] leading-6 shadow-sm border border-black/5 dark:border-white/5 text-left overflow-hidden"
+                className="inline-block max-w-[90%] rounded-3xl bg-gray-50 dark:bg-gray-850 px-4 py-1.5 text-left text-[15px] leading-6 text-gray-900 dark:text-gray-100"
               >
                 <div className="whitespace-pre-wrap break-words">{parsedContent.text}</div>
               </div>
