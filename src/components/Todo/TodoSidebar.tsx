@@ -3,11 +3,13 @@ import { Icon } from '@/components/ui/icons';
 import { ColorFilter } from '@/components/common/ColorFilter';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
+import { useProgressStore } from '@/stores/useProgressStore';
 import { useUIStore } from '@/stores/uiSlice';
 import {
-    collectUniqueTags,
     isSystemTagFilter,
     matchesSelectedTag,
+    matchesSelectedTagForProgressItem,
+    normalizeTags,
     SYSTEM_TAG_TODAY,
     SYSTEM_TAG_WEEK
 } from '@/lib/tags/tagUtils';
@@ -19,6 +21,7 @@ export function TodoSidebar() {
         activeGroupId, 
         setActiveGroup
     } = useGroupStore();
+    const { items: progressItems } = useProgressStore();
     const { selectedTag, setSelectedTag, setHideCompleted } = useUIStore();
 
     const counts = useMemo(() => {
@@ -41,15 +44,36 @@ export function TodoSidebar() {
     );
 
     const availableTags = useMemo(
-        () => collectUniqueTags(topLevelTasks),
-        [topLevelTasks]
+        () => {
+            const deduped = new Map<string, string>();
+            const addTag = (tag: string) => {
+                const key = tag.toLocaleLowerCase();
+                if (!deduped.has(key)) {
+                    deduped.set(key, tag);
+                }
+            };
+
+            topLevelTasks.forEach(task => {
+                normalizeTags(task.tags).forEach(addTag);
+            });
+            progressItems.forEach(item => {
+                normalizeTags(item.tags).forEach(addTag);
+            });
+
+            return Array.from(deduped.values()).sort((a, b) => a.localeCompare(b));
+        },
+        [topLevelTasks, progressItems]
     );
     const todayLabelTaskCount = useMemo(() => {
-        return topLevelTasks.filter(task => matchesSelectedTag(task, SYSTEM_TAG_TODAY)).length;
-    }, [topLevelTasks]);
+        const taskCount = topLevelTasks.filter(task => matchesSelectedTag(task, SYSTEM_TAG_TODAY)).length;
+        const progressCount = progressItems.filter(item => matchesSelectedTagForProgressItem(item, SYSTEM_TAG_TODAY)).length;
+        return taskCount + progressCount;
+    }, [topLevelTasks, progressItems]);
     const weekLabelTaskCount = useMemo(() => {
-        return topLevelTasks.filter(task => matchesSelectedTag(task, SYSTEM_TAG_WEEK)).length;
-    }, [topLevelTasks]);
+        const taskCount = topLevelTasks.filter(task => matchesSelectedTag(task, SYSTEM_TAG_WEEK)).length;
+        const progressCount = progressItems.filter(item => matchesSelectedTagForProgressItem(item, SYSTEM_TAG_WEEK)).length;
+        return taskCount + progressCount;
+    }, [topLevelTasks, progressItems]);
     const shouldShowTagFilters = availableTags.length > 0 || todayLabelTaskCount > 0 || weekLabelTaskCount > 0 || selectedTag !== null;
 
     useEffect(() => {
@@ -63,13 +87,11 @@ export function TodoSidebar() {
 
 
     const handleSelectGroup = (groupId: string) => {
-        setSelectedTag(null);
         setActiveGroup(groupId);
     };
 
     const handleSelectTag = (tag: string | null) => {
         setSelectedTag(tag);
-        setActiveGroup('all');
         setHideCompleted(false);
     };
 
@@ -143,6 +165,9 @@ export function TodoSidebar() {
                                 </h3>
                                 <TagFilterList
                                     tasks={tasks}
+                                    availableTags={availableTags}
+                                    todayCount={todayLabelTaskCount}
+                                    weekCount={weekLabelTaskCount}
                                     selectedTag={selectedTag}
                                     onSelectTag={handleSelectTag}
                                 />

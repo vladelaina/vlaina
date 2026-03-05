@@ -5,6 +5,12 @@ export const SYSTEM_TAG_PREFIX = '__system__:';
 export const SYSTEM_TAG_TODAY = `${SYSTEM_TAG_PREFIX}today`;
 export const SYSTEM_TAG_WEEK = `${SYSTEM_TAG_PREFIX}week`;
 
+interface TagFilterableItem {
+  tags?: string[] | null;
+  lastUpdateDate?: string;
+  history?: Record<string, number>;
+}
+
 function toTagKey(tag: string): string {
   return normalizeTag(tag).toLocaleLowerCase();
 }
@@ -55,12 +61,16 @@ export function deserializeTags(serialized?: string | null): string[] | undefine
   return undefined;
 }
 
-export function taskHasTag(task: NekoEvent, tag: string): boolean {
+export function hasTag(tags: string[] | null | undefined, tag: string): boolean {
   const targetKey = toTagKey(tag);
   if (!targetKey) return false;
 
-  const tags = normalizeTags(task.tags);
-  return tags.some(item => toTagKey(item) === targetKey);
+  const normalizedTags = normalizeTags(tags);
+  return normalizedTags.some(item => toTagKey(item) === targetKey);
+}
+
+export function taskHasTag(task: NekoEvent, tag: string): boolean {
+  return hasTag(task.tags, tag);
 }
 
 export function isSystemTagFilter(tag: string | null): boolean {
@@ -89,6 +99,37 @@ function isInCurrentWeek(date: Date): boolean {
   return date >= weekStart && date < nextWeekStart;
 }
 
+function parseDateKey(dateKey: string): Date | null {
+  const matched = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+  if (!matched) return null;
+
+  const parsed = new Date(Number(matched[1]), Number(matched[2]) - 1, Number(matched[3]));
+  if (Number.isNaN(parsed.getTime())) return null;
+  if (formatDateKey(parsed) !== dateKey) return null;
+  return parsed;
+}
+
+function hasTodayActivity(item: TagFilterableItem): boolean {
+  const todayKey = getTodayKey();
+  if (item.lastUpdateDate === todayKey) return true;
+  const todayHistory = item.history?.[todayKey];
+  return typeof todayHistory === 'number' && todayHistory > 0;
+}
+
+function hasCurrentWeekActivity(item: TagFilterableItem): boolean {
+  if (item.lastUpdateDate) {
+    const date = parseDateKey(item.lastUpdateDate);
+    if (date && isInCurrentWeek(date)) return true;
+  }
+
+  if (!item.history) return false;
+  return Object.entries(item.history).some(([dateKey, count]) => {
+    if (typeof count !== 'number' || count <= 0) return false;
+    const date = parseDateKey(dateKey);
+    return !!date && isInCurrentWeek(date);
+  });
+}
+
 export function matchesSelectedTag(task: NekoEvent, selectedTag: string | null): boolean {
   if (!selectedTag) return true;
   if (isTodaySystemTag(selectedTag)) {
@@ -99,7 +140,17 @@ export function matchesSelectedTag(task: NekoEvent, selectedTag: string | null):
     if (!task.dtstart) return false;
     return isInCurrentWeek(new Date(task.dtstart));
   }
-  return taskHasTag(task, selectedTag);
+  return hasTag(task.tags, selectedTag);
+}
+
+export function matchesSelectedTagForProgressItem(
+  item: TagFilterableItem,
+  selectedTag: string | null
+): boolean {
+  if (!selectedTag) return true;
+  if (isTodaySystemTag(selectedTag)) return hasTodayActivity(item);
+  if (isWeekSystemTag(selectedTag)) return hasCurrentWeekActivity(item);
+  return hasTag(item.tags, selectedTag);
 }
 
 export function collectUniqueTags(tasks: NekoEvent[]): string[] {

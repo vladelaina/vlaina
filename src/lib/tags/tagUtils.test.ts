@@ -5,8 +5,10 @@ import {
   normalizeTags,
   serializeTags,
   deserializeTags,
+  hasTag,
   taskHasTag,
   matchesSelectedTag,
+  matchesSelectedTagForProgressItem,
   SYSTEM_TAG_WEEK,
   SYSTEM_TAG_TODAY,
   collectUniqueTags,
@@ -42,6 +44,7 @@ describe('tagUtils', () => {
 
   it('checks if a task has a specific tag and matches selected filter', () => {
     const task = createTask({ tags: ['Learning', 'Work'] });
+    expect(hasTag(['Learning', 'Work'], 'learning')).toBe(true);
     expect(taskHasTag(task, 'work')).toBe(true);
     expect(taskHasTag(task, 'Personal')).toBe(false);
     expect(matchesSelectedTag(task, 'Learning')).toBe(true);
@@ -87,5 +90,74 @@ describe('tagUtils', () => {
 
     expect(collectUniqueTags(tasks)).toEqual(['Learning', 'Personal', 'Work']);
     expect(countTasksByTag(tasks, 'work')).toBe(2);
+  });
+
+  it('matches progress items by normal tag', () => {
+    expect(
+      matchesSelectedTagForProgressItem(
+        {
+          tags: ['Fitness', 'Health'],
+          lastUpdateDate: '2026-03-04',
+        },
+        'fitness'
+      )
+    ).toBe(true);
+  });
+
+  it('matches progress items by Today system label', () => {
+    const todayKey = new Date();
+    const yyyy = todayKey.getFullYear();
+    const mm = String(todayKey.getMonth() + 1).padStart(2, '0');
+    const dd = String(todayKey.getDate()).padStart(2, '0');
+    const formatted = `${yyyy}-${mm}-${dd}`;
+
+    expect(
+      matchesSelectedTagForProgressItem(
+        {
+          tags: ['Work'],
+          lastUpdateDate: formatted,
+        },
+        SYSTEM_TAG_TODAY
+      )
+    ).toBe(true);
+
+    expect(
+      matchesSelectedTagForProgressItem(
+        {
+          tags: ['Work'],
+          lastUpdateDate: '2000-01-01',
+        },
+        SYSTEM_TAG_TODAY
+      )
+    ).toBe(false);
+  });
+
+  it('matches progress items by Week system label', () => {
+    const now = new Date();
+    const thisWeekKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const oldDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const oldWeekKey = `${oldDate.getFullYear()}-${String(oldDate.getMonth() + 1).padStart(2, '0')}-${String(oldDate.getDate()).padStart(2, '0')}`;
+
+    expect(
+      matchesSelectedTagForProgressItem(
+        {
+          history: {
+            [thisWeekKey]: 2,
+          },
+        },
+        SYSTEM_TAG_WEEK
+      )
+    ).toBe(true);
+
+    expect(
+      matchesSelectedTagForProgressItem(
+        {
+          history: {
+            [oldWeekKey]: 5,
+          },
+        },
+        SYSTEM_TAG_WEEK
+      )
+    ).toBe(false);
   });
 });

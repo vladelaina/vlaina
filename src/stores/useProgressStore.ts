@@ -1,11 +1,13 @@
 import { useUnifiedStore } from './useUnifiedStore';
 import type { UnifiedProgress } from '@/lib/storage/unifiedStorage';
 import { getTodayKey } from '@/lib/date';
+import { normalizeTags } from '@/lib/tags/tagUtils';
 
 export interface ProgressItem {
   id: string;
   type: 'progress';
   title: string;
+  tags?: string[];
   icon?: string;
   direction: 'increment' | 'decrement';
   total: number;
@@ -26,6 +28,7 @@ export interface CounterItem {
   id: string;
   type: 'counter';
   title: string;
+  tags?: string[];
   icon?: string;
   step: number;
   unit: string;
@@ -47,6 +50,7 @@ function toProgressOrCounter(item: UnifiedProgress): ProgressOrCounter {
       id: item.id,
       type: 'progress',
       title: item.title,
+      tags: normalizeTags(item.tags),
       icon: item.icon,
       direction: item.direction || 'increment',
       total: item.total || 100,
@@ -65,6 +69,7 @@ function toProgressOrCounter(item: UnifiedProgress): ProgressOrCounter {
     id: item.id,
     type: 'counter',
     title: item.title,
+    tags: normalizeTags(item.tags),
     icon: item.icon,
     step: item.step,
     unit: item.unit,
@@ -92,6 +97,7 @@ export function useProgressStore() {
       store.addProgress({
         type: 'progress',
         title: data.title,
+        tags: normalizeTags(data.tags),
         icon: data.icon,
         direction: data.direction,
         total: data.total,
@@ -101,10 +107,11 @@ export function useProgressStore() {
       });
     },
     
-    addCounter: (data: { title: string; icon?: string; step: number; unit: string; frequency: 'daily' | 'weekly' | 'monthly'; resetFrequency?: 'daily' | 'weekly' | 'monthly' | 'none' }) => {
+    addCounter: (data: { title: string; tags?: string[]; icon?: string; step: number; unit: string; frequency: 'daily' | 'weekly' | 'monthly'; resetFrequency?: 'daily' | 'weekly' | 'monthly' | 'none' }) => {
       store.addProgress({
         type: 'counter',
         title: data.title,
+        tags: normalizeTags(data.tags),
         icon: data.icon,
         step: data.step,
         unit: data.unit,

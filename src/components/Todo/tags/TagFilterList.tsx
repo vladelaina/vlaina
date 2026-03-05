@@ -12,6 +12,9 @@ import {
 
 interface TagFilterListProps {
   tasks: NekoEvent[];
+  availableTags?: string[];
+  todayCount?: number;
+  weekCount?: number;
   selectedTag: string | null;
   onSelectTag: (tag: string | null) => void;
 }
@@ -29,16 +32,26 @@ function getChipSpan(label: string): 1 | 2 | 3 {
   return 3;
 }
 
-export function TagFilterList({ tasks, selectedTag, onSelectTag }: TagFilterListProps) {
+export function TagFilterList({
+  tasks,
+  availableTags,
+  todayCount,
+  weekCount,
+  selectedTag,
+  onSelectTag,
+}: TagFilterListProps) {
   const topLevelTasks = useMemo(() => tasks.filter(task => !task.parentId), [tasks]);
-  const tags = useMemo(() => collectUniqueTags(topLevelTasks), [topLevelTasks]);
+  const tags = useMemo(
+    () => (availableTags ? [...availableTags] : collectUniqueTags(topLevelTasks)),
+    [availableTags, topLevelTasks]
+  );
   const todayTaskCount = useMemo(
-    () => topLevelTasks.filter(task => matchesSelectedTag(task, SYSTEM_TAG_TODAY)).length,
-    [topLevelTasks]
+    () => todayCount ?? topLevelTasks.filter(task => matchesSelectedTag(task, SYSTEM_TAG_TODAY)).length,
+    [todayCount, topLevelTasks]
   );
   const weekTaskCount = useMemo(
-    () => topLevelTasks.filter(task => matchesSelectedTag(task, SYSTEM_TAG_WEEK)).length,
-    [topLevelTasks]
+    () => weekCount ?? topLevelTasks.filter(task => matchesSelectedTag(task, SYSTEM_TAG_WEEK)).length,
+    [weekCount, topLevelTasks]
   );
   const todayActive = isTodaySystemTag(selectedTag);
   const weekActive = isWeekSystemTag(selectedTag);
