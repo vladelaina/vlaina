@@ -6,6 +6,7 @@ import { resolveSystemAssetPath } from '@/lib/assets/core/paths';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { HeroIconHeader } from '@/components/common/HeroIconHeader';
 import { CoverAddOverlay } from '../Cover';
+import { NotePathBreadcrumb } from './components/NotePathBreadcrumb';
 
 interface NoteHeaderProps {
     coverUrl: string | null;
@@ -111,15 +112,18 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
             imageLoader={imageLoader}
             
             renderTitle={() => currentNotePath && (
-                <TitleInput
-                    notePath={currentNotePath}
-                    initialTitle={noteName}
-                    onEnter={() => {
-                        const editor = document.querySelector('.milkdown .ProseMirror') as HTMLElement;
-                        editor?.focus();
-                    }}
-                    autoFocus={!!isNewlyCreated}
-                />
+                <>
+                    <NotePathBreadcrumb notePath={currentNotePath} />
+                    <TitleInput
+                        notePath={currentNotePath}
+                        initialTitle={noteName}
+                        onEnter={() => {
+                            const editor = document.querySelector('.milkdown .ProseMirror') as HTMLElement;
+                            editor?.focus();
+                        }}
+                        autoFocus={!!isNewlyCreated}
+                    />
+                </>
             )}
         >
             <CoverAddOverlay visible={!coverUrl} onAddCover={onAddCover} />

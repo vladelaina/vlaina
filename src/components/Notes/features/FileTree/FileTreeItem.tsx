@@ -43,7 +43,11 @@ export const FileTreeItem = memo(function FileTreeItem({ node, depth, currentNot
   const isActive = !node.isFolder && node.path === currentNotePath;
 
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      data-file-tree-path={node.path}
+      data-file-tree-kind={node.isFolder ? 'folder' : 'file'}
+    >
       <FileTreeItemRenderer
         isFolder={node.isFolder}
         expanded={node.isFolder ? node.expanded : false}

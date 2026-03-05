@@ -27,7 +27,9 @@ export function SidebarContent({
             <div className={cn(
                 "flex-1 overflow-auto neko-scrollbar px-2",
                 isPeeking ? "pt-4 pb-4 neko-scrollbar-rounded" : "pt-2"
-            )}>
+            )}
+            data-notes-sidebar-scroll-root="true"
+            >
                 {/* Favorites Section */}
                 <FavoritesSection />
 
