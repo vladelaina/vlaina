@@ -6,6 +6,7 @@ import {
   STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED,
   DEFAULT_GROUP_ID,
 } from '@/lib/config';
+import { getDefaultSidebarWidth } from '@/lib/layout/sidebarWidth';
 
 const STORAGE_KEY_SIDEBAR_WIDTH = 'nekotick_sidebar_width';
 const STORAGE_KEY_IMAGE_STORAGE_MODE = 'nekotick_image_storage_mode';
@@ -237,22 +238,6 @@ function loadImageFilenameFormat(): ImageFilenameFormat {
     // ignore
   }
   return 'original'; // Default: use original filename
-}
-
-function getDefaultSidebarWidth(): number {
-  if (typeof window === 'undefined') return 256;
-  
-  try {
-    const style = getComputedStyle(document.documentElement);
-    const widthVar = style.getPropertyValue('--neko-sidebar-width').trim();
-    if (widthVar.endsWith('px')) {
-      const parsed = parseFloat(widthVar);
-      return isNaN(parsed) ? 256 : parsed;
-    }
-  } catch {
-    // ignore
-  }
-  return 256;
 }
 
 export const useUIStore = create<UIStore>()((set, get) => ({

@@ -1,8 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import {
+    SIDEBAR_MIN_WIDTH,
+    SIDEBAR_MAX_WIDTH,
+    getDefaultSidebarWidth,
+} from '@/lib/layout/sidebarWidth';
 
-const SIDEBAR_MIN_WIDTH = 200;
-const SIDEBAR_MAX_WIDTH = 400;
-const SIDEBAR_DEFAULT_WIDTH = 255; 
 const SNAP_THRESHOLD = 20; 
 const SNAP_RESISTANCE = 0.3; 
 
@@ -22,7 +24,7 @@ export function useShellSidebarResize({ width, onWidthChange }: UseShellSidebarR
 
     // Double-click to reset to default width
     const handleDoubleClick = useCallback(() => {
-        onWidthChange(SIDEBAR_DEFAULT_WIDTH);
+        onWidthChange(getDefaultSidebarWidth());
     }, [onWidthChange]);
 
     const handleDragStart = useCallback((e: React.MouseEvent) => {
