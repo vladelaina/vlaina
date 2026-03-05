@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -24,6 +23,7 @@ import { configureTheme } from './theme';
 import { customPlugins } from './config/plugins';
 import { useEditorLayout } from './hooks/useEditorLayout';
 import { useEditorSave } from './hooks/useEditorSave';
+import { calculateTextStats } from './utils/textStats';
 import './styles/index.css';
 
 const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
@@ -122,6 +122,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
   const { contentOffset } = useEditorLayout(isPeeking, peekOffset);
 
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
   const isStarred = useNotesStore(s => s.isStarred);
   const toggleStarred = useNotesStore(s => s.toggleStarred);
   const noteMetadata = useNotesStore(s => s.noteMetadata);
@@ -129,6 +130,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
   const currentNoteMetadata = useMemo(() => {
     return currentNotePath && noteMetadata?.notes ? noteMetadata.notes[currentNotePath] : undefined;
   }, [currentNotePath, noteMetadata]);
+  const textStats = useMemo(() => calculateTextStats(currentNoteContent), [currentNoteContent]);
 
   const starred = currentNotePath ? isStarred(currentNotePath) : false;
   const coverController = useNoteCoverController(currentNotePath);
@@ -172,9 +174,18 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Note Details</DropdownMenuLabel>
+            <div className="px-2 py-1.5 text-xs text-muted-foreground grid grid-cols-[78px_1fr] gap-1">
+              <span className="font-medium">Lines:</span>
+              <span className="tabular-nums">{textStats.lineCount}</span>
+
+              <span className="font-medium">Words:</span>
+              <span className="tabular-nums">{textStats.wordCount}</span>
+
+              <span className="font-medium">Characters:</span>
+              <span className="tabular-nums">{textStats.characterCount}</span>
+            </div>
             <DropdownMenuSeparator />
-            <div className="px-2 py-1.5 text-xs text-muted-foreground grid grid-cols-[60px_1fr] gap-1">
+            <div className="px-2 py-1.5 text-xs text-muted-foreground grid grid-cols-[78px_1fr] gap-1">
               <span className="font-medium">Created:</span>
               <span>{currentNoteMetadata?.createdAt ? new Date(currentNoteMetadata.createdAt).toLocaleString() : '-'}</span>
 
