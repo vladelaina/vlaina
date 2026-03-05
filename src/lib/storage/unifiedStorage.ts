@@ -2,6 +2,7 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useProStatusStore } from '@/stores/useProStatusStore';
+import { createPersistenceQueue } from './persistenceEngine';
 import type { TimeView } from '@/lib/date';
 import type { NekoCalendar } from '@/lib/ics/types';
 import {
@@ -77,6 +78,9 @@ interface DataFile {
   data: UnifiedData;
 }
 
+const MAIN_DATA_FILE = 'data.json';
+const MAIN_DATA_BACKUP_FILE = 'data.backup.json';
+
 let basePath: string | null = null;
 
 async function getBasePath(): Promise<string> {
@@ -105,18 +109,41 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
   try {
     const storage = getStorageAdapter();
     const base = await getBasePath();
-    const mainPath = await joinPath(base, '.nekotick', 'data.json');
+    const mainPath = await joinPath(base, '.nekotick', MAIN_DATA_FILE);
+    const mainBackupPath = await joinPath(base, '.nekotick', MAIN_DATA_BACKUP_FILE);
     const sessionsPath = await joinPath(base, '.nekotick', 'chat', 'sessions.json');
     const channelsDir = await joinPath(base, '.nekotick', 'chat', 'channels');
 
     let combinedData = getDefaultData();
 
+    const loadMainDataFromPath = async (path: string): Promise<UnifiedData | null> => {
+      if (!(await storage.exists(path))) {
+        return null;
+      }
+
+      try {
+        const content = await storage.readFile(path);
+        const parsed = JSON.parse(content) as DataFile;
+        if (parsed.version === 2 && parsed.data) {
+          return parsed.data;
+        }
+        console.error('[Storage] Invalid unified data file version or shape:', path);
+        return null;
+      } catch (error) {
+        console.error('[Storage] Failed to parse unified data file:', path, error);
+        return null;
+      }
+    };
+
     // 1. Load Main Data
-    if (await storage.exists(mainPath)) {
-      const content = await storage.readFile(mainPath);
-      const parsed = JSON.parse(content) as DataFile;
-      if (parsed.version === 2 && parsed.data) {
-        combinedData = { ...combinedData, ...parsed.data };
+    const loadedMainData = await loadMainDataFromPath(mainPath);
+    if (loadedMainData) {
+      combinedData = { ...combinedData, ...loadedMainData };
+    } else {
+      const loadedBackupData = await loadMainDataFromPath(mainBackupPath);
+      if (loadedBackupData) {
+        console.warn('[Storage] Loaded unified data from backup file');
+        combinedData = { ...combinedData, ...loadedBackupData };
       }
     }
 
@@ -163,7 +190,10 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
                 try {
                     const pData = JSON.parse(await storage.readFile(pPath));
                     return pData; // Expected: { provider: Provider, models: AIModel[] }
-                } catch (e) { return null; }
+                } catch (error) {
+                    console.error('[Storage] Failed to parse provider channel file:', pPath, error);
+                    return null;
+                }
             }
             return null;
         });
@@ -181,6 +211,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
 
     return combinedData;
   } catch (error) {
+    console.error('[Storage] Failed to load unified data:', error);
     return getDefaultData();
   }
 }
@@ -193,7 +224,8 @@ async function performSplitSave(data: UnifiedData) {
     const chatDir = await joinPath(dotNeko, 'chat');
     const channelsDir = await joinPath(chatDir, 'channels');
     
-    const mainPath = await joinPath(dotNeko, 'data.json');
+    const mainPath = await joinPath(dotNeko, MAIN_DATA_FILE);
+    const mainBackupPath = await joinPath(dotNeko, MAIN_DATA_BACKUP_FILE);
     const sessionsPath = await joinPath(chatDir, 'sessions.json');
 
     if (!(await storage.exists(channelsDir))) {
@@ -208,6 +240,7 @@ async function performSplitSave(data: UnifiedData) {
         lastModified: Date.now(),
         data: mainPart as UnifiedData
     };
+    await storage.writeFile(mainBackupPath, JSON.stringify(mainFile, null, 2));
     await storage.writeFile(mainPath, JSON.stringify(mainFile, null, 2));
 
     // 2. Save AI Data
@@ -260,52 +293,27 @@ async function performSplitSave(data: UnifiedData) {
     }
 }
 
-let saveTimeout: ReturnType<typeof setTimeout> | null = null;
-let pendingData: UnifiedData | null = null;
+const unifiedSaveQueue = createPersistenceQueue<UnifiedData>({
+  debounceMs: 120,
+  write: async (data) => {
+    await performSplitSave(data);
+    triggerAutoSyncIfEligible();
+  },
+  onError: (error) => {
+    console.error('[Storage] save failed:', error);
+  },
+});
 
 export async function saveUnifiedData(data: UnifiedData): Promise<void> {
-  pendingData = data;
-  if (saveTimeout) clearTimeout(saveTimeout);
-
-  saveTimeout = setTimeout(async () => {
-    if (!pendingData) return;
-    try {
-      await performSplitSave(pendingData);
-      pendingData = null;
-      triggerAutoSyncIfEligible();
-    } catch (error) {
-      console.error('[Storage] save failed:', error);
-    }
-  }, 300);
+  unifiedSaveQueue.schedule(data);
 }
 
 export async function flushPendingSave(): Promise<void> {
-  if (saveTimeout) {
-    clearTimeout(saveTimeout);
-    saveTimeout = null;
-  }
-  if (pendingData) {
-    const data = pendingData;
-    pendingData = null;
-    try {
-      await performSplitSave(data);
-    } catch (error) {
-      console.error('[Storage] flush save failed:', error);
-    }
-  }
+  await unifiedSaveQueue.flush();
 }
 
 export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void> {
-  if (saveTimeout) {
-    clearTimeout(saveTimeout);
-    saveTimeout = null;
-  }
-  pendingData = null;
-  try {
-    await performSplitSave(data);
-  } catch (error) {
-    console.error('[Storage] immediate save failed:', error);
-  }
+  await unifiedSaveQueue.saveNow(data);
 }
 
 function triggerAutoSyncIfEligible(): void {

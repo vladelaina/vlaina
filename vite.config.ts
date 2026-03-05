@@ -55,13 +55,64 @@ export default defineConfig(async () => ({
     outDir: 'dist',
     // Generate sourcemaps for debugging
     sourcemap: false,
+    // Mermaid ecosystem pulls in a large but lazily-loaded chunk; raise warning threshold to reduce noise.
+    chunkSizeWarningLimit: 1700,
     // Optimize chunk size
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'editor': ['@milkdown/kit', '@milkdown/react'],
-          'ui': ['framer-motion', '@radix-ui/react-dialog', '@radix-ui/react-popover'],
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) {
+            return 'react-vendor';
+          }
+
+          if (id.includes('/@milkdown/') || id.includes('/prosemirror/') || id.includes('/@codemirror/')) {
+            return 'notes-editor-vendor';
+          }
+
+          if (id.includes('/katex/')) {
+            return 'katex-vendor';
+          }
+
+          if (
+            id.includes('/remark-') ||
+            id.includes('/rehype-') ||
+            id.includes('/unified/') ||
+            id.includes('/micromark/') ||
+            id.includes('/mdast-') ||
+            id.includes('/hast-')
+          ) {
+            return 'notes-markdown-vendor';
+          }
+
+          if (id.includes('/mermaid/')) {
+            return 'mermaid-core-vendor';
+          }
+
+          if (id.includes('/d3-') || id.includes('/d3/')) {
+            return 'd3-vendor';
+          }
+
+          if (id.includes('/cose-bilkent')) {
+            return 'cytoscape-layout-vendor';
+          }
+
+          if (id.includes('/cytoscape')) {
+            return 'cytoscape-vendor';
+          }
+
+          if (id.includes('/dagre') || id.includes('/graphlib')) {
+            return 'dagre-vendor';
+          }
+
+          if (id.includes('/@tauri-apps/')) {
+            return 'tauri-vendor';
+          }
+
+          if (id.includes('/framer-motion/') || id.includes('/@radix-ui/')) {
+            return 'ui-vendor';
+          }
         },
       },
     },

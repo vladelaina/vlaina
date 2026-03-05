@@ -7,11 +7,14 @@ import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
 import { useCalendarEventsStore } from '@/stores/calendarEventsSlice';
+import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
+import { flushPendingSave } from '@/lib/storage/unifiedStorage';
+import { flushPendingSessionJsonSaves } from '@/lib/storage/chatStorage';
 
 const SettingsModal = lazy(async () => {
   const mod = await import('@/components/Settings');
@@ -275,6 +278,61 @@ function AppContent() {
 }
 
 function App() {
+  useEffect(() => {
+    let isFlushing = false;
+
+    const flushAllPendingWrites = () => {
+      if (isFlushing) return;
+      isFlushing = true;
+
+      const tasks: Array<{ name: string; task: Promise<unknown> }> = [
+        { name: 'unified storage', task: flushPendingSave() },
+        { name: 'chat session storage', task: flushPendingSessionJsonSaves() },
+        { name: 'calendar/todo storage', task: useCalendarEventsStore.getState().flushPersistence() },
+      ];
+
+      const notesState = useNotesStore.getState();
+      if (notesState.isDirty) {
+        tasks.push({
+          name: 'notes storage',
+          task: notesState.saveNote().then(() => {
+            if (useNotesStore.getState().isDirty) {
+              throw new Error('Notes still dirty after save attempt');
+            }
+          }),
+        });
+      }
+
+      void Promise.allSettled(tasks.map((entry) => entry.task))
+        .then((results) => {
+          results.forEach((result, index) => {
+            if (result.status === 'rejected') {
+              console.error(`[App] Failed to flush ${tasks[index].name}:`, result.reason);
+            }
+          });
+        })
+        .finally(() => {
+          isFlushing = false;
+        });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushAllPendingWrites();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', flushAllPendingWrites);
+    window.addEventListener('beforeunload', flushAllPendingWrites);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', flushAllPendingWrites);
+      window.removeEventListener('beforeunload', flushAllPendingWrites);
+    };
+  }, []);
+
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) e.preventDefault();

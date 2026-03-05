@@ -46,7 +46,10 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
   openNote: async (path: string, openInNewTab: boolean = false) => {
     const { notesPath, isDirty, saveNote, recentNotes, openTabs, currentNote } = get();
-    if (isDirty) await saveNote();
+    if (isDirty) {
+      await saveNote();
+      if (get().isDirty) return;
+    }
 
     try {
       const storage = getStorageAdapter();
@@ -97,7 +100,10 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
   openNoteByAbsolutePath: async (absolutePath: string, openInNewTab: boolean = false) => {
     const { isDirty, saveNote, openTabs, currentNote } = get();
-    if (isDirty) await saveNote();
+    if (isDirty) {
+      await saveNote();
+      if (get().isDirty) return;
+    }
 
     try {
       const storage = getStorageAdapter();
@@ -221,10 +227,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
             },
           });
         }
-      } catch {
+      } catch (error) {
+        console.error('[NotesWorkspace] Failed to cleanup empty note while closing tab:', error);
       }
     } else if (currentNote?.path === path && isDirty) {
       await saveNote();
+      if (get().isDirty) return;
     }
 
     const updatedTabs = openTabs.filter((t) => t.path !== path);
