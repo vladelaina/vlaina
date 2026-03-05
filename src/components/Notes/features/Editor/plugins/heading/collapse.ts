@@ -107,7 +107,18 @@ const createExpandAndRedirectTransaction = (
 ) => {
     const tr = state.tr;
     tr.setMeta(COLLAPSE_PLUGIN_KEY, { type: 'expand', headingPos } satisfies CollapseMetaAction);
-    setSelectionAtPos(tr, resolveExpandedSectionTailPos(section), -1);
+
+    const docEnd = tr.doc.content.size;
+    const endsAtDocumentTail = section.to >= docEnd;
+    const paragraphType = tr.doc.type.schema.nodes.paragraph;
+
+    if (endsAtDocumentTail && paragraphType) {
+        tr.insert(docEnd, paragraphType.create());
+        setSelectionAtPos(tr, docEnd + 1, 1);
+    } else {
+        setSelectionAtPos(tr, resolveExpandedSectionTailPos(section), -1);
+    }
+
     tr.setMeta(COLLAPSE_SELECTION_GUARD_META, true);
     return tr.scrollIntoView();
 };
@@ -177,11 +188,16 @@ export const collapsePlugin = $prose(() => {
             const section = findCollapsedSectionAtOrBoundaryPos(collapsedRanges, collapsedRange.from);
             if (!section) return null;
 
+            const docEnd = newState.doc.content.size;
+            const isTailCollapsedSection = section.to >= docEnd;
+            if (empty && isTailCollapsedSection && from >= section.from && from <= section.to) {
+                return createExpandAndRedirectTransaction(newState, collapsedRange.headingPos, section);
+            }
+
             if (empty && from === section.to) {
                 return createExpandAndRedirectTransaction(newState, collapsedRange.headingPos, section);
             }
 
-            const docEnd = newState.doc.content.size;
             const redirectTargetPos = section.to < docEnd
                 ? section.to
                 : resolveTailRedirectPos(newState.doc, collapsedRange.headingPos, section.from);
@@ -231,4 +247,3 @@ export const collapsePlugin = $prose(() => {
         },
     });
 });
-

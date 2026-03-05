@@ -24,6 +24,7 @@ import {
   clipboardPlugin,
   imageBlockPlugin,
   imageUploadPlugin,
+  endBlankClickPlugin,
 } from '../plugins';
 
 export const customPlugins = [
@@ -52,4 +53,5 @@ export const customPlugins = [
   clipboardPlugin,
   imageUploadPlugin,
   ...imageBlockPlugin,
+  endBlankClickPlugin,
 ];

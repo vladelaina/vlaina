@@ -1,6 +1,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import { keymap } from '@milkdown/kit/prose/keymap';
-import { Plugin, Selection, TextSelection } from '@milkdown/kit/prose/state';
+import { Plugin, TextSelection } from '@milkdown/kit/prose/state';
 import { normalizeLanguage } from '../../utils/shiki';
 import {
     isClickInBottomBlankSpace,
@@ -119,11 +119,8 @@ export const codeBlockBlankAreaClickPlugin = $prose(() => {
                     const lastNode = doc.lastChild;
                     const docEnd = doc.content.size;
 
-                    if (lastNode?.type.name === 'code_block') {
-                        moveSelectionAfterNode(tr, docEnd - lastNode.nodeSize, lastNode.nodeSize);
-                    } else {
-                        tr.setSelection(Selection.near(tr.doc.resolve(docEnd), 1));
-                    }
+                    if (lastNode?.type.name !== 'code_block') return false;
+                    moveSelectionAfterNode(tr, docEnd - lastNode.nodeSize, lastNode.nodeSize);
 
                     view.dispatch(tr.scrollIntoView());
                     view.focus();
