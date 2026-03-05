@@ -1,16 +1,21 @@
+import { useEffect } from 'react';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { DEFAULT_GROUP_ID } from '@/lib/config';
 
-import { TasksView, TodayView, InboxView, ProgressView, CompletedView } from './views';
+import { TasksView, InboxView, ProgressView, CompletedView } from './views';
 
 export function TodoPanel() {
-    const { activeGroupId } = useGroupStore();
+    const { activeGroupId, setActiveGroup } = useGroupStore();
+
+    useEffect(() => {
+        if (activeGroupId === 'today') {
+            setActiveGroup('all');
+        }
+    }, [activeGroupId, setActiveGroup]);
 
     switch (activeGroupId) {
         case 'progress':
             return <ProgressView />;
-        case 'today':
-            return <TodayView />;
         case 'completed':
             return <CompletedView />;
         case 'all':

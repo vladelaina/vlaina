@@ -4,8 +4,13 @@ import { ColorFilter } from '@/components/common/ColorFilter';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useUIStore } from '@/stores/uiSlice';
-import { getTodayKey, formatDateKey } from '@/lib/date';
-import { collectUniqueTags } from '@/lib/tags/tagUtils';
+import {
+    collectUniqueTags,
+    isSystemTagFilter,
+    matchesSelectedTag,
+    SYSTEM_TAG_TODAY,
+    SYSTEM_TAG_WEEK
+} from '@/lib/tags/tagUtils';
 import { TagFilterList } from './tags';
 
 export function TodoSidebar() {
@@ -16,13 +21,8 @@ export function TodoSidebar() {
     } = useGroupStore();
     const { selectedTag, setSelectedTag, setHideCompleted } = useUIStore();
 
-    const todayDate = new Date().getDate(); // 获取今天的日期数字
-
-
-
     const counts = useMemo(() => {
-        const c = { today: 0, all: 0, completed: 0 };
-        const todayKey = getTodayKey();
+        const c = { all: 0, completed: 0 };
 
         tasks.forEach((t: any) => {
             if (t.completed) {
@@ -31,23 +31,29 @@ export function TodoSidebar() {
             }
             
             c.all++;
-
-            if (t.dtstart) {
-                const taskDateKey = formatDateKey(new Date(t.dtstart));
-                if (taskDateKey === todayKey) c.today++;
-            }
         });
         return c;
     }, [tasks]);
 
-    const availableTags = useMemo(
-        () => collectUniqueTags(tasks.filter(task => !task.parentId)),
+    const topLevelTasks = useMemo(
+        () => tasks.filter(task => !task.parentId),
         [tasks]
     );
-    const shouldShowTagFilters = availableTags.length > 0 || selectedTag !== null;
+
+    const availableTags = useMemo(
+        () => collectUniqueTags(topLevelTasks),
+        [topLevelTasks]
+    );
+    const todayLabelTaskCount = useMemo(() => {
+        return topLevelTasks.filter(task => matchesSelectedTag(task, SYSTEM_TAG_TODAY)).length;
+    }, [topLevelTasks]);
+    const weekLabelTaskCount = useMemo(() => {
+        return topLevelTasks.filter(task => matchesSelectedTag(task, SYSTEM_TAG_WEEK)).length;
+    }, [topLevelTasks]);
+    const shouldShowTagFilters = availableTags.length > 0 || todayLabelTaskCount > 0 || weekLabelTaskCount > 0 || selectedTag !== null;
 
     useEffect(() => {
-        if (!selectedTag) return;
+        if (!selectedTag || isSystemTagFilter(selectedTag)) return;
         const stillExists = availableTags.some(tag => tag.toLocaleLowerCase() === selectedTag.toLocaleLowerCase());
         if (!stillExists) {
             setSelectedTag(null);
@@ -94,24 +100,6 @@ export function TodoSidebar() {
         </button>
     );
 
-    // 自定义日历图标，中间显示日期数字
-    const CalendarIcon = ({ active }: { active: boolean }) => (
-        <div className={cn(
-            "relative size-[18px]",
-            active ? "text-gray-800 dark:text-gray-200" : "text-gray-400 dark:text-gray-500"
-        )}>
-            <Icon size="md" name="sidebar.calendar" />
-            <span className={cn(
-                "absolute text-[7px] font-bold leading-none",
-                "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
-                "mt-[1px]",
-                active ? "text-gray-800 dark:text-gray-200" : "text-gray-400 dark:text-gray-500"
-            )}>
-                {todayDate}
-            </span>
-        </div>
-    );
-
     return (
         <div className="flex flex-col h-full bg-white dark:bg-[#171717] select-none">
             <div className="flex-1 overflow-y-auto px-2 py-2 space-y-4">
@@ -133,14 +121,6 @@ export function TodoSidebar() {
                             count={0}
                             active={activeGroupId === 'progress'}
                             onClick={() => handleSelectGroup('progress')}
-                        />
-                        <NavItem 
-                            id="today" 
-                            label="Today" 
-                            customIcon={<CalendarIcon active={activeGroupId === 'today'} />}
-                            count={counts.today}
-                            active={activeGroupId === 'today'}
-                            onClick={() => handleSelectGroup('today')}
                         />
                         <NavItem 
                             id="completed" 

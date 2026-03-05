@@ -1,4 +1,9 @@
 import type { NekoEvent } from '@/lib/ics/types';
+import { formatDateKey, getTodayKey } from '@/lib/date';
+
+export const SYSTEM_TAG_PREFIX = '__system__:';
+export const SYSTEM_TAG_TODAY = `${SYSTEM_TAG_PREFIX}today`;
+export const SYSTEM_TAG_WEEK = `${SYSTEM_TAG_PREFIX}week`;
 
 function toTagKey(tag: string): string {
   return normalizeTag(tag).toLocaleLowerCase();
@@ -58,8 +63,42 @@ export function taskHasTag(task: NekoEvent, tag: string): boolean {
   return tags.some(item => toTagKey(item) === targetKey);
 }
 
+export function isSystemTagFilter(tag: string | null): boolean {
+  return !!tag && tag.startsWith(SYSTEM_TAG_PREFIX);
+}
+
+export function isTodaySystemTag(tag: string | null): boolean {
+  return tag === SYSTEM_TAG_TODAY;
+}
+
+export function isWeekSystemTag(tag: string | null): boolean {
+  return tag === SYSTEM_TAG_WEEK;
+}
+
+function isInCurrentWeek(date: Date): boolean {
+  const now = new Date();
+  const weekStart = new Date(now);
+  const day = now.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  weekStart.setDate(now.getDate() + diff);
+  weekStart.setHours(0, 0, 0, 0);
+
+  const nextWeekStart = new Date(weekStart);
+  nextWeekStart.setDate(weekStart.getDate() + 7);
+
+  return date >= weekStart && date < nextWeekStart;
+}
+
 export function matchesSelectedTag(task: NekoEvent, selectedTag: string | null): boolean {
   if (!selectedTag) return true;
+  if (isTodaySystemTag(selectedTag)) {
+    if (!task.dtstart) return false;
+    return formatDateKey(new Date(task.dtstart)) === getTodayKey();
+  }
+  if (isWeekSystemTag(selectedTag)) {
+    if (!task.dtstart) return false;
+    return isInCurrentWeek(new Date(task.dtstart));
+  }
   return taskHasTag(task, selectedTag);
 }
 

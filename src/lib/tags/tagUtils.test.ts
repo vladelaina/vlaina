@@ -7,6 +7,8 @@ import {
   deserializeTags,
   taskHasTag,
   matchesSelectedTag,
+  SYSTEM_TAG_WEEK,
+  SYSTEM_TAG_TODAY,
   collectUniqueTags,
   countTasksByTag,
 } from './tagUtils';
@@ -44,6 +46,36 @@ describe('tagUtils', () => {
     expect(taskHasTag(task, 'Personal')).toBe(false);
     expect(matchesSelectedTag(task, 'Learning')).toBe(true);
     expect(matchesSelectedTag(task, null)).toBe(true);
+  });
+
+  it('matches today system label by date instead of manual tags', () => {
+    const todayTask = createTask({
+      uid: 'today',
+      dtstart: new Date(),
+      tags: ['Today'],
+    });
+    const oldTask = createTask({
+      uid: 'old',
+      dtstart: new Date('2000-01-01T00:00:00.000Z'),
+      tags: ['Today'],
+    });
+
+    expect(matchesSelectedTag(todayTask, SYSTEM_TAG_TODAY)).toBe(true);
+    expect(matchesSelectedTag(oldTask, SYSTEM_TAG_TODAY)).toBe(false);
+  });
+
+  it('matches week system label by current week range', () => {
+    const thisWeekTask = createTask({
+      uid: 'this-week',
+      dtstart: new Date(),
+    });
+    const oldTask = createTask({
+      uid: 'old-week',
+      dtstart: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+    });
+
+    expect(matchesSelectedTag(thisWeekTask, SYSTEM_TAG_WEEK)).toBe(true);
+    expect(matchesSelectedTag(oldTask, SYSTEM_TAG_WEEK)).toBe(false);
   });
 
   it('collects unique tags and counts tasks by tag', () => {

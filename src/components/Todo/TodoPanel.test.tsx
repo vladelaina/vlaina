@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { TodoPanel } from './TodoPanel';
 
 const mockUseGroupStore = vi.fn();
+const mockSetActiveGroup = vi.fn();
 
 vi.mock('@/stores/useGroupStore', () => ({
   useGroupStore: () => mockUseGroupStore(),
@@ -10,7 +11,6 @@ vi.mock('@/stores/useGroupStore', () => ({
 
 vi.mock('./views', () => ({
   TasksView: () => <div data-testid="tasks-view">TasksView</div>,
-  TodayView: () => <div data-testid="today-view">TodayView</div>,
   InboxView: () => <div data-testid="inbox-view">InboxView</div>,
   ProgressView: () => <div data-testid="progress-view">ProgressView</div>,
   CompletedView: () => <div data-testid="completed-view">CompletedView</div>,
@@ -19,34 +19,36 @@ vi.mock('./views', () => ({
 describe('TodoPanel', () => {
   beforeEach(() => {
     mockUseGroupStore.mockReset();
+    mockSetActiveGroup.mockReset();
   });
 
   it('renders ProgressView when activeGroupId is progress', () => {
-    mockUseGroupStore.mockReturnValue({ activeGroupId: 'progress' });
+    mockUseGroupStore.mockReturnValue({ activeGroupId: 'progress', setActiveGroup: mockSetActiveGroup });
     render(<TodoPanel />);
     expect(screen.getByTestId('progress-view')).toBeInTheDocument();
   });
 
-  it('renders TodayView when activeGroupId is today', () => {
-    mockUseGroupStore.mockReturnValue({ activeGroupId: 'today' });
+  it('redirects legacy today group to all', () => {
+    mockUseGroupStore.mockReturnValue({ activeGroupId: 'today', setActiveGroup: mockSetActiveGroup });
     render(<TodoPanel />);
-    expect(screen.getByTestId('today-view')).toBeInTheDocument();
+    expect(screen.getByTestId('inbox-view')).toBeInTheDocument();
+    expect(mockSetActiveGroup).toHaveBeenCalledWith('all');
   });
 
   it('renders CompletedView when activeGroupId is completed', () => {
-    mockUseGroupStore.mockReturnValue({ activeGroupId: 'completed' });
+    mockUseGroupStore.mockReturnValue({ activeGroupId: 'completed', setActiveGroup: mockSetActiveGroup });
     render(<TodoPanel />);
     expect(screen.getByTestId('completed-view')).toBeInTheDocument();
   });
 
   it('renders TasksView when activeGroupId is all', () => {
-    mockUseGroupStore.mockReturnValue({ activeGroupId: 'all' });
+    mockUseGroupStore.mockReturnValue({ activeGroupId: 'all', setActiveGroup: mockSetActiveGroup });
     render(<TodoPanel />);
     expect(screen.getByTestId('tasks-view')).toBeInTheDocument();
   });
 
   it('falls back to InboxView for unknown activeGroupId', () => {
-    mockUseGroupStore.mockReturnValue({ activeGroupId: 'unknown' });
+    mockUseGroupStore.mockReturnValue({ activeGroupId: 'unknown', setActiveGroup: mockSetActiveGroup });
     render(<TodoPanel />);
     expect(screen.getByTestId('inbox-view')).toBeInTheDocument();
   });

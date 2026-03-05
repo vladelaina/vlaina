@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { ALL_COLORS, SIMPLE_COLOR_STYLES, type ItemColor } from '@/lib/colors';
-import { collectUniqueTags, normalizeTags } from '@/lib/tags/tagUtils';
+import { collectUniqueTags, isSystemTagFilter, normalizeTags } from '@/lib/tags/tagUtils';
 import { TagPicker } from '@/components/Todo/tags';
 
 interface TaskInputProps {
@@ -28,7 +28,7 @@ export function TaskInput({ compact = false }: TaskInputProps) {
     const suggestedTags = useMemo(() => collectUniqueTags(tasks), [tasks]);
 
     useEffect(() => {
-        setTags(selectedTag ? [selectedTag] : []);
+        setTags(selectedTag && !isSystemTagFilter(selectedTag) ? [selectedTag] : []);
     }, [selectedTag]);
 
     const handleSubmit = () => {
@@ -36,7 +36,7 @@ export function TaskInput({ compact = false }: TaskInputProps) {
             const normalizedTags = normalizeTags(tags);
             addTask(content.trim(), activeGroupId, color, normalizedTags);
             setContent('');
-            setTags(selectedTag ? [selectedTag] : []);
+            setTags(selectedTag && !isSystemTagFilter(selectedTag) ? [selectedTag] : []);
             inputRef.current?.focus();
         }
     };
