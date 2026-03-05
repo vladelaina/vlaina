@@ -39,7 +39,7 @@ const renderWithLinks = (text: string) => {
 export function ErrorBlock({ content }: ErrorBlockProps) {
   return (
     <div className="w-full mb-2">
-      <div className="text-sm text-neutral-500 dark:text-neutral-500 opacity-90 leading-relaxed select-text">
+      <div className="text-sm text-neutral-500 dark:text-neutral-500 opacity-90 leading-relaxed select-text whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
         {renderWithLinks(content)}
       </div>
     </div>
