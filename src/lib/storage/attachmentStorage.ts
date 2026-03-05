@@ -6,8 +6,8 @@ import { isTauri } from './adapter';
 export interface Attachment {
     id: string;
     path: string;
-    previewUrl: string; // Base64 for immediate UI
-    assetUrl: string;   // asset:// URL for efficient storage
+    previewUrl: string;
+    assetUrl: string;
     name: string;
     type: string;
     size: number;
@@ -16,8 +16,6 @@ export interface Attachment {
 const ATTACHMENT_DIR = 'attachments';
 
 export async function saveAttachment(file: File): Promise<Attachment> {
-    console.log(`[Attachment] Saving file: ${file.name}, size: ${file.size}`);
-
     const base64 = await fileToBase64(file);
     let absolutePath = '';
     let assetUrl = '';
@@ -37,7 +35,6 @@ export async function saveAttachment(file: File): Promise<Attachment> {
             const data = new Uint8Array(buffer);
 
             await writeFile(relativePath, data, { baseDir: BaseDirectory.AppData });
-            console.log(`[Attachment] Saved to ${relativePath}`);
 
             const appDataPath = await appDataDir();
             absolutePath = await join(appDataPath, relativePath);
@@ -46,7 +43,7 @@ export async function saveAttachment(file: File): Promise<Attachment> {
             console.error('[Attachment] Disk save failed:', e);
         }
     } else {
-        assetUrl = base64; // Browser fallback
+        assetUrl = base64;
     }
 
     return {

@@ -63,11 +63,7 @@ export function ChatInputActions({
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onTriggerFileSelect} className="gap-2 cursor-pointer">
               <Icon name="file.attach" size="md" className="text-gray-500" />
-              <span>Attach File</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onTriggerFileSelect} className="gap-2 cursor-pointer">
-              <Icon name="file.image" size="md" className="text-gray-500" />
-              <span>Add Image</span>
+              <span>Attach</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

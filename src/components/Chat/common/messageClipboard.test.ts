@@ -35,6 +35,13 @@ describe("messageClipboard", () => {
     ]);
   });
 
+  it("extracts image sources when URL contains parentheses", () => {
+    const content = "![x](<https://a.com/path/(demo)/image.svg>)";
+    expect(extractMarkdownImageSources(content)).toEqual([
+      "https://a.com/path/(demo)/image.svg",
+    ]);
+  });
+
   it("formats copy text without raw markdown image tokens", () => {
     const content = "Hello ![img](https://a.com/1.png) world ![img](data:image/png;base64,abc)";
     expect(formatMessageCopyText(content)).toBe("Hello https://a.com/1.png world [image]");

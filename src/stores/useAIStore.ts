@@ -12,6 +12,7 @@ import {
   shouldPersistSession,
   stripTemporaryData
 } from '@/lib/ai/temporaryChat';
+import { extractMarkdownImageSources } from '@/components/Chat/common/messageClipboard';
 
 interface AIUIState {
   generatingSessions: Record<string, boolean>;
@@ -364,11 +365,9 @@ export const actions = {
       }
     }
 
-    // Precise Lazy Load: Only load if the key is missing from the messages map
     const latestAI = useUnifiedStore.getState().data.ai!;
     if (!(sessionId in latestAI.messages)) {
         const loadedMessages = await loadSessionJson(sessionId);
-        // Even if loadedMessages is null/empty, we set it to [] to mark it as "loaded"
         const freshState = useUnifiedStore.getState();
         freshState.updateAIData({
             messages: { 
@@ -466,6 +465,12 @@ export const actions = {
 
     const newMessage: ChatMessage = {
       ...message,
+      imageSources:
+        message.role === 'user'
+          ? (message.imageSources && message.imageSources.length > 0
+              ? message.imageSources
+              : extractMarkdownImageSources(message.content || ''))
+          : message.imageSources,
       id: message.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       timestamp: Date.now(),
       versions: [{ 
@@ -607,6 +612,7 @@ export const actions = {
       newMessages[index] = {
           ...targetMsg,
           content: newContent,
+          imageSources: extractMarkdownImageSources(newContent),
           versions: versions,
           currentVersionIndex: newIndex
       };
@@ -647,6 +653,7 @@ export const actions = {
       newMessages[index] = {
           ...targetMsg,
           content: versions[targetIndex].content,
+          imageSources: extractMarkdownImageSources(versions[targetIndex].content),
           currentVersionIndex: targetIndex,
           versions: versions
       };

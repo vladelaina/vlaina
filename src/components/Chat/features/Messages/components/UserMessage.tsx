@@ -15,13 +15,24 @@ import {
 import { ChatAttachmentPreviewList } from '../../Input/components/ChatAttachmentPreviewList';
 import type { ChatMessage } from '@/lib/ai/types';
 import { normalizeExternalHref, openExternalHref } from '@/lib/navigation/externalLinks';
-import { copyMessageContentToClipboard, extractMarkdownImageSources } from '@/components/Chat/common/messageClipboard';
-
-const IMAGE_MARKDOWN_REGEX = /!\[[^\]]*]\(([^)]+)\)/g;
+import {
+  copyMessageContentToClipboard,
+  extractMarkdownImageSources,
+  stripMarkdownImageTokens,
+} from '@/components/Chat/common/messageClipboard';
 
 interface ParsedUserMessageContent {
   text: string;
   imageSources: string[];
+}
+
+function isSvgSource(src: string): boolean {
+  const normalized = src.trim().toLowerCase();
+  if (normalized.startsWith('data:image/svg+xml')) {
+    return true;
+  }
+  const pathname = normalized.split('?')[0] ?? '';
+  return pathname.endsWith('.svg');
 }
 
 function inferImageMimeType(src: string): string {
@@ -67,13 +78,17 @@ function toEditAttachment(src: string, index: number): Attachment {
 function parseUserMessageContent(content: string): ParsedUserMessageContent {
   return {
     imageSources: extractMarkdownImageSources(content),
-    text: content.replace(IMAGE_MARKDOWN_REGEX, '').trim(),
+    text: stripMarkdownImageTokens(content).trim(),
   };
 }
 
 function composeUserMessageContent(text: string, attachments: Attachment[]): string {
   const normalizedText = text.replace(/\r\n?/g, '\n');
-  const imageMarkdown = attachments.map((attachment) => `![image](${attachment.assetUrl})`).join('\n');
+  const imageMarkdown = attachments
+    .map((attachment) => attachment.assetUrl?.trim())
+    .filter((src): src is string => !!src)
+    .map((src) => `![image](<${src}>)`)
+    .join('\n');
   const hasText = normalizedText.trim().length > 0;
 
   if (imageMarkdown && hasText) {
@@ -93,7 +108,16 @@ interface UserMessageProps {
 
 export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessageProps) {
   const content = message.content || '';
-  const parsedContent = useMemo(() => parseUserMessageContent(content), [content]);
+  const parsedContent = useMemo(() => {
+    const parsed = parseUserMessageContent(content);
+    if (message.role === 'user' && message.imageSources && message.imageSources.length > 0) {
+      return {
+        ...parsed,
+        imageSources: message.imageSources,
+      };
+    }
+    return parsed;
+  }, [content, message.imageSources, message.role]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -236,7 +260,10 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
                 <LocalImage
                   src={src}
                   alt="attachment"
-                  className="max-w-xs max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                  className={cn(
+                    "max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity",
+                    isSvgSource(src) ? "w-64 h-auto" : "max-w-xs"
+                  )}
                   onClick={() => {
                     const safeExternalHref = normalizeExternalHref(src);
                     if (safeExternalHref) {

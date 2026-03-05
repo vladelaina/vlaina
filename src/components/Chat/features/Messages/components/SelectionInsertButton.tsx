@@ -14,7 +14,6 @@ interface SelectionInsertState {
 function normalizeSelectionText(text: string): string {
   return text
     .replace(/\r\n?/g, "\n")
-    // Keep at most one empty line between blocks.
     .replace(/\n[ \t]*\n(?:[ \t]*\n)+/g, "\n\n")
     .trim();
 }
@@ -71,9 +70,7 @@ function isSelectionInsideChatMessages(selection: Selection, range: Range): bool
       if (range.intersectsNode(item)) {
         return true;
       }
-    } catch {
-      // Keep scanning; cross-root nodes can throw in rare selection edge-cases.
-    }
+    } catch {}
   }
 
   return false;

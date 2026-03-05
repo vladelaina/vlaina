@@ -1,5 +1,3 @@
-const IMAGE_MARKDOWN_REGEX = /!\[[^\]]*]\(([^)]+)\)/g;
-
 function normalizeImageMarkdownTarget(rawTarget: string): string | null {
   const trimmed = rawTarget.trim();
   if (!trimmed) {
@@ -15,25 +13,142 @@ function normalizeImageMarkdownTarget(rawTarget: string): string | null {
   return firstSegment || null;
 }
 
-export function extractMarkdownImageSources(content: string): string[] {
-  const result: string[] = [];
-  for (const match of content.matchAll(IMAGE_MARKDOWN_REGEX)) {
-    const normalized = normalizeImageMarkdownTarget(match[1] || "");
-    if (normalized) {
-      result.push(normalized);
-    }
+interface MarkdownImageToken {
+  start: number;
+  end: number;
+  src: string | null;
+}
+
+function parseMarkdownImageTarget(content: string, targetStart: number): { raw: string; end: number } | null {
+  let pos = targetStart;
+  const length = content.length;
+
+  while (pos < length && /\s/.test(content[pos])) {
+    pos += 1;
   }
-  return result;
+  if (pos >= length) {
+    return null;
+  }
+
+  if (content[pos] === "<") {
+    const rawStart = pos + 1;
+    const closingAngle = content.indexOf(">", rawStart);
+    if (closingAngle === -1) {
+      return null;
+    }
+
+    let cursor = closingAngle + 1;
+    while (cursor < length && /\s/.test(content[cursor])) {
+      cursor += 1;
+    }
+    if (cursor >= length || content[cursor] !== ")") {
+      return null;
+    }
+    return {
+      raw: content.slice(rawStart, closingAngle),
+      end: cursor + 1,
+    };
+  }
+
+  const rawStart = pos;
+  let depth = 0;
+  while (pos < length) {
+    const ch = content[pos];
+    if (ch === "(") {
+      depth += 1;
+      pos += 1;
+      continue;
+    }
+    if (ch === ")") {
+      if (depth === 0) {
+        const raw = content.slice(rawStart, pos).trimEnd();
+        return {
+          raw,
+          end: pos + 1,
+        };
+      }
+      depth -= 1;
+      pos += 1;
+      continue;
+    }
+    pos += 1;
+  }
+
+  return null;
+}
+
+function parseMarkdownImageTokens(content: string): MarkdownImageToken[] {
+  const tokens: MarkdownImageToken[] = [];
+  let cursor = 0;
+
+  while (cursor < content.length) {
+    const imageStart = content.indexOf("![", cursor);
+    if (imageStart === -1) {
+      break;
+    }
+
+    const bracketAndParen = content.indexOf("](", imageStart + 2);
+    if (bracketAndParen === -1) {
+      cursor = imageStart + 2;
+      continue;
+    }
+
+    const parsed = parseMarkdownImageTarget(content, bracketAndParen + 2);
+    if (!parsed) {
+      cursor = bracketAndParen + 2;
+      continue;
+    }
+
+    tokens.push({
+      start: imageStart,
+      end: parsed.end,
+      src: normalizeImageMarkdownTarget(parsed.raw),
+    });
+    cursor = parsed.end;
+  }
+
+  return tokens;
+}
+
+export function extractMarkdownImageSources(content: string): string[] {
+  return parseMarkdownImageTokens(content)
+    .map((token) => token.src)
+    .filter((src): src is string => !!src);
+}
+
+export function stripMarkdownImageTokens(content: string): string {
+  const tokens = parseMarkdownImageTokens(content);
+  if (tokens.length === 0) {
+    return content;
+  }
+
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const token of tokens) {
+    parts.push(content.slice(cursor, token.start));
+    cursor = token.end;
+  }
+  parts.push(content.slice(cursor));
+  return parts.join("");
 }
 
 export function formatMessageCopyText(content: string): string {
-  return content.replace(IMAGE_MARKDOWN_REGEX, (_, rawTarget: string) => {
-    const normalized = normalizeImageMarkdownTarget(rawTarget);
-    if (!normalized) {
-      return "";
+  const tokens = parseMarkdownImageTokens(content);
+  if (tokens.length === 0) {
+    return content;
+  }
+
+  const parts: string[] = [];
+  let cursor = 0;
+  for (const token of tokens) {
+    parts.push(content.slice(cursor, token.start));
+    if (token.src) {
+      parts.push(token.src.startsWith("data:image/") ? "[image]" : token.src);
     }
-    return normalized.startsWith("data:image/") ? "[image]" : normalized;
-  });
+    cursor = token.end;
+  }
+  parts.push(content.slice(cursor));
+  return parts.join("");
 }
 
 export async function copyImageSourceToClipboard(src: string): Promise<boolean> {
