@@ -7,6 +7,7 @@ import type { Parser } from '@milkdown/kit/transformer';
 import { sanitizeHtml } from './sanitizer';
 import { serializeSliceToText } from './serializer';
 import {
+    extractLargestMarkdownFenceContent,
     looksLikeMarkdownForPaste,
     parseStandaloneAtxHeading,
     parseStandaloneFencedCodeBlock,
@@ -42,6 +43,27 @@ export const clipboardPlugin = $prose((ctx) => {
         return safePos;
     };
 
+    const parseMarkdownNodes = (text: string): ProseNode[] | null => {
+        if (!looksLikeMarkdownForPaste(text)) return null;
+
+        const parser = getMarkdownParser();
+        if (!parser) return null;
+
+        let parsedDoc: ProseNode;
+        try {
+            parsedDoc = parser(text);
+        } catch {
+            return null;
+        }
+
+        const parsedNodes: ProseNode[] = [];
+        parsedDoc.content.forEach((node) => {
+            parsedNodes.push(node);
+        });
+
+        return isMarkdownStructuralResult(parsedNodes) ? parsedNodes : null;
+    };
+
     return new Plugin({
         key: clipboardPluginKey,
         props: {
@@ -71,6 +93,25 @@ export const clipboardPlugin = $prose((ctx) => {
                 }
 
                 if (fencedPayload) {
+                    const fencedLanguage = fencedPayload.language?.toLowerCase() ?? null;
+                    const fencedMarkdownCandidate = (
+                        fencedLanguage === 'markdown'
+                        || fencedLanguage === 'md'
+                        || fencedLanguage === 'mdx'
+                    ) ? fencedPayload.code : null;
+
+                    if (fencedMarkdownCandidate) {
+                        const markdownNodes = parseMarkdownNodes(fencedMarkdownCandidate);
+                        if (markdownNodes) {
+                            dispatchSliceAndKeepCursorAtTail(
+                                view,
+                                new Slice(Fragment.from(markdownNodes), 0, 0),
+                            );
+                            event.preventDefault();
+                            return true;
+                        }
+                    }
+
                     const codeBlockType = state.schema.nodes.code_block;
                     if (!codeBlockType) return false;
 
@@ -105,31 +146,14 @@ export const clipboardPlugin = $prose((ctx) => {
                     return true;
                 }
 
-                // Try a broader markdown parse for other recognizable patterns (lists, quote, emphasis, etc.).
-                // Keep this behind quick signal matching to avoid over-processing normal plain-text paste.
-                if (!looksLikeMarkdownForPaste(text)) return false;
-
-                const parser = getMarkdownParser();
-                if (!parser) return false;
-
-                let parsedDoc: ProseNode;
-                try {
-                    parsedDoc = parser(text);
-                } catch {
-                    return false;
-                }
-
-                const parsedNodes: ProseNode[] = [];
-                parsedDoc.content.forEach((node) => {
-                    parsedNodes.push(node);
-                });
-
-                if (!isMarkdownStructuralResult(parsedNodes)) return false;
-
-                dispatchSliceAndKeepCursorAtTail(
-                    view,
-                    new Slice(Fragment.from(parsedNodes), 0, 0),
+                // Try broader markdown parsing for mixed content.
+                const markdownFenceCandidate = extractLargestMarkdownFenceContent(text);
+                const markdownNodes = parseMarkdownNodes(text) ?? (
+                    markdownFenceCandidate ? parseMarkdownNodes(markdownFenceCandidate) : null
                 );
+                if (!markdownNodes) return false;
+
+                dispatchSliceAndKeepCursorAtTail(view, new Slice(Fragment.from(markdownNodes), 0, 0));
                 event.preventDefault();
                 return true;
             },

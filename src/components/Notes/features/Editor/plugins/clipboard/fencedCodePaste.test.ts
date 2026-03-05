@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    extractLargestMarkdownFenceContent,
     isStandaloneFencedCodeBlock,
     looksLikeMarkdownForPaste,
     parseStandaloneAtxHeading,
@@ -84,5 +85,30 @@ describe('looksLikeMarkdownForPaste', () => {
 
     it('ignores plain text', () => {
         expect(looksLikeMarkdownForPaste('hello world')).toBe(false);
+    });
+});
+
+describe('extractLargestMarkdownFenceContent', () => {
+    it('extracts content from a standalone markdown fence', () => {
+        expect(extractLargestMarkdownFenceContent('```markdown\n# Title\n- item\n```')).toBe('# Title\n- item');
+    });
+
+    it('extracts the largest markdown fence from mixed prose', () => {
+        const value = [
+            'intro',
+            '```markdown',
+            '# Main',
+            '```python',
+            'print(1)',
+            '```',
+            '```',
+            'tail',
+        ].join('\n');
+
+        expect(extractLargestMarkdownFenceContent(value)).toBe('# Main\n```python\nprint(1)\n```');
+    });
+
+    it('returns null when markdown fence is missing', () => {
+        expect(extractLargestMarkdownFenceContent('```ts\nconst a = 1;\n```')).toBeNull();
     });
 });
