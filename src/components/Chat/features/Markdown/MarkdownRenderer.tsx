@@ -9,6 +9,7 @@ import { LocalImage } from "@/components/Chat/common/LocalImage";
 import { Icon } from "@/components/ui/icons";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
+import { downloadImageWithPrompt } from "@/components/Chat/common/imageDownload";
 import { ChatImageViewer } from "./components/ChatImageViewer";
 import { CodeBlock } from "./components/CodeBlock";
 import { createMarkdownSanitizeSchema, normalizeRenderableImageSrc } from "./imagePolicy";
@@ -19,19 +20,6 @@ interface MarkdownRendererProps {
   size?: "sm" | "md" | "lg";
   browserToolResult?: any;
   startTime?: Date;
-}
-
-function downloadImageByUrl(src: string, alt?: string) {
-  const fallbackName = (alt || "image").trim() || "image";
-  const fileName = fallbackName.replace(/[<>:"/\\|?*]+/g, "_");
-  const link = document.createElement("a");
-  link.href = src;
-  link.download = fileName;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
 }
 
 async function copyImageOrUrl(src: string): Promise<void> {
@@ -98,7 +86,7 @@ function MarkdownImage({ src, alt }: { src: string; alt?: string }) {
             aria-label="Download image"
             onClick={(e) => {
               e.stopPropagation();
-              downloadImageByUrl(src, alt);
+              void downloadImageWithPrompt(src, alt);
             }}
             className={cn("p-1.5", iconButtonStyles)}
           >

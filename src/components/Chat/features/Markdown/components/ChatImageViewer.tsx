@@ -4,6 +4,7 @@ import Cropper from "react-easy-crop";
 import { Icon } from "@/components/ui/icons";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
+import { downloadImageWithPrompt } from "@/components/Chat/common/imageDownload";
 
 interface ChatImageViewerProps {
   open: boolean;
@@ -15,19 +16,6 @@ interface ChatImageViewerProps {
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 5;
 const ZOOM_STEP = 0.12;
-
-function downloadImageByUrl(src: string, alt?: string) {
-  const fallbackName = (alt || "image").trim() || "image";
-  const fileName = fallbackName.replace(/[<>:"/\\|?*]+/g, "_");
-  const link = document.createElement("a");
-  link.href = src;
-  link.download = fileName;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
 
 async function copyImageOrUrl(src: string): Promise<void> {
   const copied = await copyImageSourceToClipboard(src);
@@ -53,6 +41,7 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
   const [zoom, setZoom] = useState(1);
   const [copied, setCopied] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(1);
+  const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
   const [viewportSize, setViewportSize] = useState({ width: 1440, height: 900 });
 
   useEffect(() => {
@@ -97,12 +86,14 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
       const width = image.naturalWidth || 1;
       const height = image.naturalHeight || 1;
       setAspectRatio(width / height);
+      setImageSize({ width, height });
     };
     image.onerror = () => {
       if (!active) {
         return;
       }
       setAspectRatio(1);
+      setImageSize(null);
     };
     image.src = src;
     return () => {
@@ -126,6 +117,12 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
   }, [open, onOpenChange]);
 
   const percentLabel = useMemo(() => `${Math.round(zoom * 100)}%`, [zoom]);
+  const imageSizeLabel = useMemo(() => {
+    if (!imageSize) {
+      return null;
+    }
+    return `${imageSize.width}×${imageSize.height}`;
+  }, [imageSize]);
   const previewMetrics = useMemo(() => {
     const isMobile = viewportSize.width < 640;
     const maxWidth = Math.min(viewportSize.width * (isMobile ? 0.94 : 0.86), 1200);
@@ -266,7 +263,10 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
         </div>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
-          <div className="pointer-events-auto flex items-center gap-1 rounded-full bg-black/45 px-2 py-1.5 text-white/90 backdrop-blur-sm">
+          <div
+            className="pointer-events-auto flex items-center gap-1 rounded-full bg-black/45 px-2 py-1.5 text-white/90 backdrop-blur-sm"
+            onClick={(event) => event.stopPropagation()}
+          >
             <button
               type="button"
               aria-label="Zoom out"
@@ -286,6 +286,11 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
             >
               <Icon name="common.add" size="md" />
             </button>
+            {imageSizeLabel && (
+              <span className="min-w-[78px] text-center text-xs font-medium tabular-nums text-white/80">
+                {imageSizeLabel}
+              </span>
+            )}
             <button
               type="button"
               aria-label="Copy image"
@@ -303,7 +308,7 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
               data-no-focus-input="true"
               className={cn("p-1", iconButtonStyles, "text-white/90 hover:text-white")}
               onClick={() => {
-                downloadImageByUrl(src, alt);
+                void downloadImageWithPrompt(src, alt);
               }}
             >
               <Icon name="common.download" size="md" />
