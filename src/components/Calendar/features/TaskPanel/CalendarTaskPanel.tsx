@@ -119,7 +119,9 @@ export function CalendarTaskPanel({
 
       if (isOver) {
         const task = tasks.find(t => t.uid === active.id);
-        const startDate = task?.dtstart ? new Date(task.dtstart).getTime() : null;
+        const startDate = task && task.scheduled !== false && task.dtstart
+          ? new Date(task.dtstart).getTime()
+          : null;
         if (startDate && task) {
           setDraggingToCalendarTaskId(task.uid);
         }

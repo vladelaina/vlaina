@@ -5,6 +5,7 @@ export interface NekoEvent {
     summary: string;
     dtstart: Date;
     dtend: Date;
+    scheduled?: boolean;
     allDay: boolean;
     description?: string;
     location?: string;
@@ -50,5 +51,6 @@ export const NEKO_X_PROPS = {
     COLLAPSED: 'X-NEKO-COLLAPSED',
     ESTIMATED_MINUTES: 'X-NEKO-ESTIMATED-MINUTES',
     TAGS: 'X-NEKO-TAGS',
+    SCHEDULED: 'X-NEKO-SCHEDULED',
 } as const;
 

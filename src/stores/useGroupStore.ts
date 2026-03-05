@@ -67,8 +67,20 @@ export function useGroupStore() {
 
     updateTaskTime: async (uid: string, startDate?: number | null, endDate?: number | null, isAllDay?: boolean) => {
         const updates: Partial<NekoEvent> = {};
-        if (startDate !== undefined) updates.dtstart = startDate ? new Date(startDate) : undefined;
-        if (endDate !== undefined) updates.dtend = endDate ? new Date(endDate) : undefined;
+        if (startDate !== undefined) {
+            if (startDate === null) updates.scheduled = false;
+            else {
+                updates.dtstart = new Date(startDate);
+                updates.scheduled = true;
+            }
+        }
+        if (endDate !== undefined) {
+            if (endDate === null) updates.scheduled = false;
+            else {
+                updates.dtend = new Date(endDate);
+                updates.scheduled = true;
+            }
+        }
         if (isAllDay !== undefined) updates.allDay = isAllDay;
         
         await eventStore.updateEvent(uid, updates);
@@ -131,7 +143,6 @@ async function deleteCompletedTasks(scopeId: string) {
         await store.deleteEvent(task.uid);
     }
 }
-
 useGroupStore.getState = () => {
   const store = useCalendarEventsStore.getState();
   
