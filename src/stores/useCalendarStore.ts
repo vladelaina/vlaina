@@ -62,8 +62,12 @@ export function useCalendarStore() {
     return uid;
   }, [eventsStore.calendars, eventsStore.addEvent, eventsStore.toggleCalendarVisibility]);
 
-  const updateEvent = useCallback((uid: string, updates: Partial<NekoEvent>) => {
-    eventsStore.updateEvent(uid, updates);
+  const updateEvent = useCallback((
+    uid: string,
+    updates: Partial<NekoEvent>,
+    options?: { persist?: boolean }
+  ) => {
+    eventsStore.updateEvent(uid, updates, options);
   }, [eventsStore.updateEvent]);
 
   return {

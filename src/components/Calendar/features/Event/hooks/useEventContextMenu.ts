@@ -56,6 +56,36 @@ export function useEventContextMenu(eventId: string, position: { x: number; y: n
     onClose();
   };
 
+  const writeClipboard = async (text: string) => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Ignore clipboard permission/runtime failures.
+    }
+  };
+
+  const handleCopy = async (onClose: () => void) => {
+    if (event) {
+      const text = event.summary?.trim() || '';
+      if (text) {
+        await writeClipboard(text);
+      }
+    }
+    onClose();
+  };
+
+  const handleCut = async (onClose: () => void) => {
+    if (event) {
+      const text = event.summary?.trim() || '';
+      if (text) {
+        await writeClipboard(text);
+      }
+    }
+    deleteEvent(eventId);
+    onClose();
+  };
+
   const handleDuplicate = (onClose: () => void) => {
     if (event) {
       addEvent({
@@ -89,6 +119,8 @@ export function useEventContextMenu(eventId: string, position: { x: number; y: n
     handleNameChange,
     handleNameBlur,
     handleNameKeyDown,
+    handleCopy,
+    handleCut,
     handleDelete,
     handleDuplicate,
     handleTimerAction,

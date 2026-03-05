@@ -120,6 +120,22 @@ export function isEventInVisualDay(
   return eventTime >= visualDayStart.getTime() && eventTime < visualDayEnd.getTime();
 }
 
+export function isEventOverlappingVisualDay(
+  eventStartDate: number,
+  eventEndDate: number,
+  visualDay: Date,
+  dayStartMinutes: number = DEFAULT_DAY_START_MINUTES
+): boolean {
+  const visualDayStart = new Date(visualDay);
+  visualDayStart.setHours(Math.floor(dayStartMinutes / 60), dayStartMinutes % 60, 0, 0);
+
+  const visualDayEnd = new Date(visualDayStart);
+  visualDayEnd.setDate(visualDayEnd.getDate() + 1);
+
+  const normalizedEnd = eventEndDate > eventStartDate ? eventEndDate : eventStartDate + 1;
+  return eventStartDate < visualDayEnd.getTime() && normalizedEnd > visualDayStart.getTime();
+}
+
 export function getVisualDayBoundaries(
   eventTimestamp: number,
   dayStartMinutes: number = DEFAULT_DAY_START_MINUTES

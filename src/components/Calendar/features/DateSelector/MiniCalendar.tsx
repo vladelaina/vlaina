@@ -1,4 +1,4 @@
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, addDays, startOfDay } from 'date-fns';
 import { Icon } from '@/components/ui/icons';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useState, useEffect, useMemo } from 'react';
@@ -28,21 +28,48 @@ export function MiniCalendar({ onSelect }: MiniCalendarProps) {
     const map = new Map<string, typeof allEvents>();
     if (!allEvents) return map;
 
-    for (const event of allEvents) {
-      if (event.completed) continue;
-      
-      const date = event.dtstart;
-      if (!date || isNaN(date.getTime())) continue;
-
+    const pushEventForDate = (event: typeof allEvents[number], date: Date) => {
       const dateStr = format(date, 'yyyy-MM-dd');
       if (!map.has(dateStr)) {
         map.set(dateStr, []);
       }
-      map.get(dateStr)!.push(event);
+      const target = map.get(dateStr)!;
+      if (!target.some(e => e.uid === event.uid)) {
+        target.push(event);
+      }
+    };
+
+    for (const event of allEvents) {
+      if (event.completed) continue;
+
+      const start = event.dtstart;
+      const end = event.dtend ?? event.dtstart;
+      if (!start || isNaN(start.getTime()) || !end || isNaN(end.getTime())) continue;
+
+      const startDay = startOfDay(start);
+      // Treat end as exclusive boundary to avoid marking an extra day
+      // when an event ends exactly at 00:00.
+      const effectiveEndTs = end.getTime() > start.getTime()
+        ? end.getTime() - 1
+        : end.getTime();
+      const endDay = startOfDay(new Date(effectiveEndTs));
+      const finalDay = endDay.getTime() >= startDay.getTime() ? endDay : startDay;
+
+      let cursor = startDay;
+      let guard = 0;
+      while (cursor.getTime() <= finalDay.getTime() && guard < 400) {
+        pushEventForDate(event, cursor);
+        cursor = addDays(cursor, 1);
+        guard += 1;
+      }
     }
     
     for (const [_, events] of map) {
-      events.sort((a, b) => getColorPriority(a.color) - getColorPriority(b.color));
+      events.sort((a, b) => {
+        const colorDiff = getColorPriority(a.color) - getColorPriority(b.color);
+        if (colorDiff !== 0) return colorDiff;
+        return a.dtstart.getTime() - b.dtstart.getTime();
+      });
     }
     
     return map;

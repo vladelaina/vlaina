@@ -22,7 +22,11 @@ interface CalendarEventsState {
     save: () => Promise<void>;
 
     addEvent: (event: Omit<NekoEvent, 'uid'> & { uid?: string }) => Promise<void>;
-    updateEvent: (uid: string, updates: Partial<NekoEvent>) => Promise<void>;
+    updateEvent: (
+        uid: string,
+        updates: Partial<NekoEvent>,
+        options?: { persist?: boolean }
+    ) => Promise<void>;
     deleteEvent: (uid: string) => Promise<void>;
 
     addTask: (content: string, groupId: string, calendarId?: string) => Promise<void>;
@@ -81,14 +85,15 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
         await get().save();
     },
 
-    updateEvent: async (uid, updates) => {
+    updateEvent: async (uid, updates, options) => {
         set(state => ({
             events: state.events.map(e =>
                 e.uid === uid ? { ...e, ...updates } : e
             ),
         }));
-
-        await get().save();
+        if (options?.persist ?? true) {
+            await get().save();
+        }
     },
 
     deleteEvent: async (uid) => {

@@ -130,7 +130,9 @@ export function TimeColumn({
                                 </div>
                                 <div className="grid grid-cols-2 gap-1">
                                     <button
-                                        onClick={handleToggle24Hour}
+                                        onClick={() => {
+                                            if (use24Hour) handleToggle24Hour();
+                                        }}
                                         className={`px-2 py-1.5 text-xs rounded transition-colors ${
                                             !use24Hour
                                                 ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium'
@@ -140,7 +142,9 @@ export function TimeColumn({
                                         12-hour
                                     </button>
                                     <button
-                                        onClick={handleToggle24Hour}
+                                        onClick={() => {
+                                            if (!use24Hour) handleToggle24Hour();
+                                        }}
                                         className={`px-2 py-1.5 text-xs rounded transition-colors ${
                                             use24Hour
                                                 ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium'

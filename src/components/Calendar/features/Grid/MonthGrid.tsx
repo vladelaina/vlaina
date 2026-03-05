@@ -14,7 +14,7 @@ import {
 import { useCalendarStore, type NekoEvent } from '@/stores/useCalendarStore';
 import { useCalendarEvents } from '../../hooks/useCalendarEvents';
 import { getColorHex, getColorPriority } from '@/lib/colors';
-import { isEventInVisualDay, DEFAULT_DAY_START_MINUTES } from '../../utils/timeUtils';
+import { isEventOverlappingVisualDay, DEFAULT_DAY_START_MINUTES } from '../../utils/timeUtils';
 import { TimezoneHeader } from './components/TimezoneHeader';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -57,7 +57,14 @@ export function MonthGrid() {
 
   const getEventsForDay = useMemo(() => {
     return (date: Date) => {
-      const dayEvents = displayItems.filter((item) => isEventInVisualDay(item.dtstart.getTime(), date, dayStartMinutes));
+      const dayEvents = displayItems.filter((item) =>
+        isEventOverlappingVisualDay(
+          item.dtstart.getTime(),
+          item.dtend.getTime(),
+          date,
+          dayStartMinutes
+        )
+      );
       return sortEventsByColor(dayEvents);
     };
   }, [displayItems, dayStartMinutes]);

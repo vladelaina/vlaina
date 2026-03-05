@@ -13,7 +13,7 @@ export function useEventForm(event: NekoEvent) {
     const [localIcon, setLocalIcon] = useState(event.icon || null);
     const [showCalendarPicker, setShowCalendarPicker] = useState(false);
     const isNewEvent = useRef(!(event.summary || '').trim());
-    const debouncedUpdateSummary = useRef<NodeJS.Timeout | undefined>(undefined);
+    const debouncedUpdateSummary = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     const currentCalendar = calendars.find(c => c.id === event.calendarId) || calendars[0];
 
