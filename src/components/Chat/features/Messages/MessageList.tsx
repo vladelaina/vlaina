@@ -11,7 +11,7 @@ interface MessageListProps {
   isLayoutCentered?: boolean;
   spacerHeight: number;
   containerRef: React.RefObject<HTMLDivElement | null>;
-  onCopy: (text: string) => void;
+  onCopy: (text: string) => Promise<void> | void;
   onRegenerate: (id: string) => void;
   onEdit?: (id: string, newContent: string) => void;
   onSwitchVersion: (msgId: string, idx: number) => void;

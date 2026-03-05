@@ -7,7 +7,7 @@ import type { ChatMessage } from '@/lib/ai/types';
 interface MessageItemProps {
   msg: ChatMessage;
   isLoading: boolean;
-  onCopy: (text: string) => void;
+  onCopy: (text: string) => Promise<void> | void;
   onRegenerate: (id: string) => void;
   onEdit?: (id: string, newContent: string) => void;
   onSwitchVersion: (id: string, targetIndex: number) => void;
@@ -48,7 +48,7 @@ export const MessageItem = memo(function MessageItem({
               <AIMessage 
                   msg={msg}
                   isLoading={isLoading}
-                  onCopy={() => onCopy(msg.content)}
+                  onCopy={onCopy}
                   onRegenerate={() => onRegenerate(msg.id)}
                   onSwitchVersion={(idx) => onSwitchVersion(msg.id, idx)}
               />

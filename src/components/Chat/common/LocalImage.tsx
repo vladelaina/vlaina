@@ -57,7 +57,6 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
                     }
                 } catch (e) {
                     console.error('[LocalImage] Failed to load local image:', src, e);
-                    // Fall back to raw source for non-attachment paths (e.g. model-generated file/blob URLs).
                     if (active) {
                         setDisplaySrc(src);
                     }
@@ -74,15 +73,22 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
 
     if (error) {
         return (
-            <div
-                className={`flex items-center justify-center text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 ${className ?? ''}`}
+            <span
+                className={`inline-flex items-center justify-center text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 ${className ?? ''}`}
                 style={{ minHeight: '100px', minWidth: '100px' }}
             >
                 Image unavailable
-            </div>
+            </span>
         );
     }
-    if (!displaySrc) return <div className={`animate-pulse bg-gray-200 dark:bg-zinc-800 ${className}`} style={{ minHeight: '100px', minWidth: '100px' }} />;
+    if (!displaySrc) {
+        return (
+            <span
+                className={`inline-block animate-pulse bg-gray-200 dark:bg-zinc-800 ${className}`}
+                style={{ minHeight: '100px', minWidth: '100px' }}
+            />
+        );
+    }
 
     return (
         <img 

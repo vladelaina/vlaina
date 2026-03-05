@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from "react";
+import React, { memo, useEffect, useMemo, useState } from "react";
 import { Streamdown, defaultRemarkPlugins, defaultRehypePlugins } from "streamdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkMath from "remark-math";
@@ -6,6 +6,9 @@ import remarkCitationParser from "@/lib/ai/plugins/remarkCitationParser";
 import { getExternalLinkProps } from "@/lib/navigation/externalLinks";
 import { ThinkingBlock } from "@/components/Chat/features/Messages/components/ThinkingBlock";
 import { LocalImage } from "@/components/Chat/common/LocalImage";
+import { Icon } from "@/components/ui/icons";
+import { cn, iconButtonStyles } from "@/lib/utils";
+import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
 import { CodeBlock } from "./components/CodeBlock";
 import { createMarkdownSanitizeSchema, normalizeRenderableImageSrc } from "./imagePolicy";
 
@@ -15,6 +18,94 @@ interface MarkdownRendererProps {
   size?: "sm" | "md" | "lg";
   browserToolResult?: any;
   startTime?: Date;
+}
+
+function downloadImageByUrl(src: string, alt?: string) {
+  const fallbackName = (alt || "image").trim() || "image";
+  const fileName = fallbackName.replace(/[<>:"/\\|?*]+/g, "_");
+  const link = document.createElement("a");
+  link.href = src;
+  link.download = fileName;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+async function copyImageOrUrl(src: string): Promise<void> {
+  const copied = await copyImageSourceToClipboard(src);
+  if (copied) {
+    return;
+  }
+  await navigator.clipboard.writeText(src);
+}
+
+function MarkdownImage({ src, alt }: { src: string; alt?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 1200);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
+  const handleCopy = async () => {
+    try {
+      await copyImageOrUrl(src);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <span className="not-prose my-3 block max-w-full" data-no-focus-input="true">
+      <span className="group relative inline-block max-w-full overflow-hidden rounded-xl align-top">
+        <LocalImage
+          src={src}
+          alt={alt || "image"}
+          className="block max-h-[420px] w-auto max-w-full object-contain"
+          onClick={() => {
+            window.open(src, "_blank", "noopener,noreferrer");
+          }}
+        />
+        <span
+          className="absolute right-2 top-2 z-10 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+          data-no-focus-input="true"
+        >
+          <button
+            type="button"
+            data-no-focus-input="true"
+            aria-label="Copy image"
+            onClick={(e) => {
+              e.stopPropagation();
+              void handleCopy();
+            }}
+            className={cn(
+              "p-1.5",
+              iconButtonStyles,
+              copied && "text-green-500 dark:text-green-400"
+            )}
+          >
+            <Icon name={copied ? "common.check" : "common.copy"} size="md" />
+          </button>
+          <button
+            type="button"
+            data-no-focus-input="true"
+            aria-label="Download image"
+            onClick={(e) => {
+              e.stopPropagation();
+              downloadImageByUrl(src, alt);
+            }}
+            className={cn("p-1.5", iconButtonStyles)}
+          >
+            <Icon name="common.download" size="md" />
+          </button>
+        </span>
+      </span>
+    </span>
+  );
 }
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
@@ -123,20 +214,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
                         );
                       }
 
-                      return (
-                        <span className="not-prose my-3 block" data-no-focus-input="true">
-                          <span className="block overflow-hidden rounded-xl border border-black/5 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900">
-                            <LocalImage
-                              src={safeSrc}
-                              alt={typeof alt === "string" ? alt : "image"}
-                              className="max-h-[420px] w-auto max-w-full object-contain"
-                              onClick={() => {
-                                window.open(safeSrc, "_blank", "noopener,noreferrer");
-                              }}
-                            />
-                          </span>
-                        </span>
-                      );
+                      return <MarkdownImage src={safeSrc} alt={typeof alt === "string" ? alt : "image"} />;
                     },
                 }}
                 >

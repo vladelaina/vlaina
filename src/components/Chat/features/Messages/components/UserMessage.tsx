@@ -13,6 +13,7 @@ import {
 } from '../../Input/composerStyles';
 import type { ChatMessage } from '@/lib/ai/types';
 import { normalizeExternalHref, openExternalHref } from '@/lib/navigation/externalLinks';
+import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
 
 interface UserMessageProps {
   message: ChatMessage;
@@ -95,10 +96,14 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
       }
   };
 
-  const handleCopy = () => {
-      navigator.clipboard.writeText(content);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
+  const handleCopy = async () => {
+      try {
+          await copyMessageContentToClipboard(content);
+          setIsCopied(true);
+          setTimeout(() => setIsCopied(false), 2000);
+      } catch (error) {
+          console.error('[UserMessage] Failed to copy message:', error);
+      }
   };
 
   return (

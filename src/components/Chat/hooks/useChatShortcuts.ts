@@ -4,6 +4,7 @@ import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { dispatchChatMessageCopied } from '@/components/Chat/common/copyFeedback';
+import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
 
 interface UseChatShortcutsOptions {
   onFocusInput: () => void;
@@ -123,7 +124,7 @@ export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }:
         const lastAI = [...currentMsgs].reverse().find(m => m.role === 'assistant');
         if (lastAI) {
           try {
-            const copyRequest = navigator.clipboard.writeText(stripThinkingContent(lastAI.content));
+            const copyRequest = copyMessageContentToClipboard(stripThinkingContent(lastAI.content));
             void Promise.resolve(copyRequest)
               .then(() => {
                 dispatchChatMessageCopied(lastAI.id);

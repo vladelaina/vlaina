@@ -9,6 +9,7 @@ import { useComposerClickFocus } from './hooks/useComposerClickFocus';
 import { cn } from '@/lib/utils';
 import { Attachment } from '@/lib/storage/attachmentStorage';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
+import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
 
 import { ChatInput } from '@/components/Chat/features/Input/ChatInput';
 import { MessageList } from '@/components/Chat/features/Messages/MessageList';
@@ -84,7 +85,7 @@ export function ChatView() {
       scrollRef: containerRef 
   });
 
-  const copyToClipboard = useCallback((text: string) => navigator.clipboard.writeText(text), []);
+  const copyToClipboard = useCallback((text: string) => copyMessageContentToClipboard(text), []);
 
   const handleSend = useCallback((text: string, attachments: Attachment[]) => {
       handleNewUserMessage();
