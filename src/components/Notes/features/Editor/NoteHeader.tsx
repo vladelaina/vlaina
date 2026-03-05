@@ -112,7 +112,7 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
             imageLoader={imageLoader}
             
             renderTitle={() => currentNotePath && (
-                <>
+                <div className="group/note-title">
                     <NotePathBreadcrumb notePath={currentNotePath} />
                     <TitleInput
                         notePath={currentNotePath}
@@ -123,7 +123,7 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
                         }}
                         autoFocus={!!isNewlyCreated}
                     />
-                </>
+                </div>
             )}
         >
             <CoverAddOverlay visible={!coverUrl} onAddCover={onAddCover} />

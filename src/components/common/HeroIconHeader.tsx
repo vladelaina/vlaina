@@ -201,7 +201,7 @@ export function HeroIconHeader({
               !compact && "w-fit",
               !compact && "z-30",
               !compact && "pointer-events-auto",
-              !compact && "pb-4",
+              !compact && "pb-2",
               !compact && (coverUrl ? "pt-0" : "pt-10") // Default top padding only for standard mode
           )}
           onMouseEnter={() => setIsHoveringHeader(true)}

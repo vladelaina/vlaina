@@ -107,41 +107,43 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   };
 
   return (
-    <div className="mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[14px]">
-      <button
-        type="button"
-        onClick={handleRootClick}
-        className={cn(
-          'rounded px-1 py-0.5 text-[var(--neko-text-tertiary)] transition-colors',
-          'hover:bg-[var(--neko-hover-filled)] hover:text-[var(--neko-text-primary)]',
-        )}
-      >
-        {vaultName}
-      </button>
-      <span className="text-[var(--neko-text-disabled)]">/</span>
-
-      {folderSegments.map((segment, index) => (
-        <div key={segment.fullPath} className="inline-flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => handleFolderClick(segment.fullPath)}
-            className={cn(
-              'rounded px-1 py-0.5 text-[var(--neko-text-tertiary)] transition-colors',
-              'hover:bg-[var(--neko-hover-filled)] hover:text-[var(--neko-text-primary)]',
-            )}
-          >
-            {segment.label}
-          </button>
-          <span className="text-[var(--neko-text-disabled)]">/</span>
-          {index === folderSegments.length - 1 && (
-            <span className="max-w-[360px] truncate text-[var(--neko-text-secondary)]">{noteLabel}</span>
+    <div className="h-4">
+      <div className="flex h-full flex-wrap items-center gap-x-1 gap-y-0 text-[12px] leading-none opacity-0 transition-opacity duration-150 pointer-events-none group-hover/note-title:opacity-100 group-hover/note-title:pointer-events-auto group-focus-within/note-title:opacity-100 group-focus-within/note-title:pointer-events-auto">
+        <button
+          type="button"
+          onClick={handleRootClick}
+          className={cn(
+            'rounded px-1 py-0 text-[var(--neko-text-tertiary)] transition-colors',
+            'hover:bg-[var(--neko-hover-filled)] hover:text-[var(--neko-text-primary)]',
           )}
-        </div>
-      ))}
+        >
+          {vaultName}
+        </button>
+        <span className="text-[var(--neko-text-disabled)]">/</span>
 
-      {folderSegments.length === 0 && (
-        <span className="max-w-[360px] truncate text-[var(--neko-text-secondary)]">{noteLabel}</span>
-      )}
+        {folderSegments.map((segment, index) => (
+          <div key={segment.fullPath} className="inline-flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleFolderClick(segment.fullPath)}
+              className={cn(
+                'rounded px-1 py-0 text-[var(--neko-text-tertiary)] transition-colors',
+                'hover:bg-[var(--neko-hover-filled)] hover:text-[var(--neko-text-primary)]',
+              )}
+            >
+              {segment.label}
+            </button>
+            <span className="text-[var(--neko-text-disabled)]">/</span>
+            {index === folderSegments.length - 1 && (
+              <span className="max-w-[360px] truncate text-[var(--neko-text-secondary)]">{noteLabel}</span>
+            )}
+          </div>
+        ))}
+
+        {folderSegments.length === 0 && (
+          <span className="max-w-[360px] truncate text-[var(--neko-text-secondary)]">{noteLabel}</span>
+        )}
+      </div>
     </div>
   );
 }
