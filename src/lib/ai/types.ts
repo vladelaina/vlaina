@@ -33,19 +33,17 @@ export interface ChatSession {
 export interface MessageVersion {
     content: string;
     createdAt: number;
-    // Snapshot of the conversation trail that followed this version
-    // This allows us to "restore" the future when switching back to this past
     subsequentMessages: ChatMessage[]; 
 }
 
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
-  content: string // Store string locally (markdown image syntax)
+  content: string
+  imageSources?: string[]
   modelId: string
   timestamp: number
   
-  // Branching Support
   versions?: MessageVersion[]
   currentVersionIndex?: number
 }
@@ -68,14 +66,11 @@ export interface ChatCompletionRequest {
   max_completion_tokens?: number
   tools?: Array<Record<string, any>>
   tool_choice?: 'auto' | 'none' | Record<string, any>
-  web_search_options?: Record<string, any>
-  search_parameters?: Record<string, any>
 }
 
 export interface ChatSendOptions {
   max_tokens?: number
   max_completion_tokens?: number
-  nativeWebSearch?: boolean
 }
 
 export interface ChatCompletionResponse {

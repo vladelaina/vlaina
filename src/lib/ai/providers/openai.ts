@@ -30,87 +30,15 @@ export class OpenAICompatibleClient implements AIClient {
     }));
     apiMessages.push({ role: 'user', content: message });
 
-    const { nativeWebSearch = false, ...requestOptions } = options || {}
-    const baseBody: ChatCompletionRequest = {
+    const body: ChatCompletionRequest = {
       model: model.id,
       messages: apiMessages,
       stream: true, // Always use stream for better compatibility
-      ...requestOptions
+      ...(options || {})
     }
 
     const emit = onChunk || (() => {})
-    if (!nativeWebSearch) {
-      // Use streamResponse even if onChunk is not provided to handle forced SSE responses
-      return this.streamResponse(url, headers, baseBody, emit, signal)
-    }
-
-    const searchPatches = this.getNativeSearchPatches(model, provider)
-    for (const patch of searchPatches) {
-      const body: ChatCompletionRequest = { ...baseBody, ...patch }
-      try {
-        return await this.streamResponse(url, headers, body, emit, signal)
-      } catch (error: any) {
-        if (!this.isSearchCompatibilityError(error)) {
-          throw error
-        }
-      }
-    }
-
-    return this.streamResponse(url, headers, baseBody, emit, signal)
-  }
-
-  private getNativeSearchPatches(model: AIModel, provider: Provider): Array<Partial<ChatCompletionRequest>> {
-    const modelId = (model.id || '').toLowerCase()
-    const host = normalizeApiHost(provider.apiHost || '').toLowerCase()
-    const patches: Array<Partial<ChatCompletionRequest>> = []
-    const add = (patch: Partial<ChatCompletionRequest>) => {
-      const key = JSON.stringify(patch)
-      if (!patches.some(p => JSON.stringify(p) === key)) {
-        patches.push(patch)
-      }
-    }
-
-    // OpenAI family (and most OpenAI-compatible gateways that proxy OpenAI search tools)
-    if (modelId.includes('gpt') || host.includes('openai')) {
-      add({ tools: [{ type: 'web_search' }], tool_choice: 'auto' })
-      add({ tools: [{ type: 'web_search_preview' }], tool_choice: 'auto' })
-      add({ web_search_options: {} })
-    }
-
-    // xAI / Grok style
-    if (modelId.includes('grok') || host.includes('x.ai') || host.includes('xai')) {
-      add({ tools: [{ type: 'web_search' }], tool_choice: 'auto' })
-      add({ tools: [{ type: 'x_search' }], tool_choice: 'auto' })
-      add({ search_parameters: { mode: 'auto' } })
-    }
-
-    // Generic OpenAI-compatible fallback
-    add({ tools: [{ type: 'web_search' }], tool_choice: 'auto' })
-    add({ web_search_options: {} })
-
-    return patches
-  }
-
-  private isSearchCompatibilityError(error: any): boolean {
-    const status = Number(error?.statusCode || 0)
-    const type = String(error?.type || '').toLowerCase()
-    const message = String(error?.message || '').toLowerCase()
-    const hasSearchHint =
-      message.includes('tool') ||
-      message.includes('search') ||
-      message.includes('web_search') ||
-      message.includes('x_search') ||
-      message.includes('web_search_options') ||
-      message.includes('search_parameters') ||
-      message.includes('unknown field') ||
-      message.includes('unsupported') ||
-      message.includes('unrecognized') ||
-      message.includes('not allowed')
-
-    if (status === 404 || status === 422) return true
-    if (status === 400) return hasSearchHint
-    if (type.includes('invalid_request') && hasSearchHint) return true
-    return false
+    return this.streamResponse(url, headers, body, emit, signal)
   }
 
   private async streamResponse(

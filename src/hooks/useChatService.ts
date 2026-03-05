@@ -11,6 +11,128 @@ import { requestManager } from '@/lib/ai/requestManager';
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
 const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
+const SVG_DATA_URL_REGEX = /^data:image\/svg\+xml/i;
+const IMAGE_NAME_REGEX = /\.(png|jpe?g|webp|gif|bmp|avif|svg)(?:$|[?#])/i;
+
+function isImageAttachment(attachment: Attachment): boolean {
+  const mimeType = attachment.type?.trim().toLowerCase() ?? '';
+  if (mimeType.startsWith('image/')) {
+    return true;
+  }
+
+  const previewUrl = attachment.previewUrl?.trim().toLowerCase() ?? '';
+  if (previewUrl.startsWith('data:image/')) {
+    return true;
+  }
+
+  const assetUrl = attachment.assetUrl?.trim() ?? '';
+  if (IMAGE_NAME_REGEX.test(assetUrl)) {
+    return true;
+  }
+
+  const name = attachment.name?.trim() ?? '';
+  return IMAGE_NAME_REGEX.test(name);
+}
+
+function getAttachmentMessageImageSrc(attachment: Attachment): string {
+  const mimeType = attachment.type?.trim().toLowerCase() ?? '';
+  const previewUrl = attachment.previewUrl?.trim() ?? '';
+  if (mimeType === 'image/svg+xml' && previewUrl.startsWith('data:image/')) {
+    return previewUrl;
+  }
+
+  const assetUrl = attachment.assetUrl?.trim() ?? '';
+  if (assetUrl) {
+    return assetUrl;
+  }
+  return previewUrl;
+}
+
+function toImageMarkdown(src: string): string {
+  return `![image](<${src}>)`;
+}
+
+function decodeSvgDataUrl(dataUrl: string): string | null {
+  const commaIndex = dataUrl.indexOf(',');
+  if (commaIndex < 0) {
+    return null;
+  }
+  const meta = dataUrl.slice(0, commaIndex);
+  const payload = dataUrl.slice(commaIndex + 1);
+  try {
+    if (/;base64/i.test(meta)) {
+      return window.atob(payload);
+    }
+    return decodeURIComponent(payload);
+  } catch {
+    return null;
+  }
+}
+
+function pickSvgRenderSize(svgText: string): { width: number; height: number } {
+  const clamp = (value: number) => Math.max(1, Math.min(4096, Math.round(value)));
+  const parsePositive = (value: string | undefined) => {
+    if (!value) return null;
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  };
+
+  const widthMatch = /\bwidth=["']\s*([0-9.]+)(?:px)?\s*["']/i.exec(svgText);
+  const heightMatch = /\bheight=["']\s*([0-9.]+)(?:px)?\s*["']/i.exec(svgText);
+  const widthFromAttr = parsePositive(widthMatch?.[1]);
+  const heightFromAttr = parsePositive(heightMatch?.[1]);
+  if (widthFromAttr && heightFromAttr) {
+    return { width: clamp(widthFromAttr), height: clamp(heightFromAttr) };
+  }
+
+  const viewBoxMatch = /\bviewBox=["']\s*[-0-9.]+\s+[-0-9.]+\s+([0-9.]+)\s+([0-9.]+)\s*["']/i.exec(svgText);
+  const widthFromViewBox = parsePositive(viewBoxMatch?.[1]);
+  const heightFromViewBox = parsePositive(viewBoxMatch?.[2]);
+  if (widthFromViewBox && heightFromViewBox) {
+    return { width: clamp(widthFromViewBox), height: clamp(heightFromViewBox) };
+  }
+
+  return { width: 1024, height: 1024 };
+}
+
+async function rasterizeSvgDataUrlToPng(dataUrl: string): Promise<string> {
+  if (typeof window === 'undefined') {
+    return dataUrl;
+  }
+
+  const svgText = decodeSvgDataUrl(dataUrl);
+  const { width, height } = pickSvgRenderSize(svgText ?? '');
+
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/png'));
+      } catch {
+        resolve(dataUrl);
+      }
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
+}
+
+async function normalizeVisionImageDataUrl(dataUrl: string): Promise<string> {
+  if (!SVG_DATA_URL_REGEX.test(dataUrl.trim())) {
+    return dataUrl;
+  }
+  return rasterizeSvgDataUrlToPng(dataUrl);
+}
 
 function createChunkScheduler(onFlush: (content: string) => void) {
   let pendingContent: string | null = null;
@@ -94,7 +216,6 @@ export function useChatService() {
     providers,
     temporaryChatEnabled,
     isTemporarySession,
-    nativeWebSearchEnabled,
     customSystemPrompt,
     includeTimeContext,
     setSessionLoading,
@@ -138,10 +259,16 @@ export function useChatService() {
       const targetSessionId = activeSessionId;
 
       let storageContent = userMessageText;
+      const messageImageSources: string[] = [];
       if (attachments.length > 0) {
         const imageMarkdown = attachments
-          .filter((a) => a.type.startsWith('image/'))
-          .map((a) => `![image](${a.assetUrl})`)
+          .filter(isImageAttachment)
+          .map((a) => getAttachmentMessageImageSrc(a))
+          .filter((src) => src.length > 0)
+          .map((src) => {
+            messageImageSources.push(src);
+            return toImageMarkdown(src);
+          })
           .join('\n\n');
         storageContent = imageMarkdown + (userMessageText ? `\n\n${userMessageText}` : '');
       }
@@ -149,6 +276,7 @@ export function useChatService() {
       addMessage({
         role: 'user',
         content: storageContent,
+        imageSources: messageImageSources,
         modelId: selectedModel.id,
       });
 
@@ -203,12 +331,13 @@ export function useChatService() {
             parts.push({ type: 'text', text: userMessageText });
           }
           for (const att of attachments) {
-            if (att.type.startsWith('image/')) {
+            if (isImageAttachment(att)) {
               try {
                 const base64 = await convertToBase64(att);
+                const normalizedBase64 = await normalizeVisionImageDataUrl(base64);
                 parts.push({
                   type: 'image_url',
-                  image_url: { url: base64 },
+                  image_url: { url: normalizedBase64 },
                 });
               } catch (e) {
                 console.error(e);
@@ -226,8 +355,7 @@ export function useChatService() {
           selectedModel,
           provider,
           (chunk) => streamScheduler.push(chunk),
-          controller.signal,
-          { nativeWebSearch: nativeWebSearchEnabled }
+          controller.signal
         );
         streamScheduler.flushNow();
         completeMessage(targetSessionId, assistantMessageId);
@@ -265,7 +393,6 @@ export function useChatService() {
       providers,
       temporaryChatEnabled,
       isTemporarySession,
-      nativeWebSearchEnabled,
       customSystemPrompt,
       includeTimeContext,
       setSessionLoading,
@@ -329,8 +456,7 @@ export function useChatService() {
           selectedModel,
           provider,
           (chunk) => streamScheduler.push(chunk),
-          controller.signal,
-          { nativeWebSearch: nativeWebSearchEnabled }
+          controller.signal
         );
         streamScheduler.flushNow();
         completeMessage(sessionId, assistantMessageId);
@@ -353,7 +479,6 @@ export function useChatService() {
       currentSessionId,
       selectedModel,
       providers,
-      nativeWebSearchEnabled,
       customSystemPrompt,
       includeTimeContext,
       editMessageAndBranch,
@@ -405,8 +530,7 @@ export function useChatService() {
           selectedModel,
           provider,
           (chunk) => streamScheduler.push(chunk),
-          controller.signal,
-          { nativeWebSearch: nativeWebSearchEnabled }
+          controller.signal
         );
         streamScheduler.flushNow();
         completeMessage(sessionId, msgId);
@@ -433,7 +557,6 @@ export function useChatService() {
       selectedModel,
       messages,
       providers,
-      nativeWebSearchEnabled,
       customSystemPrompt,
       includeTimeContext,
       addVersion,
