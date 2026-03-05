@@ -1,5 +1,5 @@
 import { useNotesStore } from '@/stores/notes/useNotesStore';
-import { SidebarContent } from './SidebarContent';
+import { NotesSidebarPanel } from './NotesSidebarPanel';
 
 export function NotesSidebarWrapper({ isPeeking = false }: { isPeeking?: boolean }) {
   const rootFolder = useNotesStore(s => s.rootFolder);
@@ -9,7 +9,7 @@ export function NotesSidebarWrapper({ isPeeking = false }: { isPeeking?: boolean
   const createFolder = useNotesStore(s => s.createFolder);
 
   return (
-    <SidebarContent 
+    <NotesSidebarPanel
       rootFolder={rootFolder}
       isLoading={isLoading}
       currentNotePath={currentNotePath}

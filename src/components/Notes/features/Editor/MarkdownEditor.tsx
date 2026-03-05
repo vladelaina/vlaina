@@ -185,7 +185,10 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
         </DropdownMenu>
       </div>
 
-      <div className="flex-1 overflow-auto neko-scrollbar flex flex-col items-center relative">
+      <div
+        className="flex-1 overflow-auto neko-scrollbar flex flex-col items-center relative"
+        data-note-scroll-root="true"
+      >
         <NoteCoverCanvas controller={coverController} />
 
         <motion.div

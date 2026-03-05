@@ -12,6 +12,8 @@ interface SidebarUserHeaderProps {
 
 export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUserHeaderProps) {
     const appViewMode = useUIStore(s => s.appViewMode);
+    const notesSidebarView = useUIStore(s => s.notesSidebarView);
+    const setNotesSidebarView = useUIStore(s => s.setNotesSidebarView);
 
     const handleSearchClick = () => {
         window.dispatchEvent(new Event('neko-open-search'));
@@ -19,6 +21,10 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
 
     const handleCreateNew = () => {
         window.dispatchEvent(new CustomEvent('neko-create-new', { detail: { view: appViewMode } }));
+    };
+
+    const handleToggleNotesSidebarView = () => {
+        setNotesSidebarView(notesSidebarView === 'workspace' ? 'outline' : 'workspace');
     };
 
     return (
@@ -31,6 +37,31 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
 
             {/* Simple spacer to push buttons to the right */}
             <div className="flex-1 h-full" data-tauri-drag-region />
+
+            {appViewMode === 'notes' && (
+                <Tooltip delayDuration={1000}>
+                    <TooltipTrigger asChild>
+                        <button
+                            onClick={handleToggleNotesSidebarView}
+                            className={cn(
+                                "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0 transition-colors",
+                                "hover:bg-[#f5f5f5] dark:hover:bg-white/10",
+                                iconButtonStyles
+                            )}
+                        >
+                            <Icon
+                                name={notesSidebarView === 'workspace' ? 'common.list' : 'file.folderOpen'}
+                                size="md"
+                            />
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" sideOffset={2}>
+                        <span className="text-xs">
+                            {notesSidebarView === 'workspace' ? 'Switch to Outline' : 'Switch to Files'}
+                        </span>
+                    </TooltipContent>
+                </Tooltip>
+            )}
 
             {/* Create New button */}
             <Tooltip delayDuration={1000}>

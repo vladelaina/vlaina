@@ -17,6 +17,7 @@ const STORAGE_KEY_TAG_FILTER = 'nekotick_tag_filter';
 export type TaskSortMode = 'default' | 'time' | 'priority';
 
 export type AppViewMode = 'calendar' | 'notes' | 'todo' | 'chat' | 'lab';
+export type NotesSidebarView = 'workspace' | 'outline';
 
 export type ImageStorageMode = 'vault' | 'vaultSubfolder' | 'currentFolder' | 'subfolder';
 
@@ -42,6 +43,8 @@ interface UIStore {
   setSidebarHeaderHovered: (hovered: boolean) => void;
   sidebarPeeking: boolean;
   setSidebarPeeking: (peeking: boolean) => void;
+  notesSidebarView: NotesSidebarView;
+  setNotesSidebarView: (view: NotesSidebarView) => void;
 
   notesPreviewIcon: { path: string; icon: string } | null;
   setNotesPreviewIcon: (path: string | null, icon: string | null) => void;
@@ -280,6 +283,8 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   setSidebarHeaderHovered: (hovered) => set({ sidebarHeaderHovered: hovered }),
   sidebarPeeking: false,
   setSidebarPeeking: (peeking) => set({ sidebarPeeking: peeking }),
+  notesSidebarView: 'workspace',
+  setNotesSidebarView: (view) => set({ notesSidebarView: view }),
 
   notesPreviewIcon: null,
   setNotesPreviewIcon: (path, icon) => {
