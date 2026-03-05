@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { DEFAULT_HEIGHT } from '../../../hooks/coverUtils';
+import { DEFAULT_HEIGHT } from '../../../utils/coverUtils';
 
 interface UseCoverStateProps {
   initialHeight?: number;
@@ -18,10 +18,11 @@ export function useCoverState({
   const [coverHeight, setCoverHeight] = useState(initialHeight ?? DEFAULT_HEIGHT);
   const lastHeightProp = useRef(initialHeight);
 
-  if (initialHeight !== undefined && initialHeight !== lastHeightProp.current) {
+  useEffect(() => {
+    if (initialHeight === undefined || initialHeight === lastHeightProp.current) return;
     lastHeightProp.current = initialHeight;
     setCoverHeight(initialHeight);
-  }
+  }, [initialHeight]);
 
   // Visual State
   const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null);
@@ -46,15 +47,12 @@ export function useCoverState({
     }
   }, [onPickerOpenChange]);
 
-  // Sync zoom prop when not interacting
+  // Sync zoom only when external scale prop changes.
+  // This avoids overriding in-progress wheel/keyboard zoom with stale prop values.
   useEffect(() => {
-    if (!isInteracting) {
-      const safeZoom = Math.max(scale, 1);
-      if (zoom !== safeZoom) {
-        setZoom(safeZoom);
-      }
-    }
-  }, [scale, isInteracting]);
+    const safeZoom = Math.max(scale, 1);
+    setZoom((prevZoom) => (Math.abs(prevZoom - safeZoom) > 0.0001 ? safeZoom : prevZoom));
+  }, [scale]);
 
   return {
     coverHeight,

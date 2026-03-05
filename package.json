@@ -7,9 +7,14 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:web": "tsc && vite build",
+    "typecheck": "tsc --noEmit --pretty false",
+    "test": "vitest run",
     "preview": "vite preview",
     "tauri": "tauri",
-    "dev:dynamic": "node scripts/dev-dynamic.js"
+    "dev:dynamic": "node scripts/dev-dynamic.js",
+    "quality:verify": "pnpm run typecheck && pnpm run test && pnpm build",
+    "quality:budget": "node scripts/check-build-budget.mjs temp/build-quality-gate.log",
+    "quality:gate": "node scripts/quality-gate.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

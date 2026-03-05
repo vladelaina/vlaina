@@ -1,8 +1,7 @@
-import { memo, useMemo } from 'react';
-import { isValidElement } from 'react';
-import hljs from 'highlight.js';
+import { isValidElement, memo, useMemo } from 'react';
 import 'highlight.js/styles/github-dark.css';
 import CopyButton from '@/components/Chat/common/CopyButton';
+import { chatHighlighter } from '../utils/chatHighlighter';
 
 interface CodeBlockProps {
   className?: string;
@@ -41,10 +40,10 @@ export const CodeBlock = memo(({ className, children, isStreaming = false }: Cod
     }
 
     try {
-      if (language && hljs.getLanguage(language)) {
-        return hljs.highlight(codeText, { language }).value;
+      if (language && chatHighlighter.getLanguage(language)) {
+        return chatHighlighter.highlight(codeText, { language }).value;
       }
-      return hljs.highlightAuto(codeText).value;
+      return chatHighlighter.highlightAuto(codeText).value;
     } catch (e) {
       return codeText;
     }

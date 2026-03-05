@@ -1,125 +1,40 @@
-import { createHighlighter, bundledLanguagesInfo, type Highlighter, type BundledLanguage } from 'shiki';
+import { createHighlighter, type BundledLanguage, type Highlighter } from 'shiki';
 
 let highlighterInstance: Highlighter | null = null;
 let highlighterPromise: Promise<Highlighter> | null = null;
+type EditorLanguage = BundledLanguage | 'txt';
 
-const LANGUAGES_WITH_ICONS: { id: BundledLanguage; name: string; aliases?: string[] }[] = [
+const CORE_LANGUAGES: { id: BundledLanguage; name: string; aliases?: string[] }[] = [
   { id: 'javascript', name: 'JavaScript', aliases: ['js'] },
   { id: 'typescript', name: 'TypeScript', aliases: ['ts'] },
+  { id: 'jsx', name: 'JSX' },
+  { id: 'tsx', name: 'TSX' },
   { id: 'python', name: 'Python', aliases: ['py'] },
   { id: 'java', name: 'Java' },
-  { id: 'html', name: 'HTML' },
-  { id: 'css', name: 'CSS' },
-  { id: 'cpp', name: 'C++', aliases: ['c++', 'cc'] },
-  { id: 'c', name: 'C' },
-  { id: 'csharp', name: 'C#', aliases: ['cs', 'c#'] },
-  { id: 'php', name: 'PHP' },
   { id: 'go', name: 'Go', aliases: ['golang'] },
   { id: 'rust', name: 'Rust', aliases: ['rs'] },
+  { id: 'csharp', name: 'C#', aliases: ['cs', 'c#'] },
+  { id: 'php', name: 'PHP' },
   { id: 'kotlin', name: 'Kotlin', aliases: ['kt'] },
   { id: 'swift', name: 'Swift' },
   { id: 'ruby', name: 'Ruby', aliases: ['rb'] },
+  { id: 'lua', name: 'Lua' },
   { id: 'sql', name: 'SQL' },
   { id: 'bash', name: 'Bash', aliases: ['shell', 'sh'] },
-  { id: 'powershell', name: 'PowerShell', aliases: ['ps1'] },
   { id: 'json', name: 'JSON' },
-  { id: 'jsonc', name: 'JSON with Comments' },
   { id: 'yaml', name: 'YAML', aliases: ['yml'] },
-  { id: 'tsx', name: 'TSX' },
-  { id: 'jsx', name: 'JSX' },
-  { id: 'vue', name: 'Vue' },
-  { id: 'vue-html', name: 'Vue HTML' },
-  { id: 'vue-vine', name: 'Vue Vine' },
-  { id: 'svelte', name: 'Svelte' },
-  { id: 'mdx', name: 'MDX' },
-  { id: 'scss', name: 'SCSS' },
-  { id: 'sass', name: 'Sass' },
-  { id: 'less', name: 'Less' },
-  { id: 'stylus', name: 'Stylus', aliases: ['styl'] },
-  { id: 'postcss', name: 'PostCSS' },
-  { id: 'graphql', name: 'GraphQL', aliases: ['gql'] },
-  { id: 'scala', name: 'Scala' },
-  { id: 'dart', name: 'Dart' },
-  { id: 'elixir', name: 'Elixir' },
-  { id: 'erlang', name: 'Erlang' },
-  { id: 'haskell', name: 'Haskell' },
-  { id: 'clojure', name: 'Clojure' },
-  { id: 'lua', name: 'Lua' },
-  { id: 'perl', name: 'Perl' },
-  { id: 'r', name: 'R' },
-  { id: 'julia', name: 'Julia' },
-  { id: 'matlab', name: 'MATLAB' },
-  { id: 'ocaml', name: 'OCaml' },
-  { id: 'fsharp', name: 'F#', aliases: ['f#'] },
-  { id: 'elm', name: 'Elm' },
-  { id: 'purescript', name: 'PureScript' },
-  { id: 'markdown', name: 'Markdown', aliases: ['md'] },
+  { id: 'html', name: 'HTML' },
+  { id: 'css', name: 'CSS' },
   { id: 'xml', name: 'XML' },
-  { id: 'toml', name: 'TOML' },
-  { id: 'latex', name: 'LaTeX' },
-  { id: 'tex', name: 'TeX' },
-  { id: 'docker', name: 'Dockerfile', aliases: ['dockerfile'] },
-  { id: 'terraform', name: 'Terraform', aliases: ['tf'] },
-  { id: 'nginx', name: 'Nginx' },
-  { id: 'apache', name: 'Apache' },
-  { id: 'dotenv', name: 'dotEnv' },
-  { id: 'prisma', name: 'Prisma' },
-  { id: 'proto', name: 'Protocol Buffer', aliases: ['protobuf'] },
-  { id: 'jinja', name: 'Jinja' },
-  { id: 'liquid', name: 'Liquid' },
-  { id: 'handlebars', name: 'Handlebars', aliases: ['hbs'] },
-  { id: 'pug', name: 'Pug', aliases: ['jade'] },
-  { id: 'twig', name: 'Twig' },
-  { id: 'haml', name: 'Haml' },
-  { id: 'razor', name: 'Razor' },
-  { id: 'astro', name: 'Astro' },
-  { id: 'shellscript', name: 'Shell Script' },
-  { id: 'groovy', name: 'Groovy' },
-  { id: 'coffee', name: 'CoffeeScript', aliases: ['coffeescript'] },
-  { id: 'gdscript', name: 'GDScript' },
-  { id: 'solidity', name: 'Solidity' },
-  { id: 'wasm', name: 'WebAssembly' },
-  { id: 'zig', name: 'Zig' },
-  { id: 'nim', name: 'Nim' },
-  { id: 'crystal', name: 'Crystal' },
-  { id: 'fortran-fixed-form', name: 'Fortran (Fixed Form)', aliases: ['f', 'for', 'f77'] },
-  { id: 'fortran-free-form', name: 'Fortran (Free Form)', aliases: ['f90', 'f95', 'f03', 'f08', 'f18'] },
-  { id: 'objective-c', name: 'Objective-C', aliases: ['objc'] },
-  { id: 'objective-cpp', name: 'Objective-C++' },
-  { id: 'nix', name: 'Nix' },
-  { id: 'viml', name: 'Vim Script', aliases: ['vim', 'vimscript'] },
-  { id: 'cmake', name: 'CMake' },
-  { id: 'make', name: 'Makefile', aliases: ['makefile'] },
-  { id: 'diff', name: 'Diff' },
-  { id: 'log', name: 'Log' },
-  { id: 'ini', name: 'INI' },
-  { id: 'json5', name: 'JSON5' },
-  { id: 'git-commit', name: 'Git Commit' },
-  { id: 'git-rebase', name: 'Git Rebase' },
-  { id: 'hcl', name: 'HCL' },
+  { id: 'markdown', name: 'Markdown', aliases: ['md'] },
 ];
 
-const getLanguagesWithoutIcons = () => {
-  const withIconIds = new Set(LANGUAGES_WITH_ICONS.map(l => l.id));
-  return bundledLanguagesInfo
-    .filter(info => !withIconIds.has(info.id as BundledLanguage))
-    .map(info => ({
-      id: info.id as BundledLanguage,
-      name: info.name,
-      aliases: info.aliases as string[] | undefined
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-};
-
-export const SUPPORTED_LANGUAGES = [
-  { id: 'txt' as BundledLanguage, name: 'TXT', aliases: ['text', 'plaintext'] },
-  ...LANGUAGES_WITH_ICONS,
-  ...getLanguagesWithoutIcons()
+export const SUPPORTED_LANGUAGES: { id: EditorLanguage; name: string; aliases?: string[] }[] = [
+  { id: 'txt', name: 'TXT', aliases: ['text', 'plaintext'] },
+  ...CORE_LANGUAGES,
 ];
 
-const INITIAL_LANGUAGES: BundledLanguage[] = [
-  'javascript', 'typescript', 'python', 'rust', 'json', 'html', 'css', 'bash', 'markdown'
-];
+const INITIAL_LANGUAGES: BundledLanguage[] = CORE_LANGUAGES.map((lang) => lang.id);
 
 export async function getHighlighter(): Promise<Highlighter> {
   if (highlighterInstance) {
@@ -132,58 +47,52 @@ export async function getHighlighter(): Promise<Highlighter> {
 
   highlighterPromise = createHighlighter({
     themes: ['github-dark', 'github-light'],
-    langs: INITIAL_LANGUAGES
+    langs: INITIAL_LANGUAGES,
   });
 
   highlighterInstance = await highlighterPromise;
   return highlighterInstance;
 }
 
-export function normalizeLanguage(lang: string | null): BundledLanguage | null {
+export function normalizeLanguage(lang: string | null): EditorLanguage | null {
   if (!lang) {
     return null;
   }
-  
+
   const normalized = lang.toLowerCase().trim();
-  
-  const direct = SUPPORTED_LANGUAGES.find(l => l.id === normalized);
+
+  const direct = SUPPORTED_LANGUAGES.find((language) => language.id === normalized);
   if (direct) {
     return direct.id;
   }
-  
-  const aliased = SUPPORTED_LANGUAGES.find(l => l.aliases?.includes(normalized));
+
+  const aliased = SUPPORTED_LANGUAGES.find((language) => language.aliases?.includes(normalized));
   if (aliased) {
     return aliased.id;
   }
-  
+
   return null;
 }
 
 export async function highlightCode(
   code: string,
   lang: string | null,
-  theme: 'github-dark' | 'github-light' = 'github-dark'
+  theme: 'github-dark' | 'github-light' = 'github-dark',
 ): Promise<string> {
-  const highlighter = await getHighlighter();
   const normalizedLang = normalizeLanguage(lang);
-  
-  if (!normalizedLang) {
+  if (!normalizedLang || normalizedLang === 'txt') {
     return `<pre class="shiki"><code>${escapeHtml(code)}</code></pre>`;
   }
 
-  const loadedLangs = highlighter.getLoadedLanguages();
-  if (!loadedLangs.includes(normalizedLang)) {
-    try {
-      await highlighter.loadLanguage(normalizedLang);
-    } catch {
-      return `<pre class="shiki"><code>${escapeHtml(code)}</code></pre>`;
-    }
+  try {
+    const highlighter = await getHighlighter();
+    return highlighter.codeToHtml(code, {
+      lang: normalizedLang,
+      theme,
+    });
+  } catch {
+    return `<pre class="shiki"><code>${escapeHtml(code)}</code></pre>`;
   }
-
-  return highlighter.codeToHtml(code, {
-    lang: normalizedLang,
-    theme
-  });
 }
 
 function escapeHtml(text: string): string {

@@ -11,8 +11,6 @@ export function detectSystemTimezone(): number {
     // 这样可以支持 .25, .5, .75 的偏移
     const roundedOffset = Math.round(offsetHours * 4) / 4;
     
-    console.log(`[Timezone Detection] System timezone: ${getSystemTimezoneName()}, Offset: GMT${roundedOffset >= 0 ? '+' : ''}${roundedOffset}`);
-    
     return roundedOffset;
   } catch (error) {
     console.error('Failed to detect system timezone:', error);

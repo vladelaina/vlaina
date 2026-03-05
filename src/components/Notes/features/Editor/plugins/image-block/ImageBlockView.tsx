@@ -12,6 +12,8 @@ import { useImageBlockState } from './hooks/useImageBlockState';
 import { useImageActions } from './hooks/useImageActions';
 import { useImageDrag } from './hooks/useImageDrag';
 import { useImageResize } from './hooks/useImageResize';
+import { useImageMediaLifecycle } from './hooks/useImageMediaLifecycle';
+import type { CropperViewportState } from './types';
 
 const HOVER_HIDE_DELAY_MS = 300;
 const WRAPPER_ALIGNMENT_CLASSES: Record<'left' | 'center' | 'right', string> = {
@@ -27,6 +29,9 @@ interface ImageBlockProps {
 }
 
 export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
+    const nodeSrc = typeof node.attrs.src === 'string' ? node.attrs.src : '';
+    const nodeAlt = typeof node.attrs.alt === 'string' ? node.attrs.alt : '';
+
     // 1. State
     const {
         width, setWidth,
@@ -38,7 +43,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         isActive, setIsActive,
         isReady, setIsReady,
         naturalRatio, setNaturalRatio,
-        imageNaturalSize, setImageNaturalSize,
         cropParams, setCropParams,
         baseSrc, resolvedSrc, isLoading, loadError,
         notesPath, currentNotePath,
@@ -46,9 +50,9 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     } = useImageBlockState({ node, view, getPos });
 
     // Track latest interactive state (zoom/crop) that hasn't been saved yet
-    const latestStateRef = useRef<{ crop: { x: number; y: number }; zoom: number } | null>(null);
+    const latestStateRef = useRef<CropperViewportState | null>(null);
 
-    const handleStateChange = useCallback((state: { crop: { x: number; y: number }; zoom: number }) => {
+    const handleStateChange = useCallback((state: CropperViewportState) => {
         latestStateRef.current = state;
     }, []);
 
@@ -71,12 +75,24 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         updateNodeAttrs, restoreIfNeeded
     });
 
+    const { onMediaLoaded } = useImageMediaLifecycle({
+        width,
+        nodeSrc,
+        nodeAlt,
+        containerRef,
+        setWidth,
+        setCaptionInput,
+        setNaturalRatio,
+        setIsReady,
+        updateNodeAttrs,
+    });
+
     // 4. Drag Logic
     const {
         isDragging, dragPosition, dragSize, dragAlignment,
         handlePointerDown, handlePointerUp, handlePointerCancel,
     } = useImageDrag({
-        view, getPos, containerRef, imageNaturalSize, isActive, loadError: !!loadError,
+        view, getPos, containerRef, isActive, loadError: !!loadError,
         currentAlignment: alignment
     });
 
@@ -137,7 +153,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     const handleCaptionSubmit = async () => {
         setIsEditingCaption(false);
-        if (captionInput !== node.attrs.alt) {
+        if (captionInput !== nodeAlt) {
             await restoreIfNeeded();
             updateNodeAttrs({ alt: captionInput });
         }
@@ -203,45 +219,19 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                         onSave={handleSave}
                         onCancel={() => { setIsActive(false); setHeight(undefined); }}
                         onResizeStart={handleResizeStart}
-                        onMediaLoaded={(media) => {
-                            setNaturalRatio(media.naturalWidth / media.naturalHeight);
-                            setImageNaturalSize({ width: media.naturalWidth, height: media.naturalHeight });
-
-                            if (width === 'auto') {
-                                const containerWidth = containerRef.current?.parentElement?.offsetWidth;
-                                if (containerWidth) {
-                                    const percent = (media.naturalWidth / containerWidth) * 100;
-                                    const finalPercent = Math.min(100, percent);
-                                    setWidth(`${finalPercent}%`);
-                                    updateNodeAttrs({ width: `${finalPercent}%` });
-                                }
-                            }
-
-                            if (!node.attrs.alt) {
-                                try {
-                                    const url = node.attrs.src.split('#')[0];
-                                    const filename = url.substring(url.lastIndexOf('/') + 1);
-                                    if (filename) {
-                                        const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
-                                        updateNodeAttrs({ alt: nameWithoutExt });
-                                        setCaptionInput(nameWithoutExt);
-                                    }
-                                } catch (e) { /* ignore */ }
-                            }
-                            setIsReady(true);
-                        }}
+                        onMediaLoaded={onMediaLoaded}
                         onStateChange={handleStateChange}
                     />
 
                     {(isHovered || isEditingCaption) && !isActive && !loadError && !isDragging && (
                         <ImageCaption
-                            originalAlt={node.attrs.alt || ''}
+                            originalAlt={nodeAlt}
                             value={captionInput}
                             isEditing={isEditingCaption}
                             isVisible={true}
                             onChange={setCaptionInput}
                             onSubmit={handleCaptionSubmit}
-                            onCancel={() => { setIsEditingCaption(false); setCaptionInput(node.attrs.alt || ''); }}
+                            onCancel={() => { setIsEditingCaption(false); setCaptionInput(nodeAlt); }}
                             onEditStart={() => setIsEditingCaption(true)}
                         />
                     )}

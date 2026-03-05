@@ -88,17 +88,14 @@ export function TodoSidebar() {
             <div className="flex-1 overflow-y-auto px-2 py-2 space-y-4">
                 
                 <div className="flex flex-col gap-0.5">
-                    <h3 className="px-3 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 select-none">
-                        TASKS
-                    </h3>
                     <div className="flex flex-col gap-0.5">
                         <NavItem 
-                            id="today" 
-                            label="Today" 
-                            customIcon={<CalendarIcon active={activeGroupId === 'today'} />}
-                            count={counts.today}
-                            active={activeGroupId === 'today'}
-                            onClick={() => setActiveGroup('today')}
+                            id="all" 
+                            label="All Tasks" 
+                            iconName="sidebar.todo" 
+                            count={counts.all}
+                            active={activeGroupId === 'all'}
+                            onClick={() => setActiveGroup('all')}
                         />
                         <NavItem 
                             id="progress" 
@@ -109,12 +106,12 @@ export function TodoSidebar() {
                             onClick={() => setActiveGroup('progress')}
                         />
                         <NavItem 
-                            id="all" 
-                            label="All Tasks" 
-                            iconName="sidebar.todo" 
-                            count={counts.all}
-                            active={activeGroupId === 'all'}
-                            onClick={() => setActiveGroup('all')}
+                            id="today" 
+                            label="Today" 
+                            customIcon={<CalendarIcon active={activeGroupId === 'today'} />}
+                            count={counts.today}
+                            active={activeGroupId === 'today'}
+                            onClick={() => setActiveGroup('today')}
                         />
                         <NavItem 
                             id="completed" 

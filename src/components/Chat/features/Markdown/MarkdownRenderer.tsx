@@ -9,6 +9,7 @@ import { LocalImage } from "@/components/Chat/common/LocalImage";
 import { Icon } from "@/components/ui/icons";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
+import { ChatImageViewer } from "./components/ChatImageViewer";
 import { CodeBlock } from "./components/CodeBlock";
 import { createMarkdownSanitizeSchema, normalizeRenderableImageSrc } from "./imagePolicy";
 
@@ -43,6 +44,7 @@ async function copyImageOrUrl(src: string): Promise<void> {
 
 function MarkdownImage({ src, alt }: { src: string; alt?: string }) {
   const [copied, setCopied] = useState(false);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
 
   useEffect(() => {
     if (!copied) return;
@@ -67,7 +69,7 @@ function MarkdownImage({ src, alt }: { src: string; alt?: string }) {
           alt={alt || "image"}
           className="block max-h-[420px] w-auto max-w-full object-contain"
           onClick={() => {
-            window.open(src, "_blank", "noopener,noreferrer");
+            setIsViewerOpen(true);
           }}
         />
         <span
@@ -104,6 +106,12 @@ function MarkdownImage({ src, alt }: { src: string; alt?: string }) {
           </button>
         </span>
       </span>
+      <ChatImageViewer
+        open={isViewerOpen}
+        src={src}
+        alt={alt}
+        onOpenChange={setIsViewerOpen}
+      />
     </span>
   );
 }

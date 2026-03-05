@@ -51,6 +51,25 @@ All sync repositories are private and only accessible by you.
 1. Install dependencies: `pnpm install`
 2. Start development server: `pnpm tauri dev`
 
+### Quality Gate (Pre-release)
+
+Run the full quality gate in one command:
+
+```bash
+pnpm quality:gate
+```
+
+It runs `typecheck + tests + build` and enforces build budgets:
+
+- unresolved asset warnings must be `0`
+- largest `index-*.js` chunk must be `< 1500 kB`
+- chunks over `500 kB` must be `<= 2`
+
+Artifacts:
+
+- build log: `temp/build-quality-gate.log`
+- standalone budget check: `pnpm quality:budget`
+
 ### Working with Multiple Instances (Worktrees)
 If you are working on multiple features simultaneously using `git worktree` or otherwise need to run multiple instances of the app, use:
 ```bash

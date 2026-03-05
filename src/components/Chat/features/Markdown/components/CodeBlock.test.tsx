@@ -7,8 +7,8 @@ const mocks = vi.hoisted(() => ({
   highlightAuto: vi.fn(),
 }));
 
-vi.mock("highlight.js", () => ({
-  default: {
+vi.mock("../utils/chatHighlighter", () => ({
+  chatHighlighter: {
     getLanguage: mocks.getLanguage,
     highlight: mocks.highlight,
     highlightAuto: mocks.highlightAuto,

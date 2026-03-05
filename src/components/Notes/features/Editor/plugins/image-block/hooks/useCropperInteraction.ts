@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import type { Area } from 'react-easy-crop';
 import { CropParams } from '../utils/cropUtils';
+import type { CropArea } from '../types';
 
 const AUTO_SAVE_DELAY_MS = 500;
 const MAX_ZOOM = 5;
@@ -10,7 +12,7 @@ interface UseCropperInteractionProps {
     minZoomLimit: number;
     setZoom: (z: number | ((prev: number) => number)) => void;
     setCrop: (c: { x: number; y: number }) => void;
-    onSave: (percentageCrop: any, ratio: number) => void;
+    onSave: (percentageCrop: CropArea, ratio: number) => void;
     onCancel: () => void;
     initialCropParams: CropParams | null;
     containerSize: { width: number; height: number };
@@ -30,7 +32,7 @@ export function useCropperInteraction({
     originalAspectRatioRef
 }: UseCropperInteractionProps) {
     const [isCtrlPressed, setIsCtrlPressed] = useState(false);
-    const lastPercentageCrop = useRef<any>(null);
+    const lastPercentageCrop = useRef<CropArea | null>(null);
     const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Keyboard Listeners
@@ -112,7 +114,7 @@ export function useCropperInteraction({
         }
     };
 
-    const onCropChangeComplete = useCallback((percentageCrop: any) => {
+    const onCropChangeComplete = useCallback((percentageCrop: Area) => {
         lastPercentageCrop.current = percentageCrop;
     }, []);
 

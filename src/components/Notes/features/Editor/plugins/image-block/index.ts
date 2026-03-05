@@ -8,6 +8,7 @@ import { ImageBlockNodeView } from './ImageBlockNodeView';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { moveImageToTrash, restoreImageFromTrash } from './utils/fileUtils';
 import { imageDragPlugin } from './imageDragPlugin';
+import { getImageAssetKey } from './utils/imageAssetKey';
 
 const imageNodeViewPluginKey = new PluginKey('imageNodeViewPlugin');
 
@@ -25,34 +26,39 @@ export const imageNodeViewPlugin = $prose(() => {
             const { notesPath, currentNote } = useNotesStore.getState();
             if (!notesPath) return null;
 
-            for (const tr of transactions) {
-                if (!tr.docChanged) continue;
-                if (tr.getMeta('imageDragMove')) continue;
+            const hasRelevantDocChange = transactions.some(
+                tr => tr.docChanged && !tr.getMeta('imageDragMove')
+            );
+            if (!hasRelevantDocChange) return null;
 
-                const deletedImages = new Set<string>();
-                const insertedImages = new Set<string>();
+            const oldAssets = new Set<string>();
+            const newAssets = new Set<string>();
 
-                oldState.doc.descendants((node) => {
-                    if (node.type.name === 'image' && node.attrs.src) {
-                        deletedImages.add(node.attrs.src);
-                    }
-                });
+            oldState.doc.descendants((node) => {
+                if (node.type.name !== 'image') return;
+                const assetKey = getImageAssetKey(node.attrs.src);
+                if (assetKey) oldAssets.add(assetKey);
+            });
 
-                newState.doc.descendants((node) => {
-                    if (node.type.name === 'image' && node.attrs.src) {
-                        insertedImages.add(node.attrs.src);
-                        deletedImages.delete(node.attrs.src);
-                    }
-                });
+            newState.doc.descendants((node) => {
+                if (node.type.name !== 'image') return;
+                const assetKey = getImageAssetKey(node.attrs.src);
+                if (assetKey) newAssets.add(assetKey);
+            });
 
-                deletedImages.forEach(src => {
-                    moveImageToTrash(src, notesPath, currentNote?.path);
-                });
+            const deletedAssets = new Set<string>(oldAssets);
+            newAssets.forEach(assetKey => deletedAssets.delete(assetKey));
+            const insertedAssets = new Set<string>(newAssets);
+            oldAssets.forEach(assetKey => insertedAssets.delete(assetKey));
 
-                insertedImages.forEach(src => {
-                    restoreImageFromTrash(src, notesPath, currentNote?.path);
-                });
-            }
+            deletedAssets.forEach(src => {
+                moveImageToTrash(src, notesPath, currentNote?.path);
+            });
+
+            insertedAssets.forEach(src => {
+                restoreImageFromTrash(src, notesPath, currentNote?.path);
+            });
+
             return null;
         }
     });

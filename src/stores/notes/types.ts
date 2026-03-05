@@ -95,7 +95,7 @@ export interface NotesActions {
   setGlobalIconSize: (size: number) => void;
   setNoteIconSize: (path: string, size: number) => void;
   updateAllIconColors: (newColor: string) => void;
-  updateAllEmojiSkinTones: (newTone: number) => void;
+  updateAllEmojiSkinTones: (newTone: number) => Promise<void>;
   syncDisplayName: (path: string, title: string) => void;
   getDisplayName: (path: string) => string;
   uploadNoteAsset: (notePath: string, file: File) => Promise<string | null>;

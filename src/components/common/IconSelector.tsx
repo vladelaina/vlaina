@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Icon } from '@/components/ui/icons';
-import { UniversalIconPicker } from '@/components/common/UniversalIconPicker';
 import { AppIcon } from '@/components/common/AppIcon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { type CustomIcon } from '@/lib/storage/unifiedStorage';
 import { type ItemColor, getColorHex } from '@/lib/colors';
+
+const UniversalIconPicker = lazy(async () => {
+  const mod = await import('@/components/common/UniversalIconPicker/index');
+  return { default: mod.UniversalIconPicker };
+});
 
 interface IconSelectorProps {
   value?: string;
@@ -81,18 +85,20 @@ export function IconSelector({
                 align="start"
                 data-no-auto-close
             >
-                 <UniversalIconPicker
-                    onSelect={handleSelect}
-                    onPreview={handlePreview}
-                    onClose={() => setIsOpen(false)}
-                    onRemove={() => handleSelect(undefined)}
-                    hasIcon={!!value}
-                    currentIcon={value}
-                    customIcons={customIcons}
-                    onUploadFile={onUploadFile}
-                    onDeleteCustomIcon={onDeleteCustomIcon}
-                    imageLoader={imageLoader}
-                 />
+                 <Suspense fallback={null}>
+                   <UniversalIconPicker
+                      onSelect={handleSelect}
+                      onPreview={handlePreview}
+                      onClose={() => setIsOpen(false)}
+                      onRemove={() => handleSelect(undefined)}
+                      hasIcon={!!value}
+                      currentIcon={value}
+                      customIcons={customIcons}
+                      onUploadFile={onUploadFile}
+                      onDeleteCustomIcon={onDeleteCustomIcon}
+                      imageLoader={imageLoader}
+                   />
+                 </Suspense>
             </PopoverContent>
         </Popover>
      );
@@ -149,17 +155,19 @@ export function IconSelector({
                 align="start"
                 data-no-auto-close
             >
-                 <UniversalIconPicker
-                    onSelect={handleSelect}
-                    onPreview={handlePreview}
-                    onClose={() => setIsOpen(false)}
-                    currentIcon={value}
-                    embedded
-                    customIcons={customIcons}
-                    onUploadFile={onUploadFile}
-                    onDeleteCustomIcon={onDeleteCustomIcon}
-                    imageLoader={imageLoader}
-                 />
+                 <Suspense fallback={null}>
+                   <UniversalIconPicker
+                      onSelect={handleSelect}
+                      onPreview={handlePreview}
+                      onClose={() => setIsOpen(false)}
+                      currentIcon={value}
+                      embedded
+                      customIcons={customIcons}
+                      onUploadFile={onUploadFile}
+                      onDeleteCustomIcon={onDeleteCustomIcon}
+                      imageLoader={imageLoader}
+                   />
+                 </Suspense>
             </PopoverContent>
         </Popover>
       </div>

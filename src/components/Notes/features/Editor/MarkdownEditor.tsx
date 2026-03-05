@@ -17,8 +17,7 @@ import { motion } from 'framer-motion';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { NoteHeader } from './NoteHeader';
-import { CoverImage } from './components/CoverImage/CoverImage';
-import { getCurrentVaultPath } from '@/stores/notes/storage';
+import { useNoteCoverController, NoteCoverCanvas } from '../Cover';
 import { SPRING_FLASH } from '@/lib/animations';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { configureTheme } from './theme';
@@ -132,27 +131,8 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
   }, [currentNotePath, noteMetadata]);
 
   const starred = currentNotePath ? isStarred(currentNotePath) : false;
-  const getNoteCover = useNotesStore(s => s.getNoteCover);
-  const setNoteCover = useNotesStore(s => s.setNoteCover);
-  const [vaultPath, setVaultPath] = React.useState<string>('');
-  const [showCoverPicker, setShowCoverPicker] = React.useState(false);
-  
-  const coverData = useMemo(() => currentNotePath ? getNoteCover(currentNotePath) : {}, [currentNotePath, getNoteCover]);
-  const coverUrl = coverData.cover || null;
-  const coverX = coverData.coverX ?? 50;
-  const coverY = coverData.coverY ?? 50;
-  const coverH = coverData.coverH;
-  const coverScale = coverData.coverScale ?? 1;
-
-  useEffect(() => {
-    const path = getCurrentVaultPath();
-    if (path) setVaultPath(path);
-  }, []);
-
-  const handleCoverUpdate = (url: string | null, x: number, y: number, h?: number, scale?: number) => {
-    if (!currentNotePath) return;
-    setNoteCover(currentNotePath, url, x, y, h, scale);
-  };
+  const coverController = useNoteCoverController(currentNotePath);
+  const coverUrl = coverController.cover.url;
 
   const handleEditorClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -206,17 +186,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
       </div>
 
       <div className="flex-1 overflow-auto neko-scrollbar flex flex-col items-center relative">
-        <CoverImage
-          url={coverUrl}
-          positionX={coverX}
-          positionY={coverY}
-          height={coverH}
-          scale={coverScale}
-          onUpdate={handleCoverUpdate}
-          vaultPath={vaultPath}
-          pickerOpen={showCoverPicker}
-          onPickerOpenChange={setShowCoverPicker}
-        />
+        <NoteCoverCanvas controller={coverController} />
 
         <motion.div
           className="w-full flex flex-col items-center"
@@ -225,8 +195,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
         >
           <NoteHeader
             coverUrl={coverUrl}
-            onCoverUpdate={handleCoverUpdate}
-            setShowCoverPicker={setShowCoverPicker}
+            onAddCover={coverController.addRandomCoverAndOpenPicker}
           />
 
           <MilkdownProvider key={currentNotePath}>

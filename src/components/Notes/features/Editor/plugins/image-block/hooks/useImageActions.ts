@@ -4,6 +4,9 @@ import { generateCropFragment } from '../utils/cropUtils';
 import { ensureImageFileExists } from '../utils/fileUtils';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
+import { deleteImageNodeAtPos } from '../commands/imageNodeCommands';
+import type { CropArea, ImageNodeAttrs } from '../types';
+import type { CropParams } from '../utils/cropUtils';
 
 interface UseImageActionsProps {
     node: Node;
@@ -13,8 +16,8 @@ interface UseImageActionsProps {
     resolvedSrc?: string;
     notesPath: string;
     currentNotePath?: string;
-    updateNodeAttrs: (attrs: Record<string, any>) => void;
-    setCropParams: (params: any) => void;
+    updateNodeAttrs: (attrs: ImageNodeAttrs) => void;
+    setCropParams: (params: CropParams | null) => void;
     setIsActive: (active: boolean) => void;
     setHeight: (h: number | undefined) => void;
 }
@@ -27,6 +30,8 @@ export function useImageActions({
 }: UseImageActionsProps) {
     const { addToast } = useToastStore();
     const [isSaving, setIsSaving] = useState(false);
+    const nodeSrc = typeof node.attrs.src === 'string' ? node.attrs.src : '';
+    const nodeAlt = typeof node.attrs.alt === 'string' ? node.attrs.alt : '';
 
     const restoreIfNeeded = useCallback(async () => {
         if (baseSrc && resolvedSrc) {
@@ -34,7 +39,7 @@ export function useImageActions({
         }
     }, [baseSrc, resolvedSrc, notesPath, currentNotePath]);
 
-    const handleSave = async (percentageCrop: any, ratio: number) => {
+    const handleSave = async (percentageCrop: CropArea, ratio: number) => {
         try {
             setIsSaving(true);
             await restoreIfNeeded();
@@ -65,10 +70,10 @@ export function useImageActions({
                 const blob = await response.blob();
                 await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
             } else {
-                await navigator.clipboard.writeText(node.attrs.src || '');
+                await navigator.clipboard.writeText(nodeSrc);
             }
         } catch {
-            try { await navigator.clipboard.writeText(node.attrs.src || ''); } catch { }
+            try { await navigator.clipboard.writeText(nodeSrc); } catch { }
         }
     };
 
@@ -79,7 +84,7 @@ export function useImageActions({
             const { save } = await import('@tauri-apps/plugin-dialog');
             const { writeFile } = await import('@tauri-apps/plugin-fs');
             const ext = baseSrc.split('.').pop()?.split('?')[0] || 'png';
-            const defaultName = (node.attrs.alt || 'image') + '.' + ext;
+            const defaultName = (nodeAlt || 'image') + '.' + ext;
             const filePath = await save({ defaultPath: defaultName, filters: [{ name: 'Images', extensions: ['png', 'jpg', 'webp'] }] });
             if (!filePath) return;
             const response = await fetch(resolvedSrc);
@@ -88,7 +93,7 @@ export function useImageActions({
         } catch {
             const link = document.createElement('a');
             link.href = resolvedSrc;
-            link.download = node.attrs.alt || 'image';
+            link.download = nodeAlt || 'image';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -98,7 +103,7 @@ export function useImageActions({
     const handleDelete = () => {
         const pos = getPos();
         if (pos !== undefined) {
-            view.dispatch(view.state.tr.delete(pos, pos + node.nodeSize));
+            deleteImageNodeAtPos(view, pos);
         }
     };
 

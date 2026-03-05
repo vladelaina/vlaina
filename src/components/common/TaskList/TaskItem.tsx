@@ -13,7 +13,7 @@ import { TaskIcon } from '@/components/common/TaskIcon';
 import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconPreview';
 import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
-import { loadSkinTone, getRandomEmoji } from '@/components/common/UniversalIconPicker/constants';
+import { getRandomEmojiFromPreference } from '@/components/common/UniversalIconPicker/randomEmoji';
 import { TaskItemMenu } from './TaskItemMenu';
 
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
@@ -241,9 +241,10 @@ export function TaskItem({
                                 title="Change icon"
                                 onClick={() => {
                                     if (!task.icon) {
-                                        const currentSkinTone = loadSkinTone();
-                                        const randomEmoji = getRandomEmoji(currentSkinTone);
-                                        updateTaskIcon(task.uid, randomEmoji);
+                                        void (async () => {
+                                            const randomEmoji = await getRandomEmojiFromPreference();
+                                            updateTaskIcon(task.uid, randomEmoji);
+                                        })();
                                     }
                                 }}
                             >

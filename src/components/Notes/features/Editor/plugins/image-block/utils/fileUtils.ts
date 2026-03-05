@@ -4,6 +4,12 @@ import { joinPath, getStorageAdapter } from '@/lib/storage/adapter';
 const pendingDeletions = new Map<string, ReturnType<typeof setTimeout>>();
 const UNDO_GRACE_PERIOD_MS = 10000;
 
+function isAbsolutePath(path: string): boolean {
+    if (!path) return false;
+    if (path.startsWith('/')) return true;
+    return /^[a-zA-Z]:[\\/]/.test(path);
+}
+
 export async function ensureImageFileExists(
     src: string,
     blobUrl: string,
@@ -98,6 +104,9 @@ export async function restoreImageFromTrash(
 
 async function resolveImagePath(src: string, notesPath: string, currentNotePath?: string): Promise<string> {
     const baseSrc = src.split('#')[0];
+    if (isAbsolutePath(baseSrc)) {
+        return baseSrc;
+    }
 
     if (baseSrc.startsWith('./') || baseSrc.startsWith('../')) {
         if (currentNotePath) {
