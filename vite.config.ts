@@ -58,10 +58,37 @@ export default defineConfig(async () => ({
     // Optimize chunk size
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'editor': ['@milkdown/kit', '@milkdown/react'],
-          'ui': ['framer-motion', '@radix-ui/react-dialog', '@radix-ui/react-popover'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('/react/') || id.includes('/react-dom/')) return 'react-vendor';
+            if (id.includes('/@milkdown/')) return 'editor-vendor';
+            if (id.includes('/@tauri-apps/')) return 'tauri-vendor';
+            if (id.includes('/@radix-ui/')) return 'radix-vendor';
+            if (id.includes('/framer-motion/')) return 'motion-vendor';
+            if (
+              id.includes('/react-markdown/') ||
+              id.includes('/remark-gfm/') ||
+              id.includes('/rehype-raw/') ||
+              id.includes('/rehype-sanitize/')
+            ) {
+              return 'markdown-vendor';
+            }
+            if (
+              id.includes('/remark-math/') ||
+              id.includes('/rehype-katex/') ||
+              id.includes('/katex/')
+            ) {
+              return 'math-vendor';
+            }
+            if (id.includes('/shiki/') || id.includes('/highlight.js/')) return 'code-vendor';
+          }
+
+          if (id.includes('/src/components/Notes/features/Editor/')) return 'notes-editor';
+          if (id.includes('/src/components/Notes/features/Cover/')) return 'notes-cover';
+          if (id.includes('/src/components/Notes/features/Sidebar/')) return 'notes-sidebar';
+          if (id.includes('/src/components/Notes/features/Tabs/')) return 'notes-tabs';
+
+          return undefined;
         },
       },
     },

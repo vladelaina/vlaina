@@ -1,4 +1,5 @@
 import { StateCreator } from 'zustand';
+import { join } from '@tauri-apps/api/path';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { NotesStore } from '../types';
 import { getNotesBasePath } from '../storage';
@@ -34,7 +35,6 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
     set({ isLoadingAssets: true });
     const storage = getStorageAdapter();
-    const { join } = await import('@tauri-apps/api/path');
 
     try {
       const assetsBaseDir = await join(vaultPath, '.nekotick', 'assets');
@@ -156,7 +156,6 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
   deleteAsset: async (filename: string) => {
     const { notesPath, assetList } = get();
     const storage = getStorageAdapter();
-    const { join } = await import('@tauri-apps/api/path');
 
     try {
       const vaultPath = notesPath || await getNotesBasePath();
@@ -189,7 +188,6 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
   cleanupAssetTempFiles: async () => {
     const { notesPath } = get();
     const vaultPath = notesPath || await getNotesBasePath();
-    const { join } = await import('@tauri-apps/api/path');
     
     const coversDir = await join(vaultPath, '.nekotick', 'assets', 'covers');
     const iconsDir = await join(vaultPath, '.nekotick', 'assets', 'icons');

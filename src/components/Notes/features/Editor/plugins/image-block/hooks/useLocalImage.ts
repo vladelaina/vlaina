@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { dirname, isAbsolute, join } from '@tauri-apps/api/path';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
 
 interface UseLocalImageResult {
@@ -41,9 +42,6 @@ export function useLocalImage(
                     }
                     return;
                 }
-
-                // Use Tauri path API for robust resolution
-                const { join, dirname, isAbsolute } = await import('@tauri-apps/api/path');
 
                 let fullPath = '';
                 

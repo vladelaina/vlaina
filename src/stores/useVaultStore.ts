@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getStorageAdapter, joinPath, isTauri } from '@/lib/storage/adapter';
 import { setCurrentVaultPath } from './useNotesStore';
 
@@ -151,7 +152,6 @@ async function getCurrentWindowLabel(): Promise<string | null> {
   if (!isTauri()) return null;
 
   try {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
     return getCurrentWindow().label;
   } catch {
     return null;

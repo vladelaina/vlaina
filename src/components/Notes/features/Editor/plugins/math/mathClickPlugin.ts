@@ -1,6 +1,7 @@
 // Math click handler plugin - enables editing math nodes on click
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { renderLatex } from '../../utils/katex';
 
 export const mathClickPluginKey = new PluginKey('mathClick');
 
@@ -184,11 +185,8 @@ export const mathClickPlugin = $prose(() => {
           const updatePreview = () => {
             if (!textareaElement || !previewEl) return;
             const latex = textareaElement.value;
-            
-            import('../../utils/katex').then(({ renderLatex }) => {
-              const { html } = renderLatex(latex, state.displayMode);
-              previewEl.innerHTML = html;
-            });
+            const { html } = renderLatex(latex, state.displayMode);
+            previewEl.innerHTML = html;
           };
           
           textareaElement?.addEventListener('input', updatePreview);

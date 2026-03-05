@@ -1,6 +1,8 @@
 import type { StorageAdapter } from './types';
+import { join } from '@tauri-apps/api/path';
 import { TauriAdapter } from './TauriAdapter';
 import { WebAdapter } from './WebAdapter';
+import { joinPath as simpleJoin } from './pathUtils';
 
 export type { StorageAdapter, FileInfo, WriteOptions, ReadOptions, ListOptions } from './types';
 export { TauriAdapter } from './TauriAdapter';
@@ -45,10 +47,8 @@ export function resetStorageAdapter(): void {
 
 export async function joinPath(...segments: string[]): Promise<string> {
   if (isTauri()) {
-    const { join } = await import('@tauri-apps/api/path');
     return join(...segments);
   }
 
-  const { joinPath: simpleJoin } = await import('./pathUtils');
   return simpleJoin(...segments);
 }

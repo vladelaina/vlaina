@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { DndContext, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { isTauri } from '@/lib/storage/adapter';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { LogicalSize } from '@tauri-apps/api/dpi';
 
 import { AppShell } from '@/components/layout/shell/AppShell';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
@@ -123,8 +125,6 @@ function AppContent() {
   useEffect(() => {
     if (!isTauri()) return;
     const unlockWindow = async () => {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      const { LogicalSize } = await import('@tauri-apps/api/dpi');
       const appWindow = getCurrentWindow();
       await appWindow.setResizable(true);
       await appWindow.setMaximizable(true);

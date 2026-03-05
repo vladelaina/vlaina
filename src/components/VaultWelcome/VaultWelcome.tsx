@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { LogicalSize } from '@tauri-apps/api/dpi';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { openDialog, hasNativeDialogs } from '@/lib/storage/dialog';
@@ -28,8 +30,6 @@ export function VaultWelcome() {
 
     const lockWindow = async () => {
       try {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window');
-        const { LogicalSize } = await import('@tauri-apps/api/dpi');
         const appWindow = getCurrentWindow();
 
         await windowCommands.setResizable(false);
@@ -49,8 +49,6 @@ export function VaultWelcome() {
     return () => {
       const unlockWindow = async () => {
         try {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
-          const { LogicalSize } = await import('@tauri-apps/api/dpi');
           const appWindow = getCurrentWindow();
 
           await windowCommands.setResizable(true);
@@ -88,7 +86,6 @@ export function VaultWelcome() {
       if (existingWindowLabel) {
         await windowCommands.focusWindow(existingWindowLabel);
         if (isTauri()) {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
           getCurrentWindow().close();
         }
         return;

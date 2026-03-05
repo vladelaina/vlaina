@@ -2,6 +2,7 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import {
+    type CollapsedRange,
     collectCollapsedRanges,
     collectTopLevelNodes,
     findCollapsedSectionByHeading,
@@ -30,11 +31,16 @@ const COLLAPSE_SELECTION_GUARD_META = 'heading-collapse-selection-guard';
 interface HeadingCollapsePluginState {
     decorations: DecorationSet;
     collapsedHeadings: Set<number>;
+    topLevelNodes: ReturnType<typeof collectTopLevelNodes>;
+    collapsedRanges: CollapsedRange[];
 }
 
-const buildDecorations = (doc: any, collapsedHeadings: Set<number>): DecorationSet => {
+const buildDecorations = (
+    doc: any,
+    nodes: ReturnType<typeof collectTopLevelNodes>,
+    collapsedHeadings: Set<number>,
+): DecorationSet => {
     const decorations: Decoration[] = [];
-    const nodes = collectTopLevelNodes(doc);
 
     nodes.forEach((nodeInfo, index) => {
         if (nodeInfo.node.type.name !== 'heading') return;
@@ -57,6 +63,23 @@ const buildDecorations = (doc: any, collapsedHeadings: Set<number>): DecorationS
     });
 
     return DecorationSet.create(doc, decorations);
+};
+
+const buildPluginState = (
+    doc: any,
+    collapsedHeadings: Set<number>,
+): HeadingCollapsePluginState => {
+    const topLevelNodes = collectTopLevelNodes(doc);
+    const collapsedRanges = collapsedHeadings.size > 0
+        ? collectCollapsedRanges(topLevelNodes, collapsedHeadings)
+        : [];
+
+    return {
+        collapsedHeadings,
+        topLevelNodes,
+        collapsedRanges,
+        decorations: buildDecorations(doc, topLevelNodes, collapsedHeadings),
+    };
 };
 
 const createToggleWidgetDecoration = (
@@ -126,8 +149,15 @@ const createExpandAndRedirectTransaction = (
     const paragraphType = tr.doc.type.schema.nodes.paragraph;
 
     if (endsAtDocumentTail && paragraphType) {
-        tr.insert(docEnd, paragraphType.create());
-        setSelectionAtPos(tr, docEnd + 1, 1);
+        const lastNode = tr.doc.lastChild;
+        const hasTailEmptyParagraph = lastNode?.type?.name === 'paragraph' && lastNode.content?.size === 0;
+
+        if (hasTailEmptyParagraph) {
+            setSelectionAtPos(tr, Math.max(0, docEnd - 1), -1);
+        } else {
+            tr.insert(docEnd, paragraphType.create());
+            setSelectionAtPos(tr, docEnd + 1, 1);
+        }
     } else {
         setSelectionAtPos(tr, resolveExpandedSectionTailPos(section), -1);
     }
@@ -143,19 +173,13 @@ export const collapsePlugin = $prose(() => {
         state: {
             init(_config, state) {
                 const collapsedHeadings = new Set<number>();
-                return {
-                    collapsedHeadings,
-                    decorations: buildDecorations(state.doc, collapsedHeadings),
-                };
+                return buildPluginState(state.doc, collapsedHeadings);
             },
             apply(tr, oldPluginState, _oldState, newState) {
                 const metaAction = parseCollapseMetaAction(tr.getMeta(COLLAPSE_PLUGIN_KEY));
 
                 if (!tr.docChanged && !metaAction) {
-                    return {
-                        collapsedHeadings: oldPluginState.collapsedHeadings,
-                        decorations: oldPluginState.decorations.map(tr.mapping, tr.doc),
-                    };
+                    return oldPluginState;
                 }
 
                 let collapsedHeadings = tr.docChanged
@@ -166,10 +190,7 @@ export const collapsePlugin = $prose(() => {
                     collapsedHeadings = applyCollapseAction(collapsedHeadings, metaAction);
                 }
 
-                return {
-                    collapsedHeadings,
-                    decorations: buildDecorations(newState.doc, collapsedHeadings),
-                };
+                return buildPluginState(newState.doc, collapsedHeadings);
             },
         },
 
@@ -181,8 +202,13 @@ export const collapsePlugin = $prose(() => {
             const pluginState = COLLAPSE_PLUGIN_KEY.getState(newState);
             if (!pluginState || pluginState.collapsedHeadings.size === 0) return null;
 
-            const nodes = collectTopLevelNodes(newState.doc);
-            const collapsedRanges = collectCollapsedRanges(nodes, pluginState.collapsedHeadings);
+            const hasRelevantChange = transactions.some((tr) => {
+                const action = parseCollapseMetaAction(tr.getMeta(COLLAPSE_PLUGIN_KEY));
+                return tr.docChanged || tr.selectionSet || !!action;
+            });
+            if (!hasRelevantChange) return null;
+
+            const collapsedRanges = pluginState.collapsedRanges;
             if (collapsedRanges.length === 0) return null;
 
             const collapseAction = transactions
@@ -268,8 +294,7 @@ export const collapsePlugin = $prose(() => {
                     const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
                     if (!coords) return false;
 
-                    const nodes = collectTopLevelNodes(view.state.doc);
-                    const collapsedRanges = collectCollapsedRanges(nodes, pluginState.collapsedHeadings);
+                    const collapsedRanges = pluginState.collapsedRanges;
                     const section = findCollapsedSectionAtOrBoundaryPos(collapsedRanges, coords.pos);
                     if (!section) return false;
 

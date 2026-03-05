@@ -1,3 +1,5 @@
+import { dirname, join } from '@tauri-apps/api/path';
+
 /**
  * Resolves the absolute path for a system asset (icon or cover) within the vault.
  * Always targets the .nekotick/assets directory.
@@ -7,7 +9,6 @@ export async function resolveSystemAssetPath(
   filename: string, 
   category: 'covers' | 'icons'
 ): Promise<string> {
-  const { join } = await import('@tauri-apps/api/path');
   const assetsBaseDir = await join(vaultPath, '.nekotick', 'assets');
   
   if (category === 'icons') {
@@ -27,7 +28,6 @@ export async function resolveSystemAssetPath(
  * Robustly joins paths ensuring OS-specific separators using Tauri API.
  */
 export async function joinPaths(...paths: string[]): Promise<string> {
-  const { join } = await import('@tauri-apps/api/path');
   return join(...paths);
 }
 
@@ -35,7 +35,6 @@ export async function joinPaths(...paths: string[]): Promise<string> {
  * Helper to get the directory name of a path.
  */
 export async function getDirname(path: string): Promise<string> {
-  const { dirname } = await import('@tauri-apps/api/path');
   return dirname(path);
 }
 

@@ -1,4 +1,5 @@
 import { isTauri } from '@/lib/storage/adapter';
+import { invoke } from '@tauri-apps/api/core';
 
 export async function safeInvoke<T>(
   command: string,
@@ -10,7 +11,6 @@ export async function safeInvoke<T>(
   }
 ): Promise<T | undefined> {
   if (isTauri()) {
-    const { invoke } = await import('@tauri-apps/api/core');
     return invoke<T>(command, args);
   }
 

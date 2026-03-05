@@ -1,4 +1,5 @@
 import { AssetEntry, UploadResult } from './types';
+import { dirname, join } from '@tauri-apps/api/path';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { computeFileHash } from './core/hashing';
 import { getMimeType, generateFilename } from './core/naming';
@@ -103,7 +104,6 @@ export class AssetService {
     const buffer = new Uint8Array(await file.arrayBuffer());
     
     // Use Tauri's join here too for consistency
-    const { join } = await import('@tauri-apps/api/path');
     const filePath = await join(targetDir, finalFilename);
     
     await writeAssetAtomic(filePath, buffer);
@@ -136,7 +136,6 @@ export class AssetService {
     config: AssetConfig
   ): Promise<{ targetDir: string; storedPathPrefix: string }> {
     const { vaultPath, currentNotePath, category } = context;
-    const { join, dirname } = await import('@tauri-apps/api/path');
     
     // System assets (Icons/Covers) always go to .nekotick/assets
     if (category === 'icons') {
