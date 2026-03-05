@@ -100,6 +100,30 @@
   position: relative;
 }
 
+/* Empty heading placeholders (H1~H6) */
+.milkdown .ProseMirror h1.is-editor-empty::before,
+.milkdown .ProseMirror h2.is-editor-empty::before,
+.milkdown .ProseMirror h3.is-editor-empty::before,
+.milkdown .ProseMirror h4.is-editor-empty::before,
+.milkdown .ProseMirror h5.is-editor-empty::before,
+.milkdown .ProseMirror h6.is-editor-empty::before {
+  content: attr(data-placeholder);
+  color: var(--neko-text-disabled);
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.milkdown .ProseMirror h1.is-editor-empty,
+.milkdown .ProseMirror h2.is-editor-empty,
+.milkdown .ProseMirror h3.is-editor-empty,
+.milkdown .ProseMirror h4.is-editor-empty,
+.milkdown .ProseMirror h5.is-editor-empty,
+.milkdown .ProseMirror h6.is-editor-empty {
+  position: relative;
+}
+
 
 /* Heading Toggle Button */
 .milkdown h1,
