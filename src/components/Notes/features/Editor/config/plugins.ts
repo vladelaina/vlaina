@@ -25,6 +25,7 @@ import {
   imageBlockPlugin,
   imageUploadPlugin,
   endBlankClickPlugin,
+  titleNavigationPlugin,
 } from '../plugins';
 
 export const customPlugins = [
@@ -54,4 +55,5 @@ export const customPlugins = [
   imageUploadPlugin,
   ...imageBlockPlugin,
   endBlankClickPlugin,
+  titleNavigationPlugin,
 ];

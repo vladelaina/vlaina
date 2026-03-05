@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
+import { focusEditorToFirstLineStart } from './utils/focusEditor';
 
 interface TitleInputProps {
   notePath: string;
@@ -12,6 +13,8 @@ interface TitleInputProps {
 export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: TitleInputProps) {
   const [title, setTitle] = useState(initialTitle);
   const inputRef = useRef<HTMLInputElement>(null);
+  const skipNextBlurCommitRef = useRef(false);
+  const isCommittingRef = useRef(false);
   const renameNote = useNotesStore(s => s.renameNote);
   const setNotesPreviewTitle = useUIStore(s => s.setNotesPreviewTitle);
 
@@ -47,37 +50,80 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
     }
   }, [notePath, setNotesPreviewTitle]);
 
-  const handleBlur = useCallback(async () => {
+  const commitTitleIfNeeded = useCallback(async () => {
+    if (isCommittingRef.current) return;
     const trimmed = title.trim();
-    if (trimmed && trimmed !== initialTitle) {
-      await renameNote(notePath, trimmed);
-    } else {
+    if (!trimmed) {
       setTitle(initialTitle);
+      setNotesPreviewTitle(null, null);
+      return;
     }
-    setNotesPreviewTitle(null, null);
+
+    if (trimmed === initialTitle) {
+      setNotesPreviewTitle(null, null);
+      return;
+    }
+
+    isCommittingRef.current = true;
+    try {
+      await renameNote(notePath, trimmed);
+    } finally {
+      isCommittingRef.current = false;
+      setNotesPreviewTitle(null, null);
+    }
   }, [title, initialTitle, notePath, renameNote, setNotesPreviewTitle]);
+
+  const handleBlur = useCallback(async () => {
+    if (skipNextBlurCommitRef.current) {
+      skipNextBlurCommitRef.current = false;
+      setNotesPreviewTitle(null, null);
+      return;
+    }
+
+    await commitTitleIfNeeded();
+  }, [commitTitleIfNeeded, setNotesPreviewTitle]);
+
+  const runAfterTitleCommit = useCallback((callback: () => void) => {
+    skipNextBlurCommitRef.current = true;
+    requestAnimationFrame(callback);
+  }, []);
 
   const handleKeyDown = useCallback(async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      const trimmed = title.trim();
-      if (trimmed && trimmed !== initialTitle) {
-        setNotesPreviewTitle(null, null);
-        await renameNote(notePath, trimmed);
-      }
-      setTimeout(() => {
+      await commitTitleIfNeeded();
+      runAfterTitleCommit(() => {
         onEnter?.();
-      }, 50);
+      });
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      await commitTitleIfNeeded();
+      runAfterTitleCommit(() => {
+        focusEditorToFirstLineStart();
+      });
     } else if (e.key === 'Escape') {
+      skipNextBlurCommitRef.current = false;
       setTitle(initialTitle);
       setNotesPreviewTitle(null, null);
       inputRef.current?.blur();
     }
-  }, [title, initialTitle, notePath, renameNote, setNotesPreviewTitle, onEnter]);
+  }, [commitTitleIfNeeded, initialTitle, onEnter, runAfterTitleCommit, setNotesPreviewTitle]);
+
+  useEffect(() => {
+    skipNextBlurCommitRef.current = false;
+  }, [notePath]);
+
+  useEffect(() => {
+    return () => {
+      isCommittingRef.current = false;
+      skipNextBlurCommitRef.current = false;
+    };
+  }, []);
 
   return (
     <input
       ref={inputRef}
+      data-note-title-input="true"
       type="text"
       value={title}
       onChange={handleChange}

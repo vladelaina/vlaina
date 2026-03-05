@@ -7,6 +7,7 @@ import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { HeroIconHeader } from '@/components/common/HeroIconHeader';
 import { CoverAddOverlay } from '../Cover';
 import { NotePathBreadcrumb } from './components/NotePathBreadcrumb';
+import { focusEditorAtTop } from './utils/focusEditor';
 
 interface NoteHeaderProps {
     coverUrl: string | null;
@@ -117,10 +118,7 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
                     <TitleInput
                         notePath={currentNotePath}
                         initialTitle={noteName}
-                        onEnter={() => {
-                            const editor = document.querySelector('.milkdown .ProseMirror') as HTMLElement;
-                            editor?.focus();
-                        }}
+                        onEnter={focusEditorAtTop}
                         autoFocus={!!isNewlyCreated}
                     />
                 </div>

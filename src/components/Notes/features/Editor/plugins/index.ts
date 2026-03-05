@@ -47,7 +47,7 @@ export { clipboardPlugin } from './clipboard';
 
 // Image upload (paste/drop handling)
 export { imageUploadPlugin } from './image-upload';
-export { endBlankClickPlugin } from './cursor';
+export { endBlankClickPlugin, titleNavigationPlugin } from './cursor';
 
 // Re-export types that are actually used
 export type { SlashMenuItem } from './slash/types';

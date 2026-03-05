@@ -6,6 +6,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Editor, rootCtx, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
@@ -24,6 +25,7 @@ import { customPlugins } from './config/plugins';
 import { useEditorLayout } from './hooks/useEditorLayout';
 import { useEditorSave } from './hooks/useEditorSave';
 import { calculateTextStats } from './utils/textStats';
+import { setCurrentEditorView } from './utils/editorViewRegistry';
 import './styles/index.css';
 
 const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
@@ -83,6 +85,24 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   useEffect(() => {
     hasAutoFocused.current = false;
   }, [currentNotePath]);
+
+  useEffect(() => {
+    try {
+      const editor = get?.();
+      if (!editor) {
+        setCurrentEditorView(null);
+        return;
+      }
+      const view = editor.ctx.get(editorViewCtx);
+      setCurrentEditorView(view as EditorView);
+      return () => {
+        setCurrentEditorView(null);
+      };
+    } catch {
+      setCurrentEditorView(null);
+      return;
+    }
+  }, [get, currentNotePath]);
 
   const isEmptyContent = useMemo(() => {
     const content = initialContent.trim();
