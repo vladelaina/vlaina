@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/ui/icons';
 import { LocalImage } from '@/components/Chat/common/LocalImage';
 import { cn } from '@/lib/utils';
+import type { Attachment } from '@/lib/storage/attachmentStorage';
 import {
   chatComposerFrameClass,
   chatComposerInputBlockClass,
@@ -11,9 +12,78 @@ import {
   chatComposerSurfaceClass,
   chatComposerTextareaClass
 } from '../../Input/composerStyles';
+import { ChatAttachmentPreviewList } from '../../Input/components/ChatAttachmentPreviewList';
 import type { ChatMessage } from '@/lib/ai/types';
 import { normalizeExternalHref, openExternalHref } from '@/lib/navigation/externalLinks';
-import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
+import { copyMessageContentToClipboard, extractMarkdownImageSources } from '@/components/Chat/common/messageClipboard';
+
+const IMAGE_MARKDOWN_REGEX = /!\[[^\]]*]\(([^)]+)\)/g;
+
+interface ParsedUserMessageContent {
+  text: string;
+  imageSources: string[];
+}
+
+function inferImageMimeType(src: string): string {
+  if (src.startsWith('data:image/')) {
+    const match = /^data:(image\/[^;,]+)/.exec(src);
+    return match?.[1] ?? 'image/*';
+  }
+
+  const pathname = src.split('?')[0]?.toLowerCase() ?? '';
+  if (pathname.endsWith('.png')) return 'image/png';
+  if (pathname.endsWith('.jpg') || pathname.endsWith('.jpeg')) return 'image/jpeg';
+  if (pathname.endsWith('.webp')) return 'image/webp';
+  if (pathname.endsWith('.gif')) return 'image/gif';
+  if (pathname.endsWith('.avif')) return 'image/avif';
+  if (pathname.endsWith('.bmp')) return 'image/bmp';
+  if (pathname.endsWith('.svg')) return 'image/svg+xml';
+  return 'image/*';
+}
+
+function inferAttachmentName(src: string, index: number): string {
+  if (src.startsWith('data:image/')) {
+    const mime = inferImageMimeType(src);
+    const ext = mime.split('/')[1]?.replace('svg+xml', 'svg') || 'png';
+    return `image-${index + 1}.${ext}`;
+  }
+
+  const base = src.split('?')[0]?.split('/').pop()?.trim();
+  return base || `image-${index + 1}.png`;
+}
+
+function toEditAttachment(src: string, index: number): Attachment {
+  return {
+    id: `edit-attachment-${index}`,
+    path: '',
+    previewUrl: src,
+    assetUrl: src,
+    name: inferAttachmentName(src, index),
+    type: inferImageMimeType(src),
+    size: 0,
+  };
+}
+
+function parseUserMessageContent(content: string): ParsedUserMessageContent {
+  return {
+    imageSources: extractMarkdownImageSources(content),
+    text: content.replace(IMAGE_MARKDOWN_REGEX, '').trim(),
+  };
+}
+
+function composeUserMessageContent(text: string, attachments: Attachment[]): string {
+  const normalizedText = text.replace(/\r\n?/g, '\n');
+  const imageMarkdown = attachments.map((attachment) => `![image](${attachment.assetUrl})`).join('\n');
+  const hasText = normalizedText.trim().length > 0;
+
+  if (imageMarkdown && hasText) {
+    return `${imageMarkdown}\n\n${normalizedText}`;
+  }
+  if (imageMarkdown) {
+    return imageMarkdown;
+  }
+  return normalizedText;
+}
 
 interface UserMessageProps {
   message: ChatMessage;
@@ -23,9 +93,14 @@ interface UserMessageProps {
 
 export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessageProps) {
   const content = message.content || '';
+  const parsedContent = useMemo(() => parseUserMessageContent(content), [content]);
+
   const [isEditing, setIsEditing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [editValue, setEditValue] = useState(content);
+  const [editValue, setEditValue] = useState(parsedContent.text);
+  const [editAttachments, setEditAttachments] = useState<Attachment[]>(() =>
+    parsedContent.imageSources.map((src, index) => toEditAttachment(src, index))
+  );
   const [isComposing, setIsComposing] = useState(false);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -33,18 +108,16 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
   const currentIdx = message.currentVersionIndex ?? 0;
   const hasMultipleVersions = versions.length > 1;
 
-  const imgRegex = /!\[.*?\]\((.*?)\)/g;
-  const images: string[] = [];
-  let displayText = content;
-  let match;
-  while ((match = imgRegex.exec(content)) !== null) {
-      images.push(match[1]);
-  }
-  displayText = displayText.replace(imgRegex, '').trim();
+  const resetEditDraft = useCallback(() => {
+    setEditValue(parsedContent.text);
+    setEditAttachments(parsedContent.imageSources.map((src, index) => toEditAttachment(src, index)));
+  }, [parsedContent]);
 
   useEffect(() => {
-      if (!isEditing) setEditValue(content);
-  }, [content, isEditing]);
+      if (!isEditing) {
+        resetEditDraft();
+      }
+  }, [isEditing, resetEditDraft]);
 
   useEffect(() => {
       if (!isEditing || !editTextareaRef.current) return;
@@ -65,7 +138,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
   }, [isEditing, editValue]);
 
   const handleSave = () => {
-      const normalized = editValue.replace(/\r\n?/g, '\n');
+      const normalized = composeUserMessageContent(editValue, editAttachments);
       const normalizedCurrent = content.replace(/\r\n?/g, '\n');
       if (normalized.trim() !== normalizedCurrent.trim()) {
           onEdit?.(message.id, normalized);
@@ -74,9 +147,13 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
   };
 
   const handleCancel = () => {
-      setEditValue(content);
+      resetEditDraft();
       setIsEditing(false);
   };
+
+  const handleRemoveEditAttachment = useCallback((id: string) => {
+      setEditAttachments((prev) => prev.filter((attachment) => attachment.id !== id));
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
       const native = e.nativeEvent as KeyboardEvent & { isComposing?: boolean; keyCode?: number };
@@ -117,6 +194,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
           style={{ willChange: "clip-path, opacity" }}
         >
           <div className={cn("w-full", chatComposerFrameClass, chatComposerSurfaceClass)}>
+            <ChatAttachmentPreviewList attachments={editAttachments} onRemove={handleRemoveEditAttachment} />
             <div className={chatComposerInputBlockClass}>
               <textarea
                 ref={editTextareaRef}
@@ -149,7 +227,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
       ) : (
         <div className="w-full flex flex-col items-end">
           <div className="w-full flex flex-col items-end gap-2">
-            {images.map((src, i) => (
+            {parsedContent.imageSources.map((src, i) => (
               <div
                 key={i}
                 data-no-focus-input="true"
@@ -170,12 +248,12 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
                 />
               </div>
             ))}
-            {displayText && (
+            {parsedContent.text && (
               <div
                 data-no-focus-input="true"
                 className="inline-block max-w-[85%] bg-[#F4F4F5] dark:bg-[#2C2C2C] px-4 py-2 rounded-[20px] text-gray-900 dark:text-gray-100 text-[15px] leading-6 shadow-sm border border-black/5 dark:border-white/5 text-left overflow-hidden"
               >
-                <div className="whitespace-pre-wrap break-words">{displayText}</div>
+                <div className="whitespace-pre-wrap break-words">{parsedContent.text}</div>
               </div>
             )}
           </div>
@@ -218,7 +296,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
               <button
                 onClick={() => {
                   if (onEdit) {
-                    setEditValue(content);
+                    resetEditDraft();
                     setIsEditing(true);
                   }
                 }}
