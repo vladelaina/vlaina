@@ -17,6 +17,7 @@ export function loadRecentNotes(): string[] {
     const saved = localStorage.getItem(RECENT_NOTES_KEY);
     return saved ? JSON.parse(saved) : [];
   } catch {
+    console.error('[NotesStorage] Failed to load recent notes from localStorage');
     return [];
   }
 }
@@ -24,7 +25,9 @@ export function loadRecentNotes(): string[] {
 function saveRecentNotes(paths: string[]): void {
   try {
     localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(paths));
-  } catch { /* ignore */ }
+  } catch (error) {
+    console.error('[NotesStorage] Failed to save recent notes to localStorage:', error);
+  }
 }
 
 export function addToRecentNotes(path: string, current: string[]): string[] {
@@ -55,7 +58,8 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
     }
 
     return { version: CURRENT_METADATA_VERSION, notes: {} };
-  } catch {
+  } catch (error) {
+    console.error('[NotesStorage] Failed to load note metadata:', error);
     return { version: CURRENT_METADATA_VERSION, notes: {} };
   }
 }
@@ -71,7 +75,9 @@ export async function saveNoteMetadata(vaultPath: string, metadata: MetadataFile
 
     const metadataPath = await joinPath(storePath, METADATA_FILE);
     await safeWriteTextFile(metadataPath, JSON.stringify(metadata, null, 2));
-  } catch { /* ignore */ }
+  } catch (error) {
+    console.error('[NotesStorage] Failed to save note metadata:', error);
+  }
 }
 
 export function getNoteEntry(metadata: MetadataFile, path: string): NoteMetadataEntry {
@@ -147,7 +153,8 @@ export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceSt
 
     const content = await storage.readFile(wsPath);
     return JSON.parse(content);
-  } catch {
+  } catch (error) {
+    console.error('[NotesStorage] Failed to load workspace state:', error);
     return null;
   }
 }
@@ -163,7 +170,9 @@ export async function saveWorkspaceState(vaultPath: string, state: WorkspaceStat
 
     const wsPath = await joinPath(storePath, WORKSPACE_FILE);
     await safeWriteTextFile(wsPath, JSON.stringify(state, null, 2));
-  } catch { /* ignore */ }
+  } catch (error) {
+    console.error('[NotesStorage] Failed to save workspace state:', error);
+  }
 }
 
 export interface FavoritesData {
@@ -186,7 +195,8 @@ export async function loadFavoritesFromFile(vaultPath: string): Promise<Favorite
       notes: Array.isArray(data.notes) ? data.notes : [],
       folders: Array.isArray(data.folders) ? data.folders : [],
     };
-  } catch {
+  } catch (error) {
+    console.error('[NotesStorage] Failed to load favorites:', error);
     return { notes: [], folders: [] };
   }
 }
@@ -202,5 +212,7 @@ export async function saveFavoritesToFile(vaultPath: string, favorites: Favorite
 
     const favPath = await joinPath(storePath, FAVORITES_FILE);
     await safeWriteTextFile(favPath, JSON.stringify(favorites, null, 2));
-  } catch { /* ignore */ }
+  } catch (error) {
+    console.error('[NotesStorage] Failed to save favorites:', error);
+  }
 }

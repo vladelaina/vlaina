@@ -185,6 +185,7 @@ export const mathClickPlugin = $prose(() => {
           const updatePreview = () => {
             if (!textareaElement || !previewEl) return;
             const latex = textareaElement.value;
+
             const { html } = renderLatex(latex, state.displayMode);
             previewEl.innerHTML = html;
           };

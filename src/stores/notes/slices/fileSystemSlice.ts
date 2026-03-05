@@ -128,7 +128,15 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   createNote: async (folderPath?: string) => {
-    let { notesPath, openTabs, recentNotes, rootFolder, currentNote } = get();
+    let { notesPath, openTabs, recentNotes, rootFolder, currentNote, isDirty, saveNote } = get();
+
+    if (isDirty) {
+      await saveNote();
+      if (get().isDirty) {
+        throw new Error('Failed to save current note before creating a new note');
+      }
+      ({ openTabs, recentNotes, rootFolder, currentNote } = get());
+    }
     
     if (!notesPath) {
       notesPath = await getNotesBasePath();
@@ -181,8 +189,16 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     name: string,
     content: string
   ) => {
-    let { notesPath, rootFolder, recentNotes, openTabs, currentNote } = get();
+    let { notesPath, rootFolder, recentNotes, openTabs, currentNote, isDirty, saveNote } = get();
     const storage = getStorageAdapter();
+
+    if (isDirty) {
+      await saveNote();
+      if (get().isDirty) {
+        throw new Error('Failed to save current note before creating a new note');
+      }
+      ({ rootFolder, recentNotes, openTabs, currentNote } = get());
+    }
 
     if (!notesPath) {
       notesPath = await getNotesBasePath();

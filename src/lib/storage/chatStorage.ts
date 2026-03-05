@@ -1,32 +1,32 @@
 import { getStorageAdapter, joinPath } from './adapter';
 import type { ChatMessage } from '@/lib/ai/types';
+import { createPersistenceQueue, type PersistenceQueue } from './persistenceEngine';
 
-type PendingSessionSave = {
-  timer: ReturnType<typeof setTimeout> | null;
-  payload: string | null;
-  writing: Promise<void> | null;
-};
-
-const pendingSessionSaves = new Map<string, PendingSessionSave>();
+const sessionQueues = new Map<string, PersistenceQueue<string>>();
 const DEFAULT_DEBOUNCE_MS = 180;
 
-function getPendingSessionSave(sessionId: string): PendingSessionSave {
-  const existing = pendingSessionSaves.get(sessionId);
+function getSessionQueue(sessionId: string): PersistenceQueue<string> {
+  const existing = sessionQueues.get(sessionId);
   if (existing) return existing;
 
-  const next: PendingSessionSave = {
-    timer: null,
-    payload: null,
-    writing: null,
-  };
-  pendingSessionSaves.set(sessionId, next);
-  return next;
-}
+  let queue: PersistenceQueue<string>;
+  queue = createPersistenceQueue<string>({
+    debounceMs: DEFAULT_DEBOUNCE_MS,
+    write: async (payload) => {
+      await writeSessionJsonRaw(sessionId, payload);
+    },
+    onError: (error) => {
+      console.error('[chatStorage] save session failed:', error);
+    },
+    onIdle: () => {
+      if (sessionQueues.get(sessionId) === queue) {
+        sessionQueues.delete(sessionId);
+      }
+    },
+  });
 
-function queueSessionPayload(sessionId: string, messages: ChatMessage[]) {
-  const pending = getPendingSessionSave(sessionId);
-  pending.payload = JSON.stringify(messages, null, 2);
-  return pending;
+  sessionQueues.set(sessionId, queue);
+  return queue;
 }
 
 async function writeSessionJsonRaw(sessionId: string, payload: string) {
@@ -46,43 +46,9 @@ async function writeSessionJsonRaw(sessionId: string, payload: string) {
   await storage.writeFile(path, payload);
 }
 
-function enqueueSessionWrite(sessionId: string): Promise<void> {
-  const pending = getPendingSessionSave(sessionId);
-  if (pending.writing) {
-    return pending.writing;
-  }
-
-  pending.writing = (async () => {
-    while (pending.payload !== null) {
-      const payload = pending.payload;
-      pending.payload = null;
-      await writeSessionJsonRaw(sessionId, payload);
-    }
-  })()
-    .catch((error) => {
-      console.error('[chatStorage] save session failed:', error);
-    })
-    .finally(() => {
-      pending.writing = null;
-      if (pending.payload !== null) {
-        void enqueueSessionWrite(sessionId);
-        return;
-      }
-      if (!pending.timer) {
-        pendingSessionSaves.delete(sessionId);
-      }
-    });
-
-  return pending.writing;
-}
-
 export async function saveSessionJson(sessionId: string, messages: ChatMessage[]) {
-  const pending = queueSessionPayload(sessionId, messages);
-  if (pending.timer) {
-    clearTimeout(pending.timer);
-    pending.timer = null;
-  }
-  await enqueueSessionWrite(sessionId);
+  const payload = JSON.stringify(messages, null, 2);
+  await getSessionQueue(sessionId).saveNow(payload);
 }
 
 export function scheduleSessionJsonSave(
@@ -90,41 +56,42 @@ export function scheduleSessionJsonSave(
   messages: ChatMessage[],
   debounceMs = DEFAULT_DEBOUNCE_MS
 ) {
-  const pending = queueSessionPayload(sessionId, messages);
-  if (pending.timer) {
-    clearTimeout(pending.timer);
-  }
-
-  pending.timer = setTimeout(() => {
-    pending.timer = null;
-    void enqueueSessionWrite(sessionId);
-  }, debounceMs);
+  const payload = JSON.stringify(messages, null, 2);
+  getSessionQueue(sessionId).schedule(payload, { debounceMs });
 }
 
 export function cancelSessionJsonSave(sessionId: string) {
-  const pending = pendingSessionSaves.get(sessionId);
-  if (!pending) return;
-  pending.payload = null;
-  if (pending.timer) {
-    clearTimeout(pending.timer);
+  const queue = sessionQueues.get(sessionId);
+  if (!queue) return;
+  queue.cancel();
+  if (!queue.hasPending()) {
+    sessionQueues.delete(sessionId);
   }
-  if (!pending.writing) {
-    pendingSessionSaves.delete(sessionId);
+}
+
+export async function flushPendingSessionJsonSaves(): Promise<void> {
+  const queues = Array.from(sessionQueues.values());
+  if (queues.length === 0) return;
+  const results = await Promise.allSettled(queues.map((queue) => queue.flush()));
+  const errors = results
+    .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+    .map((result) => result.reason);
+
+  if (errors.length > 0) {
+    if (errors.length === 1 && errors[0] instanceof Error) {
+      throw errors[0];
+    }
+    console.error('[chatStorage] Failed to flush one or more chat session saves:', errors);
+    throw new Error(`Failed to flush chat session saves (${errors.length} errors)`);
   }
 }
 
 export async function deleteSessionJson(sessionId: string): Promise<void> {
-  const pending = pendingSessionSaves.get(sessionId);
-  if (pending) {
-    pending.payload = null;
-    if (pending.timer) {
-      clearTimeout(pending.timer);
-      pending.timer = null;
-    }
-    if (pending.writing) {
-      await pending.writing;
-    }
-    pendingSessionSaves.delete(sessionId);
+  const queue = sessionQueues.get(sessionId);
+  if (queue) {
+    queue.cancel();
+    await queue.flush();
+    sessionQueues.delete(sessionId);
   }
 
   const storage = getStorageAdapter();
@@ -144,7 +111,8 @@ export async function loadSessionJson(sessionId: string): Promise<ChatMessage[] 
       try {
           const content = await storage.readFile(path);
           return JSON.parse(content);
-      } catch (e) {
+      } catch (error) {
+          console.error('[chatStorage] Failed to load session file:', path, error);
           return null;
       }
   }

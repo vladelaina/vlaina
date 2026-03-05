@@ -35,7 +35,8 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
 
   const hasAutoFocused = useRef(false);
-  const { debouncedSave } = useEditorSave(saveNote);
+  const hasIgnoredInitNoise = useRef(false);
+  const { debouncedSave, flushSave } = useEditorSave(saveNote);
 
   const initialContent = useMemo(() => {
     return useNotesStore.getState().currentNote?.content || '';
@@ -45,12 +46,20 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        saveNote();
+        flushSave();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [saveNote]);
+  }, [flushSave]);
+
+  useEffect(() => {
+    const handleBlur = () => {
+      flushSave();
+    };
+    window.addEventListener('blur', handleBlur);
+    return () => window.removeEventListener('blur', handleBlur);
+  }, [flushSave]);
 
   const { get } = useEditor((root) =>
     Editor.make()
@@ -64,10 +73,26 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
         ctx.get(listenerCtx)
           .markdownUpdated((_ctx, markdown) => {
             const isInitializing = Date.now() - initTime < INIT_PERIOD;
-            if (isInitializing && initialContent.length > 20 && markdown.trim().length < 5) {
+            if (
+              isInitializing &&
+              !hasIgnoredInitNoise.current &&
+              initialContent.trim().length > 0 &&
+              markdown.trim().length < 5
+            ) {
+              hasIgnoredInitNoise.current = true;
               return;
             }
+
+            const currentContent = useNotesStore.getState().currentNote?.content ?? '';
+            if (currentContent === markdown) {
+              return;
+            }
+
             requestAnimationFrame(() => {
+              const latestNote = useNotesStore.getState().currentNote;
+              if (!latestNote || latestNote.path !== currentNotePath || latestNote.content === markdown) {
+                return;
+              }
               updateContent(markdown);
               debouncedSave();
             });
@@ -84,6 +109,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
 
   useEffect(() => {
     hasAutoFocused.current = false;
+    hasIgnoredInitNoise.current = false;
   }, [currentNotePath]);
 
   useEffect(() => {
