@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ProgressOrCounter, ProgressItem, CounterItem } from '@/stores/useProgressStore';
 
-export type FocusTarget = 'title' | 'current' | 'total' | 'step' | 'unit' | 'resetFrequency';
+export type FocusTarget = 'title' | 'current' | 'total' | 'step' | 'unit' | 'tags' | 'resetFrequency';
 
 interface UseDetailModalProps {
   item: ProgressOrCounter | null;

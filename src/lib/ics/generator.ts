@@ -1,6 +1,7 @@
 import ical, { ICalEventData } from 'ical-generator';
 import type { NekoEvent, NekoCalendar } from './types';
 import { NEKO_X_PROPS } from './types';
+import { serializeTags } from '@/lib/tags/tagUtils';
 
 export function generateICS(events: NekoEvent[], calendar: NekoCalendar): string {
     const cal = ical({
@@ -82,6 +83,11 @@ export function generateICS(events: NekoEvent[], calendar: NekoCalendar): string
 
         if (event.estimatedMinutes !== undefined) {
             xProps.push({ key: NEKO_X_PROPS.ESTIMATED_MINUTES, value: String(event.estimatedMinutes) });
+        }
+
+        const serializedTags = serializeTags(event.tags);
+        if (serializedTags) {
+            xProps.push({ key: NEKO_X_PROPS.TAGS, value: serializedTags });
         }
 
         if (xProps.length > 0) {

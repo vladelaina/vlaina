@@ -8,6 +8,7 @@ interface MetadataFieldProps {
   displayValue: ReactNode;
   isEmpty?: boolean;
   className?: string;
+  displayClassName?: string;
 }
 
 export function MetadataField({
@@ -18,6 +19,7 @@ export function MetadataField({
   displayValue,
   isEmpty = false,
   className = '',
+  displayClassName = '',
 }: MetadataFieldProps) {
   return (
     <div className={`flex flex-col items-center gap-1 group ${className}`}>
@@ -36,6 +38,7 @@ export function MetadataField({
                 ? 'text-zinc-200 dark:text-zinc-700 group-hover:text-zinc-400'
                 : 'text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100'
             }
+            ${displayClassName}
           `}
         >
           {displayValue}

@@ -13,7 +13,6 @@ interface TaskDragContextProps {
     children: React.ReactNode;
     allTasks: NekoEvent[];
     reorderTasks: (activeId: string, overId: string, makeChild?: boolean) => void;
-    updateTaskTime: (taskId: string, startDate?: number | null, endDate?: number | null) => void;
     toggleTask: (taskId: string) => void;
     setDraggingTaskId: (id: string | null) => void;
     getChildCount?: (parentId: string) => number;
@@ -23,7 +22,6 @@ export function TaskDragContext({
     children,
     allTasks,
     reorderTasks,
-    updateTaskTime,
     toggleTask,
     setDraggingTaskId,
     getChildCount = () => 0,
@@ -41,7 +39,6 @@ export function TaskDragContext({
     } = useTaskDragAndDrop({
         tasks: allTasks,
         reorderTasks,
-        updateTaskTime,
         toggleTask,
         setDraggingTaskId,
     });

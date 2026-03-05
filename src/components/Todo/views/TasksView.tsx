@@ -2,17 +2,19 @@ import { useState, useMemo } from 'react';
 import { useGroupStore } from '@/stores/useGroupStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { sortTasks } from '@/components/common/TaskList';
+import { matchesSelectedTag } from '@/lib/tags/tagUtils';
 import { TaskListView } from './TaskListView';
 
 export function TasksView() {
     const { tasks } = useGroupStore();
-    const { selectedColors, taskSortMode } = useUIStore();
+    const { selectedColors, selectedTag, taskSortMode } = useUIStore();
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredTasks = useMemo(() => {
         const filtered = tasks
             .filter(t => {
                 if (t.parentId) return false;
+                if (!matchesSelectedTag(t, selectedTag)) return false;
                 if (!selectedColors.includes(t.color || 'default')) return false;
                 if (searchQuery.trim()) {
                     const query = searchQuery.toLowerCase();
@@ -22,7 +24,7 @@ export function TasksView() {
             });
             
         return sortTasks(filtered, taskSortMode);
-    }, [tasks, selectedColors, searchQuery, taskSortMode]);
+    }, [tasks, selectedColors, selectedTag, searchQuery, taskSortMode]);
 
     return (
         <TaskListView
@@ -31,7 +33,6 @@ export function TasksView() {
             allTasks={tasks}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            showScheduledSection={true}
         />
     );
 }

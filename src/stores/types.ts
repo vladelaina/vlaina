@@ -4,7 +4,6 @@ import type {
 
 import type { ItemColor } from '@/lib/colors';
 import type { TimeView } from '@/lib/date';
-import type { TaskStatus } from './uiSlice';
 import type { NekoEvent, NekoCalendar } from '@/lib/ics/types';
 
 export type {
@@ -13,7 +12,6 @@ export type {
 
 export type { ItemColor };
 export type { TimeView };
-export type { TaskStatus };
 
 export type { NekoEvent, NekoEvent as CalendarEvent, NekoCalendar };
 

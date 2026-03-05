@@ -5,11 +5,13 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Icon } from '@/components/ui/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useProgressStore } from '@/stores/useProgressStore';
+import { useUIStore } from '@/stores/uiSlice';
 import { useProgressDrag } from '../../hooks/useProgressDrag';
 import { useDayChange } from '@/hooks/useDayChange';
 import { ItemCard, ActiveItemCard, ArchivedItemCard } from '../ItemCard';
 import { CreateModal } from '../CreateModal';
 import { DetailModal } from '../DetailModal';
+import { isSystemTagFilter, matchesSelectedTagForProgressItem } from '@/lib/tags/tagUtils';
 
 interface ProgressContentProps {
   compact?: boolean;
@@ -18,6 +20,7 @@ interface ProgressContentProps {
 export function ProgressContent({ compact = false }: ProgressContentProps) {
   useDayChange();
   const { items, addProgress, addCounter, updateCurrent, deleteItem, updateItem, loadItems, reorderItems } = useProgressStore();
+  const { selectedTag } = useUIStore();
   const [isArchiveView, setIsArchiveView] = useState(false);
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -27,7 +30,10 @@ export function ProgressContent({ compact = false }: ProgressContentProps) {
   const [previewOverride, setPreviewOverride] = useState<{ icon?: string; title?: string } | null>(null);
   const [isStatusHovered, setIsStatusHovered] = useState(false);
   const selectedItem = items.find(i => i.id === selectedId) || null;
-  const visibleItems = items.filter(item => isArchiveView ? item.archived : !item.archived);
+  const visibleItems = items.filter(item => {
+    if (isArchiveView ? !item.archived : item.archived) return false;
+    return matchesSelectedTagForProgressItem(item, selectedTag);
+  });
   const archivedCount = items.filter(i => i.archived).length;
   const handleAutoArchive = (id: string) => {
     const item = items.find(i => i.id === id);
@@ -42,8 +48,19 @@ export function ProgressContent({ compact = false }: ProgressContentProps) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const { activeId, handleDragStart, handleDragMove, handleDragOver, handleDragEnd } = useProgressDrag({ onReorder: reorderItems });
   const onDragStart = (event: any) => { handleDragStart(event); const node = document.getElementById('sortable-item-' + event.active.id); if (node) setDragWidth(node.offsetWidth); };
-  const handleCreateProgress = (data: { title: string; icon?: string; direction: 'increment' | 'decrement'; total: number; step: number; unit: string }) => { addProgress(data); };
-  const handleCreateCounter = (data: { title: string; icon?: string; step: number; unit: string; frequency: 'daily' | 'weekly' | 'monthly' }) => { addCounter(data); };
+  const selectedNormalTag = selectedTag && !isSystemTagFilter(selectedTag) ? selectedTag : null;
+  const handleCreateProgress = (data: { title: string; icon?: string; direction: 'increment' | 'decrement'; total: number; step: number; unit: string }) => {
+    addProgress({
+      ...data,
+      tags: selectedNormalTag ? [selectedNormalTag] : undefined,
+    });
+  };
+  const handleCreateCounter = (data: { title: string; icon?: string; step: number; unit: string; frequency: 'daily' | 'weekly' | 'monthly' }) => {
+    addCounter({
+      ...data,
+      tags: selectedNormalTag ? [selectedNormalTag] : undefined,
+    });
+  };
   const now = new Date();
   const day = now.getDate();
   const weekday = now.toLocaleDateString('en-US', { weekday: 'long' });

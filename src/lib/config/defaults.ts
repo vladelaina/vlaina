@@ -12,7 +12,6 @@ export const DEFAULT_GROUP_ID = 'default';
 export const DEFAULT_GROUP_NAME = 'Inbox';
 
 export const STORAGE_KEY_COLOR_FILTER = 'nekotick-color-filter';
-export const STORAGE_KEY_STATUS_FILTER = 'nekotick-status-filter';
 export const STORAGE_KEY_SHORTCUTS = 'nekotick-shortcuts';
 export const STORAGE_KEY_PENDING_SYNC = 'pendingSync';
 export const STORAGE_KEY_FONT_SIZE = 'fontSize';

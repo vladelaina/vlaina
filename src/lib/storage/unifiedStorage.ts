@@ -14,6 +14,7 @@ export interface UnifiedProgress {
   id: string;
   type: 'progress' | 'counter';
   title: string;
+  tags?: string[];
   icon?: string;
   direction?: 'increment' | 'decrement';
   total?: number;

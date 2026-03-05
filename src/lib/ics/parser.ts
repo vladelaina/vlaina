@@ -2,6 +2,7 @@ import ICAL from 'ical.js';
 import type { NekoEvent } from './types';
 import type { ItemColor } from '@/lib/colors';
 import { NEKO_X_PROPS } from './types';
+import { deserializeTags } from '@/lib/tags/tagUtils';
 
 function isMidnight(date: Date): boolean {
     return date.getHours() === 0
@@ -47,6 +48,7 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
         const nekoParentId = vevent.getFirstPropertyValue(NEKO_X_PROPS.PARENT_ID.toLowerCase()) as string | null;
         const nekoCollapsed = vevent.getFirstPropertyValue(NEKO_X_PROPS.COLLAPSED.toLowerCase()) as string | null;
         const nekoEstimatedMinutes = vevent.getFirstPropertyValue(NEKO_X_PROPS.ESTIMATED_MINUTES.toLowerCase()) as string | null;
+        const nekoTags = vevent.getFirstPropertyValue(NEKO_X_PROPS.TAGS.toLowerCase()) as string | null;
 
         const startDate = dtstart.toJSDate();
         let endDate: Date;
@@ -88,6 +90,7 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
             parentId: nekoParentId || undefined,
             collapsed: nekoCollapsed === 'TRUE',
             estimatedMinutes: nekoEstimatedMinutes ? parseInt(nekoEstimatedMinutes, 10) : undefined,
+            tags: deserializeTags(nekoTags),
         };
 
         events.push(nekoEvent);

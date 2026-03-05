@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid';
 import type { UnifiedData, UnifiedProgress } from '@/lib/storage/unifiedStorage';
 import { getTodayKey } from '@/lib/date';
+import { normalizeTags } from '@/lib/tags/tagUtils';
 
 type SetState = (fn: (state: { data: UnifiedData }) => Partial<{ data: UnifiedData }>) => void;
 type Persist = (data: UnifiedData) => void;
@@ -9,6 +10,7 @@ export function createProgressActions(set: SetState, persist: Persist) {
   return {
     addProgress: (item: Omit<UnifiedProgress, 'id' | 'createdAt' | 'current' | 'todayCount'>) => {
       const todayKey = getTodayKey();
+      const normalizedTags = normalizeTags(item.tags);
       const newItem: UnifiedProgress = {
         id: nanoid(),
         createdAt: Date.now(),
@@ -17,6 +19,7 @@ export function createProgressActions(set: SetState, persist: Persist) {
         lastUpdateDate: todayKey,
         history: {},
         ...item,
+        tags: normalizedTags.length > 0 ? normalizedTags : undefined,
       };
       set((state) => {
         const newData = {
@@ -65,10 +68,19 @@ export function createProgressActions(set: SetState, persist: Persist) {
 
     updateProgressItem: (id: string, updates: Partial<UnifiedProgress>) => {
       set((state) => {
+        const normalizedUpdates = Object.prototype.hasOwnProperty.call(updates, 'tags')
+          ? {
+              ...updates,
+              tags: (() => {
+                const normalized = normalizeTags(updates.tags);
+                return normalized.length > 0 ? normalized : undefined;
+              })(),
+            }
+          : updates;
         const newData = {
           ...state.data,
           progress: state.data.progress.map(item =>
-            item.id === id ? { ...item, ...updates } : item
+            item.id === id ? { ...item, ...normalizedUpdates } : item
           ),
         };
         persist(newData);

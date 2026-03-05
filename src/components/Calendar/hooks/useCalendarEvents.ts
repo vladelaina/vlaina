@@ -7,19 +7,13 @@ export function useCalendarEvents(): NekoEvent[] {
   const { events, allEvents } = useCalendarStore();
   const editingEventId = useUIStore(state => state.editingEventId);
   const selectedColors = useUIStore(state => state.selectedColors);
-  const selectedStatuses = useUIStore(state => state.selectedStatuses);
 
   const displayItems = useMemo(() => {
     const filtered = events.filter(e => {
       if (e.uid === editingEventId) return true;
 
       if (!selectedColors.includes(e.color || 'default')) return false;
-
-      if (e.completed) {
-        return selectedStatuses.includes('completed');
-      } else {
-        return selectedStatuses.includes('scheduled');
-      }
+      return true;
     });
 
     if (editingEventId && !filtered.find(e => e.uid === editingEventId)) {
@@ -30,7 +24,7 @@ export function useCalendarEvents(): NekoEvent[] {
     }
 
     return filtered;
-  }, [events, allEvents, selectedColors, selectedStatuses, editingEventId]);
+  }, [events, allEvents, selectedColors, editingEventId]);
 
   return displayItems;
 }

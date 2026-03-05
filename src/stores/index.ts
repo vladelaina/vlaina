@@ -12,7 +12,6 @@ export type {
   CalendarEvent,
   ItemColor,
   TimeView,
-  TaskStatus,
 } from './types';
 
 export { parseDuration, extractDuration } from '@/lib/time';
