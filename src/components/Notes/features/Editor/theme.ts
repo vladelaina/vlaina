@@ -53,7 +53,7 @@ export const themeClasses = {
     fence: 'relative rounded-lg bg-[var(--neko-bg-secondary)] border border-[var(--neko-border)] my-[26px] font-mono text-[13px]',
 
     // Divider
-    hr: 'my-[42px] border-[var(--neko-border)]', // Golden Section Break
+    hr: 'my-0 border-0 h-0',
 };
 
 import { headingSchema, paragraphSchema, strongSchema, emphasisSchema, inlineCodeSchema, linkSchema, blockquoteSchema, hrSchema, imageSchema } from '@milkdown/kit/preset/commonmark';

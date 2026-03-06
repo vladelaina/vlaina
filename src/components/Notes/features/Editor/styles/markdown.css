@@ -184,8 +184,26 @@
 /* Horizontal Rule */
 .milkdown hr {
   border: none;
+  margin: 0.625rem 0;
+  height: 10px;
+  position: relative;
+  cursor: default;
+}
+
+.milkdown hr::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
   border-top: 1px solid var(--neko-border);
-  margin: 1.5rem 0;
+  transform: translateY(-0.5px);
+  pointer-events: none;
+}
+
+.milkdown .ProseMirror hr.ProseMirror-selectednode::before {
+  border-top-color: var(--neko-accent);
+  box-shadow: 0 0 0 2px var(--neko-accent-light);
 }
 
 /* Inline Code */
