@@ -34,6 +34,7 @@ export const ChatInput = memo(function ChatInput({
     fileInputRef,
     handlePaste,
     handleDrop,
+    handleDragEnter,
     handleDragOver,
     handleDragLeave,
     handleFileChange,
@@ -114,12 +115,6 @@ export const ChatInput = memo(function ChatInput({
         onChange={handleHiddenFileInputChange}
       />
 
-      {isDragging && (
-        <div className="absolute inset-0 z-20 bg-blue-500/10 border-2 border-dashed border-blue-500 rounded-[32px] flex items-center justify-center backdrop-blur-sm pointer-events-none">
-          <span className="text-blue-600 font-medium">Drop files here</span>
-        </div>
-      )}
-
       <div
         data-chat-input="true"
         ref={composerRootRef}
@@ -128,10 +123,17 @@ export const ChatInput = memo(function ChatInput({
           chatComposerFrameClass,
           chatComposerSurfaceClass
         )}
+        onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+        {isDragging && (
+          <div className="absolute inset-0 z-20 bg-blue-500/10 border-2 border-dashed border-blue-500 rounded-[32px] flex items-center justify-center backdrop-blur-sm pointer-events-none">
+            <span className="text-blue-600 font-medium">Drop files here</span>
+          </div>
+        )}
+
         <div className="flex flex-col px-1 w-full">
           <ChatAttachmentPreviewList attachments={attachments} onRemove={removeAttachment} />
 

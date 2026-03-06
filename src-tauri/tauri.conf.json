@@ -21,6 +21,7 @@
         "decorations": false,
         "transparent": false,
         "backgroundColor": "#00000000",
+        "dragDropEnabled": false,
         "zoomHotkeysEnabled": false,
         "resizable": true,
         "maximizable": true,
