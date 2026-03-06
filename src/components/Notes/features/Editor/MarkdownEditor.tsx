@@ -13,12 +13,10 @@ import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { Icon } from '@/components/ui/icons';
-import { motion } from 'framer-motion';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { NoteHeader } from './NoteHeader';
 import { useNoteCoverController, NoteCoverCanvas } from '../Cover';
-import { SPRING_FLASH } from '@/lib/animations';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { configureTheme } from './theme';
 import { customPlugins } from './config/plugins';
@@ -248,10 +246,12 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
       >
         <NoteCoverCanvas controller={coverController} />
 
-        <motion.div
+        <div
           className="w-full flex flex-col items-center"
-          animate={{ x: contentOffset }}
-          transition={SPRING_FLASH}
+          style={{
+            marginLeft: contentOffset,
+            transition: 'margin-left 180ms cubic-bezier(0.25, 0.8, 0.25, 1)',
+          }}
         >
           <NoteHeader
             coverUrl={coverUrl}
@@ -261,7 +261,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
           <MilkdownProvider key={currentNotePath}>
             <MilkdownEditorInner />
           </MilkdownProvider>
-        </motion.div>
+        </div>
       </div>
     </div>
   );
