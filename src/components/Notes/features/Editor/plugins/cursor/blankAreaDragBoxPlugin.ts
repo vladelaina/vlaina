@@ -352,7 +352,12 @@ export const blankAreaDragBoxPlugin = $prose(() => {
       syncBlockSelectionVisualState(view);
       const handleDocumentMouseDown = (event: MouseEvent) => {
         const target = event.target;
-        if (target instanceof Node && view.dom.contains(target)) return;
+        if (target instanceof Node && view.dom.contains(target)) {
+          if (getPluginState(view.state).selectedBlocks.length > 0) {
+            clearBlockSelection(view);
+          }
+          return;
+        }
         const startZone = tryStartSession(view, event);
         if (!startZone) {
           clearBlockSelection(view);
