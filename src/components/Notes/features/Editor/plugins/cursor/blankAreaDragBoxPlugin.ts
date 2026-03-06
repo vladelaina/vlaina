@@ -125,6 +125,18 @@ function clearBlockSelection(view: EditorView): void {
   dispatchSelectionAction(view, { type: 'clear-blocks' });
 }
 
+function clearTextSelectionForDragSession(view: EditorView): void {
+  const { state } = view;
+  if (!state.selection.empty) {
+    const docSize = state.doc.content.size;
+    const collapsePos = Math.max(0, Math.min(state.selection.from, docSize));
+    const tr = state.tr.setSelection(Selection.near(state.doc.resolve(collapsePos), -1));
+    view.dispatch(tr);
+    view.focus();
+  }
+  window.getSelection()?.removeAllRanges();
+}
+
 function setBlockSelectionVisualState(view: EditorView, active: boolean): void {
   view.dom.classList.toggle(BLOCK_SELECTION_ACTIVE_CLASS, active);
 }
@@ -286,6 +298,8 @@ export const blankAreaDragBoxPlugin = $prose(() => {
     const startZone = resolveDragStartZone(view, event);
     if (!startZone) return null;
 
+    clearTextSelectionForDragSession(view);
+
     clearSession();
 
     const startX = event.clientX;
@@ -293,8 +307,14 @@ export const blankAreaDragBoxPlugin = $prose(() => {
     let activated = false;
     let dragBox: HTMLDivElement | null = null;
     let selectedBlocksKey = getBlockRangesKey(getPluginState(view.state).selectedBlocks);
+    const editorRoot = view.dom.closest('.milkdown-editor') as HTMLElement | null;
     const previousBodyCursor = document.body.style.cursor;
     const previousBodyUserSelect = document.body.style.userSelect;
+    const previousViewCursor = view.dom.style.cursor;
+    const previousEditorRootCursor = editorRoot?.style.cursor ?? '';
+    document.body.style.cursor = 'default';
+    view.dom.style.cursor = 'default';
+    if (editorRoot) editorRoot.style.cursor = 'default';
 
     const teardown = () => {
       if (dragBox) {
@@ -303,6 +323,8 @@ export const blankAreaDragBoxPlugin = $prose(() => {
       }
       document.body.style.cursor = previousBodyCursor;
       document.body.style.userSelect = previousBodyUserSelect;
+      view.dom.style.cursor = previousViewCursor;
+      if (editorRoot) editorRoot.style.cursor = previousEditorRootCursor;
       document.removeEventListener('mousemove', handleMouseMove, true);
       document.removeEventListener('mouseup', handleMouseUp, true);
       syncBlockSelectionVisualState(view);
