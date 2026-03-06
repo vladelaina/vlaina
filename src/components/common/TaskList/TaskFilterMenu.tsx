@@ -10,7 +10,6 @@ export function TaskFilterMenu() {
 
     const { activeGroupId, archiveCompletedTasks, deleteCompletedTasks } = useGroupStore();
     const {
-        hideCompleted, setHideCompleted,
         hideActualTime, setHideActualTime
     } = useUIStore();
 
@@ -61,17 +60,6 @@ export function TaskFilterMenu() {
                         exit={{ opacity: 0, y: -4 }}
                         className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50"
                     >
-                        <button
-                            onClick={() => {
-                                setHideCompleted(!hideCompleted);
-                                setShowMoreMenu(false);
-                            }}
-                            className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-between"
-                        >
-                            <span>Hide Completed</span>
-                            {hideCompleted && <Icon size="md" name="common.check" className=" text-blue-500" />}
-                        </button>
-
                         <button
                             onClick={() => {
                                 setHideActualTime(!hideActualTime);

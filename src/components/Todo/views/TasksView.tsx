@@ -28,9 +28,9 @@ export function TasksView() {
 
     return (
         <TaskListView
-            title="Tasks"
             tasks={filteredTasks}
             allTasks={tasks}
+            completionMode="active"
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
         />
