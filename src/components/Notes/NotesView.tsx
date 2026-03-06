@@ -1,12 +1,18 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
+import { ResizablePanel } from '@/components/layout/ResizablePanel';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
 import { VaultWelcome } from '@/components/VaultWelcome';
 import { useGlobalSearch } from '@/hooks/useGlobalSearch';
+
+const EmbeddedChatView = lazy(async () => {
+  const mod = await import('@/components/Chat/ChatView');
+  return { default: mod.ChatView };
+});
 
 export function NotesView() {
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
@@ -49,6 +55,11 @@ export function NotesView() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target;
+      if (target instanceof Element && target.closest('[data-notes-chat-panel="true"]')) {
+        return;
+      }
+
       if (e.key === 'Tab' && e.ctrlKey && openTabs.length > 1) {
         e.preventDefault();
         const currentIndex = openTabs.findIndex(t => t.path === currentNotePath);
@@ -89,15 +100,31 @@ export function NotesView() {
 
   return (
     <>
-      <div className="h-full w-full relative">
-         {currentNotePath ? (
-           <MarkdownEditor 
-             peekOffset={sidebarWidth}
-             isPeeking={sidebarPeeking}
-           />
-         ) : (
-           <div className="flex-1" />
-         )}
+      <div className="h-full w-full relative flex min-w-0">
+        <div className="flex-1 min-w-0">
+          {currentNotePath ? (
+            <MarkdownEditor
+              peekOffset={sidebarWidth}
+              isPeeking={sidebarPeeking}
+            />
+          ) : (
+            <div className="flex-1 h-full" />
+          )}
+        </div>
+
+        <ResizablePanel
+          defaultWidth={420}
+          minWidth={320}
+          maxWidth={760}
+          storageKey="nekotick_notes_chat_panel_width"
+          className="h-full bg-[var(--neko-bg-primary)] border-l border-[var(--neko-border)]"
+        >
+          <div data-notes-chat-panel="true" className="h-full min-h-0">
+            <Suspense fallback={null}>
+              <EmbeddedChatView mode="embedded" />
+            </Suspense>
+          </div>
+        </ResizablePanel>
       </div>
       
       <NoteSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />

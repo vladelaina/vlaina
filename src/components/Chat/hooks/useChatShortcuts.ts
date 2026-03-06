@@ -13,8 +13,13 @@ interface UseChatShortcutsOptions {
   scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }: UseChatShortcutsOptions) {
+export function useChatShortcuts(
+  { onFocusInput, onToggleShortcuts, scrollRef }: UseChatShortcutsOptions,
+  enabled: boolean = true,
+) {
   useEffect(() => {
+    if (!enabled) return;
+
     const isEditableTarget = (target: EventTarget | null): boolean => {
       if (!(target instanceof Element)) return false;
       if (target instanceof HTMLInputElement) return true;
@@ -225,5 +230,5 @@ export function useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }:
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onFocusInput, onToggleShortcuts, scrollRef]);
+  }, [enabled, onFocusInput, onToggleShortcuts, scrollRef]);
 }

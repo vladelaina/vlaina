@@ -19,9 +19,14 @@ import { ChatShortcutsDialog } from '@/components/Chat/common/ChatShortcutsDialo
 import { TemporaryChatToggle } from '@/components/Chat/features/Temporary/TemporaryChatToggle';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
 
-export function ChatView() {
+interface ChatViewProps {
+  mode?: 'full' | 'embedded';
+}
+
+export function ChatView({ mode = 'full' }: ChatViewProps) {
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
+  const isEmbedded = mode === 'embedded';
 
   const { 
     sessions,
@@ -77,14 +82,14 @@ export function ChatView() {
   }, [currentSessionId]);
 
   useChatShortcuts({
-      onFocusInput: () => {
-          if (!focusComposerInput()) {
-              setFocusInputTrigger(n => n + 1);
-          }
-      },
-      onToggleShortcuts: () => setIsShortcutsOpen(prev => !prev),
-      scrollRef: containerRef 
-  });
+    onFocusInput: () => {
+      if (!focusComposerInput()) {
+        setFocusInputTrigger(n => n + 1);
+      }
+    },
+    onToggleShortcuts: () => setIsShortcutsOpen(prev => !prev),
+    scrollRef: containerRef,
+  }, !isEmbedded);
 
   const copyToClipboard = useCallback((text: string) => copyMessageContentToClipboard(text), []);
 
@@ -103,10 +108,11 @@ export function ChatView() {
 
   return (
     <div
+      data-chat-view-mode={mode}
       className="h-full w-full flex flex-col bg-[var(--neko-bg-primary)] relative overflow-hidden"
       onMouseDownCapture={handleChatAreaMouseDownCapture}
     >
-      {showInChatArea && (
+      {showInChatArea && !isEmbedded && (
         <div className="absolute top-3 right-4 z-30 pointer-events-auto">
           <TemporaryChatToggle />
         </div>
@@ -148,10 +154,12 @@ export function ChatView() {
           </div>
       </div>
       
-      <ChatShortcutsDialog 
-        isOpen={isShortcutsOpen} 
-        onOpenChange={setIsShortcutsOpen} 
-      />
+      {!isEmbedded && (
+        <ChatShortcutsDialog
+          isOpen={isShortcutsOpen}
+          onOpenChange={setIsShortcutsOpen}
+        />
+      )}
       <SelectionInsertButton />
     </div>
   );

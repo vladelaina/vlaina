@@ -43,12 +43,14 @@ function TestHarness({
   onFocusInput,
   onToggleShortcuts,
   scrollRef,
+  enabled = true,
 }: {
   onFocusInput: () => void;
   onToggleShortcuts: () => void;
   scrollRef: RefObject<HTMLDivElement | null>;
+  enabled?: boolean;
 }) {
-  useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef });
+  useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }, enabled);
   return null;
 }
 
@@ -84,6 +86,7 @@ function createState(overrides?: any) {
 function setup(options?: {
   state?: any;
   scrollRef?: RefObject<HTMLDivElement | null>;
+  enabled?: boolean;
 }) {
   const onFocusInput = vi.fn();
   const onToggleShortcuts = vi.fn();
@@ -95,6 +98,7 @@ function setup(options?: {
       onFocusInput={onFocusInput}
       onToggleShortcuts={onToggleShortcuts}
       scrollRef={scrollRef}
+      enabled={options?.enabled}
     />,
   );
 
@@ -270,5 +274,15 @@ describe("useChatShortcuts", () => {
     expect(event.defaultPrevented).toBe(true);
     expect(scrollToMock).toHaveBeenCalledWith({ top: 230, behavior: "smooth" });
     expect(mocked.getState).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when shortcuts are disabled", () => {
+    const { onToggleShortcuts, onFocusInput } = setup({ enabled: false });
+
+    const event = fireKeydown({ key: "/", ctrlKey: true });
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(onToggleShortcuts).not.toHaveBeenCalled();
+    expect(onFocusInput).not.toHaveBeenCalled();
   });
 });
