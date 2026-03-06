@@ -12,6 +12,7 @@ export const endBlankClickPlugin = $prose(() => {
                 mousedown(view, event) {
                     if (!(event instanceof MouseEvent)) return false;
                     if (event.button !== 0) return false;
+                    if (event.defaultPrevented) return false;
                     if (!(event.target instanceof HTMLElement)) return false;
                     if (!view.dom.contains(event.target)) return false;
                     if (event.target.closest('.heading-toggle-btn')) return false;

@@ -2,15 +2,21 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, Selection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
 import { dispatchTailBlankClickAction, isClickBelowLastBlock } from './endBlankClickUtils';
-import { serializeSliceToText } from '../clipboard/serializer';
 import {
-  createDragSelectionRect,
   getBlockRangesKey,
   normalizeBlockRanges,
   resolveIntersectedBlockRanges,
   type BlockRange,
-  type BlockRect,
+  type RectBounds,
 } from './blockSelectionUtils';
+import {
+  deleteSelectedBlocks as deleteSelectedBlocksCommand,
+  serializeSelectedBlocksToText,
+  setClipboardText,
+  writeTextToClipboard,
+} from './blockSelectionCommands';
+import { createBlockRectResolver } from './blockRectResolver';
+import { startBlockDragSession, type BlockDragStartZone } from './blockDragSession';
 
 export const blankAreaDragBoxPluginKey = new PluginKey('blankAreaDragBox');
 
@@ -48,14 +54,14 @@ const EMPTY_PLUGIN_STATE: BlankAreaDragBoxState = {
   decorations: DecorationSet.empty,
 };
 
+const CLEAR_BLOCKS_ACTION: BlockSelectionAction = { type: 'clear-blocks' };
+
 function getScrollRoot(element: HTMLElement | null): HTMLElement | null {
   if (!element) return null;
   return element.closest(SCROLL_ROOT_SELECTOR) as HTMLElement | null;
 }
 
-type DragStartZone = 'outside-editor' | 'below-last-block' | null;
-
-function resolveDragStartZone(view: EditorView, event: MouseEvent): DragStartZone {
+function resolveDragStartZone(view: EditorView, event: MouseEvent): BlockDragStartZone | null {
   if (!(event.target instanceof HTMLElement)) return null;
   const target = event.target;
 
@@ -92,8 +98,7 @@ function createDragBox(): HTMLDivElement {
   return box;
 }
 
-function updateDragBox(box: HTMLDivElement, startX: number, startY: number, x: number, y: number): void {
-  const rect = createDragSelectionRect(startX, startY, x, y);
+function updateDragBox(box: HTMLDivElement, rect: RectBounds): void {
   const width = rect.right - rect.left;
   const height = rect.bottom - rect.top;
 
@@ -123,7 +128,7 @@ function dispatchSelectionAction(view: EditorView, action: BlockSelectionAction)
 
 function clearBlockSelection(view: EditorView): void {
   if (getPluginState(view.state).selectedBlocks.length === 0) return;
-  dispatchSelectionAction(view, { type: 'clear-blocks' });
+  dispatchSelectionAction(view, CLEAR_BLOCKS_ACTION);
 }
 
 function clearTextSelectionForDragSession(view: EditorView): void {
@@ -147,54 +152,6 @@ function syncBlockSelectionVisualState(view: EditorView): void {
   setBlockSelectionVisualState(view, active);
 }
 
-function resolveTopLevelBlockElement(view: EditorView, blockFrom: number): HTMLElement | null {
-  const docSize = view.state.doc.content.size;
-  if (docSize <= 0) return null;
-
-  const probePos = Math.max(1, Math.min(blockFrom + 1, docSize));
-  try {
-    const domPos = view.domAtPos(probePos);
-    let element =
-      domPos.node instanceof HTMLElement ? domPos.node : domPos.node.parentElement;
-    while (element && element.parentElement !== view.dom) {
-      element = element.parentElement;
-    }
-    if (element && element.parentElement === view.dom) return element;
-  } catch {
-  }
-
-  const nodeDom = view.nodeDOM(blockFrom);
-  if (!(nodeDom instanceof HTMLElement)) return null;
-  let element: HTMLElement | null = nodeDom;
-  while (element && element.parentElement !== view.dom) {
-    element = element.parentElement;
-  }
-  return element && element.parentElement === view.dom ? element : null;
-}
-
-function collectTopLevelBlockRects(view: EditorView): BlockRect[] {
-  const blocks: BlockRect[] = [];
-  view.state.doc.forEach((_node, offset) => {
-    const from = offset;
-    const to = offset + _node.nodeSize;
-    const element = resolveTopLevelBlockElement(view, from);
-    if (!element) return;
-
-    const rect = element.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return;
-
-    blocks.push({
-      from,
-      to,
-      left: rect.left,
-      top: rect.top,
-      right: rect.right,
-      bottom: rect.bottom,
-    });
-  });
-  return blocks;
-}
-
 function mapSelectedBlocks(blocks: readonly BlockRange[], tr: Transaction): BlockRange[] {
   if (blocks.length === 0) return [];
 
@@ -208,80 +165,16 @@ function mapSelectedBlocks(blocks: readonly BlockRange[], tr: Transaction): Bloc
   return normalizeBlockRanges(mapped);
 }
 
-function serializeSelectedBlocksToText(state: EditorState, blocks: readonly BlockRange[]): string {
-  const normalized = normalizeBlockRanges(blocks);
-  if (normalized.length === 0) return '';
-
-  const pieces = normalized
-    .map((block) => serializeSliceToText(state.doc.slice(block.from, block.to)))
-    .filter((text) => text.length > 0);
-
-  return pieces.join('\n');
-}
-
-function setClipboardText(event: ClipboardEvent, text: string): void {
-  event.preventDefault();
-  if (event.clipboardData) {
-    event.clipboardData.setData('text/plain', text);
-    return;
-  }
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    void navigator.clipboard.writeText(text);
-  }
-}
-
-async function writeTextToClipboard(text: string): Promise<void> {
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return;
-    } catch {
-    }
-  }
-
-  if (typeof document === 'undefined') return;
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.setAttribute('readonly', 'true');
-  textarea.style.position = 'fixed';
-  textarea.style.left = '-9999px';
-  textarea.style.top = '0';
-  document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
-  try {
-    document.execCommand('copy');
-  } finally {
-    textarea.remove();
-  }
-}
-
 function isClipboardEvent(event: Event): event is ClipboardEvent {
   return 'clipboardData' in event;
 }
 
 function deleteSelectedBlocks(view: EditorView, blocks: readonly BlockRange[]): boolean {
-  const normalized = normalizeBlockRanges(blocks);
-  if (normalized.length === 0) return false;
-
-  let tr = view.state.tr;
-  for (let i = normalized.length - 1; i >= 0; i -= 1) {
-    tr = tr.delete(normalized[i].from, normalized[i].to);
-  }
-
-  if (tr.doc.content.size === 0) {
-    const paragraphType = tr.doc.type.schema.nodes.paragraph;
-    if (paragraphType) {
-      tr = tr.insert(0, paragraphType.create());
-    }
-  }
-
-  const anchorPos = Math.min(1, tr.doc.content.size);
-  tr = tr.setSelection(Selection.near(tr.doc.resolve(anchorPos), 1));
-  tr = tr.setMeta(blankAreaDragBoxPluginKey, { type: 'clear-blocks' } as BlockSelectionAction);
-  view.dispatch(tr.scrollIntoView());
-  view.focus();
-  return true;
+  return deleteSelectedBlocksCommand(
+    view,
+    blocks,
+    (tr) => tr.setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION),
+  );
 }
 
 export const blankAreaDragBoxPlugin = $prose(() => {
@@ -293,98 +186,67 @@ export const blankAreaDragBoxPlugin = $prose(() => {
     stopSession = null;
   };
 
-  const tryStartSession = (view: EditorView, event: MouseEvent): DragStartZone => {
+  const tryStartSession = (view: EditorView, event: MouseEvent): BlockDragStartZone | null => {
     if (event.button !== 0) return null;
     if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return null;
     const startZone = resolveDragStartZone(view, event);
     if (!startZone) return null;
 
     clearTextSelectionForDragSession(view);
-
     clearSession();
 
-    const startX = event.clientX;
-    const startY = event.clientY;
-    let activated = false;
     let dragBox: HTMLDivElement | null = null;
     let selectedBlocksKey = getBlockRangesKey(getPluginState(view.state).selectedBlocks);
-    const editorRoot = view.dom.closest('.milkdown-editor') as HTMLElement | null;
-    const previousBodyCursor = document.body.style.cursor;
-    const previousBodyUserSelect = document.body.style.userSelect;
-    const previousViewCursor = view.dom.style.cursor;
-    const previousEditorRootCursor = editorRoot?.style.cursor ?? '';
-    document.body.style.cursor = DRAG_SESSION_CURSOR;
-    view.dom.style.cursor = DRAG_SESSION_CURSOR;
-    if (editorRoot) editorRoot.style.cursor = DRAG_SESSION_CURSOR;
+    const rectResolver = createBlockRectResolver({
+      view,
+      scrollRootSelector: SCROLL_ROOT_SELECTOR,
+    });
 
-    const teardown = () => {
-      if (dragBox) {
-        dragBox.remove();
-        dragBox = null;
-      }
-      document.body.style.cursor = previousBodyCursor;
-      document.body.style.userSelect = previousBodyUserSelect;
-      view.dom.style.cursor = previousViewCursor;
-      if (editorRoot) editorRoot.style.cursor = previousEditorRootCursor;
-      document.removeEventListener('mousemove', handleMouseMove, true);
-      document.removeEventListener('mouseup', handleMouseUp, true);
-      syncBlockSelectionVisualState(view);
-    };
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      if ((moveEvent.buttons & 1) === 0) {
-        clearSession();
-        return;
-      }
-
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
-      if (!activated && Math.hypot(dx, dy) < DRAG_THRESHOLD) {
-        return;
-      }
-
-      if (!activated) {
-        activated = true;
+    const session = startBlockDragSession({
+      view,
+      event,
+      startZone,
+      dragThreshold: DRAG_THRESHOLD,
+      cursor: DRAG_SESSION_CURSOR,
+      onActivate() {
         dragBox = createDragBox();
         document.body.appendChild(dragBox);
-        document.body.style.cursor = DRAG_SESSION_CURSOR;
-        document.body.style.userSelect = 'none';
         window.getSelection()?.removeAllRanges();
         setBlockSelectionVisualState(view, true);
         view.focus();
-      }
+      },
+      onDragMove(dragRect) {
+        if (dragBox) {
+          updateDragBox(dragBox, dragRect);
+        }
 
-      moveEvent.preventDefault();
-      if (dragBox) {
-        updateDragBox(dragBox, startX, startY, moveEvent.clientX, moveEvent.clientY);
-      }
-
-      const dragRect = createDragSelectionRect(startX, startY, moveEvent.clientX, moveEvent.clientY);
-      const selectedBlocks = resolveIntersectedBlockRanges(collectTopLevelBlockRects(view), dragRect);
-      const nextKey = getBlockRangesKey(selectedBlocks);
-      if (nextKey !== selectedBlocksKey) {
-        selectedBlocksKey = nextKey;
-        dispatchSelectionAction(view, selectedBlocks.length > 0
-          ? { type: 'set-blocks', blocks: selectedBlocks }
-          : { type: 'clear-blocks' });
-      }
-    };
-
-    const handleMouseUp = () => {
-      if (!activated && startZone === 'below-last-block') {
-        dispatchTailBlankClickAction(view);
-      } else if (!activated && startZone === 'outside-editor') {
+        const selectedBlocks = resolveIntersectedBlockRanges(rectResolver.getTopLevelBlockRects(), dragRect);
+        const nextKey = getBlockRangesKey(selectedBlocks);
+        if (nextKey !== selectedBlocksKey) {
+          selectedBlocksKey = nextKey;
+          dispatchSelectionAction(view, selectedBlocks.length > 0
+            ? { type: 'set-blocks', blocks: selectedBlocks }
+            : CLEAR_BLOCKS_ACTION);
+        }
+      },
+      onPlainClick(zone) {
+        if (zone === 'below-last-block') {
+          dispatchTailBlankClickAction(view);
+          return;
+        }
         clearBlockSelection(view);
-      }
-      clearSession();
-    };
+      },
+      onTeardown() {
+        if (dragBox) {
+          dragBox.remove();
+          dragBox = null;
+        }
+        rectResolver.invalidate();
+        syncBlockSelectionVisualState(view);
+      },
+    });
 
-    stopSession = teardown;
-    document.addEventListener('mousemove', handleMouseMove, true);
-    document.addEventListener('mouseup', handleMouseUp, true);
-    if (startZone === 'below-last-block' || startZone === 'outside-editor') {
-      event.preventDefault();
-    }
+    stopSession = session.stop;
     return startZone;
   };
 
@@ -478,6 +340,8 @@ export const blankAreaDragBoxPlugin = $prose(() => {
             clearBlockSelection(view);
           }
 
+          // `below-last-block` starts drag-or-click behavior here.
+          // `outside-editor` is handled by document-level listener below.
           const startZone = tryStartSession(view, event);
           return startZone === 'below-last-block';
         },
