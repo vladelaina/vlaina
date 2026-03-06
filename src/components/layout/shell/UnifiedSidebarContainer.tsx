@@ -71,7 +71,7 @@ export function UnifiedSidebarContainer({
                 onMouseDown={handleDragStart}
                 className="w-3 cursor-col-resize fixed top-0 bottom-0 z-30"
                 style={{ 
-                  left: width - 2,
+                  left: width - 2.5,
                   pointerEvents: collapsed ? 'none' : 'auto'
                 }}
               />

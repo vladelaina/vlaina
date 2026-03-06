@@ -30,7 +30,7 @@ export function AIMessage({
   const shouldShowInlineLoading = isLoading && !!contentWithoutError.trim();
 
   return (
-    <div className="w-full pl-0">
+    <div className="w-full pl-[8px]">
         <div className="[&>*:last-child]:mb-0">
             <MarkdownRenderer 
                 content={contentWithoutError || ' '} 
