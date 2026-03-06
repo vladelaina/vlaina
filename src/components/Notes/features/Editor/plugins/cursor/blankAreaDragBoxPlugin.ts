@@ -16,6 +16,7 @@ export const blankAreaDragBoxPluginKey = new PluginKey('blankAreaDragBox');
 
 const DRAG_THRESHOLD = 4;
 const DRAG_BOX_COLOR = 'rgba(39, 131, 222, 0.18)';
+const DRAG_SESSION_CURSOR = 'crosshair';
 const BLOCK_SELECTION_CLASS = 'neko-block-selected';
 const BLOCK_SELECTION_ACTIVE_CLASS = 'neko-block-selection-active';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
@@ -83,7 +84,7 @@ function createDragBox(): HTMLDivElement {
   box.style.zIndex = '9999';
   box.style.border = `1px solid ${DRAG_BOX_COLOR}`;
   box.style.background = DRAG_BOX_COLOR;
-  box.style.borderRadius = '2px';
+  box.style.borderRadius = '0';
   box.style.left = '0px';
   box.style.top = '0px';
   box.style.width = '0px';
@@ -312,9 +313,9 @@ export const blankAreaDragBoxPlugin = $prose(() => {
     const previousBodyUserSelect = document.body.style.userSelect;
     const previousViewCursor = view.dom.style.cursor;
     const previousEditorRootCursor = editorRoot?.style.cursor ?? '';
-    document.body.style.cursor = 'default';
-    view.dom.style.cursor = 'default';
-    if (editorRoot) editorRoot.style.cursor = 'default';
+    document.body.style.cursor = DRAG_SESSION_CURSOR;
+    view.dom.style.cursor = DRAG_SESSION_CURSOR;
+    if (editorRoot) editorRoot.style.cursor = DRAG_SESSION_CURSOR;
 
     const teardown = () => {
       if (dragBox) {
@@ -346,7 +347,7 @@ export const blankAreaDragBoxPlugin = $prose(() => {
         activated = true;
         dragBox = createDragBox();
         document.body.appendChild(dragBox);
-        document.body.style.cursor = 'default';
+        document.body.style.cursor = DRAG_SESSION_CURSOR;
         document.body.style.userSelect = 'none';
         window.getSelection()?.removeAllRanges();
         setBlockSelectionVisualState(view, true);

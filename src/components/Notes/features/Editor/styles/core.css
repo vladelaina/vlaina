@@ -50,10 +50,14 @@
 
 /* Notion-like drag block selection highlight */
 .milkdown .ProseMirror .neko-block-selected {
-  --neko-block-selection-color: rgba(39, 131, 222, 0.16);
+  --neko-block-selection-color: var(--neko-hover-filled);
+  --neko-block-selection-bleed-y: 4px;
   background-color: var(--neko-block-selection-color);
-  box-shadow: inset 0 0 0 1px var(--neko-block-selection-color);
-  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 1px var(--neko-block-selection-color),
+    0 var(--neko-block-selection-bleed-y) 0 0 var(--neko-block-selection-color),
+    0 calc(-1 * var(--neko-block-selection-bleed-y)) 0 0 var(--neko-block-selection-color);
+  border-radius: 0;
 }
 
 /* Hide text caret while drag block selection is active */
