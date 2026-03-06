@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Attachment } from '@/lib/storage/attachmentStorage';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
+import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 
 import { ChatInput } from '@/components/Chat/features/Input/ChatInput';
 import { MessageList } from '@/components/Chat/features/Messages/MessageList';
@@ -93,9 +94,9 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
 
   const copyToClipboard = useCallback((text: string) => copyMessageContentToClipboard(text), []);
 
-  const handleSend = useCallback((text: string, attachments: Attachment[]) => {
+  const handleSend = useCallback((text: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => {
       handleNewUserMessage();
-      sendMessage(text, attachments);
+      sendMessage(text, attachments, noteMentions);
   }, [handleNewUserMessage, sendMessage]);
 
   const handleChatAreaMouseDownCapture = useComposerClickFocus({

@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { registerComposerFocusAdapter } from '@/lib/ui/composerFocusRegistry';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
+import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
 
 interface UseChatComposerOptions {
-  onSend: (message: string, attachments: Attachment[]) => void;
+  onSend: (message: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => void;
   attachments: Attachment[];
+  noteMentions: NoteMentionReference[];
   onAfterSend: () => void;
   focusTrigger?: number;
 }
@@ -15,6 +17,7 @@ interface UseChatComposerOptions {
 export function useChatComposer({
   onSend,
   attachments,
+  noteMentions,
   onAfterSend,
   focusTrigger,
 }: UseChatComposerOptions) {
@@ -113,13 +116,13 @@ export function useChatComposer({
         ? normalizedMessage
         : normalizedMessage.replace(/\s*\n+\s*/g, '');
 
-      if (!outgoingMessage.trim() && attachments.length === 0) {
+      if (!outgoingMessage.trim() && attachments.length === 0 && noteMentions.length === 0) {
         return;
       }
 
       submitAfterCompositionRef.current = false;
       hasExplicitMultilineRef.current = false;
-      onSend(outgoingMessage, attachments);
+      onSend(outgoingMessage, attachments, noteMentions);
       setMessage('');
       onAfterSend();
 
@@ -129,7 +132,7 @@ export function useChatComposer({
         }
       });
     },
-    [attachments, message, onAfterSend, onSend]
+    [attachments, message, noteMentions, onAfterSend, onSend]
   );
 
   const handleCompositionEnd = useCallback(() => {
