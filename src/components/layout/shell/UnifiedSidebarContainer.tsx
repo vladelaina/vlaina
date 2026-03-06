@@ -75,7 +75,7 @@ export function UnifiedSidebarContainer({
                   "flex items-center justify-center"
                 )}
                 style={{ 
-                  left: width - 2,
+                  left: width - 2.5,
                   pointerEvents: collapsed ? 'none' : 'auto'
                 }}
               >
