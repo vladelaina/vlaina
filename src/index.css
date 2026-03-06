@@ -181,8 +181,8 @@ html, body, #root {
   --neko-icon-active: #1e96eb;
   --neko-hover: rgba(0, 0, 0, 0.04);
   --neko-hover-filled: #f4f5f7;
-  --neko-sidebar-width: 256px;
-  --neko-sidebar-bg: #fbfbfc;
+  --neko-sidebar-width: 270px;
+  --neko-sidebar-bg: #ffffff;
   --neko-header-height: 52px;
   --neko-font-base: 16px;
   --neko-line-height: 1.6;

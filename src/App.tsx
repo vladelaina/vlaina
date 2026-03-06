@@ -269,7 +269,7 @@ function AppContent() {
         titleBarCenter={centerSlot}
         titleBarRight={rightSlot}
 
-        backgroundColor="var(--neko-bg-primary)"
+        backgroundColor="var(--neko-sidebar-bg)"
       >
         {mainContent}
       </AppShell>

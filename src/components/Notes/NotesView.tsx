@@ -4,6 +4,8 @@ import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { ResizablePanel } from '@/components/layout/ResizablePanel';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
 import { VaultWelcome } from '@/components/VaultWelcome';
@@ -13,6 +15,16 @@ const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
   return { default: mod.ChatView };
 });
+
+const CHAT_PANEL_COLLAPSED_KEY = 'nekotick_notes_chat_panel_collapsed';
+
+function loadChatPanelCollapsed(): boolean {
+  try {
+    return localStorage.getItem(CHAT_PANEL_COLLAPSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
 
 export function NotesView() {
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
@@ -30,6 +42,7 @@ export function NotesView() {
   const { sidebarWidth, sidebarPeeking } = useUIStore(); // unified store
 
   const [showSearch, setShowSearch] = useState(false);
+  const [chatPanelCollapsed, setChatPanelCollapsed] = useState(loadChatPanelCollapsed);
 
   useEffect(() => {
     if (!currentVault) return;
@@ -55,6 +68,13 @@ export function NotesView() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const hasPrimaryModifier = (e.ctrlKey || e.metaKey) && !e.altKey;
+      if (hasPrimaryModifier && !e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        setChatPanelCollapsed((prev) => !prev);
+        return;
+      }
+
       const target = e.target;
       if (target instanceof Element && target.closest('[data-notes-chat-panel="true"]')) {
         return;
@@ -84,6 +104,14 @@ export function NotesView() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [openTabs, currentNotePath, openNote, closeTab]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_PANEL_COLLAPSED_KEY, String(chatPanelCollapsed));
+    } catch {
+      // ignore storage failures
+    }
+  }, [chatPanelCollapsed]);
+
   
   useGlobalSearch(() => setShowSearch(prev => !prev));
 
@@ -112,19 +140,42 @@ export function NotesView() {
           )}
         </div>
 
-        <ResizablePanel
-          defaultWidth={420}
-          minWidth={320}
-          maxWidth={760}
-          storageKey="nekotick_notes_chat_panel_width"
-          className="h-full bg-[var(--neko-bg-primary)] border-l border-[var(--neko-border)]"
-        >
-          <div data-notes-chat-panel="true" className="h-full min-h-0">
-            <Suspense fallback={null}>
-              <EmbeddedChatView mode="embedded" />
-            </Suspense>
-          </div>
-        </ResizablePanel>
+        {!chatPanelCollapsed && (
+          <ResizablePanel
+            defaultWidth={420}
+            minWidth={320}
+            maxWidth={760}
+            storageKey="nekotick_notes_chat_panel_width"
+            className="h-full bg-[var(--neko-bg-primary)] border-l-0"
+            shortcutKeys={['Ctrl', 'L']}
+          >
+            <div data-notes-chat-panel="true" className="h-full min-h-0 relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-px bg-[var(--neko-border)]" />
+              <Suspense fallback={null}>
+                <EmbeddedChatView mode="embedded" />
+              </Suspense>
+            </div>
+          </ResizablePanel>
+        )}
+
+        {chatPanelCollapsed && (
+          <Tooltip delayDuration={500}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label="Toggle chat sidebar"
+                onClick={() => setChatPanelCollapsed(false)}
+                className="absolute inset-y-0 right-0 z-20 w-3 cursor-col-resize bg-transparent"
+              >
+                <span className="pointer-events-none absolute inset-y-0 left-0 w-px bg-[var(--neko-border)]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left" sideOffset={5} className="flex items-center gap-1.5 text-xs">
+              <span>Toggle Sidebar</span>
+              <ShortcutKeys keys={['Ctrl', 'L']} />
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
       
       <NoteSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
