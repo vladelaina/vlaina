@@ -1,6 +1,7 @@
 import type { EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockRect } from './blockSelectionUtils';
+import { resolveTopLevelBlockElement } from './topLevelBlockDom';
 
 interface BlockRectResolverOptions {
   view: EditorView;
@@ -10,31 +11,6 @@ interface BlockRectResolverOptions {
 export interface BlockRectResolver {
   getTopLevelBlockRects: () => BlockRect[];
   invalidate: () => void;
-}
-
-function resolveTopLevelBlockElement(view: EditorView, blockFrom: number): HTMLElement | null {
-  const docSize = view.state.doc.content.size;
-  if (docSize <= 0) return null;
-
-  const probePos = Math.max(1, Math.min(blockFrom + 1, docSize));
-  try {
-    const domPos = view.domAtPos(probePos);
-    let element =
-      domPos.node instanceof HTMLElement ? domPos.node : domPos.node.parentElement;
-    while (element && element.parentElement !== view.dom) {
-      element = element.parentElement;
-    }
-    if (element && element.parentElement === view.dom) return element;
-  } catch {
-  }
-
-  const nodeDom = view.nodeDOM(blockFrom);
-  if (!(nodeDom instanceof HTMLElement)) return null;
-  let element: HTMLElement | null = nodeDom;
-  while (element && element.parentElement !== view.dom) {
-    element = element.parentElement;
-  }
-  return element && element.parentElement === view.dom ? element : null;
 }
 
 function collectTopLevelBlockRects(view: EditorView): BlockRect[] {

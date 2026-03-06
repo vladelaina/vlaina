@@ -1,21 +1,20 @@
-import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, Selection } from '@milkdown/kit/prose/state';
+import { Fragment } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { $prose } from '@milkdown/kit/utils';
 import { blankAreaDragBoxPluginKey } from './blankAreaDragBoxPlugin';
-import type { BlockRange } from './blockSelectionUtils';
+import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
+import { createBlockMovePlan, pickPointerBlock } from './blockControlsUtils';
+import { normalizeTopLevelBlockPos, resolveTopLevelBlockElement } from './topLevelBlockDom';
 
 export const blockControlsPluginKey = new PluginKey('blockControls');
 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const CONTROLS_LEFT_OFFSET = 44;
-const CONTROLS_RIGHT_OFFSET = 10;
-const HANDLE_BUTTON_SIZE = 24;
 
-interface HoveredBlock {
+interface HandleBlockTarget {
   pos: number;
   rect: DOMRect;
-  horizontalAlign: 'left' | 'right';
-  verticalAlign: 'center' | 'top';
 }
 
 interface DropTarget {
@@ -25,129 +24,36 @@ interface DropTarget {
   lineWidth: number;
 }
 
-function resolveTopLevelBlockElement(view: EditorView, blockPos: number): HTMLElement | null {
-  const docSize = view.state.doc.content.size;
-  if (docSize <= 0) return null;
-
-  const probePos = Math.max(1, Math.min(blockPos + 1, docSize));
-  try {
-    const domPos = view.domAtPos(probePos);
-    let element = domPos.node instanceof HTMLElement ? domPos.node : domPos.node.parentElement;
-    while (element && element.parentElement !== view.dom) {
-      element = element.parentElement;
-    }
-    if (element && element.parentElement === view.dom) return element;
-  } catch {
-  }
-
-  const nodeDom = view.nodeDOM(blockPos);
-  if (!(nodeDom instanceof HTMLElement)) return null;
-
-  let element: HTMLElement | null = nodeDom;
-  while (element && element.parentElement !== view.dom) {
-    element = element.parentElement;
-  }
-  return element && element.parentElement === view.dom ? element : null;
+interface BlockSelectionPluginState {
+  selectedBlocks: BlockRange[];
 }
 
-function normalizeTopLevelBlockPos(view: EditorView, pos: number): number | null {
-  const docSize = view.state.doc.content.size;
-  if (docSize <= 0) return null;
-
-  const safePos = Math.max(0, Math.min(pos, docSize));
-  try {
-    const $pos = view.state.doc.resolve(safePos);
-    let indexAtRoot = $pos.index(0);
-    if (indexAtRoot >= view.state.doc.childCount) {
-      indexAtRoot = view.state.doc.childCount - 1;
-    }
-    if (indexAtRoot < 0) return null;
-    return $pos.posAtIndex(indexAtRoot, 0);
-  } catch {
-    return null;
-  }
-}
-
-function resolveBlockByPos(
-  view: EditorView,
-  blockPos: number,
-): HoveredBlock | null {
+function resolveBlockTargetByPos(view: EditorView, blockPos: number): HandleBlockTarget | null {
   const normalizedPos = normalizeTopLevelBlockPos(view, blockPos);
   if (normalizedPos === null) return null;
 
   const blockNode = view.state.doc.nodeAt(normalizedPos);
   if (!blockNode) return null;
+
   const blockElement = resolveTopLevelBlockElement(view, normalizedPos);
   if (!blockElement) return null;
 
   const rect = blockElement.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return null;
-
-  return {
-    pos: normalizedPos,
-    rect,
-    horizontalAlign: 'left',
-    verticalAlign: 'center',
-  };
+  return { pos: normalizedPos, rect };
 }
 
-function setControlsPosition(controls: HTMLElement, block: HoveredBlock): void {
-  const { rect, horizontalAlign, verticalAlign } = block;
-  const rawLeft = horizontalAlign === 'right'
-    ? rect.right + CONTROLS_RIGHT_OFFSET
-    : rect.left - CONTROLS_LEFT_OFFSET;
-  const maxLeft = window.innerWidth - HANDLE_BUTTON_SIZE - 8;
-  const left = Math.max(8, Math.min(rawLeft, maxLeft));
-  const top = verticalAlign === 'top' ? rect.top + HANDLE_BUTTON_SIZE / 2 : rect.top + rect.height / 2;
+function setControlsPosition(controls: HTMLElement, target: HandleBlockTarget): void {
+  const left = Math.max(8, target.rect.left - CONTROLS_LEFT_OFFSET);
+  const top = target.rect.top + target.rect.height / 2;
   controls.style.left = `${Math.round(left)}px`;
   controls.style.top = `${Math.round(top)}px`;
 }
 
-interface BlockSelectionPluginState {
-  selectedBlocks: BlockRange[];
-}
-
-function resolveActiveBlockAtPointer(view: EditorView, pointerY: number | null): HoveredBlock | null {
+function getSelectedBlockRanges(view: EditorView): BlockRange[] {
   const pluginState = blankAreaDragBoxPluginKey.getState(view.state) as BlockSelectionPluginState | undefined;
-  if (!pluginState || !Array.isArray(pluginState.selectedBlocks)) return null;
-
-  if (pluginState.selectedBlocks.length > 0) {
-    const resolvedBlocks: HoveredBlock[] = [];
-    for (const selected of pluginState.selectedBlocks) {
-      const resolved = resolveBlockByPos(view, selected.from);
-      if (resolved) resolvedBlocks.push(resolved);
-    }
-    if (resolvedBlocks.length === 0) return null;
-    if (resolvedBlocks.length === 1) return resolvedBlocks[0];
-
-    if (pointerY === null) {
-      return {
-        ...resolvedBlocks[0],
-        horizontalAlign: 'left',
-      };
-    }
-
-    let matched = resolvedBlocks.find((block) => pointerY >= block.rect.top && pointerY <= block.rect.bottom);
-    if (!matched) {
-      let minDistance = Number.POSITIVE_INFINITY;
-      for (const block of resolvedBlocks) {
-        const centerY = block.rect.top + block.rect.height / 2;
-        const distance = Math.abs(pointerY - centerY);
-        if (distance < minDistance) {
-          minDistance = distance;
-          matched = block;
-        }
-      }
-    }
-    if (!matched) return null;
-
-    return {
-      ...matched,
-      horizontalAlign: 'left',
-    };
-  }
-
-  return null;
+  if (!pluginState || !Array.isArray(pluginState.selectedBlocks)) return [];
+  return normalizeBlockRanges(pluginState.selectedBlocks);
 }
 
 function resolveDropTarget(view: EditorView, clientX: number, clientY: number): DropTarget | null {
@@ -202,22 +108,25 @@ function resolveDropTarget(view: EditorView, clientX: number, clientY: number): 
   };
 }
 
-function applyBlockMove(view: EditorView, draggedPos: number, insertPos: number): boolean {
+function applyBlockMove(view: EditorView, selectedRanges: readonly BlockRange[], insertPos: number): boolean {
   const { state } = view;
-  const blockNode = state.doc.nodeAt(draggedPos);
-  if (!blockNode) return false;
-  if (insertPos > draggedPos && insertPos <= draggedPos + blockNode.nodeSize) return false;
+  const movePlan = createBlockMovePlan(selectedRanges, insertPos);
+  if (!movePlan) return false;
 
-  let targetPos = insertPos;
-  if (targetPos > draggedPos) {
-    targetPos -= blockNode.nodeSize;
+  let movedContent = Fragment.empty;
+  for (const range of movePlan.selectedRanges) {
+    movedContent = movedContent.append(state.doc.slice(range.from, range.to).content);
   }
-  if (targetPos === draggedPos) return false;
+  if (movedContent.size === 0) return false;
 
-  let tr = state.tr.delete(draggedPos, draggedPos + blockNode.nodeSize);
-  tr = tr.insert(targetPos, blockNode);
+  let tr = state.tr;
+  for (let i = movePlan.selectedRanges.length - 1; i >= 0; i -= 1) {
+    const range = movePlan.selectedRanges[i];
+    tr = tr.delete(range.from, range.to);
+  }
+  tr = tr.insert(movePlan.targetPos, movedContent);
 
-  const selectionAnchor = Math.max(0, Math.min(targetPos + 1, tr.doc.content.size));
+  const selectionAnchor = Math.max(0, Math.min(movePlan.targetPos + 1, tr.doc.content.size));
   tr = tr.setSelection(Selection.near(tr.doc.resolve(selectionAnchor), 1)).scrollIntoView();
   view.dispatch(tr);
   view.focus();
@@ -256,13 +165,18 @@ export const blockControlsPlugin = $prose(() => {
       dropIndicator.setAttribute('aria-hidden', 'true');
       doc.body.appendChild(dropIndicator);
 
-      let selectedBlock: HoveredBlock | null = null;
-      let draggedBlockPos: number | null = null;
+      let draggedRanges: BlockRange[] | null = null;
       let pendingDrop: DropTarget | null = null;
       let pointerY: number | null = null;
+      let refreshRafId = 0;
+
+      let cachedTargets: HandleBlockTarget[] = [];
+      let cachedSelectionKey = '';
+      let cachedDoc = view.state.doc;
+      let cachedScrollLeft = Number.NaN;
+      let cachedScrollTop = Number.NaN;
 
       const hideControls = () => {
-        selectedBlock = null;
         controls.classList.remove('visible');
       };
 
@@ -271,32 +185,77 @@ export const blockControlsPlugin = $prose(() => {
         dropIndicator.classList.remove('visible');
       };
 
-      const showSelectedBlockControl = (block: HoveredBlock | null) => {
-        if (!block) {
+      const invalidateTargetCache = () => {
+        cachedTargets = [];
+        cachedSelectionKey = '';
+        cachedDoc = view.state.doc;
+        cachedScrollLeft = Number.NaN;
+        cachedScrollTop = Number.NaN;
+      };
+
+      const getCachedHandleTargets = (): HandleBlockTarget[] => {
+        const selectedRanges = getSelectedBlockRanges(view);
+        if (selectedRanges.length === 0) return [];
+
+        const selectionKey = getBlockRangesKey(selectedRanges);
+        const nextScrollLeft = scrollRoot?.scrollLeft ?? 0;
+        const nextScrollTop = scrollRoot?.scrollTop ?? 0;
+        if (
+          cachedSelectionKey === selectionKey
+          && cachedDoc === view.state.doc
+          && cachedScrollLeft === nextScrollLeft
+          && cachedScrollTop === nextScrollTop
+        ) {
+          return cachedTargets;
+        }
+
+        cachedSelectionKey = selectionKey;
+        cachedDoc = view.state.doc;
+        cachedScrollLeft = nextScrollLeft;
+        cachedScrollTop = nextScrollTop;
+        cachedTargets = selectedRanges
+          .map((range) => resolveBlockTargetByPos(view, range.from))
+          .filter((target): target is HandleBlockTarget => target !== null);
+        return cachedTargets;
+      };
+
+      const showHandleForPointer = () => {
+        if (draggedRanges) return;
+        const targets = getCachedHandleTargets();
+        const nextTarget = pickPointerBlock(targets, pointerY);
+        if (!nextTarget) {
           hideControls();
           return;
         }
-        selectedBlock = block;
-        setControlsPosition(controls, block);
+        setControlsPosition(controls, nextTarget);
         controls.classList.add('visible');
       };
 
-      const refreshSelectedBlockControl = () => {
-        if (draggedBlockPos !== null) return;
-        const next = resolveActiveBlockAtPointer(view, pointerY);
-        showSelectedBlockControl(next);
+      const scheduleHandleRefresh = () => {
+        if (refreshRafId !== 0) return;
+        refreshRafId = window.requestAnimationFrame(() => {
+          refreshRafId = 0;
+          showHandleForPointer();
+        });
+      };
+
+      const handleDocumentMouseMove = (event: MouseEvent) => {
+        pointerY = event.clientY;
+        if (draggedRanges) return;
+        scheduleHandleRefresh();
       };
 
       const handleScrollOrResize = () => {
-        if (draggedBlockPos !== null) {
+        if (draggedRanges) {
           hideDropIndicator();
           return;
         }
-        refreshSelectedBlockControl();
+        invalidateTargetCache();
+        scheduleHandleRefresh();
       };
 
       const handleDocumentDragOver = (event: DragEvent) => {
-        if (draggedBlockPos === null) return;
+        if (!draggedRanges) return;
         const target = resolveDropTarget(view, event.clientX, event.clientY);
         if (!target) {
           hideDropIndicator();
@@ -311,28 +270,23 @@ export const blockControlsPlugin = $prose(() => {
         dropIndicator.classList.add('visible');
       };
 
-      const handleDocumentMouseMove = (event: MouseEvent) => {
-        pointerY = event.clientY;
-        if (draggedBlockPos !== null) return;
-        refreshSelectedBlockControl();
-      };
-
       const finishDrag = () => {
-        draggedBlockPos = null;
+        draggedRanges = null;
         controls.classList.remove('dragging');
         hideDropIndicator();
       };
 
       const handleDocumentDrop = (event: DragEvent) => {
-        if (draggedBlockPos === null) return;
+        if (!draggedRanges) return;
         event.preventDefault();
         if (!pendingDrop) {
           finishDrag();
           return;
         }
-        applyBlockMove(view, draggedBlockPos, pendingDrop.insertPos);
+        applyBlockMove(view, draggedRanges, pendingDrop.insertPos);
         finishDrag();
-        refreshSelectedBlockControl();
+        invalidateTargetCache();
+        scheduleHandleRefresh();
       };
 
       handleButton.addEventListener('mousedown', (event) => {
@@ -340,11 +294,13 @@ export const blockControlsPlugin = $prose(() => {
       });
 
       handleButton.addEventListener('dragstart', (event) => {
-        if (!selectedBlock) {
+        const selectedRanges = getSelectedBlockRanges(view);
+        if (selectedRanges.length === 0) {
           event.preventDefault();
           return;
         }
-        draggedBlockPos = selectedBlock.pos;
+
+        draggedRanges = selectedRanges;
         controls.classList.add('dragging');
         if (event.dataTransfer) {
           event.dataTransfer.effectAllowed = 'move';
@@ -361,13 +317,18 @@ export const blockControlsPlugin = $prose(() => {
       doc.addEventListener('drop', handleDocumentDrop, true);
       scrollRoot?.addEventListener('scroll', handleScrollOrResize, { passive: true });
       window.addEventListener('resize', handleScrollOrResize);
-      refreshSelectedBlockControl();
+      scheduleHandleRefresh();
 
       return {
         update() {
-          refreshSelectedBlockControl();
+          invalidateTargetCache();
+          scheduleHandleRefresh();
         },
         destroy() {
+          if (refreshRafId !== 0) {
+            window.cancelAnimationFrame(refreshRafId);
+            refreshRafId = 0;
+          }
           doc.removeEventListener('mousemove', handleDocumentMouseMove, true);
           doc.removeEventListener('dragover', handleDocumentDragOver, true);
           doc.removeEventListener('drop', handleDocumentDrop, true);
