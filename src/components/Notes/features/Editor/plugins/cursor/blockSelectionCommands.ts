@@ -1,17 +1,39 @@
 import { Selection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import type { Serializer } from '@milkdown/kit/transformer';
 import { serializeSliceToText } from '../clipboard/serializer';
+import {
+  joinSerializedBlocks,
+  normalizeSerializedMarkdownBlock,
+} from '../clipboard/markdownSerializationUtils';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 
-export function serializeSelectedBlocksToText(state: EditorState, blocks: readonly BlockRange[]): string {
+interface SerializeSelectedBlocksOptions {
+  markdownSerializer?: Serializer | null;
+}
+
+export function serializeSelectedBlocksToText(
+  state: EditorState,
+  blocks: readonly BlockRange[],
+  options: SerializeSelectedBlocksOptions = {},
+): string {
   const normalized = normalizeBlockRanges(blocks);
   if (normalized.length === 0) return '';
 
-  const pieces = normalized
-    .map((block) => serializeSliceToText(state.doc.slice(block.from, block.to)))
-    .filter((text) => text.length > 0);
+  const { markdownSerializer } = options;
+  if (markdownSerializer) {
+    try {
+      const markdownPieces = normalized
+        .map((block) => normalizeSerializedMarkdownBlock(markdownSerializer(state.doc.cut(block.from, block.to))));
+      return joinSerializedBlocks(markdownPieces);
+    } catch {
+    }
+  }
 
-  return pieces.join('\n');
+  const pieces = normalized
+    .map((block) => normalizeSerializedMarkdownBlock(serializeSliceToText(state.doc.slice(block.from, block.to))));
+
+  return joinSerializedBlocks(pieces);
 }
 
 export function setClipboardText(event: ClipboardEvent, text: string): void {

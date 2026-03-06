@@ -1,6 +1,8 @@
 import { $prose } from '@milkdown/kit/utils';
+import { serializerCtx } from '@milkdown/kit/core';
 import { Plugin, PluginKey, Selection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
+import type { Serializer } from '@milkdown/kit/transformer';
 import { dispatchTailBlankClickAction, isClickBelowLastBlock } from './endBlankClickUtils';
 import {
   getBlockRangesKey,
@@ -181,8 +183,26 @@ function deleteSelectedBlocks(view: EditorView, blocks: readonly BlockRange[]): 
   );
 }
 
-export const blankAreaDragBoxPlugin = $prose(() => {
+export const blankAreaDragBoxPlugin = $prose((ctx) => {
   let stopSession: (() => void) | null = null;
+  let markdownSerializer: Serializer | null = null;
+  let serializerResolved = false;
+
+  const resolveMarkdownSerializer = (): Serializer | null => {
+    if (serializerResolved) return markdownSerializer;
+    serializerResolved = true;
+    try {
+      markdownSerializer = ctx.get(serializerCtx);
+    } catch {
+      markdownSerializer = null;
+    }
+    return markdownSerializer;
+  };
+
+  const serializeSelectedBlocks = (state: EditorState, selectedBlocks: readonly BlockRange[]): string =>
+    serializeSelectedBlocksToText(state, selectedBlocks, {
+      markdownSerializer: resolveMarkdownSerializer(),
+    });
 
   const clearSession = () => {
     if (!stopSession) return;
@@ -304,14 +324,14 @@ export const blankAreaDragBoxPlugin = $prose(() => {
 
         if (hasPrimaryModifier && key === 'c') {
           event.preventDefault();
-          const text = serializeSelectedBlocksToText(view.state, selectedBlocks);
+          const text = serializeSelectedBlocks(view.state, selectedBlocks);
           void writeTextToClipboard(text);
           return true;
         }
 
         if (hasPrimaryModifier && key === 'x') {
           event.preventDefault();
-          const text = serializeSelectedBlocksToText(view.state, selectedBlocks);
+          const text = serializeSelectedBlocks(view.state, selectedBlocks);
           void writeTextToClipboard(text);
           return deleteSelectedBlocks(view, selectedBlocks);
         }
@@ -324,7 +344,7 @@ export const blankAreaDragBoxPlugin = $prose(() => {
           const { selectedBlocks } = getPluginState(view.state);
           if (selectedBlocks.length === 0) return false;
 
-          const text = serializeSelectedBlocksToText(view.state, selectedBlocks);
+          const text = serializeSelectedBlocks(view.state, selectedBlocks);
           setClipboardText(event, text);
           return true;
         },
@@ -333,7 +353,7 @@ export const blankAreaDragBoxPlugin = $prose(() => {
           const { selectedBlocks } = getPluginState(view.state);
           if (selectedBlocks.length === 0) return false;
 
-          const text = serializeSelectedBlocksToText(view.state, selectedBlocks);
+          const text = serializeSelectedBlocks(view.state, selectedBlocks);
           setClipboardText(event, text);
           return deleteSelectedBlocks(view, selectedBlocks);
         },

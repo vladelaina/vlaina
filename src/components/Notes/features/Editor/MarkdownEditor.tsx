@@ -5,7 +5,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Editor, rootCtx, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
+import { Editor, rootCtx, defaultValueCtx, editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
@@ -64,6 +64,10 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       .config((ctx) => {
         ctx.set(rootCtx, root);
         ctx.set(defaultValueCtx, initialContent);
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          bullet: '-' as const,
+        }));
 
         const initTime = Date.now();
         const INIT_PERIOD = 500;
