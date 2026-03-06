@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { useResizableDivider } from './shell/useResizableDivider';
+import { RESIZE_HANDLE_HALF_WIDTH } from './shell/ResizeDividerVisual';
+import { ResizeHandle } from './shell/ResizeHandle';
 
 interface ResizablePanelProps {
   children: React.ReactNode;
@@ -70,30 +70,16 @@ export function ResizablePanel({
       )}
       style={{ width }}
     >
-      {/* Drag Handle */}
-      <Tooltip delayDuration={500}>
-        <TooltipTrigger asChild>
-          <div
-            onMouseDown={handleDragStart}
-            className={cn(
-                "absolute left-0 top-0 bottom-0 w-3 cursor-col-resize z-[100] bg-transparent transition-colors touch-none group flex items-center justify-center",
-                isDragging && "bg-transparent delay-0",
-                !isDragging && "delay-150" // Delay hiding to make it easier to grab
-            )}
-            title="Drag to resize, double-click to reset"
-          >
-            <div
-              className={`w-[3px] h-full bg-[var(--neko-border)] transition-opacity ${isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-            />
-          </div>
-        </TooltipTrigger>
-        {shortcutKeys && shortcutKeys.length > 0 && (
-          <TooltipContent side="left" sideOffset={5} className="flex items-center gap-1.5 text-xs">
-            <span>Toggle Sidebar</span>
-            <ShortcutKeys keys={shortcutKeys} />
-          </TooltipContent>
-        )}
-      </Tooltip>
+      <ResizeHandle
+        onMouseDown={handleDragStart}
+        isDragging={isDragging}
+        tooltipSide="left"
+        shortcutKeys={shortcutKeys}
+        zIndexClassName="z-[100]"
+        positionStyle={{
+          right: width - RESIZE_HANDLE_HALF_WIDTH,
+        }}
+      />
       {children}
     </aside>
   );

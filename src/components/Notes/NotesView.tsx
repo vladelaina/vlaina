@@ -6,6 +6,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { ResizablePanel } from '@/components/layout/ResizablePanel';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
+import { ResizeDividerVisual, RESIZE_HANDLE_HIT_WIDTH } from '@/components/layout/shell/ResizeDividerVisual';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
 import { VaultWelcome } from '@/components/VaultWelcome';
@@ -164,9 +165,13 @@ export function NotesView() {
                 type="button"
                 aria-label="Toggle chat sidebar"
                 onClick={() => setChatPanelCollapsed(false)}
-                className="absolute inset-y-0 right-0 z-20 w-3 cursor-col-resize bg-transparent group flex items-center justify-center"
+                className="absolute inset-y-0 right-0 z-20 cursor-col-resize bg-transparent group flex items-center justify-center"
+                style={{ width: RESIZE_HANDLE_HIT_WIDTH }}
               >
-                <span className="pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-[var(--neko-border)] opacity-0 transition-opacity group-hover:opacity-100" />
+                <ResizeDividerVisual
+                  isVisible={false}
+                  className="pointer-events-none absolute inset-y-0 left-0"
+                />
               </button>
             </TooltipTrigger>
             <TooltipContent side="left" sideOffset={5} className="flex items-center gap-1.5 text-xs">
