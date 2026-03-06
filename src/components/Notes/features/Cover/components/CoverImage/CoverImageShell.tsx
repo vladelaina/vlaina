@@ -32,7 +32,7 @@ export function CoverImageShell({
 
   if (!url) {
     return (
-      <div className="relative w-full">
+      <div className="relative w-full" data-note-cover-region="true">
         {previewSrc && (
           <div className="relative w-full h-[200px] shrink-0 overflow-hidden">
             <img src={previewSrc} alt="Preview" className="w-full h-full object-cover" />
@@ -54,6 +54,7 @@ export function CoverImageShell({
       className={cn('relative w-full bg-[var(--neko-bg-primary)] shrink-0 select-none overflow-hidden group')}
       style={{ height: coverHeight }}
       ref={containerRef}
+      data-note-cover-region="true"
     >
       <CoverRenderer
         {...rendererProps}

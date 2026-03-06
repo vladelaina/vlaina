@@ -12,7 +12,6 @@ export function generateICS(events: NekoEvent[], calendar: NekoCalendar): string
 
     for (const event of events) {
         if (event.calendarId !== calendar.id) continue;
-        if (event.scheduled === false) continue;
 
         const eventData: ICalEventData = {
             id: event.uid,
@@ -89,6 +88,9 @@ export function generateICS(events: NekoEvent[], calendar: NekoCalendar): string
         const serializedTags = serializeTags(event.tags);
         if (serializedTags) {
             xProps.push({ key: NEKO_X_PROPS.TAGS, value: serializedTags });
+        }
+        if (event.scheduled === false) {
+            xProps.push({ key: NEKO_X_PROPS.SCHEDULED, value: 'FALSE' });
         }
         if (xProps.length > 0) {
             calEvent.x(xProps);
