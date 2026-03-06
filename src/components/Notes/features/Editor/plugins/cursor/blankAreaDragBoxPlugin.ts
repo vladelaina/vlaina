@@ -1,7 +1,8 @@
 import { $prose } from '@milkdown/kit/utils';
-import { Plugin, PluginKey, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, Selection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
 import { dispatchTailBlankClickAction, isClickBelowLastBlock } from './endBlankClickUtils';
+import { serializeSliceToText } from '../clipboard/serializer';
 import {
   createDragSelectionRect,
   getBlockRangesKey,
@@ -16,6 +17,7 @@ export const blankAreaDragBoxPluginKey = new PluginKey('blankAreaDragBox');
 const DRAG_THRESHOLD = 4;
 const DRAG_BOX_COLOR = 'rgba(39, 131, 222, 0.18)';
 const BLOCK_SELECTION_CLASS = 'neko-block-selected';
+const BLOCK_SELECTION_ACTIVE_CLASS = 'neko-block-selection-active';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
 const INTERACTIVE_SELECTOR = [
@@ -123,6 +125,15 @@ function clearBlockSelection(view: EditorView): void {
   dispatchSelectionAction(view, { type: 'clear-blocks' });
 }
 
+function setBlockSelectionVisualState(view: EditorView, active: boolean): void {
+  view.dom.classList.toggle(BLOCK_SELECTION_ACTIVE_CLASS, active);
+}
+
+function syncBlockSelectionVisualState(view: EditorView): void {
+  const active = getPluginState(view.state).selectedBlocks.length > 0;
+  setBlockSelectionVisualState(view, active);
+}
+
 function resolveTopLevelBlockElement(view: EditorView, blockFrom: number): HTMLElement | null {
   const docSize = view.state.doc.content.size;
   if (docSize <= 0) return null;
@@ -184,6 +195,82 @@ function mapSelectedBlocks(blocks: readonly BlockRange[], tr: Transaction): Bloc
   return normalizeBlockRanges(mapped);
 }
 
+function serializeSelectedBlocksToText(state: EditorState, blocks: readonly BlockRange[]): string {
+  const normalized = normalizeBlockRanges(blocks);
+  if (normalized.length === 0) return '';
+
+  const pieces = normalized
+    .map((block) => serializeSliceToText(state.doc.slice(block.from, block.to)))
+    .filter((text) => text.length > 0);
+
+  return pieces.join('\n');
+}
+
+function setClipboardText(event: ClipboardEvent, text: string): void {
+  event.preventDefault();
+  if (event.clipboardData) {
+    event.clipboardData.setData('text/plain', text);
+    return;
+  }
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    void navigator.clipboard.writeText(text);
+  }
+}
+
+async function writeTextToClipboard(text: string): Promise<void> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+    }
+  }
+
+  if (typeof document === 'undefined') return;
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', 'true');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  textarea.style.top = '0';
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  try {
+    document.execCommand('copy');
+  } finally {
+    textarea.remove();
+  }
+}
+
+function isClipboardEvent(event: Event): event is ClipboardEvent {
+  return 'clipboardData' in event;
+}
+
+function deleteSelectedBlocks(view: EditorView, blocks: readonly BlockRange[]): boolean {
+  const normalized = normalizeBlockRanges(blocks);
+  if (normalized.length === 0) return false;
+
+  let tr = view.state.tr;
+  for (let i = normalized.length - 1; i >= 0; i -= 1) {
+    tr = tr.delete(normalized[i].from, normalized[i].to);
+  }
+
+  if (tr.doc.content.size === 0) {
+    const paragraphType = tr.doc.type.schema.nodes.paragraph;
+    if (paragraphType) {
+      tr = tr.insert(0, paragraphType.create());
+    }
+  }
+
+  const anchorPos = Math.min(1, tr.doc.content.size);
+  tr = tr.setSelection(Selection.near(tr.doc.resolve(anchorPos), 1));
+  tr = tr.setMeta(blankAreaDragBoxPluginKey, { type: 'clear-blocks' } as BlockSelectionAction);
+  view.dispatch(tr.scrollIntoView());
+  view.focus();
+  return true;
+}
+
 export const blankAreaDragBoxPlugin = $prose(() => {
   let stopSession: (() => void) | null = null;
 
@@ -218,6 +305,7 @@ export const blankAreaDragBoxPlugin = $prose(() => {
       document.body.style.userSelect = previousBodyUserSelect;
       document.removeEventListener('mousemove', handleMouseMove, true);
       document.removeEventListener('mouseup', handleMouseUp, true);
+      syncBlockSelectionVisualState(view);
     };
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
@@ -239,6 +327,8 @@ export const blankAreaDragBoxPlugin = $prose(() => {
         document.body.style.cursor = 'default';
         document.body.style.userSelect = 'none';
         window.getSelection()?.removeAllRanges();
+        setBlockSelectionVisualState(view, true);
+        view.focus();
       }
 
       moveEvent.preventDefault();
@@ -269,7 +359,7 @@ export const blankAreaDragBoxPlugin = $prose(() => {
     stopSession = teardown;
     document.addEventListener('mousemove', handleMouseMove, true);
     document.addEventListener('mouseup', handleMouseUp, true);
-    if (startZone === 'below-last-block') {
+    if (startZone === 'below-last-block' || startZone === 'outside-editor') {
       event.preventDefault();
     }
     return startZone;
@@ -310,7 +400,54 @@ export const blankAreaDragBoxPlugin = $prose(() => {
       decorations(state) {
         return getPluginState(state).decorations;
       },
+      handleKeyDown(view, event) {
+        const { selectedBlocks } = getPluginState(view.state);
+        if (selectedBlocks.length === 0) return false;
+
+        const key = event.key.toLowerCase();
+        const hasPrimaryModifier = (event.metaKey || event.ctrlKey) && !event.altKey;
+
+        if (event.key === 'Delete' || event.key === 'Backspace') {
+          if (event.metaKey || event.ctrlKey || event.altKey) return false;
+          event.preventDefault();
+          return deleteSelectedBlocks(view, selectedBlocks);
+        }
+
+        if (hasPrimaryModifier && key === 'c') {
+          event.preventDefault();
+          const text = serializeSelectedBlocksToText(view.state, selectedBlocks);
+          void writeTextToClipboard(text);
+          return true;
+        }
+
+        if (hasPrimaryModifier && key === 'x') {
+          event.preventDefault();
+          const text = serializeSelectedBlocksToText(view.state, selectedBlocks);
+          void writeTextToClipboard(text);
+          return deleteSelectedBlocks(view, selectedBlocks);
+        }
+
+        return false;
+      },
       handleDOMEvents: {
+        copy(view, event) {
+          if (!isClipboardEvent(event)) return false;
+          const { selectedBlocks } = getPluginState(view.state);
+          if (selectedBlocks.length === 0) return false;
+
+          const text = serializeSelectedBlocksToText(view.state, selectedBlocks);
+          setClipboardText(event, text);
+          return true;
+        },
+        cut(view, event) {
+          if (!isClipboardEvent(event)) return false;
+          const { selectedBlocks } = getPluginState(view.state);
+          if (selectedBlocks.length === 0) return false;
+
+          const text = serializeSelectedBlocksToText(view.state, selectedBlocks);
+          setClipboardText(event, text);
+          return deleteSelectedBlocks(view, selectedBlocks);
+        },
         mousedown(view, event) {
           if (!(event instanceof MouseEvent)) return false;
           const target = event.target;
@@ -325,6 +462,7 @@ export const blankAreaDragBoxPlugin = $prose(() => {
     },
     view(view) {
       const doc = view.dom.ownerDocument;
+      syncBlockSelectionVisualState(view);
       const handleDocumentMouseDown = (event: MouseEvent) => {
         const target = event.target;
         if (target instanceof Node && view.dom.contains(target)) return;
@@ -337,9 +475,13 @@ export const blankAreaDragBoxPlugin = $prose(() => {
       doc.addEventListener('mousedown', handleDocumentMouseDown, true);
 
       return {
+        update(updatedView) {
+          syncBlockSelectionVisualState(updatedView);
+        },
         destroy() {
           doc.removeEventListener('mousedown', handleDocumentMouseDown, true);
           clearSession();
+          setBlockSelectionVisualState(view, false);
         },
       };
     },

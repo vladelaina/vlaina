@@ -55,3 +55,8 @@
   box-shadow: inset 0 0 0 1px var(--neko-block-selection-color);
   border-radius: 6px;
 }
+
+/* Hide text caret while drag block selection is active */
+.milkdown .ProseMirror.neko-block-selection-active {
+  caret-color: transparent !important;
+}
