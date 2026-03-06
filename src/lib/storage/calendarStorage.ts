@@ -6,6 +6,7 @@ import type { ItemColor } from '@/lib/colors';
 import { loadUnifiedData, saveUnifiedDataImmediate } from './unifiedStorage';
 
 const CALENDARS_DIR = 'calendars';
+const DEFAULT_CALENDAR: NekoCalendar = { id: 'main', name: 'Main', color: 'blue', visible: true };
 
 let basePath: string | null = null;
 
@@ -46,6 +47,46 @@ export async function saveCalendarsMeta(calendars: NekoCalendar[]): Promise<void
     });
 }
 
+async function resolveCalendarsForSave(calendars: NekoCalendar[]): Promise<NekoCalendar[]> {
+    if (calendars.length > 0) return calendars;
+
+    const storedCalendars = await loadCalendarsMeta();
+    if (storedCalendars.length > 0) {
+        await saveCalendarsMeta(storedCalendars);
+        return storedCalendars;
+    }
+
+    const fallbackCalendars = [{ ...DEFAULT_CALENDAR }];
+    await saveCalendarsMeta(fallbackCalendars);
+    return fallbackCalendars;
+}
+
+async function writeCalendarIcsIfChanged(path: string, content: string): Promise<void> {
+    const storage = getStorageAdapter();
+    const exists = await storage.exists(path);
+    if (exists) {
+        try {
+            const currentContent = await storage.readFile(path);
+            if (currentContent === content) {
+                return;
+            }
+        } catch {
+            // Fall through to overwrite on read error.
+        }
+    }
+    await storage.writeFile(path, content);
+}
+
+let saveAllEventsQueue: Promise<void> = Promise.resolve();
+
+function enqueueSaveAllEvents(task: () => Promise<void>): Promise<void> {
+    const run = saveAllEventsQueue.then(task);
+    saveAllEventsQueue = run.catch(() => {
+        // Keep queue alive after errors.
+    });
+    return run;
+}
+
 export async function loadAllEvents(): Promise<NekoEvent[]> {
     try {
         const storage = getStorageAdapter();
@@ -81,13 +122,13 @@ export async function loadAllEvents(): Promise<NekoEvent[]> {
     }
 }
 
-export async function saveAllEvents(events: NekoEvent[], calendars: NekoCalendar[]): Promise<void> {
-    const storage = getStorageAdapter();
+async function performSaveAllEvents(events: NekoEvent[], calendars: NekoCalendar[]): Promise<void> {
+    const normalizedCalendars = await resolveCalendarsForSave(calendars);
     await ensureCalendarsDir();
     const calendarsDir = await getCalendarsDir();
 
     const eventsByCalendar = new Map<string, NekoEvent[]>();
-    for (const calendar of calendars) {
+    for (const calendar of normalizedCalendars) {
         eventsByCalendar.set(calendar.id, []);
     }
 
@@ -96,20 +137,28 @@ export async function saveAllEvents(events: NekoEvent[], calendars: NekoCalendar
         if (calendarEvents) {
             calendarEvents.push(event);
         } else {
-            const firstCalendar = calendars[0];
+            const firstCalendar = normalizedCalendars[0];
             if (firstCalendar) {
-                event.calendarId = firstCalendar.id;
-                eventsByCalendar.get(firstCalendar.id)?.push(event);
+                eventsByCalendar.get(firstCalendar.id)?.push({
+                    ...event,
+                    calendarId: firstCalendar.id,
+                });
             }
         }
     }
 
-    for (const calendar of calendars) {
+    for (const calendar of normalizedCalendars) {
         const calendarEvents = eventsByCalendar.get(calendar.id) || [];
         const icsContent = generateICS(calendarEvents, calendar);
         const icsPath = await joinPath(calendarsDir, `${calendar.id}.ics`);
-        await storage.writeFile(icsPath, icsContent);
+        await writeCalendarIcsIfChanged(icsPath, icsContent);
     }
+}
+
+export async function saveAllEvents(events: NekoEvent[], calendars: NekoCalendar[]): Promise<void> {
+    const eventsSnapshot = events.map((event) => ({ ...event }));
+    const calendarsSnapshot = calendars.map((calendar) => ({ ...calendar }));
+    return enqueueSaveAllEvents(() => performSaveAllEvents(eventsSnapshot, calendarsSnapshot));
 }
 
 export async function addCalendar(name: string, color: ItemColor): Promise<NekoCalendar> {
@@ -122,14 +171,23 @@ export async function addCalendar(name: string, color: ItemColor): Promise<NekoC
         visible: true,
     };
 
-    calendars.push(newCalendar);
-    await saveCalendarsMeta(calendars);
-
     const storage = getStorageAdapter();
+    await ensureCalendarsDir();
     const calendarsDir = await getCalendarsDir();
     const icsPath = await joinPath(calendarsDir, `${newCalendar.id}.ics`);
     const emptyIcs = generateICS([], newCalendar);
     await storage.writeFile(icsPath, emptyIcs);
+
+    try {
+        await saveCalendarsMeta([...calendars, newCalendar]);
+    } catch (error) {
+        try {
+            await storage.deleteFile(icsPath);
+        } catch {
+            // Cleanup best-effort only.
+        }
+        throw error;
+    }
 
     return newCalendar;
 }

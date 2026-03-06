@@ -47,3 +47,16 @@
   background-color: #2783de;
   color: white;
 }
+
+/* Notion-like drag block selection highlight */
+.milkdown .ProseMirror .neko-block-selected {
+  --neko-block-selection-color: rgba(39, 131, 222, 0.16);
+  background-color: var(--neko-block-selection-color);
+  box-shadow: inset 0 0 0 1px var(--neko-block-selection-color);
+  border-radius: 6px;
+}
+
+/* Hide text caret while drag block selection is active */
+.milkdown .ProseMirror.neko-block-selection-active {
+  caret-color: transparent !important;
+}

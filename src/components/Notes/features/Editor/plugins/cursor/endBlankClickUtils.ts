@@ -1,3 +1,6 @@
+import { Selection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
+
 export interface TailBlankClickAction {
     insertParagraph: boolean;
     targetPos: number;
@@ -44,3 +47,21 @@ export const resolveTailBlankClickAction = (state: {
     return null;
 };
 
+export const dispatchTailBlankClickAction = (view: EditorView): boolean => {
+    const { state } = view;
+    const action = resolveTailBlankClickAction(state);
+    if (!action) return false;
+
+    let tr = state.tr;
+    if (action.insertParagraph) {
+        const docEnd = state.doc.content.size;
+        const paragraphType = state.doc.type.schema.nodes.paragraph;
+        if (!paragraphType) return false;
+        tr = tr.insert(docEnd, paragraphType.create());
+    }
+
+    tr = tr.setSelection(Selection.near(tr.doc.resolve(action.targetPos), action.bias));
+    view.dispatch(tr.scrollIntoView());
+    view.focus();
+    return true;
+};

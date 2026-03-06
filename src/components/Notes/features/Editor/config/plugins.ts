@@ -24,7 +24,9 @@ import {
   clipboardPlugin,
   imageBlockPlugin,
   imageUploadPlugin,
+  blankAreaDragBoxPlugin,
   endBlankClickPlugin,
+  hrAutoParagraphPlugin,
   titleNavigationPlugin,
 } from '../plugins';
 
@@ -54,6 +56,8 @@ export const customPlugins = [
   clipboardPlugin,
   imageUploadPlugin,
   ...imageBlockPlugin,
+  blankAreaDragBoxPlugin,
+  hrAutoParagraphPlugin,
   endBlankClickPlugin,
   titleNavigationPlugin,
 ];

@@ -185,9 +185,9 @@ describe('calendarStorage', () => {
 
     const writes = mockedStorage
       .getWrites()
-      .filter((path) => path.endsWith('/events/main.json') || path.endsWith('/events/work.json'));
+      .filter((path) => path.endsWith('/calendars/main.ics') || path.endsWith('/calendars/work.ics'));
 
-    expect(writes).toEqual(['/app/.nekotick/calendar/events/main.json']);
+    expect(writes).toEqual(['/app/.nekotick/calendars/main.ics']);
   });
 
   it('serializes concurrent saves so last write wins deterministically', async () => {
@@ -228,9 +228,11 @@ describe('calendarStorage', () => {
   it('creates default calendar metadata when saving with empty calendar list', async () => {
     await saveAllEvents([makeEvent({ uid: 'e-1', calendarId: 'unknown', summary: 'Event' })], []);
 
-    const metaRaw = mockedStorage.readFile('/app/.nekotick/calendar/meta.json');
-    expect(metaRaw).not.toBeNull();
-    expect(metaRaw).toContain('"id": "main"');
+    const calendars = await loadCalendarsMeta();
+    expect(calendars).toHaveLength(1);
+    expect(calendars[0]?.id).toBe('main');
+    const mainCalendarIcs = mockedStorage.readFile('/app/.nekotick/calendars/main.ics');
+    expect(mainCalendarIcs).toContain('BEGIN:VEVENT');
   });
 
   it('does not write calendar metadata when new calendar event file creation fails', async () => {
@@ -240,7 +242,7 @@ describe('calendarStorage', () => {
     await saveCalendarsMeta(calendars);
 
     mockedStorage.setFailMatcher((path) => {
-      if (path.includes('/calendar/events/cal_')) {
+      if (path.includes('/calendars/cal_')) {
         return 'simulated write failure';
       }
       return null;
