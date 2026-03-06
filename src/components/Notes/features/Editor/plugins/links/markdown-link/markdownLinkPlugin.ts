@@ -11,6 +11,17 @@ const LINK_REGEX = /\[([^\]]+)\]\(([^)]+)\)/g;
 const LINK_PATTERN_BEFORE = /\[([^\]]+)\]\(([^)]+)\)$/;
 // Regex to find markdown link at any position in text
 const LINK_PATTERN_GLOBAL = /\[([^\]]+)\]\(([^)]+)\)/g;
+const MULTI_LINE_PATTERN = /[\r\n]/;
+const STRUCTURAL_MARKDOWN_PREFIX_PATTERN = /^\s{0,3}(#{1,6}\s+|[-+*]\s+|\d+[.)]\s+|>\s+|```|~~~|[-*_]{3,}\s*$|\|.+\|)/;
+
+export const shouldHandleMarkdownLinkPaste = (text: string): boolean => {
+    if (!text) return false;
+    if (MULTI_LINE_PATTERN.test(text)) return false;
+    if (STRUCTURAL_MARKDOWN_PREFIX_PATTERN.test(text)) return false;
+    if (isStandaloneFencedCodeBlock(text)) return false;
+    LINK_REGEX.lastIndex = 0;
+    return LINK_REGEX.test(text);
+};
 
 export const markdownLinkPlugin = $prose(() => {
     return new Plugin({
@@ -130,11 +141,7 @@ export const markdownLinkPlugin = $prose(() => {
                 if (!clipboardData) return false;
 
                 const text = clipboardData.getData('text/plain');
-                if (!text) return false;
-                if (isStandaloneFencedCodeBlock(text)) return false;
-
-                LINK_REGEX.lastIndex = 0;
-                if (!LINK_REGEX.test(text)) {
+                if (!shouldHandleMarkdownLinkPaste(text)) {
                     return false;
                 }
 
