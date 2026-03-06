@@ -150,7 +150,6 @@ export function NotesView() {
             shortcutKeys={['Ctrl', 'L']}
           >
             <div data-notes-chat-panel="true" className="h-full min-h-0 relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-px bg-[var(--neko-border)]" />
               <Suspense fallback={null}>
                 <EmbeddedChatView mode="embedded" />
               </Suspense>
@@ -165,9 +164,9 @@ export function NotesView() {
                 type="button"
                 aria-label="Toggle chat sidebar"
                 onClick={() => setChatPanelCollapsed(false)}
-                className="absolute inset-y-0 right-0 z-20 w-3 cursor-col-resize bg-transparent"
+                className="absolute inset-y-0 right-0 z-20 w-3 cursor-col-resize bg-transparent group flex items-center justify-center"
               >
-                <span className="pointer-events-none absolute inset-y-0 left-0 w-px bg-[var(--neko-border)]" />
+                <span className="pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-[var(--neko-border)] opacity-0 transition-opacity group-hover:opacity-100" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="left" sideOffset={5} className="flex items-center gap-1.5 text-xs">

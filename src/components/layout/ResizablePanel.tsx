@@ -63,7 +63,7 @@ export function ResizablePanel({
   return (
     <aside
       className={cn(
-        "relative flex flex-col border-l border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden",
+        "relative flex flex-col bg-white/50 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden",
         // Only apply transition when NOT resizing to make it smooth on open/close, but instant on drag
         !isDragging && "transition-[width] duration-300 ease-in-out",
         className
@@ -76,12 +76,16 @@ export function ResizablePanel({
           <div
             onMouseDown={handleDragStart}
             className={cn(
-                "absolute left-0 top-0 bottom-0 w-3 cursor-col-resize z-[100] bg-transparent transition-colors touch-none",
+                "absolute left-0 top-0 bottom-0 w-3 cursor-col-resize z-[100] bg-transparent transition-colors touch-none group flex items-center justify-center",
                 isDragging && "bg-transparent delay-0",
                 !isDragging && "delay-150" // Delay hiding to make it easier to grab
             )}
             title="Drag to resize, double-click to reset"
-          />
+          >
+            <div
+              className={`w-[3px] h-full bg-[var(--neko-border)] transition-opacity ${isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+            />
+          </div>
         </TooltipTrigger>
         {shortcutKeys && shortcutKeys.length > 0 && (
           <TooltipContent side="left" sideOffset={5} className="flex items-center gap-1.5 text-xs">
