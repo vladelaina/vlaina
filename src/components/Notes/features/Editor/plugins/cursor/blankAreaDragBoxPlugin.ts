@@ -169,6 +169,10 @@ function isClipboardEvent(event: Event): event is ClipboardEvent {
   return 'clipboardData' in event;
 }
 
+function isIgnoredDragBoxTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && !!target.closest('[data-no-editor-drag-box="true"]');
+}
+
 function deleteSelectedBlocks(view: EditorView, blocks: readonly BlockRange[]): boolean {
   return deleteSelectedBlocksCommand(
     view,
@@ -335,6 +339,7 @@ export const blankAreaDragBoxPlugin = $prose(() => {
         },
         mousedown(view, event) {
           if (!(event instanceof MouseEvent)) return false;
+          if (isIgnoredDragBoxTarget(event.target)) return false;
           const target = event.target;
           if (target instanceof Node && view.dom.contains(target) && getPluginState(view.state).selectedBlocks.length > 0) {
             clearBlockSelection(view);
@@ -351,6 +356,7 @@ export const blankAreaDragBoxPlugin = $prose(() => {
       const doc = view.dom.ownerDocument;
       syncBlockSelectionVisualState(view);
       const handleDocumentMouseDown = (event: MouseEvent) => {
+        if (isIgnoredDragBoxTarget(event.target)) return;
         const target = event.target;
         if (target instanceof Node && view.dom.contains(target)) {
           if (getPluginState(view.state).selectedBlocks.length > 0) {

@@ -47,7 +47,7 @@ export { clipboardPlugin } from './clipboard';
 
 // Image upload (paste/drop handling)
 export { imageUploadPlugin } from './image-upload';
-export { blankAreaDragBoxPlugin, endBlankClickPlugin, titleNavigationPlugin } from './cursor';
+export { blankAreaDragBoxPlugin, blockControlsPlugin, endBlankClickPlugin, titleNavigationPlugin } from './cursor';
 
 // Horizontal rule (thematic break)
 export { hrAutoParagraphPlugin } from './hr';
