@@ -104,10 +104,22 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
     };
   };
 
-  const handleSave = () => {
+  useEffect(() => {
     if (!initialProvider) return;
-    updateProvider(initialProvider.id, { name, apiKey, apiHost, updatedAt: Date.now() });
-  };
+
+    const sameName = name === initialProvider.name;
+    const sameApiHost = apiHost === (initialProvider.apiHost || '');
+    const sameApiKey = apiKey === (initialProvider.apiKey || '');
+    if (sameName && sameApiHost && sameApiKey) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      updateProvider(initialProvider.id, { name, apiKey, apiHost, updatedAt: Date.now() });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [initialProvider, name, apiHost, apiKey, updateProvider]);
 
   const handleTestConnection = async () => {
     if (!canUseConnectionActions) {
@@ -308,7 +320,6 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
                   setConnectionMessage('');
                   setFetchError('');
                 }}
-                onBlur={handleSave}
                 placeholder="https://api.example.com"
                 className="w-full h-11 px-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:ring-2 focus:ring-gray-500/20"
               />
@@ -327,7 +338,6 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
                     setConnectionMessage('');
                     setFetchError('');
                   }}
-                  onBlur={handleSave}
                   placeholder="sk-..."
                   className="w-full h-11 px-3 pr-20 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm font-mono outline-none focus:ring-2 focus:ring-gray-500/20"
                 />
@@ -359,7 +369,6 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                onBlur={handleSave}
                 placeholder="New Channel"
                 className="w-full h-10 px-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:ring-2 focus:ring-gray-500/20"
               />
@@ -367,12 +376,6 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
           </div>
 
           <div className="mt-5 flex flex-wrap items-center gap-2">
-            <button
-              onClick={handleSave}
-              className="h-9 px-4 text-xs font-semibold rounded-lg bg-black text-white dark:bg-white dark:text-black hover:opacity-85 transition-opacity"
-            >
-              Save
-            </button>
             <button
               onClick={handleTestConnection}
               disabled={!canUseConnectionActions || connectionStatus === 'checking'}
