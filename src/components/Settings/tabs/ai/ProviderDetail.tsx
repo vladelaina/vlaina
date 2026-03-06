@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useAIStore } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
-import { checkModelHealth } from '@/lib/ai/healthCheck';
+import { backgroundBenchmarkRunner } from '@/lib/ai/healthCheck';
 import { Provider } from '@/lib/ai/types';
 import { ModelListItem, HealthStatus } from './components/ModelListItem';
 
@@ -50,6 +50,8 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
   const providerModels = initialProvider ? models.filter((m) => m.providerId === initialProvider.id) : [];
   const providerModelIdSet = useMemo(() => new Set(providerModels.map((m) => m.id)), [providerModels]);
 
+  const providerId = initialProvider?.id;
+
   useEffect(() => {
     if (initialProvider) {
       setName(initialProvider.name);
@@ -68,11 +70,39 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
     setFetchedModels([]);
     setConnectionStatus('idle');
     setConnectionMessage('');
-    setHealthStatus({});
-    setHealthCheckOverall('idle');
     setShowApiKey(false);
     setApiKeyCopied(false);
-  }, [initialProvider]);
+  }, [providerId]);
+
+  useEffect(() => {
+    if (!providerId) {
+      setHealthStatus({});
+      setHealthCheckOverall('idle');
+      setIsHealthChecking(false);
+      return;
+    }
+
+    const applySnapshot = () => {
+      const snapshot = backgroundBenchmarkRunner.getSnapshot(providerId);
+      if (!snapshot) {
+        setHealthStatus({});
+        setHealthCheckOverall('idle');
+        setIsHealthChecking(false);
+        return;
+      }
+      setHealthStatus(snapshot.items);
+      setHealthCheckOverall(snapshot.overall);
+      setIsHealthChecking(snapshot.isRunning);
+    };
+
+    applySnapshot();
+
+    return backgroundBenchmarkRunner.subscribe(providerId, (snapshot) => {
+      setHealthStatus(snapshot.items);
+      setHealthCheckOverall(snapshot.overall);
+      setIsHealthChecking(snapshot.isRunning);
+    });
+  }, [providerId]);
 
   const canUseConnectionActions = Boolean(initialProvider && apiHost.trim() && apiKey.trim());
   const canBenchmark = canUseConnectionActions && providerModels.length > 0;
@@ -152,52 +182,9 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
   const handleBenchmarkModels = async () => {
     if (!initialProvider || !canBenchmark) return;
 
-    setIsHealthChecking(true);
-    setHealthCheckOverall('idle');
-
-    const loadingStatus: Record<string, HealthStatus> = {};
-    providerModels.forEach((m) => {
-      loadingStatus[m.id] = { status: 'loading' };
-    });
-    setHealthStatus(loadingStatus);
-
     const tempProvider = buildTempProvider();
-    if (!tempProvider) {
-      setIsHealthChecking(false);
-      return;
-    }
-
-    try {
-      const results = await Promise.all(
-        providerModels.map(async (model) => {
-          try {
-            const res = await checkModelHealth(tempProvider, model);
-            return { id: model.id, ...res };
-          } catch (e: any) {
-            return { id: model.id, status: 'error' as const, error: e?.message || 'Unknown error' };
-          }
-        })
-      );
-
-      const nextStatus: Record<string, HealthStatus> = {};
-      let hasError = false;
-
-      results.forEach((res) => {
-        nextStatus[res.id] = {
-          status: res.status,
-          latency: 'latency' in res ? res.latency : undefined,
-          error: res.error,
-        };
-        if (res.status === 'error') hasError = true;
-      });
-
-      setHealthStatus(nextStatus);
-      setHealthCheckOverall(hasError ? 'error' : 'success');
-    } catch {
-      setHealthCheckOverall('error');
-    } finally {
-      setIsHealthChecking(false);
-    }
+    if (!tempProvider) return;
+    backgroundBenchmarkRunner.start(tempProvider, providerModels);
   };
 
   const handleFetchModels = async () => {
@@ -264,12 +251,14 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
   };
 
   const handleClearAllModels = () => {
-    if (providerModels.length === 0) return;
+    if (providerModels.length === 0 || !initialProvider) return;
     providerModels.forEach((model) => {
       deleteModel(model.id);
     });
     setHealthStatus({});
     setHealthCheckOverall('idle');
+    setIsHealthChecking(false);
+    backgroundBenchmarkRunner.clear(initialProvider.id);
   };
 
   const handleQuickAdd = () => {
