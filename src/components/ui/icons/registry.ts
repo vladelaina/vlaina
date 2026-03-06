@@ -77,7 +77,9 @@ import {
   ArrowsRightLeftIcon,
   CommandLineIcon,
   ChevronUpDownIcon,
-  Square2StackIcon
+  Square2StackIcon,
+  EyeIcon,
+  EyeSlashIcon
 } from '@heroicons/react/24/outline';
 
 // Custom Icons
@@ -113,6 +115,8 @@ export const icons: Record<string, IconSource> = {
   'common.moreVert': EllipsisVerticalIcon,
   'common.refresh': ArrowPathIcon,
   'common.copy': Square2StackIcon,
+  'common.eye': EyeIcon,
+  'common.eyeOff': EyeSlashIcon,
   'common.download': ArrowDownTrayIcon,
   'common.upload': ArrowUpTrayIcon,
   'common.share': ShareIcon,

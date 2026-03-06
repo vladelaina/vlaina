@@ -12,12 +12,25 @@ interface ProviderDetailProps {
 
 type ConnectionStatus = 'idle' | 'checking' | 'success' | 'error';
 
+function maskApiKey(value: string): string {
+  if (!value) return '';
+  if (value.length <= 4) {
+    return '*'.repeat(value.length);
+  }
+  if (value.length <= 11) {
+    return `${value.slice(0, 1)}${'*'.repeat(Math.max(1, value.length - 2))}${value.slice(-1)}`;
+  }
+  return `${value.slice(0, 7)}${'*'.repeat(value.length - 11)}${value.slice(-4)}`;
+}
+
 export function ProviderDetail({ provider: initialProvider }: ProviderDetailProps) {
   const { updateProvider, models, addModel, addModels, deleteModel } = useAIStore();
 
   const [name, setName] = useState(initialProvider?.name || '');
   const [apiKey, setApiKey] = useState(initialProvider?.apiKey || '');
   const [apiHost, setApiHost] = useState(initialProvider?.apiHost || '');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
 
   const [modelQuery, setModelQuery] = useState('');
   const [quickAddModelId, setQuickAddModelId] = useState('');
@@ -57,6 +70,8 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
     setConnectionMessage('');
     setHealthStatus({});
     setHealthCheckOverall('idle');
+    setShowApiKey(false);
+    setApiKeyCopied(false);
   }, [initialProvider]);
 
   const canUseConnectionActions = Boolean(initialProvider && apiHost.trim() && apiKey.trim());
@@ -259,6 +274,15 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
     setQuickAddModelId('');
   };
 
+  const handleCopyApiKey = async () => {
+    if (!apiKey) return;
+    try {
+      await navigator.clipboard.writeText(apiKey);
+      setApiKeyCopied(true);
+      setTimeout(() => setApiKeyCopied(false), 1500);
+    } catch {}
+  };
+
   if (!initialProvider) {
     return (
       <div className="h-full rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-white/5 flex items-center justify-center">
@@ -292,19 +316,41 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
 
             <div className="space-y-1.5">
               <label className="text-[11px] font-medium text-gray-500">API Key</label>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => {
-                  setApiKey(e.target.value);
-                  setConnectionStatus('idle');
-                  setConnectionMessage('');
-                  setFetchError('');
-                }}
-                onBlur={handleSave}
-                placeholder="sk-..."
-                className="w-full h-11 px-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm font-mono outline-none focus:ring-2 focus:ring-gray-500/20"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={showApiKey ? apiKey : maskApiKey(apiKey)}
+                  readOnly={!showApiKey}
+                  onChange={(e) => {
+                    setApiKey(e.target.value);
+                    setConnectionStatus('idle');
+                    setConnectionMessage('');
+                    setFetchError('');
+                  }}
+                  onBlur={handleSave}
+                  placeholder="sk-..."
+                  className="w-full h-11 px-3 pr-20 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm font-mono outline-none focus:ring-2 focus:ring-gray-500/20"
+                />
+                <div className="absolute inset-y-0 right-2 flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey((prev) => !prev)}
+                    className="h-7 w-7 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors flex items-center justify-center"
+                    title={showApiKey ? 'Hide API Key' : 'Show API Key'}
+                  >
+                    <Icon name={showApiKey ? 'common.eyeOff' : 'common.eye'} size="sm" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyApiKey}
+                    disabled={!apiKey}
+                    className="h-7 w-7 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
+                    title={apiKeyCopied ? 'Copied' : 'Copy API Key'}
+                  >
+                    <Icon name={apiKeyCopied ? 'common.check' : 'common.copy'} size="sm" />
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-1.5">
