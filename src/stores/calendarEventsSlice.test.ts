@@ -11,8 +11,6 @@ const storageMocks = vi.hoisted(() => ({
   updateCalendar: vi.fn(),
 }));
 
-const addToastMock = vi.hoisted(() => vi.fn());
-
 vi.mock('@/lib/storage/calendarStorage', () => ({
   loadCalendarsMeta: storageMocks.loadCalendarsMeta,
   saveCalendarsMeta: storageMocks.saveCalendarsMeta,
@@ -21,14 +19,6 @@ vi.mock('@/lib/storage/calendarStorage', () => ({
   addCalendar: storageMocks.addCalendar,
   deleteCalendar: storageMocks.deleteCalendar,
   updateCalendar: storageMocks.updateCalendar,
-}));
-
-vi.mock('./useToastStore', () => ({
-  useToastStore: {
-    getState: () => ({
-      addToast: addToastMock,
-    }),
-  },
 }));
 
 const MAIN_CALENDAR: NekoCalendar = {
@@ -56,7 +46,6 @@ describe('calendarEventsSlice retry behavior', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.useFakeTimers();
-    addToastMock.mockReset();
     storageMocks.loadCalendarsMeta.mockReset().mockResolvedValue([MAIN_CALENDAR]);
     storageMocks.saveCalendarsMeta.mockReset().mockResolvedValue(undefined);
     storageMocks.loadAllEvents.mockReset().mockResolvedValue([]);
@@ -85,20 +74,21 @@ describe('calendarEventsSlice retry behavior', () => {
     useCalendarEventsStore.setState({ events: [makeEvent()] });
 
     await useCalendarEventsStore.getState().save();
-    expect(useCalendarEventsStore.getState().storageStatus).toBe('degraded');
+    await vi.advanceTimersByTimeAsync(150);
     expect(saveCalls).toBe(1);
+    expect(useCalendarEventsStore.getState().storageStatus).toBe('degraded');
 
     const healthOk = await useCalendarEventsStore.getState().runStorageHealthCheck();
     expect(healthOk).toBe(true);
     expect(useCalendarEventsStore.getState().storageStatus).toBe('degraded');
     expect(saveCalls).toBe(1);
 
-    await vi.advanceTimersByTimeAsync(1200);
+    await vi.advanceTimersByTimeAsync(250);
     expect(saveCalls).toBe(2);
     expect(useCalendarEventsStore.getState().storageStatus).toBe('healthy');
   });
 
-  it('does not let meta success clear pending event retry', async () => {
+  it('does not let direct calendar write clear pending event retry', async () => {
     let saveCalls = 0;
     storageMocks.saveAllEvents.mockImplementation(async () => {
       saveCalls += 1;
@@ -112,15 +102,14 @@ describe('calendarEventsSlice retry behavior', () => {
     useCalendarEventsStore.setState({ events: [makeEvent()] });
 
     await useCalendarEventsStore.getState().save();
-    expect(useCalendarEventsStore.getState().storageStatus).toBe('degraded');
+    await vi.advanceTimersByTimeAsync(150);
     expect(saveCalls).toBe(1);
-
-    useCalendarEventsStore.getState().toggleCalendarVisibility('main');
-    await vi.runAllTicks();
-    expect(storageMocks.saveCalendarsMeta).toHaveBeenCalledTimes(1);
     expect(useCalendarEventsStore.getState().storageStatus).toBe('degraded');
 
-    await vi.advanceTimersByTimeAsync(1200);
+    await useCalendarEventsStore.getState().addCalendar('Work', 'green');
+    expect(useCalendarEventsStore.getState().storageStatus).toBe('degraded');
+
+    await vi.advanceTimersByTimeAsync(250);
     expect(saveCalls).toBe(2);
     expect(useCalendarEventsStore.getState().storageStatus).toBe('healthy');
   });
@@ -134,7 +123,10 @@ describe('calendarEventsSlice retry behavior', () => {
     await useCalendarEventsStore.getState().load();
 
     await expect(useCalendarEventsStore.getState().addCalendar('Work', 'green')).rejects.toThrow('add fail');
+    expect(useCalendarEventsStore.getState().storageStatus).toBe('degraded');
     await expect(useCalendarEventsStore.getState().updateCalendar('main', { name: 'Main 2' })).rejects.toThrow('update fail');
+    expect(useCalendarEventsStore.getState().storageStatus).toBe('degraded');
     await expect(useCalendarEventsStore.getState().deleteCalendar('main')).rejects.toThrow('delete fail');
+    expect(useCalendarEventsStore.getState().storageStatus).toBe('degraded');
   });
 });
