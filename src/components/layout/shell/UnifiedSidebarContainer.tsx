@@ -26,7 +26,7 @@ export function UnifiedSidebarContainer({
   backgroundColor = NOTES_COLORS.sidebarBg,
   peekContent
 }: UnifiedSidebarContainerProps) {
-  const { handleDragStart } = useShellSidebarResize({
+  const { isDragging, handleDragStart } = useShellSidebarResize({
     width,
     onWidthChange
   });
@@ -63,18 +63,22 @@ export function UnifiedSidebarContainer({
 
       {!collapsed && (
         <>
-          <div className="w-px flex-shrink-0 z-20 bg-[var(--neko-border)]" />
+          <div className="w-0.5 flex-shrink-0 z-20" style={{ backgroundColor }} />
           
           <Tooltip delayDuration={500}>
             <TooltipTrigger asChild>
               <div
                 onMouseDown={handleDragStart}
-                className="w-3 cursor-col-resize fixed top-0 bottom-0 z-30"
+                className="w-3 cursor-col-resize fixed top-0 bottom-0 z-30 group flex items-center justify-center"
                 style={{ 
                   left: width - 2.5,
                   pointerEvents: collapsed ? 'none' : 'auto'
                 }}
-              />
+              >
+                <div
+                  className={`w-[3px] h-full bg-[var(--neko-border)] transition-opacity ${isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                />
+              </div>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={5} className="flex items-center gap-1.5 text-xs">
               <span>Toggle Sidebar</span>
