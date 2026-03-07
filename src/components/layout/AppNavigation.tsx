@@ -23,8 +23,8 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({ onCloseMenu, toolt
 
     const navItems = [
         { mode: 'notes', icon: 'file.text', label: 'Notes' },
-        { mode: 'calendar', icon: 'sidebar.calendar', label: 'Calendar' },
         { mode: 'todo', icon: 'sidebar.todo', label: 'Todos' },
+        { mode: 'calendar', icon: 'sidebar.calendar', label: 'Calendar' },
         { mode: 'chat', icon: 'common.sparkle', label: 'AI Chat' },
     ] as const;
 
