@@ -1,136 +1,32 @@
-import { Plugin, PluginKey, Selection } from '@milkdown/kit/prose/state';
-import { Fragment } from '@milkdown/kit/prose/model';
+import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 import { blankAreaDragBoxPluginKey } from './blankAreaDragBoxPlugin';
 import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
-import { createBlockMovePlan, pickPointerBlock } from './blockControlsUtils';
-import { normalizeTopLevelBlockPos, resolveTopLevelBlockElement } from './topLevelBlockDom';
+import { pickPointerBlock } from './blockControlsUtils';
+import {
+  applyBlockMove,
+  getDraggableBlockRanges,
+  resolveBlockTargetByPos,
+  resolveDropTarget,
+  setControlsPosition,
+  type DropTarget,
+  type HandleBlockTarget,
+} from './blockControlsInteractions';
 
 export const blockControlsPluginKey = new PluginKey('blockControls');
 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const CONTROLS_LEFT_OFFSET = 44;
 
-interface HandleBlockTarget {
-  pos: number;
-  rect: DOMRect;
-}
-
-interface DropTarget {
-  insertPos: number;
-  lineY: number;
-  lineLeft: number;
-  lineWidth: number;
-}
-
 interface BlockSelectionPluginState {
   selectedBlocks: BlockRange[];
-}
-
-function resolveBlockTargetByPos(view: EditorView, blockPos: number): HandleBlockTarget | null {
-  const normalizedPos = normalizeTopLevelBlockPos(view, blockPos);
-  if (normalizedPos === null) return null;
-
-  const blockNode = view.state.doc.nodeAt(normalizedPos);
-  if (!blockNode) return null;
-
-  const blockElement = resolveTopLevelBlockElement(view, normalizedPos);
-  if (!blockElement) return null;
-
-  const rect = blockElement.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return null;
-  return { pos: normalizedPos, rect };
-}
-
-function setControlsPosition(controls: HTMLElement, target: HandleBlockTarget): void {
-  const left = Math.max(8, target.rect.left - CONTROLS_LEFT_OFFSET);
-  const top = target.rect.top + target.rect.height / 2;
-  controls.style.left = `${Math.round(left)}px`;
-  controls.style.top = `${Math.round(top)}px`;
 }
 
 function getSelectedBlockRanges(view: EditorView): BlockRange[] {
   const pluginState = blankAreaDragBoxPluginKey.getState(view.state) as BlockSelectionPluginState | undefined;
   if (!pluginState || !Array.isArray(pluginState.selectedBlocks)) return [];
   return normalizeBlockRanges(pluginState.selectedBlocks);
-}
-
-function resolveDropTarget(view: EditorView, clientX: number, clientY: number): DropTarget | null {
-  const pos = view.posAtCoords({ left: clientX, top: clientY });
-  const editorRect = view.dom.getBoundingClientRect();
-
-  if (!pos && clientY > editorRect.bottom) {
-    let lastFrom = -1;
-    let lastNodeSize = 0;
-    view.state.doc.forEach((node, offset) => {
-      lastFrom = offset;
-      lastNodeSize = node.nodeSize;
-    });
-    if (lastFrom < 0) return null;
-
-    const lastElement = resolveTopLevelBlockElement(view, lastFrom);
-    const lineY = lastElement?.getBoundingClientRect().bottom ?? editorRect.bottom;
-    const lineLeft = lastElement?.getBoundingClientRect().left ?? editorRect.left;
-    const lineWidth = lastElement?.getBoundingClientRect().width ?? editorRect.width;
-    return {
-      insertPos: lastFrom + lastNodeSize,
-      lineY,
-      lineLeft,
-      lineWidth,
-    };
-  }
-
-  if (!pos) return null;
-
-  const docSize = view.state.doc.content.size;
-  const safePos = Math.max(0, Math.min(pos.pos, docSize));
-  const $pos = view.state.doc.resolve(safePos);
-  let indexAtRoot = $pos.index(0);
-  if (indexAtRoot >= view.state.doc.childCount) {
-    indexAtRoot = view.state.doc.childCount - 1;
-  }
-  if (indexAtRoot < 0) return null;
-
-  const blockPos = $pos.posAtIndex(indexAtRoot, 0);
-  const blockNode = view.state.doc.child(indexAtRoot);
-  if (!blockNode) return null;
-
-  const blockElement = resolveTopLevelBlockElement(view, blockPos);
-  if (!blockElement) return null;
-  const rect = blockElement.getBoundingClientRect();
-  const insertBefore = clientY < rect.top + rect.height / 2;
-  return {
-    insertPos: insertBefore ? blockPos : blockPos + blockNode.nodeSize,
-    lineY: insertBefore ? rect.top : rect.bottom,
-    lineLeft: rect.left,
-    lineWidth: rect.width,
-  };
-}
-
-function applyBlockMove(view: EditorView, selectedRanges: readonly BlockRange[], insertPos: number): boolean {
-  const { state } = view;
-  const movePlan = createBlockMovePlan(selectedRanges, insertPos);
-  if (!movePlan) return false;
-
-  let movedContent = Fragment.empty;
-  for (const range of movePlan.selectedRanges) {
-    movedContent = movedContent.append(state.doc.slice(range.from, range.to).content);
-  }
-  if (movedContent.size === 0) return false;
-
-  let tr = state.tr;
-  for (let i = movePlan.selectedRanges.length - 1; i >= 0; i -= 1) {
-    const range = movePlan.selectedRanges[i];
-    tr = tr.delete(range.from, range.to);
-  }
-  tr = tr.insert(movePlan.targetPos, movedContent);
-
-  const selectionAnchor = Math.max(0, Math.min(movePlan.targetPos + 1, tr.doc.content.size));
-  tr = tr.setSelection(Selection.near(tr.doc.resolve(selectionAnchor), 1)).scrollIntoView();
-  view.dispatch(tr);
-  view.focus();
-  return true;
 }
 
 export const blockControlsPlugin = $prose(() => {
@@ -194,10 +90,10 @@ export const blockControlsPlugin = $prose(() => {
       };
 
       const getCachedHandleTargets = (): HandleBlockTarget[] => {
-        const selectedRanges = getSelectedBlockRanges(view);
-        if (selectedRanges.length === 0) return [];
+        const draggableRanges = getDraggableBlockRanges(view, getSelectedBlockRanges(view));
+        if (draggableRanges.length === 0) return [];
 
-        const selectionKey = getBlockRangesKey(selectedRanges);
+        const selectionKey = getBlockRangesKey(draggableRanges);
         const nextScrollLeft = scrollRoot?.scrollLeft ?? 0;
         const nextScrollTop = scrollRoot?.scrollTop ?? 0;
         if (
@@ -213,7 +109,7 @@ export const blockControlsPlugin = $prose(() => {
         cachedDoc = view.state.doc;
         cachedScrollLeft = nextScrollLeft;
         cachedScrollTop = nextScrollTop;
-        cachedTargets = selectedRanges
+        cachedTargets = draggableRanges
           .map((range) => resolveBlockTargetByPos(view, range.from))
           .filter((target): target is HandleBlockTarget => target !== null);
         return cachedTargets;
@@ -227,7 +123,7 @@ export const blockControlsPlugin = $prose(() => {
           hideControls();
           return;
         }
-        setControlsPosition(controls, nextTarget);
+        setControlsPosition(controls, nextTarget, CONTROLS_LEFT_OFFSET);
         controls.classList.add('visible');
       };
 
@@ -294,13 +190,13 @@ export const blockControlsPlugin = $prose(() => {
       });
 
       handleButton.addEventListener('dragstart', (event) => {
-        const selectedRanges = getSelectedBlockRanges(view);
-        if (selectedRanges.length === 0) {
+        const draggableRanges = getDraggableBlockRanges(view, getSelectedBlockRanges(view));
+        if (draggableRanges.length === 0) {
           event.preventDefault();
           return;
         }
 
-        draggedRanges = selectedRanges;
+        draggedRanges = draggableRanges;
         controls.classList.add('dragging');
         if (event.dataTransfer) {
           event.dataTransfer.effectAllowed = 'move';
