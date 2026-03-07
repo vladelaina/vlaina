@@ -10,9 +10,9 @@ import { TodoListSection } from './components/TodoListSection';
 import { useGlobalSearch } from '@/hooks/useGlobalSearch';
 
 interface TaskListViewProps {
-    title: string;
     tasks: any[];
     allTasks: any[];
+    completionMode?: 'active' | 'completed' | 'all';
     searchQuery: string;
     setSearchQuery: (q: string) => void;
     onToggleTask?: (id: string) => void;
@@ -25,6 +25,7 @@ interface TaskListViewProps {
 export function TaskListView({
     tasks: filteredTasks,
     allTasks,
+    completionMode = 'active',
     searchQuery,
     setSearchQuery,
     onToggleTask,
@@ -44,15 +45,9 @@ export function TaskListView({
         reorderTasks,
         addSubTask,
         toggleCollapse,
-        archiveCompletedTasks,
-        deleteCompletedTasks,
-        activeGroupId,
     } = groupStore;
 
-    const { setDraggingTaskId, hideCompleted, draggingTaskId } = useUIStore();
-
-    const [completedExpanded, setCompletedExpanded] = useState(false);
-    const [showCompletedMenu, setShowCompletedMenu] = useState(false);
+    const { setDraggingTaskId, draggingTaskId } = useUIStore();
     
     // Controls the visibility of the search bar
     const [isSearchActive, setIsSearchActive] = useState(false);
@@ -62,8 +57,6 @@ export function TaskListView({
     const [subTaskContent, setSubTaskContent] = useState('');
 
     const scrollRef = useRef<HTMLDivElement>(null);
-    const completedMenuRef = useRef<HTMLDivElement>(null);
-
     // Listen for global search shortcut/button
     useGlobalSearch(() => {
         setIsSearchActive(prev => {
@@ -90,10 +83,11 @@ export function TaskListView({
         setSubTaskContent('');
     }, [addingSubTaskFor, subTaskContent, addSubTask]);
 
-    const incompleteTasks = filteredTasks.filter(t => !t.completed);
-    const completedTasks = hideCompleted ? [] : filteredTasks.filter(t => t.completed);
-
-    const COMPLETED_DIVIDER_ID = '__divider_completed__';
+    const visibleTasks = completionMode === 'completed'
+        ? filteredTasks.filter(t => t.completed)
+        : completionMode === 'all'
+            ? filteredTasks
+            : filteredTasks.filter(t => !t.completed);
 
     const getChildren = useCallback((parentId: string) => {
         return allTasks
@@ -101,10 +95,7 @@ export function TaskListView({
             .sort((a, b) => a.order - b.order);
     }, [allTasks]);
 
-    const allSortableIds = [
-        ...incompleteTasks.map(t => t.uid),
-        ...(completedTasks.length > 0 ? [COMPLETED_DIVIDER_ID, ...(completedExpanded ? completedTasks.map(t => t.uid) : [])] : []),
-    ];
+    const allSortableIds = visibleTasks.map(t => t.uid);
 
     const renderTaskItem = useCallback((task: any, level: number = 0) => {
         const children = getChildren(task.uid);
@@ -204,10 +195,10 @@ export function TaskListView({
                                 strategy={verticalListSortingStrategy}
                             >
                                 <TodoListSection
-                                    items={incompleteTasks}
+                                    items={visibleTasks}
                                     renderItem={(task) => renderTaskItem(task, 0)}
                                     emptyState={
-                                        completedTasks.length === 0 && (
+                                        visibleTasks.length === 0 && (
                                             <div className="py-24 text-center">
                                                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 mb-4">
                                                     <Icon name="common.check" className="w-6 h-6 text-zinc-300 dark:text-zinc-600" />
@@ -218,42 +209,6 @@ export function TaskListView({
                                         )
                                     }
                                 />
-
-                                {completedTasks.length > 0 && (
-                                    <TodoListSection
-                                        title="Completed"
-                                        id={COMPLETED_DIVIDER_ID}
-                                        items={completedTasks}
-                                        renderItem={(task) => renderTaskItem(task, 0)}
-                                        isExpanded={completedExpanded}
-                                        onToggleExpand={() => setCompletedExpanded(!completedExpanded)}
-                                        showMenu={showCompletedMenu}
-                                        onMenuToggle={() => setShowCompletedMenu(!showCompletedMenu)}
-                                        menuRef={completedMenuRef}
-                                        menuContent={
-                                            <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50">
-                                                <button
-                                                    onClick={() => {
-                                                        if (activeGroupId) archiveCompletedTasks(activeGroupId);
-                                                        setShowCompletedMenu(false);
-                                                    }}
-                                                    className="w-full px-3 py-1.5 text-left text-sm text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                                                >
-                                                    Archive All
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        if (activeGroupId) deleteCompletedTasks(activeGroupId);
-                                                        setShowCompletedMenu(false);
-                                                    }}
-                                                    className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                                                >
-                                                    Delete All
-                                                </button>
-                                            </div>
-                                        }
-                                    />
-                                )}
                             </SortableContext>
                         </TaskDragContext>
                     </div>

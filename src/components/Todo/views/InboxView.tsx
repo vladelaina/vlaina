@@ -30,9 +30,9 @@ export function InboxView() {
 
     return (
         <TaskListView
-            title="Inbox"
             tasks={filteredTasks}
             allTasks={tasks}
+            completionMode="active"
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
         />

@@ -22,7 +22,7 @@ export function TodoSidebar() {
         setActiveGroup
     } = useGroupStore();
     const { items: progressItems } = useProgressStore();
-    const { selectedTag, setSelectedTag, setHideCompleted } = useUIStore();
+    const { selectedTag, setSelectedTag } = useUIStore();
 
     const counts = useMemo(() => {
         const c = { all: 0, completed: 0 };
@@ -92,7 +92,6 @@ export function TodoSidebar() {
 
     const handleSelectTag = (tag: string | null) => {
         setSelectedTag(tag);
-        setHideCompleted(false);
     };
 
     const NavItem = ({ label, iconName, count, onClick, active, customIcon }: any) => (
