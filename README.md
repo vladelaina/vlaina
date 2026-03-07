@@ -30,7 +30,7 @@ NekoTick is built on the shoulders of giants. We gratefully acknowledge the foll
 *   **[Tauri](https://tauri.app/)** - App Framework
 *   **[Milkdown](https://milkdown.dev/)** - WYSIWYG Markdown Editor
 *   **[Heroicons](https://heroicons.com/)** - Iconography
-*   **[Lucide](https://lucide.dev/)** & **[Ollama](https://ollama.com/)** - Selected UI design assets
+*   **[Lucide](https://lucide.dev/)**, **[Ollama](https://ollama.com/)** & **[Primer Style](https://primer.style/)** - Selected UI design assets
 *   **[JetBrains Mono](https://www.jetbrains.com/lp/mono/)** - The Typeface for Developers (OFL 1.1)
 *   **[Radix UI](https://www.radix-ui.com/)** - Accessible UI Primitives
 *   And many others listed in `package.json`.

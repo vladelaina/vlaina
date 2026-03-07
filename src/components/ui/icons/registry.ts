@@ -90,6 +90,8 @@ import { SendIcon } from './custom/mit/SendIcon';
 import { SquareStopIcon } from './custom/mit/SquareStopIcon';
 import { TemporaryChatOffIcon } from './custom/mit/TemporaryChatOffIcon';
 import { TemporaryChatOnIcon } from './custom/mit/TemporaryChatOnIcon';
+import { PrimerPinIcon } from './custom/mit/PrimerPinIcon';
+import { PrimerUnpinIcon } from './custom/mit/PrimerUnpinIcon';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
@@ -136,6 +138,8 @@ export const icons: Record<string, IconSource> = {
   'common.tag': TagIcon,
   'common.rename': PenLine,
   'common.pin': Pin,
+  'common.pinPrimer': PrimerPinIcon,
+  'common.unpinPrimer': PrimerUnpinIcon,
   'common.pinOutline': Pin,
   'common.sparkle': SparklesIcon,
   'common.send': SendIcon,

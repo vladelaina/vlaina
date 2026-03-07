@@ -266,3 +266,17 @@ html, body, #root {
 .icon-btn:disabled { color: var(--neko-text-disabled); cursor: not-allowed; }
 
 .dragging-image, .dragging-image * { cursor: default !important; }
+
+body[data-chat-selection-lock="1"] * {
+  user-select: none !important;
+}
+
+body[data-chat-selection-lock="1"] [data-chat-scrollable="true"],
+body[data-chat-selection-lock="1"] [data-chat-scrollable="true"] * {
+  user-select: text !important;
+}
+
+body[data-chat-selection-freeze="1"],
+body[data-chat-selection-freeze="1"] * {
+  user-select: none !important;
+}
