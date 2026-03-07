@@ -184,7 +184,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
                     },
                     code({ className, children, ...props }: any) {
                       const match = /language-(\w+)/.exec(className || "");
-                      const isInline = !match && !String(children).includes("\n");
+                      const inlineFromParser = props?.inline === true;
+                      const isMathInline = className === "language-math" && !String(children).includes("\n");
+                      const isInline = inlineFromParser || isMathInline || (!match && !String(children).includes("\n"));
                       
                       if (isInline) {
                           return (
