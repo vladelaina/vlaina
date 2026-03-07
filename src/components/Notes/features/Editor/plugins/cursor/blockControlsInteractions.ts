@@ -17,6 +17,19 @@ export interface DropTarget {
   lineWidth: number;
 }
 
+const BLOCK_DRAG_DEBUG_FLAG = '__NEKO_DEBUG_BLOCK_DRAG__';
+
+function logBlockDragDebug(message: string, error?: unknown): void {
+  if (typeof window === 'undefined') return;
+  const debugEnabled = Boolean((window as unknown as Record<string, unknown>)[BLOCK_DRAG_DEBUG_FLAG]);
+  if (!debugEnabled) return;
+  if (error) {
+    console.warn('[BlockDrag]', message, error);
+    return;
+  }
+  console.warn('[BlockDrag]', message);
+}
+
 export function resolveTopLevelBlockRange(view: EditorView, blockPos: number): BlockRange | null {
   const normalizedPos = normalizeTopLevelBlockPos(view, blockPos);
   if (normalizedPos === null) return null;
@@ -70,9 +83,10 @@ export function resolveDropTarget(view: EditorView, clientX: number, clientY: nu
     if (lastFrom < 0) return null;
 
     const lastElement = resolveTopLevelBlockElement(view, lastFrom);
-    const lineY = lastElement?.getBoundingClientRect().bottom ?? editorRect.bottom;
-    const lineLeft = lastElement?.getBoundingClientRect().left ?? editorRect.left;
-    const lineWidth = lastElement?.getBoundingClientRect().width ?? editorRect.width;
+    const lastRect = lastElement?.getBoundingClientRect();
+    const lineY = lastRect?.bottom ?? editorRect.bottom;
+    const lineLeft = lastRect?.left ?? editorRect.left;
+    const lineWidth = lastRect?.width ?? editorRect.width;
     return {
       insertPos: lastFrom + lastNodeSize,
       lineY,
@@ -132,7 +146,8 @@ export function applyBlockMove(view: EditorView, selectedRanges: readonly BlockR
     view.dispatch(tr);
     view.focus();
     return true;
-  } catch {
+  } catch (error) {
+    logBlockDragDebug('applyBlockMove failed', error);
     return false;
   }
 }
