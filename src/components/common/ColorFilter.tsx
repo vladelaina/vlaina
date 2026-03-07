@@ -6,8 +6,7 @@ export function ColorFilter() {
     const { selectedColors, toggleColor, toggleAllColors } = useUIStore();
 
     return (
-        <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
-            <div className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 mb-2 uppercase tracking-wide">Filters</div>
+        <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
             <div className="flex items-center gap-2 flex-wrap">
                 {/* Color options - in new order */}
                 {ALL_COLORS.map(color => {
