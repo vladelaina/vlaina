@@ -1,6 +1,6 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockRange } from './blockSelectionUtils';
-import { resolveTopLevelBlockElement } from './topLevelBlockDom';
+import { resolveBlockElementAtPos } from './topLevelBlockDom';
 
 const SOURCE_CLASS = 'neko-block-drag-source';
 const PREVIEW_CLASS = 'neko-block-drag-preview';
@@ -31,7 +31,7 @@ function collectBlockElements(view: EditorView, ranges: readonly BlockRange[]): 
   const unique = new Set<HTMLElement>();
   const elements: HTMLElement[] = [];
   for (const range of ranges) {
-    const element = resolveTopLevelBlockElement(view, range.from);
+    const element = resolveBlockElementAtPos(view, range.from);
     if (!element || unique.has(element)) continue;
     unique.add(element);
     elements.push(element);

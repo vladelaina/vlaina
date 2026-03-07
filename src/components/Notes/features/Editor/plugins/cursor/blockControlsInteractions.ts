@@ -2,8 +2,12 @@ import { Fragment } from '@milkdown/kit/prose/model';
 import { Selection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockRange } from './blockSelectionUtils';
-import { createBlockMovePlan, mapRangesToTopLevelBlocks } from './blockControlsUtils';
-import { normalizeTopLevelBlockPos, resolveTopLevelBlockElement } from './topLevelBlockDom';
+import { createBlockMovePlan, pickPointerBlock } from './blockControlsUtils';
+import {
+  collectSelectableBlockTargets,
+  mapRangesToSelectableBlocks,
+  resolveSelectableBlockTargetByPos,
+} from './blockUnitResolver';
 
 export interface HandleBlockTarget {
   pos: number;
@@ -30,28 +34,10 @@ function logBlockDragDebug(message: string, error?: unknown): void {
   console.warn('[BlockDrag]', message);
 }
 
-export function resolveTopLevelBlockRange(view: EditorView, blockPos: number): BlockRange | null {
-  const normalizedPos = normalizeTopLevelBlockPos(view, blockPos);
-  if (normalizedPos === null) return null;
-
-  const blockNode = view.state.doc.nodeAt(normalizedPos);
-  if (!blockNode) return null;
-  return {
-    from: normalizedPos,
-    to: normalizedPos + blockNode.nodeSize,
-  };
-}
-
 export function resolveBlockTargetByPos(view: EditorView, blockPos: number): HandleBlockTarget | null {
-  const topLevelRange = resolveTopLevelBlockRange(view, blockPos);
-  if (!topLevelRange) return null;
-
-  const blockElement = resolveTopLevelBlockElement(view, topLevelRange.from);
-  if (!blockElement) return null;
-
-  const rect = blockElement.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return null;
-  return { pos: topLevelRange.from, rect };
+  const target = resolveSelectableBlockTargetByPos(view, blockPos);
+  if (!target) return null;
+  return { pos: target.range.from, rect: target.rect };
 }
 
 export function setControlsPosition(
@@ -66,56 +52,24 @@ export function setControlsPosition(
 }
 
 export function getDraggableBlockRanges(view: EditorView, selectedRanges: readonly BlockRange[]): BlockRange[] {
-  return mapRangesToTopLevelBlocks(selectedRanges, (pos) => resolveTopLevelBlockRange(view, pos));
+  return mapRangesToSelectableBlocks(view.state.doc, selectedRanges);
 }
 
 export function resolveDropTarget(view: EditorView, clientX: number, clientY: number): DropTarget | null {
-  const pos = view.posAtCoords({ left: clientX, top: clientY });
   const editorRect = view.dom.getBoundingClientRect();
-
-  if (!pos && clientY > editorRect.bottom) {
-    let lastFrom = -1;
-    let lastNodeSize = 0;
-    view.state.doc.forEach((node, offset) => {
-      lastFrom = offset;
-      lastNodeSize = node.nodeSize;
-    });
-    if (lastFrom < 0) return null;
-
-    const lastElement = resolveTopLevelBlockElement(view, lastFrom);
-    const lastRect = lastElement?.getBoundingClientRect();
-    const lineY = lastRect?.bottom ?? editorRect.bottom;
-    const lineLeft = lastRect?.left ?? editorRect.left;
-    const lineWidth = lastRect?.width ?? editorRect.width;
-    return {
-      insertPos: lastFrom + lastNodeSize,
-      lineY,
-      lineLeft,
-      lineWidth,
-    };
+  const pos = view.posAtCoords({ left: clientX, top: clientY });
+  if (!pos && clientY >= editorRect.top && clientY <= editorRect.bottom) {
+    return null;
   }
 
-  if (!pos) return null;
+  const blockTargets = collectSelectableBlockTargets(view);
+  const target = pickPointerBlock(blockTargets, clientY);
+  if (!target) return null;
 
-  const docSize = view.state.doc.content.size;
-  const safePos = Math.max(0, Math.min(pos.pos, docSize));
-  const $pos = view.state.doc.resolve(safePos);
-  let indexAtRoot = $pos.index(0);
-  if (indexAtRoot >= view.state.doc.childCount) {
-    indexAtRoot = view.state.doc.childCount - 1;
-  }
-  if (indexAtRoot < 0) return null;
-
-  const blockPos = $pos.posAtIndex(indexAtRoot, 0);
-  const blockNode = view.state.doc.child(indexAtRoot);
-  if (!blockNode) return null;
-
-  const blockElement = resolveTopLevelBlockElement(view, blockPos);
-  if (!blockElement) return null;
-  const rect = blockElement.getBoundingClientRect();
+  const rect = target.rect;
   const insertBefore = clientY < rect.top + rect.height / 2;
   return {
-    insertPos: insertBefore ? blockPos : blockPos + blockNode.nodeSize,
+    insertPos: insertBefore ? target.range.from : target.range.to,
     lineY: insertBefore ? rect.top : rect.bottom,
     lineLeft: rect.left,
     lineWidth: rect.width,
