@@ -1,6 +1,8 @@
 import { $prose } from '@milkdown/kit/utils';
+import { serializerCtx } from '@milkdown/kit/core';
 import { Plugin, PluginKey, Selection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
+import type { Serializer } from '@milkdown/kit/transformer';
 import { dispatchTailBlankClickAction, isClickBelowLastBlock } from './endBlankClickUtils';
 import {
   getBlockRangesKey,
@@ -23,7 +25,6 @@ export const blankAreaDragBoxPluginKey = new PluginKey('blankAreaDragBox');
 const DRAG_THRESHOLD = 4;
 const DRAG_BOX_COLOR = 'rgba(39, 131, 222, 0.18)';
 const DRAG_SESSION_CURSOR = 'crosshair';
-const BLOCK_SELECTION_CLASS = 'neko-block-selected';
 const BLOCK_SELECTION_ACTIVE_CLASS = 'neko-block-selection-active';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
@@ -112,7 +113,7 @@ function createSelectionDecorations(doc: EditorState['doc'], blocks: readonly Bl
   if (blocks.length === 0) return DecorationSet.empty;
   const decorations = blocks.map((block) =>
     Decoration.node(block.from, block.to, {
-      class: BLOCK_SELECTION_CLASS,
+      class: 'neko-block-selected',
     }),
   );
   return DecorationSet.create(doc, decorations);
@@ -181,8 +182,26 @@ function deleteSelectedBlocks(view: EditorView, blocks: readonly BlockRange[]): 
   );
 }
 
-export const blankAreaDragBoxPlugin = $prose(() => {
+export const blankAreaDragBoxPlugin = $prose((ctx) => {
   let stopSession: (() => void) | null = null;
+  let markdownSerializer: Serializer | null = null;
+  let serializerResolved = false;
+
+  const resolveMarkdownSerializer = (): Serializer | null => {
+    if (serializerResolved) return markdownSerializer;
+    serializerResolved = true;
+    try {
+      markdownSerializer = ctx.get(serializerCtx);
+    } catch {
+      markdownSerializer = null;
+    }
+    return markdownSerializer;
+  };
+
+  const serializeSelectedBlocks = (state: EditorState, selectedBlocks: readonly BlockRange[]): string =>
+    serializeSelectedBlocksToText(state, selectedBlocks, {
+      markdownSerializer: resolveMarkdownSerializer(),
+    });
 
   const clearSession = () => {
     if (!stopSession) return;
@@ -205,6 +224,42 @@ export const blankAreaDragBoxPlugin = $prose(() => {
       view,
       scrollRootSelector: SCROLL_ROOT_SELECTOR,
     });
+    let pendingDragRect: RectBounds | null = null;
+    let dragMoveRafId = 0;
+
+    const applyDragRectSelection = (dragRect: RectBounds) => {
+      const selectedBlocks = resolveIntersectedBlockRanges(rectResolver.getTopLevelBlockRects(), dragRect);
+      const nextKey = getBlockRangesKey(selectedBlocks);
+      if (nextKey !== selectedBlocksKey) {
+        selectedBlocksKey = nextKey;
+        dispatchSelectionAction(view, selectedBlocks.length > 0
+          ? { type: 'set-blocks', blocks: selectedBlocks }
+          : CLEAR_BLOCKS_ACTION);
+      }
+    };
+
+    const scheduleDragRectSelection = (dragRect: RectBounds) => {
+      pendingDragRect = dragRect;
+      if (dragMoveRafId !== 0) return;
+      dragMoveRafId = window.requestAnimationFrame(() => {
+        dragMoveRafId = 0;
+        if (!pendingDragRect) return;
+        const nextRect = pendingDragRect;
+        pendingDragRect = null;
+        applyDragRectSelection(nextRect);
+      });
+    };
+
+    const flushPendingDragSelection = () => {
+      if (dragMoveRafId !== 0) {
+        window.cancelAnimationFrame(dragMoveRafId);
+        dragMoveRafId = 0;
+      }
+      if (!pendingDragRect) return;
+      const nextRect = pendingDragRect;
+      pendingDragRect = null;
+      applyDragRectSelection(nextRect);
+    };
 
     const session = startBlockDragSession({
       view,
@@ -223,15 +278,7 @@ export const blankAreaDragBoxPlugin = $prose(() => {
         if (dragBox) {
           updateDragBox(dragBox, dragRect);
         }
-
-        const selectedBlocks = resolveIntersectedBlockRanges(rectResolver.getTopLevelBlockRects(), dragRect);
-        const nextKey = getBlockRangesKey(selectedBlocks);
-        if (nextKey !== selectedBlocksKey) {
-          selectedBlocksKey = nextKey;
-          dispatchSelectionAction(view, selectedBlocks.length > 0
-            ? { type: 'set-blocks', blocks: selectedBlocks }
-            : CLEAR_BLOCKS_ACTION);
-        }
+        scheduleDragRectSelection(dragRect);
       },
       onPlainClick(zone) {
         if (zone === 'below-last-block') {
@@ -241,6 +288,7 @@ export const blankAreaDragBoxPlugin = $prose(() => {
         clearBlockSelection(view);
       },
       onTeardown() {
+        flushPendingDragSelection();
         if (dragBox) {
           dragBox.remove();
           dragBox = null;
@@ -304,14 +352,14 @@ export const blankAreaDragBoxPlugin = $prose(() => {
 
         if (hasPrimaryModifier && key === 'c') {
           event.preventDefault();
-          const text = serializeSelectedBlocksToText(view.state, selectedBlocks);
+          const text = serializeSelectedBlocks(view.state, selectedBlocks);
           void writeTextToClipboard(text);
           return true;
         }
 
         if (hasPrimaryModifier && key === 'x') {
           event.preventDefault();
-          const text = serializeSelectedBlocksToText(view.state, selectedBlocks);
+          const text = serializeSelectedBlocks(view.state, selectedBlocks);
           void writeTextToClipboard(text);
           return deleteSelectedBlocks(view, selectedBlocks);
         }
@@ -324,7 +372,7 @@ export const blankAreaDragBoxPlugin = $prose(() => {
           const { selectedBlocks } = getPluginState(view.state);
           if (selectedBlocks.length === 0) return false;
 
-          const text = serializeSelectedBlocksToText(view.state, selectedBlocks);
+          const text = serializeSelectedBlocks(view.state, selectedBlocks);
           setClipboardText(event, text);
           return true;
         },
@@ -333,7 +381,7 @@ export const blankAreaDragBoxPlugin = $prose(() => {
           const { selectedBlocks } = getPluginState(view.state);
           if (selectedBlocks.length === 0) return false;
 
-          const text = serializeSelectedBlocksToText(view.state, selectedBlocks);
+          const text = serializeSelectedBlocks(view.state, selectedBlocks);
           setClipboardText(event, text);
           return deleteSelectedBlocks(view, selectedBlocks);
         },

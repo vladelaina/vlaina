@@ -1,5 +1,11 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 
+function ensureElementInsideEditor(view: EditorView, element: HTMLElement | null): HTMLElement | null {
+  if (!element) return null;
+  if (!view.dom.contains(element) || element === view.dom) return null;
+  return element;
+}
+
 export function normalizeTopLevelBlockPos(view: EditorView, pos: number): number | null {
   const docSize = view.state.doc.content.size;
   if (docSize <= 0) return null;
@@ -42,4 +48,27 @@ export function resolveTopLevelBlockElement(view: EditorView, blockPos: number):
     element = element.parentElement;
   }
   return element && element.parentElement === view.dom ? element : null;
+}
+
+export function resolveBlockElementAtPos(view: EditorView, blockPos: number): HTMLElement | null {
+  const docSize = view.state.doc.content.size;
+  const safePos = Math.max(0, Math.min(blockPos, docSize));
+
+  const nodeDom = view.nodeDOM(safePos);
+  if (nodeDom instanceof HTMLElement) {
+    const direct = ensureElementInsideEditor(view, nodeDom);
+    if (direct) return direct;
+  } else if (nodeDom?.parentElement) {
+    const parent = ensureElementInsideEditor(view, nodeDom.parentElement);
+    if (parent) return parent;
+  }
+
+  const probePos = Math.max(1, Math.min(safePos + 1, docSize));
+  try {
+    const domPos = view.domAtPos(probePos);
+    const element = domPos.node instanceof HTMLElement ? domPos.node : domPos.node.parentElement;
+    return ensureElementInsideEditor(view, element);
+  } catch {
+    return null;
+  }
 }

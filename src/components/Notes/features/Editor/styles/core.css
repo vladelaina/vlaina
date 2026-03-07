@@ -52,12 +52,22 @@
 .milkdown .ProseMirror .neko-block-selected {
   --neko-block-selection-color: var(--neko-hover-filled);
   --neko-block-selection-bleed-y: 4px;
+  --neko-block-selection-bleed-x-start: 0;
   background-color: var(--neko-block-selection-color);
   box-shadow:
     inset 0 0 0 1px var(--neko-block-selection-color),
     0 var(--neko-block-selection-bleed-y) 0 0 var(--neko-block-selection-color),
-    0 calc(-1 * var(--neko-block-selection-bleed-y)) 0 0 var(--neko-block-selection-color);
+    0 calc(-1 * var(--neko-block-selection-bleed-y)) 0 0 var(--neko-block-selection-color),
+    calc(-1 * var(--neko-block-selection-bleed-x-start)) 0 0 0 var(--neko-block-selection-color);
   border-radius: 0;
+}
+
+/* List selection compatibility:
+   decoration class may be on LI itself or on a child block (e.g. LI > P). */
+.milkdown .ProseMirror li.neko-block-selected,
+.milkdown .ProseMirror li .neko-block-selected {
+  --neko-block-selection-bleed-x-start: 24px;
+  --neko-block-selection-bleed-y: 0px;
 }
 
 /* Hide text caret while drag block selection is active */
