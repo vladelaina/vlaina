@@ -146,11 +146,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                 ) : isUnread ? (
                   <div className="w-2 h-2 rounded-full bg-blue-500 shadow-sm" />
                 ) : session.isPinned ? (
-                  <Icon
-                    name="common.pin"
-                    size="sm"
-                    className="text-gray-400 dark:text-gray-500"
-                  />
+                  <Icon name="common.pinPrimer" size={14} className="text-gray-400 dark:text-gray-500" />
                 ) : null;
 
                 return (
@@ -284,7 +280,11 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                     "hover:bg-neutral-100 focus:bg-neutral-100 dark:hover:bg-neutral-700/60 dark:focus:bg-neutral-700/60"
                                   )}
                               >
-                                  <Icon name="common.pin" size="md" className="mr-2 text-neutral-500 dark:text-neutral-400" />
+                                  {session.isPinned ? (
+                                    <Icon name="common.unpinPrimer" size={16} className="mr-2 text-neutral-500 dark:text-neutral-400" />
+                                  ) : (
+                                    <Icon name="common.pinPrimer" size={16} className="mr-2 text-neutral-500 dark:text-neutral-400" />
+                                  )}
                                   <span>{session.isPinned ? 'Unpin' : 'Pin'}</span>
                               </DropdownMenuItem>
                               <DropdownMenuSeparator className="bg-neutral-200 dark:bg-neutral-700 my-1 opacity-70" />

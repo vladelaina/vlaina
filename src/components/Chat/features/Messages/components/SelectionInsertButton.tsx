@@ -208,6 +208,13 @@ function computeStateFromSelection(): SelectionInsertState | null {
   return { text, x, y, placeBelow };
 }
 
+function getStateSignature(state: SelectionInsertState | null): string {
+  if (!state) {
+    return "";
+  }
+  return `${state.text}|${Math.round(state.x)}|${Math.round(state.y)}|${state.placeBelow ? "1" : "0"}`;
+}
+
 export function SelectionInsertButton() {
   const [state, setState] = useState<SelectionInsertState | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -293,7 +300,6 @@ export function SelectionInsertButton() {
       isSelectionFrozenRef.current = false;
       lastValidRangeRef.current = null;
       lastValidTextRef.current = "";
-      lastStateSignatureRef.current = "";
       stopOutsideClamp();
       setChatSelectionLock(isSelectingFromChatRef.current);
       setChatSelectionFreeze(false);
@@ -348,6 +354,9 @@ export function SelectionInsertButton() {
         stopOutsideClamp();
         setChatSelectionLock(false);
         setChatSelectionFreeze(false);
+        const nextState = computeStateFromSelection();
+        lastStateSignatureRef.current = getStateSignature(nextState);
+        setState(nextState);
       });
     };
 
@@ -364,9 +373,7 @@ export function SelectionInsertButton() {
       }
 
       const nextState = computeStateFromSelection();
-      const nextStateSignature = nextState
-        ? `${nextState.text}|${Math.round(nextState.x)}|${Math.round(nextState.y)}|${nextState.placeBelow ? "1" : "0"}`
-        : "";
+      const nextStateSignature = getStateSignature(nextState);
       if (nextStateSignature === lastStateSignatureRef.current) {
         return;
       }

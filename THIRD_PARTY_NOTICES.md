@@ -30,3 +30,12 @@ This project includes custom icon assets under `src/components/ui/icons/custom/m
   - `src/components/ui/icons/custom/mit/SquareCheckBigIcon.tsx`
 - License: ISC (with MIT notice for Feather-derived portions)
 - License text: `licenses/lucide-react-LICENSE.txt`
+
+## 4) Primer Style
+
+- Source: https://primer.style/
+- Files used:
+  - `src/components/ui/icons/custom/mit/PrimerPinIcon.tsx`
+  - `src/components/ui/icons/custom/mit/PrimerUnpinIcon.tsx`
+- License: MIT
+- License text: `licenses/primer-style-MIT.txt`
