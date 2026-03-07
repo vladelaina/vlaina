@@ -4,6 +4,7 @@ import { $prose } from '@milkdown/kit/utils';
 import { blankAreaDragBoxPluginKey } from './blankAreaDragBoxPlugin';
 import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 import { pickPointerBlock } from './blockControlsUtils';
+import { createBlockDragPreview, type BlockDragPreviewHandle } from './blockDragPreview';
 import {
   applyBlockMove,
   getDraggableBlockRanges,
@@ -46,7 +47,7 @@ export const blockControlsPlugin = $prose(() => {
       handleButton.setAttribute('aria-label', 'Drag block');
       handleButton.setAttribute('data-no-block-controls', 'true');
       handleButton.setAttribute('data-no-editor-drag-box', 'true');
-      handleButton.draggable = true;
+      handleButton.draggable = false;
       handleButton.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="20" height="20" aria-hidden="true" focusable="false">
           <path d="M108,60A16,16,0,1,1,92,44,16,16,0,0,1,108,60Zm56,16a16,16,0,1,0-16-16A16,16,0,0,0,164,76ZM92,112a16,16,0,1,0,16,16A16,16,0,0,0,92,112Zm72,0a16,16,0,1,0,16,16A16,16,0,0,0,164,112ZM92,180a16,16,0,1,0,16,16A16,16,0,0,0,92,180Zm72,0a16,16,0,1,0,16,16A16,16,0,0,0,164,180Z" fill="currentColor"></path>
@@ -62,7 +63,10 @@ export const blockControlsPlugin = $prose(() => {
       doc.body.appendChild(dropIndicator);
 
       let draggedRanges: BlockRange[] | null = null;
+      let dragPreview: BlockDragPreviewHandle | null = null;
       let pendingDrop: DropTarget | null = null;
+      let lastDragClientX: number | null = null;
+      let lastDragClientY: number | null = null;
       let pointerY: number | null = null;
       let refreshRafId = 0;
 
@@ -79,6 +83,21 @@ export const blockControlsPlugin = $prose(() => {
       const hideDropIndicator = () => {
         pendingDrop = null;
         dropIndicator.classList.remove('visible');
+      };
+
+      const updateDropTargetByPointer = (clientX: number, clientY: number): boolean => {
+        const target = resolveDropTarget(view, clientX, clientY);
+        if (!target) {
+          hideDropIndicator();
+          return false;
+        }
+
+        pendingDrop = target;
+        dropIndicator.style.left = `${Math.round(target.lineLeft)}px`;
+        dropIndicator.style.top = `${Math.round(target.lineY - 1)}px`;
+        dropIndicator.style.width = `${Math.round(target.lineWidth)}px`;
+        dropIndicator.classList.add('visible');
+        return true;
       };
 
       const invalidateTargetCache = () => {
@@ -136,8 +155,19 @@ export const blockControlsPlugin = $prose(() => {
       };
 
       const handleDocumentMouseMove = (event: MouseEvent) => {
+        if (draggedRanges) {
+          lastDragClientX = event.clientX;
+          lastDragClientY = event.clientY;
+          updateDropTargetByPointer(event.clientX, event.clientY);
+          if (dragPreview) {
+            dragPreview.element.style.left = `${Math.round(event.clientX - dragPreview.offsetX)}px`;
+            dragPreview.element.style.top = `${Math.round(event.clientY - dragPreview.offsetY)}px`;
+          }
+          event.preventDefault();
+          return;
+        }
+
         pointerY = event.clientY;
-        if (draggedRanges) return;
         scheduleHandleRefresh();
       };
 
@@ -150,29 +180,41 @@ export const blockControlsPlugin = $prose(() => {
         scheduleHandleRefresh();
       };
 
-      const handleDocumentDragOver = (event: DragEvent) => {
-        if (!draggedRanges) return;
-        const target = resolveDropTarget(view, event.clientX, event.clientY);
-        if (!target) {
-          hideDropIndicator();
-          return;
-        }
+      const handleDocumentWheel = (event: WheelEvent) => {
+        if (!draggedRanges || !scrollRoot) return;
+
+        const canScrollY = scrollRoot.scrollHeight > scrollRoot.clientHeight;
+        const canScrollX = scrollRoot.scrollWidth > scrollRoot.clientWidth;
+        if (!canScrollY && !canScrollX) return;
 
         event.preventDefault();
-        pendingDrop = target;
-        dropIndicator.style.left = `${Math.round(target.lineLeft)}px`;
-        dropIndicator.style.top = `${Math.round(target.lineY - 1)}px`;
-        dropIndicator.style.width = `${Math.round(target.lineWidth)}px`;
-        dropIndicator.classList.add('visible');
+        if (canScrollY && event.deltaY !== 0) {
+          scrollRoot.scrollTop += event.deltaY;
+        }
+        if (canScrollX && event.deltaX !== 0) {
+          scrollRoot.scrollLeft += event.deltaX;
+        }
+
+        invalidateTargetCache();
+        scheduleHandleRefresh();
+        if (lastDragClientX !== null && lastDragClientY !== null) {
+          updateDropTargetByPointer(lastDragClientX, lastDragClientY);
+        }
       };
 
       const finishDrag = () => {
         draggedRanges = null;
+        lastDragClientX = null;
+        lastDragClientY = null;
+        if (dragPreview) {
+          dragPreview.destroy();
+          dragPreview = null;
+        }
         controls.classList.remove('dragging');
         hideDropIndicator();
       };
 
-      const handleDocumentDrop = (event: DragEvent) => {
+      const handleDocumentMouseUp = (event: MouseEvent) => {
         if (!draggedRanges) return;
         event.preventDefault();
         if (!pendingDrop) {
@@ -186,31 +228,37 @@ export const blockControlsPlugin = $prose(() => {
       };
 
       handleButton.addEventListener('mousedown', (event) => {
-        event.stopPropagation();
-      });
-
-      handleButton.addEventListener('dragstart', (event) => {
+        if (event.button !== 0) return;
         const draggableRanges = getDraggableBlockRanges(view, getSelectedBlockRanges(view));
         if (draggableRanges.length === 0) {
-          event.preventDefault();
           return;
         }
 
+        event.preventDefault();
+        event.stopPropagation();
+
         draggedRanges = draggableRanges;
         controls.classList.add('dragging');
-        if (event.dataTransfer) {
-          event.dataTransfer.effectAllowed = 'move';
-          event.dataTransfer.setData('text/plain', '');
-        }
-      });
 
-      handleButton.addEventListener('dragend', () => {
-        finishDrag();
+        const preview = createBlockDragPreview({
+          view,
+          ranges: draggableRanges,
+          clientX: event.clientX,
+          clientY: event.clientY,
+        });
+        if (preview) {
+          dragPreview = preview;
+          preview.element.style.left = `${Math.round(event.clientX - preview.offsetX)}px`;
+          preview.element.style.top = `${Math.round(event.clientY - preview.offsetY)}px`;
+        }
+        lastDragClientX = event.clientX;
+        lastDragClientY = event.clientY;
+        updateDropTargetByPointer(event.clientX, event.clientY);
       });
 
       doc.addEventListener('mousemove', handleDocumentMouseMove, true);
-      doc.addEventListener('dragover', handleDocumentDragOver, true);
-      doc.addEventListener('drop', handleDocumentDrop, true);
+      doc.addEventListener('mouseup', handleDocumentMouseUp, true);
+      doc.addEventListener('wheel', handleDocumentWheel, { capture: true, passive: false });
       scrollRoot?.addEventListener('scroll', handleScrollOrResize, { passive: true });
       window.addEventListener('resize', handleScrollOrResize);
       scheduleHandleRefresh();
@@ -226,10 +274,14 @@ export const blockControlsPlugin = $prose(() => {
             refreshRafId = 0;
           }
           doc.removeEventListener('mousemove', handleDocumentMouseMove, true);
-          doc.removeEventListener('dragover', handleDocumentDragOver, true);
-          doc.removeEventListener('drop', handleDocumentDrop, true);
+          doc.removeEventListener('mouseup', handleDocumentMouseUp, true);
+          doc.removeEventListener('wheel', handleDocumentWheel, true);
           scrollRoot?.removeEventListener('scroll', handleScrollOrResize);
           window.removeEventListener('resize', handleScrollOrResize);
+          if (dragPreview) {
+            dragPreview.destroy();
+            dragPreview = null;
+          }
           controls.remove();
           dropIndicator.remove();
         },

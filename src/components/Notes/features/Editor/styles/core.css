@@ -144,3 +144,64 @@
 .neko-block-drop-indicator.visible {
   opacity: 1;
 }
+
+.milkdown .ProseMirror .neko-block-drag-source {
+  opacity: 0.38;
+  transition: opacity 120ms ease;
+}
+
+.neko-block-drag-preview {
+  position: fixed;
+  left: -10000px;
+  top: -10000px;
+  z-index: 70;
+  pointer-events: none;
+  border: 1px solid var(--neko-border, rgba(0, 0, 0, 0.12));
+  border-radius: 12px;
+  background: var(--neko-bg-primary, #fff);
+  box-shadow:
+    0 22px 40px rgba(14, 18, 22, 0.24),
+    0 8px 18px rgba(14, 18, 22, 0.16);
+  overflow: hidden;
+  transform: translateZ(0);
+  opacity: 0.97;
+}
+
+.neko-block-drag-preview::before,
+.neko-block-drag-preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+.neko-block-drag-preview::before {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.neko-block-drag-preview::after {
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+}
+
+.neko-block-drag-preview-item {
+  background: var(--neko-bg-primary, #fff);
+}
+
+.neko-block-drag-preview-item + .neko-block-drag-preview-item {
+  border-top: 1px solid color-mix(in srgb, var(--neko-border, rgba(0, 0, 0, 0.12)) 75%, transparent);
+}
+
+.neko-block-drag-preview-item > * {
+  margin-block: 0;
+  pointer-events: none !important;
+}
+
+.neko-block-drag-preview-more {
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--neko-text-tertiary, #8f8f8d);
+  border-top: 1px solid color-mix(in srgb, var(--neko-border, rgba(0, 0, 0, 0.12)) 75%, transparent);
+  background: color-mix(in srgb, var(--neko-bg-primary, #fff) 94%, var(--neko-hover-filled, #f3f3f2) 6%);
+}

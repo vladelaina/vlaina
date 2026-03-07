@@ -85,7 +85,7 @@ export const LinkViewer = ({
                 {!isAutolink && (
                     <IconButton
                         onClick={onUnlink}
-                        icon={<Icon size="md" name="editor.linkOff" />}
+                        icon={<Icon size="md" name="common.blocked" />}
                     />
                 )}
 
