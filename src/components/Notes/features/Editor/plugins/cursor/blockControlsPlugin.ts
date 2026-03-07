@@ -7,6 +7,7 @@ import { pickPointerBlock } from './blockControlsUtils';
 import { createBlockDragPreview, type BlockDragPreviewHandle } from './blockDragPreview';
 import {
   applyBlockMove,
+  canApplyBlockMove,
   getDraggableBlockRanges,
   resolveBlockTargetByPos,
   resolveDropTarget,
@@ -19,6 +20,9 @@ export const blockControlsPluginKey = new PluginKey('blockControls');
 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const CONTROLS_LEFT_OFFSET = 44;
+const WHEEL_DELTA_MODE_LINE = 1;
+const WHEEL_DELTA_MODE_PAGE = 2;
+const WHEEL_LINE_HEIGHT_PX = 16;
 
 interface BlockSelectionPluginState {
   selectedBlocks: BlockRange[];
@@ -28,6 +32,12 @@ function getSelectedBlockRanges(view: EditorView): BlockRange[] {
   const pluginState = blankAreaDragBoxPluginKey.getState(view.state) as BlockSelectionPluginState | undefined;
   if (!pluginState || !Array.isArray(pluginState.selectedBlocks)) return [];
   return normalizeBlockRanges(pluginState.selectedBlocks);
+}
+
+function normalizeWheelDelta(delta: number, deltaMode: number, pageSize: number): number {
+  if (deltaMode === WHEEL_DELTA_MODE_LINE) return delta * WHEEL_LINE_HEIGHT_PX;
+  if (deltaMode === WHEEL_DELTA_MODE_PAGE) return delta * pageSize;
+  return delta;
 }
 
 export const blockControlsPlugin = $prose(() => {
@@ -88,6 +98,10 @@ export const blockControlsPlugin = $prose(() => {
       const updateDropTargetByPointer = (clientX: number, clientY: number): boolean => {
         const target = resolveDropTarget(view, clientX, clientY);
         if (!target) {
+          hideDropIndicator();
+          return false;
+        }
+        if (!draggedRanges || !canApplyBlockMove(view, draggedRanges, target.insertPos)) {
           hideDropIndicator();
           return false;
         }
@@ -173,7 +187,12 @@ export const blockControlsPlugin = $prose(() => {
 
       const handleScrollOrResize = () => {
         if (draggedRanges) {
-          hideDropIndicator();
+          invalidateTargetCache();
+          if (lastDragClientX !== null && lastDragClientY !== null) {
+            updateDropTargetByPointer(lastDragClientX, lastDragClientY);
+          } else {
+            hideDropIndicator();
+          }
           return;
         }
         invalidateTargetCache();
@@ -187,12 +206,16 @@ export const blockControlsPlugin = $prose(() => {
         const canScrollX = scrollRoot.scrollWidth > scrollRoot.clientWidth;
         if (!canScrollY && !canScrollX) return;
 
+        const deltaY = normalizeWheelDelta(event.deltaY, event.deltaMode, scrollRoot.clientHeight);
+        const deltaX = normalizeWheelDelta(event.deltaX, event.deltaMode, scrollRoot.clientWidth);
+        if (deltaY === 0 && deltaX === 0) return;
+
         event.preventDefault();
-        if (canScrollY && event.deltaY !== 0) {
-          scrollRoot.scrollTop += event.deltaY;
+        if (canScrollY && deltaY !== 0) {
+          scrollRoot.scrollTop += deltaY;
         }
-        if (canScrollX && event.deltaX !== 0) {
-          scrollRoot.scrollLeft += event.deltaX;
+        if (canScrollX && deltaX !== 0) {
+          scrollRoot.scrollLeft += deltaX;
         }
 
         invalidateTargetCache();
@@ -219,10 +242,10 @@ export const blockControlsPlugin = $prose(() => {
         event.preventDefault();
         if (!pendingDrop) {
           finishDrag();
-          return;
+        } else {
+          applyBlockMove(view, draggedRanges, pendingDrop.insertPos);
+          finishDrag();
         }
-        applyBlockMove(view, draggedRanges, pendingDrop.insertPos);
-        finishDrag();
         invalidateTargetCache();
         scheduleHandleRefresh();
       };

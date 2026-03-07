@@ -35,6 +35,13 @@ interface WrappedListBuffer {
   items: Array<SelectedListItemInfo['itemNode']>;
 }
 
+interface BlockMoveContext {
+  selectedRanges: BlockRange[];
+  listItemInfoByRangeKey: Map<string, SelectedListItemInfo>;
+  deleteRanges: BlockRange[];
+  targetPos: number;
+}
+
 function logBlockDragDebug(message: string, error?: unknown): void {
   if (typeof window === 'undefined') return;
   const debugEnabled = Boolean((window as unknown as Record<string, unknown>)[BLOCK_DRAG_DEBUG_FLAG]);
@@ -69,6 +76,30 @@ function resolveAdjustedTargetPos(insertPos: number, deleteRanges: readonly Bloc
     range.to <= insertPos ? total + (range.to - range.from) : total
   ), 0);
   return insertPos - deletedBeforeInsert;
+}
+
+function resolveBlockMoveContext(
+  view: EditorView,
+  selectedRanges: readonly BlockRange[],
+  insertPos: number,
+): BlockMoveContext | null {
+  const movePlan = createBlockMovePlan(selectedRanges, insertPos);
+  if (!movePlan) return null;
+
+  const listItemInfoByRangeKey = collectSelectedListItemInfo(view.state, movePlan.selectedRanges);
+  const deleteRanges = buildDeleteRangesFromSelectedListItems(movePlan.selectedRanges, listItemInfoByRangeKey);
+  if (deleteRanges.length === 0) return null;
+  if (isInsertPosInsideRanges(insertPos, deleteRanges)) return null;
+
+  const targetPos = resolveAdjustedTargetPos(insertPos, deleteRanges);
+  if (targetPos === deleteRanges[0].from) return null;
+
+  return {
+    selectedRanges: movePlan.selectedRanges,
+    listItemInfoByRangeKey,
+    deleteRanges,
+    targetPos,
+  };
 }
 
 function isInsertionInsideList(doc: EditorView['state']['doc'], pos: number): boolean {
@@ -130,6 +161,41 @@ function buildMovedContent(
   return appendListBuffer(content, wrappedListBuffer);
 }
 
+interface PreparedBlockMove {
+  tr: EditorView['state']['tr'];
+  targetPos: number;
+  movedContent: Fragment;
+}
+
+function prepareBlockMove(
+  view: EditorView,
+  moveContext: BlockMoveContext,
+): PreparedBlockMove | null {
+  const { state } = view;
+  const { selectedRanges, listItemInfoByRangeKey, deleteRanges } = moveContext;
+
+  let tr = state.tr;
+  for (let i = deleteRanges.length - 1; i >= 0; i -= 1) {
+    const range = deleteRanges[i];
+    tr = tr.delete(range.from, range.to);
+  }
+
+  const safeTargetPos = Math.max(0, Math.min(moveContext.targetPos, tr.doc.content.size));
+  const insertInsideList = isInsertionInsideList(tr.doc, safeTargetPos);
+  const movedContent = buildMovedContent(view, selectedRanges, listItemInfoByRangeKey, insertInsideList);
+  if (movedContent.size === 0) return null;
+
+  const $target = tr.doc.resolve(safeTargetPos);
+  const targetIndex = $target.index();
+  if (!$target.parent.canReplace(targetIndex, targetIndex, movedContent)) return null;
+
+  return {
+    tr,
+    targetPos: safeTargetPos,
+    movedContent,
+  };
+}
+
 export function resolveBlockTargetByPos(view: EditorView, blockPos: number): HandleBlockTarget | null {
   const target = resolveSelectableBlockTargetByPos(view, blockPos);
   if (!target) return null;
@@ -172,32 +238,23 @@ export function resolveDropTarget(view: EditorView, clientX: number, clientY: nu
   };
 }
 
+export function canApplyBlockMove(view: EditorView, selectedRanges: readonly BlockRange[], insertPos: number): boolean {
+  const moveContext = resolveBlockMoveContext(view, selectedRanges, insertPos);
+  if (!moveContext) return false;
+  return prepareBlockMove(view, moveContext) !== null;
+}
+
 export function applyBlockMove(view: EditorView, selectedRanges: readonly BlockRange[], insertPos: number): boolean {
-  const { state } = view;
-  const movePlan = createBlockMovePlan(selectedRanges, insertPos);
-  if (!movePlan) return false;
+  const moveContext = resolveBlockMoveContext(view, selectedRanges, insertPos);
+  if (!moveContext) return false;
 
   try {
-    const listItemInfoByRangeKey = collectSelectedListItemInfo(state, movePlan.selectedRanges);
-    const deleteRanges = buildDeleteRangesFromSelectedListItems(movePlan.selectedRanges, listItemInfoByRangeKey);
-    if (deleteRanges.length === 0) return false;
-    if (isInsertPosInsideRanges(insertPos, deleteRanges)) return false;
+    const preparedMove = prepareBlockMove(view, moveContext);
+    if (!preparedMove) return false;
 
-    const targetPos = resolveAdjustedTargetPos(insertPos, deleteRanges);
+    let tr = preparedMove.tr.insert(preparedMove.targetPos, preparedMove.movedContent);
 
-    let tr = state.tr;
-    for (let i = deleteRanges.length - 1; i >= 0; i -= 1) {
-      const range = deleteRanges[i];
-      tr = tr.delete(range.from, range.to);
-    }
-
-    const insertInsideList = isInsertionInsideList(tr.doc, targetPos);
-    const movedContent = buildMovedContent(view, movePlan.selectedRanges, listItemInfoByRangeKey, insertInsideList);
-    if (movedContent.size === 0) return false;
-
-    tr = tr.insert(targetPos, movedContent);
-
-    const selectionAnchor = Math.max(0, Math.min(targetPos + 1, tr.doc.content.size));
+    const selectionAnchor = Math.max(0, Math.min(preparedMove.targetPos + 1, tr.doc.content.size));
     tr = tr.setSelection(Selection.near(tr.doc.resolve(selectionAnchor), 1)).scrollIntoView();
     view.dispatch(tr);
     view.focus();
