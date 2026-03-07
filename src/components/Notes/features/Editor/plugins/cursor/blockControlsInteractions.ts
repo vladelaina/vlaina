@@ -1,4 +1,4 @@
-import { Fragment, type Node as ProseNode, type NodeType } from '@milkdown/kit/prose/model';
+import { Fragment } from '@milkdown/kit/prose/model';
 import { Selection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockRange } from './blockSelectionUtils';
@@ -8,6 +8,13 @@ import {
   mapRangesToSelectableBlocks,
   resolveSelectableBlockTargetByPos,
 } from './blockUnitResolver';
+import {
+  buildDeleteRangesFromSelectedListItems,
+  collectSelectedListItemInfo,
+  getRangeKey,
+  isListContainerName,
+  type SelectedListItemInfo,
+} from './listBlockUtils';
 
 export interface HandleBlockTarget {
   pos: number;
@@ -22,18 +29,6 @@ export interface DropTarget {
 }
 
 const BLOCK_DRAG_DEBUG_FLAG = '__NEKO_DEBUG_BLOCK_DRAG__';
-const LIST_ITEM_NODE_NAME = 'list_item';
-
-interface SelectedListItemInfo {
-  range: BlockRange;
-  itemNode: ProseNode;
-  parentFrom: number;
-  parentTo: number;
-  parentType: NodeType;
-  parentAttrs: Record<string, unknown>;
-  parentChildCount: number;
-}
-
 interface WrappedListBuffer {
   type: SelectedListItemInfo['parentType'];
   attrs: SelectedListItemInfo['parentAttrs'];
@@ -51,14 +46,6 @@ function logBlockDragDebug(message: string, error?: unknown): void {
   console.warn('[BlockDrag]', message);
 }
 
-function getRangeKey(range: BlockRange): string {
-  return `${range.from}:${range.to}`;
-}
-
-function isListContainerName(name: string): boolean {
-  return name === 'bullet_list' || name === 'ordered_list';
-}
-
 function areNodeAttrsEqual(
   a: SelectedListItemInfo['parentAttrs'],
   b: SelectedListItemInfo['parentAttrs'],
@@ -71,84 +58,6 @@ function areNodeAttrsEqual(
     if (a[key] !== b[key]) return false;
   }
   return true;
-}
-
-function getSelectedListItemInfo(
-  view: EditorView,
-  range: BlockRange,
-): SelectedListItemInfo | null {
-  const { doc } = view.state;
-  const safeFrom = Math.max(0, Math.min(range.from, doc.content.size));
-  const $from = doc.resolve(safeFrom);
-  const nodeAfter = $from.nodeAfter;
-  if (!nodeAfter) return null;
-  if (nodeAfter.type.name !== LIST_ITEM_NODE_NAME) return null;
-  if (nodeAfter.nodeSize !== range.to - range.from) return null;
-  if (!isListContainerName($from.parent.type.name)) return null;
-  if ($from.depth <= 0) return null;
-
-  const parentFrom = $from.before($from.depth);
-  const parentNode = $from.parent;
-  return {
-    range,
-    itemNode: nodeAfter,
-    parentFrom,
-    parentTo: parentFrom + parentNode.nodeSize,
-    parentType: parentNode.type,
-    parentAttrs: parentNode.attrs,
-    parentChildCount: parentNode.childCount,
-  };
-}
-
-function buildDeleteRanges(
-  selectedRanges: readonly BlockRange[],
-  listItemInfoByRangeKey: Map<string, SelectedListItemInfo>,
-): BlockRange[] {
-  if (selectedRanges.length === 0) return [];
-
-  const selectedCountByParent = new Map<string, number>();
-  const parentInfoByKey = new Map<string, SelectedListItemInfo>();
-  for (const range of selectedRanges) {
-    const info = listItemInfoByRangeKey.get(getRangeKey(range));
-    if (!info) continue;
-    const parentKey = `${info.parentFrom}:${info.parentTo}`;
-    selectedCountByParent.set(parentKey, (selectedCountByParent.get(parentKey) ?? 0) + 1);
-    parentInfoByKey.set(parentKey, info);
-  }
-
-  const fullySelectedParents = new Set<string>();
-  for (const [parentKey, count] of selectedCountByParent) {
-    const info = parentInfoByKey.get(parentKey);
-    if (!info) continue;
-    if (count === info.parentChildCount) {
-      fullySelectedParents.add(parentKey);
-    }
-  }
-
-  const deleteRanges: BlockRange[] = [];
-  for (const range of selectedRanges) {
-    const info = listItemInfoByRangeKey.get(getRangeKey(range));
-    if (!info) {
-      deleteRanges.push(range);
-      continue;
-    }
-
-    const parentKey = `${info.parentFrom}:${info.parentTo}`;
-    if (fullySelectedParents.has(parentKey)) continue;
-    deleteRanges.push(range);
-  }
-
-  for (const parentKey of fullySelectedParents) {
-    const info = parentInfoByKey.get(parentKey);
-    if (!info) continue;
-    deleteRanges.push({
-      from: info.parentFrom,
-      to: info.parentTo,
-    });
-  }
-
-  deleteRanges.sort((a, b) => (a.from === b.from ? a.to - b.to : a.from - b.from));
-  return deleteRanges;
 }
 
 function isInsertPosInsideRanges(insertPos: number, ranges: readonly BlockRange[]): boolean {
@@ -269,14 +178,8 @@ export function applyBlockMove(view: EditorView, selectedRanges: readonly BlockR
   if (!movePlan) return false;
 
   try {
-    const listItemInfoByRangeKey = new Map<string, SelectedListItemInfo>();
-    for (const range of movePlan.selectedRanges) {
-      const info = getSelectedListItemInfo(view, range);
-      if (!info) continue;
-      listItemInfoByRangeKey.set(getRangeKey(range), info);
-    }
-
-    const deleteRanges = buildDeleteRanges(movePlan.selectedRanges, listItemInfoByRangeKey);
+    const listItemInfoByRangeKey = collectSelectedListItemInfo(state, movePlan.selectedRanges);
+    const deleteRanges = buildDeleteRangesFromSelectedListItems(movePlan.selectedRanges, listItemInfoByRangeKey);
     if (deleteRanges.length === 0) return false;
     if (isInsertPosInsideRanges(insertPos, deleteRanges)) return false;
 

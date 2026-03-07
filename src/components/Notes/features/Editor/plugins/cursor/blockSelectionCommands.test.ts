@@ -38,7 +38,7 @@ function createMoveSchema() {
       text: { group: 'inline' },
       bullet_list: { group: 'block', content: 'list_item+' },
       ordered_list: { group: 'block', content: 'list_item+', attrs: { order: { default: 1 } } },
-      list_item: { content: 'paragraph block*' },
+      list_item: { content: 'paragraph block*', attrs: { checked: { default: null } } },
     },
     marks: {},
   });
@@ -223,7 +223,52 @@ describe('deleteSelectedBlocks', () => {
           content: [
             {
               type: 'list_item',
+              attrs: { checked: null },
               content: [{ type: 'paragraph', content: [{ type: 'text', text: 'two' }] }],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('preserves task-list checked attrs on remaining items after block delete', () => {
+    const view = createViewForDelete({
+      type: 'doc',
+      content: [
+        {
+          type: 'bullet_list',
+          content: [
+            {
+              type: 'list_item',
+              attrs: { checked: true },
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'done' }] }],
+            },
+            {
+              type: 'list_item',
+              attrs: { checked: false },
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'todo' }] }],
+            },
+          ],
+        },
+      ],
+    });
+
+    const [listRange] = getTopLevelRanges(view);
+    const [itemRange] = getListItemRanges(view, listRange);
+    const deleted = deleteSelectedBlocks(view, [itemRange], (tr) => tr);
+    expect(deleted).toBe(true);
+
+    expect(view.state.doc.toJSON()).toEqual({
+      type: 'doc',
+      content: [
+        {
+          type: 'bullet_list',
+          content: [
+            {
+              type: 'list_item',
+              attrs: { checked: false },
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'todo' }] }],
             },
           ],
         },

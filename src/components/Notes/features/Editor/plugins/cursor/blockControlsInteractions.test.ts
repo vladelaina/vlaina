@@ -158,7 +158,7 @@ function createMoveSchema() {
       text: { group: 'inline' },
       bullet_list: { group: 'block', content: 'list_item+' },
       ordered_list: { group: 'block', content: 'list_item+', attrs: { order: { default: 1 } } },
-      list_item: { content: 'paragraph block*' },
+      list_item: { content: 'paragraph block*', attrs: { checked: { default: null } } },
     },
     marks: {},
   });
@@ -244,6 +244,7 @@ describe('applyBlockMove', () => {
           content: [
             {
               type: 'list_item',
+              attrs: { checked: null },
               content: [{ type: 'paragraph', content: [{ type: 'text', text: 'two' }] }],
             },
           ],
@@ -254,6 +255,7 @@ describe('applyBlockMove', () => {
           content: [
             {
               type: 'list_item',
+              attrs: { checked: null },
               content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }],
             },
           ],
@@ -273,6 +275,7 @@ describe('applyBlockMove', () => {
           content: [
             {
               type: 'list_item',
+              attrs: { checked: null },
               content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }],
             },
           ],
@@ -296,10 +299,67 @@ describe('applyBlockMove', () => {
           content: [
             {
               type: 'list_item',
+              attrs: { checked: null },
               content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }],
             },
           ],
         },
+      ],
+    });
+  });
+
+  it('preserves task-list checked attrs when moving item across containers', () => {
+    const view = createViewForMove({
+      type: 'doc',
+      content: [
+        {
+          type: 'bullet_list',
+          content: [
+            {
+              type: 'list_item',
+              attrs: { checked: true },
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'done' }] }],
+            },
+            {
+              type: 'list_item',
+              attrs: { checked: false },
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'todo' }] }],
+            },
+          ],
+        },
+        { type: 'paragraph', content: [{ type: 'text', text: 'tail' }] },
+      ],
+    });
+
+    const before = getTopLevelRanges(view);
+    const listItems = getListItemRanges(before[0]);
+    const moved = applyBlockMove(view, [listItems[0]], before[1].from);
+    expect(moved).toBe(true);
+
+    expect(view.state.doc.toJSON()).toEqual({
+      type: 'doc',
+      content: [
+        {
+          type: 'bullet_list',
+          content: [
+            {
+              type: 'list_item',
+              attrs: { checked: false },
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'todo' }] }],
+            },
+          ],
+        },
+        {
+          type: 'bullet_list',
+          content: [
+            {
+              type: 'list_item',
+              attrs: { checked: true },
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'done' }] }],
+            },
+          ],
+        },
+        { type: 'paragraph', content: [{ type: 'text', text: 'tail' }] },
       ],
     });
   });

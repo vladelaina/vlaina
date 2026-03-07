@@ -7,100 +7,10 @@ import {
   normalizeSerializedMarkdownBlock,
 } from '../clipboard/markdownSerializationUtils';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
+import { buildDeleteRangesForBlockSelection } from './listBlockUtils';
 
 interface SerializeSelectedBlocksOptions {
   markdownSerializer?: Serializer | null;
-}
-
-const LIST_ITEM_NODE_NAME = 'list_item';
-
-interface SelectedListItemInfo {
-  range: BlockRange;
-  parentFrom: number;
-  parentTo: number;
-  parentChildCount: number;
-}
-
-function getRangeKey(range: BlockRange): string {
-  return `${range.from}:${range.to}`;
-}
-
-function isListContainerName(name: string): boolean {
-  return name === 'bullet_list' || name === 'ordered_list';
-}
-
-function getSelectedListItemInfo(state: EditorState, range: BlockRange): SelectedListItemInfo | null {
-  const safeFrom = Math.max(0, Math.min(range.from, state.doc.content.size));
-  const $from = state.doc.resolve(safeFrom);
-  const nodeAfter = $from.nodeAfter;
-  if (!nodeAfter) return null;
-  if (nodeAfter.type.name !== LIST_ITEM_NODE_NAME) return null;
-  if (nodeAfter.nodeSize !== range.to - range.from) return null;
-  if (!isListContainerName($from.parent.type.name)) return null;
-  if ($from.depth <= 0) return null;
-
-  const parentFrom = $from.before($from.depth);
-  const parentNode = $from.parent;
-  return {
-    range,
-    parentFrom,
-    parentTo: parentFrom + parentNode.nodeSize,
-    parentChildCount: parentNode.childCount,
-  };
-}
-
-function buildDeleteRanges(state: EditorState, ranges: readonly BlockRange[]): BlockRange[] {
-  if (ranges.length === 0) return [];
-
-  const listItemInfoByRangeKey = new Map<string, SelectedListItemInfo>();
-  for (const range of ranges) {
-    const info = getSelectedListItemInfo(state, range);
-    if (!info) continue;
-    listItemInfoByRangeKey.set(getRangeKey(range), info);
-  }
-
-  const selectedCountByParent = new Map<string, number>();
-  const parentInfoByKey = new Map<string, SelectedListItemInfo>();
-  for (const range of ranges) {
-    const info = listItemInfoByRangeKey.get(getRangeKey(range));
-    if (!info) continue;
-    const parentKey = `${info.parentFrom}:${info.parentTo}`;
-    selectedCountByParent.set(parentKey, (selectedCountByParent.get(parentKey) ?? 0) + 1);
-    parentInfoByKey.set(parentKey, info);
-  }
-
-  const fullySelectedParents = new Set<string>();
-  for (const [parentKey, count] of selectedCountByParent) {
-    const info = parentInfoByKey.get(parentKey);
-    if (!info) continue;
-    if (count === info.parentChildCount) {
-      fullySelectedParents.add(parentKey);
-    }
-  }
-
-  const deleteRanges: BlockRange[] = [];
-  for (const range of ranges) {
-    const info = listItemInfoByRangeKey.get(getRangeKey(range));
-    if (!info) {
-      deleteRanges.push(range);
-      continue;
-    }
-
-    const parentKey = `${info.parentFrom}:${info.parentTo}`;
-    if (fullySelectedParents.has(parentKey)) continue;
-    deleteRanges.push(range);
-  }
-
-  for (const parentKey of fullySelectedParents) {
-    const info = parentInfoByKey.get(parentKey);
-    if (!info) continue;
-    deleteRanges.push({
-      from: info.parentFrom,
-      to: info.parentTo,
-    });
-  }
-
-  return normalizeBlockRanges(deleteRanges);
 }
 
 export function serializeSelectedBlocksToText(
@@ -172,7 +82,7 @@ export function deleteSelectedBlocks(
   const normalized = normalizeBlockRanges(blocks);
   if (normalized.length === 0) return false;
 
-  const deleteRanges = buildDeleteRanges(view.state, normalized);
+  const deleteRanges = buildDeleteRangesForBlockSelection(view.state, normalized);
   if (deleteRanges.length === 0) return false;
 
   const anchorHint = deleteRanges[0].from;
