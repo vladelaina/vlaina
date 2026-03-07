@@ -20,6 +20,16 @@ import {
   extractMarkdownImageSources,
   stripMarkdownImageTokens,
 } from '@/components/Chat/common/messageClipboard';
+import { useNotesStore } from '@/stores/notes/useNotesStore';
+import type { NoteMentionReference } from '@/lib/ai/noteMentions';
+import {
+  buildMentionPreviewParts,
+  collectNotePaths,
+  getNoteMentionTrigger,
+  insertMentionAtTrigger,
+  type MentionPreviewPart,
+  type NoteMentionCandidate,
+} from '@/components/Chat/features/Input/noteMentionHelpers';
 
 interface ParsedUserMessageContent {
   text: string;
@@ -126,7 +136,18 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
     parsedContent.imageSources.map((src, index) => toEditAttachment(src, index))
   );
   const [isComposing, setIsComposing] = useState(false);
+  const [editMentions, setEditMentions] = useState<NoteMentionReference[]>([]);
+  const [editCaretIndex, setEditCaretIndex] = useState(0);
+  const [activeMentionIndex, setActiveMentionIndex] = useState(0);
+  const [editTextareaScrollTop, setEditTextareaScrollTop] = useState(0);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const notesRootFolder = useNotesStore((state) => state.rootFolder);
+  const currentNotePath = useNotesStore((state) => state.currentNote?.path ?? null);
+  const notesPath = useNotesStore((state) => state.notesPath);
+  const notesLoading = useNotesStore((state) => state.isLoading);
+  const loadFileTree = useNotesStore((state) => state.loadFileTree);
+  const getDisplayName = useNotesStore((state) => state.getDisplayName);
 
   const versions = message.versions || [];
   const currentIdx = message.currentVersionIndex ?? 0;
@@ -140,8 +161,91 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
   useEffect(() => {
       if (!isEditing) {
         resetEditDraft();
+        setEditMentions([]);
+        setEditCaretIndex(0);
+        setActiveMentionIndex(0);
       }
   }, [isEditing, resetEditDraft]);
+
+  const allNoteCandidates = useMemo<NoteMentionCandidate[]>(() => {
+    if (!notesRootFolder) {
+      return [];
+    }
+    const paths: string[] = [];
+    collectNotePaths(notesRootFolder.children, paths);
+    const uniquePaths = Array.from(new Set(paths));
+    return uniquePaths
+      .map((path) => ({
+        path,
+        title: getDisplayName(path),
+        isCurrent: path === currentNotePath,
+      }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [currentNotePath, getDisplayName, notesRootFolder]);
+
+  const mentionTrigger = useMemo(
+    () => (isEditing ? getNoteMentionTrigger(editValue, editCaretIndex) : null),
+    [editCaretIndex, editValue, isEditing]
+  );
+
+  const filteredCandidates = useMemo(() => {
+    if (!mentionTrigger) {
+      return [];
+    }
+    const query = mentionTrigger.query.trim().toLowerCase();
+    const candidates = allNoteCandidates.filter((candidate) => {
+      if (!query) {
+        return true;
+      }
+      return (
+        candidate.title.toLowerCase().includes(query) ||
+        candidate.path.toLowerCase().includes(query)
+      );
+    });
+    return candidates
+      .sort((a, b) => {
+        if (a.isCurrent !== b.isCurrent) {
+          return a.isCurrent ? -1 : 1;
+        }
+        return a.title.localeCompare(b.title);
+      })
+      .slice(0, 30);
+  }, [allNoteCandidates, mentionTrigger]);
+
+  const showMentionPicker = !!mentionTrigger && filteredCandidates.length > 0;
+  const currentPageCandidates = useMemo(
+    () => filteredCandidates.filter((candidate) => candidate.isCurrent),
+    [filteredCandidates]
+  );
+  const linkedPageCandidates = useMemo(
+    () => filteredCandidates.filter((candidate) => !candidate.isCurrent),
+    [filteredCandidates]
+  );
+
+  useEffect(() => {
+    setActiveMentionIndex(0);
+  }, [mentionTrigger?.query, mentionTrigger?.start]);
+
+  useEffect(() => {
+    if (!isEditing || !mentionTrigger || mentionTrigger.start < 0) {
+      return;
+    }
+    if (notesRootFolder || !notesPath || notesLoading) {
+      return;
+    }
+    void loadFileTree();
+  }, [isEditing, loadFileTree, mentionTrigger, notesLoading, notesPath, notesRootFolder]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      return;
+    }
+    setEditMentions(
+      allNoteCandidates
+        .filter((candidate) => editValue.includes(`@${candidate.title}`))
+        .map((candidate) => ({ path: candidate.path, title: candidate.title }))
+    );
+  }, [allNoteCandidates, editValue, isEditing]);
 
   useEffect(() => {
       if (!isEditing || !editTextareaRef.current) return;
@@ -161,6 +265,65 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
       el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
   }, [isEditing, editValue]);
 
+  const removeEditMention = useCallback(
+    (path: string, rangeStart?: number) => {
+      const target = editMentions.find((mention) => mention.path === path);
+      if (!target) {
+        return;
+      }
+      const label = `@${target.title}`;
+      const index = typeof rangeStart === 'number' ? rangeStart : editValue.indexOf(label);
+      if (index < 0) {
+        setEditMentions((prev) => prev.filter((mention) => mention.path !== path));
+        return;
+      }
+      const nextValue = `${editValue.slice(0, index)}${editValue.slice(index + label.length)}`;
+      setEditValue(nextValue);
+      setEditCaretIndex(index);
+      setEditMentions((prev) => prev.filter((mention) => mention.path !== path));
+      requestAnimationFrame(() => {
+        const input = editTextareaRef.current;
+        if (!input) {
+          return;
+        }
+        input.focus({ preventScroll: true });
+        input.setSelectionRange(index, index);
+      });
+    },
+    [editMentions, editValue]
+  );
+
+  const applyMentionCandidate = useCallback(
+    (candidate: NoteMentionCandidate) => {
+      if (!mentionTrigger) {
+        return;
+      }
+      const { nextValue, nextCaret } = insertMentionAtTrigger(editValue, mentionTrigger, candidate.title);
+      setEditValue(nextValue);
+      setEditCaretIndex(-1);
+      setEditMentions((prev) => {
+        if (prev.some((mention) => mention.path === candidate.path)) {
+          return prev;
+        }
+        return [...prev, { path: candidate.path, title: candidate.title }];
+      });
+      requestAnimationFrame(() => {
+        const input = editTextareaRef.current;
+        if (!input) {
+          return;
+        }
+        input.focus({ preventScroll: true });
+        input.setSelectionRange(nextCaret, nextCaret);
+      });
+    },
+    [editValue, mentionTrigger]
+  );
+
+  const mentionPreviewParts = useMemo(
+    () => buildMentionPreviewParts(editValue, editMentions),
+    [editMentions, editValue]
+  );
+
   const handleSave = () => {
       const normalized = composeUserMessageContent(editValue, editAttachments);
       const normalizedCurrent = content.replace(/\r\n?/g, '\n');
@@ -179,8 +342,66 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
       setEditAttachments((prev) => prev.filter((attachment) => attachment.id !== id));
   }, []);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       const native = e.nativeEvent as KeyboardEvent & { isComposing?: boolean; keyCode?: number };
+      const selectionStart = e.currentTarget.selectionStart ?? 0;
+      const selectionEnd = e.currentTarget.selectionEnd ?? 0;
+      const mentionRanges = mentionPreviewParts.filter(
+        (part): part is MentionPreviewPart & { mention: NoteMentionReference } =>
+          part.type === 'mention' && !!part.mention
+      );
+
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        if (selectionStart !== selectionEnd) {
+          const overlapped = mentionRanges.find(
+            (part) => selectionStart < part.end && selectionEnd > part.start
+          );
+          if (overlapped) {
+            e.preventDefault();
+            removeEditMention(overlapped.mention.path, overlapped.start);
+            return;
+          }
+        }
+        const targetPart = mentionRanges.find((part) =>
+          e.key === 'Backspace'
+            ? selectionStart > part.start && selectionStart <= part.end
+            : selectionStart >= part.start && selectionStart < part.end
+        );
+        if (targetPart) {
+          e.preventDefault();
+          removeEditMention(targetPart.mention.path, targetPart.start);
+          return;
+        }
+      }
+
+      if (showMentionPicker) {
+          if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              setActiveMentionIndex((prev) => (prev + 1) % filteredCandidates.length);
+              return;
+          }
+          if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              setActiveMentionIndex((prev) =>
+                prev - 1 < 0 ? filteredCandidates.length - 1 : prev - 1
+              );
+              return;
+          }
+          if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              const candidate = filteredCandidates[activeMentionIndex] ?? filteredCandidates[0];
+              if (candidate) {
+                applyMentionCandidate(candidate);
+                return;
+              }
+          }
+          if (e.key === 'Escape') {
+              e.preventDefault();
+              setEditCaretIndex(-1);
+              return;
+          }
+      }
+
       if (e.key === 'Enter' && !e.shiftKey) {
           if (isComposing || native.isComposing || native.keyCode === 229) {
               e.preventDefault();
@@ -220,16 +441,120 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
           <div className={cn("w-full", chatComposerFrameClass, chatComposerSurfaceClass)}>
             <ChatAttachmentPreviewList attachments={editAttachments} onRemove={handleRemoveEditAttachment} />
             <div className={chatComposerInputBlockClass}>
-              <textarea
-                ref={editTextareaRef}
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onCompositionStart={() => setIsComposing(true)}
-                onCompositionEnd={() => setIsComposing(false)}
-                onKeyDown={handleKeyDown}
-                className={cn("p-0 m-0 border-0", chatComposerTextareaClass)}
-                rows={1}
-              />
+              <div className="relative">
+                {showMentionPicker && (
+                  <div
+                    className="absolute left-0 right-0 bottom-full mb-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1d1d1d] shadow-xl p-2 max-h-72 overflow-y-auto z-40"
+                    data-no-focus-input="true"
+                  >
+                    {currentPageCandidates.length > 0 && (
+                      <div className="mb-2">
+                        <p className="px-2 pb-1 text-[11px] font-medium text-gray-500">Current page</p>
+                        <div className="space-y-0.5">
+                          {currentPageCandidates.map((candidate) => {
+                            const candidateIndex = filteredCandidates.findIndex((item) => item.path === candidate.path);
+                            const isActive = candidateIndex === activeMentionIndex;
+                            return (
+                              <button
+                                key={`edit-current-${candidate.path}`}
+                                type="button"
+                                className={cn(
+                                  "w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
+                                  isActive
+                                    ? "bg-gray-100 dark:bg-zinc-700 text-gray-900 dark:text-gray-100"
+                                    : "hover:bg-gray-50 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-200"
+                                )}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => applyMentionCandidate(candidate)}
+                              >
+                                <Icon name="file.text" size="sm" className="text-gray-400" />
+                                <span className="truncate">{candidate.title}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {linkedPageCandidates.length > 0 && (
+                      <div>
+                        <p className="px-2 pb-1 text-[11px] font-medium text-gray-500">Link to page</p>
+                        <div className="space-y-0.5">
+                          {linkedPageCandidates.map((candidate) => {
+                            const candidateIndex = filteredCandidates.findIndex((item) => item.path === candidate.path);
+                            const isActive = candidateIndex === activeMentionIndex;
+                            return (
+                              <button
+                                key={`edit-${candidate.path}`}
+                                type="button"
+                                className={cn(
+                                  "w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
+                                  isActive
+                                    ? "bg-gray-100 dark:bg-zinc-700 text-gray-900 dark:text-gray-100"
+                                    : "hover:bg-gray-50 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-200"
+                                )}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => applyMentionCandidate(candidate)}
+                              >
+                                <Icon name="file.text" size="sm" className="text-gray-400" />
+                                <span className="truncate">{candidate.title}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <textarea
+                  ref={editTextareaRef}
+                  value={editValue}
+                  onChange={(e) => {
+                    setEditValue(e.target.value);
+                    setEditCaretIndex(e.target.selectionStart ?? e.target.value.length);
+                  }}
+                  onCompositionStart={() => setIsComposing(true)}
+                  onCompositionEnd={() => setIsComposing(false)}
+                  onKeyDown={handleKeyDown}
+                  onSelect={(e) => setEditCaretIndex(e.currentTarget.selectionStart ?? 0)}
+                  onClick={(e) => setEditCaretIndex(e.currentTarget.selectionStart ?? 0)}
+                  onBlur={() => setEditCaretIndex(-1)}
+                  onScroll={(e) => setEditTextareaScrollTop(e.currentTarget.scrollTop)}
+                  className={cn("p-0 m-0 border-0 relative z-10 w-full", chatComposerTextareaClass)}
+                  rows={1}
+                />
+                {mentionPreviewParts.length > 0 && (
+                  <div
+                    className="pointer-events-none absolute inset-0 z-20 whitespace-pre-wrap break-words text-[15px] leading-6"
+                    style={{ transform: `translateY(${-editTextareaScrollTop}px)` }}
+                    aria-hidden="true"
+                  >
+                    {mentionPreviewParts.map((part) =>
+                      part.type === 'mention' && part.mention ? (
+                        <span
+                          key={part.key}
+                          className="pointer-events-auto group relative inline rounded-md bg-blue-500/90 text-white dark:bg-blue-500/80"
+                          data-no-focus-input="true"
+                        >
+                          {part.text}
+                          <button
+                            type="button"
+                            className="absolute -right-1 -top-1 z-10 rounded-full bg-blue-500/95 px-1 text-[10px] leading-4 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => removeEditMention(part.mention!.path, part.start)}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ) : (
+                        <span key={part.key} className="text-transparent">
+                          {part.text}
+                        </span>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex justify-end items-center gap-2 px-2 pb-2 pr-3">

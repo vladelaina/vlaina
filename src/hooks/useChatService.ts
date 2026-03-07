@@ -3,16 +3,22 @@ import { useAIStore } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import { convertToBase64, type Attachment } from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
+import type { NoteMentionReference } from '@/lib/ai/noteMentions';
+import { dedupeNoteMentions } from '@/lib/ai/noteMentions';
 import { buildRequestHistory } from '@/lib/ai/requestContext';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
+import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
 const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
 const SVG_DATA_URL_REGEX = /^data:image\/svg\+xml/i;
 const IMAGE_NAME_REGEX = /\.(png|jpe?g|webp|gif|bmp|avif|svg)(?:$|[?#])/i;
+const MAX_NOTE_MENTION_COUNT = 3;
+const MAX_NOTE_MENTION_CHARS = 12000;
 
 function isImageAttachment(attachment: Attachment): boolean {
   const mimeType = attachment.type?.trim().toLowerCase() ?? '';
@@ -50,6 +56,58 @@ function getAttachmentMessageImageSrc(attachment: Attachment): string {
 
 function toImageMarkdown(src: string): string {
   return `![image](<${src}>)`;
+}
+
+function isAbsolutePath(path: string): boolean {
+  return /^[A-Za-z]:[\\/]/.test(path) || path.startsWith('/');
+}
+
+async function resolveMentionedNoteContent(notePath: string): Promise<string> {
+  const notesState = useNotesStore.getState();
+
+  if (notesState.currentNote?.path === notePath) {
+    return notesState.currentNote.content || '';
+  }
+
+  const cached = notesState.noteContentsCache.get(notePath);
+  if (typeof cached === 'string') {
+    return cached;
+  }
+
+  const storage = getStorageAdapter();
+  try {
+    if (isAbsolutePath(notePath)) {
+      return await storage.readFile(notePath);
+    }
+    if (!notesState.notesPath) {
+      return '';
+    }
+    const fullPath = await joinPath(notesState.notesPath, notePath);
+    return await storage.readFile(fullPath);
+  } catch {
+    return '';
+  }
+}
+
+function buildMentionedNotesContext(
+  mentionedNotes: Array<NoteMentionReference & { content: string }>
+): string {
+  if (mentionedNotes.length === 0) {
+    return '';
+  }
+
+  const sections = mentionedNotes.map((note) => {
+    const boundedContent = note.content.slice(0, MAX_NOTE_MENTION_CHARS);
+    return `## ${note.title}\n${boundedContent}`;
+  });
+
+  return [
+    'Referenced notes (Markdown):',
+    '',
+    sections.join('\n\n---\n\n'),
+    '',
+    'Answer based on these notes plus the user request.',
+  ].join('\n');
 }
 
 function decodeSvgDataUrl(dataUrl: string): string | null {
@@ -234,11 +292,13 @@ export function useChatService() {
   }, [setSessionLoading]);
 
   const sendMessage = useCallback(
-    async (text: string, attachments: Attachment[]) => {
+    async (text: string, attachments: Attachment[], noteMentions: NoteMentionReference[] = []) => {
       const isTextEmpty = !text || text.trim().length === 0;
       const hasNoAttachments = !attachments || attachments.length === 0;
+      const normalizedMentions = dedupeNoteMentions(noteMentions).slice(0, MAX_NOTE_MENTION_COUNT);
+      const hasNoMentions = normalizedMentions.length === 0;
 
-      if ((isTextEmpty && hasNoAttachments) || !selectedModel) return;
+      if ((isTextEmpty && hasNoAttachments && hasNoMentions) || !selectedModel) return;
 
       const provider = providers.find((p) => p.id === selectedModel.providerId);
       if (!provider) {
@@ -248,6 +308,7 @@ export function useChatService() {
 
       const normalizedInput = text.replace(INVISIBLE_BREAK_REGEX, '').replace(UNIVERSAL_NEWLINE_REGEX, '\n');
       const userMessageText = normalizedInput.trim();
+      const mentionText = normalizedMentions.map((mention) => `@${mention.title}`).join(' ');
 
       let activeSessionId = currentSessionId;
       let isNewSession = false;
@@ -271,6 +332,10 @@ export function useChatService() {
           })
           .join('\n\n');
         storageContent = imageMarkdown + (userMessageText ? `\n\n${userMessageText}` : '');
+      }
+
+      if (!storageContent.trim() && normalizedMentions.length > 0) {
+        storageContent = mentionText;
       }
 
       addMessage({
@@ -324,11 +389,28 @@ export function useChatService() {
           customSystemPrompt
         });
 
-        let apiMessageContent: ChatMessageContent = userMessageText;
+        const mentionedNotes = (
+          await Promise.all(
+            normalizedMentions.map(async (mention) => ({
+              ...mention,
+              content: (await resolveMentionedNoteContent(mention.path)).trim(),
+            }))
+          )
+        ).filter((note) => note.content.length > 0);
+
+        const notesContext = buildMentionedNotesContext(mentionedNotes);
+        const requestText = userMessageText;
+        const textPayload = notesContext
+          ? requestText
+            ? `${notesContext}\n\nUser request:\n${requestText}`
+            : `${notesContext}\n\nUser request: (none)`
+          : requestText;
+
+        let apiMessageContent: ChatMessageContent = textPayload;
         if (attachments.length > 0) {
           const parts: ChatMessageContentPart[] = [];
-          if (userMessageText) {
-            parts.push({ type: 'text', text: userMessageText });
+          if (textPayload) {
+            parts.push({ type: 'text', text: textPayload });
           }
           for (const att of attachments) {
             if (isImageAttachment(att)) {
