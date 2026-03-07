@@ -2,14 +2,8 @@ import { useRef, useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { useGroupStore } from '@/stores/useGroupStore';
-import { parseDuration, formatDuration } from '@/lib/time';
 import { ColorPicker } from '@/components/common/ColorPicker';
 import type { NekoEvent } from '@/stores/useGroupStore';
-
-function formatEstimatedTimeForInput(minutes: number | undefined): string {
-    if (!minutes) return '';
-    return formatDuration(minutes, { showDays: true });
-}
 
 interface TaskItemMenuProps {
     task: NekoEvent;
@@ -25,16 +19,9 @@ export function TaskItemMenu({
     onDelete
 }: TaskItemMenuProps) {
     const [showMenu, setShowMenu] = useState(false);
-    const [estimatedTime, setEstimatedTime] = useState('');
     const menuRef = useRef<HTMLDivElement>(null);
 
-    const { updateTaskColor, updateTaskEstimation } = useGroupStore();
-
-    useEffect(() => {
-        if (showMenu) {
-            setEstimatedTime(formatEstimatedTimeForInput(task.estimatedMinutes));
-        }
-    }, [showMenu, task.estimatedMinutes]);
+    const { updateTaskColor } = useGroupStore();
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -74,55 +61,6 @@ export function TaskItemMenu({
                                 updateTaskColor(task.uid, color);
                                 setShowMenu(false);
                             }}
-                        />
-                    </div>
-                    <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
-
-                    <div className="px-3 py-2">
-                        <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5">Estimated Time</div>
-                        <input
-                            type="text"
-                            value={estimatedTime}
-                            onChange={(e) => setEstimatedTime(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    if (estimatedTime.trim()) {
-                                        const newEstimation = parseDuration(estimatedTime.trim());
-                                        if (newEstimation !== undefined) {
-                                            updateTaskEstimation(task.uid, newEstimation);
-                                            setShowMenu(false);
-                                        } else {
-                                            setEstimatedTime(formatEstimatedTimeForInput(task.estimatedMinutes));
-                                        }
-                                    } else {
-                                        updateTaskEstimation(task.uid, undefined);
-                                        setShowMenu(false);
-                                    }
-                                } else if (e.key === 'Escape') {
-                                    setEstimatedTime(formatEstimatedTimeForInput(task.estimatedMinutes));
-                                    setShowMenu(false);
-                                }
-                            }}
-                            onBlur={() => {
-                                const currentFormatted = formatEstimatedTimeForInput(task.estimatedMinutes);
-                                if (estimatedTime.trim() !== currentFormatted) {
-                                    if (estimatedTime.trim()) {
-                                        const newEstimation = parseDuration(estimatedTime.trim());
-
-                                        if (newEstimation !== undefined) {
-                                            updateTaskEstimation(task.uid, newEstimation);
-                                        } else {
-                                            setEstimatedTime(currentFormatted);
-                                        }
-                                    } else {
-                                        updateTaskEstimation(task.uid, undefined);
-                                    }
-                                }
-                            }}
-                            placeholder="e.g. 2d, 3h, 30m"
-                            className="w-full px-2 py-1 text-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-500 text-zinc-900 dark:text-zinc-100"
-                            onClick={(e) => e.stopPropagation()}
                         />
                     </div>
                     <div className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />

@@ -140,6 +140,7 @@ function makeEvent(params: {
   calendarId: string;
   summary: string;
   scheduled?: boolean;
+  createdAt?: number;
 }): NekoEvent {
   return {
     uid: params.uid,
@@ -148,6 +149,7 @@ function makeEvent(params: {
     dtend: new Date('2026-03-04T09:30:00.000Z'),
     allDay: false,
     scheduled: params.scheduled ?? true,
+    createdAt: params.createdAt,
     calendarId: params.calendarId,
     completed: false,
     color: 'blue',
@@ -214,13 +216,20 @@ describe('calendarStorage', () => {
     await saveCalendarsMeta(calendars);
 
     await saveAllEvents(
-      [makeEvent({ uid: 'todo-1', calendarId: 'main', summary: 'Todo', scheduled: false })],
+      [makeEvent({
+        uid: 'todo-1',
+        calendarId: 'main',
+        summary: 'Todo',
+        scheduled: false,
+        createdAt: 1710000000000,
+      })],
       calendars
     );
 
     const loaded = await loadAllEvents();
     expect(loaded).toHaveLength(1);
     expect(loaded[0]?.scheduled).toBe(false);
+    expect(loaded[0]?.createdAt).toBe(1710000000000);
     expect(loaded[0]?.dtstart).toBeInstanceOf(Date);
     expect(loaded[0]?.dtend).toBeInstanceOf(Date);
   });

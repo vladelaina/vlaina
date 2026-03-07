@@ -174,6 +174,7 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
                 ...eventData,
                 uid: eventData.uid || crypto.randomUUID(),
                 color: eventData.color || DEFAULT_COLOR,
+                createdAt: eventData.createdAt ?? Date.now(),
             };
 
             set((state) => ({
@@ -206,22 +207,24 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             const state = get();
             const targetCalendarId = calendarId || state.calendars[0]?.id || 'main';
             const normalizedTags = normalizeTags(tags);
+            const createdAt = Date.now();
 
             const groupTasks = getChildren(state.events, null, groupId);
 
             const newEvent: NekoEvent = {
                 uid: crypto.randomUUID(),
                 summary: content,
-                dtstart: new Date(),
-                dtend: new Date(Date.now() + 15 * 60 * 1000),
+                dtstart: new Date(createdAt),
+                dtend: new Date(createdAt),
                 allDay: false,
+                createdAt,
+                scheduled: false,
                 calendarId: targetCalendarId,
                 groupId: groupId,
                 order: groupTasks.length,
                 color: color || DEFAULT_COLOR,
                 tags: normalizedTags.length > 0 ? normalizedTags : undefined,
                 completed: false,
-                estimatedMinutes: 15,
             };
 
             await get().addEvent(newEvent);
@@ -231,22 +234,24 @@ export const useCalendarEventsStore = create<CalendarEventsState>()((set, get) =
             const state = get();
             const parent = state.events.find((e) => e.uid === parentId);
             if (!parent) return;
+            const createdAt = Date.now();
 
             const siblings = getChildren(state.events, parentId);
 
             const newEvent: NekoEvent = {
                 uid: crypto.randomUUID(),
                 summary: content,
-                dtstart: new Date(),
-                dtend: new Date(Date.now() + 15 * 60 * 1000),
+                dtstart: new Date(createdAt),
+                dtend: new Date(createdAt),
                 allDay: false,
+                createdAt,
+                scheduled: false,
                 calendarId: parent.calendarId,
                 groupId: parent.groupId,
                 parentId: parentId,
                 order: siblings.length,
                 color: parent.color,
                 completed: false,
-                estimatedMinutes: 15,
             };
 
             await get().addEvent(newEvent);

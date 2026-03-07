@@ -49,10 +49,6 @@ export function useGroupStore() {
         await eventStore.updateEvent(uid, { summary });
     },
 
-    updateTaskEstimation: async (uid: string, estimatedMinutes?: number) => {
-        await eventStore.updateEvent(uid, { estimatedMinutes });
-    },
-
     updateTaskColor: async (uid: string, color: ItemColor) => {
         await eventStore.updateEvent(uid, { color });
     },
@@ -132,8 +128,9 @@ async function deleteCompletedTasks(scopeId: string) {
         }
 
         if (scopeId === 'today') {
-            if (!e.dtstart) return false;
-            return formatDateKey(new Date(e.dtstart)) === selectedDateKey;
+            const referenceTime = e.createdAt ?? (e.dtstart ? new Date(e.dtstart).getTime() : undefined);
+            if (referenceTime === undefined) return false;
+            return formatDateKey(new Date(referenceTime)) === selectedDateKey;
         }
 
         return (e.groupId || DEFAULT_GROUP_ID) === scopeId;
@@ -156,9 +153,6 @@ useGroupStore.getState = () => {
     },
     updateTaskColor: async (uid: string, color: ItemColor) => {
         await store.updateEvent(uid, { color });
-    },
-    updateTaskEstimation: async (uid: string, min: number) => {
-        await store.updateEvent(uid, { estimatedMinutes: min });
     },
     updateTaskIcon: async (uid: string, icon: string) => {
         await store.updateEvent(uid, { icon });

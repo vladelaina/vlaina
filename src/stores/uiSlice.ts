@@ -64,9 +64,7 @@ interface UIStore {
   toggleDrawer: () => void;
 
   hideCompleted: boolean;
-  hideActualTime: boolean;
   setHideCompleted: (hide: boolean) => void;
-  setHideActualTime: (hide: boolean) => void;
 
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -300,9 +298,7 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   toggleDrawer: () => set((state) => ({ drawerOpen: !state.drawerOpen })),
 
   hideCompleted: false,
-  hideActualTime: false,
   setHideCompleted: (hide) => set({ hideCompleted: hide }),
-  setHideActualTime: (hide) => set({ hideActualTime: hide }),
 
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),
