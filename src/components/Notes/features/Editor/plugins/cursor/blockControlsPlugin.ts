@@ -227,6 +227,22 @@ export const blockControlsPlugin = $prose(() => {
         scheduleHandleRefresh();
       };
 
+      const handleWindowBlur = () => {
+        if (!draggedRanges) return;
+        finishDrag();
+        invalidateTargetCache();
+        scheduleHandleRefresh();
+      };
+
+      const handleDocumentKeyDown = (event: KeyboardEvent) => {
+        if (!draggedRanges) return;
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        finishDrag();
+        invalidateTargetCache();
+        scheduleHandleRefresh();
+      };
+
       handleButton.addEventListener('mousedown', (event) => {
         if (event.button !== 0) return;
         const draggableRanges = getDraggableBlockRanges(view, getSelectedBlockRanges(view));
@@ -259,7 +275,9 @@ export const blockControlsPlugin = $prose(() => {
       doc.addEventListener('mousemove', handleDocumentMouseMove, true);
       doc.addEventListener('mouseup', handleDocumentMouseUp, true);
       doc.addEventListener('wheel', handleDocumentWheel, { capture: true, passive: false });
+      doc.addEventListener('keydown', handleDocumentKeyDown, true);
       scrollRoot?.addEventListener('scroll', handleScrollOrResize, { passive: true });
+      window.addEventListener('blur', handleWindowBlur);
       window.addEventListener('resize', handleScrollOrResize);
       scheduleHandleRefresh();
 
@@ -276,7 +294,9 @@ export const blockControlsPlugin = $prose(() => {
           doc.removeEventListener('mousemove', handleDocumentMouseMove, true);
           doc.removeEventListener('mouseup', handleDocumentMouseUp, true);
           doc.removeEventListener('wheel', handleDocumentWheel, true);
+          doc.removeEventListener('keydown', handleDocumentKeyDown, true);
           scrollRoot?.removeEventListener('scroll', handleScrollOrResize);
+          window.removeEventListener('blur', handleWindowBlur);
           window.removeEventListener('resize', handleScrollOrResize);
           if (dragPreview) {
             dragPreview.destroy();

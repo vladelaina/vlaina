@@ -4,11 +4,8 @@ import { resolveTopLevelBlockElement } from './topLevelBlockDom';
 
 const SOURCE_CLASS = 'neko-block-drag-source';
 const PREVIEW_CLASS = 'neko-block-drag-preview';
-const PREVIEW_ITEM_CLASS = 'neko-block-drag-preview-item';
-const PREVIEW_MORE_CLASS = 'neko-block-drag-preview-more';
-const MAX_PREVIEW_BLOCKS = 6;
-const MIN_PREVIEW_WIDTH = 220;
-const MAX_PREVIEW_WIDTH = 760;
+const PREVIEW_LAYER_CLASS = 'neko-block-drag-preview-layer';
+const MIN_PREVIEW_WIDTH = 80;
 
 interface BlockDragPreviewOptions {
   view: EditorView;
@@ -42,20 +39,45 @@ function collectBlockElements(view: EditorView, ranges: readonly BlockRange[]): 
   return elements;
 }
 
-function sanitizeClone(element: HTMLElement): void {
-  element.removeAttribute('id');
-  element.setAttribute('contenteditable', 'false');
-  element.removeAttribute('data-no-block-controls');
-  element.removeAttribute('data-no-editor-drag-box');
-  element.classList.remove('neko-block-selected', SOURCE_CLASS);
-  const descendants = element.querySelectorAll<HTMLElement>('*');
+function copyCssVariables(from: HTMLElement, to: HTMLElement): void {
+  const computed = window.getComputedStyle(from);
+  for (let i = 0; i < computed.length; i += 1) {
+    const name = computed.item(i);
+    if (!name.startsWith('--')) continue;
+    const value = computed.getPropertyValue(name);
+    if (!value) continue;
+    to.style.setProperty(name, value);
+  }
+}
+
+function sanitizeCloneTree(root: HTMLElement): void {
+  root.setAttribute('contenteditable', 'false');
+  root.setAttribute('draggable', 'false');
+  root.removeAttribute('data-no-block-controls');
+  root.removeAttribute('data-no-editor-drag-box');
+
+  if (root.hasAttribute('id')) root.removeAttribute('id');
+  const descendants = root.querySelectorAll<HTMLElement>('*');
   descendants.forEach((node) => {
-    node.removeAttribute('id');
+    if (node.hasAttribute('id')) node.removeAttribute('id');
     node.removeAttribute('data-no-block-controls');
     node.removeAttribute('data-no-editor-drag-box');
     node.setAttribute('draggable', 'false');
-    node.classList.remove('neko-block-selected', SOURCE_CLASS);
+    if (node.tabIndex >= 0) node.tabIndex = -1;
   });
+}
+
+function createContentLayer(doc: Document, elements: readonly HTMLElement[]): HTMLElement {
+  const layer = doc.createElement('div');
+  layer.className = PREVIEW_LAYER_CLASS;
+  layer.classList.add('milkdown');
+  elements.forEach((source) => {
+    const clone = source.cloneNode(true);
+    if (!(clone instanceof HTMLElement)) return;
+    sanitizeCloneTree(clone);
+    layer.appendChild(clone);
+  });
+  return layer;
 }
 
 export function createBlockDragPreview({
@@ -72,39 +94,30 @@ export function createBlockDragPreview({
   preview.className = PREVIEW_CLASS;
   preview.setAttribute('aria-hidden', 'true');
   preview.setAttribute('data-no-editor-drag-box', 'true');
-
-  const visibleElements = elements.slice(0, MAX_PREVIEW_BLOCKS);
-  visibleElements.forEach((source) => {
-    const item = doc.createElement('div');
-    item.className = PREVIEW_ITEM_CLASS;
-    const clone = source.cloneNode(true);
-    if (clone instanceof HTMLElement) {
-      sanitizeClone(clone);
-      item.appendChild(clone);
-      preview.appendChild(item);
-    }
-  });
-
-  if (elements.length > MAX_PREVIEW_BLOCKS) {
-    const more = doc.createElement('div');
-    more.className = PREVIEW_MORE_CLASS;
-    more.textContent = `+${elements.length - MAX_PREVIEW_BLOCKS} blocks`;
-    preview.appendChild(more);
-  }
-
-  const viewportWidth = doc.defaultView?.innerWidth ?? 1200;
-  const sourceWidth = Math.max(...elements.map((element) => element.getBoundingClientRect().width));
-  const previewWidth = clamp(sourceWidth, MIN_PREVIEW_WIDTH, Math.min(MAX_PREVIEW_WIDTH, viewportWidth - 24));
-  preview.style.width = `${Math.round(previewWidth)}px`;
   preview.style.left = '-10000px';
   preview.style.top = '-10000px';
+
+  copyCssVariables(view.dom as HTMLElement, preview);
+  const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]');
+  if (scrollRoot instanceof HTMLElement) {
+    copyCssVariables(scrollRoot, preview);
+  }
+  copyCssVariables(elements[0], preview);
+
+  const contentLayer = createContentLayer(doc, elements);
+  preview.appendChild(contentLayer);
+
+  const viewportWidth = doc.defaultView?.innerWidth ?? 1600;
+  const sourceWidth = Math.max(...elements.map((element) => element.getBoundingClientRect().width));
+  const previewWidth = clamp(sourceWidth, MIN_PREVIEW_WIDTH, Math.max(MIN_PREVIEW_WIDTH, viewportWidth - 16));
+  preview.style.width = `${Math.round(previewWidth)}px`;
 
   doc.body.appendChild(preview);
 
   const firstRect = elements[0].getBoundingClientRect();
   const previewRect = preview.getBoundingClientRect();
-  const offsetX = clamp(clientX - firstRect.left, 18, Math.max(18, previewRect.width - 18));
-  const offsetY = clamp(clientY - firstRect.top, 12, Math.max(12, previewRect.height - 12));
+  const offsetX = clamp(clientX - firstRect.left, 10, Math.max(10, previewRect.width - 10));
+  const offsetY = clamp(clientY - firstRect.top, 8, Math.max(8, previewRect.height - 8));
 
   elements.forEach((element) => element.classList.add(SOURCE_CLASS));
 
