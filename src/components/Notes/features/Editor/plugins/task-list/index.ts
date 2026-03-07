@@ -10,6 +10,8 @@ export const taskListClickPlugin = $prose(() => {
             handleDOMEvents: {
                 mousedown(view, event) {
                     const target = event.target as HTMLElement;
+                    if (!target) return false;
+                    if (target.closest('a, button, input, textarea, select, [contenteditable="false"]')) return false;
 
                     // Check if we clicked on an LI with data-item-type="task"
                     const taskLi = target.closest('li[data-item-type="task"]') as HTMLElement;
@@ -51,8 +53,7 @@ export const taskListClickPlugin = $prose(() => {
                                     checked: !node.attrs.checked,
                                 });
                                 view.dispatch(tr);
-                                // Blur the editor to remove cursor after checkbox toggle
-                                (view.dom as HTMLElement).blur();
+                                view.focus();
                                 return true;
                             }
                         }

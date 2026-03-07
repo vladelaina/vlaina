@@ -15,6 +15,10 @@ export interface BlockMovePlan {
   targetPos: number;
 }
 
+export interface TopLevelRangeResolver {
+  (pos: number): BlockRange | null;
+}
+
 export function pickPointerBlock<T extends PointerBlockTarget>(
   blocks: readonly T[],
   pointerY: number | null,
@@ -61,4 +65,15 @@ export function createBlockMovePlan(
     selectedRanges,
     targetPos,
   };
+}
+
+export function mapRangesToTopLevelBlocks(
+  ranges: readonly BlockRange[],
+  resolveTopLevelRange: TopLevelRangeResolver,
+): BlockRange[] {
+  if (ranges.length === 0) return [];
+  const resolved = ranges
+    .map((range) => resolveTopLevelRange(range.from))
+    .filter((range): range is BlockRange => range !== null);
+  return normalizeBlockRanges(resolved);
 }

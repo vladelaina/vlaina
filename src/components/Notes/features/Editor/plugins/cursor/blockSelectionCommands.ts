@@ -7,6 +7,7 @@ import {
   normalizeSerializedMarkdownBlock,
 } from '../clipboard/markdownSerializationUtils';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
+import { buildDeleteRangesForBlockSelection } from './listBlockUtils';
 
 interface SerializeSelectedBlocksOptions {
   markdownSerializer?: Serializer | null;
@@ -81,10 +82,13 @@ export function deleteSelectedBlocks(
   const normalized = normalizeBlockRanges(blocks);
   if (normalized.length === 0) return false;
 
-  const anchorHint = normalized[0].from;
+  const deleteRanges = buildDeleteRangesForBlockSelection(view.state, normalized);
+  if (deleteRanges.length === 0) return false;
+
+  const anchorHint = deleteRanges[0].from;
   let tr = view.state.tr;
-  for (let i = normalized.length - 1; i >= 0; i -= 1) {
-    tr = tr.delete(normalized[i].from, normalized[i].to);
+  for (let i = deleteRanges.length - 1; i >= 0; i -= 1) {
+    tr = tr.delete(deleteRanges[i].from, deleteRanges[i].to);
   }
 
   if (tr.doc.content.size === 0) {

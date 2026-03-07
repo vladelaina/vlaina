@@ -2,9 +2,76 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Selection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
+import {
+  addColumnAfter,
+  addColumnBefore,
+  addRowAfter,
+  addRowBefore,
+  deleteColumn,
+  deleteRow,
+  deleteTable,
+} from '@milkdown/kit/prose/tables';
 import type { TableMenuState } from './types';
 
 export const tablePluginKey = new PluginKey<TableMenuState>('tableMenu');
+
+export type TableMenuAction =
+  | 'insert-row-above'
+  | 'insert-row-below'
+  | 'insert-col-left'
+  | 'insert-col-right'
+  | 'delete-row'
+  | 'delete-col'
+  | 'delete-table';
+
+type TableCommand = (state: Parameters<typeof addRowBefore>[0], dispatch?: Parameters<typeof addRowBefore>[1]) => boolean;
+
+function resolveTableActionCommand(action: TableMenuAction): TableCommand {
+  switch (action) {
+    case 'insert-row-above':
+      return addRowBefore;
+    case 'insert-row-below':
+      return addRowAfter;
+    case 'insert-col-left':
+      return addColumnBefore;
+    case 'insert-col-right':
+      return addColumnAfter;
+    case 'delete-row':
+      return deleteRow;
+    case 'delete-col':
+      return deleteColumn;
+    case 'delete-table':
+      return deleteTable;
+    default:
+      return () => false;
+  }
+}
+
+function isTableMenuAction(value: string): value is TableMenuAction {
+  return [
+    'insert-row-above',
+    'insert-row-below',
+    'insert-col-left',
+    'insert-col-right',
+    'delete-row',
+    'delete-col',
+    'delete-table',
+  ].includes(value);
+}
+
+function runTableMenuAction(
+  action: TableMenuAction,
+  view: EditorView,
+  cellPos: number,
+): boolean {
+  const docSize = view.state.doc.content.size;
+  const safePos = Math.max(0, Math.min(cellPos + 1, docSize));
+  const tr = view.state.tr.setSelection(Selection.near(view.state.doc.resolve(safePos), 1));
+  view.dispatch(tr);
+  const command = resolveTableActionCommand(action);
+  return command(view.state, view.dispatch);
+}
 
 // Table enhancement plugin for better interactions
 export const tablePlugin = $prose(() => {
@@ -186,7 +253,15 @@ export const tablePlugin = $prose(() => {
           
           menuElement.querySelectorAll('.table-menu-item').forEach(btn => {
             btn.addEventListener('click', () => {
-              // Table commands would be executed here based on data-action
+              const action = (btn as HTMLElement).dataset.action || '';
+              if (!isTableMenuAction(action)) {
+                closeMenu();
+                return;
+              }
+              const menuState = tablePluginKey.getState(editorView.state);
+              if (menuState && menuState.cellPos >= 0) {
+                runTableMenuAction(action, editorView, menuState.cellPos);
+              }
               closeMenu();
             });
           });

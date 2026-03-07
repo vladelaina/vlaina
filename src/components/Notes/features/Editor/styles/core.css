@@ -144,3 +144,28 @@
 .neko-block-drop-indicator.visible {
   opacity: 1;
 }
+
+.milkdown .ProseMirror .neko-block-drag-source {
+  opacity: 0.38;
+  transition: opacity 120ms ease;
+}
+
+.neko-block-drag-preview {
+  position: fixed;
+  left: -10000px;
+  top: -10000px;
+  z-index: 70;
+  pointer-events: none;
+  isolation: isolate;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.neko-block-drag-preview-layer {
+  position: relative;
+  z-index: 2;
+}
+
+.neko-block-drag-preview-layer > * {
+  pointer-events: none !important;
+}
