@@ -2,22 +2,21 @@
 // Supports: [TOC] syntax to generate table of contents
 
 import { $node, $command, $prose } from '@milkdown/kit/utils';
-import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, Selection } from '@milkdown/kit/prose/state';
 import type { TocAttrs, TocItem } from './types';
 
 const tocViewPluginKey = new PluginKey('tocView');
 
 function extractHeadings(doc: any, maxLevel: number = 6): TocItem[] {
   const headings: TocItem[] = [];
-  let counter = 0;
   
-  doc.descendants((node: any) => {
+  doc.descendants((node: any, pos: number) => {
     if (node.type.name === 'heading') {
       const level = node.attrs.level as number;
       if (level <= maxLevel) {
         const text = node.textContent;
-        const id = `heading-${counter++}`;
-        headings.push({ level, text, id });
+        const id = `heading-${pos}`;
+        headings.push({ level, text, id, pos });
       }
     }
   });
@@ -25,78 +24,117 @@ function extractHeadings(doc: any, maxLevel: number = 6): TocItem[] {
   return headings;
 }
 
-function generateTocHtml(headings: TocItem[]): string {
-  if (headings.length === 0) {
-    return '<div class="toc-empty">No headings found</div>';
-  }
-  
-  let html = '<nav class="toc-nav"><ul class="toc-list">';
-  
-  for (const heading of headings) {
-    const indent = (heading.level - 1) * 16;
-    html += `<li class="toc-item toc-level-${heading.level}" style="padding-left: ${indent}px">`;
-    html += `<a href="#${heading.id}" class="toc-link">${escapeHtml(heading.text)}</a>`;
-    html += '</li>';
-  }
-  
-  html += '</ul></nav>';
-  return html;
+function createHeadingsSignature(headings: readonly TocItem[]): string {
+  return headings
+    .map((heading) => `${heading.pos}:${heading.level}:${heading.text}`)
+    .join('|');
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+function renderTocContent(contentEl: HTMLElement, headings: readonly TocItem[], maxLevel: number): void {
+  const doc = contentEl.ownerDocument;
+  const scopedHeadings = maxLevel < 6
+    ? headings.filter((heading) => heading.level <= maxLevel)
+    : headings;
+
+  if (scopedHeadings.length === 0) {
+    const empty = doc.createElement('div');
+    empty.className = 'toc-empty';
+    empty.textContent = 'No headings found';
+    contentEl.replaceChildren(empty);
+    return;
+  }
+
+  const nav = doc.createElement('nav');
+  nav.className = 'toc-nav';
+  const list = doc.createElement('ul');
+  list.className = 'toc-list';
+  nav.appendChild(list);
+
+  for (const heading of scopedHeadings) {
+    const item = doc.createElement('li');
+    item.className = `toc-item toc-level-${heading.level}`;
+    item.style.paddingLeft = `${(heading.level - 1) * 16}px`;
+
+    const link = doc.createElement('a');
+    link.className = 'toc-link';
+    link.href = '#';
+    link.dataset.headingPos = String(heading.pos);
+    link.textContent = heading.text;
+
+    item.appendChild(link);
+    list.appendChild(item);
+  }
+
+  contentEl.replaceChildren(nav);
 }
 
-// TOC view plugin - updates TOC content when document changes
 export const tocViewPlugin = $prose(() => {
-  let lastHeadingCount = -1;
-  let cachedTocElements: WeakMap<Document, NodeListOf<Element>> = new WeakMap();
+  let lastDoc: object | null = null;
+  let lastHeadingSignature = '';
+  let lastTocCount = -1;
   
   return new Plugin({
     key: tocViewPluginKey,
-    view() {
+    view(editorView) {
+      const handleTocClick = (event: MouseEvent) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+
+        const link = target.closest('.toc-link[data-heading-pos]') as HTMLElement | null;
+        if (!link || !editorView.dom.contains(link)) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const headingPos = Number(link.dataset.headingPos);
+        if (!Number.isFinite(headingPos)) return;
+
+        const { doc } = editorView.state;
+        const safePos = Math.max(0, Math.min(headingPos + 1, doc.content.size));
+        const tr = editorView.state.tr
+          .setSelection(Selection.near(doc.resolve(safePos), 1))
+          .scrollIntoView();
+        editorView.dispatch(tr);
+        editorView.focus();
+      };
+
+      editorView.dom.addEventListener('click', handleTocClick);
+
       return {
         update(view) {
           const { doc } = view.state;
-          
-          // Quick check: count headings to see if we need to update
-          let headingCount = 0;
-          doc.descendants((node: any) => {
-            if (node.type.name === 'heading') headingCount++;
-          });
-          
-          // Skip update if heading count hasn't changed
-          if (headingCount === lastHeadingCount) return;
-          lastHeadingCount = headingCount;
-          
-          // Use cached elements or query once
-          let tocElements = cachedTocElements.get(document);
-          if (!tocElements || tocElements.length === 0) {
-            tocElements = document.querySelectorAll('.toc-block');
-            if (tocElements.length > 0) {
-              cachedTocElements.set(document, tocElements);
-            }
+          const tocElements = view.dom.querySelectorAll<HTMLElement>('.toc-block');
+          if (tocElements.length === 0) {
+            lastDoc = doc;
+            lastHeadingSignature = '';
+            lastTocCount = 0;
+            return;
           }
-          
-          if (tocElements.length === 0) return;
-          
-          // Pre-extract headings once for all TOC blocks
-          const allHeadings = extractHeadings(doc, 6);
-          
+
+          const headings = extractHeadings(doc, 6);
+          const headingSignature = createHeadingsSignature(headings);
+          if (
+            lastDoc === doc
+            && lastHeadingSignature === headingSignature
+            && lastTocCount === tocElements.length
+          ) {
+            return;
+          }
+
+          lastDoc = doc;
+          lastHeadingSignature = headingSignature;
+          lastTocCount = tocElements.length;
+
           tocElements.forEach((el) => {
             const maxLevel = parseInt(el.getAttribute('data-max-level') || '6', 10);
-            const headings = maxLevel < 6 
-              ? allHeadings.filter(h => h.level <= maxLevel)
-              : allHeadings;
-            const contentEl = el.querySelector('.toc-content');
-            if (contentEl) {
-              contentEl.innerHTML = generateTocHtml(headings);
-            }
+            const contentEl = el.querySelector<HTMLElement>('.toc-content');
+            if (!contentEl) return;
+            renderTocContent(contentEl, headings, maxLevel);
           });
-        }
+        },
+        destroy() {
+          editorView.dom.removeEventListener('click', handleTocClick);
+        },
       };
     }
   });

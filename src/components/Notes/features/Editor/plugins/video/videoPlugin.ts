@@ -34,6 +34,13 @@ function parseVideoUrl(url: string): { type: 'youtube' | 'bilibili' | 'direct'; 
   return null;
 }
 
+function createVideoMessage(className: string, message: string): HTMLElement {
+  const container = document.createElement('div');
+  container.className = className;
+  container.textContent = message;
+  return container;
+}
+
 // Video node schema
 export const videoSchema = $node('video', () => ({
   group: 'block',
@@ -70,12 +77,12 @@ export const videoSchema = $node('video', () => ({
     wrapper.className = 'video-block';
     
     if (!attrs.src) {
-      wrapper.innerHTML = '<div class="video-placeholder">No video URL</div>';
+      wrapper.appendChild(createVideoMessage('video-placeholder', 'No video URL'));
       return wrapper;
     }
     
     if (!parsed) {
-      wrapper.innerHTML = `<div class="video-error">Unsupported video URL: ${attrs.src}</div>`;
+      wrapper.appendChild(createVideoMessage('video-error', `Unsupported video URL: ${attrs.src}`));
       return wrapper;
     }
     

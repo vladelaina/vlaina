@@ -8,6 +8,13 @@ import type { CodeBlockAttrs } from './types';
 import { CodeBlockNodeView } from './CodeBlockNodeView';
 import { moveSelectionAfterNode } from './codeBlockSelectionUtils';
 
+const CODE_LANGUAGE_CLASS_PATTERN = /language-([\w+-]+)/;
+
+function parseCodeLanguageFromClassName(className: string): string | null {
+  const match = CODE_LANGUAGE_CLASS_PATTERN.exec(className);
+  return match ? match[1] : null;
+}
+
 // Code block attributes
 export const codeBlockIdAttr = $nodeAttr('code_block', () => ({
   language: {
@@ -53,9 +60,9 @@ export const codeBlockSchema = $node('code_block', () => ({
       const el = dom as HTMLElement;
       const code = el.querySelector('code');
       const className = code?.className || '';
-      const langMatch = className.match(/language-(\w+)/);
+      const language = parseCodeLanguageFromClassName(className);
       return {
-        language: langMatch ? langMatch[1] : null,
+        language,
         lineNumbers: el.dataset.lineNumbers !== 'false',
         wrap: el.dataset.wrap === 'true',
         collapsed: el.dataset.collapsed === 'true'

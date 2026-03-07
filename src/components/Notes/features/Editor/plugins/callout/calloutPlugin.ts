@@ -76,31 +76,38 @@ export const calloutSchema = $node('callout', () => ({
       return emojiRegex.test(text.value || '');
     },
     runner: (state, node, type) => {
-      // Extract icon from first text
-      const children = node.children as Array<{ type: string; children?: Array<{ type: string; value?: string }> }> | undefined;
-      const firstPara = children?.[0];
+      const children = (
+        node.children as Array<{ type: string; children?: Array<{ type: string; value?: string }> }> | undefined
+      ) ?? [];
+      const nextChildren = [...children];
+      const firstPara = nextChildren[0];
       const firstText = firstPara?.children?.[0];
       const text = firstText?.value || '';
-      
-      // Extract emoji
       const emojiMatch = text.match(/^([\p{Emoji}]+)\s*/u);
       const emoji = emojiMatch?.[1] || '💡';
-      
+
+      if (firstPara?.type === 'paragraph' && firstPara.children?.length && firstText?.type === 'text') {
+        const remainingText = text.replace(/^[\p{Emoji}]+\s*/u, '');
+        const updatedChildren = [...firstPara.children];
+        if (remainingText) {
+          updatedChildren[0] = { ...firstText, value: remainingText };
+          nextChildren[0] = { ...firstPara, children: updatedChildren };
+        } else {
+          updatedChildren.shift();
+          if (updatedChildren.length > 0) {
+            nextChildren[0] = { ...firstPara, children: updatedChildren };
+          } else {
+            nextChildren.shift();
+          }
+        }
+      }
+
       state.openNode(type, {
         icon: { type: 'emoji', value: emoji },
         backgroundColor: 'yellow'
       });
-      
-      // Process remaining content
-      if (firstPara) {
-        const remainingText = text.replace(/^[\p{Emoji}]+\s*/u, '');
-        if (remainingText) {
-          state.openNode(state.schema.nodes.paragraph);
-          state.addText(remainingText);
-          state.closeNode();
-        }
-      }
-      
+
+      state.next(nextChildren as any);
       state.closeNode();
     }
   },
@@ -108,10 +115,20 @@ export const calloutSchema = $node('callout', () => ({
     match: (node) => node.type.name === 'callout',
     runner: (state, node) => {
       const icon = (node.attrs as CalloutBlockAttrs).icon;
-      
+
+      let hasParagraph = false;
+      node.forEach((child) => {
+        if (child.type.name === 'paragraph') hasParagraph = true;
+      });
+
       state.openNode('blockquote');
-      
-      // Add icon to first paragraph
+
+      if (!hasParagraph) {
+        state.openNode('paragraph');
+        state.addNode('text', undefined, `${icon.value}`);
+        state.closeNode();
+      }
+
       let isFirst = true;
       node.forEach((child) => {
         if (isFirst && child.type.name === 'paragraph') {
@@ -126,7 +143,7 @@ export const calloutSchema = $node('callout', () => ({
           state.next(child);
         }
       });
-      
+
       state.closeNode();
     }
   }

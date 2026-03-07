@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { getExternalLinkProps } from "@/lib/navigation/externalLinks";
+import remarkCitationParser from "@/lib/ai/plugins/remarkCitationParser";
 
 interface ThinkingBlockProps {
   content: string;
@@ -143,7 +144,7 @@ export function ThinkingBlock({
           className="transition-transform duration-300 opacity-90 select-text leading-relaxed prose prose-neutral dark:prose-invert max-w-none"
         >
           <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkMath]}
+            remarkPlugins={[remarkGfm, remarkMath, remarkCitationParser]}
             components={{
               a({ href, children, ...props }: any) {
                 return (
