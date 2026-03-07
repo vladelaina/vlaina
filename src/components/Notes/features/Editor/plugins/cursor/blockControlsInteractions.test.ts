@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { Schema, type Node as ProseNode } from '@milkdown/kit/prose/model';
+import { EditorState, type Transaction } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import {
+  applyBlockMove,
   getDraggableBlockRanges,
   resolveBlockTargetByPos,
   resolveDropTarget,
@@ -136,6 +140,167 @@ describe('resolveDropTarget', () => {
     expect(afterFirstHalf).toMatchObject({
       insertPos: 14,
       lineY: 108,
+    });
+  });
+});
+
+interface TopLevelRange {
+  from: number;
+  to: number;
+  node: ProseNode;
+}
+
+function createMoveSchema() {
+  return new Schema({
+    nodes: {
+      doc: { content: 'block+' },
+      paragraph: { group: 'block', content: 'text*' },
+      text: { group: 'inline' },
+      bullet_list: { group: 'block', content: 'list_item+' },
+      ordered_list: { group: 'block', content: 'list_item+', attrs: { order: { default: 1 } } },
+      list_item: { content: 'paragraph block*' },
+    },
+    marks: {},
+  });
+}
+
+function createViewForMove(docJson: Record<string, unknown>) {
+  const schema = createMoveSchema();
+  const initialState = EditorState.create({
+    schema,
+    doc: schema.nodeFromJSON(docJson),
+  });
+
+  const view = {
+    state: initialState,
+    dispatch(tr: Transaction) {
+      view.state = view.state.apply(tr);
+    },
+    focus() {},
+  };
+
+  return view as unknown as EditorView & { state: EditorState };
+}
+
+function getTopLevelRanges(view: EditorView): TopLevelRange[] {
+  const ranges: TopLevelRange[] = [];
+  view.state.doc.forEach((node, offset) => {
+    ranges.push({
+      from: offset,
+      to: offset + node.nodeSize,
+      node,
+    });
+  });
+  return ranges;
+}
+
+function getListItemRanges(listRange: TopLevelRange): Array<{ from: number; to: number }> {
+  const ranges: Array<{ from: number; to: number }> = [];
+  listRange.node.forEach((child, childOffset) => {
+    if (child.type.name !== 'list_item') return;
+    const from = listRange.from + 1 + childOffset;
+    ranges.push({
+      from,
+      to: from + child.nodeSize,
+    });
+  });
+  return ranges;
+}
+
+describe('applyBlockMove', () => {
+  it('keeps ordered list semantics when moving item outside list container', () => {
+    const view = createViewForMove({
+      type: 'doc',
+      content: [
+        {
+          type: 'ordered_list',
+          attrs: { order: 1 },
+          content: [
+            {
+              type: 'list_item',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }],
+            },
+            {
+              type: 'list_item',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'two' }] }],
+            },
+          ],
+        },
+        { type: 'paragraph', content: [{ type: 'text', text: 'tail' }] },
+      ],
+    });
+
+    const before = getTopLevelRanges(view);
+    const listItems = getListItemRanges(before[0]);
+    const moved = applyBlockMove(view, [listItems[0]], before[1].from);
+    expect(moved).toBe(true);
+
+    expect(view.state.doc.toJSON()).toEqual({
+      type: 'doc',
+      content: [
+        {
+          type: 'ordered_list',
+          attrs: { order: 1 },
+          content: [
+            {
+              type: 'list_item',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'two' }] }],
+            },
+          ],
+        },
+        {
+          type: 'ordered_list',
+          attrs: { order: 1 },
+          content: [
+            {
+              type: 'list_item',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }],
+            },
+          ],
+        },
+        { type: 'paragraph', content: [{ type: 'text', text: 'tail' }] },
+      ],
+    });
+  });
+
+  it('removes source list container when its only list item is moved away', () => {
+    const view = createViewForMove({
+      type: 'doc',
+      content: [
+        {
+          type: 'ordered_list',
+          attrs: { order: 1 },
+          content: [
+            {
+              type: 'list_item',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }],
+            },
+          ],
+        },
+        { type: 'paragraph', content: [{ type: 'text', text: 'tail' }] },
+      ],
+    });
+
+    const before = getTopLevelRanges(view);
+    const listItems = getListItemRanges(before[0]);
+    const moved = applyBlockMove(view, [listItems[0]], before[1].to);
+    expect(moved).toBe(true);
+
+    expect(view.state.doc.toJSON()).toEqual({
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'tail' }] },
+        {
+          type: 'ordered_list',
+          attrs: { order: 1 },
+          content: [
+            {
+              type: 'list_item',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }],
+            },
+          ],
+        },
+      ],
     });
   });
 });
