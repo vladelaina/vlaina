@@ -158,10 +158,7 @@ export function TodoSidebar() {
                     <div className="px-3 py-2">
                         <ColorFilter />
                         {shouldShowTagFilters && (
-                            <div className="mt-3">
-                                <h3 className="px-1 py-1 text-sm font-semibold text-zinc-500 dark:text-zinc-400 select-none">
-                                    Labels
-                                </h3>
+                            <div className="mt-2">
                                 <TagFilterList
                                     tasks={tasks}
                                     availableTags={availableTags}
