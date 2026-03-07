@@ -151,6 +151,11 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                       const isActive = currentSessionId === session.id;
                       const isGenerating = isSessionLoading(session.id);
                       const isUnread = isSessionUnread(session.id);
+                      const statusIndicator = isGenerating && !isActive ? (
+                        <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] animate-pulse" />
+                      ) : isUnread ? (
+                        <div className="w-2 h-2 rounded-full bg-blue-500 shadow-sm" />
+                      ) : null;
 
                       return (
                         <div
@@ -163,13 +168,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                           )}
                           onClick={() => handleSwitch(session.id, isUnread)}
                         >
-                          <div className="flex-1 truncate relative z-10 flex items-center gap-2">
-                             {isGenerating && !isActive ? (
-                                <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] animate-pulse flex-shrink-0" />
-                            ) : isUnread ? (
-                                <div className="w-2 h-2 rounded-full bg-blue-500 shadow-sm flex-shrink-0" />
-                            ) : null}
-                            
+                          <div className="flex-1 truncate relative z-10 pr-8">
                             <span className={cn(
                                 "truncate transition-opacity block", 
                                 (isGenerating || isUnread) && "font-medium text-gray-900 dark:text-gray-100"
@@ -178,11 +177,19 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                             </span>
                           </div>
 
+                          {statusIndicator && !isActive ? (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10 transition-opacity duration-200 pointer-events-none group-hover:opacity-0">
+                              {statusIndicator}
+                            </div>
+                          ) : null}
+
                           <div 
                             className={cn(
                               "absolute right-1 top-1/2 -translate-y-1/2 flex items-center z-20",
-                              "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-                              isActive && "opacity-100"
+                              "transition-opacity duration-200",
+                              isActive
+                                ? "opacity-100 pointer-events-auto"
+                                : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
                             )}
                             onClick={(e) => e.stopPropagation()} 
                           >
@@ -200,8 +207,8 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                         "p-1 rounded-md focus:outline-none",
                                         iconButtonStyles,
                                         isActive 
-                                          ? "text-gray-500 hover:bg-black/5 dark:text-gray-400 dark:hover:bg-white/10" 
-                                          : "text-gray-400 hover:bg-gray-200/50 dark:hover:bg-zinc-700"
+                                          ? "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" 
+                                          : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                                     )}
                                 >
                                     <Icon name="common.more" size="md" />
