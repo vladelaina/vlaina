@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
@@ -42,10 +42,28 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   } = useAIStore();
   
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const renameInputRef = useRef<HTMLInputElement | null>(null);
+  const preventNextMenuAutoFocusRef = useRef(false);
   const visibleSessions = useMemo(
     () => sessions.filter((session) => !isTemporarySession(session)),
     [sessions]
   );
+
+  useEffect(() => {
+    if (!renamingSessionId) {
+      return;
+    }
+    const input = renameInputRef.current;
+    if (!input) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      input.focus();
+      input.select();
+    });
+  }, [renamingSessionId]);
 
   useEffect(() => {
     const handleCreateNew = (e: Event) => {
@@ -111,10 +129,25 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   }, [visibleSessions]);
 
   const handleRename = (sessionId: string, currentTitle: string) => {
-      const newTitle = window.prompt("Rename chat", currentTitle);
-      if (newTitle && newTitle.trim()) {
-          updateSession(sessionId, { title: newTitle.trim() });
+      setRenamingSessionId(sessionId);
+      setRenameDraft(currentTitle || 'New Chat');
+  };
+
+  const cancelRename = () => {
+      setRenamingSessionId(null);
+      setRenameDraft('');
+  };
+
+  const commitRename = (sessionId: string, originalTitle: string) => {
+      const nextTitle = renameDraft.trim();
+      if (!nextTitle) {
+          cancelRename();
+          return;
       }
+      if (nextTitle !== originalTitle) {
+          updateSession(sessionId, { title: nextTitle });
+      }
+      cancelRename();
   };
 
   const handleTogglePin = (sessionId: string, isPinned?: boolean) => {
@@ -151,6 +184,8 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                       const isActive = currentSessionId === session.id;
                       const isGenerating = isSessionLoading(session.id);
                       const isUnread = isSessionUnread(session.id);
+                      const isRenaming = renamingSessionId === session.id;
+                      const displayTitle = session.title || 'New Chat';
                       const statusIndicator = isGenerating && !isActive ? (
                         <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] animate-pulse" />
                       ) : isUnread ? (
@@ -166,15 +201,48 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                               ? "bg-[#f5f5f5] dark:bg-[#222] text-gray-900 dark:text-gray-100 font-medium" 
                               : "text-gray-600 dark:text-gray-400 hover:bg-[#F9F9FA] dark:hover:bg-[#1E1E1E]"
                           )}
-                          onClick={() => handleSwitch(session.id, isUnread)}
+                          onClick={() => {
+                            if (isRenaming) {
+                              return;
+                            }
+                            handleSwitch(session.id, isUnread);
+                          }}
                         >
                           <div className="flex-1 truncate relative z-10 pr-8">
-                            <span className={cn(
-                                "truncate transition-opacity block", 
-                                (isGenerating || isUnread) && "font-medium text-gray-900 dark:text-gray-100"
-                            )}>
-                                {session.title || 'New Chat'}
-                            </span>
+                            {isRenaming ? (
+                              <input
+                                ref={renameInputRef}
+                                value={renameDraft}
+                                onChange={(event) => setRenameDraft(event.target.value)}
+                                onClick={(event) => event.stopPropagation()}
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onBlur={() => commitRename(session.id, displayTitle)}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter') {
+                                    event.preventDefault();
+                                    commitRename(session.id, displayTitle);
+                                  }
+                                  if (event.key === 'Escape') {
+                                    event.preventDefault();
+                                    cancelRename();
+                                  }
+                                }}
+                                className={cn(
+                                  "w-full min-w-0 bg-transparent border-none outline-none p-0 m-0",
+                                  "text-sm leading-5",
+                                  (isGenerating || isUnread)
+                                    ? "font-medium text-gray-900 dark:text-gray-100"
+                                    : "text-gray-600 dark:text-gray-400"
+                                )}
+                              />
+                            ) : (
+                              <span className={cn(
+                                  "truncate transition-opacity block", 
+                                  (isGenerating || isUnread) && "font-medium text-gray-900 dark:text-gray-100"
+                              )}>
+                                  {displayTitle}
+                              </span>
+                            )}
                           </div>
 
                           {statusIndicator && !isActive ? (
@@ -215,39 +283,60 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent 
                                     align="end" 
+                                    sideOffset={6}
+                                    onCloseAutoFocus={(event) => {
+                                      if (!preventNextMenuAutoFocusRef.current) {
+                                        return;
+                                      }
+                                      event.preventDefault();
+                                      preventNextMenuAutoFocusRef.current = false;
+                                    }}
                                     className={cn(
-                                        "w-40 p-1 rounded-lg bg-[var(--neko-bg-primary)] dark:bg-[#1C1C1C]",
-                                        "border border-[var(--neko-border)] shadow-xl",
-                                        "animate-in fade-in-0 zoom-in-95"
+                                        "w-44 p-1.5 rounded-2xl bg-white dark:bg-neutral-800",
+                                        "border border-neutral-100 dark:border-neutral-600/40",
+                                        "backdrop-blur-lg shadow-xl",
+                                        "animate-in fade-in-0 zoom-in-95 duration-75"
                                     )}
                                 >
                                     <DropdownMenuItem 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
+                                        onSelect={() => {
+                                            preventNextMenuAutoFocusRef.current = true;
                                             handleRename(session.id, session.title);
                                         }}
-                                        className="text-xs px-2 py-1.5 rounded-md cursor-pointer hover:bg-[var(--neko-hover)] focus:bg-[var(--neko-hover)] outline-none"
+                                        className={cn(
+                                          "text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none",
+                                          "text-neutral-700 dark:text-neutral-200",
+                                          "hover:bg-neutral-100 focus:bg-neutral-100 dark:hover:bg-neutral-700/60 dark:focus:bg-neutral-700/60"
+                                        )}
                                     >
-                                        <Icon name="common.rename" size="md" className="mr-2 text-[var(--neko-text-secondary)]" />
-                                        <span className="text-[var(--neko-text-primary)]">Rename</span>
+                                        <Icon name="common.rename" size="md" className="mr-2 text-neutral-500 dark:text-neutral-400" />
+                                        <span>Rename</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem 
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleTogglePin(session.id, session.isPinned);
                                         }}
-                                        className="text-xs px-2 py-1.5 rounded-md cursor-pointer hover:bg-[var(--neko-hover)] focus:bg-[var(--neko-hover)] outline-none"
+                                        className={cn(
+                                          "text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none",
+                                          "text-neutral-700 dark:text-neutral-200",
+                                          "hover:bg-neutral-100 focus:bg-neutral-100 dark:hover:bg-neutral-700/60 dark:focus:bg-neutral-700/60"
+                                        )}
                                     >
-                                        <Icon name="common.pin" size="md" className="mr-2 text-[var(--neko-text-secondary)]" />
-                                        <span className="text-[var(--neko-text-primary)]">{session.isPinned ? 'Unpin' : 'Pin'}</span>
+                                        <Icon name="common.pin" size="md" className="mr-2 text-neutral-500 dark:text-neutral-400" />
+                                        <span>{session.isPinned ? 'Unpin' : 'Pin'}</span>
                                     </DropdownMenuItem>
-                                    <DropdownMenuSeparator className="bg-[var(--neko-border)] my-1 opacity-50" />
+                                    <DropdownMenuSeparator className="bg-neutral-200 dark:bg-neutral-700 my-1 opacity-70" />
                                     <DropdownMenuItem 
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             setDeleteId(session.id);
                                         }}
-                                        className="text-xs px-2 py-1.5 rounded-md cursor-pointer text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 focus:bg-red-50 outline-none"
+                                        className={cn(
+                                          "text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none",
+                                          "text-red-600 dark:text-red-400",
+                                          "hover:bg-red-50 focus:bg-red-50 dark:hover:bg-red-900/20 dark:focus:bg-red-900/20"
+                                        )}
                                     >
                                         <DeleteIcon className="mr-2" />
                                         <span>Delete</span>
