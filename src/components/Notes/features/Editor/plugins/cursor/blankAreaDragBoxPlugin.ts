@@ -19,17 +19,13 @@ import {
 } from './blockSelectionCommands';
 import { createBlockRectResolver } from './blockRectResolver';
 import { startBlockDragSession, type BlockDragStartZone } from './blockDragSession';
-import { resolveBlockElementAtPos } from './topLevelBlockDom';
 
 export const blankAreaDragBoxPluginKey = new PluginKey('blankAreaDragBox');
 
 const DRAG_THRESHOLD = 4;
 const DRAG_BOX_COLOR = 'rgba(39, 131, 222, 0.18)';
 const DRAG_SESSION_CURSOR = 'crosshair';
-const BLOCK_SELECTION_CLASS = 'neko-block-selected';
 const BLOCK_SELECTION_ACTIVE_CLASS = 'neko-block-selection-active';
-const BLOCK_SELECTION_BLEED_X_START_VAR = '--neko-block-selection-bleed-x-start';
-const MIN_LIST_MARKER_BLEED = 24;
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
 const INTERACTIVE_SELECTOR = [
@@ -117,7 +113,7 @@ function createSelectionDecorations(doc: EditorState['doc'], blocks: readonly Bl
   if (blocks.length === 0) return DecorationSet.empty;
   const decorations = blocks.map((block) =>
     Decoration.node(block.from, block.to, {
-      class: BLOCK_SELECTION_CLASS,
+      class: 'neko-block-selected',
     }),
   );
   return DecorationSet.create(doc, decorations);
@@ -157,36 +153,6 @@ function syncBlockSelectionVisualState(view: EditorView): void {
   setBlockSelectionVisualState(view, active);
 }
 
-function parseCssPixelValue(value: string): number {
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function resolveSelectedBlockAnchorLeft(element: HTMLElement, rect: DOMRect): number {
-  let anchorLeft = rect.left;
-
-  const listItem = element.tagName === 'LI' ? element : element.closest('li');
-  if (listItem) {
-    const listItemRect = listItem.getBoundingClientRect();
-    anchorLeft = Math.min(anchorLeft, listItemRect.left);
-    const isTaskItem = listItem.getAttribute('data-item-type') === 'task';
-
-    const parentList = listItem.parentElement;
-    if (!isTaskItem && parentList && (parentList.tagName === 'UL' || parentList.tagName === 'OL')) {
-      const parentListRect = parentList.getBoundingClientRect();
-      anchorLeft = Math.min(anchorLeft, parentListRect.left);
-    }
-
-    if (isTaskItem) {
-      const beforeStyle = window.getComputedStyle(listItem, '::before');
-      const beforeMarginLeft = parseCssPixelValue(beforeStyle.marginLeft);
-      anchorLeft = Math.min(anchorLeft, listItemRect.left + beforeMarginLeft);
-    }
-  }
-
-  return anchorLeft;
-}
-
 function mapSelectedBlocks(blocks: readonly BlockRange[], tr: Transaction): BlockRange[] {
   if (blocks.length === 0) return [];
 
@@ -220,10 +186,6 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
   let stopSession: (() => void) | null = null;
   let markdownSerializer: Serializer | null = null;
   let serializerResolved = false;
-  const styledSelectedElements = new Set<HTMLElement>();
-  let isDragSelectionActive = false;
-  let bleedSyncRafId = 0;
-  let pendingBleedSyncView: EditorView | null = null;
 
   const resolveMarkdownSerializer = (): Serializer | null => {
     if (serializerResolved) return markdownSerializer;
@@ -245,74 +207,6 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
     if (!stopSession) return;
     stopSession();
     stopSession = null;
-  };
-
-  const clearSelectedBlockStyles = () => {
-    for (const element of styledSelectedElements) {
-      // Decoration may also use the same class; remove only when we explicitly own this element style.
-      if (element.style.getPropertyValue(BLOCK_SELECTION_BLEED_X_START_VAR)) {
-        element.classList.remove(BLOCK_SELECTION_CLASS);
-      }
-      element.style.removeProperty(BLOCK_SELECTION_BLEED_X_START_VAR);
-    }
-    styledSelectedElements.clear();
-  };
-
-  const resolveSelectedBlockElement = (view: EditorView, block: BlockRange): HTMLElement | null => {
-    const baseElement = resolveBlockElementAtPos(view, block.from);
-    if (!baseElement) return null;
-
-    const listItem = baseElement.closest('li');
-    if (listItem instanceof HTMLElement && view.dom.contains(listItem)) {
-      return listItem;
-    }
-    return baseElement;
-  };
-
-  const syncSelectedBlockStyles = (view: EditorView) => {
-    clearSelectedBlockStyles();
-
-    const { selectedBlocks } = getPluginState(view.state);
-    if (selectedBlocks.length === 0) return;
-
-    const uniqueSelectedElements = new Set<HTMLElement>();
-    for (const block of selectedBlocks) {
-      const element = resolveSelectedBlockElement(view, block);
-      if (!element) continue;
-      uniqueSelectedElements.add(element);
-    }
-
-    for (const element of uniqueSelectedElements) {
-      const rect = element.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) continue;
-
-      const anchorLeft = resolveSelectedBlockAnchorLeft(element, rect);
-      const baseBleed = Math.max(0, rect.left - anchorLeft);
-      const startBleed = element.tagName === 'LI' ? Math.max(MIN_LIST_MARKER_BLEED, baseBleed) : baseBleed;
-      element.classList.add(BLOCK_SELECTION_CLASS);
-      element.style.setProperty(BLOCK_SELECTION_BLEED_X_START_VAR, `${startBleed}px`);
-      styledSelectedElements.add(element);
-    }
-  };
-
-  const cancelScheduledBleedSync = () => {
-    if (bleedSyncRafId !== 0) {
-      window.cancelAnimationFrame(bleedSyncRafId);
-      bleedSyncRafId = 0;
-    }
-    pendingBleedSyncView = null;
-  };
-
-  const scheduleSelectedBlockBleedSync = (view: EditorView) => {
-    pendingBleedSyncView = view;
-    if (bleedSyncRafId !== 0) return;
-    bleedSyncRafId = window.requestAnimationFrame(() => {
-      bleedSyncRafId = 0;
-      const targetView = pendingBleedSyncView;
-      pendingBleedSyncView = null;
-      if (!targetView || isDragSelectionActive) return;
-      syncSelectedBlockStyles(targetView);
-    });
   };
 
   const tryStartSession = (view: EditorView, event: MouseEvent): BlockDragStartZone | null => {
@@ -374,9 +268,6 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       dragThreshold: DRAG_THRESHOLD,
       cursor: DRAG_SESSION_CURSOR,
       onActivate() {
-        isDragSelectionActive = true;
-        cancelScheduledBleedSync();
-        clearSelectedBlockStyles();
         dragBox = createDragBox();
         document.body.appendChild(dragBox);
         window.getSelection()?.removeAllRanges();
@@ -397,7 +288,6 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         clearBlockSelection(view);
       },
       onTeardown() {
-        isDragSelectionActive = false;
         flushPendingDragSelection();
         if (dragBox) {
           dragBox.remove();
@@ -405,7 +295,6 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         }
         rectResolver.invalidate();
         syncBlockSelectionVisualState(view);
-        scheduleSelectedBlockBleedSync(view);
       },
     });
 
@@ -514,7 +403,6 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
     view(view) {
       const doc = view.dom.ownerDocument;
       syncBlockSelectionVisualState(view);
-      scheduleSelectedBlockBleedSync(view);
       const handleDocumentMouseDown = (event: MouseEvent) => {
         if (isIgnoredDragBoxTarget(event.target)) return;
         const target = event.target;
@@ -535,15 +423,11 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       return {
         update(updatedView) {
           syncBlockSelectionVisualState(updatedView);
-          if (isDragSelectionActive) return;
-          scheduleSelectedBlockBleedSync(updatedView);
         },
         destroy() {
           doc.removeEventListener('mousedown', handleDocumentMouseDown, true);
           clearSession();
           setBlockSelectionVisualState(view, false);
-          cancelScheduledBleedSync();
-          clearSelectedBlockStyles();
         },
       };
     },

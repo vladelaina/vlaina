@@ -62,22 +62,11 @@
   border-radius: 0;
 }
 
-/* Decoration may land on paragraph inside LI; render selection on LI container as fallback
-   so list marker / task checkbox gutter is always included. */
-.milkdown .ProseMirror li:has(> .neko-block-selected),
-.milkdown .ProseMirror li.neko-block-selected {
-  --neko-block-selection-color: var(--neko-hover-filled);
-  --neko-block-selection-bleed-x-start: 24px;
-  background-color: var(--neko-block-selection-color);
-  box-shadow:
-    inset 0 0 0 1px var(--neko-block-selection-color),
-    calc(-1 * var(--neko-block-selection-bleed-x-start)) 0 0 0 var(--neko-block-selection-color);
-  border-radius: 0;
-}
-
-/* Prevent vertical bleed from child selection nodes inside list items,
-   otherwise adjacent task/list rows visually merge. */
+/* List selection compatibility:
+   decoration class may be on LI itself or on a child block (e.g. LI > P). */
+.milkdown .ProseMirror li.neko-block-selected,
 .milkdown .ProseMirror li .neko-block-selected {
+  --neko-block-selection-bleed-x-start: 24px;
   --neko-block-selection-bleed-y: 0px;
 }
 
