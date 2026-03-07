@@ -24,14 +24,13 @@ export function NotesOutline({ enabled, className }: NotesOutlineProps) {
                 type="button"
                 onClick={() => jumpToHeading(heading.id)}
                 className={cn(
-                  'w-full truncate rounded-md py-1.5 text-left text-[13px] transition-colors',
+                  'w-full rounded-md py-1.5 text-left text-[13px] leading-5 whitespace-normal break-words transition-colors',
                   'hover:bg-[var(--neko-hover-filled)]',
                   heading.id === activeId
                     ? 'bg-[var(--neko-hover-filled)] text-[var(--neko-text-primary)]'
                     : 'text-[var(--neko-text-secondary)]',
                 )}
                 style={{ paddingLeft: `${8 + (heading.level - 1) * 12}px`, paddingRight: '8px' }}
-                title={heading.text}
               >
                 {heading.text}
               </button>
