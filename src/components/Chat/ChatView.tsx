@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useAIStore } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
@@ -44,6 +44,14 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
   const loaded = useUnifiedStore(s => s.loaded);
 
   const messages = currentSessionId ? (allMessages[currentSessionId] || []) : [];
+  const sentUserMessages = useMemo(
+    () =>
+      messages
+        .filter((msg) => msg.role === 'user')
+        .map((msg) => msg.content)
+        .filter((content) => content.trim().length > 0),
+    [messages]
+  );
   
   useEffect(() => {
       if (currentSessionId && allMessages[currentSessionId] === undefined) {
@@ -151,6 +159,8 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
                 isLoading={isSessionActive} 
                 selectedModel={selectedModel} 
                 focusTrigger={focusInputTrigger}
+                sessionId={currentSessionId}
+                sentUserMessages={sentUserMessages}
               />
           </div>
       </div>

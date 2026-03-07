@@ -30,6 +30,8 @@ interface ChatInputProps {
   isLoading: boolean;
   selectedModel: AIModel | undefined;
   focusTrigger?: number;
+  sessionId?: string | null;
+  sentUserMessages: string[];
 }
 
 export const ChatInput = memo(function ChatInput({
@@ -38,6 +40,8 @@ export const ChatInput = memo(function ChatInput({
   isLoading,
   selectedModel,
   focusTrigger,
+  sessionId,
+  sentUserMessages,
 }: ChatInputProps) {
   const notesRootFolder = useNotesStore((state) => state.rootFolder);
   const currentNotePath = useNotesStore((state) => state.currentNote?.path ?? null);
@@ -50,6 +54,8 @@ export const ChatInput = memo(function ChatInput({
   const [caretIndex, setCaretIndex] = useState(0);
   const [activeMentionIndex, setActiveMentionIndex] = useState(0);
   const [textareaScrollTop, setTextareaScrollTop] = useState(0);
+  const [historyBrowseIndex, setHistoryBrowseIndex] = useState<number | null>(null);
+  const [historyDraftMessage, setHistoryDraftMessage] = useState('');
 
   const allNoteCandidates = useMemo<NoteMentionCandidate[]>(() => {
     if (!notesRootFolder) {
@@ -101,6 +107,8 @@ export const ChatInput = memo(function ChatInput({
     onAfterSend: () => {
       clearAttachments();
       setNoteMentions([]);
+      setHistoryBrowseIndex(null);
+      setHistoryDraftMessage('');
     },
     focusTrigger,
   });
@@ -152,6 +160,11 @@ export const ChatInput = memo(function ChatInput({
   }, [mentionTrigger?.query, mentionTrigger?.start]);
 
   useEffect(() => {
+    setHistoryBrowseIndex(null);
+    setHistoryDraftMessage('');
+  }, [sessionId]);
+
+  useEffect(() => {
     if (!mentionTrigger || mentionTrigger.start < 0) {
       return;
     }
@@ -195,6 +208,26 @@ export const ChatInput = memo(function ChatInput({
     const pos = input.value.length;
     input.setSelectionRange(pos, pos);
   }, [textareaRef]);
+
+  const applyHistoryMessage = useCallback(
+    (nextMessage: string) => {
+      if (nextMessage.includes('\n')) {
+        markExplicitMultiline();
+      }
+      handleMessageChange(nextMessage);
+      const nextCaret = nextMessage.length;
+      setCaretIndex(nextCaret);
+      requestAnimationFrame(() => {
+        const input = textareaRef.current;
+        if (!input) {
+          return;
+        }
+        input.focus({ preventScroll: true });
+        input.setSelectionRange(nextCaret, nextCaret);
+      });
+    },
+    [handleMessageChange, markExplicitMultiline, textareaRef]
+  );
 
   const handleHiddenFileInputChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -347,16 +380,56 @@ export const ChatInput = memo(function ChatInput({
         }
       }
 
+      const hasHistoryItems = sentUserMessages.length > 0;
+      const hasModifier = e.shiftKey || e.altKey || e.ctrlKey || e.metaKey;
+      const isCollapsedSelection = selectionStart === selectionEnd;
+
+      if (!showMentionPicker && hasHistoryItems && !hasModifier && isCollapsedSelection) {
+        if (e.key === 'ArrowUp' && (selectionStart === 0 || historyBrowseIndex !== null)) {
+          e.preventDefault();
+          const latestIndex = sentUserMessages.length - 1;
+          const nextIndex = historyBrowseIndex === null
+            ? latestIndex
+            : Math.max(0, Math.min(historyBrowseIndex - 1, latestIndex));
+          if (historyBrowseIndex === null) {
+            setHistoryDraftMessage(message);
+          }
+          setHistoryBrowseIndex(nextIndex);
+          applyHistoryMessage(sentUserMessages[nextIndex] ?? '');
+          return;
+        }
+
+        if (e.key === 'ArrowDown' && historyBrowseIndex !== null) {
+          e.preventDefault();
+          const latestIndex = sentUserMessages.length - 1;
+          if (historyBrowseIndex < latestIndex) {
+            const nextIndex = historyBrowseIndex + 1;
+            setHistoryBrowseIndex(nextIndex);
+            applyHistoryMessage(sentUserMessages[nextIndex] ?? '');
+            return;
+          }
+          setHistoryBrowseIndex(null);
+          applyHistoryMessage(historyDraftMessage);
+          setHistoryDraftMessage('');
+          return;
+        }
+      }
+
       handleKeyDown(e);
     },
     [
+      applyHistoryMessage,
       activeMentionIndex,
       applyMentionCandidate,
       filteredCandidates,
       handleKeyDown,
+      historyBrowseIndex,
+      historyDraftMessage,
+      message,
       mentionPreviewParts,
       noteMentions,
       removeNoteMention,
+      sentUserMessages,
       showMentionPicker,
     ]
   );
@@ -467,6 +540,10 @@ export const ChatInput = memo(function ChatInput({
                 value={message}
                 onChange={(e) => {
                   handleMessageChange(e.target.value);
+                  if (historyBrowseIndex !== null || historyDraftMessage) {
+                    setHistoryBrowseIndex(null);
+                    setHistoryDraftMessage('');
+                  }
                   setCaretIndex(e.target.selectionStart ?? e.target.value.length);
                 }}
                 onCompositionStart={handleCompositionStart}
