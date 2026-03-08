@@ -31,6 +31,22 @@ interface UsePanelDragAndDropProps {
   };
 }
 
+function getPointerPositionFromEvent(
+  event: Event | null | undefined,
+  delta?: { x: number; y: number }
+): { x: number; y: number } | null {
+  if (!(event instanceof MouseEvent) && !(typeof PointerEvent !== 'undefined' && event instanceof PointerEvent)) {
+    return null;
+  }
+  if (!delta) {
+    return { x: event.clientX, y: event.clientY };
+  }
+  return {
+    x: event.clientX + delta.x,
+    y: event.clientY + delta.y,
+  };
+}
+
 export function usePanelDragAndDrop({
   tasks,
   reorderTasks,
@@ -44,6 +60,7 @@ export function usePanelDragAndDrop({
   const [overId, setOverId] = useState<string | null>(null);
   const [dragIndent, setDragIndent] = useState(0);
   const dragStartX = useRef<number>(0);
+  const lastPointerPosition = useRef<{ x: number; y: number } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -65,12 +82,10 @@ export function usePanelDragAndDrop({
         if (gridContainer && args.pointerCoordinates) {
           const rect = gridContainer.getBoundingClientRect();
           const { x, y } = args.pointerCoordinates;
-
-          const EDGE_BUFFER = 50;
-          const inGrid = x >= rect.left + EDGE_BUFFER &&
-            x <= rect.right - EDGE_BUFFER &&
-            y >= rect.top + EDGE_BUFFER &&
-            y <= rect.bottom - EDGE_BUFFER;
+          const inGrid = x >= rect.left &&
+            x <= rect.right &&
+            y >= rect.top &&
+            y <= rect.bottom;
 
           if (inGrid) {
 
@@ -92,6 +107,7 @@ export function usePanelDragAndDrop({
     setActiveId(event.active.id as string);
     setDraggingTaskId(event.active.id as string);
     dragStartX.current = event.active.rect.current.initial?.left ?? 0;
+    lastPointerPosition.current = getPointerPositionFromEvent(event.activatorEvent);
   }, [setDraggingTaskId]);
 
   const handleDragMove = useCallback((event: DragMoveEvent) => {
@@ -100,8 +116,7 @@ export function usePanelDragAndDrop({
     const currentLeft = active.rect.current.translated?.left ?? 0;
     const deltaX = currentLeft - activeInitialLeft;
 
-
-
+    lastPointerPosition.current = getPointerPositionFromEvent(event.activatorEvent, event.delta);
     setDragIndent(deltaX);
 
     if (!over) {
@@ -138,9 +153,11 @@ export function usePanelDragAndDrop({
     if (gridContainer && calendarInfo) {
       const rect = gridContainer.getBoundingClientRect();
       const dropRect = event.active.rect.current.translated;
-      if (dropRect) {
-        const x = dropRect.left + 20;
-        const y = dropRect.top + 20;
+      const fallbackX = dropRect ? dropRect.left + 20 : null;
+      const fallbackY = dropRect ? dropRect.top + 20 : null;
+      const x = lastPointerPosition.current?.x ?? fallbackX;
+      const y = lastPointerPosition.current?.y ?? fallbackY;
+      if (x !== null && y !== null) {
 
         if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
 
@@ -161,7 +178,10 @@ export function usePanelDragAndDrop({
 
           const relativeY = y - rect.top + scrollTop;
           const totalMinutes = (relativeY / hourHeight) * 60;
-          const snappedMinutes = Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+          const snappedMinutes = Math.max(
+            0,
+            Math.min(1439, Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES)
+          );
 
           const selected = new Date(selectedDate);
           let weekStart: Date;
@@ -193,12 +213,14 @@ export function usePanelDragAndDrop({
       }
     }
 
+    lastPointerPosition.current = null;
+
     if (!over) return;
 
-      const overId = over.id as string;
-      const activeIsScheduled = activeTask.scheduled !== false;
+    const overId = over.id as string;
+    const activeIsScheduled = activeTask.scheduled !== false;
 
-      if (overId === '__divider_scheduled__') {
+    if (overId === '__divider_scheduled__') {
       if (activeIsScheduled) {
 
       } else if (!activeTask.completed) {
