@@ -44,7 +44,7 @@
 
 /* Selection */
 .milkdown ::selection {
-  background-color: #2783de;
+  background-color: var(--neko-selection-bg);
   color: white;
 }
 
