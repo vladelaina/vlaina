@@ -1,12 +1,19 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { TimeGrid } from './features/Grid/TimeGrid';
 import { DayGrid } from './features/Grid/DayGrid';
 import { MonthGrid } from './features/Grid/MonthGrid';
 import { useCalendarStore } from '@/stores/useCalendarStore';
 import { useCalendarKeyboard } from './hooks/useCalendarKeyboard';
 import { useCalendarZoom } from './hooks/useCalendarZoom';
+import { ModuleShortcutsDialog } from '@/components/common/ModuleShortcutsDialog';
+import { useModuleShortcutsDialog } from '@/hooks/useModuleShortcutsDialog';
 
 export function CalendarView() {
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
+
+  useModuleShortcutsDialog({ onToggle: toggleShortcutsDialog });
+
   const {
     load, viewMode,
     editingEventId, closeEditingEvent, events,
@@ -50,10 +57,13 @@ export function CalendarView() {
   };
 
   return (
-    <div className="flex h-full overflow-hidden">
-      <main className="flex-1 min-w-0 flex flex-col relative neko-scrollbar" id="time-grid-container">
-        {renderGrid()}
-      </main>
-    </div>
+    <>
+      <div className="flex h-full overflow-hidden">
+        <main className="flex-1 min-w-0 flex flex-col relative neko-scrollbar" id="time-grid-container">
+          {renderGrid()}
+        </main>
+      </div>
+      <ModuleShortcutsDialog module="calendar" open={isShortcutsOpen} onOpenChange={setIsShortcutsOpen} />
+    </>
   );
 }

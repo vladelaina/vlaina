@@ -67,7 +67,7 @@ export const slashPlugin = $prose((ctx) => {
       handleKeyDown(view, event) {
         const state = slashPluginKey.getState(view.state);
         if (!state?.isOpen) {
-          if (event.key === '/') {
+          if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey) {
             const { selection } = view.state;
             const coords = view.coordsAtPos(selection.from);
             

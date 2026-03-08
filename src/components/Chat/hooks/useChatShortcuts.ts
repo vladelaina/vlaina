@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
+import { isToggleShortcutsBinding } from '@/lib/shortcuts';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { dispatchChatMessageCopied } from '@/components/Chat/common/copyFeedback';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
@@ -38,7 +39,7 @@ export function useChatShortcuts(
         return;
       }
 
-      if (isMod && e.key === '/') {
+      if (isToggleShortcutsBinding(e)) {
         e.preventDefault();
         onToggleShortcuts();
         return;
