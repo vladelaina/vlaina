@@ -9,6 +9,13 @@ interface CodeBlockProps {
   isStreaming?: boolean;
 }
 
+const LANGUAGE_CLASS_PATTERN = /language-([\w+-]+)/;
+
+function parseLanguageFromClassName(className: string): string {
+  const match = LANGUAGE_CLASS_PATTERN.exec(className);
+  return match ? match[1] : '';
+}
+
 function extractCodePayload(
   className: string | undefined,
   children: React.ReactNode,
@@ -19,14 +26,12 @@ function extractCodePayload(
       children?: React.ReactNode;
     };
     const nestedClassName = props.className || className || '';
-    const nestedMatch = /language-(\w+)/.exec(nestedClassName);
-    const nestedLanguage = nestedMatch ? nestedMatch[1] : '';
+    const nestedLanguage = parseLanguageFromClassName(nestedClassName);
     const nestedCodeText = String(props.children ?? '').replace(/\n$/, '');
     return { language: nestedLanguage, codeText: nestedCodeText };
   }
 
-  const match = /language-(\w+)/.exec(className || '');
-  const language = match ? match[1] : '';
+  const language = parseLanguageFromClassName(className || '');
   const codeText = String(children).replace(/\n$/, '');
   return { language, codeText };
 }

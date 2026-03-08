@@ -5,9 +5,11 @@ import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/
 import type { Serializer } from '@milkdown/kit/transformer';
 import { dispatchTailBlankClickAction, isClickBelowLastBlock } from './endBlankClickUtils';
 import {
+  createDragSelectionRect,
   getBlockRangesKey,
   normalizeBlockRanges,
   resolveIntersectedBlockRanges,
+  type BlockRect,
   type BlockRange,
   type RectBounds,
 } from './blockSelectionUtils';
@@ -27,6 +29,7 @@ const DRAG_BOX_COLOR = 'rgba(39, 131, 222, 0.18)';
 const DRAG_SESSION_CURSOR = 'crosshair';
 const BLOCK_SELECTION_ACTIVE_CLASS = 'neko-block-selection-active';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
+const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="true"]';
 const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
 const INTERACTIVE_SELECTOR = [
   'a',
@@ -62,13 +65,21 @@ function getScrollRoot(element: HTMLElement | null): HTMLElement | null {
   return element.closest(SCROLL_ROOT_SELECTOR) as HTMLElement | null;
 }
 
+function isSidebarBlankStartTarget(target: HTMLElement): boolean {
+  const sidebarScrollRoot = target.closest(NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR) as HTMLElement | null;
+  if (!sidebarScrollRoot) return false;
+  return target === sidebarScrollRoot;
+}
+
 function resolveDragStartZone(view: EditorView, event: MouseEvent): BlockDragStartZone | null {
   if (!(event.target instanceof HTMLElement)) return null;
   const target = event.target;
 
   const editorScrollRoot = getScrollRoot(view.dom);
   const targetScrollRoot = getScrollRoot(target);
-  if (!editorScrollRoot || !targetScrollRoot || editorScrollRoot !== targetScrollRoot) return null;
+  const isSameEditorScrollRoot = !!editorScrollRoot && !!targetScrollRoot && editorScrollRoot === targetScrollRoot;
+  const isSidebarBlankStart = isSidebarBlankStartTarget(target);
+  if (!isSameEditorScrollRoot && !isSidebarBlankStart) return null;
 
   if (target.closest(COVER_REGION_SELECTOR)) return null;
   if (target.closest(INTERACTIVE_SELECTOR)) return null;
@@ -78,6 +89,10 @@ function resolveDragStartZone(view: EditorView, event: MouseEvent): BlockDragSta
       return 'below-last-block';
     }
     return null;
+  }
+
+  if (isSidebarBlankStart) {
+    return 'outside-editor';
   }
 
   return 'outside-editor';
@@ -117,6 +132,45 @@ function createSelectionDecorations(doc: EditorState['doc'], blocks: readonly Bl
     }),
   );
   return DecorationSet.create(doc, decorations);
+}
+
+function resolveDragPointerCoordinate(start: number, min: number, max: number): number {
+  return start === min ? max : min;
+}
+
+function convertViewportRectToDocumentRect(
+  viewportRect: RectBounds,
+  startX: number,
+  startY: number,
+  startScrollLeft: number,
+  startScrollTop: number,
+  currentScrollLeft: number,
+  currentScrollTop: number,
+): RectBounds {
+  const currentX = resolveDragPointerCoordinate(startX, viewportRect.left, viewportRect.right);
+  const currentY = resolveDragPointerCoordinate(startY, viewportRect.top, viewportRect.bottom);
+  const startDocX = startX + startScrollLeft;
+  const startDocY = startY + startScrollTop;
+  const currentDocX = currentX + currentScrollLeft;
+  const currentDocY = currentY + currentScrollTop;
+  return createDragSelectionRect(startDocX, startDocY, currentDocX, currentDocY);
+}
+
+function convertBlockRectsToDocumentSpace(
+  blockRects: readonly BlockRect[],
+  scrollLeft: number,
+  scrollTop: number,
+): BlockRect[] {
+  if (scrollLeft === 0 && scrollTop === 0) {
+    return [...blockRects];
+  }
+  return blockRects.map((block) => ({
+    ...block,
+    left: block.left + scrollLeft,
+    right: block.right + scrollLeft,
+    top: block.top + scrollTop,
+    bottom: block.bottom + scrollTop,
+  }));
 }
 
 function getPluginState(state: EditorState): BlankAreaDragBoxState {
@@ -220,15 +274,35 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
 
     let dragBox: HTMLDivElement | null = null;
     let selectedBlocksKey = getBlockRangesKey(getPluginState(view.state).selectedBlocks);
+    const scrollRoot = getScrollRoot(view.dom);
+    const startScrollLeft = scrollRoot?.scrollLeft ?? 0;
+    const startScrollTop = scrollRoot?.scrollTop ?? 0;
     const rectResolver = createBlockRectResolver({
       view,
       scrollRootSelector: SCROLL_ROOT_SELECTOR,
     });
     let pendingDragRect: RectBounds | null = null;
+    let lastViewportDragRect: RectBounds | null = null;
     let dragMoveRafId = 0;
 
-    const applyDragRectSelection = (dragRect: RectBounds) => {
-      const selectedBlocks = resolveIntersectedBlockRanges(rectResolver.getTopLevelBlockRects(), dragRect);
+    const applyDragRectSelection = (viewportDragRect: RectBounds) => {
+      const currentScrollLeft = scrollRoot?.scrollLeft ?? 0;
+      const currentScrollTop = scrollRoot?.scrollTop ?? 0;
+      const docSpaceDragRect = convertViewportRectToDocumentRect(
+        viewportDragRect,
+        event.clientX,
+        event.clientY,
+        startScrollLeft,
+        startScrollTop,
+        currentScrollLeft,
+        currentScrollTop,
+      );
+      const docSpaceBlockRects = convertBlockRectsToDocumentSpace(
+        rectResolver.getTopLevelBlockRects(),
+        currentScrollLeft,
+        currentScrollTop,
+      );
+      const selectedBlocks = resolveIntersectedBlockRanges(docSpaceBlockRects, docSpaceDragRect);
       const nextKey = getBlockRangesKey(selectedBlocks);
       if (nextKey !== selectedBlocksKey) {
         selectedBlocksKey = nextKey;
@@ -238,8 +312,8 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       }
     };
 
-    const scheduleDragRectSelection = (dragRect: RectBounds) => {
-      pendingDragRect = dragRect;
+    const scheduleDragRectSelection = (viewportDragRect: RectBounds) => {
+      pendingDragRect = viewportDragRect;
       if (dragMoveRafId !== 0) return;
       dragMoveRafId = window.requestAnimationFrame(() => {
         dragMoveRafId = 0;
@@ -261,6 +335,11 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       applyDragRectSelection(nextRect);
     };
 
+    const handleScrollWhileDragging = () => {
+      if (!lastViewportDragRect) return;
+      scheduleDragRectSelection(lastViewportDragRect);
+    };
+
     const session = startBlockDragSession({
       view,
       event,
@@ -275,6 +354,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         view.focus();
       },
       onDragMove(dragRect) {
+        lastViewportDragRect = dragRect;
         if (dragBox) {
           updateDragBox(dragBox, dragRect);
         }
@@ -293,11 +373,13 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           dragBox.remove();
           dragBox = null;
         }
+        scrollRoot?.removeEventListener('scroll', handleScrollWhileDragging);
         rectResolver.invalidate();
         syncBlockSelectionVisualState(view);
       },
     });
 
+    scrollRoot?.addEventListener('scroll', handleScrollWhileDragging, { passive: true });
     stopSession = session.stop;
     return startZone;
   };

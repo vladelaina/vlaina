@@ -1,4 +1,5 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { ensureMarkdownFileName, stripMarkdownExtension } from '@/lib/notes/displayName';
 import { sanitizeFileName } from '../../noteUtils';
 
 export async function resolveUniquePath(
@@ -9,12 +10,11 @@ export async function resolveUniquePath(
 ): Promise<{ relativePath: string; fullPath: string; fileName: string }> {
   const storage = getStorageAdapter();
   
-  let fileName = isDirectory ? name : (name.endsWith('.md') ? name : `${name}.md`);
+  let fileName = isDirectory ? name : ensureMarkdownFileName(name);
   
-  // If name is provided, sanitize it. If not provided (Untitled), we handle it in loop
   if (name) {
       const sanitized = sanitizeFileName(name);
-      fileName = isDirectory ? sanitized : (sanitized.endsWith('.md') ? sanitized : `${sanitized}.md`);
+      fileName = isDirectory ? sanitized : ensureMarkdownFileName(sanitized);
   } else {
       fileName = isDirectory ? 'Untitled' : 'Untitled.md';
   }
@@ -23,7 +23,7 @@ export async function resolveUniquePath(
   let fullPath = await joinPath(basePath, relativePath);
 
   let counter = 1;
-  const originalName = isDirectory ? fileName : fileName.replace('.md', '');
+  const originalName = isDirectory ? fileName : stripMarkdownExtension(fileName);
   const ext = isDirectory ? '' : '.md';
 
   while (await storage.exists(fullPath)) {

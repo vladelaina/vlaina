@@ -34,6 +34,7 @@ const READABLE_CONTENT_SELECTOR = [
 function shouldFocusComposer(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   if (isComposerFocusTarget(target)) return false;
+  if (target.closest('[data-message-item="true"]')) return false;
   if (target.closest(NON_FOCUSABLE_SELECTOR)) return false;
   if (target.closest(READABLE_CONTENT_SELECTOR)) return false;
   return true;

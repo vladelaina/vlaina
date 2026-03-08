@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { NotesStore, FileTreeNode, MetadataFile } from '../types';
 import {
   saveFavoritesToFile,
@@ -9,6 +10,10 @@ import {
   saveNoteMetadata,
   setNoteEntry,
 } from '../storage';
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 export interface FeatureSlice {
   recentNotes: NotesStore['recentNotes'];
@@ -101,11 +106,12 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
   getBacklinks: (notePath: string) => {
     const { noteContentsCache } = get();
     const results: { path: string; name: string; context: string }[] = [];
-    const noteName = notePath.split('/').pop()?.replace('.md', '').toLowerCase() || '';
+    const noteName = getNoteTitleFromPath(notePath).toLowerCase();
+    const escapedNoteName = escapeRegExp(noteName);
 
     const patterns = [
-      new RegExp(`\\[\\[${noteName}\\]\\]`, 'gi'),
-      new RegExp(`\\[\\[${noteName}\\|[^\\]]+\\]\\]`, 'gi'),
+      new RegExp(`\\[\\[${escapedNoteName}\\]\\]`, 'gi'),
+      new RegExp(`\\[\\[${escapedNoteName}\\|[^\\]]+\\]\\]`, 'gi'),
     ];
 
     noteContentsCache.forEach((content, path) => {
@@ -122,7 +128,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           if (start > 0) context = '...' + context;
           if (end < content.length) context = context + '...';
 
-          const fileName = path.split('/').pop()?.replace('.md', '') || path;
+          const fileName = getNoteTitleFromPath(path);
           results.push({ path, name: fileName, context });
           break;
         }

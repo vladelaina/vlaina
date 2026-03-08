@@ -5,6 +5,13 @@ let mermaidInstance: any = null;
 let mermaidPromise: Promise<any> | null = null;
 let mermaidAvailable = true;
 
+const MERMAID_INIT_CONFIG = {
+  startOnLoad: false,
+  theme: 'default',
+  securityLevel: 'strict',
+  fontFamily: 'inherit',
+} as const;
+
 async function getMermaid() {
   if (!mermaidAvailable) return null;
   if (mermaidInstance) return mermaidInstance;
@@ -14,12 +21,7 @@ async function getMermaid() {
       try {
         const m = await import('mermaid');
         mermaidInstance = m.default;
-        mermaidInstance.initialize({
-          startOnLoad: false,
-          theme: 'default',
-          securityLevel: 'loose',
-          fontFamily: 'inherit'
-        });
+        mermaidInstance.initialize(MERMAID_INIT_CONFIG);
         return mermaidInstance;
       } catch {
         mermaidAvailable = false;
