@@ -126,6 +126,14 @@ function AppContent() {
   }, [loadCalendarEvents]);
 
   useEffect(() => {
+    if (appViewMode === 'chat' || typeof document === 'undefined') {
+      return;
+    }
+    document.body.removeAttribute('data-chat-selection-lock');
+    document.body.removeAttribute('data-chat-selection-freeze');
+  }, [appViewMode]);
+
+  useEffect(() => {
     if (!isTauri()) return;
     const unlockWindow = async () => {
       const appWindow = getCurrentWindow();
