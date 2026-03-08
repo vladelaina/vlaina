@@ -100,7 +100,10 @@ export function NotesOutline({ enabled, className }: NotesOutlineProps) {
 
   return (
     <div className={cn('flex h-full flex-col', className)}>
-      <div className="flex-1 overflow-auto neko-scrollbar px-2 pb-4 pt-2">
+      <div
+        className="flex-1 overflow-auto neko-scrollbar px-2 pb-4 pt-2"
+        data-notes-sidebar-scroll-root="true"
+      >
         {headings.length === 0 ? (
           <div className="px-2 py-3 text-[12px] text-[var(--neko-text-tertiary)]">
             No headings in this note

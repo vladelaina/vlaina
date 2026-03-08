@@ -29,6 +29,7 @@ const DRAG_BOX_COLOR = 'rgba(39, 131, 222, 0.18)';
 const DRAG_SESSION_CURSOR = 'crosshair';
 const BLOCK_SELECTION_ACTIVE_CLASS = 'neko-block-selection-active';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
+const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="true"]';
 const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
 const INTERACTIVE_SELECTOR = [
   'a',
@@ -64,13 +65,21 @@ function getScrollRoot(element: HTMLElement | null): HTMLElement | null {
   return element.closest(SCROLL_ROOT_SELECTOR) as HTMLElement | null;
 }
 
+function isSidebarBlankStartTarget(target: HTMLElement): boolean {
+  const sidebarScrollRoot = target.closest(NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR) as HTMLElement | null;
+  if (!sidebarScrollRoot) return false;
+  return target === sidebarScrollRoot;
+}
+
 function resolveDragStartZone(view: EditorView, event: MouseEvent): BlockDragStartZone | null {
   if (!(event.target instanceof HTMLElement)) return null;
   const target = event.target;
 
   const editorScrollRoot = getScrollRoot(view.dom);
   const targetScrollRoot = getScrollRoot(target);
-  if (!editorScrollRoot || !targetScrollRoot || editorScrollRoot !== targetScrollRoot) return null;
+  const isSameEditorScrollRoot = !!editorScrollRoot && !!targetScrollRoot && editorScrollRoot === targetScrollRoot;
+  const isSidebarBlankStart = isSidebarBlankStartTarget(target);
+  if (!isSameEditorScrollRoot && !isSidebarBlankStart) return null;
 
   if (target.closest(COVER_REGION_SELECTOR)) return null;
   if (target.closest(INTERACTIVE_SELECTOR)) return null;
@@ -80,6 +89,10 @@ function resolveDragStartZone(view: EditorView, event: MouseEvent): BlockDragSta
       return 'below-last-block';
     }
     return null;
+  }
+
+  if (isSidebarBlankStart) {
+    return 'outside-editor';
   }
 
   return 'outside-editor';

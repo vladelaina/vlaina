@@ -20,12 +20,17 @@ export function ensureMarkdownFileName(name: string): string {
 export function normalizeNotePathKey(path: string | undefined): string | undefined {
   if (!path) return undefined;
 
-  const normalizedPath = path
-    .replace(/\\/g, '/')
-    .replace(/\/{2,}/g, '/')
-    .replace(/\/+$/, '');
+  if (path === '') return '';
 
-  return normalizedPath || '/';
+  const compactedPath = path
+    .replace(/\\/g, '/')
+    .replace(/\/{2,}/g, '/');
+
+  if (compactedPath === '/') return '/';
+
+  const normalizedPath = compactedPath.replace(/\/+$/, '');
+
+  return normalizedPath;
 }
 
 export function resolveNoteDisplayName(
