@@ -23,6 +23,46 @@ function createInitialState(): MathEditorState {
   };
 }
 
+function createMathEditorElements(displayMode: boolean): {
+  header: HTMLElement;
+  textarea: HTMLTextAreaElement;
+  preview: HTMLElement;
+  actions: HTMLElement;
+  cancelButton: HTMLButtonElement;
+  saveButton: HTMLButtonElement;
+} {
+  const header = document.createElement('div');
+  header.className = 'math-editor-header';
+
+  const title = document.createElement('span');
+  title.className = 'math-editor-title';
+  title.textContent = displayMode ? 'Block Equation' : 'Inline Math';
+  header.appendChild(title);
+
+  const textarea = document.createElement('textarea');
+  textarea.className = 'math-editor-textarea';
+  textarea.placeholder = 'Enter LaTeX...';
+
+  const preview = document.createElement('div');
+  preview.className = 'math-editor-preview';
+
+  const actions = document.createElement('div');
+  actions.className = 'math-editor-actions';
+
+  const cancelButton = document.createElement('button');
+  cancelButton.type = 'button';
+  cancelButton.className = 'math-editor-btn cancel';
+  cancelButton.textContent = 'Cancel';
+
+  const saveButton = document.createElement('button');
+  saveButton.type = 'button';
+  saveButton.className = 'math-editor-btn save';
+  saveButton.textContent = 'Save';
+
+  actions.append(cancelButton, saveButton);
+  return { header, textarea, preview, actions, cancelButton, saveButton };
+}
+
 export const mathClickPlugin = $prose(() => {
   return new Plugin({
     key: mathClickPluginKey,
@@ -163,44 +203,36 @@ export const mathClickPlugin = $prose(() => {
           
           editorElement.style.left = `${state.position.x}px`;
           editorElement.style.top = `${state.position.y}px`;
-          
-          editorElement.innerHTML = `
-            <div class="math-editor-header">
-              <span class="math-editor-title">${state.displayMode ? 'Block Equation' : 'Inline Math'}</span>
-            </div>
-            <textarea class="math-editor-textarea" placeholder="Enter LaTeX...">${state.latex}</textarea>
-            <div class="math-editor-preview"></div>
-            <div class="math-editor-actions">
-              <button class="math-editor-btn cancel">Cancel</button>
-              <button class="math-editor-btn save">Save</button>
-            </div>
-          `;
-          
-          textareaElement = editorElement.querySelector('.math-editor-textarea');
-          const previewEl = editorElement.querySelector('.math-editor-preview');
-          const cancelBtn = editorElement.querySelector('.cancel');
-          const saveBtn = editorElement.querySelector('.save');
-          
-          // Update preview on input
-          const updatePreview = () => {
-            if (!textareaElement || !previewEl) return;
-            const latex = textareaElement.value;
 
+          const {
+            header,
+            textarea,
+            preview,
+            actions,
+            cancelButton,
+            saveButton,
+          } = createMathEditorElements(state.displayMode);
+          editorElement.replaceChildren(header, textarea, preview, actions);
+
+          textareaElement = textarea;
+          textareaElement.value = state.latex;
+
+          const updatePreview = () => {
+            if (!textareaElement) return;
+            const latex = textareaElement.value;
             const { html } = renderLatex(latex, state.displayMode);
-            previewEl.innerHTML = html;
+            preview.innerHTML = html;
           };
-          
-          textareaElement?.addEventListener('input', updatePreview);
+
+          textareaElement.addEventListener('input', updatePreview);
           updatePreview();
-          
-          // Focus and select
+
           setTimeout(() => {
             textareaElement?.focus();
             textareaElement?.select();
           }, 0);
-          
-          // Handle keyboard
-          textareaElement?.addEventListener('keydown', (e) => {
+
+          textareaElement.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
               e.preventDefault();
               closeEditor();
@@ -210,13 +242,13 @@ export const mathClickPlugin = $prose(() => {
               saveAndClose();
             }
           });
-          
-          cancelBtn?.addEventListener('click', () => {
+
+          cancelButton.addEventListener('click', () => {
             closeEditor();
             editorView.focus();
           });
-          
-          saveBtn?.addEventListener('click', saveAndClose);
+
+          saveButton.addEventListener('click', saveAndClose);
         },
         destroy() {
           document.removeEventListener('mousedown', handleClickOutside);

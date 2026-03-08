@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { TitleInput } from './TitleInput';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
@@ -74,13 +74,12 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
     }, []);
 
 
-    // Calculate display name for Title Input
-    const noteName = useMemo(() => {
-        if (!currentNotePath) return '';
-        const pathParts = currentNotePath.split(/[\\/]/);
-        const fileName = pathParts[pathParts.length - 1] || 'Untitled';
-        return fileName.replace(/\.md$/, '');
-    }, [currentNotePath]);
+    const noteName = useNotesStore(
+        useCallback((state) => {
+            if (!currentNotePath) return '';
+            return state.getDisplayName(currentNotePath);
+        }, [currentNotePath])
+    );
 
     const handleIconChange = (newIcon: string | null) => {
         if (currentNotePath) {

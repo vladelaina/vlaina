@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
+import { useDisplayName } from '@/hooks/useTitleSync';
+import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { findNode } from '@/stores/notes/fileTreeUtils';
 import { cn } from '@/lib/utils';
 
@@ -67,15 +69,14 @@ function expandFolderChain(targetPath: string): void {
 export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   const notesPath = useNotesStore((s) => s.notesPath);
   const vaultName = useVaultStore((s) => s.currentVault?.name ?? 'Root');
+  const displayName = useDisplayName(notePath);
 
   const displayPath = useMemo(() => resolveDisplayPath(notePath, notesPath), [notePath, notesPath]);
   const folderSegments = useMemo(() => buildFolderSegments(displayPath), [displayPath]);
   const noteLabel = useMemo(() => {
-    const normalized = toRelativePath(displayPath);
-    const pathParts = normalized.split('/').filter(Boolean);
-    const fileName = pathParts[pathParts.length - 1] ?? 'Untitled';
-    return fileName.replace(/\.md$/i, '');
-  }, [displayPath]);
+    if (displayName?.trim()) return displayName.trim();
+    return getNoteTitleFromPath(displayPath);
+  }, [displayPath, displayName]);
 
   const setNotesSidebarView = useUIStore((s) => s.setNotesSidebarView);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);

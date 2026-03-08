@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { NotesStore } from '../types';
 import { updateDisplayName, removeDisplayName } from '../displayNameUtils';
 import {
@@ -55,7 +56,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       const storage = getStorageAdapter();
       const fullPath = await joinPath(notesPath, path);
       const content = await storage.readFile(fullPath);
-      const fileName = path.split('/').pop()?.replace('.md', '') || 'Untitled';
+      const fileName = getNoteTitleFromPath(path);
       const tabName = fileName;
       const updatedRecent = addToRecentNotes(path, recentNotes);
       const existingTab = openTabs.find((t) => t.path === path);
@@ -109,7 +110,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       const storage = getStorageAdapter();
       const content = await storage.readFile(absolutePath);
 
-      const fileName = absolutePath.split(/[/\\]/).pop()?.replace('.md', '') || 'Untitled';
+      const fileName = getNoteTitleFromPath(absolutePath);
       const tabName = fileName;
       const existingTab = openTabs.find((t) => t.path === absolutePath);
 
@@ -289,6 +290,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
   getDisplayName: (path: string) => {
     const state = get();
-    return state.displayNames.get(path) || path.split('/').pop()?.replace('.md', '') || 'Untitled';
+    return state.displayNames.get(path) || getNoteTitleFromPath(path);
   },
 });

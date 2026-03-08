@@ -1,6 +1,7 @@
 import { resolveUniquePath } from './pathOperations';
 import { safeWriteTextFile, loadNoteMetadata, setNoteEntry, saveNoteMetadata, addToRecentNotes } from '../../storage';
 import { addNodeToTree } from '../../fileTreeUtils';
+import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 
 export async function createNoteImpl(
     notesPath: string,
@@ -36,7 +37,7 @@ export async function createNoteImpl(
 
     const newNode = {
         id: relativePath,
-        name: fileName.replace('.md', ''),
+        name: getNoteTitleFromPath(fileName),
         path: relativePath,
         isFolder: false as const
     };

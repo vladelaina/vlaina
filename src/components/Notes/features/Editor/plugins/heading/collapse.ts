@@ -24,6 +24,7 @@ import {
     resolveTailRedirectPos,
     setSelectionAtPos,
 } from './headingCollapseSelection';
+import { createCollapseTriangleSvgMarkup } from '../../../common/collapseTriangle';
 
 const COLLAPSE_PLUGIN_KEY = new PluginKey<HeadingCollapsePluginState>('headingCollapse');
 const COLLAPSE_SELECTION_GUARD_META = 'heading-collapse-selection-guard';
@@ -95,11 +96,7 @@ const createToggleWidgetDecoration = (
             button.setAttribute('data-collapsed', String(isCollapsed));
             button.setAttribute('data-has-content', String(hasContent));
             button.setAttribute('contenteditable', 'false');
-            button.innerHTML = `
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M13.15 15.132a.757.757 0 0 1-1.3 0L8.602 9.605c-.29-.491.072-1.105.65-1.105h6.497c.577 0 .938.614.65 1.105z"/>
-                </svg>
-            `;
+            button.innerHTML = createCollapseTriangleSvgMarkup(16);
 
             const handleTogglePointer = (event: Event) => {
                 event.preventDefault();

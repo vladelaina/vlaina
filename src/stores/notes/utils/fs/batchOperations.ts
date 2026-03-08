@@ -1,5 +1,6 @@
 import { moveDisplayName } from '../../displayNameUtils';
 import { saveFavoritesToFile } from '../../storage';
+import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 
 export function batchUpdateTabsOnRename(
     openTabs: { path: string; name: string; isDirty: boolean }[],
@@ -8,7 +9,7 @@ export function batchUpdateTabsOnRename(
 ) {
     return openTabs.map(tab => {
         if (tab.path === oldPath) {
-            return { ...tab, path: newPath, name: newPath.split('/').pop()?.replace('.md', '') || '' };
+            return { ...tab, path: newPath, name: getNoteTitleFromPath(newPath) };
         }
         return tab;
     });

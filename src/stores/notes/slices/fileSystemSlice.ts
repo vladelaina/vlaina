@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { NotesStore } from '../types';
 import {
   buildFileTree,
@@ -160,7 +161,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         });
       }
 
-      const tabName = fileName.replace('.md', '');
+      const tabName = getNoteTitleFromPath(fileName);
       const newTab = { path: relativePath, name: tabName, isDirty: false };
       
       let updatedTabs = openTabs;
@@ -229,7 +230,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         });
       }
 
-      const tabName = fileName.replace('.md', '');
+      const tabName = getNoteTitleFromPath(fileName);
       let updatedTabs = openTabs;
       
       if (currentNote?.path) {

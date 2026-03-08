@@ -86,6 +86,18 @@
   margin-top: 0;
 }
 
+/* Keep long alpha-numeric text wrapping consistent across prose blocks. */
+.milkdown :is(h1, h2, h3, h4, h5, h6, p, li, blockquote, td, th) {
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+/* Keep code/math tokens readable and avoid forced char-by-char breaking. */
+.milkdown :is(pre, code, [data-type="math-inline"], [data-type="math-block"], .katex, .katex *) {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
 /* Placeholder styles */
 .milkdown .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);

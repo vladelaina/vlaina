@@ -172,7 +172,7 @@ export function TaskItem({
                 style={style}
                 data-task-id={task.uid}
                 className={cn(
-                    'group flex items-start gap-3 px-3 py-2 rounded-xl transition-all',
+                    'group relative flex items-start gap-3 px-2 py-2 rounded-xl transition-all',
                     'border',
                     isOverlay
                         ? 'bg-white dark:bg-zinc-800 shadow-xl scale-[1.02] border-zinc-200 dark:border-zinc-700 cursor-grabbing z-50'
@@ -185,8 +185,7 @@ export function TaskItem({
                     {...attributes} 
                     {...(draggable ? listeners : {})}
                     className={cn(
-                        "flex-shrink-0 mt-0.5 transition-colors",
-                        "flex items-center justify-center h-6 w-6",
+                        "absolute -left-5 top-2 flex items-center justify-center h-6 w-6 transition-colors",
                         draggable ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-50"
                     )}
                 >
