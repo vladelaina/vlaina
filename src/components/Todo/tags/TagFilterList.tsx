@@ -72,7 +72,6 @@ export function TagFilterList({
               ? 'bg-amber-300 text-amber-950 dark:bg-amber-400 dark:text-amber-950'
               : 'bg-zinc-200 text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600'
           )}
-          title="ALL"
         >
           ALL
         </button>
@@ -87,7 +86,6 @@ export function TagFilterList({
                 ? 'bg-amber-300 text-amber-950 dark:bg-amber-400 dark:text-amber-950'
                 : 'bg-zinc-200 text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600'
             )}
-            title="Today"
           >
             Today
           </button>
@@ -103,7 +101,6 @@ export function TagFilterList({
                 ? 'bg-amber-300 text-amber-950 dark:bg-amber-400 dark:text-amber-950'
                 : 'bg-zinc-200 text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600'
             )}
-            title="This Week"
           >
             Week
           </button>
@@ -123,7 +120,6 @@ export function TagFilterList({
                   ? 'bg-amber-300 text-amber-950 dark:bg-amber-400 dark:text-amber-950'
                   : 'bg-zinc-200 text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600'
               )}
-              title={displayLabel}
             >
               {displayLabel}
             </button>
