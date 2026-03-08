@@ -204,7 +204,7 @@ export function CreateModal({
                         text-zinc-900 dark:text-zinc-100 
                         placeholder:text-zinc-300/50 dark:placeholder:text-zinc-700/50 
                         outline-none resize-none overflow-hidden min-h-[40px]
-                        selection:bg-zinc-200 dark:selection:bg-zinc-800
+                        selection:bg-[var(--neko-selection-bg)] selection:text-white
                         flex-1 py-2
                     "
                     rows={1}
