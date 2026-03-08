@@ -179,6 +179,7 @@ html, body, #root {
   --neko-icon-primary: #8e8e8e;
   --neko-icon-secondary: #b9b9bc;
   --neko-icon-active: #1e96eb;
+  --neko-selection-bg: #2781db;
   --neko-hover: rgba(0, 0, 0, 0.04);
   --neko-hover-filled: #f4f5f7;
   --neko-sidebar-width: 270px;
@@ -206,6 +207,7 @@ html, body, #root {
   --neko-icon-primary: #a0a0a0;
   --neko-icon-secondary: #6b6b6b;
   --neko-icon-active: #1e96eb;
+  --neko-selection-bg: #2781db;
   --neko-hover: rgba(255, 255, 255, 0.06);
   --neko-hover-filled: #2c2c2c;
   --neko-sidebar-bg: #161616;
@@ -242,6 +244,16 @@ html, body, #root {
 
 .dark ::-webkit-scrollbar-thumb:hover, .dark .neko-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgba(150, 150, 150, 0.4);
+}
+
+::selection {
+  background-color: var(--neko-selection-bg);
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background-color: var(--neko-selection-bg);
+  color: #ffffff;
 }
 
 ::-webkit-scrollbar-corner, .neko-scrollbar::-webkit-scrollbar-corner {
