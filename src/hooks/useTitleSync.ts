@@ -1,8 +1,11 @@
 import { useCallback } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
+import { normalizeNotePathKey, resolveNoteDisplayName } from '@/lib/notes/displayName';
 
 export function useDisplayName(path: string | undefined): string | undefined {
+  const normalizedPath = normalizeNotePathKey(path);
+
   const displayName = useNotesStore(
     useCallback(
       (state) => {
@@ -13,14 +16,24 @@ export function useDisplayName(path: string | undefined): string | undefined {
     )
   );
 
-  const previewTitle = useUIStore((state) => state.notesPreviewTitle);
+  const previewTitle = useUIStore(
+    useCallback(
+      (state) => {
+        if (!path) return undefined;
+        const previewPath = state.notesPreviewTitle?.path;
+        if (!previewPath || !normalizedPath) return undefined;
+        return normalizeNotePathKey(previewPath) === normalizedPath ? state.notesPreviewTitle?.title : undefined;
+      },
+      [normalizedPath, path]
+    )
+  );
 
-  if (!path) return undefined;
-  if (previewTitle?.path === path) return previewTitle.title;
-  return displayName || path.split('/').pop()?.replace('.md', '') || 'Untitled';
+  return resolveNoteDisplayName(path, displayName, previewTitle);
 }
 
 export function useDisplayIcon(path: string | undefined): string | undefined {
+  const normalizedPath = normalizeNotePathKey(path);
+
   const noteIcon = useNotesStore(
     useCallback(
       (state) => {
@@ -31,9 +44,19 @@ export function useDisplayIcon(path: string | undefined): string | undefined {
     )
   );
 
-  const { universalPreviewTarget, universalPreviewIcon } = useUIStore();
+  const previewIcon = useUIStore(
+    useCallback(
+      (state) => {
+        if (!path) return undefined;
+        const previewPath = state.universalPreviewTarget;
+        if (!previewPath || !normalizedPath) return undefined;
+        return normalizeNotePathKey(previewPath) === normalizedPath ? state.universalPreviewIcon : undefined;
+      },
+      [normalizedPath, path]
+    )
+  );
 
   if (!path) return undefined;
-  if (universalPreviewTarget === path && universalPreviewIcon) return universalPreviewIcon;
+  if (previewIcon) return previewIcon;
   return noteIcon;
 }
