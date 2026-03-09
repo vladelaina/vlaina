@@ -175,7 +175,7 @@ export function TaskListView({
                                 <TaskInput compact={false} />
                             )}
                         </div>
-                        <div className="absolute right-0 top-0">
+                        <div className="absolute -right-10 top-0">
                             <TaskSortMenu />
                         </div>
                     </div>

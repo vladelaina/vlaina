@@ -15,6 +15,7 @@ import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { normalizeTags } from '@/lib/tags/tagUtils';
 import { getRandomEmojiFromPreference } from '@/components/common/UniversalIconPicker/randomEmoji';
 import { TaskItemMenu } from './TaskItemMenu';
+import type { ItemColor } from '@/lib/colors';
 
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
     const { isSorting, wasDragging } = args;
@@ -60,6 +61,7 @@ export function TaskItem({
     const itemRef = useRef<HTMLDivElement>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [content, setContent] = useState(task.summary);
+    const [previewColor, setPreviewColor] = useState<ItemColor | null>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const groupStore = useGroupStore();
     const updateTaskIcon = onUpdateIcon || groupStore.updateTaskIcon;
@@ -133,8 +135,9 @@ export function TaskItem({
         (itemRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
     };
 
-    const colorValue = task.color && task.color !== 'default'
-        ? getColorHex(task.color)
+    const effectiveColor = previewColor ?? task.color;
+    const colorValue = effectiveColor && effectiveColor !== 'default'
+        ? getColorHex(effectiveColor)
         : undefined;
 
     const taskTags = normalizeTags(task.tags);
@@ -285,6 +288,7 @@ export function TaskItem({
                     canAddSubTask={canAddSubTask}
                     onAddSubTask={onAddSubTask}
                     onDelete={onDelete}
+                    onPreviewColor={setPreviewColor}
                 />
             </div>
         </>

@@ -2,6 +2,7 @@ import { useCalendarEventsStore } from './calendarEventsSlice';
 import { useUIStore } from './uiSlice';
 import { DEFAULT_GROUP_ID, DEFAULT_GROUP_NAME } from '@/lib/config';
 import { formatDateKey } from '@/lib/date';
+import { normalizeTags } from '@/lib/tags/tagUtils';
 import type { ItemColor } from './types';
 import type { NekoEvent, NekoCalendar } from '@/lib/ics/types';
 
@@ -51,6 +52,11 @@ export function useGroupStore() {
 
     updateTaskColor: async (uid: string, color: ItemColor) => {
         await eventStore.updateEvent(uid, { color });
+    },
+
+    updateTaskTags: async (uid: string, tags: string[]) => {
+        const normalized = normalizeTags(tags);
+        await eventStore.updateEvent(uid, { tags: normalized.length > 0 ? normalized : undefined });
     },
 
     updateTaskIcon: async (uid: string, icon?: string) => {
@@ -153,6 +159,10 @@ useGroupStore.getState = () => {
     },
     updateTaskColor: async (uid: string, color: ItemColor) => {
         await store.updateEvent(uid, { color });
+    },
+    updateTaskTags: async (uid: string, tags: string[]) => {
+        const normalized = normalizeTags(tags);
+        await store.updateEvent(uid, { tags: normalized.length > 0 ? normalized : undefined });
     },
     updateTaskIcon: async (uid: string, icon: string) => {
         await store.updateEvent(uid, { icon });
