@@ -40,13 +40,6 @@ pub struct GitHubBidirectionalSyncResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProStatusResult {
-    pub is_pro: bool,
-    pub expires_at: Option<i64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct GitHubRemoteDataInfo {
     pub exists: bool,
     pub modified_time: Option<String>,

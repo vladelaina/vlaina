@@ -42,6 +42,7 @@ NekoTick uses GitHub as its sync backend. When you connect your GitHub account:
 
 - A private repository named **`nekotick-config`** will be automatically created to sync your app configuration (calendar, todos, settings, AI chat configs) across devices.
 - Your notebooks are synced via separate **`nekotick-*`** repositories, each visible in the app's vault panel.
+- Cloud sync is available to all connected users.
 
 All sync repositories are private and only accessible by you.
 

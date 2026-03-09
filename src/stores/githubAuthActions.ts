@@ -4,7 +4,6 @@ import { GITHUB_USER_PERSIST_KEY } from './useGithubSyncStore';
 import { hasBackendCommands } from '@/lib/tauri/invoke';
 import { githubCommands } from '@/lib/tauri/githubAuthCommands';
 import { webGithubCommands, handleOAuthCallback as parseOAuthCallback } from '@/lib/tauri/webGithubCommands';
-import { useProStatusStore } from '@/stores/useProStatusStore';
 import { downloadAndSaveAvatar, getLocalAvatarUrl } from '@/lib/assets/avatarManager';
 import { friendlySyncError } from '@/lib/sync/syncErrors';
 import { resetAutoSyncManager } from '@/lib/sync/autoSyncManager';
@@ -59,17 +58,6 @@ export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
           }
 
           if (status.connected) {
-            try {
-              const proStatus = await githubCommands.checkProStatus();
-              if (proStatus) {
-                useProStatusStore.getState().setProStatus(
-                  proStatus.isPro,
-                  proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
-                );
-              }
-            } catch (e) {
-              console.error('Failed to check PRO status:', e);
-            }
             get().checkRemoteData();
           }
         }
@@ -93,17 +81,6 @@ export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
         avatarUrl: status.avatarUrl,
       });
 
-      if (status.connected) {
-        try {
-          const proStatus = await webGithubCommands.checkProStatus();
-          useProStatusStore.getState().setProStatus(
-            proStatus.isPro,
-            proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
-          );
-        } catch (e) {
-          console.error('Failed to check PRO status:', e);
-        }
-      }
     }
   };
 }
@@ -126,8 +103,6 @@ export function createConnect(set: Set, get: Get): () => Promise<boolean> {
         clearTimeout(timeoutId);
 
         if (result?.success) {
-          useProStatusStore.getState().setIsChecking(true);
-
           set({
             isConnected: true,
             username: result.username,
@@ -146,21 +121,6 @@ export function createConnect(set: Set, get: Get): () => Promise<boolean> {
                 if (newLocal) set({ localAvatarUrl: newLocal });
               }
             }).catch(() => {});
-          }
-
-          try {
-            const proStatus = await githubCommands.checkProStatus();
-            if (proStatus) {
-              useProStatusStore.getState().setProStatus(
-                proStatus.isPro,
-                proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
-              );
-            } else {
-              useProStatusStore.getState().setIsChecking(false);
-            }
-          } catch (e) {
-            console.error('Failed to check PRO status:', e);
-            useProStatusStore.getState().setIsChecking(false);
           }
 
           get().checkRemoteData();
@@ -233,16 +193,6 @@ export function createHandleOAuthCallback(set: Set, _get: Get): () => Promise<bo
         avatarUrl: result.avatarUrl || null,
       });
 
-      try {
-        const proStatus = await webGithubCommands.checkProStatus();
-        useProStatusStore.getState().setProStatus(
-          proStatus.isPro,
-          proStatus.expiresAt ? Math.floor(proStatus.expiresAt / 1000) : null
-        );
-      } catch (e) {
-        console.error('Failed to check PRO status:', e);
-      }
-
       return true;
     } else {
       set({ syncError: friendlySyncError(result.error || 'OAuth failed'), isConnecting: false });
@@ -287,7 +237,6 @@ export function createDisconnect(set: Set, _get: Get): () => Promise<void> {
     });
 
     localStorage.removeItem(GITHUB_USER_PERSIST_KEY);
-    useProStatusStore.getState().clearProStatus();
   };
 }
 

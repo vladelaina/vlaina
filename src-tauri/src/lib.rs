@@ -254,7 +254,6 @@ pub fn run() {
             github::auth_commands::github_auth,
             github::auth_commands::github_disconnect,
             github::auth_commands::get_github_sync_status,
-            github::auth_commands::check_pro_status,
             // Config sync commands
             github::config_commands::sync_config_to_github,
             github::config_commands::restore_config_from_github,

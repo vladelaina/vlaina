@@ -39,7 +39,6 @@ export interface GithubSyncState {
   remoteModifiedTime: string | null;
   isLoading: boolean;
   syncStatus: GithubSyncStatusType;
-  isSyncAvailable: boolean;
 }
 
 export interface GithubSyncActions {
@@ -96,7 +95,6 @@ const initialState: GithubSyncState = {
   remoteModifiedTime: null,
   isLoading: true,
   syncStatus: 'idle',
-  isSyncAvailable: true,
 };
 
 export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({

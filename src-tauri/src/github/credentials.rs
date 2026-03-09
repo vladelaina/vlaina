@@ -47,13 +47,13 @@ fn get_github_sync_meta_path(app: &tauri::AppHandle) -> Result<PathBuf, String> 
     Ok(path)
 }
 
-pub fn load_github_credentials(app: &tauri::AppHandle) -> Option<GitHubCredentials> {
+pub(crate) fn load_github_credentials(app: &tauri::AppHandle) -> Option<GitHubCredentials> {
     let path = get_github_creds_path(app).ok()?;
     let content = fs::read_to_string(&path).ok()?;
     serde_json::from_str(&content).ok()
 }
 
-pub fn save_github_credentials(app: &tauri::AppHandle, creds: &GitHubCredentials) -> Result<(), String> {
+pub(crate) fn save_github_credentials(app: &tauri::AppHandle, creds: &GitHubCredentials) -> Result<(), String> {
     let path = get_github_creds_path(app)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -98,7 +98,7 @@ pub fn load_github_sync_meta(app: &tauri::AppHandle) -> GitHubSyncMeta {
     GitHubSyncMeta::default()
 }
 
-pub fn load_oauth_config() -> Result<GitHubOAuthConfig, String> {
+pub(crate) fn load_oauth_config() -> Result<GitHubOAuthConfig, String> {
     if let (Ok(client_id), Ok(client_secret)) = (
         std::env::var("DESKTOP_CLIENT_ID"),
         std::env::var("DESKTOP_CLIENT_SECRET"),

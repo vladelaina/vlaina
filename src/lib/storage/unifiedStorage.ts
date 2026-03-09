@@ -1,7 +1,6 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
-import { useProStatusStore } from '@/stores/useProStatusStore';
 import { createPersistenceQueue } from './persistenceEngine';
 import type { TimeView } from '@/lib/date';
 import type { NekoCalendar } from '@/lib/ics/types';
@@ -314,8 +313,7 @@ export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void>
 
 function triggerAutoSyncIfEligible(): void {
   const syncState = useGithubSyncStore.getState();
-  const proStatusState = useProStatusStore.getState();
-  if (syncState.isConnected && proStatusState.isProUser) {
+  if (syncState.isConnected) {
     getAutoSyncManager().triggerSync();
   }
 }
