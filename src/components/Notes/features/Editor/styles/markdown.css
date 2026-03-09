@@ -122,8 +122,9 @@
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
-  /* Allow nested list to wrap to next line */
-  gap: 0.5rem;
+  /* Keep horizontal spacing between checkbox and text, avoid extra vertical row gap */
+  column-gap: 0.5rem;
+  row-gap: 0;
   position: relative;
   padding-left: 0;
 }
@@ -134,6 +135,8 @@
   flex-basis: 100%;
   width: 100%;
   margin-left: 0;
+  margin-top: 6px;
+  margin-bottom: 0;
   /* Remove extra indentation, let ul padding handle it */
 }
 

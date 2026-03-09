@@ -37,7 +37,7 @@ export { abbrPlugin } from './abbr';
 export { autolinkPlugin, linkTooltipPlugin, markdownLinkPlugin } from './links';
 
 // Task list interaction
-export { taskListClickPlugin } from './task-list';
+export { taskListClickPlugin, listTabIndentPlugin } from './task-list';
 
 // List collapse
 export { listCollapsePlugin } from './collapse';

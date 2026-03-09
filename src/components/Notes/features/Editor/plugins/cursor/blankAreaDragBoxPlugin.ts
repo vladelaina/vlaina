@@ -13,6 +13,7 @@ import {
   type BlockRange,
   type RectBounds,
 } from './blockSelectionUtils';
+import { expandListItemHeaderRanges } from './blockUnitResolver';
 import {
   deleteSelectedBlocks as deleteSelectedBlocksCommand,
   serializeSelectedBlocksToText,
@@ -126,11 +127,24 @@ function updateDragBox(box: HTMLDivElement, rect: RectBounds): void {
 
 function createSelectionDecorations(doc: EditorState['doc'], blocks: readonly BlockRange[]): DecorationSet {
   if (blocks.length === 0) return DecorationSet.empty;
-  const decorations = blocks.map((block) =>
-    Decoration.node(block.from, block.to, {
-      class: 'neko-block-selected',
-    }),
-  );
+  const displayRanges = normalizeBlockRanges(blocks.map((block) => {
+    const safeFrom = Math.max(0, Math.min(block.from, doc.content.size));
+    let from = block.from;
+    let to = block.to;
+    try {
+      const $from = doc.resolve(safeFrom);
+      const nodeAfter = $from.nodeAfter;
+      if (nodeAfter && nodeAfter.type.name === 'list_item') {
+        from = safeFrom;
+        to = safeFrom + nodeAfter.nodeSize;
+      }
+    } catch {
+    }
+    return { from, to };
+  }));
+  const decorations = displayRanges.map((range) => Decoration.node(range.from, range.to, {
+    class: 'neko-block-selected',
+  }));
   return DecorationSet.create(doc, decorations);
 }
 
@@ -303,11 +317,12 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         currentScrollTop,
       );
       const selectedBlocks = resolveIntersectedBlockRanges(docSpaceBlockRects, docSpaceDragRect);
-      const nextKey = getBlockRangesKey(selectedBlocks);
+      const expandedBlocks = expandListItemHeaderRanges(view.state.doc, selectedBlocks);
+      const nextKey = getBlockRangesKey(expandedBlocks);
       if (nextKey !== selectedBlocksKey) {
         selectedBlocksKey = nextKey;
-        dispatchSelectionAction(view, selectedBlocks.length > 0
-          ? { type: 'set-blocks', blocks: selectedBlocks }
+        dispatchSelectionAction(view, expandedBlocks.length > 0
+          ? { type: 'set-blocks', blocks: expandedBlocks }
           : CLEAR_BLOCKS_ACTION);
       }
     };

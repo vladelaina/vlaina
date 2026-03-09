@@ -52,7 +52,7 @@ describe('collectSelectableBlockRanges', () => {
     ]);
   });
 
-  it('keeps nested list with its parent list item by only collecting direct children', () => {
+  it('splits parent list item header from nested list items', () => {
     const parentWithNestedChildren = createNode('list_item', 12, [
       createNode('paragraph', 4),
       createNode('ordered_list', 6, [createNode('list_item', 4)]),
@@ -64,7 +64,8 @@ describe('collectSelectableBlockRanges', () => {
     const ranges = collectSelectableBlockRanges(doc as any);
 
     expect(ranges).toEqual([
-      { from: 1, to: 13 },
+      { from: 1, to: 6 },
+      { from: 7, to: 11 },
       { from: 13, to: 17 },
     ]);
   });
