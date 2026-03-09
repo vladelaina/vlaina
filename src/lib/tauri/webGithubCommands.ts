@@ -2,7 +2,6 @@ const API_BASE = 'https://api.nekotick.com';
 const WEB_GITHUB_CREDS_KEY = 'nekotick_github_creds';
 
 interface WebGithubCredentials {
-  accessToken: string;
   username: string;
   githubId?: number;
   avatarUrl?: string;
@@ -53,7 +52,6 @@ export const webGithubCommands = {
       const data = await res.json();
       if (data.success && data.accessToken) {
         saveWebGithubCredentials({
-          accessToken: data.accessToken,
           username: data.username,
           githubId: data.githubId,
           avatarUrl: data.avatarUrl,
@@ -77,10 +75,6 @@ export const webGithubCommands = {
 
   disconnect(): void {
     clearWebGithubCredentials();
-  },
-
-  getAccessToken(): string | null {
-    return getWebGithubCredentials()?.accessToken || null;
   },
 
   updateLastSyncTime(timestamp: number): void {

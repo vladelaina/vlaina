@@ -20,12 +20,6 @@ pub(crate) struct GitHubCredentials {
     pub avatar_url: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct GitHubOAuthConfig {
-    pub client_id: String,
-    pub client_secret: String,
-}
-
 pub fn get_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_data_dir()
@@ -114,28 +108,12 @@ pub fn save_github_sync_meta(app: &tauri::AppHandle, meta: &GitHubSyncMeta) -> R
 }
 
 pub fn load_github_sync_meta(app: &tauri::AppHandle) -> GitHubSyncMeta {
-    if let Ok(path) = get_github_sync_meta_path(app) {
+  if let Ok(path) = get_github_sync_meta_path(app) {
         if let Ok(content) = fs::read_to_string(&path) {
             if let Ok(meta) = serde_json::from_str(&content) {
                 return meta;
             }
         }
-    }
-    GitHubSyncMeta::default()
-}
-
-pub(crate) fn load_oauth_config() -> Result<GitHubOAuthConfig, String> {
-    if let (Ok(client_id), Ok(client_secret)) = (
-        std::env::var("DESKTOP_CLIENT_ID"),
-        std::env::var("DESKTOP_CLIENT_SECRET"),
-    ) {
-        return Ok(GitHubOAuthConfig { client_id, client_secret });
-    }
-
-    let config_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("github_oauth.json");
-    let content = fs::read_to_string(&config_path)
-        .map_err(|e| format!("Failed to read github_oauth.json: {}. Create it from github_oauth.example.json", e))?;
-
-    serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse github_oauth.json: {}", e))
+  }
+  GitHubSyncMeta::default()
 }
