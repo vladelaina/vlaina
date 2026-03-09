@@ -1,4 +1,4 @@
-import { dirname, join } from '@tauri-apps/api/path';
+import { getParentPath, joinPath } from '@/lib/storage/adapter';
 
 /**
  * Resolves the absolute path for a system asset (icon or cover) within the vault.
@@ -9,33 +9,33 @@ export async function resolveSystemAssetPath(
   filename: string, 
   category: 'covers' | 'icons'
 ): Promise<string> {
-  const assetsBaseDir = await join(vaultPath, '.nekotick', 'assets');
+  const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
   
   if (category === 'icons') {
     // Filename usually comes as 'icons/name.png' or just 'name.png'. 
     // If it has prefix, strip it for joining, or just join carefully.
     // Our storage format: icons are stored in 'icons' folder, filenames in DB might be 'icons/foo.png'.
     const name = filename.replace(/^icons[\\/]/, '');
-    return join(assetsBaseDir, 'icons', name);
+    return joinPath(assetsBaseDir, 'icons', name);
   } else {
     // Covers
     // Filename in DB is usually just 'foo.jpg'.
-    return join(assetsBaseDir, 'covers', filename);
+    return joinPath(assetsBaseDir, 'covers', filename);
   }
 }
 
 /**
- * Robustly joins paths ensuring OS-specific separators using Tauri API.
+ * Robustly joins paths using the platform-aware storage adapter.
  */
 export async function joinPaths(...paths: string[]): Promise<string> {
-  return join(...paths);
+  return joinPath(...paths);
 }
 
 /**
  * Helper to get the directory name of a path.
  */
 export async function getDirname(path: string): Promise<string> {
-  return dirname(path);
+  return getParentPath(path) || '/';
 }
 
 // Deprecated synchronous helpers - removing as requested for thorough refactor.

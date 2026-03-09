@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { dirname, isAbsolute, join } from '@tauri-apps/api/path';
+import { getParentPath, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
 
 interface UseLocalImageResult {
@@ -45,30 +45,30 @@ export function useLocalImage(
 
                 let fullPath = '';
                 
-                if (await isAbsolute(baseSrc)) {
+                if (isAbsolutePath(baseSrc)) {
                     fullPath = baseSrc;
                 } 
                 else if (baseSrc.startsWith('./') || baseSrc.startsWith('../')) {
                     if (currentNotePath) {
-                        const absoluteNotePath = await isAbsolute(currentNotePath) 
+                        const absoluteNotePath = isAbsolutePath(currentNotePath) 
                             ? currentNotePath 
-                            : await join(notesPath, currentNotePath);
+                            : await joinPath(notesPath, currentNotePath);
                             
-                        const parentDir = await dirname(absoluteNotePath);
-                        fullPath = await join(parentDir, baseSrc);
+                        const parentDir = getParentPath(absoluteNotePath) || notesPath;
+                        fullPath = await joinPath(parentDir, baseSrc);
                     } else {
-                        fullPath = await join(notesPath, baseSrc);
+                        fullPath = await joinPath(notesPath, baseSrc);
                     }
                 } 
                 else {
                     if (currentNotePath) {
-                         const absoluteNotePath = await isAbsolute(currentNotePath) 
+                         const absoluteNotePath = isAbsolutePath(currentNotePath) 
                             ? currentNotePath 
-                            : await join(notesPath, currentNotePath);
-                        const parentDir = await dirname(absoluteNotePath);
-                        fullPath = await join(parentDir, baseSrc);
+                            : await joinPath(notesPath, currentNotePath);
+                        const parentDir = getParentPath(absoluteNotePath) || notesPath;
+                        fullPath = await joinPath(parentDir, baseSrc);
                     } else {
-                        fullPath = await join(notesPath, baseSrc);
+                        fullPath = await joinPath(notesPath, baseSrc);
                     }
                 }
 

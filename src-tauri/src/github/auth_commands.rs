@@ -7,6 +7,8 @@ use crate::github::{
     types::{GitHubAuthResult, GitHubSyncStatus},
 };
 use serde::Deserialize;
+#[cfg(any(target_os = "windows", target_os = "macos", all(unix, not(target_os = "macos"))))]
+use std::process::Command;
 use std::time::Duration;
 use tokio::time::{sleep, Instant};
 
@@ -116,6 +118,57 @@ async fn poll_worker_auth_result(state: &str) -> Result<WorkerAuthResultResponse
     Ok(payload)
 }
 
+fn open_auth_url(url: &str) -> Result<(), String> {
+    if open::that(url).is_ok() {
+        return Ok(());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let status = Command::new("cmd")
+            .args(["/C", "start", "", url])
+            .status()
+            .map_err(|e| format!("Failed to open browser: {}", e))?;
+        if status.success() {
+            return Ok(());
+        }
+        return Err(format!(
+            "Failed to open browser (cmd start exit code {:?})",
+            status.code()
+        ));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let status = Command::new("open")
+            .arg(url)
+            .status()
+            .map_err(|e| format!("Failed to open browser: {}", e))?;
+        if status.success() {
+            return Ok(());
+        }
+        return Err(format!(
+            "Failed to open browser (open exit code {:?})",
+            status.code()
+        ));
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let status = Command::new("xdg-open")
+            .arg(url)
+            .status()
+            .map_err(|e| format!("Failed to open browser: {}", e))?;
+        if status.success() {
+            return Ok(());
+        }
+        return Err(format!(
+            "Failed to open browser (xdg-open exit code {:?})",
+            status.code()
+        ));
+    }
+}
+
 #[tauri::command]
 pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, String> {
     let start = match request_worker_auth_start().await {
@@ -129,11 +182,11 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
         }
     };
 
-    if let Err(error) = open::that(&start.auth_url) {
+    if let Err(error) = open_auth_url(&start.auth_url) {
         return Ok(GitHubAuthResult {
             success: false,
             username: None,
-            error: Some(format!("Failed to open browser: {}", error)),
+            error: Some(error),
         });
     }
 

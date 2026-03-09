@@ -1,6 +1,5 @@
 import { AssetEntry, UploadResult } from './types';
-import { dirname, join } from '@tauri-apps/api/path';
-import { getStorageAdapter } from '@/lib/storage/adapter';
+import { getStorageAdapter, getParentPath, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { computeFileHash } from './core/hashing';
 import { getMimeType, generateFilename } from './core/naming';
 import { writeAssetAtomic } from './io/writer';
@@ -103,8 +102,7 @@ export class AssetService {
     // 5. Write to Disk
     const buffer = new Uint8Array(await file.arrayBuffer());
     
-    // Use Tauri's join here too for consistency
-    const filePath = await join(targetDir, finalFilename);
+    const filePath = await joinPath(targetDir, finalFilename);
     
     await writeAssetAtomic(filePath, buffer);
     
@@ -139,17 +137,17 @@ export class AssetService {
     
     // System assets (Icons/Covers) always go to .nekotick/assets
     if (category === 'icons') {
-      const assetsBaseDir = await join(vaultPath, '.nekotick', 'assets');
+      const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
       return {
-        targetDir: await join(assetsBaseDir, 'icons'),
+        targetDir: await joinPath(assetsBaseDir, 'icons'),
         storedPathPrefix: 'icons/'
       };
     }
     
     if (category === 'covers') {
-       const assetsBaseDir = await join(vaultPath, '.nekotick', 'assets');
+       const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
        return {
-         targetDir: await join(assetsBaseDir, 'covers'),
+         targetDir: await joinPath(assetsBaseDir, 'covers'),
          storedPathPrefix: ''
        };
     }
@@ -166,17 +164,17 @@ export class AssetService {
       case 'vaultSubfolder':
         const vaultSubfolderName = config.imageVaultSubfolderName || 'assets';
         return {
-          targetDir: await join(vaultPath, vaultSubfolderName),
+          targetDir: await joinPath(vaultPath, vaultSubfolderName),
           storedPathPrefix: `${vaultSubfolderName}/`
         };
 
       case 'currentFolder':
         if (currentNotePath) {
           // currentNotePath might be relative to vault, so resolve it first
-          const isAbsolute = currentNotePath.startsWith('/') || /^[a-zA-Z]:/.test(currentNotePath);
-          const absoluteNotePath = isAbsolute ? currentNotePath : await join(vaultPath, currentNotePath);
-          
-          const currentDir = await dirname(absoluteNotePath);
+          const absoluteNotePath = isAbsolutePath(currentNotePath)
+            ? currentNotePath
+            : await joinPath(vaultPath, currentNotePath);
+          const currentDir = getParentPath(absoluteNotePath) || vaultPath;
 
           return {
             targetDir: currentDir,
@@ -192,14 +190,14 @@ export class AssetService {
 
       case 'subfolder':
         if (currentNotePath) {
-          const isAbsolute = currentNotePath.startsWith('/') || /^[a-zA-Z]:/.test(currentNotePath);
-          const absoluteNotePath = isAbsolute ? currentNotePath : await join(vaultPath, currentNotePath);
-          
-          const noteDir = await dirname(absoluteNotePath);
+          const absoluteNotePath = isAbsolutePath(currentNotePath)
+            ? currentNotePath
+            : await joinPath(vaultPath, currentNotePath);
+          const noteDir = getParentPath(absoluteNotePath) || vaultPath;
           const subfolderName = config.subfolderName || 'assets';
           
           return {
-            targetDir: await join(noteDir, subfolderName),
+            targetDir: await joinPath(noteDir, subfolderName),
             storedPathPrefix: `./${subfolderName}/`
           };
         } else {
