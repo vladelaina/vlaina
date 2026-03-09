@@ -1,7 +1,4 @@
-//! OAuth2 PKCE implementation for GitHub
-//!
-//! Implements the OAuth2 Authorization Code flow with PKCE extension
-//! for secure desktop application authentication.
+//! OAuth2 implementation for GitHub desktop authentication.
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use rand::Rng;
@@ -9,6 +6,21 @@ use sha2::{Digest, Sha256};
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use url::Url;
+
+fn escape_html(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for ch in input.chars() {
+        match ch {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#39;"),
+            _ => out.push(ch),
+        }
+    }
+    out
+}
 
 /// GitHub OAuth2 client configuration
 pub struct GitHubOAuthClient {
@@ -78,7 +90,7 @@ impl GitHubOAuthClient {
     }
 
     /// Build the GitHub OAuth2 authorization URL
-    pub fn build_auth_url(&self, state: &str, port: u16) -> String {
+    pub fn build_auth_url(&self, state: &str, port: u16, code_challenge: &str) -> String {
         let redirect_uri = format!("{}:{}", self.redirect_uri, port);
         
         let mut url = Url::parse("https://github.com/login/oauth/authorize").unwrap();
@@ -87,6 +99,8 @@ impl GitHubOAuthClient {
             .append_pair("redirect_uri", &redirect_uri)
             .append_pair("scope", "repo gist read:user")
             .append_pair("state", state)
+            .append_pair("code_challenge", code_challenge)
+            .append_pair("code_challenge_method", "S256")
             .append_pair("prompt", "select_account");
 
         url.to_string()
@@ -131,11 +145,12 @@ impl GitHubOAuthClient {
         // Check for errors
         if let Some(err) = error {
             let err_msg = error_description.unwrap_or(err);
+            let safe_err_msg = escape_html(&err_msg);
             let response = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n\
                 <html><body><h1>Authorization Failed</h1><p>Error: {}</p>\
                 <p>You can close this window.</p></body></html>",
-                err_msg
+                safe_err_msg
             );
             let _ = stream.write_all(response.as_bytes());
             return Err(GitHubOAuthError::AuthorizationError(err_msg));
@@ -169,6 +184,7 @@ impl GitHubOAuthClient {
         &self,
         code: &str,
         port: u16,
+        code_verifier: &str,
     ) -> Result<GitHubTokenResponse, GitHubOAuthError> {
         let redirect_uri = format!("{}:{}", self.redirect_uri, port);
         
@@ -181,6 +197,7 @@ impl GitHubOAuthClient {
                 ("client_secret", self.client_secret.as_str()),
                 ("code", code),
                 ("redirect_uri", redirect_uri.as_str()),
+                ("code_verifier", code_verifier),
             ])
             .send()
             .await

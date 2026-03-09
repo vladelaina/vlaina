@@ -4,6 +4,21 @@ use tauri::window::Color;
 // GitHub sync module
 pub mod github;
 
+fn escape_html(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for ch in input.chars() {
+        match ch {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#39;"),
+            _ => out.push(ch),
+        }
+    }
+    out
+}
+
 // Create drag overlay window
 #[tauri::command]
 async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, width: f64, height: f64, is_done: bool, is_dark: bool, color: Option<String>) -> Result<(), String> {
@@ -48,6 +63,8 @@ async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, wid
         format!("<div class=\"checkbox\" style=\"border-color:{}\"></div>", text_muted)
     };
 
+    let escaped_content = escape_html(&content);
+
     // HTML content - transparent background, card fills window
     let html = format!(r#"<!DOCTYPE html>
 <html style="background:transparent!important">
@@ -81,7 +98,7 @@ body{{font-family:system-ui,-apple-system,sans-serif;display:flex}}
 <span class="content" style="{}">{}</span>
 </div>
 </body>
-</html>"#, bg_color, border_color, text_color, text_muted, text_muted, checkbox_html, content_style, content);
+</html>"#, bg_color, border_color, text_color, text_muted, text_muted, checkbox_html, content_style, escaped_content);
 
     // Create transparent window - hidden first, show after setup
     let window = WebviewWindowBuilder::new(
@@ -106,8 +123,9 @@ body{{font-family:system-ui,-apple-system,sans-serif;display:flex}}
     // Ignore cursor events so drag continues
     window.set_ignore_cursor_events(true).map_err(|e| e.to_string())?;
 
-    // Inject HTML content
-    window.eval(&format!(r#"document.write(`{}`); document.close();"#, html.replace('`', "\\`")))
+    // Inject HTML content safely (JSON string escaping avoids JS template injection).
+    let html_json = serde_json::to_string(&html).map_err(|e| e.to_string())?;
+    window.eval(&format!(r#"document.open(); document.write({}); document.close();"#, html_json))
         .map_err(|e| e.to_string())?;
 
     // Show window

@@ -1,6 +1,7 @@
 use crate::github::types::GitHubSyncMeta;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 use tauri::Manager;
 
@@ -47,6 +48,31 @@ fn get_github_sync_meta_path(app: &tauri::AppHandle) -> Result<PathBuf, String> 
     Ok(path)
 }
 
+fn write_sensitive_json(path: &Path, content: &str) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(path)
+            .map_err(|e| e.to_string())?;
+        file.write_all(content.as_bytes())
+            .map_err(|e| e.to_string())?;
+        file.sync_all().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[cfg(not(unix))]
+    {
+        fs::write(path, content).map_err(|e| e.to_string())
+    }
+}
+
 pub(crate) fn load_github_credentials(app: &tauri::AppHandle) -> Option<GitHubCredentials> {
     let path = get_github_creds_path(app).ok()?;
     let content = fs::read_to_string(&path).ok()?;
@@ -59,7 +85,7 @@ pub(crate) fn save_github_credentials(app: &tauri::AppHandle, creds: &GitHubCred
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let content = serde_json::to_string_pretty(creds).map_err(|e| e.to_string())?;
-    fs::write(&path, content).map_err(|e| e.to_string())
+    write_sensitive_json(&path, &content)
 }
 
 pub fn delete_github_credentials(app: &tauri::AppHandle) -> Result<(), String> {

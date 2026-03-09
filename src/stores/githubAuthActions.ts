@@ -172,12 +172,12 @@ export function createHandleOAuthCallback(set: Set, _get: Get): () => Promise<bo
     const savedState = sessionStorage.getItem('github_oauth_state');
     sessionStorage.removeItem('github_oauth_state');
 
-    if (savedState && callback.state && savedState !== callback.state) {
+    if (!savedState || !callback.state || savedState !== callback.state) {
       set({ syncError: 'OAuth state mismatch', isConnecting: false });
       return false;
     }
 
-    const result = await webGithubCommands.exchangeCode(callback.code);
+    const result = await webGithubCommands.exchangeCode(callback.code, callback.state);
 
     if (result.success && result.username) {
       set({

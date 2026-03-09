@@ -24,6 +24,8 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
     const CALLBACK_PORT: u16 = 8914;
 
     let state = GitHubOAuthClient::generate_state();
+    let code_verifier = GitHubOAuthClient::generate_code_verifier();
+    let code_challenge = GitHubOAuthClient::compute_code_challenge(&code_verifier);
 
     let socket = Socket::new(Domain::IPV4, Type::STREAM, Some(Protocol::TCP))
         .map_err(|e| format!("Failed to create socket: {}", e))?;
@@ -41,7 +43,7 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
     let listener: TcpListener = socket.into();
 
     let oauth = GitHubOAuthClient::new(oauth_config.client_id.clone(), oauth_config.client_secret.clone());
-    let auth_url = oauth.build_auth_url(&state, CALLBACK_PORT);
+    let auth_url = oauth.build_auth_url(&state, CALLBACK_PORT, &code_challenge);
 
     let (tx, rx) = mpsc::channel::<Result<String, String>>();
     let state_clone = state.clone();
@@ -88,7 +90,7 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
         }
     };
 
-    let tokens = match oauth.exchange_code(&code, CALLBACK_PORT).await {
+    let tokens = match oauth.exchange_code(&code, CALLBACK_PORT, &code_verifier).await {
         Ok(t) => t,
         Err(e) => {
             return Ok(GitHubAuthResult {

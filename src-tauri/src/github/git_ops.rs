@@ -23,6 +23,22 @@ pub enum GitError {
     NoToken,
     #[error("Invalid repository URL")]
     InvalidUrl,
+    #[error("Invalid repository identifier")]
+    InvalidRepoIdentifier,
+}
+
+fn is_safe_repo_component(value: &str) -> bool {
+    if value.is_empty() || value.len() > 128 {
+        return false;
+    }
+
+    if value != value.trim() || value.starts_with('.') || value.contains("..") {
+        return false;
+    }
+
+    value
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
 }
 
 /// Get the base directory for cloned repositories
@@ -40,6 +56,9 @@ pub fn get_repos_base_dir() -> Result<PathBuf, GitError> {
 /// Get the local path for a specific repository
 /// Uses "__" as separator since GitHub usernames/repo names cannot contain consecutive underscores
 pub fn get_repo_local_path(owner: &str, repo: &str) -> Result<PathBuf, GitError> {
+    if !is_safe_repo_component(owner) || !is_safe_repo_component(repo) {
+        return Err(GitError::InvalidRepoIdentifier);
+    }
     Ok(get_repos_base_dir()?.join(format!("{}__{}", owner, repo)))
 }
 

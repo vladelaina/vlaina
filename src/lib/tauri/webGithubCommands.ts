@@ -37,7 +37,7 @@ export const webGithubCommands = {
     }
   },
 
-  async exchangeCode(code: string): Promise<{
+  async exchangeCode(code: string, state: string): Promise<{
     success: boolean;
     username?: string;
     accessToken?: string;
@@ -48,7 +48,7 @@ export const webGithubCommands = {
       const res = await fetch(`${API_BASE}/auth/github/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, state }),
       });
       const data = await res.json();
       if (data.success && data.accessToken) {
