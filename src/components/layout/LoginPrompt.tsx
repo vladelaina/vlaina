@@ -9,7 +9,7 @@ interface LoginPromptProps {
 }
 
 export const LoginPrompt: React.FC<LoginPromptProps> = ({ onLogin }) => {
-    const { isConnecting, cancelConnect } = useGithubSyncStore();
+    const { isConnecting, cancelConnect, syncError } = useGithubSyncStore();
     const userAvatar = useUserAvatar();
     const displayAvatar = userAvatar || "/logo.png";
 
@@ -52,6 +52,11 @@ export const LoginPrompt: React.FC<LoginPromptProps> = ({ onLogin }) => {
                     <Icon size="md" name="nav.chevronRight" className="text-[var(--neko-text-tertiary)] group-hover:text-[var(--neko-text-primary)] transition-colors opacity-50 group-hover:opacity-100" />
                 )}
             </div>
+            {syncError ? (
+                <div className="mx-2 mt-1 text-[11px] text-red-500 truncate" title={syncError}>
+                    {syncError}
+                </div>
+            ) : null}
             <div className="h-[1px] bg-[var(--neko-border)] mx-2 mt-2 opacity-40" />
         </div>
     );

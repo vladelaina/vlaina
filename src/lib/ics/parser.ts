@@ -47,9 +47,9 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
         const nekoOrder = vevent.getFirstPropertyValue(NEKO_X_PROPS.ORDER.toLowerCase()) as string | null;
         const nekoParentId = vevent.getFirstPropertyValue(NEKO_X_PROPS.PARENT_ID.toLowerCase()) as string | null;
         const nekoCollapsed = vevent.getFirstPropertyValue(NEKO_X_PROPS.COLLAPSED.toLowerCase()) as string | null;
-        const nekoEstimatedMinutes = vevent.getFirstPropertyValue(NEKO_X_PROPS.ESTIMATED_MINUTES.toLowerCase()) as string | null;
         const nekoTags = vevent.getFirstPropertyValue(NEKO_X_PROPS.TAGS.toLowerCase()) as string | null;
         const nekoScheduled = vevent.getFirstPropertyValue(NEKO_X_PROPS.SCHEDULED.toLowerCase()) as string | null;
+        const nekoCreatedAt = vevent.getFirstPropertyValue(NEKO_X_PROPS.CREATED_AT.toLowerCase()) as string | null;
 
         const startDate = dtstart.toJSDate();
         let endDate: Date;
@@ -91,8 +91,8 @@ export function parseICS(icsContent: string, defaultCalendarId: string = 'defaul
             order: nekoOrder ? parseFloat(nekoOrder) : undefined,
             parentId: nekoParentId || undefined,
             collapsed: nekoCollapsed === 'TRUE',
-            estimatedMinutes: nekoEstimatedMinutes ? parseInt(nekoEstimatedMinutes, 10) : undefined,
             tags: deserializeTags(nekoTags),
+            createdAt: nekoCreatedAt ? parseInt(nekoCreatedAt, 10) : startDate.getTime(),
         };
 
         events.push(nekoEvent);

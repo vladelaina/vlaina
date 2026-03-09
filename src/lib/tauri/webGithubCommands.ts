@@ -2,7 +2,6 @@ const API_BASE = 'https://api.nekotick.com';
 const WEB_GITHUB_CREDS_KEY = 'nekotick_github_creds';
 
 interface WebGithubCredentials {
-  accessToken: string;
   username: string;
   githubId?: number;
   avatarUrl?: string;
@@ -37,7 +36,7 @@ export const webGithubCommands = {
     }
   },
 
-  async exchangeCode(code: string): Promise<{
+  async exchangeCode(code: string, state: string): Promise<{
     success: boolean;
     username?: string;
     accessToken?: string;
@@ -48,12 +47,11 @@ export const webGithubCommands = {
       const res = await fetch(`${API_BASE}/auth/github/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, state }),
       });
       const data = await res.json();
       if (data.success && data.accessToken) {
         saveWebGithubCredentials({
-          accessToken: data.accessToken,
           username: data.username,
           githubId: data.githubId,
           avatarUrl: data.avatarUrl,
@@ -77,30 +75,6 @@ export const webGithubCommands = {
 
   disconnect(): void {
     clearWebGithubCredentials();
-  },
-
-  async checkProStatus(): Promise<{ isPro: boolean; expiresAt: number | null }> {
-    const creds = getWebGithubCredentials();
-    if (!creds || !creds.githubId) return { isPro: false, expiresAt: null };
-
-    try {
-      const res = await fetch(`${API_BASE}/check_pro`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ github_id: creds.githubId }),
-      });
-      const data = await res.json();
-      return {
-        isPro: data.isPro || false,
-        expiresAt: data.expiresAt || null,
-      };
-    } catch {
-      return { isPro: false, expiresAt: null };
-    }
-  },
-
-  getAccessToken(): string | null {
-    return getWebGithubCredentials()?.accessToken || null;
   },
 
   updateLastSyncTime(timestamp: number): void {

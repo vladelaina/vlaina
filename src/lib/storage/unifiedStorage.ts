@@ -1,7 +1,4 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
-import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
-import { useProStatusStore } from '@/stores/useProStatusStore';
 import { createPersistenceQueue } from './persistenceEngine';
 import type { TimeView } from '@/lib/date';
 import type { NekoCalendar } from '@/lib/ics/types';
@@ -81,6 +78,11 @@ const MAIN_DATA_FILE = 'data.json';
 const MAIN_DATA_BACKUP_FILE = 'data.backup.json';
 
 let basePath: string | null = null;
+let autoSyncTrigger: (() => void) | null = null;
+
+export function setUnifiedStorageAutoSyncTrigger(trigger: (() => void) | null): void {
+  autoSyncTrigger = trigger;
+}
 
 async function getBasePath(): Promise<string> {
   if (basePath === null) {
@@ -308,14 +310,14 @@ export async function flushPendingSave(): Promise<void> {
   await unifiedSaveQueue.flush();
 }
 
+export function cancelPendingSave(): void {
+  unifiedSaveQueue.cancel();
+}
+
 export async function saveUnifiedDataImmediate(data: UnifiedData): Promise<void> {
   await unifiedSaveQueue.saveNow(data);
 }
 
 function triggerAutoSyncIfEligible(): void {
-  const syncState = useGithubSyncStore.getState();
-  const proStatusState = useProStatusStore.getState();
-  if (syncState.isConnected && proStatusState.isProUser) {
-    getAutoSyncManager().triggerSync();
-  }
+  autoSyncTrigger?.();
 }

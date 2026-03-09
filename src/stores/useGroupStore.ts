@@ -2,6 +2,7 @@ import { useCalendarEventsStore } from './calendarEventsSlice';
 import { useUIStore } from './uiSlice';
 import { DEFAULT_GROUP_ID, DEFAULT_GROUP_NAME } from '@/lib/config';
 import { formatDateKey } from '@/lib/date';
+import { normalizeTags } from '@/lib/tags/tagUtils';
 import type { ItemColor } from './types';
 import type { NekoEvent, NekoCalendar } from '@/lib/ics/types';
 
@@ -49,12 +50,13 @@ export function useGroupStore() {
         await eventStore.updateEvent(uid, { summary });
     },
 
-    updateTaskEstimation: async (uid: string, estimatedMinutes?: number) => {
-        await eventStore.updateEvent(uid, { estimatedMinutes });
-    },
-
     updateTaskColor: async (uid: string, color: ItemColor) => {
         await eventStore.updateEvent(uid, { color });
+    },
+
+    updateTaskTags: async (uid: string, tags: string[]) => {
+        const normalized = normalizeTags(tags);
+        await eventStore.updateEvent(uid, { tags: normalized.length > 0 ? normalized : undefined });
     },
 
     updateTaskIcon: async (uid: string, icon?: string) => {
@@ -132,8 +134,9 @@ async function deleteCompletedTasks(scopeId: string) {
         }
 
         if (scopeId === 'today') {
-            if (!e.dtstart) return false;
-            return formatDateKey(new Date(e.dtstart)) === selectedDateKey;
+            const referenceTime = e.createdAt ?? (e.dtstart ? new Date(e.dtstart).getTime() : undefined);
+            if (referenceTime === undefined) return false;
+            return formatDateKey(new Date(referenceTime)) === selectedDateKey;
         }
 
         return (e.groupId || DEFAULT_GROUP_ID) === scopeId;
@@ -157,8 +160,9 @@ useGroupStore.getState = () => {
     updateTaskColor: async (uid: string, color: ItemColor) => {
         await store.updateEvent(uid, { color });
     },
-    updateTaskEstimation: async (uid: string, min: number) => {
-        await store.updateEvent(uid, { estimatedMinutes: min });
+    updateTaskTags: async (uid: string, tags: string[]) => {
+        const normalized = normalizeTags(tags);
+        await store.updateEvent(uid, { tags: normalized.length > 0 ? normalized : undefined });
     },
     updateTaskIcon: async (uid: string, icon: string) => {
         await store.updateEvent(uid, { icon });

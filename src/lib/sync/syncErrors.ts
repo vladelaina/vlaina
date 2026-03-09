@@ -1,4 +1,7 @@
 const ERROR_MAP: [RegExp, string][] = [
+  [/OAuth start API failed with status 5\d\d/i, 'OAuth start failed (check API secrets/config)'],
+  [/OAuth not configured|Desktop OAuth not configured/i, 'OAuth not configured on API'],
+  [/Failed to open browser/i, 'Cannot open browser automatically'],
   [/Sync timeout/i, 'Sync timed out (60s)'],
   [/not authenticated|Not authenticated/i, 'Not authenticated'],
   [/Username not available/i, 'Username not found'],

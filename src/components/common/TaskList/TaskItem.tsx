@@ -5,8 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import type { NekoEvent } from '@/lib/ics/types';
-import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
-import { formatDuration } from '@/lib/time';
+import { useGroupStore } from '@/stores/useGroupStore';
 import { getColorHex } from '@/lib/colors';
 import { IconSelector } from '@/components/common/IconSelector';
 import { TaskIcon } from '@/components/common/TaskIcon';
@@ -16,33 +15,13 @@ import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { normalizeTags } from '@/lib/tags/tagUtils';
 import { getRandomEmojiFromPreference } from '@/components/common/UniversalIconPicker/randomEmoji';
 import { TaskItemMenu } from './TaskItemMenu';
+import type { ItemColor } from '@/lib/colors';
 
 const animateLayoutChanges: AnimateLayoutChanges = (args) => {
     const { isSorting, wasDragging } = args;
     if (isSorting || wasDragging) return false;
     return defaultAnimateLayoutChanges(args);
 };
-
-function formatMinutes(minutes: number): string {
-    return formatDuration(minutes);
-}
-
-function formatScheduledTime(startDate: number, endDate?: number): string {
-    const start = new Date(startDate);
-    const month = (start.getMonth() + 1).toString().padStart(2, '0');
-    const day = start.getDate().toString().padStart(2, '0');
-    const startHour = start.getHours().toString().padStart(2, '0');
-    const startMin = start.getMinutes().toString().padStart(2, '0');
-
-    if (endDate) {
-        const end = new Date(endDate);
-        const endHour = end.getHours().toString().padStart(2, '0');
-        const endMin = end.getMinutes().toString().padStart(2, '0');
-        const durationMin = Math.round((endDate - startDate) / 60000);
-        return `${startHour}:${startMin} - ${endHour}:${endMin} (${durationMin}m) · ${month}/${day}`;
-    }
-    return `${startHour}:${startMin} · ${month}/${day}`;
-}
 
 interface TaskItemProps {
     task: NekoEvent;
@@ -82,8 +61,8 @@ export function TaskItem({
     const itemRef = useRef<HTMLDivElement>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [content, setContent] = useState(task.summary);
+    const [previewColor, setPreviewColor] = useState<ItemColor | null>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const { hideActualTime } = useUIStore();
     const groupStore = useGroupStore();
     const updateTaskIcon = onUpdateIcon || groupStore.updateTaskIcon;
 
@@ -156,12 +135,11 @@ export function TaskItem({
         (itemRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
     };
 
-    const colorValue = task.color && task.color !== 'default'
-        ? getColorHex(task.color)
+    const effectiveColor = previewColor ?? task.color;
+    const colorValue = effectiveColor && effectiveColor !== 'default'
+        ? getColorHex(effectiveColor)
         : undefined;
 
-    const startDate = task.dtstart ? new Date(task.dtstart).getTime() : undefined;
-    const endDate = task.dtend ? new Date(task.dtend).getTime() : undefined;
     const taskTags = normalizeTags(task.tags);
 
 
@@ -291,17 +269,6 @@ export function TaskItem({
                         </div>
                     )}
 
-                    {!hideActualTime && task.estimatedMinutes && (
-                        <div className="flex items-center gap-2 mt-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
-                            {task.estimatedMinutes && (
-                                <span>Est. {formatMinutes(task.estimatedMinutes)}</span>
-
-
-
-                            )}
-                        </div>
-                    )}
-
                     {taskTags.length > 0 && (
                         <div className="mt-1 flex flex-wrap gap-1">
                             {taskTags.map(tag => (
@@ -314,12 +281,6 @@ export function TaskItem({
                             ))}
                         </div>
                     )}
-
-                    {startDate && !task.allDay && (
-                        <div className="mt-1 text-xs text-zinc-400 dark:text-zinc-500 font-medium">
-                            {formatScheduledTime(startDate, endDate)}
-                        </div>
-                    )}
                 </div>
 
                 <TaskItemMenu
@@ -327,6 +288,7 @@ export function TaskItem({
                     canAddSubTask={canAddSubTask}
                     onAddSubTask={onAddSubTask}
                     onDelete={onDelete}
+                    onPreviewColor={setPreviewColor}
                 />
             </div>
         </>

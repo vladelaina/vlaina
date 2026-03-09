@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { hasBackendCommands } from '@/lib/tauri/invoke';
 import { githubCommands } from '@/lib/tauri/githubAuthCommands';
 import { friendlySyncError } from '@/lib/sync/syncErrors';
-import { flushPendingSave } from '@/lib/storage/unifiedStorage';
+import { cancelPendingSave, flushPendingSave } from '@/lib/storage/unifiedStorage';
+import { useUnifiedStore } from './useUnifiedStore';
 import {
   createCheckStatus,
   createConnect,
@@ -39,7 +40,6 @@ export interface GithubSyncState {
   remoteModifiedTime: string | null;
   isLoading: boolean;
   syncStatus: GithubSyncStatusType;
-  isSyncAvailable: boolean;
 }
 
 export interface GithubSyncActions {
@@ -96,7 +96,6 @@ const initialState: GithubSyncState = {
   remoteModifiedTime: null,
   isLoading: true,
   syncStatus: 'idle',
-  isSyncAvailable: true,
 };
 
 export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
@@ -192,7 +191,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
 
         if (result.pulledFromCloud) {
           await flushPendingSave();
-          window.location.reload();
+          await useUnifiedStore.getState().reloadFromDisk({ preserveRuntimeChat: true });
         }
 
         return true;
@@ -245,8 +244,8 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
           isSyncing: false,
           syncStatus: 'idle',
         });
-        await flushPendingSave();
-        window.location.reload();
+        cancelPendingSave();
+        await useUnifiedStore.getState().reloadFromDisk();
         return true;
       } else {
         console.error(`[Sync:Config] restore failed:`, result?.error);

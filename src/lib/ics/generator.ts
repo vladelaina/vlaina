@@ -81,16 +81,15 @@ export function generateICS(events: NekoEvent[], calendar: NekoCalendar): string
             xProps.push({ key: NEKO_X_PROPS.COLLAPSED, value: 'TRUE' });
         }
 
-        if (event.estimatedMinutes !== undefined) {
-            xProps.push({ key: NEKO_X_PROPS.ESTIMATED_MINUTES, value: String(event.estimatedMinutes) });
-        }
-
         const serializedTags = serializeTags(event.tags);
         if (serializedTags) {
             xProps.push({ key: NEKO_X_PROPS.TAGS, value: serializedTags });
         }
         if (event.scheduled === false) {
             xProps.push({ key: NEKO_X_PROPS.SCHEDULED, value: 'FALSE' });
+        }
+        if (event.createdAt !== undefined) {
+            xProps.push({ key: NEKO_X_PROPS.CREATED_AT, value: String(event.createdAt) });
         }
         if (xProps.length > 0) {
             calEvent.x(xProps);

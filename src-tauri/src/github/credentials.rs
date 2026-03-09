@@ -1,6 +1,7 @@
 use crate::github::types::GitHubSyncMeta;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 use tauri::Manager;
 
@@ -17,12 +18,6 @@ pub(crate) struct GitHubCredentials {
     pub github_id: Option<u64>,
     #[serde(default)]
     pub avatar_url: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct GitHubOAuthConfig {
-    pub client_id: String,
-    pub client_secret: String,
 }
 
 pub fn get_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -47,19 +42,44 @@ fn get_github_sync_meta_path(app: &tauri::AppHandle) -> Result<PathBuf, String> 
     Ok(path)
 }
 
-pub fn load_github_credentials(app: &tauri::AppHandle) -> Option<GitHubCredentials> {
+fn write_sensitive_json(path: &Path, content: &str) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(path)
+            .map_err(|e| e.to_string())?;
+        file.write_all(content.as_bytes())
+            .map_err(|e| e.to_string())?;
+        file.sync_all().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[cfg(not(unix))]
+    {
+        fs::write(path, content).map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) fn load_github_credentials(app: &tauri::AppHandle) -> Option<GitHubCredentials> {
     let path = get_github_creds_path(app).ok()?;
     let content = fs::read_to_string(&path).ok()?;
     serde_json::from_str(&content).ok()
 }
 
-pub fn save_github_credentials(app: &tauri::AppHandle, creds: &GitHubCredentials) -> Result<(), String> {
+pub(crate) fn save_github_credentials(app: &tauri::AppHandle, creds: &GitHubCredentials) -> Result<(), String> {
     let path = get_github_creds_path(app)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let content = serde_json::to_string_pretty(creds).map_err(|e| e.to_string())?;
-    fs::write(&path, content).map_err(|e| e.to_string())
+    write_sensitive_json(&path, &content)
 }
 
 pub fn delete_github_credentials(app: &tauri::AppHandle) -> Result<(), String> {
@@ -88,28 +108,12 @@ pub fn save_github_sync_meta(app: &tauri::AppHandle, meta: &GitHubSyncMeta) -> R
 }
 
 pub fn load_github_sync_meta(app: &tauri::AppHandle) -> GitHubSyncMeta {
-    if let Ok(path) = get_github_sync_meta_path(app) {
+  if let Ok(path) = get_github_sync_meta_path(app) {
         if let Ok(content) = fs::read_to_string(&path) {
             if let Ok(meta) = serde_json::from_str(&content) {
                 return meta;
             }
         }
-    }
-    GitHubSyncMeta::default()
-}
-
-pub fn load_oauth_config() -> Result<GitHubOAuthConfig, String> {
-    if let (Ok(client_id), Ok(client_secret)) = (
-        std::env::var("DESKTOP_CLIENT_ID"),
-        std::env::var("DESKTOP_CLIENT_SECRET"),
-    ) {
-        return Ok(GitHubOAuthConfig { client_id, client_secret });
-    }
-
-    let config_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("github_oauth.json");
-    let content = fs::read_to_string(&config_path)
-        .map_err(|e| format!("Failed to read github_oauth.json: {}. Create it from github_oauth.example.json", e))?;
-
-    serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse github_oauth.json: {}", e))
+  }
+  GitHubSyncMeta::default()
 }

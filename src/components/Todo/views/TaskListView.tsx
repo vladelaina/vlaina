@@ -5,7 +5,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 
 import { cn } from '@/lib/utils';
 import { useGroupStore, useUIStore } from '@/stores/useGroupStore';
-import { TaskInput, TaskItem, TaskDragContext, TaskFilterMenu, TaskSortMenu } from '@/components/common/TaskList';
+import { TaskInput, TaskItem, TaskDragContext, TaskSortMenu } from '@/components/common/TaskList';
 import { TodoListSection } from './components/TodoListSection';
 import { useGlobalSearch } from '@/hooks/useGlobalSearch';
 
@@ -139,42 +139,45 @@ export function TaskListView({
 
             <div className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-300">
                 <div className="flex-shrink-0 px-8 pb-4 pt-3 max-w-3xl mx-auto w-full">
-                    <div className="flex items-start gap-1">
-                        {isSearchActive || searchQuery ? (
-                            <div className={cn(
-                                'flex-1 flex items-center gap-2 px-3 py-2 rounded-md',
-                                'border border-zinc-200 dark:border-zinc-700 bg-muted/30'
-                            )}>
- <Icon size="md" name="common.search" className="text-zinc-400 flex-shrink-0" />
-                                <input
-                                    ref={searchInputRef}
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    placeholder="Search tasks..."
-                                    className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/50 focus:ring-0"
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Escape') {
-                                            setSearchQuery('');
+                    <div className="relative">
+                        <div className="-ml-8 pr-9">
+                            {isSearchActive || searchQuery ? (
+                                <div className={cn(
+                                    'flex items-center gap-2 px-3 py-2 rounded-md',
+                                    'border border-zinc-200 dark:border-zinc-700 bg-muted/30'
+                                )}>
+     <Icon size="md" name="common.search" className="text-zinc-400 flex-shrink-0" />
+                                    <input
+                                        ref={searchInputRef}
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={e => setSearchQuery(e.target.value)}
+                                        placeholder="Search tasks..."
+                                        className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/50 focus:ring-0"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Escape') {
+                                                setSearchQuery('');
+                                                setIsSearchActive(false);
+                                            }
+                                        }}
+                                    />
+                                    <button 
+                                        onClick={() => { 
+                                            setSearchQuery(''); 
                                             setIsSearchActive(false);
-                                        }
-                                    }}
-                                />
-                                <button 
-                                    onClick={() => { 
-                                        setSearchQuery(''); 
-                                        setIsSearchActive(false);
-                                    }}
-                                    className="flex-shrink-0 p-1 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                >
- <Icon size="md" name="common.close" />
-                                </button>
-                            </div>
-                        ) : (
-                            <TaskInput compact={false} />
-                        )}
-                        <TaskFilterMenu />
-                        <TaskSortMenu />
+                                        }}
+                                        className="flex-shrink-0 p-1 rounded text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                    >
+     <Icon size="md" name="common.close" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <TaskInput compact={false} />
+                            )}
+                        </div>
+                        <div className="absolute -right-10 top-0">
+                            <TaskSortMenu />
+                        </div>
                     </div>
                 </div>
 

@@ -130,15 +130,31 @@ function hasCurrentWeekActivity(item: TagFilterableItem): boolean {
   });
 }
 
+function getTaskReferenceDate(task: NekoEvent): Date | null {
+  if (typeof task.createdAt === 'number') {
+    const createdAtDate = new Date(task.createdAt);
+    if (!Number.isNaN(createdAtDate.getTime())) return createdAtDate;
+  }
+
+  if (task.dtstart) {
+    const startDate = new Date(task.dtstart);
+    if (!Number.isNaN(startDate.getTime())) return startDate;
+  }
+
+  return null;
+}
+
 export function matchesSelectedTag(task: NekoEvent, selectedTag: string | null): boolean {
   if (!selectedTag) return true;
   if (isTodaySystemTag(selectedTag)) {
-    if (!task.dtstart) return false;
-    return formatDateKey(new Date(task.dtstart)) === getTodayKey();
+    const referenceDate = getTaskReferenceDate(task);
+    if (!referenceDate) return false;
+    return formatDateKey(referenceDate) === getTodayKey();
   }
   if (isWeekSystemTag(selectedTag)) {
-    if (!task.dtstart) return false;
-    return isInCurrentWeek(new Date(task.dtstart));
+    const referenceDate = getTaskReferenceDate(task);
+    if (!referenceDate) return false;
+    return isInCurrentWeek(referenceDate);
   }
   return hasTag(task.tags, selectedTag);
 }

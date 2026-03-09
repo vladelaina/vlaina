@@ -1,6 +1,5 @@
 import { StateCreator } from 'zustand';
-import { join } from '@tauri-apps/api/path';
-import { getStorageAdapter } from '@/lib/storage/adapter';
+import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { NotesStore } from '../types';
 import { getNotesBasePath } from '../storage';
 import { AssetEntry, UploadResult } from '@/lib/assets/types';
@@ -37,10 +36,10 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     const storage = getStorageAdapter();
 
     try {
-      const assetsBaseDir = await join(vaultPath, '.nekotick', 'assets');
+      const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
 
-      const coversDir = await join(assetsBaseDir, 'covers');
-      const iconsDir = await join(assetsBaseDir, 'icons');
+      const coversDir = await joinPath(assetsBaseDir, 'covers');
+      const iconsDir = await joinPath(assetsBaseDir, 'icons');
 
       if (!await storage.exists(coversDir)) await storage.mkdir(coversDir, true);
       if (!await storage.exists(iconsDir)) await storage.mkdir(iconsDir, true);
@@ -159,7 +158,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
     try {
       const vaultPath = notesPath || await getNotesBasePath();
-      const assetsBaseDir = await join(vaultPath, '.nekotick', 'assets');
+      const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
 
       let relativePath = filename;
       let targetDir = 'covers';
@@ -171,9 +170,8 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
         targetDir = 'covers';
       }
 
-      // Robustly resolve file path using Tauri API
-      const dirPath = await join(assetsBaseDir, targetDir);
-      const filePath = await join(dirPath, relativePath);
+      const dirPath = await joinPath(assetsBaseDir, targetDir);
+      const filePath = await joinPath(dirPath, relativePath);
 
       if (await storage.exists(filePath)) {
         await storage.deleteFile(filePath);
@@ -186,14 +184,18 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
   },
 
   cleanupAssetTempFiles: async () => {
-    const { notesPath } = get();
-    const vaultPath = notesPath || await getNotesBasePath();
-    
-    const coversDir = await join(vaultPath, '.nekotick', 'assets', 'covers');
-    const iconsDir = await join(vaultPath, '.nekotick', 'assets', 'icons');
+    try {
+      const { notesPath } = get();
+      const vaultPath = notesPath || await getNotesBasePath();
 
-    await cleanupTempFiles(coversDir);
-    await cleanupTempFiles(iconsDir);
+      const coversDir = await joinPath(vaultPath, '.nekotick', 'assets', 'covers');
+      const iconsDir = await joinPath(vaultPath, '.nekotick', 'assets', 'icons');
+
+      await cleanupTempFiles(coversDir);
+      await cleanupTempFiles(iconsDir);
+    } catch (error) {
+      console.warn('Failed to cleanup asset temp files:', error);
+    }
   },
 
   getAssetList: (category?: 'covers' | 'icons' | 'content'): AssetEntry[] => {

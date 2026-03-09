@@ -1,5 +1,4 @@
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
-import { useProStatusStore } from '@/stores/useProStatusStore';
 
 export interface AutoSyncConfig {
   debounceMs: number;
@@ -51,13 +50,8 @@ class AutoSyncManagerImpl {
 
   canSync(): boolean {
     const syncState = useGithubSyncStore.getState();
-    const proStatusState = useProStatusStore.getState();
 
     if (!syncState.isConnected) {
-      return false;
-    }
-
-    if (!proStatusState.isProUser) {
       return false;
     }
 

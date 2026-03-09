@@ -2,7 +2,6 @@ import React, { useCallback, useState, useEffect } from "react";
 import { Icon } from "@/components/ui/icons";
 import { formatDistanceToNow } from "date-fns";
 import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
-import { useProStatusStore } from "@/stores/useProStatusStore";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
@@ -18,7 +17,6 @@ export const SyncStatusBar: React.FC = () => {
         checkRemoteData
     } = useGithubSyncStore();
     
-    const { isProUser } = useProStatusStore();
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [showSuccess, setShowSuccess] = useState(false);
 
@@ -71,7 +69,7 @@ export const SyncStatusBar: React.FC = () => {
                             "flex items-center justify-center w-3 h-3 transition-all duration-300",
                             isSyncing && "animate-spin text-[var(--neko-accent)]",
                             showSuccess && "text-green-500 scale-110",
-                            !isSyncing && !showSuccess && !syncError && isOnline && isProUser && "text-[var(--neko-accent)]",
+                            !isSyncing && !showSuccess && !syncError && isOnline && "text-[var(--neko-accent)]",
                             syncError && "text-red-500",
                             !isOnline && "text-[var(--neko-text-tertiary)]"
                         )}>
@@ -83,10 +81,8 @@ export const SyncStatusBar: React.FC = () => {
                                 <Icon name="common.refresh" className="w-3 h-3" />
                             ) : syncError ? (
                                 <Icon name="common.error" className="w-3 h-3" />
-                            ) : isProUser ? (
-                                <Icon name="common.cloud" className="w-3 h-3" />
                             ) : (
-                                <Icon name="common.refresh" className="w-3 h-3 transition-transform group-hover/sync:rotate-180" />
+                                <Icon name="common.cloud" className="w-3 h-3" />
                             )}
                         </span>
                         <span className={cn(

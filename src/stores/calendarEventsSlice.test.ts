@@ -129,4 +129,27 @@ describe('calendarEventsSlice retry behavior', () => {
     await expect(useCalendarEventsStore.getState().deleteCalendar('main')).rejects.toThrow('delete fail');
     expect(useCalendarEventsStore.getState().storageStatus).toBe('degraded');
   });
+
+  it('creates todo tasks as unscheduled with stable createdAt timestamp', async () => {
+    const { useCalendarEventsStore } = await import('./calendarEventsSlice');
+    await useCalendarEventsStore.getState().load();
+
+    await useCalendarEventsStore.getState().addTask('New task', 'all');
+
+    const createdTask = useCalendarEventsStore.getState().events[0];
+    expect(createdTask).toBeDefined();
+    expect(createdTask?.scheduled).toBe(false);
+    expect(createdTask?.createdAt).toEqual(createdTask?.dtstart.getTime());
+    expect(createdTask?.dtend.getTime()).toEqual(createdTask?.dtstart.getTime());
+
+    const beforeToggleCreatedAt = createdTask?.createdAt;
+    if (!createdTask) {
+      throw new Error('Expected created task');
+    }
+    useCalendarEventsStore.getState().toggleComplete(createdTask.uid);
+    useCalendarEventsStore.getState().toggleComplete(createdTask.uid);
+
+    const toggledTask = useCalendarEventsStore.getState().events.find((event) => event.uid === createdTask.uid);
+    expect(toggledTask?.createdAt).toBe(beforeToggleCreatedAt);
+  });
 });
