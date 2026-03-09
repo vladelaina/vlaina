@@ -8,6 +8,36 @@ import {
 } from './blockUnitResolver';
 import type { DropTarget, HandleBlockTarget } from './blockControlsInteractionTypes';
 
+const LIST_CHILD_INDENT_PX = 24;
+const MIN_DROP_LINE_WIDTH = 24;
+
+function resolveListContentLeft(item: HTMLElement, fallbackLeft: number): number {
+  const firstBlock = item.firstElementChild as HTMLElement | null;
+  if (!firstBlock) return fallbackLeft;
+  const rect = firstBlock.getBoundingClientRect();
+  return rect.width > 0 ? rect.left : fallbackLeft;
+}
+
+function resolveListChildInsertPos(
+  view: EditorView,
+  itemElement: HTMLElement,
+  fallbackPos: number,
+): number {
+  const nestedList = itemElement.querySelector(':scope > ul, :scope > ol');
+  if (nestedList) {
+    try {
+      return view.posAtDOM(nestedList, nestedList.childNodes.length);
+    } catch {
+    }
+  }
+
+  try {
+    return view.posAtDOM(itemElement, itemElement.childNodes.length);
+  } catch {
+    return fallbackPos;
+  }
+}
+
 export function resolveBlockTargetByPos(view: EditorView, blockPos: number): HandleBlockTarget | null {
   const target = resolveSelectableBlockTargetByPos(view, blockPos);
   if (!target) return null;
@@ -36,8 +66,7 @@ export function getDraggableBlockRanges(view: EditorView, selectedRanges: readon
 
 export function resolveDropTarget(view: EditorView, clientX: number, clientY: number): DropTarget | null {
   const editorRect = view.dom.getBoundingClientRect();
-  const pos = view.posAtCoords({ left: clientX, top: clientY });
-  if (!pos && clientY >= editorRect.top && clientY <= editorRect.bottom) {
+  if (clientY < editorRect.top || clientY > editorRect.bottom) {
     return null;
   }
 
@@ -47,6 +76,22 @@ export function resolveDropTarget(view: EditorView, clientX: number, clientY: nu
 
   const rect = target.rect;
   const insertBefore = clientY < rect.top + rect.height / 2;
+
+  if (!insertBefore && target.element.tagName === 'LI') {
+    const contentLeft = resolveListContentLeft(target.element, rect.left);
+    const wantsChildPlacement = clientX > contentLeft;
+    if (wantsChildPlacement) {
+      const lineLeft = Math.min(rect.right - MIN_DROP_LINE_WIDTH, contentLeft + LIST_CHILD_INDENT_PX);
+      const insertPos = resolveListChildInsertPos(view, target.element, target.range.to);
+      return {
+        insertPos,
+        lineY: rect.bottom,
+        lineLeft,
+        lineWidth: Math.max(MIN_DROP_LINE_WIDTH, rect.right - lineLeft),
+      };
+    }
+  }
+
   return {
     insertPos: insertBefore ? target.range.from : target.range.to,
     lineY: insertBefore ? rect.top : rect.bottom,
