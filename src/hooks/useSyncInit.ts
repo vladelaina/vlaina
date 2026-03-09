@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { hasBackendCommands } from '@/lib/tauri/invoke';
+import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
+import { setUnifiedStorageAutoSyncTrigger } from '@/lib/storage/unifiedStorage';
 
 const TOKEN_CHECK_INTERVAL = 4 * 60 * 1000;
 
@@ -10,6 +12,19 @@ export function useSyncInit() {
   const isConnected = useGithubSyncStore((state) => state.isConnected);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const oauthHandledRef = useRef(false);
+
+  useEffect(() => {
+    setUnifiedStorageAutoSyncTrigger(() => {
+      const syncState = useGithubSyncStore.getState();
+      if (syncState.isConnected) {
+        getAutoSyncManager().triggerSync();
+      }
+    });
+
+    return () => {
+      setUnifiedStorageAutoSyncTrigger(null);
+    };
+  }, []);
 
   useEffect(() => {
     if (hasBackendCommands() || oauthHandledRef.current) return;

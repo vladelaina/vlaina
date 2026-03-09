@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { hasBackendCommands } from '@/lib/tauri/invoke';
 import { githubCommands } from '@/lib/tauri/githubAuthCommands';
 import { friendlySyncError } from '@/lib/sync/syncErrors';
-import { flushPendingSave } from '@/lib/storage/unifiedStorage';
+import { cancelPendingSave, flushPendingSave } from '@/lib/storage/unifiedStorage';
 import { useUnifiedStore } from './useUnifiedStore';
 import {
   createCheckStatus,
@@ -244,7 +244,7 @@ export const useGithubSyncStore = create<GithubSyncStore>((set, get) => ({
           isSyncing: false,
           syncStatus: 'idle',
         });
-        await flushPendingSave();
+        cancelPendingSave();
         await useUnifiedStore.getState().reloadFromDisk();
         return true;
       } else {
