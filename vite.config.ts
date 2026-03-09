@@ -83,7 +83,9 @@ export default defineConfig(async () => ({
             id.includes('/mdast-') ||
             id.includes('/hast-')
           ) {
-            return 'notes-markdown-vendor';
+            // Keep markdown ecosystem in the same chunk as editor deps to avoid
+            // cross-chunk circular init order issues in production builds.
+            return 'notes-editor-vendor';
           }
 
           if (id.includes('/mermaid/')) {
