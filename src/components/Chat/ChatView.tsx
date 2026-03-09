@@ -171,7 +171,7 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
           onOpenChange={setIsShortcutsOpen}
         />
       )}
-      <SelectionInsertButton />
+      {!isEmbedded && <SelectionInsertButton />}
     </div>
   );
 }

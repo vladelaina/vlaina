@@ -247,12 +247,12 @@ html, body, #root {
 }
 
 ::selection {
-  background-color: var(--neko-selection-bg);
+  background-color: var(--neko-selection-bg, #2781db);
   color: #ffffff;
 }
 
 ::-moz-selection {
-  background-color: var(--neko-selection-bg);
+  background-color: var(--neko-selection-bg, #2781db);
   color: #ffffff;
 }
 

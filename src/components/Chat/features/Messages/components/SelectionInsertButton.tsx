@@ -275,6 +275,16 @@ export function SelectionInsertButton() {
         outsideClampRaf = null;
       }
     };
+    const resetSelectionInteractionState = () => {
+      isSelectingFromChatRef.current = false;
+      isPointerInsideChatRef.current = true;
+      isSelectionFrozenRef.current = false;
+      lastValidRangeRef.current = null;
+      lastValidTextRef.current = "";
+      stopOutsideClamp();
+      setChatSelectionLock(false);
+      setChatSelectionFreeze(false);
+    };
     const startOutsideClamp = () => {
       if (outsideClampRaf !== null) {
         return;
@@ -346,18 +356,28 @@ export function SelectionInsertButton() {
         restoreLastValidSelection({ force: true });
       }
       requestAnimationFrame(() => {
-        isSelectingFromChatRef.current = false;
-        isPointerInsideChatRef.current = true;
-        isSelectionFrozenRef.current = false;
-        lastValidRangeRef.current = null;
-        lastValidTextRef.current = "";
-        stopOutsideClamp();
-        setChatSelectionLock(false);
-        setChatSelectionFreeze(false);
+        resetSelectionInteractionState();
         const nextState = computeStateFromSelection();
         lastStateSignatureRef.current = getStateSignature(nextState);
         setState(nextState);
       });
+    };
+
+    const handleForceReset = () => {
+      resetSelectionInteractionState();
+      const nextState = computeStateFromSelection();
+      lastStateSignatureRef.current = getStateSignature(nextState);
+      setState(nextState);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        resetSelectionInteractionState();
+        lastStateSignatureRef.current = "";
+        setState(null);
+        return;
+      }
+      syncState();
     };
 
     const syncState = () => {
@@ -390,11 +410,12 @@ export function SelectionInsertButton() {
     window.addEventListener("keyup", syncState);
     window.addEventListener("resize", syncState);
     window.addEventListener("scroll", syncState, true);
+    window.addEventListener("blur", handleForceReset);
+    window.addEventListener("pagehide", handleForceReset);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      stopOutsideClamp();
-      setChatSelectionLock(false);
-      setChatSelectionFreeze(false);
+      resetSelectionInteractionState();
       window.removeEventListener("mousedown", handleMouseDown, true);
       window.removeEventListener("mousemove", handleMouseMove, true);
       window.removeEventListener("mouseup", handleMouseUp, true);
@@ -404,6 +425,9 @@ export function SelectionInsertButton() {
       window.removeEventListener("keyup", syncState);
       window.removeEventListener("resize", syncState);
       window.removeEventListener("scroll", syncState, true);
+      window.removeEventListener("blur", handleForceReset);
+      window.removeEventListener("pagehide", handleForceReset);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 

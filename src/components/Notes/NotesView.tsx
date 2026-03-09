@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -7,10 +7,12 @@ import { ResizablePanel } from '@/components/layout/ResizablePanel';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { ResizeDividerVisual, RESIZE_HANDLE_HIT_WIDTH } from '@/components/layout/shell/ResizeDividerVisual';
+import { ModuleShortcutsDialog } from '@/components/common/ModuleShortcutsDialog';
 import { MarkdownEditor } from './features/Editor';
 import { NoteSearch } from './features/Search';
 import { VaultWelcome } from '@/components/VaultWelcome';
 import { useGlobalSearch } from '@/hooks/useGlobalSearch';
+import { useModuleShortcutsDialog } from '@/hooks/useModuleShortcutsDialog';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -43,7 +45,11 @@ export function NotesView() {
   const { sidebarWidth, sidebarPeeking } = useUIStore(); // unified store
 
   const [showSearch, setShowSearch] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(loadChatPanelCollapsed);
+  const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
+
+  useModuleShortcutsDialog({ onToggle: toggleShortcutsDialog });
 
   useEffect(() => {
     if (!currentVault) return;
@@ -81,7 +87,7 @@ export function NotesView() {
         return;
       }
 
-      if (e.key === 'Tab' && e.ctrlKey && openTabs.length > 1) {
+      if (e.key === 'Tab' && hasPrimaryModifier && openTabs.length > 1) {
         e.preventDefault();
         const currentIndex = openTabs.findIndex(t => t.path === currentNotePath);
         if (currentIndex === -1) return;
@@ -95,7 +101,7 @@ export function NotesView() {
         openNote(openTabs[nextIndex].path);
       }
 
-      if (e.key === 'w' && e.ctrlKey && !e.shiftKey && !e.altKey && currentNotePath) {
+      if (e.key.toLowerCase() === 'w' && hasPrimaryModifier && !e.shiftKey && currentNotePath) {
         e.preventDefault();
         closeTab(currentNotePath);
       }
@@ -183,6 +189,7 @@ export function NotesView() {
       </div>
       
       <NoteSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
+      <ModuleShortcutsDialog module="notes" open={isShortcutsOpen} onOpenChange={setIsShortcutsOpen} />
     </>
   );
 }

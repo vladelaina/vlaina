@@ -43,9 +43,15 @@
 }
 
 /* Selection */
-.milkdown ::selection {
-  background-color: var(--neko-selection-bg);
-  color: white;
+.milkdown .ProseMirror::selection {
+  background-color: var(--neko-selection-bg, #2781db) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.milkdown .ProseMirror::-moz-selection {
+  background-color: var(--neko-selection-bg, #2781db) !important;
+  color: #ffffff !important;
 }
 
 /* Notion-like drag block selection highlight */
