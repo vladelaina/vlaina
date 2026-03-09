@@ -58,6 +58,23 @@ describe('collectSelectableBlockRanges', () => {
       { from: 19, to: 25 },
     ]);
   });
+
+  it('splits parent list item header from nested list items', () => {
+    const parentWithNestedChildren = createNode('list_item', 12, [
+      createNode('paragraph', 4),
+      createNode('ordered_list', 6, [createNode('list_item', 4)]),
+    ]);
+    const sibling = createNode('list_item', 4);
+    const ordered = createNode('ordered_list', 18, [parentWithNestedChildren, sibling]);
+    const doc = createDoc([ordered]);
+
+    const ranges = collectSelectableBlockRanges(doc as any);
+    expect(ranges).toEqual([
+      { from: 1, to: 6 },
+      { from: 7, to: 11 },
+      { from: 13, to: 17 },
+    ]);
+  });
 });
 
 describe('resolveSelectableBlockRange', () => {

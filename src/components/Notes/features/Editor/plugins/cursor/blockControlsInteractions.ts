@@ -13,6 +13,7 @@ import {
   collectSelectedListItemInfo,
   getRangeKey,
   isListContainerName,
+  type LiftedListGroup,
   type SelectedListItemInfo,
 } from './listBlockUtils';
 
@@ -32,7 +33,7 @@ const BLOCK_DRAG_DEBUG_FLAG = '__NEKO_DEBUG_BLOCK_DRAG__';
 interface WrappedListBuffer {
   type: SelectedListItemInfo['parentType'];
   attrs: SelectedListItemInfo['parentAttrs'];
-  items: Array<SelectedListItemInfo['itemNode']>;
+  items: Array<SelectedListItemInfo['moveItemNode']>;
 }
 
 interface BlockMoveContext {
@@ -124,6 +125,61 @@ function appendListBuffer(target: Fragment, buffer: WrappedListBuffer | null): F
   return target.append(Fragment.from(wrappedList));
 }
 
+function buildLiftedSourceFragment(groups: readonly LiftedListGroup[], insertInsideList: boolean): Fragment {
+  if (groups.length === 0) return Fragment.empty;
+
+  let fragment = Fragment.empty;
+  if (insertInsideList) {
+    for (const group of groups) {
+      for (const item of group.items) {
+        fragment = fragment.append(Fragment.from(item.node));
+      }
+    }
+    return fragment;
+  }
+
+  for (const group of groups) {
+    if (group.items.length === 0) continue;
+    const wrappedList = group.type.create(
+      group.attrs,
+      group.items.map((item) => item.node),
+    );
+    fragment = fragment.append(Fragment.from(wrappedList));
+  }
+  return fragment;
+}
+
+function collectSourceResidualInsertions(
+  selectedRanges: readonly BlockRange[],
+  listItemInfoByRangeKey: ReadonlyMap<string, SelectedListItemInfo>,
+): Array<{ from: number; groups: LiftedListGroup[] }> {
+  if (selectedRanges.length === 0) return [];
+
+  const selectedRangeFromSet = new Set(selectedRanges.map((range) => range.from));
+  const insertions: Array<{ from: number; groups: LiftedListGroup[] }> = [];
+
+  for (const range of selectedRanges) {
+    const info = listItemInfoByRangeKey.get(getRangeKey(range));
+    if (!info || info.liftedListGroups.length === 0) continue;
+
+    const groups = info.liftedListGroups
+      .map((group) => ({
+        type: group.type,
+        attrs: group.attrs,
+        items: group.items.filter((item) => !selectedRangeFromSet.has(item.from)),
+      }))
+      .filter((group) => group.items.length > 0);
+    if (groups.length === 0) continue;
+
+    insertions.push({
+      from: info.range.from,
+      groups,
+    });
+  }
+
+  return insertions;
+}
+
 function buildMovedContent(
   view: EditorView,
   selectedRanges: readonly BlockRange[],
@@ -141,13 +197,13 @@ function buildMovedContent(
         && wrappedListBuffer.type === info.parentType
         && areNodeAttrsEqual(wrappedListBuffer.attrs, info.parentAttrs)
       ) {
-        wrappedListBuffer.items.push(info.itemNode);
+        wrappedListBuffer.items.push(info.moveItemNode);
       } else {
         content = appendListBuffer(content, wrappedListBuffer);
         wrappedListBuffer = {
           type: info.parentType,
           attrs: info.parentAttrs,
-          items: [info.itemNode],
+          items: [info.moveItemNode],
         };
       }
       continue;
@@ -180,7 +236,33 @@ function prepareBlockMove(
     tr = tr.delete(range.from, range.to);
   }
 
-  const safeTargetPos = Math.max(0, Math.min(moveContext.targetPos, tr.doc.content.size));
+  let safeTargetPos = Math.max(0, Math.min(moveContext.targetPos, tr.doc.content.size));
+
+  const sourceResidualInsertions = collectSourceResidualInsertions(selectedRanges, listItemInfoByRangeKey)
+    .map((insertion) => ({
+      pos: tr.mapping.map(insertion.from, -1),
+      groups: insertion.groups,
+    }))
+    .sort((a, b) => a.pos - b.pos);
+
+  let sourceInsertionOffset = 0;
+  for (const insertion of sourceResidualInsertions) {
+    const pos = Math.max(0, Math.min(insertion.pos + sourceInsertionOffset, tr.doc.content.size));
+    const fragment = buildLiftedSourceFragment(insertion.groups, isInsertionInsideList(tr.doc, pos));
+    if (fragment.size === 0) continue;
+
+    const $pos = tr.doc.resolve(pos);
+    const index = $pos.index();
+    if (!$pos.parent.canReplace(index, index, fragment)) continue;
+
+    tr = tr.insert(pos, fragment);
+    sourceInsertionOffset += fragment.size;
+    if (pos <= safeTargetPos) {
+      safeTargetPos += fragment.size;
+    }
+  }
+
+  safeTargetPos = Math.max(0, Math.min(safeTargetPos, tr.doc.content.size));
   const insertInsideList = isInsertionInsideList(tr.doc, safeTargetPos);
   const movedContent = buildMovedContent(view, selectedRanges, listItemInfoByRangeKey, insertInsideList);
   if (movedContent.size === 0) return null;
