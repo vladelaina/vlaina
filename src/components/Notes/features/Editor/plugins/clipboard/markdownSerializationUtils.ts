@@ -1,4 +1,9 @@
 const BR_ONLY_PATTERN = /^<br\s*\/?>$/i;
+const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
+
+function unescapeMarkdownPunctuation(text: string): string {
+  return text.replace(MARKDOWN_ESCAPE_PATTERN, '$1');
+}
 
 export function stripTrailingNewlines(text: string): string {
   return text.replace(/\n+$/, '');
@@ -6,12 +11,14 @@ export function stripTrailingNewlines(text: string): string {
 
 export function normalizeSerializedMarkdownBlock(text: string): string {
   const withoutTrailingNewlines = stripTrailingNewlines(text);
-  return BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim()) ? '' : withoutTrailingNewlines;
+  if (BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim())) return '';
+  return unescapeMarkdownPunctuation(withoutTrailingNewlines);
 }
 
 export function normalizeSerializedMarkdownSelection(text: string): string {
   const withoutTrailingNewlines = stripTrailingNewlines(text);
-  return BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim()) ? '\n' : withoutTrailingNewlines;
+  if (BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim())) return '\n';
+  return unescapeMarkdownPunctuation(withoutTrailingNewlines);
 }
 
 export function joinSerializedBlocks(blocks: readonly string[]): string {
