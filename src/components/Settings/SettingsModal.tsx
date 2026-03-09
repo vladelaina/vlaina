@@ -11,7 +11,6 @@ import { ShortcutsTab } from './tabs/ShortcutsTab';
 import { ImagesTab } from './tabs/ImagesTab';
 import { AITab } from './tabs/AITab';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
-import { useProStatusStore } from '@/stores/useProStatusStore';
 import { useUserAvatar } from '@/hooks/useUserAvatar';
 import { cn } from '@/lib/utils';
 
@@ -56,7 +55,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   const { username, isConnected } = useGithubSyncStore();
   const avatarUrl = useUserAvatar();
-  const { isProUser } = useProStatusStore();
 
   useEffect(() => {
     const handleOpenSettings = (e: CustomEvent<{ tab?: SettingsTab }>) => {
@@ -176,11 +174,11 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                         </span>
                         <span className={cn(
                           "px-1.5 py-[1px] rounded-[4px] text-[10px] font-bold tracking-tight uppercase",
-                          isProUser
+                          isConnected
                             ? "bg-[#E6F4FF] text-[#007AFF] dark:bg-[#007AFF]/20 dark:text-[#0A84FF]"
                             : "bg-zinc-200/80 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
                         )}>
-                          {isProUser ? 'PRO' : 'FREE'}
+                          {isConnected ? 'CLOUD' : 'LOCAL'}
                         </span>
                       </div>
                       <div className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate opacity-80 group-hover:opacity-100 transition-opacity">

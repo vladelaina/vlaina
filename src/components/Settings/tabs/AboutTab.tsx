@@ -70,6 +70,10 @@ export function AboutTab() {
     await openUrl('https://github.com/NekoTick/NekoTick');
   };
 
+  const openLatestRelease = async () => {
+    await openUrl('https://github.com/NekoTick/NekoTick/releases/latest');
+  };
+
   return (
     <div className="max-w-3xl">
       {/* Cloud Sync Section */}
@@ -231,7 +235,7 @@ export function AboutTab() {
               </div>
             </div>
             <button
-              onClick={() => {/* TODO: Check for updates */}}
+              onClick={openLatestRelease}
               className={settingsButtonClassName}
             >
               Check for Updates

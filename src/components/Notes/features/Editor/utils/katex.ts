@@ -18,7 +18,7 @@ export function renderLatex(latex: string, displayMode: boolean): RenderResult {
       displayMode,
       throwOnError: true,
       strict: false,
-      trust: true,
+      trust: false,
       macros: {
         '\\R': '\\mathbb{R}',
         '\\N': '\\mathbb{N}',

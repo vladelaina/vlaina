@@ -1,19 +1,15 @@
 /**
  * Property-based tests for AutoSyncManager
- * 
+ *
  * Feature: auto-sync
- * Property 1: PRO user auto-sync trigger
- * Property 5: Retry strategy
- * Validates: Requirements 1.1, 1.3, 1.4, 1.5, 5.2, 5.3
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import * as fc from 'fast-check';
 import { getAutoSyncManager, resetAutoSyncManager, AutoSyncConfig } from './autoSyncManager';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
-import { useProStatusStore } from '@/stores/useProStatusStore';
 
-// Mock stores
+// Mock store
 vi.mock('@/stores/useGithubSyncStore', () => ({
   useGithubSyncStore: {
     getState: vi.fn(() => ({
@@ -26,34 +22,19 @@ vi.mock('@/stores/useGithubSyncStore', () => ({
   },
 }));
 
-vi.mock('@/stores/useProStatusStore', () => ({
-  useProStatusStore: {
-    getState: vi.fn(() => ({
-      isProUser: true,
-    })),
-  },
-}));
-
-// Get mocked functions with proper typing
 const mockSyncStoreGetState = useGithubSyncStore.getState as Mock;
-const mockProStatusStoreGetState = useProStatusStore.getState as Mock;
 
 describe('AutoSyncManager', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     resetAutoSyncManager();
-    
-    // Reset mocks to default state
+
     mockSyncStoreGetState.mockReturnValue({
       isConnected: true,
       isSyncing: false,
       setSyncStatus: vi.fn(),
       clearError: vi.fn(),
       syncBidirectional: vi.fn().mockResolvedValue(true),
-    });
-    
-    mockProStatusStoreGetState.mockReturnValue({
-      isProUser: true,
     });
   });
 
@@ -62,59 +43,43 @@ describe('AutoSyncManager', () => {
     resetAutoSyncManager();
   });
 
-  describe('Property 1: PRO user auto-sync trigger', () => {
-    /**
-     * Property 1.3: Debounce time is 5 seconds
-     * For any sequence of rapid data changes, only one sync should be triggered
-     * after the debounce period
-     */
+  describe('Auto trigger behavior', () => {
     it('should debounce rapid sync triggers', () => {
       fc.assert(
-        fc.property(
-          fc.integer({ min: 2, max: 10 }), // number of rapid triggers
-          (triggerCount) => {
-            resetAutoSyncManager();
-            const manager = getAutoSyncManager({ debounceMs: 5000 });
-            const mockSyncBidirectional = vi.fn().mockResolvedValue(true);
-            
-            mockSyncStoreGetState.mockReturnValue({
-              isConnected: true,
-              isSyncing: false,
-              setSyncStatus: vi.fn(),
-              clearError: vi.fn(),
-              syncBidirectional: mockSyncBidirectional,
-            });
+        fc.property(fc.integer({ min: 2, max: 10 }), (triggerCount) => {
+          resetAutoSyncManager();
+          const manager = getAutoSyncManager({ debounceMs: 5000 });
+          const mockSyncBidirectional = vi.fn().mockResolvedValue(true);
 
-            // Trigger sync multiple times rapidly
-            for (let i = 0; i < triggerCount; i++) {
-              manager.triggerSync();
-              vi.advanceTimersByTime(100); // 100ms between triggers
-            }
+          mockSyncStoreGetState.mockReturnValue({
+            isConnected: true,
+            isSyncing: false,
+            setSyncStatus: vi.fn(),
+            clearError: vi.fn(),
+            syncBidirectional: mockSyncBidirectional,
+          });
 
-            // Before debounce completes, no sync should have been called
-            expect(mockSyncBidirectional).not.toHaveBeenCalled();
-
-            // After debounce completes
-            vi.advanceTimersByTime(5000);
-
-            // Only one sync should have been triggered
-            expect(mockSyncBidirectional).toHaveBeenCalledTimes(1);
-
-            resetAutoSyncManager();
+          for (let i = 0; i < triggerCount; i++) {
+            manager.triggerSync();
+            vi.advanceTimersByTime(100);
           }
-        ),
+
+          expect(mockSyncBidirectional).not.toHaveBeenCalled();
+
+          vi.advanceTimersByTime(5000);
+
+          expect(mockSyncBidirectional).toHaveBeenCalledTimes(1);
+
+          resetAutoSyncManager();
+        }),
         { numRuns: 100 }
       );
     });
 
-    /**
-     * Property 1.4: Cooldown period is 30 seconds
-     * Two syncs should be at least 30 seconds apart
-     */
     it('should enforce cooldown period between syncs', async () => {
       const manager = getAutoSyncManager({ debounceMs: 100, cooldownMs: 30000 });
       const mockSyncBidirectional = vi.fn().mockResolvedValue(true);
-      
+
       mockSyncStoreGetState.mockReturnValue({
         isConnected: true,
         isSyncing: false,
@@ -123,32 +88,24 @@ describe('AutoSyncManager', () => {
         syncBidirectional: mockSyncBidirectional,
       });
 
-      // First sync
-      manager.triggerSync();
-      vi.advanceTimersByTime(100);
-      await Promise.resolve();
-      
-      expect(mockSyncBidirectional).toHaveBeenCalledTimes(1);
-
-      // Try to sync again immediately
       manager.triggerSync();
       vi.advanceTimersByTime(100);
       await Promise.resolve();
 
-      // Should still be 1 (cooldown not passed)
       expect(mockSyncBidirectional).toHaveBeenCalledTimes(1);
 
-      // Advance past cooldown
+      manager.triggerSync();
+      vi.advanceTimersByTime(100);
+      await Promise.resolve();
+
+      expect(mockSyncBidirectional).toHaveBeenCalledTimes(1);
+
       vi.advanceTimersByTime(30000);
       await Promise.resolve();
 
-      // Now second sync should have been triggered
       expect(mockSyncBidirectional).toHaveBeenCalledTimes(2);
     });
 
-    /**
-     * canSync should return false when not connected
-     */
     it('canSync should return false when not connected', () => {
       mockSyncStoreGetState.mockReturnValue({
         isConnected: false,
@@ -159,25 +116,6 @@ describe('AutoSyncManager', () => {
       expect(manager.canSync()).toBe(false);
     });
 
-    /**
-     * canSync should return false when not PRO user
-     */
-    it('canSync should return false when not PRO user', () => {
-      mockSyncStoreGetState.mockReturnValue({
-        isConnected: true,
-        isSyncing: false,
-      });
-      mockProStatusStoreGetState.mockReturnValue({
-        isProUser: false,
-      });
-
-      const manager = getAutoSyncManager();
-      expect(manager.canSync()).toBe(false);
-    });
-
-    /**
-     * canSync should return false when already syncing
-     */
     it('canSync should return false when already syncing', () => {
       mockSyncStoreGetState.mockReturnValue({
         isConnected: true,
@@ -187,13 +125,19 @@ describe('AutoSyncManager', () => {
       const manager = getAutoSyncManager();
       expect(manager.canSync()).toBe(false);
     });
+
+    it('canSync should return true when connected and idle', () => {
+      mockSyncStoreGetState.mockReturnValue({
+        isConnected: true,
+        isSyncing: false,
+      });
+
+      const manager = getAutoSyncManager();
+      expect(manager.canSync()).toBe(true);
+    });
   });
 
-  describe('Property 5: Retry strategy', () => {
-    /**
-     * Property 5.2: Retry intervals follow exponential backoff
-     * Retry delays should follow: 30s, 60s, 120s, 300s, 300s
-     */
+  describe('Retry strategy', () => {
     it('should use correct retry delays', () => {
       const expectedDelays = [30000, 60000, 120000, 300000, 300000];
       const manager = getAutoSyncManager();
@@ -202,47 +146,9 @@ describe('AutoSyncManager', () => {
       expect(config.retryDelays).toEqual(expectedDelays);
     });
 
-    /**
-     * Property 5.3: Maximum 5 retries
-     * After 5 retries, should stop auto-retry
-     */
-    it('should stop retrying after max retries', () => {
-      fc.assert(
-        fc.property(
-          fc.integer({ min: 5, max: 10 }), // retry count >= max
-          () => {
-            resetAutoSyncManager();
-            const mockSetSyncStatus = vi.fn();
-            
-            mockSyncStoreGetState.mockReturnValue({
-              isConnected: true,
-              isSyncing: false,
-              setSyncStatus: mockSetSyncStatus,
-              clearError: vi.fn(),
-              syncBidirectional: vi.fn().mockResolvedValue(false),
-            });
-
-            const manager = getAutoSyncManager({ debounceMs: 100, maxRetries: 5 });
-            
-            // When retry count >= maxRetries, scheduleRetry should set error status
-            manager.triggerSync();
-            vi.advanceTimersByTime(100);
-
-            // After max retries, status should be set to error
-            
-            resetAutoSyncManager();
-          }
-        ),
-        { numRuns: 100 }
-      );
-    });
-
-    /**
-     * syncNow should clear error
-     */
     it('syncNow should clear error', async () => {
       const mockClearError = vi.fn();
-      
+
       mockSyncStoreGetState.mockReturnValue({
         isConnected: true,
         isSyncing: false,
@@ -259,9 +165,6 @@ describe('AutoSyncManager', () => {
   });
 
   describe('Configuration', () => {
-    /**
-     * Custom config should override defaults
-     */
     it('should accept custom configuration', () => {
       fc.assert(
         fc.property(
@@ -270,7 +173,7 @@ describe('AutoSyncManager', () => {
           fc.integer({ min: 1, max: 10 }),
           (debounceMs, cooldownMs, maxRetries) => {
             resetAutoSyncManager();
-            
+
             const customConfig: Partial<AutoSyncConfig> = {
               debounceMs,
               cooldownMs,

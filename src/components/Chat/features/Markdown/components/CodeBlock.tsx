@@ -11,6 +11,15 @@ interface CodeBlockProps {
 
 const LANGUAGE_CLASS_PATTERN = /language-([\w+-]+)/;
 
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function parseLanguageFromClassName(className: string): string {
   const match = LANGUAGE_CLASS_PATTERN.exec(className);
   return match ? match[1] : '';
@@ -50,7 +59,7 @@ export const CodeBlock = memo(({ className, children, isStreaming = false }: Cod
       }
       return chatHighlighter.highlightAuto(codeText).value;
     } catch (e) {
-      return codeText;
+      return escapeHtml(codeText);
     }
   }, [codeText, isStreaming, language]);
 

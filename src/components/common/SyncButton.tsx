@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
-import { useProStatusStore } from '@/stores/useProStatusStore';
 import { cn } from '@/lib/utils';
 
 interface SyncButtonProps {
@@ -17,14 +16,11 @@ export function SyncButton({ className }: SyncButtonProps) {
     syncError,
   } = useGithubSyncStore();
   
-  const { isProUser } = useProStatusStore();
-  
   const [showTooltip, setShowTooltip] = useState(false);
   const [animating, setAnimating] = useState(false);
 
-  // Don't show for PRO users (they have auto-sync)
   // Don't show if not connected to GitHub
-  if (isProUser || !isConnected) {
+  if (!isConnected) {
     return null;
   }
 

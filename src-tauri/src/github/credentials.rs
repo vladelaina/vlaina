@@ -1,6 +1,7 @@
 use crate::github::types::GitHubSyncMeta;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 use tauri::Manager;
 
@@ -47,19 +48,44 @@ fn get_github_sync_meta_path(app: &tauri::AppHandle) -> Result<PathBuf, String> 
     Ok(path)
 }
 
-pub fn load_github_credentials(app: &tauri::AppHandle) -> Option<GitHubCredentials> {
+fn write_sensitive_json(path: &Path, content: &str) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(path)
+            .map_err(|e| e.to_string())?;
+        file.write_all(content.as_bytes())
+            .map_err(|e| e.to_string())?;
+        file.sync_all().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[cfg(not(unix))]
+    {
+        fs::write(path, content).map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) fn load_github_credentials(app: &tauri::AppHandle) -> Option<GitHubCredentials> {
     let path = get_github_creds_path(app).ok()?;
     let content = fs::read_to_string(&path).ok()?;
     serde_json::from_str(&content).ok()
 }
 
-pub fn save_github_credentials(app: &tauri::AppHandle, creds: &GitHubCredentials) -> Result<(), String> {
+pub(crate) fn save_github_credentials(app: &tauri::AppHandle, creds: &GitHubCredentials) -> Result<(), String> {
     let path = get_github_creds_path(app)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let content = serde_json::to_string_pretty(creds).map_err(|e| e.to_string())?;
-    fs::write(&path, content).map_err(|e| e.to_string())
+    write_sensitive_json(&path, &content)
 }
 
 pub fn delete_github_credentials(app: &tauri::AppHandle) -> Result<(), String> {
@@ -98,7 +124,7 @@ pub fn load_github_sync_meta(app: &tauri::AppHandle) -> GitHubSyncMeta {
     GitHubSyncMeta::default()
 }
 
-pub fn load_oauth_config() -> Result<GitHubOAuthConfig, String> {
+pub(crate) fn load_oauth_config() -> Result<GitHubOAuthConfig, String> {
     if let (Ok(client_id), Ok(client_secret)) = (
         std::env::var("DESKTOP_CLIENT_ID"),
         std::env::var("DESKTOP_CLIENT_SECRET"),

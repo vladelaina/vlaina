@@ -7,7 +7,7 @@ use crate::github::{
         load_github_sync_meta, load_oauth_config, GitHubCredentials,
     },
     types::{
-        GitHubSyncStatus, GitHubAuthResult, ProStatusResult,
+        GitHubSyncStatus, GitHubAuthResult,
     },
 };
 
@@ -24,6 +24,8 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
     const CALLBACK_PORT: u16 = 8914;
 
     let state = GitHubOAuthClient::generate_state();
+    let code_verifier = GitHubOAuthClient::generate_code_verifier();
+    let code_challenge = GitHubOAuthClient::compute_code_challenge(&code_verifier);
 
     let socket = Socket::new(Domain::IPV4, Type::STREAM, Some(Protocol::TCP))
         .map_err(|e| format!("Failed to create socket: {}", e))?;
@@ -41,7 +43,7 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
     let listener: TcpListener = socket.into();
 
     let oauth = GitHubOAuthClient::new(oauth_config.client_id.clone(), oauth_config.client_secret.clone());
-    let auth_url = oauth.build_auth_url(&state, CALLBACK_PORT);
+    let auth_url = oauth.build_auth_url(&state, CALLBACK_PORT, &code_challenge);
 
     let (tx, rx) = mpsc::channel::<Result<String, String>>();
     let state_clone = state.clone();
@@ -88,7 +90,7 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
         }
     };
 
-    let tokens = match oauth.exchange_code(&code, CALLBACK_PORT).await {
+    let tokens = match oauth.exchange_code(&code, CALLBACK_PORT, &code_verifier).await {
         Ok(t) => t,
         Err(e) => {
             return Ok(GitHubAuthResult {
@@ -132,18 +134,6 @@ pub async fn github_auth(app: tauri::AppHandle) -> Result<GitHubAuthResult, Stri
         let _ = config_sync::ensure_config_repo(&token_for_config, &username_for_config).await;
     });
 
-    let access_token_for_register = tokens.access_token.clone();
-    tokio::spawn(async move {
-        let client = reqwest::Client::new();
-        let _ = client
-            .post("https://api.nekotick.com/auth/register")
-            .json(&serde_json::json!({
-                "access_token": access_token_for_register
-            }))
-            .send()
-            .await;
-    });
-
     Ok(GitHubAuthResult {
         success: true,
         username: Some(user_info.login),
@@ -185,41 +175,3 @@ pub async fn get_github_sync_status(app: tauri::AppHandle) -> Result<GitHubSyncS
     }
 }
 
-#[tauri::command]
-pub async fn check_pro_status(app: tauri::AppHandle) -> Result<ProStatusResult, String> {
-    let creds = load_github_credentials(&app)
-        .ok_or("Not connected to GitHub")?;
-
-    let github_id = creds.github_id
-        .ok_or("GitHub ID not available. Please reconnect to GitHub.")?;
-
-    let client = reqwest::Client::new();
-    let response = client
-        .post("https://api.nekotick.com/check_pro")
-        .json(&serde_json::json!({
-            "github_id": github_id
-        }))
-        .send()
-        .await
-        .map_err(|e| format!("Failed to check PRO status: {}", e))?;
-
-    if !response.status().is_success() {
-        return Ok(ProStatusResult {
-            is_pro: false,
-            expires_at: None,
-        });
-    }
-
-    let data: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
-
-    let is_pro = data.get("isPro").and_then(|v| v.as_bool()).unwrap_or(false);
-    let expires_at = data.get("expiresAt").and_then(|v| v.as_i64());
-
-    Ok(ProStatusResult {
-        is_pro,
-        expires_at,
-    })
-}

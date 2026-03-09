@@ -99,15 +99,4 @@ export const githubCommands = {
     });
   },
 
-  async checkProStatus() {
-    return safeInvoke<{
-      isPro: boolean;
-      expiresAt: number | null;
-    }>('check_pro_status', undefined, {
-      webFallback: {
-        isPro: false,
-        expiresAt: null,
-      },
-    });
-  },
 };

@@ -37,7 +37,7 @@ export const webGithubCommands = {
     }
   },
 
-  async exchangeCode(code: string): Promise<{
+  async exchangeCode(code: string, state: string): Promise<{
     success: boolean;
     username?: string;
     accessToken?: string;
@@ -48,7 +48,7 @@ export const webGithubCommands = {
       const res = await fetch(`${API_BASE}/auth/github/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, state }),
       });
       const data = await res.json();
       if (data.success && data.accessToken) {
@@ -77,26 +77,6 @@ export const webGithubCommands = {
 
   disconnect(): void {
     clearWebGithubCredentials();
-  },
-
-  async checkProStatus(): Promise<{ isPro: boolean; expiresAt: number | null }> {
-    const creds = getWebGithubCredentials();
-    if (!creds || !creds.githubId) return { isPro: false, expiresAt: null };
-
-    try {
-      const res = await fetch(`${API_BASE}/check_pro`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ github_id: creds.githubId }),
-      });
-      const data = await res.json();
-      return {
-        isPro: data.isPro || false,
-        expiresAt: data.expiresAt || null,
-      };
-    } catch {
-      return { isPro: false, expiresAt: null };
-    }
   },
 
   getAccessToken(): string | null {
