@@ -1,11 +1,12 @@
-import { memo } from 'react';
+import { memo, useRef } from 'react';
 import { Icon } from '@/components/ui/icons';
 import type { FolderNode } from '@/stores/useNotesStore';
 import { FileItem } from './FileItem';
 import { FolderItemMenu } from './components/FolderItemMenu';
 import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
-import { TreeItemRow } from './components/TreeItemRow';
 import { useFolderItemState } from './hooks/useFolderItemState';
+import { cn, iconButtonStyles } from '@/lib/utils';
+import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 
 interface FolderItemProps {
   node: FolderNode;
@@ -18,6 +19,7 @@ export const FolderItem = memo(function FolderItem({
   depth,
   currentNotePath,
 }: FolderItemProps) {
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const {
     showMenu,
     setShowMenu,
@@ -41,21 +43,20 @@ export const FolderItem = memo(function FolderItem({
   } = useFolderItemState(node);
 
   const leading = node.expanded ? (
-    <Icon name="file.folderOpen" size="md" className="text-amber-500 group-hover:hidden" />
+    <Icon name="file.folderOpen" size="md" className="text-[var(--notes-sidebar-folder-icon)] group-hover:hidden" />
   ) : (
-    <Icon name="file.folder" size="md" className="text-amber-500 group-hover:hidden" />
+    <Icon name="file.folder" size="md" className="text-[var(--notes-sidebar-folder-icon)] group-hover:hidden" />
   );
 
   const hoverLeading = node.expanded ? (
-    <Icon name="nav.chevronDown" size="md" className="hidden text-amber-500 group-hover:block" />
+    <Icon name="nav.chevronDown" size="md" className="hidden text-[var(--notes-sidebar-folder-icon)] group-hover:block" />
   ) : (
-    <Icon name="nav.chevronRight" size="md" className="hidden text-amber-500 group-hover:block" />
+    <Icon name="nav.chevronRight" size="md" className="hidden text-[var(--notes-sidebar-folder-icon)] group-hover:block" />
   );
 
   return (
     <div className="relative" data-file-tree-path={node.path} data-file-tree-kind="folder">
-      <TreeItemRow
-        label={node.name}
+      <NotesSidebarRow
         depth={depth}
         leading={
           <span className="relative flex size-[20px] items-center justify-center">
@@ -64,15 +65,46 @@ export const FolderItem = memo(function FolderItem({
           </span>
         }
         isDragOver={isDragOver}
-        isRenaming={isRenaming}
-        renameValue={renameValue}
-        onRenameChange={setRenameValue}
-        onRenameSubmit={() => void handleRenameSubmit()}
-        onRenameCancel={() => setIsRenaming(false)}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-        onMenuTrigger={handleMenuTrigger}
         dragHandlers={dragHandlers}
+        main={
+          isRenaming ? (
+            <input
+              type="text"
+              value={renameValue}
+              onChange={(event) => setRenameValue(event.target.value)}
+              onBlur={() => void handleRenameSubmit()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void handleRenameSubmit();
+                if (event.key === 'Escape') setIsRenaming(false);
+              }}
+              className="w-full min-w-0 rounded border border-[var(--neko-accent)] bg-transparent px-1.5 py-0.5 text-sm leading-5 text-[var(--notes-sidebar-text)] outline-none"
+              onClick={(event) => event.stopPropagation()}
+            />
+          ) : (
+            <span className="block truncate text-[var(--notes-sidebar-text)]">{node.name}</span>
+          )
+        }
+        actions={
+          <button
+            ref={menuButtonRef}
+            type="button"
+            aria-label="Open folder menu"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!menuButtonRef.current) return;
+              handleMenuTrigger(event, menuButtonRef.current.getBoundingClientRect());
+            }}
+            className={cn(
+              'rounded-md p-1 focus:outline-none',
+              iconButtonStyles,
+              'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
+            )}
+          >
+            <Icon name="common.more" size="md" />
+          </button>
+        }
       />
 
       <FolderItemMenu

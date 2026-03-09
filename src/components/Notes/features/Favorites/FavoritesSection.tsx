@@ -3,7 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { useNotesStore, type FileTreeNode } from '@/stores/useNotesStore';
 import { findNode } from '@/stores/notes/fileTreeUtils';
 import { FileTreeItem } from '../FileTree/FileTreeItem';
-import { CollapsibleSection } from '@/components/ui/collapsible-section';
+import { NotesSidebarEmptyState, NotesSidebarSection } from '../Sidebar/NotesSidebarPrimitives';
 
 export function FavoritesSection() {
     const {
@@ -37,19 +37,16 @@ export function FavoritesSection() {
     const showEmptyState = favoritesLoaded && !hasFavoritePaths;
 
     return (
-        <CollapsibleSection
+        <NotesSidebarSection
             title="Favorites"
             expanded={expanded}
             onToggle={() => setExpanded(!expanded)}
-            className="mb-2"
         >
             {showEmptyState ? (
-                <div className="flex flex-col items-center gap-2 py-4">
-                    <div className="w-10 h-10 rounded-full bg-[var(--neko-bg-tertiary)] flex items-center justify-center">
- <Icon size="md" name="misc.star" className="text-[var(--neko-text-tertiary)]" />
-                    </div>
-                    <span className="text-[13px] text-[var(--neko-text-tertiary)]">No favorites</span>
-                </div>
+                <NotesSidebarEmptyState
+                    icon={<Icon size="md" name="misc.star" className="text-[var(--notes-sidebar-icon)]" />}
+                    title="No favorites"
+                />
             ) : hasResolvedFavorites ? (
                 <div>
                     {starredFolderNodes.map((node) => (
@@ -70,6 +67,6 @@ export function FavoritesSection() {
                     ))}
                 </div>
             ) : null}
-        </CollapsibleSection>
+        </NotesSidebarSection>
     );
 }

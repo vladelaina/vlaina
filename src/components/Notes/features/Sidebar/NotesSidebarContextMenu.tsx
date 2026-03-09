@@ -1,28 +1,29 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-interface TreeItemContextMenuProps {
+interface NotesSidebarContextMenuProps {
   isOpen: boolean;
   onClose: () => void;
   position: { top: number; left: number };
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
-interface TreeItemMenuActionProps {
-  icon: React.ReactNode;
+interface NotesSidebarContextMenuItemProps {
+  icon: ReactNode;
   label: string;
   onClick: () => void;
   danger?: boolean;
+  disabled?: boolean;
 }
 
-export function TreeItemContextMenu({
+export function NotesSidebarContextMenu({
   isOpen,
   onClose,
   position,
   children,
-}: TreeItemContextMenuProps) {
+}: NotesSidebarContextMenuProps) {
   if (!isOpen) return null;
 
   return createPortal(
@@ -35,14 +36,8 @@ export function TreeItemContextMenu({
         }}
       />
       <motion.div
-        style={{
-          top: position.top,
-          left: position.left,
-          transformOrigin: 'top left',
-        }}
-        className={cn(
-          'fixed z-[9999] min-w-[220px] rounded-xl border border-black/5 bg-white p-1.5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] dark:border-white/10 dark:bg-[#1e1e1e]'
-        )}
+        style={{ top: position.top, left: position.left, transformOrigin: 'top left' }}
+        className="fixed z-[9999] min-w-[180px] rounded-2xl border border-[var(--notes-sidebar-menu-border)] bg-[var(--notes-sidebar-menu-bg)] p-1.5 shadow-[var(--notes-sidebar-menu-shadow)]"
         initial={{ opacity: 0, scale: 0.95, y: -8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.1 } }}
@@ -56,38 +51,41 @@ export function TreeItemContextMenu({
   );
 }
 
-export function TreeItemMenuAction({
+export function NotesSidebarContextMenuItem({
   icon,
   label,
   onClick,
   danger = false,
-}: TreeItemMenuActionProps) {
+  disabled = false,
+}: NotesSidebarContextMenuItemProps) {
   return (
     <button
       onClick={(event) => {
         event.stopPropagation();
         onClick();
       }}
+      disabled={disabled}
       className={cn(
-        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] font-medium transition-colors',
+        'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium outline-none transition-colors',
         danger
-          ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30'
-          : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+          ? 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20'
+          : 'text-[var(--notes-sidebar-text)] hover:bg-[var(--notes-sidebar-row-hover)]',
+        disabled && 'cursor-not-allowed opacity-50 hover:bg-transparent dark:hover:bg-transparent'
       )}
     >
       <span
         className={cn(
           'flex size-[20px] items-center justify-center',
-          danger ? 'text-red-500' : 'text-zinc-400 dark:text-zinc-500'
+          danger ? 'text-red-500' : 'text-[var(--notes-sidebar-icon)]'
         )}
       >
         {icon}
       </span>
-      {label}
+      <span>{label}</span>
     </button>
   );
 }
 
-export function TreeItemMenuDivider() {
-  return <div className="my-1.5 mx-1 h-px bg-gray-100 dark:bg-zinc-800" />;
+export function NotesSidebarContextMenuDivider() {
+  return <div className="my-1 h-px bg-[var(--notes-sidebar-menu-border)] opacity-70" />;
 }

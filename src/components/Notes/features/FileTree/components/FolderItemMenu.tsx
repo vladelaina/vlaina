@@ -1,6 +1,10 @@
 import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
-import { TreeItemContextMenu, TreeItemMenuAction, TreeItemMenuDivider } from './TreeItemContextMenu';
+import {
+  NotesSidebarContextMenu,
+  NotesSidebarContextMenuDivider,
+  NotesSidebarContextMenuItem,
+} from '../../Sidebar/NotesSidebarContextMenu';
 
 interface FolderItemMenuProps {
   isOpen: boolean;
@@ -24,18 +28,18 @@ export function FolderItemMenu({
   onDelete,
 }: FolderItemMenuProps) {
   return (
-    <TreeItemContextMenu isOpen={isOpen} onClose={onClose} position={position}>
-      <TreeItemMenuAction
+    <NotesSidebarContextMenu isOpen={isOpen} onClose={onClose} position={position}>
+      <NotesSidebarContextMenuItem
         icon={<Icon name="common.compose" size="md" />}
         label="Rename"
         onClick={onRename}
       />
-      <TreeItemMenuAction
+      <NotesSidebarContextMenuItem
         icon={<Icon name="file.add" size="md" />}
         label="New Note"
         onClick={onNewNote}
       />
-      <TreeItemMenuAction
+      <NotesSidebarContextMenuItem
         icon={
           <Icon
             name="misc.star"
@@ -46,13 +50,13 @@ export function FolderItemMenu({
         label={isStarred ? 'Remove from Favorites' : 'Add to Favorites'}
         onClick={onToggleStar}
       />
-      <TreeItemMenuDivider />
-      <TreeItemMenuAction
+      <NotesSidebarContextMenuDivider />
+      <NotesSidebarContextMenuItem
         icon={<DeleteIcon />}
         label="Move to Trash"
         onClick={onDelete}
         danger
       />
-    </TreeItemContextMenu>
+    </NotesSidebarContextMenu>
   );
 }

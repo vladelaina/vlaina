@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type React from 'react';
 import { useNotesStore, type NoteFile } from '@/stores/useNotesStore';
-import type { TreeItemDragHandlers } from '../components/TreeItemRow';
+import type { NotesSidebarRowDragHandlers } from '../../Sidebar/NotesSidebarRow';
 
 export function useFileItemState(node: NoteFile) {
   const openNote = useNotesStore((state) => state.openNote);
@@ -57,7 +57,7 @@ export function useFileItemState(node: NoteFile) {
     [node.path]
   );
 
-  const dragHandlers: TreeItemDragHandlers = {
+  const dragHandlers: NotesSidebarRowDragHandlers = {
     draggable: !isRenaming,
     onDragStart: handleDragStart,
   };

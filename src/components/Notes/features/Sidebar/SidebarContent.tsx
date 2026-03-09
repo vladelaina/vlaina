@@ -2,6 +2,7 @@ import { FavoritesSection } from '../Favorites';
 import { GitHubSection } from '../GitHub';
 import { WorkspaceSection } from '../FileTree';
 import { cn } from '@/lib/utils';
+import { NotesSidebarScrollArea } from './NotesSidebarPrimitives';
 
 interface SidebarContentProps {
     rootFolder: any;
@@ -24,19 +25,13 @@ export function SidebarContent({
 }: SidebarContentProps) {
     return (
         <div className={cn("flex flex-col h-full", className)}>
-            <div className={cn(
-                "flex-1 overflow-auto neko-scrollbar px-2",
+            <NotesSidebarScrollArea className={cn(
                 isPeeking ? "pt-4 pb-4 neko-scrollbar-rounded" : "pt-2"
             )}
             data-notes-sidebar-scroll-root="true"
             >
-                {/* Favorites Section */}
                 <FavoritesSection />
-
-                {/* GitHub Section */}
                 <GitHubSection />
-
-                {/* Workspace Section */}
                 <WorkspaceSection
                     rootFolder={rootFolder}
                     isLoading={isLoading}
@@ -44,7 +39,7 @@ export function SidebarContent({
                     onCreateNote={createNote}
                     onCreateFolder={() => createFolder('')}
                 />
-            </div>
+            </NotesSidebarScrollArea>
         </div>
     );
 }

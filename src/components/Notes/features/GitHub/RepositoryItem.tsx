@@ -1,11 +1,13 @@
 import { useState, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { Icon } from '@/components/ui/icons';
 import { ToggleIcon } from '@/components/common/ToggleIcon';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { type RepositoryInfo } from '@/lib/tauri/githubRepoCommands';
 import { LocalFileTree } from './LocalFileTree';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { NotesSidebarContextMenu, NotesSidebarContextMenuDivider, NotesSidebarContextMenuItem } from '../Sidebar/NotesSidebarContextMenu';
+import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 
 interface RepositoryItemProps {
     repository: RepositoryInfo;
@@ -38,27 +40,27 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
     const repoHasChanges = hasChanges(repository.id);
 
     const getCloudIcon = () => {
-        const iconClass = "w-[18px] h-[18px] text-amber-500";
+        const iconClass = "h-[18px] w-[18px] text-[var(--notes-sidebar-icon)]";
 
         if (isRefreshing || isSyncing) {
             return <Icon name="common.refresh" className={cn(iconClass, "animate-spin")} />;
         }
 
         if (!repoIsCloned) {
-            return <Icon name="file.cloudOff" className={iconClass} />;
+            return <Icon name="file.cloudOff" className={cn(iconClass, "text-[var(--notes-sidebar-text-soft)]")} />;
         }
 
         if (repoHasChanges) {
-            return <Icon name="common.upload" className={iconClass} />;
+            return <Icon name="common.upload" className={cn(iconClass, "text-[var(--notes-sidebar-status-warning)]")} />;
         }
 
         switch (status) {
             case 'synced':
                 return <Icon name="file.cloud" className={iconClass} />;
             case 'has_changes':
-                return <Icon name="common.upload" className={iconClass} />;
+                return <Icon name="common.upload" className={cn(iconClass, "text-[var(--notes-sidebar-status-warning)]")} />;
             case 'error':
-                return <Icon name="common.error" className={iconClass} />;
+                return <Icon name="common.error" className={cn(iconClass, "text-[var(--notes-sidebar-status-danger)]")} />;
             default:
                 return <Icon name="file.cloud" className={iconClass} />;
         }
@@ -107,106 +109,90 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
 
     return (
         <div className="relative">
-            <div
+            <NotesSidebarRow
+                depth={0}
                 onClick={handleClick}
                 onContextMenu={handleContextMenu}
-                className="flex items-center h-[30px] cursor-pointer"
-            >
-                <div style={{ width: 8 }} className="flex-shrink-0" />
-
-                <div
-                    className={cn(
-                        "group flex-1 flex items-center gap-1 h-full pr-2 rounded-md transition-colors",
-                        "hover:bg-[var(--neko-hover)]"
-                    )}
-                >
-                    <span className="w-[18px] h-[18px] flex items-center justify-center">
-                        <ToggleIcon
-                            expanded={isExpanded}
-                            size="md"
-                            className="text-[var(--neko-icon-secondary)]"
-                        />
-                    </span>
-
-                    <span className="w-[18px] h-[18px] flex items-center justify-center">
-                        {getCloudIcon()}
-                    </span>
-
-                    <span className="flex-1 min-w-0 text-[13px] truncate text-[var(--neko-text-primary)]">
+                leadingClassName="w-10"
+                leading={
+                    <div className="flex w-10 items-center gap-1">
+                        <span className="flex size-[20px] items-center justify-center">
+                            <ToggleIcon
+                                expanded={isExpanded}
+                                size="md"
+                                className="text-[var(--notes-sidebar-icon)]"
+                            />
+                        </span>
+                        <span className="flex size-[20px] items-center justify-center">
+                            {getCloudIcon()}
+                        </span>
+                    </div>
+                }
+                main={
+                    <span className="block truncate text-[13px] text-[var(--notes-sidebar-text)]">
                         {repository.displayName}
                     </span>
-
+                }
+                actions={
                     <button
                         ref={buttonRef}
-                        onClick={(e) => {
-                            e.stopPropagation();
+                        type="button"
+                        aria-label="Open repository menu"
+                        onClick={(event) => {
+                            event.stopPropagation();
                             if (!showMenu && buttonRef.current) {
                                 const rect = buttonRef.current.getBoundingClientRect();
                                 setMenuPosition({
                                     top: rect.bottom + 4,
-                                    left: rect.right - 160,
+                                    left: rect.right - 180,
                                 });
                             }
                             setShowMenu(!showMenu);
                         }}
                         className={cn(
-                            "p-0.5 opacity-0 group-hover:opacity-100 transition-opacity",
-                            iconButtonStyles
+                            'rounded-md p-1 focus:outline-none',
+                            iconButtonStyles,
+                            'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
                         )}
                     >
- <Icon size="md" name="common.more" />
+                        <Icon size="md" name="common.more" />
                     </button>
-                </div>
-            </div>
+                }
+            />
 
-            {showMenu && createPortal(
-                <>
-                    <div
-                        className="fixed inset-0 z-[9998]"
-                        onClick={() => setShowMenu(false)}
-                    />
-                    <div
-                        style={{ top: menuPosition.top, left: menuPosition.left }}
-                        className={cn(
-                            "fixed z-[9999] min-w-[160px] py-1.5 rounded-lg shadow-lg",
-                            "bg-[var(--neko-bg-primary)] border border-[var(--neko-border)]"
-                        )}
-                    >
-                        <MenuItem
-                            icon={<Icon name="common.refresh" />}
-                            label="Sync Now"
-                            onClick={handleSyncNow}
-                            disabled={isSyncing || !repoIsCloned}
-                        />
-                        <MenuItem
-                            icon={<Icon name="common.download" />}
-                            label="Pull from Remote"
-                            onClick={handlePull}
-                            disabled={isSyncing || !repoIsCloned}
-                        />
-                        <MenuItem
-                            icon={<Icon name="common.upload" />}
-                            label="Push to Remote"
-                            onClick={handlePush}
-                            disabled={isSyncing || !repoIsCloned || !repoHasChanges}
-                        />
-                        <div className="h-px bg-[var(--neko-divider)] my-1.5 mx-2" />
-                        <MenuItem
-                            icon={<Icon name="nav.external" />}
-                            label="Open in GitHub"
-                            onClick={handleOpenInGitHub}
-                        />
-                        <div className="h-px bg-[var(--neko-divider)] my-1.5 mx-2" />
-                        <MenuItem
-                            icon={<Icon name="common.delete" />}
-                            label="Remove from List"
-                            onClick={handleRemove}
-                            danger
-                        />
-                    </div>
-                </>,
-                document.body
-            )}
+            <NotesSidebarContextMenu isOpen={showMenu} onClose={() => setShowMenu(false)} position={menuPosition}>
+                <NotesSidebarContextMenuItem
+                    icon={<Icon name="common.refresh" size="md" />}
+                    label="Sync Now"
+                    onClick={handleSyncNow}
+                    disabled={isSyncing || !repoIsCloned}
+                />
+                <NotesSidebarContextMenuItem
+                    icon={<Icon name="common.download" size="md" />}
+                    label="Pull from Remote"
+                    onClick={handlePull}
+                    disabled={isSyncing || !repoIsCloned}
+                />
+                <NotesSidebarContextMenuItem
+                    icon={<Icon name="common.upload" size="md" />}
+                    label="Push to Remote"
+                    onClick={handlePush}
+                    disabled={isSyncing || !repoIsCloned || !repoHasChanges}
+                />
+                <NotesSidebarContextMenuDivider />
+                <NotesSidebarContextMenuItem
+                    icon={<Icon name="nav.external" size="md" />}
+                    label="Open in GitHub"
+                    onClick={handleOpenInGitHub}
+                />
+                <NotesSidebarContextMenuDivider />
+                <NotesSidebarContextMenuItem
+                    icon={<DeleteIcon />}
+                    label="Remove from List"
+                    onClick={handleRemove}
+                    danger
+                />
+            </NotesSidebarContextMenu>
 
             {isExpanded && repoIsCloned && (
                 <LocalFileTree
@@ -218,44 +204,11 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
             )}
 
             {isExpanded && !repoIsCloned && isCloning && (
-                <div className="flex items-center gap-2 px-4 py-3 text-[12px] text-[var(--neko-text-tertiary)]">
- <Icon size="md" name="common.refresh" className="animate-spin" />
+                <div className="flex items-center gap-2 px-4 py-3 text-[12px] text-[var(--notes-sidebar-text-soft)]">
+ <Icon size="md" name="common.refresh" className="animate-spin text-[var(--notes-sidebar-icon)]" />
                     Cloning repository...
                 </div>
             )}
         </div>
-    );
-}
-
-function MenuItem({
-    icon,
-    label,
-    onClick,
-    danger = false,
-    disabled = false,
-}: {
-    icon: React.ReactNode;
-    label: string;
-    onClick: () => void;
-    danger?: boolean;
-    disabled?: boolean;
-}) {
-    return (
-        <button
-            onClick={onClick}
-            disabled={disabled}
-            className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] transition-colors",
-                danger
-                    ? "text-red-500 hover:bg-red-500/10"
-                    : "text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)]",
-                disabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
-            )}
-        >
-            <span className="w-[18px] h-[18px] flex items-center justify-center [&>svg]:w-[18px] [&>svg]:h-[18px]">
-                {icon}
-            </span>
-            {label}
-        </button>
     );
 }

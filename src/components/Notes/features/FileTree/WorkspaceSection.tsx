@@ -3,8 +3,8 @@ import { Icon } from '@/components/ui/icons';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { IconButton } from '@/components/ui/icon-button';
 import { FileTree } from './FileTree';
-import { CollapsibleSection } from '@/components/ui/collapsible-section';
 import { type FolderNode } from '@/stores/useNotesStore';
+import { NotesSidebarSection } from '../Sidebar/NotesSidebarPrimitives';
 
 interface WorkspaceSectionProps {
     rootFolder: FolderNode | null;
@@ -48,7 +48,7 @@ export function WorkspaceSection({
     );
 
     return (
-        <CollapsibleSection
+        <NotesSidebarSection
             title={vaultName}
             expanded={expanded}
             onToggle={() => setExpanded(!expanded)}
@@ -59,6 +59,6 @@ export function WorkspaceSection({
                 isLoading={isLoading}
                 currentNotePath={currentNotePath}
             />
-        </CollapsibleSection>
+        </NotesSidebarSection>
     );
 }

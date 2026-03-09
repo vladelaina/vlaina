@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { Icon } from '@/components/ui/icons';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { cn, iconButtonStyles, NOTES_COLORS } from '@/lib/utils';
+import { cn, iconButtonStyles } from '@/lib/utils';
 import { readDir, type DirEntry } from '@tauri-apps/plugin-fs';
+import { NotesSidebarContextMenu, NotesSidebarContextMenuItem } from '../Sidebar/NotesSidebarContextMenu';
+import { NotesSidebarEmptyState, NotesSidebarList } from '../Sidebar/NotesSidebarPrimitives';
+import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 
 interface LocalFileTreeProps {
     repoId: number;
@@ -63,16 +65,12 @@ export function LocalFileTree({ repoId, owner, repo, depth, subPath = '' }: Loca
 
     if (localPath && entries.length === 0) {
         return (
-            <div className="px-3 py-4 text-center">
-                <p className="text-[12px] text-[var(--neko-text-tertiary)]">
-                    Empty folder
-                </p>
-            </div>
+            <NotesSidebarEmptyState title="Empty folder" className="py-4" />
         );
     }
 
     return (
-        <div>
+        <NotesSidebarList>
             {entries.map((entry) => {
                 const relativePath = subPath ? `${subPath}/${entry.name}` : entry.name;
                 const fileStatus = repoGitStatus.find(s => s.path === relativePath);
@@ -93,7 +91,7 @@ export function LocalFileTree({ repoId, owner, repo, depth, subPath = '' }: Loca
                     />
                 );
             })}
-        </div>
+        </NotesSidebarList>
     );
 }
 
@@ -132,8 +130,6 @@ function LocalFileTreeItem({
     const isActive = currentNotePath === fullFilePath ||
         currentNotePath?.replace(/\\/g, '/') === fullFilePath;
 
-    const paddingLeft = 8 + depth * 16;
-
     const [showMenu, setShowMenu] = useState(false);
     const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -171,11 +167,11 @@ function LocalFileTreeItem({
         switch (gitStatus) {
             case 'new':
             case 'untracked':
-                return 'text-green-500';
+                return 'text-[var(--notes-sidebar-status-success)]';
             case 'modified':
-                return 'text-orange-500';
+                return 'text-[var(--notes-sidebar-status-warning)]';
             case 'deleted':
-                return 'text-red-500';
+                return 'text-[var(--notes-sidebar-status-danger)]';
             default:
                 return '';
         }
@@ -183,108 +179,75 @@ function LocalFileTreeItem({
 
     return (
         <div className="relative">
-            <div
-                onClick={handleClick}
+            <NotesSidebarRow
+                depth={depth}
+                onClick={() => void handleClick()}
                 onContextMenu={handleContextMenu}
-                className="flex items-center h-[30px] cursor-pointer"
-            >
-                <div style={{ width: paddingLeft }} className="flex-shrink-0" />
-
-                <div
-                    className={cn(
-                        "group flex-1 flex items-center gap-1 h-full pr-2 rounded-md transition-colors",
-                        "hover:bg-[var(--neko-hover)]"
-                    )}
-                    style={isActive ? { backgroundColor: NOTES_COLORS.activeItem } : undefined}
-                >
-                    {isFolder ? (
-                        <span className="w-[18px] h-[18px] flex items-center justify-center relative">
-                            <span className="group-hover:hidden">
-                                {isExpanded ? (
- <Icon size="md" name="file.folderOpen" className="text-amber-500" />
-                                ) : (
- <Icon size="md" name="file.folder" className="text-amber-500" />
-                                )}
-                            </span>
-                            <span className="hidden group-hover:block text-amber-500">
-                                {isExpanded ? (
- <Icon size="md" name="nav.chevronDown" />
-                                ) : (
- <Icon size="md" name="nav.chevronRight" />
-                                )}
-                            </span>
+                isActive={isActive}
+                leading={
+                    isFolder ? (
+                        <span className="relative flex size-[20px] items-center justify-center">
+                            <Icon
+                                size="md"
+                                name={isExpanded ? 'file.folderOpen' : 'file.folder'}
+                                className="text-[var(--notes-sidebar-folder-icon)] group-hover/sidebar-row:hidden"
+                            />
+                            <Icon
+                                size="md"
+                                name={isExpanded ? 'nav.chevronDown' : 'nav.chevronRight'}
+                                className="hidden text-[var(--notes-sidebar-folder-icon)] group-hover/sidebar-row:block"
+                            />
                         </span>
                     ) : (
-                        <span className="w-[18px] h-[18px] flex items-center justify-center">
- <Icon size="md" name="file.text" className={cn(" text-amber-500", getStatusColor())} />
-                        </span>
-                    )}
-
-                    <span className={cn(
-                        "flex-1 min-w-0 text-[13px] truncate text-[var(--neko-text-primary)]",
-                        isActive && "font-medium",
-                        gitStatus && getStatusColor()
-                    )}>
+                        <Icon size="md" name="file.text" className={cn("text-[var(--notes-sidebar-file-icon)]", getStatusColor())} />
+                    )
+                }
+                main={
+                    <span className={cn("block truncate text-[13px]", gitStatus && getStatusColor(), isActive && "font-medium text-[var(--notes-sidebar-text)]")}>
                         {displayName}
                     </span>
-
-                    {gitStatus && (
-                        <span className={cn("text-[10px] font-medium", getStatusColor())}>
-                            {gitStatus === 'new' || gitStatus === 'untracked' ? 'U' :
-                                gitStatus === 'modified' ? 'M' :
-                                    gitStatus === 'deleted' ? 'D' : ''}
-                        </span>
-                    )}
-
+                }
+                trailing={gitStatus ? (
+                    <span className={cn("text-[10px] font-medium", getStatusColor())}>
+                        {gitStatus === 'new' || gitStatus === 'untracked' ? 'U' :
+                            gitStatus === 'modified' ? 'M' :
+                                gitStatus === 'deleted' ? 'D' : ''}
+                    </span>
+                ) : undefined}
+                actions={
                     <button
                         ref={buttonRef}
-                        onClick={(e) => {
-                            e.stopPropagation();
+                        type="button"
+                        aria-label="Open file menu"
+                        onClick={(event) => {
+                            event.stopPropagation();
                             if (!showMenu && buttonRef.current) {
                                 const rect = buttonRef.current.getBoundingClientRect();
                                 setMenuPosition({
                                     top: rect.bottom + 4,
-                                    left: rect.right - 160,
+                                    left: rect.right - 180,
                                 });
                             }
                             setShowMenu(!showMenu);
                         }}
                         className={cn(
-                            "p-0.5 opacity-0 group-hover:opacity-100 transition-opacity",
-                            iconButtonStyles
+                            'rounded-md p-1 focus:outline-none',
+                            iconButtonStyles,
+                            'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
                         )}
                     >
- <Icon size="md" name="common.more" />
+                        <Icon size="md" name="common.more" />
                     </button>
-                </div>
-            </div>
+                }
+            />
 
-            {showMenu && createPortal(
-                <>
-                    <div
-                        className="fixed inset-0 z-[9998]"
-                        onClick={() => setShowMenu(false)}
-                    />
-                    <div
-                        style={{ top: menuPosition.top, left: menuPosition.left }}
-                        className={cn(
-                            "fixed z-[9999] min-w-[160px] py-1.5 rounded-lg shadow-lg",
-                            "bg-[var(--neko-bg-primary)] border border-[var(--neko-border)]"
-                        )}
-                    >
-                        <button
-                            onClick={handleOpenInGitHub}
-                            className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)] transition-colors"
-                        >
-                            <span className="w-[18px] h-[18px] flex items-center justify-center">
- <Icon size="md" name="nav.external" />
-                            </span>
-                            Open in GitHub
-                        </button>
-                    </div>
-                </>,
-                document.body
-            )}
+            <NotesSidebarContextMenu isOpen={showMenu} onClose={() => setShowMenu(false)} position={menuPosition}>
+                <NotesSidebarContextMenuItem
+                    icon={<Icon size="md" name="nav.external" />}
+                    label="Open in GitHub"
+                    onClick={handleOpenInGitHub}
+                />
+            </NotesSidebarContextMenu>
 
             {isFolder && isExpanded && depth < MAX_DEPTH && (
                 <LocalFileTree

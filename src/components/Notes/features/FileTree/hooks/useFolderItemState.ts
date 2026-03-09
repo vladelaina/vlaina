@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type React from 'react';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
-import type { TreeItemDragHandlers } from '../components/TreeItemRow';
+import type { NotesSidebarRowDragHandlers } from '../../Sidebar/NotesSidebarRow';
 
 export function useFolderItemState(node: FolderNode) {
   const toggleFolder = useNotesStore((state) => state.toggleFolder);
@@ -94,7 +94,7 @@ export function useFolderItemState(node: FolderNode) {
     [moveItem, node.path]
   );
 
-  const dragHandlers: TreeItemDragHandlers = {
+  const dragHandlers: NotesSidebarRowDragHandlers = {
     draggable: !isRenaming,
     onDragStart: handleDragStart,
     onDragOver: handleDragOver,

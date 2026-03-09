@@ -1,12 +1,13 @@
-import { memo } from 'react';
+import { memo, useRef } from 'react';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { Icon } from '@/components/ui/icons';
 import type { NoteFile } from '@/stores/useNotesStore';
 import { FileItemMenu } from './components/FileItemMenu';
 import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
-import { TreeItemRow } from './components/TreeItemRow';
 import { useFileItemState } from './hooks/useFileItemState';
 import { NoteIcon } from '../IconPicker/NoteIcon';
+import { cn, iconButtonStyles } from '@/lib/utils';
+import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 
 interface FileItemProps {
   node: NoteFile;
@@ -19,6 +20,7 @@ export const FileItem = memo(function FileItem({
   depth,
   currentNotePath,
 }: FileItemProps) {
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const {
     showMenu,
     setShowMenu,
@@ -46,26 +48,60 @@ export const FileItem = memo(function FileItem({
 
   return (
     <div className="relative" data-file-tree-path={node.path} data-file-tree-kind="file">
-      <TreeItemRow
-        label={displayName}
+      <NotesSidebarRow
         depth={depth}
         leading={
           noteIcon ? (
             <NoteIcon icon={noteIcon} size="md" />
           ) : (
-            <Icon name="file.text" size="md" className="text-amber-500" />
+            <Icon name="file.text" size="md" className="text-[var(--notes-sidebar-file-icon)]" />
           )
         }
         isActive={isActive}
-        isRenaming={isRenaming}
-        renameValue={renameValue}
-        onRenameChange={setRenameValue}
-        onRenameSubmit={() => void handleRenameSubmit()}
-        onRenameCancel={() => setIsRenaming(false)}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-        onMenuTrigger={handleMenuTrigger}
         dragHandlers={dragHandlers}
+        main={
+          isRenaming ? (
+            <input
+              type="text"
+              value={renameValue}
+              onChange={(event) => setRenameValue(event.target.value)}
+              onBlur={() => void handleRenameSubmit()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void handleRenameSubmit();
+                if (event.key === 'Escape') setIsRenaming(false);
+              }}
+              className="w-full min-w-0 rounded border border-[var(--neko-accent)] bg-transparent px-1.5 py-0.5 text-sm leading-5 text-gray-900 outline-none dark:text-gray-100"
+              onClick={(event) => event.stopPropagation()}
+            />
+          ) : (
+            <span className={cn('block truncate', isActive && 'font-medium text-[var(--notes-sidebar-text)]')}>
+              {displayName}
+            </span>
+          )
+        }
+        actions={
+          <button
+            ref={menuButtonRef}
+            type="button"
+            aria-label="Open file menu"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!menuButtonRef.current) return;
+              handleMenuTrigger(event, menuButtonRef.current.getBoundingClientRect());
+            }}
+            className={cn(
+              'rounded-md p-1 focus:outline-none',
+              iconButtonStyles,
+              isActive
+                ? 'text-[var(--notes-sidebar-icon-hover)] hover:text-[var(--notes-sidebar-text)]'
+                : 'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
+            )}
+          >
+            <Icon name="common.more" size="md" />
+          </button>
+        }
       />
 
       <FileItemMenu
