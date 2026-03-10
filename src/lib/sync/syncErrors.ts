@@ -20,13 +20,7 @@ const ERROR_MAP: [RegExp, string][] = [
   [/422|already exists/i, 'Repo already exists'],
   [/rate limit|429/i, 'Rate limited, try later'],
   [/non-fast-forward/i, 'Remote changed, retrying'],
-  [/Failed to copy|Failed to restore/i, 'File copy failed'],
-  [/Failed to create backup/i, 'Backup failed'],
-  [/Repository not found at/i, 'Local repo missing'],
-  [/No GitHub token/i, 'Token missing'],
   [/failed to bind|Port may be in use/i, 'Auth port in use'],
-  [/Git error:/i, 'Git operation failed'],
-  [/IO error:/i, 'File system error'],
 ];
 
 export function friendlySyncError(raw: string): string {

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
-import { hasBackendCommands } from '@/lib/tauri/invoke';
 import { RepositoryItem } from './RepositoryItem';
 import { NewRepositoryDialog } from './NewRepositoryDialog';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -38,11 +37,11 @@ export function GitHubSection() {
         if (isConnected && !sectionExpanded) {
             toggleSectionExpanded();
         }
-    }, [isConnected]);
+    }, [isConnected, sectionExpanded, toggleSectionExpanded]);
 
     useEffect(() => {
-        if (isConnected && hasBackendCommands()) {
-            loadRepositories();
+        if (isConnected) {
+            void loadRepositories();
         }
     }, [isConnected, username, loadRepositories]);
 
@@ -96,7 +95,7 @@ export function GitHubSection() {
                     <div className="flex flex-col items-center py-3">
                         <button
                             onClick={handleConnect}
-                            disabled={isConnecting || !hasBackendCommands()}
+                            disabled={isConnecting}
                             className={cn(
                                 "flex items-center gap-2 px-4 py-2 rounded-lg",
                                 "bg-[#24292e] hover:bg-[#2f363d] text-white text-[13px] font-medium",
@@ -106,15 +105,10 @@ export function GitHubSection() {
                             {isConnecting ? (
  <Icon size="md" name="common.refresh" className="animate-spin" />
                             ) : (
-                                <GitHubIcon className="w-[18px] h-[18px]" />
+                                <GitHubIcon className="size-[20px]" />
                             )}
                             {isConnecting ? 'Connecting...' : 'Connect GitHub'}
                         </button>
-                        {!hasBackendCommands() && (
-                            <span className="text-[11px] text-[var(--neko-text-tertiary)] mt-2">
-                                Desktop app required
-                            </span>
-                        )}
                     </div>
                 ) : isLoadingRepos && !hasRepos ? (
                     <div className="flex items-center justify-center py-8">

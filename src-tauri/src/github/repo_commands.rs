@@ -4,7 +4,9 @@
 
 use crate::github::credentials::get_stored_github_token;
 use crate::github::repos::{RepoClient, get_display_name};
-use crate::github::types::{Repository, TreeEntry, FileContent, CommitResult};
+use crate::github::types::{
+    FileContent, RepoChangeOperation, RepoChangesetCommitResult, Repository, TreeEntry,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,19 +60,18 @@ pub async fn list_github_repos(app: tauri::AppHandle) -> Result<Vec<RepositoryIn
     Ok(repos.into_iter().map(RepositoryInfo::from).collect())
 }
 
-/// Get repository directory contents (tree)
 #[tauri::command]
-pub async fn get_repo_tree(
+pub async fn get_repo_tree_recursive(
     app: tauri::AppHandle,
     owner: String,
     repo: String,
-    path: String,
+    branch: String,
 ) -> Result<Vec<TreeEntry>, String> {
     let token = get_access_token(&app)?;
     let client = RepoClient::new(token);
-    
+
     client
-        .get_repo_contents(&owner, &repo, &path)
+        .get_repo_recursive_tree(&owner, &repo, &branch)
         .await
         .map_err(|e| e.to_string())
 }
@@ -88,26 +89,6 @@ pub async fn get_repo_file_content(
     
     client
         .get_file_content(&owner, &repo, &path)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-/// Update or create a file in repository
-#[tauri::command]
-pub async fn update_repo_file(
-    app: tauri::AppHandle,
-    owner: String,
-    repo: String,
-    path: String,
-    content: String,
-    sha: Option<String>,
-    message: String,
-) -> Result<CommitResult, String> {
-    let token = get_access_token(&app)?;
-    let client = RepoClient::new(token);
-    
-    client
-        .update_file(&owner, &repo, &path, &content, sha.as_deref(), &message)
         .await
         .map_err(|e| e.to_string())
 }
@@ -131,21 +112,20 @@ pub async fn create_github_repo(
     Ok(RepositoryInfo::from(repo))
 }
 
-/// Delete a file from repository
 #[tauri::command]
-pub async fn delete_repo_file(
+pub async fn commit_repo_changeset(
     app: tauri::AppHandle,
     owner: String,
     repo: String,
-    path: String,
-    sha: String,
+    branch: String,
     message: String,
-) -> Result<CommitResult, String> {
+    operations: Vec<RepoChangeOperation>,
+) -> Result<RepoChangesetCommitResult, String> {
     let token = get_access_token(&app)?;
     let client = RepoClient::new(token);
-    
+
     client
-        .delete_file(&owner, &repo, &path, &sha, &message)
+        .commit_changeset(&owner, &repo, &branch, &message, &operations)
         .await
         .map_err(|e| e.to_string())
 }

@@ -269,9 +269,9 @@ pub fn run() {
             set_window_resizable,
             focus_window,
             move_to_trash,
-            github::auth_commands::github_auth,
-            github::auth_commands::github_disconnect,
-            github::auth_commands::get_github_sync_status,
+            github::auth::commands::github_auth,
+            github::auth::commands::github_disconnect,
+            github::auth::commands::get_github_sync_status,
             // Config sync commands
             github::config_commands::sync_config_to_github,
             github::config_commands::restore_config_from_github,
@@ -279,24 +279,10 @@ pub fn run() {
             github::config_commands::check_config_remote_data,
             // GitHub Repository commands
             github::repo_commands::list_github_repos,
-            github::repo_commands::get_repo_tree,
+            github::repo_commands::get_repo_tree_recursive,
             github::repo_commands::get_repo_file_content,
-            github::repo_commands::update_repo_file,
             github::repo_commands::create_github_repo,
-            github::repo_commands::delete_repo_file,
-            // Git local operations
-            github::git_commands::clone_github_repo,
-            github::git_commands::is_repo_cloned,
-            github::git_commands::get_repo_local_path,
-            github::git_commands::pull_github_repo,
-            github::git_commands::push_github_repo,
-            github::git_commands::commit_repo_changes,
-            github::git_commands::get_repo_status,
-            github::git_commands::get_repo_log,
-            github::git_commands::get_file_diff,
-            github::git_commands::sync_github_repo,
-            github::git_commands::delete_local_repo,
-            github::git_commands::list_local_repos
+            github::repo_commands::commit_repo_changeset,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

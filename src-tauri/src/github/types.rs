@@ -105,3 +105,35 @@ pub struct CommitResult {
     pub message: String,
     pub html_url: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoChangeOperation {
+    pub operation_type: String,
+    pub path: String,
+    pub content: Option<String>,
+    pub previous_sha: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoCommitConflict {
+    pub path: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoCommittedFile {
+    pub path: String,
+    pub sha: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoChangesetCommitResult {
+    pub status: String,
+    pub commit: Option<CommitResult>,
+    pub conflicts: Vec<RepoCommitConflict>,
+    pub updated_files: Vec<RepoCommittedFile>,
+}

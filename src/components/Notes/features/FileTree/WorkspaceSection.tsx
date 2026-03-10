@@ -23,8 +23,7 @@ export function WorkspaceSection({
 }: WorkspaceSectionProps) {
     const [expanded, setExpanded] = useState(true);
     const { currentVault } = useVaultStore();
-
-    const vaultName = currentVault?.name || 'Workspace';
+    const vaultName = currentVault?.name || 'Local Workspace';
 
     const headerActions = (
         <>
@@ -52,13 +51,19 @@ export function WorkspaceSection({
             title={vaultName}
             expanded={expanded}
             onToggle={() => setExpanded(!expanded)}
-            actions={headerActions}
+            actions={currentVault ? headerActions : undefined}
         >
-            <FileTree
-                rootFolder={rootFolder}
-                isLoading={isLoading}
-                currentNotePath={currentNotePath}
-            />
+            {currentVault ? (
+                <FileTree
+                    rootFolder={rootFolder}
+                    isLoading={isLoading}
+                    currentNotePath={currentNotePath}
+                />
+            ) : (
+                <div className="px-3 py-3 text-[12px] text-[var(--notes-sidebar-text-soft)]">
+                    Open a local vault to browse local notes.
+                </div>
+            )}
         </NotesSidebarSection>
     );
 }

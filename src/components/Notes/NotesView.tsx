@@ -174,11 +174,9 @@ export function NotesView() {
   useGlobalSearch(() => setShowSearch(prev => !prev));
 
 
-  if (!currentVault) {
+  if (!currentVault && !currentNotePath) {
     return (
       <div className="h-full bg-[var(--neko-bg-primary)] relative flex flex-col">
-        {/* Minimal TitleBar for dragging - Only needed if AppShell is hidden, but if AppShell is visible, this might be double */}
-        {/* We will handle the "No Vault" case in App.tsx to hide sidebar/titlebar if desired, or show them empty */}
         <VaultWelcome />
       </div>
     );

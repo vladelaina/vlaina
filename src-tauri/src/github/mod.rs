@@ -1,9 +1,9 @@
 pub mod types;
 pub mod credentials;
 pub mod repos;
-pub mod auth_commands;
+pub mod auth;
 pub mod config_commands;
 pub mod config_sync;
-pub mod git_commands;
-pub mod git_ops;
+pub mod config_sync_local;
+pub mod config_sync_support;
 pub mod repo_commands;

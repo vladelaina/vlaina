@@ -1,13 +1,18 @@
-use crate::github::repos::RepoClient;
-use crate::github::git_ops;
-use crate::github::credentials::{get_stored_github_token, get_stored_github_username, get_data_dir, CONFIG_REPO_NAME, NEKOTICK_FOLDER};
-use chrono::Local;
-use std::fs;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-const DATA_FILE_NAME: &str = "data.json";
-const CHAT_SESSIONS_FILE: &str = "chat/sessions.json";
-const CHAT_CHANNELS_DIR: &str = "chat/channels";
+use chrono::Local;
+
+use crate::github::config_sync_local::{apply_remote_files_to_local, load_local_config_files};
+use crate::github::config_sync_support::{
+    build_config_sync_operations, filter_config_remote_shas,
+};
+use crate::github::credentials::{
+    get_data_dir, get_stored_github_token, get_stored_github_username, CONFIG_REPO_NAME,
+    NEKOTICK_FOLDER,
+};
+use crate::github::repos::RepoClient;
+use crate::github::types::{Repository, RepoChangesetCommitResult};
 
 fn sync_commit_message() -> String {
     format!("sync: {}", Local::now().format("%Y-%m-%d %H:%M:%S"))
@@ -17,304 +22,162 @@ fn get_nekotick_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(get_data_dir(app)?.join(NEKOTICK_FOLDER))
 }
 
-fn config_files() -> Vec<&'static str> {
-    vec![DATA_FILE_NAME, CHAT_SESSIONS_FILE]
-}
-
-pub async fn ensure_config_repo(token: &str, username: &str) -> Result<bool, String> {
+async fn ensure_config_repo(token: &str, username: &str) -> Result<Repository, String> {
     let client = RepoClient::new(token.to_string());
 
-    let exists = client
+    if let Some(repo) = client
         .find_repo_by_name(username, CONFIG_REPO_NAME)
         .await
-        .map_err(|e| e.to_string())?
-        .is_some();
-
-    if !exists {
-        match client.create_repo(CONFIG_REPO_NAME, true, Some("NekoTick config sync")).await {
-            Ok(_) => {}
-            Err(e) => {
-                let err_str = e.to_string();
-                if !err_str.contains("422") && !err_str.contains("already exists") {
-                    return Err(err_str);
-                }
-            }
-        }
+        .map_err(|error| error.to_string())?
+    {
+        return Ok(repo);
     }
 
-    let is_cloned = tokio::task::spawn_blocking({
-        let owner = username.to_string();
-        move || git_ops::is_repo_cloned(&owner, CONFIG_REPO_NAME)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())?;
-
-    if !is_cloned {
-        let token = token.to_string();
-        let owner = username.to_string();
-        tokio::task::spawn_blocking(move || {
-            git_ops::clone_repo(&owner, CONFIG_REPO_NAME, &token)
-        })
+    match client
+        .create_repo(CONFIG_REPO_NAME, true, Some("NekoTick config sync"))
         .await
-        .map_err(|e| e.to_string())?
-        .map_err(|e| e.to_string())?;
-    }
+    {
+        Ok(repo) => Ok(repo),
+        Err(error) => {
+            let error_message = error.to_string();
+            if !error_message.contains("422") && !error_message.contains("already exists") {
+                return Err(error_message);
+            }
 
-    Ok(true)
+            client
+                .find_repo_by_name(username, CONFIG_REPO_NAME)
+                .await
+                .map_err(|lookup_error| lookup_error.to_string())?
+                .ok_or(error_message)
+        }
+    }
 }
 
-fn copy_local_to_clone(nekotick_dir: &PathBuf, clone_dir: &PathBuf) -> Result<(), String> {
-    for file in config_files() {
-        let src = nekotick_dir.join(file);
-        let dst = clone_dir.join(file);
-        if src.exists() {
-            if let Some(parent) = dst.parent() {
-                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-            }
-            fs::copy(&src, &dst).map_err(|e| format!("Failed to copy {}: {}", file, e))?;
-        }
-    }
-
-    let local_channels = nekotick_dir.join(CHAT_CHANNELS_DIR);
-    let clone_channels = clone_dir.join(CHAT_CHANNELS_DIR);
-
-    if clone_channels.exists() {
-        for entry in fs::read_dir(&clone_channels).map_err(|e| e.to_string())? {
-            let entry = entry.map_err(|e| e.to_string())?;
-            let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("json") {
-                let local_file = local_channels.join(entry.file_name());
-                if !local_file.exists() {
-                    let _ = fs::remove_file(&path);
-                }
-            }
-        }
-    }
-
-    if local_channels.exists() {
-        fs::create_dir_all(&clone_channels).map_err(|e| e.to_string())?;
-        for entry in fs::read_dir(&local_channels).map_err(|e| e.to_string())? {
-            let entry = entry.map_err(|e| e.to_string())?;
-            let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("json") {
-                let dst = clone_channels.join(entry.file_name());
-                fs::copy(&path, &dst).map_err(|e| e.to_string())?;
-            }
-        }
-    }
-
-    Ok(())
+pub async fn sync_config_repo_ready(token: &str, username: &str) -> Result<(), String> {
+    ensure_config_repo(token, username).await.map(|_| ())
 }
 
-fn copy_clone_to_local(clone_dir: &PathBuf, nekotick_dir: &PathBuf) -> Result<(), String> {
-    for file in config_files() {
-        let src = clone_dir.join(file);
-        let dst = nekotick_dir.join(file);
-        if src.exists() {
-            if let Some(parent) = dst.parent() {
-                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-            }
-            fs::copy(&src, &dst).map_err(|e| format!("Failed to restore {}: {}", file, e))?;
-        }
+async fn load_remote_config_shas(
+    client: &RepoClient,
+    repository: &Repository,
+) -> Result<BTreeMap<String, String>, String> {
+    let entries = client
+        .get_repo_recursive_tree(
+            &repository.owner.login,
+            &repository.name,
+            &repository.default_branch,
+        )
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(filter_config_remote_shas(entries))
+}
+
+async fn load_remote_config_files(
+    client: &RepoClient,
+    repository: &Repository,
+) -> Result<(BTreeMap<String, String>, BTreeMap<String, String>), String> {
+    let remote_shas = load_remote_config_shas(client, repository).await?;
+    let mut remote_files = BTreeMap::new();
+
+    for path in remote_shas.keys() {
+        let file = client
+            .get_file_content(&repository.owner.login, &repository.name, path)
+            .await
+            .map_err(|error| error.to_string())?;
+        remote_files.insert(path.clone(), file.content);
     }
 
-    let clone_channels = clone_dir.join(CHAT_CHANNELS_DIR);
-    let local_channels = nekotick_dir.join(CHAT_CHANNELS_DIR);
-    if clone_channels.exists() {
-        fs::create_dir_all(&local_channels).map_err(|e| e.to_string())?;
-        for entry in fs::read_dir(&clone_channels).map_err(|e| e.to_string())? {
-            let entry = entry.map_err(|e| e.to_string())?;
-            let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("json") {
-                let dst = local_channels.join(entry.file_name());
-                fs::copy(&path, &dst).map_err(|e| e.to_string())?;
-            }
-        }
-    }
+    Ok((remote_shas, remote_files))
+}
 
+fn ensure_committed(result: RepoChangesetCommitResult) -> Result<(), String> {
+    if result.status == "conflict" {
+        return Err("Sync conflict".to_string());
+    }
     Ok(())
 }
 
 pub async fn sync_config_to_repo(app: &tauri::AppHandle) -> Result<(), String> {
     let token = get_stored_github_token(app).ok_or("Not authenticated")?;
     let username = get_stored_github_username(app).ok_or("Username not available")?;
+    let repository = ensure_config_repo(&token, &username).await?;
+    let local_files = load_local_config_files(&get_nekotick_dir(app)?)?;
+    let client = RepoClient::new(token);
+    let remote_shas = load_remote_config_shas(&client, &repository).await?;
+    let operations = build_config_sync_operations(&local_files, &remote_shas);
 
-    ensure_config_repo(&token, &username).await?;
-
-    let nekotick_dir = get_nekotick_dir(app)?;
-    let clone_dir = tokio::task::spawn_blocking({
-        let owner = username.clone();
-        move || git_ops::get_repo_local_path(&owner, CONFIG_REPO_NAME)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())?;
-
-    let token_pull = token.clone();
-    let owner_pull = username.clone();
-    tokio::task::spawn_blocking(move || {
-        git_ops::pull_repo(&owner_pull, CONFIG_REPO_NAME, &token_pull)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())?;
-
-    copy_local_to_clone(&nekotick_dir, &clone_dir)?;
-
-    let owner = username.clone();
-    let email = format!("{}@users.noreply.github.com", &username);
-    let token_clone = token.clone();
-    let message = sync_commit_message();
-    tokio::task::spawn_blocking(move || {
-        let commit_id = git_ops::commit_all(&owner, CONFIG_REPO_NAME, &message, &owner, &email)?;
-        if !commit_id.is_empty() {
-            git_ops::push_repo(&owner, CONFIG_REPO_NAME, &token_clone)?;
-        }
-        Ok::<(), git_ops::GitError>(())
-    })
-    .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
+    ensure_committed(
+        client
+            .commit_changeset(
+                &repository.owner.login,
+                &repository.name,
+                &repository.default_branch,
+                &sync_commit_message(),
+                &operations,
+            )
+            .await
+            .map_err(|error| error.to_string())?,
+    )
 }
 
 pub async fn restore_config_from_repo(app: &tauri::AppHandle) -> Result<(), String> {
     let token = get_stored_github_token(app).ok_or("Not authenticated")?;
     let username = get_stored_github_username(app).ok_or("Username not available")?;
+    let repository = ensure_config_repo(&token, &username).await?;
+    let client = RepoClient::new(token);
+    let (_, remote_files) = load_remote_config_files(&client, &repository).await?;
 
-    ensure_config_repo(&token, &username).await?;
-
-    let token_clone = token.clone();
-    let owner = username.clone();
-    tokio::task::spawn_blocking(move || {
-        git_ops::pull_repo(&owner, CONFIG_REPO_NAME, &token_clone)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())?;
-
-    let nekotick_dir = get_nekotick_dir(app)?;
-    let clone_dir = tokio::task::spawn_blocking({
-        let owner = username.clone();
-        move || git_ops::get_repo_local_path(&owner, CONFIG_REPO_NAME)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())?;
-
-    let data_path = nekotick_dir.join(DATA_FILE_NAME);
-    let backup_path = nekotick_dir.join(format!("{}.backup", DATA_FILE_NAME));
-    if data_path.exists() {
-        fs::copy(&data_path, &backup_path)
-            .map_err(|e| format!("Failed to create backup: {}", e))?;
+    if remote_files.is_empty() {
+        return Ok(());
     }
 
-    if let Err(e) = copy_clone_to_local(&clone_dir, &nekotick_dir) {
-        if backup_path.exists() {
-            fs::copy(&backup_path, &data_path)
-                .map_err(|be| format!("Restore failed: {}. Backup restore also failed: {}", e, be))?;
-        }
-        return Err(e);
-    }
-
+    apply_remote_files_to_local(&get_nekotick_dir(app)?, &remote_files, false)?;
     Ok(())
-}
-
-fn copy_missing_to_local(clone_dir: &PathBuf, nekotick_dir: &PathBuf) -> Result<bool, String> {
-    let mut copied = false;
-
-    for file in config_files() {
-        let src = clone_dir.join(file);
-        let dst = nekotick_dir.join(file);
-        if src.exists() && !dst.exists() {
-            if let Some(parent) = dst.parent() {
-                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-            }
-            fs::copy(&src, &dst).map_err(|e| format!("Failed to copy {}: {}", file, e))?;
-            copied = true;
-        }
-    }
-
-    let clone_channels = clone_dir.join(CHAT_CHANNELS_DIR);
-    let local_channels = nekotick_dir.join(CHAT_CHANNELS_DIR);
-    if clone_channels.exists() {
-        fs::create_dir_all(&local_channels).map_err(|e| e.to_string())?;
-        for entry in fs::read_dir(&clone_channels).map_err(|e| e.to_string())? {
-            let entry = entry.map_err(|e| e.to_string())?;
-            let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("json") {
-                let dst = local_channels.join(entry.file_name());
-                if !dst.exists() {
-                    fs::copy(&path, &dst).map_err(|e| e.to_string())?;
-                    copied = true;
-                }
-            }
-        }
-    }
-
-    Ok(copied)
 }
 
 pub async fn sync_config_bidirectional(app: &tauri::AppHandle) -> Result<(bool, bool), String> {
     let token = get_stored_github_token(app).ok_or("Not authenticated")?;
     let username = get_stored_github_username(app).ok_or("Username not available")?;
-
-    ensure_config_repo(&token, &username).await?;
-
+    let repository = ensure_config_repo(&token, &username).await?;
+    let client = RepoClient::new(token);
     let nekotick_dir = get_nekotick_dir(app)?;
-    let clone_dir = tokio::task::spawn_blocking({
-        let owner = username.clone();
-        move || git_ops::get_repo_local_path(&owner, CONFIG_REPO_NAME)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())?;
+    let (remote_shas, remote_files) = load_remote_config_files(&client, &repository).await?;
 
-    // 1. Pull remote
-    let token_pull = token.clone();
-    let owner_pull = username.clone();
-    tokio::task::spawn_blocking(move || {
-        git_ops::pull_repo(&owner_pull, CONFIG_REPO_NAME, &token_pull)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())?;
+    let pulled = if remote_files.is_empty() {
+        false
+    } else {
+        apply_remote_files_to_local(&nekotick_dir, &remote_files, true)?
+    };
 
-    // 2. Copy remote-only files to local (only files that don't exist locally)
-    let pulled = copy_missing_to_local(&clone_dir, &nekotick_dir)?;
+    let local_files = load_local_config_files(&nekotick_dir)?;
+    let operations = build_config_sync_operations(&local_files, &remote_shas);
+    let pushed = !operations.is_empty();
 
-    // 3. Local overwrites clone dir (local always wins)
-    copy_local_to_clone(&nekotick_dir, &clone_dir)?;
+    ensure_committed(
+        client
+            .commit_changeset(
+                &repository.owner.login,
+                &repository.name,
+                &repository.default_branch,
+                &sync_commit_message(),
+                &operations,
+            )
+            .await
+            .map_err(|error| error.to_string())?,
+    )?;
 
-    // 4. Commit + push
-    let owner = username.clone();
-    let email = format!("{}@users.noreply.github.com", &username);
-    let token_push = token.clone();
-    let message = sync_commit_message();
-    tokio::task::spawn_blocking(move || {
-        let commit_id = git_ops::commit_all(&owner, CONFIG_REPO_NAME, &message, &owner, &email)?;
-        if !commit_id.is_empty() {
-            git_ops::push_repo(&owner, CONFIG_REPO_NAME, &token_push)?;
-        }
-        Ok::<(), git_ops::GitError>(())
-    })
-    .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())?;
-
-    Ok((pulled, true))
+    Ok((pulled, pushed))
 }
 
 pub async fn check_config_remote(app: &tauri::AppHandle) -> Result<(bool, Option<String>), String> {
     let token = get_stored_github_token(app).ok_or("Not authenticated")?;
     let username = get_stored_github_username(app).ok_or("Username not available")?;
-
     let client = RepoClient::new(token);
+
     match client.find_repo_by_name(&username, CONFIG_REPO_NAME).await {
         Ok(Some(repo)) => Ok((true, Some(repo.updated_at))),
         Ok(None) => Ok((false, None)),
-        Err(e) => Err(e.to_string()),
+        Err(error) => Err(error.to_string()),
     }
 }

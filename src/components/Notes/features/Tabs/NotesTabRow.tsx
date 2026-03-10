@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
+import { isCloudNoteLogicalPath } from '@/stores/cloudRepos';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
@@ -191,9 +192,10 @@ export function NotesTabRow() {
   );
 
   const handleCreateNote = useCallback(() => {
-    const folderPath = currentNote?.path
-      ? currentNote.path.substring(0, currentNote.path.lastIndexOf('/')) || undefined
-      : undefined;
+    const folderPath =
+      currentNote?.path && !isCloudNoteLogicalPath(currentNote.path)
+        ? currentNote.path.substring(0, currentNote.path.lastIndexOf('/')) || undefined
+        : undefined;
     createNote(folderPath);
   }, [currentNote?.path, createNote]);
 

@@ -53,9 +53,21 @@ export interface PendingStarredNavigation {
   relativePath: string;
 }
 
+export interface CurrentNoteState {
+  path: string;
+  content: string;
+  source?: 'local' | 'cloud';
+  repositoryId?: number;
+  repositoryOwner?: string;
+  repositoryName?: string;
+  repositoryBranch?: string;
+  remotePath?: string;
+  remoteSha?: string | null;
+}
+
 export interface NotesState {
   rootFolder: FolderNode | null;
-  currentNote: { path: string; content: string } | null;
+  currentNote: CurrentNoteState | null;
   notesPath: string;
   isDirty: boolean;
   isLoading: boolean;
@@ -82,6 +94,19 @@ export interface NotesActions {
   toggleFolder: (path: string) => void;
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean) => Promise<void>;
+  openCloudNote: (
+    note: {
+      repositoryId: number;
+      owner: string;
+      repo: string;
+      branch: string;
+      relativePath: string;
+      logicalPath: string;
+      content: string;
+      sha: string | null;
+    },
+    openInNewTab?: boolean
+  ) => Promise<void>;
   saveNote: () => Promise<void>;
   createNote: (folderPath?: string) => Promise<string>;
   createNoteWithContent: (folderPath: string | undefined, name: string, content: string) => Promise<string>;
