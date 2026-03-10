@@ -87,7 +87,7 @@ export function GitHubSection() {
     return (
         <>
             <NotesSidebarSection
-                title="GitHub"
+                title="Cloud Repositories"
                 expanded={sectionExpanded}
                 onToggle={toggleSectionExpanded}
                 actions={headerActions}
