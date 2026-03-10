@@ -1,4 +1,4 @@
-import { FavoritesSection } from '../Favorites';
+import { StarredSection } from '../Starred';
 import { GitHubSection } from '../GitHub';
 import { WorkspaceSection } from '../FileTree';
 import { cn } from '@/lib/utils';
@@ -30,7 +30,7 @@ export function SidebarContent({
             )}
             data-notes-sidebar-scroll-root="true"
             >
-                <FavoritesSection />
+                <StarredSection />
                 <GitHubSection />
                 <WorkspaceSection
                     rootFolder={rootFolder}

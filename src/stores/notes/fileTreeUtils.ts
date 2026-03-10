@@ -149,6 +149,27 @@ export function restoreExpandedState(
   });
 }
 
+export function expandFoldersForPath(nodes: FileTreeNode[], targetPath: string): FileTreeNode[] {
+  const pathSegments = targetPath.split('/').filter(Boolean);
+  const expandedPaths = new Set<string>();
+
+  for (let index = 0; index < pathSegments.length; index += 1) {
+    expandedPaths.add(pathSegments.slice(0, index + 1).join('/'));
+  }
+
+  return nodes.map((node) => {
+    if (!node.isFolder) {
+      return node;
+    }
+
+    return {
+      ...node,
+      expanded: node.expanded || expandedPaths.has(node.path),
+      children: expandFoldersForPath(node.children, targetPath),
+    };
+  });
+}
+
 export function addNodeToTree(
   nodes: FileTreeNode[],
   targetFolderPath: string | undefined | null,

@@ -5,7 +5,6 @@ import { NotesStore } from '../types';
 import { updateDisplayName, removeDisplayName } from '../displayNameUtils';
 import {
   addToRecentNotes,
-  saveFavoritesToFile,
   saveWorkspaceState,
   safeWriteTextFile,
   loadNoteMetadata,
@@ -13,6 +12,11 @@ import {
   setNoteEntry,
 } from '../storage';
 import { collectExpandedPaths, restoreExpandedState } from '../fileTreeUtils';
+import {
+  getVaultStarredPaths,
+  remapStarredEntriesForVault,
+  saveStarredRegistry,
+} from '../starred';
 
 export interface WorkspaceSlice {
   currentNote: NotesStore['currentNote'];
@@ -187,7 +191,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       loadFileTree,
       rootFolder,
       starredNotes,
-      starredFolders,
+      starredEntries,
     } = get();
 
     const isAbsolutePath = (p: string) => /^[A-Za-z]:[\\/]/.test(p) || p.startsWith('/');
@@ -212,9 +216,21 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         removeDisplayName(set, path);
 
         if (starredNotes.includes(path)) {
-          const updatedStarred = starredNotes.filter((p) => p !== path);
-          set({ starredNotes: updatedStarred });
-          saveFavoritesToFile(notesPath, { notes: updatedStarred, folders: starredFolders });
+          const { entries: updatedEntries } = remapStarredEntriesForVault(
+            starredEntries,
+            notesPath,
+            (relativePath, kind) => {
+              if (kind !== 'note') return relativePath;
+              return relativePath === path ? null : relativePath;
+            }
+          );
+          const starredPaths = getVaultStarredPaths(updatedEntries, notesPath);
+          set({
+            starredEntries: updatedEntries,
+            starredNotes: starredPaths.notes,
+            starredFolders: starredPaths.folders,
+          });
+          void saveStarredRegistry(updatedEntries);
         }
 
         await loadFileTree();

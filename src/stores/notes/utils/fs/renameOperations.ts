@@ -2,7 +2,8 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { ensureMarkdownFileName, getNoteTitleFromPath, normalizeNotePathKey } from '@/lib/notes/displayName';
 import { sanitizeFileName } from '../../noteUtils';
 import { moveDisplayName, updateDisplayName } from '../../displayNameUtils';
-import { saveFavoritesToFile, saveNoteMetadata } from '../../storage';
+import { saveNoteMetadata } from '../../storage';
+import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry } from '../../starred';
 import { updateFileNodePath, findNode, deepUpdateNodePath, addNodeToTree, removeNodeFromTree } from '../../fileTreeUtils';
 
 export async function renameNoteImpl(
@@ -29,12 +30,15 @@ export async function renameNoteImpl(
     moveDisplayName(set, path, newPath);
     updateDisplayName(set, newPath, nextDisplayName);
 
-    // 2. Favorites
-    const { starredNotes, starredFolders, noteMetadata, openTabs, rootFolder, currentNote } = currentStore;
-    let updatedStarred = starredNotes;
-    if (starredNotes.includes(path)) {
-        updatedStarred = starredNotes.map((p: string) => (p === path ? newPath : p));
-        saveFavoritesToFile(notesPath, { notes: updatedStarred, folders: starredFolders });
+    // 2. Starred
+    const { starredEntries, noteMetadata, openTabs, rootFolder, currentNote } = currentStore;
+    const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath, kind) => {
+        if (kind !== 'note') return relativePath;
+        return relativePath === path ? newPath : relativePath;
+    });
+    const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
+    if (starredResult.changed) {
+        void saveStarredRegistry(starredResult.entries);
     }
 
     // 3. Metadata
@@ -67,7 +71,9 @@ export async function renameNoteImpl(
 
     return {
         newPath,
-        updatedStarred,
+        updatedStarredEntries: starredResult.entries,
+        updatedStarredNotes: starredPaths.notes,
+        updatedStarredFolders: starredPaths.folders,
         updatedMetadata,
         updatedTabs,
         updatedChildren,
@@ -117,20 +123,13 @@ export async function moveItemImpl(
         return changed ? { displayNames: updatedDisplayNames } : {};
     });
 
-    const { starredNotes, starredFolders, openTabs, currentNote, rootFolder } = currentStore;
+    const { starredEntries, openTabs, currentNote, rootFolder } = currentStore;
 
-    // 1. Favorites
-    const updatedStarredNotes = starredNotes.map((p: string) => remapPath(p));
-    const updatedStarredFolders = starredFolders.map((p: string) => remapPath(p));
-    const favoritesChanged =
-        updatedStarredNotes.some((path: string, index: number) => path !== starredNotes[index]) ||
-        updatedStarredFolders.some((path: string, index: number) => path !== starredFolders[index]);
+    const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath) => remapPath(relativePath));
+    const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
 
-    if (favoritesChanged) {
-        saveFavoritesToFile(notesPath, {
-            notes: updatedStarredNotes,
-            folders: updatedStarredFolders,
-        });
+    if (starredResult.changed) {
+        void saveStarredRegistry(starredResult.entries);
     }
 
     // 2. Tabs
@@ -163,8 +162,9 @@ export async function moveItemImpl(
     }
 
     return {
-        updatedStarredNotes,
-        updatedStarredFolders,
+        updatedStarredEntries: starredResult.entries,
+        updatedStarredFolders: starredPaths.folders,
+        updatedStarredNotes: starredPaths.notes,
         updatedTabs,
         nextCurrentNote,
         newChildren

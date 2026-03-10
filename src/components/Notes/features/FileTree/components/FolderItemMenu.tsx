@@ -47,7 +47,7 @@ export function FolderItemMenu({
             className={isStarred ? 'fill-amber-500 text-amber-500' : undefined}
           />
         }
-        label={isStarred ? 'Remove from Favorites' : 'Add to Favorites'}
+        label={isStarred ? 'Remove from Starred' : 'Add to Starred'}
         onClick={onToggleStar}
       />
       <NotesSidebarContextMenuDivider />
