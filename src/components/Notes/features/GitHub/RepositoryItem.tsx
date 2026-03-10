@@ -1,11 +1,11 @@
 import { useState, useRef, useCallback } from 'react';
 import { Icon } from '@/components/ui/icons';
-import { ToggleIcon } from '@/components/common/ToggleIcon';
 import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { type RepositoryInfo } from '@/lib/tauri/githubRepoCommands';
 import { LocalFileTree } from './LocalFileTree';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 import { NotesSidebarContextMenu, NotesSidebarContextMenuDivider, NotesSidebarContextMenuItem } from '../Sidebar/NotesSidebarContextMenu';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 
@@ -117,10 +117,11 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
                 leading={
                     <div className="flex w-10 items-center gap-1">
                         <span className="flex size-[20px] items-center justify-center">
-                            <ToggleIcon
-                                expanded={isExpanded}
-                                size="md"
-                                className="text-[var(--notes-sidebar-icon)]"
+                            <CollapseTriangleAffordance
+                                collapsed={!isExpanded}
+                                visibility="always"
+                                size={16}
+                                className="h-[18px] w-[18px] text-[var(--notes-sidebar-icon)]"
                             />
                         </span>
                         <span className="flex size-[20px] items-center justify-center">

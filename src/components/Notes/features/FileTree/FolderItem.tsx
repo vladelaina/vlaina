@@ -6,6 +6,7 @@ import { FolderItemMenu } from './components/FolderItemMenu';
 import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
 import { useFolderItemState } from './hooks/useFolderItemState';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { CollapseTriangleIcon } from '../common/collapseTrianglePrimitive';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 
 interface FolderItemProps {
@@ -49,9 +50,17 @@ export const FolderItem = memo(function FolderItem({
   );
 
   const hoverLeading = node.expanded ? (
-    <Icon name="nav.chevronDown" size="md" className="hidden text-[var(--notes-sidebar-folder-icon)] group-hover:block" />
+    <CollapseTriangleIcon
+      collapsed={false}
+      size={16}
+      className="hidden text-[var(--notes-sidebar-folder-icon)] group-hover:block"
+    />
   ) : (
-    <Icon name="nav.chevronRight" size="md" className="hidden text-[var(--notes-sidebar-folder-icon)] group-hover:block" />
+    <CollapseTriangleIcon
+      collapsed
+      size={16}
+      className="hidden text-[var(--notes-sidebar-folder-icon)] group-hover:block"
+    />
   );
 
   return (

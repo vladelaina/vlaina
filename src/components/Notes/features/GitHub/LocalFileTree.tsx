@@ -4,6 +4,7 @@ import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { readDir, type DirEntry } from '@tauri-apps/plugin-fs';
+import { CollapseTriangleIcon } from '../common/collapseTrianglePrimitive';
 import { NotesSidebarContextMenu, NotesSidebarContextMenuItem } from '../Sidebar/NotesSidebarContextMenu';
 import { NotesSidebarEmptyState, NotesSidebarList } from '../Sidebar/NotesSidebarPrimitives';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
@@ -192,9 +193,9 @@ function LocalFileTreeItem({
                                 name={isExpanded ? 'file.folderOpen' : 'file.folder'}
                                 className="text-[var(--notes-sidebar-folder-icon)] group-hover/sidebar-row:hidden"
                             />
-                            <Icon
-                                size="md"
-                                name={isExpanded ? 'nav.chevronDown' : 'nav.chevronRight'}
+                            <CollapseTriangleIcon
+                                collapsed={!isExpanded}
+                                size={16}
                                 className="hidden text-[var(--notes-sidebar-folder-icon)] group-hover/sidebar-row:block"
                             />
                         </span>

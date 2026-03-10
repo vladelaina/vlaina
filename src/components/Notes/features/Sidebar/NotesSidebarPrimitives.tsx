@@ -1,6 +1,6 @@
 import type { HTMLAttributes, ReactNode } from 'react';
-import { ToggleIcon } from '@/components/common/ToggleIcon';
 import { cn } from '@/lib/utils';
+import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 
 interface NotesSidebarSurfaceProps extends HTMLAttributes<HTMLDivElement> {
   isPeeking?: boolean;
@@ -77,21 +77,28 @@ export function NotesSidebarSection({
             isInteractive && 'cursor-pointer'
           )}
         >
-          <div className="flex min-w-0 items-center gap-1.5">
-            {isInteractive ? (
-              <ToggleIcon
-                expanded={expanded}
-                size="md"
-                className="text-[var(--notes-sidebar-icon)] transition-colors group-hover:text-[var(--notes-sidebar-icon-hover)]"
-              />
-            ) : null}
-            <span className="truncate text-[11px] font-semibold tracking-[0.08em] text-[var(--notes-sidebar-section-label)] transition-colors group-hover:text-[var(--notes-sidebar-section-label-hover)]">
-              {title}
-            </span>
+          <div className="min-w-0 flex-1">
+            <div className="inline-flex max-w-full items-center align-middle">
+              <span className="min-w-0 truncate text-[11px] font-semibold tracking-[0.08em] text-[var(--notes-sidebar-section-label)] transition-colors group-hover:text-[var(--notes-sidebar-section-label-hover)]">
+                {title}
+              </span>
+              {isInteractive ? (
+                <CollapseTriangleAffordance
+                  collapsed={!expanded}
+                  visibility="hover-unless-collapsed"
+                  size={16}
+                  className="ml-1 h-[18px] w-[18px] text-[var(--notes-sidebar-icon)] group-hover:text-[var(--notes-sidebar-icon-hover)] group-focus-within:text-[var(--notes-sidebar-icon-hover)]"
+                />
+              ) : null}
+            </div>
           </div>
           {actions ? (
-            <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-              {actions}
+            <div className="ml-2 flex shrink-0 items-center gap-1">
+              {actions ? (
+                <div className="flex items-center gap-1 opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto">
+                  {actions}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
