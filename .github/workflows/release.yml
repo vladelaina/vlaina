@@ -49,14 +49,12 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          package-manager-cache: false
 
-      - name: Enable Corepack and pnpm
+      - name: Install pnpm
         shell: bash
         run: |
-          corepack enable
-          corepack prepare pnpm@9 --activate
+          npm install -g pnpm@9
           pnpm --version
 
       - name: Install frontend dependencies
