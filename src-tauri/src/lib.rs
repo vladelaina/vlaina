@@ -302,7 +302,6 @@ pub fn run() {
             github::auth::commands::github_auth,
             github::auth::commands::github_disconnect,
             github::auth::commands::get_github_sync_status,
-            github::auth::commands::get_managed_session_token,
             github::auth::commands::get_managed_models,
             github::auth::commands::get_managed_budget,
             github::auth::commands::managed_chat_completion,

@@ -35,31 +35,10 @@ export type GithubSyncStore = GithubSyncState & GithubSyncActions;
 
 export const GITHUB_USER_PERSIST_KEY = 'nekotick_github_user_identity';
 
-interface PersistedUser {
-  isConnected: boolean;
-  username: string | null;
-  avatarUrl: string | null;
-  localAvatarUrl?: string | null;
-}
-
-function getPersistedUser(): PersistedUser {
-  try {
-    const stored = localStorage.getItem(GITHUB_USER_PERSIST_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (e) {
-    console.error('Failed to load persisted GitHub user:', e);
-  }
-  return { isConnected: false, username: null, avatarUrl: null };
-}
-
-const persisted = getPersistedUser();
-
 export const initialGithubSyncState: GithubSyncState = {
-  isConnected: persisted.isConnected,
-  username: persisted.username,
-  avatarUrl: persisted.avatarUrl,
+  isConnected: false,
+  username: null,
+  avatarUrl: null,
   localAvatarUrl: null,
   configRepoReady: false,
   isSyncing: false,

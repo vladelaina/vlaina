@@ -4,6 +4,8 @@ pub mod config_sync;
 pub mod config_sync_local;
 pub mod config_sync_support;
 pub mod credentials;
+mod credentials_meta_store;
+mod credentials_secret_store;
 pub mod repo_commands;
 pub mod repos;
 pub mod types;

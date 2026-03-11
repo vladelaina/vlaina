@@ -200,11 +200,6 @@ pub async fn get_github_sync_status(app: tauri::AppHandle) -> Result<GitHubSyncS
 }
 
 #[tauri::command]
-pub async fn get_managed_session_token(app: tauri::AppHandle) -> Result<Option<String>, String> {
-    Ok(get_stored_app_session_token(&app))
-}
-
-#[tauri::command]
 pub async fn get_managed_models(app: tauri::AppHandle) -> Result<Value, String> {
     let session_token = require_managed_session_token(&app)?;
     request_managed_json(

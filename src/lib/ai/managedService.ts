@@ -7,6 +7,7 @@ import { webGithubCommands } from '@/lib/tauri/webGithubCommands';
 export const MANAGED_PROVIDER_ID = 'nekotick-managed';
 export const MANAGED_PROVIDER_NAME = 'NekoTick AI';
 export const MANAGED_API_BASE = 'https://api.nekotick.com/v1';
+export const MANAGED_AUTH_REQUIRED_ERROR = 'NekoTick sign-in required';
 
 export interface ManagedBudgetStatus {
   active: boolean;
@@ -36,7 +37,6 @@ export function createManagedProvider(now: number): Provider {
     name: MANAGED_PROVIDER_NAME,
     type: 'newapi',
     apiHost: MANAGED_API_BASE,
-    // Never persist GitHub access token in AI provider state.
     apiKey: '',
     enabled: true,
     createdAt: now,
@@ -96,57 +96,86 @@ function normalizeModelGroup(model: Record<string, unknown>, modelId: string): s
   return 'other';
 }
 
-export async function getManagedAccessToken(): Promise<string | null> {
-  if (hasBackendCommands()) {
-    const token = await githubCommands.getManagedSessionToken();
-    const normalized = typeof token === 'string' ? token.trim() : '';
-    return normalized || null;
+async function parseManagedError(response: Response): Promise<Error> {
+  const raw = await response.text().catch(() => '');
+  if (response.status === 401 || response.status === 403) {
+    webGithubCommands.clearClientSession();
+    return new Error(MANAGED_AUTH_REQUIRED_ERROR);
   }
-  return webGithubCommands.getSessionToken();
+
+  if (!raw) {
+    return new Error(`Managed API request failed: HTTP ${response.status}`);
+  }
+
+  try {
+    const payload = JSON.parse(raw) as Record<string, unknown>;
+    const message = typeof payload.error === 'string'
+      ? payload.error
+      : typeof payload.message === 'string'
+        ? payload.message
+        : '';
+    if (message) {
+      return new Error(message);
+    }
+  } catch {
+    // no-op
+  }
+
+  return new Error(raw);
 }
 
-export async function fetchManagedModels(accessToken: string): Promise<AIModel[]> {
+async function requestManagedWebJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${MANAGED_API_BASE}${path}`, {
+    ...init,
+    cache: 'no-store',
+    credentials: 'include',
+    headers: {
+      Accept: 'application/json',
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(init?.headers ?? {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw await parseManagedError(response);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+export async function fetchManagedModels(): Promise<AIModel[]> {
   if (hasBackendCommands()) {
     const payload = (await githubCommands.getManagedModels()) as ManagedModelsPayload | undefined;
     return normalizeManagedModelsPayload(payload ?? {});
   }
 
-  const response = await fetch(`${MANAGED_API_BASE}/models`, {
+  const payload = await requestManagedWebJson<ManagedModelsPayload>('/models', {
     method: 'GET',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
   });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch managed models: HTTP ${response.status}`);
-  }
-
-  const payload = (await response.json()) as ManagedModelsPayload;
-  return normalizeManagedModelsPayload(payload);
+  return normalizeManagedModelsPayload(payload ?? {});
 }
 
-export async function fetchManagedBudget(accessToken: string): Promise<ManagedBudgetStatus> {
+export async function fetchManagedBudget(): Promise<ManagedBudgetStatus> {
   if (hasBackendCommands()) {
     const payload = (await githubCommands.getManagedBudget()) as ManagedBudgetPayload | undefined;
     return normalizeManagedBudgetPayload(payload ?? {});
   }
 
-  const response = await fetch(`${MANAGED_API_BASE}/budget`, {
+  const payload = await requestManagedWebJson<ManagedBudgetPayload>('/budget', {
     method: 'GET',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: 'application/json',
-    },
-    cache: 'no-store',
   });
+  return normalizeManagedBudgetPayload(payload ?? {});
+}
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch managed budget: HTTP ${response.status}`);
+export async function requestManagedChatCompletion(
+  body: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  if (hasBackendCommands()) {
+    return (await githubCommands.managedChatCompletion(body)) as Record<string, unknown>;
   }
 
-  const payload = (await response.json()) as ManagedBudgetPayload;
-  return normalizeManagedBudgetPayload(payload);
+  return requestManagedWebJson<Record<string, unknown>>('/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
