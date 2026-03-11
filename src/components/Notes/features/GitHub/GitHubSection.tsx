@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
@@ -32,11 +32,13 @@ export function GitHubSection() {
     } = useGithubReposStore();
 
     const [showNewRepoDialog, setShowNewRepoDialog] = useState(false);
+    const previousConnectedRef = useRef(isConnected);
 
     useEffect(() => {
-        if (isConnected && !sectionExpanded) {
+        if (!previousConnectedRef.current && isConnected && !sectionExpanded) {
             toggleSectionExpanded();
         }
+        previousConnectedRef.current = isConnected;
     }, [isConnected, sectionExpanded, toggleSectionExpanded]);
 
     useEffect(() => {
