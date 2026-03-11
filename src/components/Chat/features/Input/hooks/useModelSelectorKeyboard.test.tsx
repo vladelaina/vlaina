@@ -5,9 +5,9 @@ import { useModelSelectorKeyboard } from './useModelSelectorKeyboard'
 import type { AIModel } from '@/lib/ai/types'
 
 const MODELS: AIModel[] = [
-  { id: 'model-a', name: 'Model A', providerId: 'p1', enabled: true, createdAt: 1 },
-  { id: 'model-b', name: 'Model B', providerId: 'p1', enabled: true, createdAt: 1 },
-  { id: 'model-c', name: 'Model C', providerId: 'p1', enabled: true, createdAt: 1 },
+  { id: 'model-a', apiModelId: 'model-a', name: 'Model A', providerId: 'p1', enabled: true, createdAt: 1 },
+  { id: 'model-b', apiModelId: 'model-b', name: 'Model B', providerId: 'p1', enabled: true, createdAt: 1 },
+  { id: 'model-c', apiModelId: 'model-c', name: 'Model C', providerId: 'p1', enabled: true, createdAt: 1 },
 ]
 
 function fireKeydown(init: KeyboardEventInit, composing = false): KeyboardEvent {

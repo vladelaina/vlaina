@@ -37,6 +37,7 @@ export interface CustomIcon {
 
 import type { Provider, AIModel, ChatMessage, ChatSession } from '@/lib/ai/types';
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
+import { buildScopedModelId } from '@/lib/ai/utils';
 
 export interface TimezoneInfo {
   offset: number;
@@ -103,6 +104,59 @@ function getDefaultData(): UnifiedData {
       viewMode: DEFAULT_VIEW_MODE,
       dayCount: DEFAULT_DAY_COUNT,
     },
+  };
+}
+
+function normalizeLoadedAIModels(
+  providers: Provider[],
+  models: AIModel[],
+  selectedModelId: string | null,
+  sessions: ChatSession[]
+): {
+  models: AIModel[];
+  selectedModelId: string | null;
+  sessions: ChatSession[];
+} {
+  const providerIds = new Set(providers.map((provider) => provider.id));
+  const idMapping = new Map<string, string>();
+
+  const normalizedModels = models
+    .filter((model) => providerIds.has(model.providerId))
+    .map((model) => {
+      const apiModelId =
+        typeof (model as AIModel & { apiModelId?: string }).apiModelId === 'string' &&
+        (model as AIModel & { apiModelId?: string }).apiModelId.trim().length > 0
+          ? (model as AIModel & { apiModelId?: string }).apiModelId.trim()
+          : model.id;
+
+      const normalizedId = buildScopedModelId(model.providerId, apiModelId);
+      idMapping.set(model.id, normalizedId);
+      return {
+        ...model,
+        id: normalizedId,
+        apiModelId,
+      };
+    });
+
+  const availableIds = new Set(normalizedModels.map((model) => model.id));
+
+  const remapModelId = (modelId: string | null | undefined): string | null => {
+    if (!modelId) return null;
+    const direct = idMapping.get(modelId) || modelId;
+    if (availableIds.has(direct)) return direct;
+    const fallback = normalizedModels.find((model) => model.apiModelId === modelId)?.id || null;
+    return fallback && availableIds.has(fallback) ? fallback : null;
+  };
+
+  const normalizedSessions = sessions.map((session) => ({
+    ...session,
+    modelId: remapModelId(session.modelId) || session.modelId,
+  }));
+
+  return {
+    models: normalizedModels,
+    selectedModelId: remapModelId(selectedModelId),
+    sessions: normalizedSessions,
   };
 }
 
@@ -207,6 +261,16 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             }
         });
     }
+
+    const normalizedAI = normalizeLoadedAIModels(
+      combinedData.ai.providers,
+      combinedData.ai.models,
+      combinedData.ai.selectedModelId,
+      combinedData.ai.sessions
+    );
+    combinedData.ai.models = normalizedAI.models;
+    combinedData.ai.selectedModelId = normalizedAI.selectedModelId;
+    combinedData.ai.sessions = normalizedAI.sessions;
 
     return combinedData;
   } catch (error) {

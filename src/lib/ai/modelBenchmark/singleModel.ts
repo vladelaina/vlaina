@@ -1,5 +1,5 @@
 import { parseAPIError, parseHTTPError } from '../errors';
-import { normalizeApiHost } from '../utils';
+import { normalizeApiHost, resolveApiModelId } from '../utils';
 import type { AIModel, Provider } from '../types';
 import { DEFAULT_BENCHMARK_TIMEOUT_MS } from './constants';
 import { inferBenchmarkEndpoint } from './endpoint';
@@ -116,7 +116,8 @@ export async function checkModelHealth(
   model: AIModel,
   options: CheckModelHealthOptions = {}
 ): Promise<HealthCheckResult> {
-  const endpoint = inferBenchmarkEndpoint(model.id);
+  const apiModelId = resolveApiModelId(model);
+  const endpoint = inferBenchmarkEndpoint(apiModelId);
   const requestedTimeoutMs = options.timeoutMs ?? DEFAULT_BENCHMARK_TIMEOUT_MS;
   const timeoutMs = Number.isFinite(requestedTimeoutMs)
     ? Math.max(0, Math.floor(requestedTimeoutMs))
@@ -135,7 +136,7 @@ export async function checkModelHealth(
         Authorization: `Bearer ${provider.apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(buildBenchmarkBody(model.id, endpoint)),
+      body: JSON.stringify(buildBenchmarkBody(apiModelId, endpoint)),
       signal: timeoutMs > 0 ? controller.signal : undefined,
     });
 

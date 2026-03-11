@@ -172,12 +172,17 @@ export function createHandleOAuthCallback(set: Set, _get: Get): () => Promise<bo
     const savedState = sessionStorage.getItem('github_oauth_state');
     sessionStorage.removeItem('github_oauth_state');
 
+    if (callback.error) {
+      set({ syncError: friendlySyncError(callback.error), isConnecting: false });
+      return false;
+    }
+
     if (!savedState || !callback.state || savedState !== callback.state) {
       set({ syncError: 'OAuth state mismatch', isConnecting: false });
       return false;
     }
 
-    const result = await webGithubCommands.exchangeCode(callback.code, callback.state);
+    const result = await webGithubCommands.completeAuth(callback.state);
 
     if (result.success && result.username) {
       set({
@@ -216,7 +221,7 @@ export function createDisconnect(set: Set, _get: Get): () => Promise<void> {
         console.error('Backend disconnect failed, forcing local cleanup:', error);
       }
     } else {
-      webGithubCommands.disconnect();
+      await webGithubCommands.disconnect();
     }
 
     resetAutoSyncManager();

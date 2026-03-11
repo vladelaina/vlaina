@@ -13,6 +13,8 @@ pub const CONFIG_REPO_NAME: &str = "nekotick-config";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct GitHubCredentials {
     pub access_token: String,
+    #[serde(default)]
+    pub app_session_token: Option<String>,
     pub username: String,
     #[serde(default)]
     pub github_id: Option<u64>,
@@ -92,6 +94,10 @@ pub fn delete_github_credentials(app: &tauri::AppHandle) -> Result<(), String> {
 
 pub fn get_stored_github_token(app: &tauri::AppHandle) -> Option<String> {
     load_github_credentials(app).map(|c| c.access_token)
+}
+
+pub fn get_stored_app_session_token(app: &tauri::AppHandle) -> Option<String> {
+    load_github_credentials(app).and_then(|c| c.app_session_token)
 }
 
 pub fn get_stored_github_username(app: &tauri::AppHandle) -> Option<String> {

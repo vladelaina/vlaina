@@ -1,10 +1,41 @@
 import type { AIClient } from '../client'
 import type { Provider, AIModel, ChatCompletionRequest, ChatCompletionStreamChunk, ChatMessage, ChatMessageContent, ChatSendOptions } from '../types'
 import { parseAPIError, parseHTTPError } from '../errors'
-import { normalizeApiHost } from '../utils'
+import { normalizeApiHost, resolveApiModelId } from '../utils'
+import { MANAGED_PROVIDER_ID, getManagedAccessToken } from '@/lib/ai/managedService'
+import { hasBackendCommands } from '@/lib/tauri/invoke'
+import { githubCommands } from '@/lib/tauri/githubAuthCommands'
 
 export class OpenAICompatibleClient implements AIClient {
   private readonly timeout = 300000 // 5 minutes for thinking models 
+
+  private extractManagedResponseContent(payload: Record<string, unknown>): string {
+    const choices = Array.isArray(payload.choices) ? payload.choices : []
+    const firstChoice = choices[0]
+    if (!firstChoice || typeof firstChoice !== 'object') return ''
+
+    const message = (firstChoice as Record<string, unknown>).message
+    if (!message || typeof message !== 'object') return ''
+
+    const content = (message as Record<string, unknown>).content
+    return typeof content === 'string' ? content : ''
+  }
+
+  private async resolveApiKey(provider: Provider): Promise<string> {
+    if (provider.id === MANAGED_PROVIDER_ID) {
+      const managedToken = await getManagedAccessToken();
+      if (!managedToken) {
+        throw new Error('NekoTick sign-in required');
+      }
+      return managedToken;
+    }
+
+    const directApiKey = provider.apiKey?.trim() || '';
+    if (!directApiKey) {
+      throw new Error('Missing API key');
+    }
+    return directApiKey;
+  }
 
   async sendMessage(
     message: ChatMessageContent,
@@ -15,11 +46,12 @@ export class OpenAICompatibleClient implements AIClient {
     signal?: AbortSignal,
     options?: ChatSendOptions
   ): Promise<string> {
+    const apiKey = await this.resolveApiKey(provider)
     const host = normalizeApiHost(provider.apiHost)
     const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
     const url = `${baseUrl}/chat/completions`
     const headers = {
-      'Authorization': `Bearer ${provider.apiKey}`,
+      'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json'
     }
     
@@ -31,13 +63,24 @@ export class OpenAICompatibleClient implements AIClient {
     apiMessages.push({ role: 'user', content: message });
 
     const body: ChatCompletionRequest = {
-      model: model.id,
+      model: resolveApiModelId(model),
       messages: apiMessages,
       stream: true, // Always use stream for better compatibility
       ...(options || {})
     }
 
     const emit = onChunk || (() => {})
+
+    if (provider.id === MANAGED_PROVIDER_ID && hasBackendCommands()) {
+      const payload = (await githubCommands.managedChatCompletion({
+        ...body,
+        stream: false,
+      })) as Record<string, unknown> | undefined
+      const content = this.extractManagedResponseContent(payload ?? {})
+      emit(content)
+      return content
+    }
+
     return this.streamResponse(url, headers, body, emit, signal)
   }
 
@@ -164,6 +207,12 @@ export class OpenAICompatibleClient implements AIClient {
 
   async testConnection(provider: Provider): Promise<boolean> {
     try {
+      if (provider.id === MANAGED_PROVIDER_ID && hasBackendCommands()) {
+        const payload = (await githubCommands.getManagedModels()) as Record<string, unknown> | undefined
+        return Array.isArray(payload?.data)
+      }
+
+      const apiKey = await this.resolveApiKey(provider)
       const host = normalizeApiHost(provider.apiHost)
       const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
       const url = `${baseUrl}/models`
@@ -174,7 +223,7 @@ export class OpenAICompatibleClient implements AIClient {
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${provider.apiKey}`
+          'Authorization': `Bearer ${apiKey}`
         },
         signal: controller.signal
       })
@@ -187,6 +236,19 @@ export class OpenAICompatibleClient implements AIClient {
   }
 
   async getModels(provider: Provider): Promise<string[]> {
+    if (provider.id === MANAGED_PROVIDER_ID && hasBackendCommands()) {
+      const payload = (await githubCommands.getManagedModels()) as Record<string, unknown> | undefined
+      const rows = Array.isArray(payload?.data) ? payload.data : []
+      return rows
+        .map((item) => {
+          if (!item || typeof item !== 'object') return ''
+          const id = (item as Record<string, unknown>).id
+          return typeof id === 'string' ? id : ''
+        })
+        .filter((id): id is string => id.length > 0)
+    }
+
+    const apiKey = await this.resolveApiKey(provider)
     const host = normalizeApiHost(provider.apiHost)
     const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
     const url = `${baseUrl}/models`
@@ -197,7 +259,7 @@ export class OpenAICompatibleClient implements AIClient {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${provider.apiKey}`
+        'Authorization': `Bearer ${apiKey}`
       },
       signal: controller.signal
     })

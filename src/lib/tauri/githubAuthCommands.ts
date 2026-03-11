@@ -37,6 +37,44 @@ export const githubCommands = {
     });
   },
 
+  async getManagedSessionToken() {
+    return safeInvoke<string | null>('get_managed_session_token', undefined, {
+      webFallback: null,
+    });
+  },
+
+  async getManagedModels() {
+    return safeInvoke<Record<string, unknown>>('get_managed_models', undefined, {
+      webFallback: { data: [] },
+    });
+  },
+
+  async getManagedBudget() {
+    return safeInvoke<Record<string, unknown>>('get_managed_budget', undefined, {
+      webFallback: {
+        active: false,
+        usedPercent: 0,
+        remainingPercent: 0,
+        status: 'inactive',
+      },
+    });
+  },
+
+  async managedChatCompletion(body: Record<string, unknown>) {
+    return safeInvoke<Record<string, unknown>>('managed_chat_completion', { body }, {
+      webFallback: {
+        choices: [
+          {
+            message: {
+              role: 'assistant',
+              content: '',
+            },
+          },
+        ],
+      },
+    });
+  },
+
   async githubDisconnect() {
     return safeInvoke('github_disconnect');
   },

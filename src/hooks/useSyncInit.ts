@@ -31,7 +31,7 @@ export function useSyncInit() {
     oauthHandledRef.current = true;
 
     const params = new URLSearchParams(window.location.search);
-    if (params.has('auth_code')) {
+    if (params.has('auth_state') || params.has('auth_error')) {
       handleOAuthCallback();
     } else {
       checkStatus();

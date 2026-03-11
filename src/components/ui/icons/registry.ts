@@ -144,6 +144,7 @@ export const icons: Record<string, IconSource> = {
   'common.sparkle': SparklesIcon,
   'common.send': SendIcon,
   'common.language': LanguageIcon,
+  'common.cloud': CloudIcon,
   'chat.temporary.off': TemporaryChatOffIcon,
   'chat.temporary.on': TemporaryChatOnIcon,
 

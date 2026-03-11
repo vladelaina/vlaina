@@ -77,7 +77,7 @@ export function ModelSelector({ composerInputRef }: ModelSelectorProps) {
       const term = searchQuery.toLowerCase();
       return enabledModels.filter(model => 
           model.name.toLowerCase().includes(term) ||
-          model.id.toLowerCase().includes(term)
+          model.apiModelId.toLowerCase().includes(term)
       );
   }, [enabledModels, searchQuery]);
 

@@ -21,6 +21,7 @@ const provider: Provider = {
 function createModel(id: string): AIModel {
   return {
     id,
+    apiModelId: id,
     name: id,
     providerId: provider.id,
     enabled: true,

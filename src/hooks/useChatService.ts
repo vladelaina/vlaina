@@ -1,262 +1,25 @@
 import { useCallback } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
-import { convertToBase64, type Attachment } from '@/lib/storage/attachmentStorage';
+import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
-import { dedupeNoteMentions } from '@/lib/ai/noteMentions';
 import { buildRequestHistory } from '@/lib/ai/requestContext';
 import { useUnifiedStore } from '@/stores/useUnifiedStore';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
-import { useNotesStore } from '@/stores/notes/useNotesStore';
-import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import {
+  buildMentionedNotesContext,
+  buildMessageImageSources,
+  createChunkScheduler,
+  loadMentionedNotes,
+  normalizeNoteMentions,
+  normalizeVisionAttachment,
+  refreshManagedBudgetIfNeeded,
+} from './chatService/helpers';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
-const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
-const SVG_DATA_URL_REGEX = /^data:image\/svg\+xml/i;
-const IMAGE_NAME_REGEX = /\.(png|jpe?g|webp|gif|bmp|avif|svg)(?:$|[?#])/i;
-const MAX_NOTE_MENTION_COUNT = 3;
-const MAX_NOTE_MENTION_CHARS = 12000;
-
-function isImageAttachment(attachment: Attachment): boolean {
-  const mimeType = attachment.type?.trim().toLowerCase() ?? '';
-  if (mimeType.startsWith('image/')) {
-    return true;
-  }
-
-  const previewUrl = attachment.previewUrl?.trim().toLowerCase() ?? '';
-  if (previewUrl.startsWith('data:image/')) {
-    return true;
-  }
-
-  const assetUrl = attachment.assetUrl?.trim() ?? '';
-  if (IMAGE_NAME_REGEX.test(assetUrl)) {
-    return true;
-  }
-
-  const name = attachment.name?.trim() ?? '';
-  return IMAGE_NAME_REGEX.test(name);
-}
-
-function getAttachmentMessageImageSrc(attachment: Attachment): string {
-  const mimeType = attachment.type?.trim().toLowerCase() ?? '';
-  const previewUrl = attachment.previewUrl?.trim() ?? '';
-  if (mimeType === 'image/svg+xml' && previewUrl.startsWith('data:image/')) {
-    return previewUrl;
-  }
-
-  const assetUrl = attachment.assetUrl?.trim() ?? '';
-  if (assetUrl) {
-    return assetUrl;
-  }
-  return previewUrl;
-}
-
-function toImageMarkdown(src: string): string {
-  return `![image](<${src}>)`;
-}
-
-function isAbsolutePath(path: string): boolean {
-  return /^[A-Za-z]:[\\/]/.test(path) || path.startsWith('/');
-}
-
-async function resolveMentionedNoteContent(notePath: string): Promise<string> {
-  const notesState = useNotesStore.getState();
-
-  if (notesState.currentNote?.path === notePath) {
-    return notesState.currentNote.content || '';
-  }
-
-  const cached = notesState.noteContentsCache.get(notePath);
-  if (typeof cached === 'string') {
-    return cached;
-  }
-
-  const storage = getStorageAdapter();
-  try {
-    if (isAbsolutePath(notePath)) {
-      return await storage.readFile(notePath);
-    }
-    if (!notesState.notesPath) {
-      return '';
-    }
-    const fullPath = await joinPath(notesState.notesPath, notePath);
-    return await storage.readFile(fullPath);
-  } catch {
-    return '';
-  }
-}
-
-function buildMentionedNotesContext(
-  mentionedNotes: Array<NoteMentionReference & { content: string }>
-): string {
-  if (mentionedNotes.length === 0) {
-    return '';
-  }
-
-  const sections = mentionedNotes.map((note) => {
-    const boundedContent = note.content.slice(0, MAX_NOTE_MENTION_CHARS);
-    return `## ${note.title}\n${boundedContent}`;
-  });
-
-  return [
-    'Referenced notes (Markdown):',
-    '',
-    sections.join('\n\n---\n\n'),
-    '',
-    'Answer based on these notes plus the user request.',
-  ].join('\n');
-}
-
-function decodeSvgDataUrl(dataUrl: string): string | null {
-  const commaIndex = dataUrl.indexOf(',');
-  if (commaIndex < 0) {
-    return null;
-  }
-  const meta = dataUrl.slice(0, commaIndex);
-  const payload = dataUrl.slice(commaIndex + 1);
-  try {
-    if (/;base64/i.test(meta)) {
-      return window.atob(payload);
-    }
-    return decodeURIComponent(payload);
-  } catch {
-    return null;
-  }
-}
-
-function pickSvgRenderSize(svgText: string): { width: number; height: number } {
-  const clamp = (value: number) => Math.max(1, Math.min(4096, Math.round(value)));
-  const parsePositive = (value: string | undefined) => {
-    if (!value) return null;
-    const parsed = Number.parseFloat(value);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-  };
-
-  const widthMatch = /\bwidth=["']\s*([0-9.]+)(?:px)?\s*["']/i.exec(svgText);
-  const heightMatch = /\bheight=["']\s*([0-9.]+)(?:px)?\s*["']/i.exec(svgText);
-  const widthFromAttr = parsePositive(widthMatch?.[1]);
-  const heightFromAttr = parsePositive(heightMatch?.[1]);
-  if (widthFromAttr && heightFromAttr) {
-    return { width: clamp(widthFromAttr), height: clamp(heightFromAttr) };
-  }
-
-  const viewBoxMatch = /\bviewBox=["']\s*[-0-9.]+\s+[-0-9.]+\s+([0-9.]+)\s+([0-9.]+)\s*["']/i.exec(svgText);
-  const widthFromViewBox = parsePositive(viewBoxMatch?.[1]);
-  const heightFromViewBox = parsePositive(viewBoxMatch?.[2]);
-  if (widthFromViewBox && heightFromViewBox) {
-    return { width: clamp(widthFromViewBox), height: clamp(heightFromViewBox) };
-  }
-
-  return { width: 1024, height: 1024 };
-}
-
-async function rasterizeSvgDataUrlToPng(dataUrl: string): Promise<string> {
-  if (typeof window === 'undefined') {
-    return dataUrl;
-  }
-
-  const svgText = decodeSvgDataUrl(dataUrl);
-  const { width, height } = pickSvgRenderSize(svgText ?? '');
-
-  return new Promise((resolve) => {
-    const image = new Image();
-    image.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(dataUrl);
-          return;
-        }
-        ctx.clearRect(0, 0, width, height);
-        ctx.drawImage(image, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/png'));
-      } catch {
-        resolve(dataUrl);
-      }
-    };
-    image.onerror = () => resolve(dataUrl);
-    image.src = dataUrl;
-  });
-}
-
-async function normalizeVisionImageDataUrl(dataUrl: string): Promise<string> {
-  if (!SVG_DATA_URL_REGEX.test(dataUrl.trim())) {
-    return dataUrl;
-  }
-  return rasterizeSvgDataUrlToPng(dataUrl);
-}
-
-function createChunkScheduler(onFlush: (content: string) => void) {
-  let pendingContent: string | null = null;
-  let frameId: number | null = null;
-  let frameKind: 'raf' | 'timeout' | null = null;
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  const clearScheduledFlush = () => {
-    if (frameId !== null) {
-      if (frameKind === 'raf' && typeof window !== 'undefined') {
-        window.cancelAnimationFrame(frameId);
-      } else {
-        clearTimeout(frameId);
-      }
-      frameId = null;
-      frameKind = null;
-    }
-
-    if (timeoutId !== null) {
-      clearTimeout(timeoutId);
-      timeoutId = null;
-    }
-  };
-
-  const flush = () => {
-    if (pendingContent === null) {
-      clearScheduledFlush();
-      return;
-    }
-
-    const nextContent = pendingContent;
-    pendingContent = null;
-    clearScheduledFlush();
-    onFlush(nextContent);
-  };
-
-  const scheduleFlush = () => {
-    if (frameId === null) {
-      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-        frameKind = 'raf';
-        frameId = window.requestAnimationFrame(() => flush());
-      } else {
-        frameKind = 'timeout';
-        frameId = setTimeout(() => flush(), 16) as unknown as number;
-      }
-    }
-
-    if (timeoutId === null) {
-      timeoutId = setTimeout(() => flush(), STREAM_CHUNK_FLUSH_MAX_DELAY_MS);
-    }
-  };
-
-  return {
-    push(content: string) {
-      pendingContent = content;
-      scheduleFlush();
-    },
-    flushNow() {
-      flush();
-    },
-    cancel() {
-      pendingContent = null;
-      clearScheduledFlush();
-    },
-  };
-}
 
 export function useChatService() {
   const { generateAutoTitle } = useAutoTitle();
@@ -295,7 +58,7 @@ export function useChatService() {
     async (text: string, attachments: Attachment[], noteMentions: NoteMentionReference[] = []) => {
       const isTextEmpty = !text || text.trim().length === 0;
       const hasNoAttachments = !attachments || attachments.length === 0;
-      const normalizedMentions = dedupeNoteMentions(noteMentions).slice(0, MAX_NOTE_MENTION_COUNT);
+      const normalizedMentions = normalizeNoteMentions(noteMentions);
       const hasNoMentions = normalizedMentions.length === 0;
 
       if ((isTextEmpty && hasNoAttachments && hasNoMentions) || !selectedModel) return;
@@ -320,17 +83,11 @@ export function useChatService() {
       const targetSessionId = activeSessionId;
 
       let storageContent = userMessageText;
-      const messageImageSources: string[] = [];
+      let messageImageSources: string[] = [];
       if (attachments.length > 0) {
-        const imageMarkdown = attachments
-          .filter(isImageAttachment)
-          .map((a) => getAttachmentMessageImageSrc(a))
-          .filter((src) => src.length > 0)
-          .map((src) => {
-            messageImageSources.push(src);
-            return toImageMarkdown(src);
-          })
-          .join('\n\n');
+        const builtImages = buildMessageImageSources(attachments);
+        const imageMarkdown = builtImages.content;
+        messageImageSources = builtImages.imageSources;
         storageContent = imageMarkdown + (userMessageText ? `\n\n${userMessageText}` : '');
       }
 
@@ -389,15 +146,7 @@ export function useChatService() {
           customSystemPrompt
         });
 
-        const mentionedNotes = (
-          await Promise.all(
-            normalizedMentions.map(async (mention) => ({
-              ...mention,
-              content: (await resolveMentionedNoteContent(mention.path)).trim(),
-            }))
-          )
-        ).filter((note) => note.content.length > 0);
-
+        const mentionedNotes = await loadMentionedNotes(normalizedMentions);
         const notesContext = buildMentionedNotesContext(mentionedNotes);
         const requestText = userMessageText;
         const textPayload = notesContext
@@ -413,17 +162,9 @@ export function useChatService() {
             parts.push({ type: 'text', text: textPayload });
           }
           for (const att of attachments) {
-            if (isImageAttachment(att)) {
-              try {
-                const base64 = await convertToBase64(att);
-                const normalizedBase64 = await normalizeVisionImageDataUrl(base64);
-                parts.push({
-                  type: 'image_url',
-                  image_url: { url: normalizedBase64 },
-                });
-              } catch (e) {
-                console.error(e);
-              }
+            const imagePart = await normalizeVisionAttachment(att);
+            if (imagePart) {
+              parts.push(imagePart);
             }
           }
           if (parts.length > 0) {
@@ -441,6 +182,7 @@ export function useChatService() {
         );
         streamScheduler.flushNow();
         completeMessage(targetSessionId, assistantMessageId);
+        refreshManagedBudgetIfNeeded(provider.id);
 
         const current = useUnifiedStore.getState().data.ai?.currentSessionId;
         if (targetSessionId !== current && !isTemporarySession(targetSessionId)) {
@@ -542,6 +284,7 @@ export function useChatService() {
         );
         streamScheduler.flushNow();
         completeMessage(sessionId, assistantMessageId);
+        refreshManagedBudgetIfNeeded(provider.id);
       } catch (error: any) {
         streamScheduler.flushNow();
         if (error.name === 'AbortError') {
@@ -616,6 +359,7 @@ export function useChatService() {
         );
         streamScheduler.flushNow();
         completeMessage(sessionId, msgId);
+        refreshManagedBudgetIfNeeded(provider.id);
       } catch (error: any) {
         streamScheduler.flushNow();
         if (error.name === 'AbortError') {

@@ -1,10 +1,19 @@
 import { create } from 'zustand'
 import { useEffect } from 'react'
 import { useUnifiedStore } from './useUnifiedStore'
+import { useGithubSyncStore } from './useGithubSyncStore'
+import { useManagedAIStore } from './useManagedAIStore'
 import type { Provider, AIModel, ChatMessage, ChatSession, MessageVersion } from '@/lib/ai/types'
-import { generateModelName, generateModelGroup } from '@/lib/ai/utils'
+import { buildScopedModelId, generateModelName, generateModelGroup } from '@/lib/ai/utils'
 import { saveSessionJson, loadSessionJson, scheduleSessionJsonSave, cancelSessionJsonSave, deleteSessionJson } from '@/lib/storage/chatStorage'
 import { requestManager } from '@/lib/ai/requestManager'
+import {
+  MANAGED_PROVIDER_ID,
+  createManagedProvider,
+  fetchManagedModels,
+  getManagedAccessToken,
+  isManagedProviderId,
+} from '@/lib/ai/managedService'
 import {
   createTemporarySession,
   isTemporarySession,
@@ -80,6 +89,47 @@ function buildTemporarySessionState(
   };
 }
 
+function sortProviders(providers: Provider[]): Provider[] {
+  return [...providers].sort((a, b) => {
+    if (a.id === MANAGED_PROVIDER_ID) return -1
+    if (b.id === MANAGED_PROVIDER_ID) return 1
+    return a.createdAt - b.createdAt
+  })
+}
+
+function ensureManagedProvider(providers: Provider[]): Provider[] {
+  const now = Date.now()
+  const managed = providers.find((provider) => provider.id === MANAGED_PROVIDER_ID)
+  const nextManaged = createManagedProvider(managed?.createdAt || now)
+  const nextProviders = providers.filter((provider) => provider.id !== MANAGED_PROVIDER_ID)
+  nextProviders.unshift(nextManaged)
+  return sortProviders(nextProviders)
+}
+
+function chooseFallbackSelectedModelId(
+  currentSelectedModelId: string | null,
+  models: AIModel[],
+  preferredProviderId?: string | null
+): string | null {
+  if (currentSelectedModelId && models.some((model) => model.id === currentSelectedModelId)) {
+    return currentSelectedModelId
+  }
+
+  if (preferredProviderId) {
+    const preferredModel = models.find((model) => model.providerId === preferredProviderId)
+    if (preferredModel) {
+      return preferredModel.id
+    }
+  }
+
+  return models[0]?.id || null
+}
+
+function replaceProviderModels(allModels: AIModel[], providerId: string, nextModels: AIModel[]): AIModel[] {
+  const otherModels = allModels.filter((model) => model.providerId !== providerId)
+  return [...otherModels, ...nextModels]
+}
+
 export const actions = {
   addProvider: (provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>) => {
     const id = `provider-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
@@ -92,6 +142,9 @@ export const actions = {
   },
 
   updateProvider: (id: string, updates: Partial<Provider>) => {
+    if (isManagedProviderId(id)) {
+      return
+    }
     const state = useUnifiedStore.getState();
     const providers = state.data.ai?.providers || [];
     state.updateAIData({
@@ -102,25 +155,33 @@ export const actions = {
   },
 
   deleteProvider: (id: string) => {
+    if (isManagedProviderId(id)) {
+      return
+    }
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
+    const remainingModels = ai.models.filter((m) => m.providerId !== id)
     state.updateAIData({
       providers: ai.providers.filter((p) => p.id !== id),
-      models: ai.models.filter((m) => m.providerId !== id),
-      selectedModelId: ai.selectedModelId && 
-        ai.models.find(m => m.id === ai.selectedModelId)?.providerId === id
-        ? null
-        : ai.selectedModelId
+      models: remainingModels,
+      selectedModelId: chooseFallbackSelectedModelId(
+        ai.selectedModelId && ai.models.find(m => m.id === ai.selectedModelId)?.providerId === id ? null : ai.selectedModelId,
+        remainingModels
+      )
     })
   },
 
   addModel: (model: Omit<AIModel, 'createdAt'>) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
+    const apiModelId = (model.apiModelId || model.id).trim()
+    if (!apiModelId) return
     const newModel: AIModel = {
       ...model,
-      name: model.name || generateModelName(model.id),
-      group: model.group || generateModelGroup(model.id),
+      id: buildScopedModelId(model.providerId, apiModelId),
+      apiModelId,
+      name: model.name || generateModelName(apiModelId),
+      group: model.group || generateModelGroup(apiModelId),
       createdAt: Date.now()
     }
     
@@ -137,10 +198,12 @@ export const actions = {
     const now = Date.now()
     const newModels: AIModel[] = models.map((model) => ({
       ...model,
-      name: model.name || generateModelName(model.id),
-      group: model.group || generateModelGroup(model.id),
+      id: buildScopedModelId(model.providerId, (model.apiModelId || model.id).trim()),
+      apiModelId: (model.apiModelId || model.id).trim(),
+      name: model.name || generateModelName((model.apiModelId || model.id).trim()),
+      group: model.group || generateModelGroup((model.apiModelId || model.id).trim()),
       createdAt: now
-    }))
+    })).filter((model) => model.apiModelId.length > 0)
     
     const updates: any = { models: [...ai.models, ...newModels] };
     if (!ai.selectedModelId && newModels.length > 0) {
@@ -176,6 +239,31 @@ export const actions = {
 
   setIncludeTimeContext: (enabled: boolean) => {
     useUnifiedStore.getState().updateAIData({ includeTimeContext: enabled });
+  },
+
+  refreshManagedProvider: async () => {
+    const accessToken = await getManagedAccessToken()
+    if (!accessToken) {
+      throw new Error('NekoTick sign-in required')
+    }
+
+    const models = await fetchManagedModels(accessToken)
+    const store = useUnifiedStore.getState()
+    const ai = store.data.ai!
+    const nextProviders = ensureManagedProvider(ai.providers)
+    const nextModels = replaceProviderModels(ai.models, MANAGED_PROVIDER_ID, models)
+    const selectedModelId = chooseFallbackSelectedModelId(
+      ai.selectedModelId,
+      nextModels,
+      MANAGED_PROVIDER_ID
+    )
+
+    store.updateAIData({
+      providers: nextProviders,
+      models: nextModels,
+      selectedModelId,
+    })
+    await useManagedAIStore.getState().refreshBudget()
   },
 
   toggleTemporaryChat: (enabled?: boolean) => {
@@ -675,6 +763,7 @@ export const useAIStore = () => {
   const uiState = useAIUIStore();
   const loaded = useUnifiedStore(s => s.loaded);
   const load = useUnifiedStore(s => s.load);
+  const githubConnected = useGithubSyncStore((s) => s.isConnected);
 
   useEffect(() => {
       if (!loaded) {
@@ -700,6 +789,99 @@ export const useAIStore = () => {
 
     useUnifiedStore.getState().updateAIData({ temporaryChatEnabled: false });
   }, [aiData?.currentSessionId, aiData?.sessions, aiData?.temporaryChatEnabled, loaded]);
+
+  useEffect(() => {
+    if (!loaded) {
+      return;
+    }
+
+    const store = useUnifiedStore.getState();
+    const ai = store.data.ai;
+    if (!ai) return;
+
+    const nextProviders = ensureManagedProvider(ai.providers);
+    const providersChanged =
+      nextProviders.length !== ai.providers.length ||
+      nextProviders.some((provider, index) => ai.providers[index]?.id !== provider.id);
+
+    if (providersChanged) {
+      store.updateAIData({ providers: nextProviders });
+    }
+  }, [loaded]);
+
+  useEffect(() => {
+    if (!loaded || !githubConnected) {
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const accessToken = await getManagedAccessToken();
+        if (!accessToken || cancelled) return;
+
+        const models = await fetchManagedModels(accessToken);
+        if (cancelled) return;
+
+        const store = useUnifiedStore.getState();
+        const ai = store.data.ai!;
+        const nextProviders = ensureManagedProvider(ai.providers);
+        const nextModels = replaceProviderModels(ai.models, MANAGED_PROVIDER_ID, models);
+        const selectedModelId = chooseFallbackSelectedModelId(
+          ai.selectedModelId,
+          nextModels,
+          MANAGED_PROVIDER_ID
+        );
+
+        store.updateAIData({
+          providers: nextProviders,
+          models: nextModels,
+          selectedModelId,
+        });
+        void useManagedAIStore.getState().refreshBudget();
+      } catch (error) {
+        console.error('Failed to sync managed AI models from Worker', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loaded, githubConnected]);
+
+  useEffect(() => {
+    if (!loaded || githubConnected) {
+      return;
+    }
+    const store = useUnifiedStore.getState();
+    const ai = store.data.ai;
+    if (!ai) return;
+    const nextProviders = ensureManagedProvider(ai.providers);
+    const nextModels = ai.models.filter((model) => model.providerId !== MANAGED_PROVIDER_ID);
+    const nextSelectedModelId = chooseFallbackSelectedModelId(
+      ai.selectedModelId && ai.models.some((model) => model.id === ai.selectedModelId && model.providerId === MANAGED_PROVIDER_ID)
+        ? null
+        : ai.selectedModelId,
+      nextModels
+    );
+
+    const modelsChanged = nextModels.length !== ai.models.length;
+    const providersChanged =
+      nextProviders.length !== ai.providers.length ||
+      nextProviders.some((provider, index) => ai.providers[index]?.id !== provider.id);
+
+    if (!modelsChanged && !providersChanged && nextSelectedModelId === ai.selectedModelId) {
+      useManagedAIStore.getState().clearBudget();
+      return;
+    }
+
+    store.updateAIData({
+      providers: nextProviders,
+      models: nextModels,
+      selectedModelId: nextSelectedModelId,
+    });
+    useManagedAIStore.getState().clearBudget();
+  }, [loaded, githubConnected]);
 
   return {
     providers: aiData?.providers || [],

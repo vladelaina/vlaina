@@ -1,5 +1,14 @@
 import type { AIModel } from './types'
 
+export function buildScopedModelId(providerId: string, apiModelId: string): string {
+  return `${providerId}::${apiModelId}`
+}
+
+export function resolveApiModelId(model: Pick<AIModel, 'id' | 'apiModelId'> | { id: string; apiModelId?: string }): string {
+  const apiModelId = typeof model.apiModelId === 'string' ? model.apiModelId.trim() : ''
+  return apiModelId || model.id
+}
+
 export function generateModelName(modelId: string): string {
   const parts = modelId.split(/[-_/]/)
   return parts

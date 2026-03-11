@@ -4,40 +4,32 @@ import { ProviderDetail } from './ai/ProviderDetail';
 import { AIBehaviorSettings } from './ai/AIBehaviorSettings';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
+import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 
 export function AITab() {
-  const { providers, addProvider, deleteProvider } = useAIStore();
+  const { providers, addProvider } = useAIStore();
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
-  const hasAutoCreatedForEmpty = useRef(false);
 
   useEffect(() => {
     if (providers.length === 0) {
-      if (hasAutoCreatedForEmpty.current) return;
-      hasAutoCreatedForEmpty.current = true;
-      const id = addProvider({
-        name: 'New Channel',
-        type: 'newapi',
-        apiHost: '',
-        apiKey: '',
-        enabled: true
-      });
-      setSelectedProviderId(id);
+      setSelectedProviderId(null);
       return;
     }
 
-    hasAutoCreatedForEmpty.current = false;
+    const managedProvider = providers.find((provider) => provider.id === MANAGED_PROVIDER_ID);
+    const preferredId = managedProvider?.id || providers[0].id;
 
     if (!selectedProviderId) {
-      setSelectedProviderId(providers[0].id);
+      setSelectedProviderId(preferredId);
     } else {
       const exists = providers.some(p => p.id === selectedProviderId);
       if (!exists) {
-        setSelectedProviderId(providers[0].id);
+        setSelectedProviderId(preferredId);
       }
     }
-  }, [providers, selectedProviderId, addProvider]);
+  }, [providers, selectedProviderId]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -55,30 +47,22 @@ export function AITab() {
     ? providers.find(p => p.id === selectedProviderId)
     : undefined;
 
-  const handleAddCustomProvider = () => {
-    const name = `New Channel ${providers.length + 1}`;
-    const id = addProvider({
-      name,
-      type: 'newapi',
-      apiHost: '',
-      apiKey: '',
-      enabled: true
-    });
-    setSelectedProviderId(id);
-    setIsDropdownOpen(false);
-  };
-
   const handleSelectProvider = (id: string) => {
     setSelectedProviderId(id);
     setIsDropdownOpen(false);
   };
 
-  const handleDeleteProviderDirect = (id: string) => {
-    const remaining = providers.filter((provider) => provider.id !== id);
-    deleteProvider(id);
-    if (selectedProviderId === id) {
-      setSelectedProviderId(remaining[0]?.id ?? null);
-    }
+  const handleAddCustomProvider = () => {
+    const customIndex = providers.filter((provider) => provider.id !== MANAGED_PROVIDER_ID).length + 1;
+    const nextId = addProvider({
+      name: `Custom Channel ${customIndex}`,
+      type: 'newapi',
+      apiHost: '',
+      apiKey: '',
+      enabled: true,
+    });
+    setSelectedProviderId(nextId);
+    setIsDropdownOpen(false);
   };
 
   return (
@@ -124,18 +108,6 @@ export function AITab() {
                         >
                           {provider.name}
                         </button>
-                        <button
-                          type="button"
-                          onMouseDown={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            handleDeleteProviderDirect(provider.id);
-                          }}
-                          className="h-7 w-7 mr-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center justify-center"
-                          title="Delete Channel"
-                        >
-                          <Icon name="common.close" size="xs" />
-                        </button>
                       </div>
                     );
                   })}
@@ -145,11 +117,11 @@ export function AITab() {
           </div>
 
           <button
+            type="button"
             onClick={handleAddCustomProvider}
-            title="Add Channel"
-            className="h-10 w-10 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center"
+            className="h-10 px-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-white/5 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-white/10"
           >
-            <Icon name="common.add" size="sm" />
+            Add Channel
           </button>
         </div>
 

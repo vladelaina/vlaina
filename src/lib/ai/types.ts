@@ -12,6 +12,7 @@ export interface Provider {
 
 export interface AIModel {
   id: string
+  apiModelId: string
   name: string
   providerId: string
   group?: string

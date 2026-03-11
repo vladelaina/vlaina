@@ -48,6 +48,7 @@ function createStore(overrides?: Record<string, unknown>) {
       id === "model-1"
         ? {
             id: "model-1",
+            apiModelId: "model-1",
             providerId: "provider-1",
           }
         : undefined,
@@ -65,6 +66,7 @@ function createStore(overrides?: Record<string, unknown>) {
     },
     selectedModel: {
       id: "model-1",
+      apiModelId: "model-1",
       providerId: "provider-1",
     },
     isSessionLoading: vi.fn(() => false),
