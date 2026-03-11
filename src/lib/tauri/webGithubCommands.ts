@@ -156,6 +156,19 @@ export const webGithubCommands = {
     }
   },
 
+  async exchangeCode(
+    _code: string | null | undefined,
+    state: string
+  ): Promise<{
+    success: boolean;
+    username?: string;
+    sessionToken?: string;
+    avatarUrl?: string;
+    error?: string;
+  }> {
+    return this.completeAuth(state);
+  },
+
   getStatus(): {
     connected: boolean;
     username: string | null;
@@ -227,19 +240,29 @@ export const webGithubCommands = {
   },
 };
 
-export function handleOAuthCallback(): { state: string | null; error: string | null } | null {
+export function handleOAuthCallback():
+  | { state: string | null; error: string | null; code?: string | null }
+  | null {
   const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const oauthState = params.get('state');
   const state = params.get('auth_state');
   const error = params.get('auth_error');
+  const callbackError = params.get('error');
 
-  if (error) {
+  if (error || callbackError) {
     window.history.replaceState({}, '', window.location.pathname);
-    return { state, error };
+    return { state: state ?? oauthState, error: error ?? callbackError, code };
   }
 
   if (state) {
     window.history.replaceState({}, '', window.location.pathname);
-    return { state, error: null };
+    return { state, error: null, code };
+  }
+
+  if (code && oauthState) {
+    window.history.replaceState({}, '', window.location.pathname);
+    return { state: oauthState, error: null, code };
   }
 
   return null;
