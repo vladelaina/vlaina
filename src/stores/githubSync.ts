@@ -1,7 +1,7 @@
 export {
-  GITHUB_USER_PERSIST_KEY,
   useGithubSyncStore,
+  GITHUB_USER_PERSIST_KEY,
   type GithubSyncActions,
   type GithubSyncState,
   type GithubSyncStatusType,
-} from './useGithubSyncStore';
+} from './githubSync/index';

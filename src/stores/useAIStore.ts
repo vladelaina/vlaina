@@ -11,7 +11,6 @@ import {
   MANAGED_PROVIDER_ID,
   createManagedProvider,
   fetchManagedModels,
-  getManagedAccessToken,
   isManagedProviderId,
 } from '@/lib/ai/managedService'
 import {
@@ -242,12 +241,7 @@ export const actions = {
   },
 
   refreshManagedProvider: async () => {
-    const accessToken = await getManagedAccessToken()
-    if (!accessToken) {
-      throw new Error('NekoTick sign-in required')
-    }
-
-    const models = await fetchManagedModels(accessToken)
+    const models = await fetchManagedModels()
     const store = useUnifiedStore.getState()
     const ai = store.data.ai!
     const nextProviders = ensureManagedProvider(ai.providers)
@@ -817,10 +811,7 @@ export const useAIStore = () => {
     let cancelled = false;
     (async () => {
       try {
-        const accessToken = await getManagedAccessToken();
-        if (!accessToken || cancelled) return;
-
-        const models = await fetchManagedModels(accessToken);
+        const models = await fetchManagedModels();
         if (cancelled) return;
 
         const store = useUnifiedStore.getState();

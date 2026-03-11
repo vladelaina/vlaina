@@ -36,13 +36,6 @@ export const githubCommands = {
       },
     });
   },
-
-  async getManagedSessionToken() {
-    return safeInvoke<string | null>('get_managed_session_token', undefined, {
-      webFallback: null,
-    });
-  },
-
   async getManagedModels() {
     return safeInvoke<Record<string, unknown>>('get_managed_models', undefined, {
       webFallback: { data: [] },

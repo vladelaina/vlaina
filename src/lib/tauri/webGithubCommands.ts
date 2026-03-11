@@ -1,16 +1,25 @@
+import {
+  clearWebGithubCredentials,
+  getCachedWebGithubStatus,
+  loadWebGithubCredentials,
+  saveWebGithubCredentials,
+  type WebGithubStatus,
+} from './webGithubSession';
+
 const API_BASE = 'https://api.nekotick.com';
-const WEB_GITHUB_CREDS_KEY = 'nekotick_github_creds';
-const WEB_SESSION_TOKEN_KEY = 'nekotick_session_token';
+const MANAGED_MODELS_URL = `${API_BASE}/v1/models`;
 const WEB_RESULT_POLL_ATTEMPTS = 10;
 const WEB_RESULT_POLL_DELAY_MS = 300;
 const WEB_REPO_UNSUPPORTED_ERROR =
   'GitHub repository sync is only available in the desktop app';
 
-interface WebGithubCredentials {
-  username: string;
+interface WebAuthResult {
+  success: boolean;
+  pending?: boolean;
+  username?: string;
   githubId?: number;
   avatarUrl?: string;
-  lastSyncTime?: number;
+  error?: string;
 }
 
 interface WebRepoChangeOperation {
@@ -47,62 +56,40 @@ function unsupportedWebRepoError(): Error {
   return new Error(WEB_REPO_UNSUPPORTED_ERROR);
 }
 
-function getWebGithubCredentials(): WebGithubCredentials | null {
-  try {
-    const stored = localStorage.getItem(WEB_GITHUB_CREDS_KEY);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
+async function probeWebSession(): Promise<boolean> {
+  const response = await fetch(MANAGED_MODELS_URL, {
+    method: 'GET',
+    cache: 'no-store',
+    credentials: 'include',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (response.ok) {
+    return true;
   }
-}
 
-function saveWebGithubCredentials(creds: WebGithubCredentials): void {
-  localStorage.setItem(WEB_GITHUB_CREDS_KEY, JSON.stringify(creds));
-}
-
-function getWebSessionToken(): string | null {
-  try {
-    const token = sessionStorage.getItem(WEB_SESSION_TOKEN_KEY) || '';
-    const normalized = token.trim();
-    return normalized.length > 0 ? normalized : null;
-  } catch {
-    return null;
+  if (response.status === 401 || response.status === 403) {
+    clearWebGithubCredentials();
+    return false;
   }
+
+  throw new Error(`Failed to verify session: HTTP ${response.status}`);
 }
 
-function saveWebSessionToken(token: string): void {
-  try {
-    sessionStorage.setItem(WEB_SESSION_TOKEN_KEY, token);
-  } catch {
-    // no-op
+async function revokeWebSession(): Promise<void> {
+  const response = await fetch(`${API_BASE}/auth/session/revoke`, {
+    method: 'POST',
+    cache: 'no-store',
+    credentials: 'include',
+  });
+
+  if (response.ok || response.status === 401 || response.status === 403) {
+    return;
   }
-}
 
-function clearWebSessionToken(): void {
-  try {
-    sessionStorage.removeItem(WEB_SESSION_TOKEN_KEY);
-  } catch {
-    // no-op
-  }
-}
-
-function clearWebGithubCredentials(): void {
-  localStorage.removeItem(WEB_GITHUB_CREDS_KEY);
-}
-
-async function revokeWebSession(token: string | null): Promise<void> {
-  if (!token) return;
-  try {
-    await fetch(`${API_BASE}/auth/session/revoke`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      cache: 'no-store',
-    });
-  } catch {
-    // no-op
-  }
+  throw new Error(`Failed to revoke session: HTTP ${response.status}`);
 }
 
 function delay(ms: number): Promise<void> {
@@ -110,9 +97,16 @@ function delay(ms: number): Promise<void> {
 }
 
 export const webGithubCommands = {
+  clearClientSession(): void {
+    clearWebGithubCredentials();
+  },
+
   async startAuth(): Promise<{ authUrl: string; state: string } | null> {
     try {
-      const res = await fetch(`${API_BASE}/auth/github`, { cache: 'no-store' });
+      const res = await fetch(`${API_BASE}/auth/github`, {
+        cache: 'no-store',
+        credentials: 'include',
+      });
       if (!res.ok) return null;
       return res.json();
     } catch {
@@ -123,7 +117,6 @@ export const webGithubCommands = {
   async completeAuth(state: string): Promise<{
     success: boolean;
     username?: string;
-    sessionToken?: string;
     avatarUrl?: string;
     error?: string;
   }> {
@@ -134,14 +127,14 @@ export const webGithubCommands = {
         const res = await fetch(endpoint, {
           method: 'GET',
           cache: 'no-store',
+          credentials: 'include',
         });
-        const data = await res.json();
+        const data = (await res.json()) as WebAuthResult;
         if (data.pending === true && !data.success) {
           await delay(WEB_RESULT_POLL_DELAY_MS);
           continue;
         }
-        if (data.success && data.sessionToken) {
-          saveWebSessionToken(data.sessionToken);
+        if (data.success && data.username) {
           saveWebGithubCredentials({
             username: data.username,
             githubId: data.githubId,
@@ -162,43 +155,36 @@ export const webGithubCommands = {
   ): Promise<{
     success: boolean;
     username?: string;
-    sessionToken?: string;
     avatarUrl?: string;
     error?: string;
   }> {
     return this.completeAuth(state);
   },
 
-  getStatus(): {
-    connected: boolean;
-    username: string | null;
-    avatarUrl: string | null;
-    lastSyncTime: number | null;
-  } {
-    const creds = getWebGithubCredentials();
-    const token = getWebSessionToken();
-    const connected = !!creds && !!token;
-    return {
-      connected,
-      username: connected ? creds?.username || null : null,
-      avatarUrl: connected ? creds?.avatarUrl || null : null,
-      lastSyncTime: creds?.lastSyncTime || null,
-    };
+  getStatus(): WebGithubStatus {
+    return getCachedWebGithubStatus();
+  },
+
+  async probeStatus(): Promise<WebGithubStatus> {
+    const cached = getCachedWebGithubStatus();
+    try {
+      const connected = await probeWebSession();
+      return {
+        ...cached,
+        connected,
+      };
+    } catch {
+      return cached;
+    }
   },
 
   async disconnect(): Promise<void> {
-    const token = getWebSessionToken();
-    clearWebSessionToken();
+    await revokeWebSession();
     clearWebGithubCredentials();
-    await revokeWebSession(token);
-  },
-
-  getSessionToken(): string | null {
-    return getWebSessionToken();
   },
 
   updateLastSyncTime(timestamp: number): void {
-    const creds = getWebGithubCredentials();
+    const creds = loadWebGithubCredentials();
     if (creds) {
       creds.lastSyncTime = timestamp;
       saveWebGithubCredentials(creds);
@@ -260,7 +246,7 @@ export function handleOAuthCallback():
     return { state, error: null, code };
   }
 
-  if (code && oauthState) {
+  if (oauthState && code) {
     window.history.replaceState({}, '', window.location.pathname);
     return { state: oauthState, error: null, code };
   }

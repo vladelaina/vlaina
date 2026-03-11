@@ -3,7 +3,10 @@
 //! These commands are exposed to the frontend via Tauri's IPC.
 
 use crate::github::credentials::get_stored_github_token;
-use crate::github::repos::{get_display_name, RepoClient};
+use crate::github::repos::{
+    ensure_managed_content_repo_access, ensure_managed_content_repo_name, get_display_name,
+    normalize_managed_content_repo_name, RepoClient,
+};
 use crate::github::types::{
     FileContent, RepoChangeOperation, RepoChangesetCommitResult, Repository, TreeEntry,
 };
@@ -45,6 +48,19 @@ fn get_access_token(app: &tauri::AppHandle) -> Result<String, String> {
     get_stored_github_token(app).ok_or_else(|| "Not connected to GitHub".to_string())
 }
 
+async fn ensure_accessible_content_repo(
+    client: &RepoClient,
+    owner: &str,
+    repo: &str,
+) -> Result<(), String> {
+    ensure_managed_content_repo_name(repo)?;
+    let repos = client
+        .list_nekotick_repos()
+        .await
+        .map_err(|error| error.to_string())?;
+    ensure_managed_content_repo_access(&repos, owner, repo)
+}
+
 /// List user's nekotick-* repositories
 #[tauri::command]
 pub async fn list_github_repos(app: tauri::AppHandle) -> Result<Vec<RepositoryInfo>, String> {
@@ -68,6 +84,7 @@ pub async fn get_repo_tree_recursive(
 ) -> Result<Vec<TreeEntry>, String> {
     let token = get_access_token(&app)?;
     let client = RepoClient::new(token);
+    ensure_accessible_content_repo(&client, &owner, &repo).await?;
 
     client
         .get_repo_recursive_tree(&owner, &repo, &branch)
@@ -85,6 +102,7 @@ pub async fn get_repo_file_content(
 ) -> Result<FileContent, String> {
     let token = get_access_token(&app)?;
     let client = RepoClient::new(token);
+    ensure_accessible_content_repo(&client, &owner, &repo).await?;
 
     client
         .get_file_content(&owner, &repo, &path)
@@ -100,11 +118,13 @@ pub async fn create_github_repo(
     private: bool,
     description: Option<String>,
 ) -> Result<RepositoryInfo, String> {
+    let normalized_name = normalize_managed_content_repo_name(&name);
+    ensure_managed_content_repo_name(&normalized_name)?;
     let token = get_access_token(&app)?;
     let client = RepoClient::new(token);
 
     let repo = client
-        .create_repo(&name, private, description.as_deref())
+        .create_repo(&normalized_name, private, description.as_deref())
         .await
         .map_err(|e| e.to_string())?;
 
@@ -122,6 +142,7 @@ pub async fn commit_repo_changeset(
 ) -> Result<RepoChangesetCommitResult, String> {
     let token = get_access_token(&app)?;
     let client = RepoClient::new(token);
+    ensure_accessible_content_repo(&client, &owner, &repo).await?;
 
     client
         .commit_changeset(&owner, &repo, &branch, &message, &operations)

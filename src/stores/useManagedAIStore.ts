@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { fetchManagedBudget, getManagedAccessToken, type ManagedBudgetStatus } from '@/lib/ai/managedService'
+import { fetchManagedBudget, type ManagedBudgetStatus } from '@/lib/ai/managedService'
 
 interface ManagedAIState {
   budget: ManagedBudgetStatus | null
@@ -19,18 +19,7 @@ export const useManagedAIStore = create<ManagedAIState>((set) => ({
   refreshBudget: async () => {
     set({ isRefreshingBudget: true, budgetError: null })
     try {
-      const accessToken = await getManagedAccessToken()
-      if (!accessToken) {
-        set({
-          budget: null,
-          isRefreshingBudget: false,
-          budgetError: 'NekoTick sign-in required',
-          lastBudgetSyncAt: null,
-        })
-        return
-      }
-
-      const budget = await fetchManagedBudget(accessToken)
+      const budget = await fetchManagedBudget()
       set({
         budget,
         isRefreshingBudget: false,
@@ -39,8 +28,10 @@ export const useManagedAIStore = create<ManagedAIState>((set) => ({
       })
     } catch (error) {
       set({
+        budget: null,
         isRefreshingBudget: false,
         budgetError: error instanceof Error ? error.message : 'Failed to refresh budget',
+        lastBudgetSyncAt: null,
       })
     }
   },

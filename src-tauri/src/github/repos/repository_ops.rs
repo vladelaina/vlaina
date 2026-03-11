@@ -5,7 +5,7 @@ use super::api_types::{
 };
 use super::client::{RepoClient, GITHUB_API_BASE};
 use super::error::RepoApiError;
-use super::naming::{filter_nekotick_repos, NEKOTICK_PREFIX};
+use super::naming::{filter_managed_content_repos, NEKOTICK_PREFIX};
 
 impl RepoClient {
     pub async fn get_user_info(&self) -> Result<GitHubUser, RepoApiError> {
@@ -76,7 +76,7 @@ impl RepoClient {
                 break;
             }
 
-            all_repos.extend(filter_nekotick_repos(repos));
+            all_repos.extend(filter_managed_content_repos(repos));
             page += 1;
             if page > 10 {
                 break;

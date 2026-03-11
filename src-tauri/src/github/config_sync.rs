@@ -9,7 +9,7 @@ use crate::github::credentials::{
     get_data_dir, get_stored_github_token, get_stored_github_username, CONFIG_REPO_NAME,
     NEKOTICK_FOLDER,
 };
-use crate::github::repos::RepoClient;
+use crate::github::repos::{ensure_managed_config_repo_name, RepoClient};
 use crate::github::types::{RepoChangesetCommitResult, Repository};
 
 fn sync_commit_message() -> String {
@@ -21,6 +21,7 @@ fn get_nekotick_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 }
 
 async fn ensure_config_repo(token: &str, username: &str) -> Result<Repository, String> {
+    ensure_managed_config_repo_name(CONFIG_REPO_NAME)?;
     let client = RepoClient::new(token.to_string());
 
     if let Some(repo) = client
@@ -28,6 +29,7 @@ async fn ensure_config_repo(token: &str, username: &str) -> Result<Repository, S
         .await
         .map_err(|error| error.to_string())?
     {
+        ensure_managed_config_repo_name(&repo.name)?;
         return Ok(repo);
     }
 
@@ -35,7 +37,10 @@ async fn ensure_config_repo(token: &str, username: &str) -> Result<Repository, S
         .create_repo(CONFIG_REPO_NAME, true, Some("NekoTick config sync"))
         .await
     {
-        Ok(repo) => Ok(repo),
+        Ok(repo) => {
+            ensure_managed_config_repo_name(&repo.name)?;
+            Ok(repo)
+        }
         Err(error) => {
             let error_message = error.to_string();
             if !error_message.contains("422") && !error_message.contains("already exists") {
@@ -46,7 +51,10 @@ async fn ensure_config_repo(token: &str, username: &str) -> Result<Repository, S
                 .find_repo_by_name(username, CONFIG_REPO_NAME)
                 .await
                 .map_err(|lookup_error| lookup_error.to_string())?
-                .ok_or(error_message)
+                .map_or(Err(error_message), |repo| {
+                    ensure_managed_config_repo_name(&repo.name)?;
+                    Ok(repo)
+                })
         }
     }
 }
@@ -174,7 +182,10 @@ pub async fn check_config_remote(app: &tauri::AppHandle) -> Result<(bool, Option
     let client = RepoClient::new(token);
 
     match client.find_repo_by_name(&username, CONFIG_REPO_NAME).await {
-        Ok(Some(repo)) => Ok((true, Some(repo.updated_at))),
+        Ok(Some(repo)) => {
+            ensure_managed_config_repo_name(&repo.name)?;
+            Ok((true, Some(repo.updated_at)))
+        }
         Ok(None) => Ok((false, None)),
         Err(error) => Err(error.to_string()),
     }
