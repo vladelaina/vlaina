@@ -8,7 +8,6 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc("data:image/png;base64,abc")).toBe("data:image/png;base64,abc");
     expect(normalizeRenderableImageSrc("blob:https://example.com/id")).toBe("blob:https://example.com/id");
     expect(normalizeRenderableImageSrc("asset://localhost/image.png")).toBe("asset://localhost/image.png");
-    expect(normalizeRenderableImageSrc("file:///tmp/image.png")).toBe("file:///tmp/image.png");
   });
 
   it("allows relative image paths", () => {
@@ -20,6 +19,10 @@ describe("normalizeRenderableImageSrc", () => {
   it("rejects dangerous and invalid protocols", () => {
     expect(normalizeRenderableImageSrc("javascript:alert(1)")).toBeNull();
     expect(normalizeRenderableImageSrc("vbscript:msgbox(1)")).toBeNull();
+    expect(normalizeRenderableImageSrc("file:///tmp/image.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("tauri://localhost/image.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("app://localhost/image.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("asset://evilhost/image.png")).toBeNull();
     expect(normalizeRenderableImageSrc("")).toBeNull();
     expect(normalizeRenderableImageSrc("   ")).toBeNull();
     expect(normalizeRenderableImageSrc("not a url")).toBeNull();
@@ -27,16 +30,17 @@ describe("normalizeRenderableImageSrc", () => {
 });
 
 describe("createMarkdownSanitizeSchema", () => {
-  it("extends sanitize protocols to include local image schemes", () => {
+  it("limits sanitize protocols to safe image schemes", () => {
     const schema = createMarkdownSanitizeSchema();
     const hrefProtocols = schema.protocols?.href || [];
     const srcProtocols = schema.protocols?.src || [];
 
-    expect(hrefProtocols).toContain("asset");
-    expect(hrefProtocols).toContain("file");
     expect(srcProtocols).toContain("asset");
-    expect(srcProtocols).toContain("file");
     expect(srcProtocols).toContain("data");
     expect(srcProtocols).toContain("blob");
+    expect(hrefProtocols).not.toContain("asset");
+    expect(hrefProtocols).not.toContain("file");
+    expect(srcProtocols).not.toContain("file");
+    expect(srcProtocols).not.toContain("tauri");
   });
 });

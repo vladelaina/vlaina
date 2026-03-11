@@ -21,37 +21,87 @@ function inferMimeTypeFromFilename(filename: string): string {
     return 'application/octet-stream';
 }
 
+function isRelativePath(value: string): boolean {
+    return value.startsWith('/') || value.startsWith('./') || value.startsWith('../');
+}
+
+function isDirectRenderableSrc(value: string): boolean {
+    return (
+        value.startsWith('http://') ||
+        value.startsWith('https://') ||
+        value.startsWith('data:') ||
+        value.startsWith('blob:') ||
+        isRelativePath(value)
+    );
+}
+
+function sanitizeAttachmentFilename(value: string): string | null {
+    const normalized = value.trim();
+    if (!normalized || normalized === '.' || normalized === '..') {
+        return null;
+    }
+    if (!/^[A-Za-z0-9._-]{1,255}$/.test(normalized)) {
+        return null;
+    }
+    return normalized;
+}
+
+function extractAttachmentFilename(src: string): string | null {
+    const decoded = decodeURIComponent(src);
+
+    try {
+        const parsed = new URL(decoded);
+        const protocol = parsed.protocol.toLowerCase();
+        const hostname = parsed.hostname.trim().toLowerCase();
+        const pathname = parsed.pathname || '';
+
+        if (
+            protocol === 'asset:' &&
+            (hostname === 'localhost' || hostname === 'asset.localhost')
+        ) {
+            const basename = pathname.split('/').pop() || '';
+            return sanitizeAttachmentFilename(basename);
+        }
+
+        if (
+            (protocol === 'http:' || protocol === 'https:') &&
+            hostname === 'asset.localhost'
+        ) {
+            const basename = pathname.split('/').pop() || '';
+            return sanitizeAttachmentFilename(basename);
+        }
+    } catch {
+        // Fall through to path-based extraction for legacy attachment paths.
+    }
+
+    const attachmentIndex = decoded.lastIndexOf('attachments/');
+    if (attachmentIndex >= 0) {
+        const basename = decoded.slice(attachmentIndex + 'attachments/'.length).split(/[\\/]/).pop() || '';
+        return sanitizeAttachmentFilename(basename);
+    }
+
+    return null;
+}
+
 export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
     const [displaySrc, setDisplaySrc] = useState<string>('');
     const [error, setError] = useState(false);
 
     useEffect(() => {
         let active = true;
+        setError(false);
+        setDisplaySrc('');
 
         const loadLocalImage = async () => {
-            if ((src.startsWith('http') && !src.includes('asset.localhost')) || src.startsWith('https')) {
-                setDisplaySrc(src);
-                return;
-            }
-            if (src.startsWith('data:')) {
+            if (isDirectRenderableSrc(src)) {
                 setDisplaySrc(src);
                 return;
             }
 
-            if (isTauri()) {
+            const filename = extractAttachmentFilename(src);
+
+            if (isTauri() && filename) {
                 try {
-                    const decoded = decodeURIComponent(src);
-                    
-                    let filename = '';
-                    if (decoded.includes('attachments')) {
-                        const parts = decoded.split('attachments');
-                        filename = parts.pop()?.replace(/^[\\/]/, '') || '';
-                    } else {
-                        filename = decoded.split(/[\\/]/).pop() || '';
-                    }
-
-                    if (!filename) throw new Error('Invalid filename parsing');
-
                     const data = await readFile(`attachments/${filename}`, { baseDir: BaseDirectory.AppData });
                     
                     let binary = '';
@@ -69,11 +119,11 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
                 } catch (e) {
                     console.error('[LocalImage] Failed to load local image:', src, e);
                     if (active) {
-                        setDisplaySrc(src);
+                        setError(true);
                     }
                 }
             } else {
-                setDisplaySrc(src);
+                setError(true);
             }
         };
 

@@ -6,15 +6,25 @@ const IMAGE_PROTOCOL_WHITELIST = new Set([
   "data:",
   "blob:",
   "asset:",
-  "file:",
-  "tauri:",
-  "app:",
 ]);
 
 const RELATIVE_PREFIXES = ["/", "./", "../"];
 
 function isRelativePath(value: string): boolean {
   return RELATIVE_PREFIXES.some((prefix) => value.startsWith(prefix));
+}
+
+function isAllowedAssetUrl(url: URL): boolean {
+  if (url.protocol !== "asset:") {
+    return false;
+  }
+
+  const hostname = url.hostname.trim().toLowerCase();
+  if (hostname !== "localhost" && hostname !== "asset.localhost") {
+    return false;
+  }
+
+  return url.pathname.trim().length > 1;
 }
 
 export function normalizeRenderableImageSrc(src: string | null | undefined): string | null {
@@ -38,6 +48,9 @@ export function normalizeRenderableImageSrc(src: string | null | undefined): str
   try {
     const base = typeof window !== "undefined" ? window.location.href : "http://localhost";
     const parsed = new URL(trimmed, base);
+    if (parsed.protocol === "asset:") {
+      return isAllowedAssetUrl(parsed) ? trimmed : null;
+    }
     if (!IMAGE_PROTOCOL_WHITELIST.has(parsed.protocol)) {
       return null;
     }
@@ -56,8 +69,8 @@ export function createMarkdownSanitizeSchema() {
     ...defaultSchema,
     protocols: {
       ...protocols,
-      href: Array.from(new Set([...hrefProtocols, "tel", "asset", "file", "tauri", "app"])),
-      src: Array.from(new Set([...srcProtocols, "http", "https", "data", "blob", "asset", "file", "tauri", "app"])),
+      href: Array.from(new Set([...hrefProtocols, "tel"])),
+      src: Array.from(new Set([...srcProtocols, "http", "https", "data", "blob", "asset"])),
     },
   };
 }
