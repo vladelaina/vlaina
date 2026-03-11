@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect } from "react";
 import { Icon } from "@/components/ui/icons";
 import { formatDistanceToNow } from "date-fns";
-import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
+import { useGithubSyncStore } from "@/stores/githubSync";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 

@@ -35,11 +35,16 @@ export function NotesView() {
   const openTabs = useNotesStore(s => s.openTabs);
   const closeTab = useNotesStore(s => s.closeTab);
   const openNote = useNotesStore(s => s.openNote);
-  const loadFavorites = useNotesStore(s => s.loadFavorites);
+  const loadStarred = useNotesStore(s => s.loadStarred);
   const loadMetadata = useNotesStore(s => s.loadMetadata);
   const loadAssets = useNotesStore(s => s.loadAssets);
   const cleanupAssetTempFiles = useNotesStore(s => s.cleanupAssetTempFiles);
   const clearAssetUrlCache = useNotesStore(s => s.clearAssetUrlCache);
+  const revealFolder = useNotesStore(s => s.revealFolder);
+  const pendingStarredNavigation = useNotesStore(s => s.pendingStarredNavigation);
+  const setPendingStarredNavigation = useNotesStore(s => s.setPendingStarredNavigation);
+  const notesPath = useNotesStore(s => s.notesPath);
+  const rootFolder = useNotesStore(s => s.rootFolder);
 
   const { currentVault } = useVaultStore();
   const { sidebarWidth, sidebarPeeking } = useUIStore(); // unified store
@@ -53,11 +58,7 @@ export function NotesView() {
 
   useEffect(() => {
     if (!currentVault) return;
-    loadFavorites(currentVault.path);
-    loadMetadata(currentVault.path);
-    loadAssets(currentVault.path);
-    loadFileTree();
-    cleanupAssetTempFiles();
+    let cancelled = false;
 
     const unlockWindow = async () => {
       try {
@@ -66,12 +67,62 @@ export function NotesView() {
         console.error('Failed to unlock window:', e);
       }
     };
-    unlockWindow();
+
+    const initializeVault = async () => {
+      await loadStarred(currentVault.path);
+      await Promise.all([
+        loadMetadata(currentVault.path),
+        loadAssets(currentVault.path),
+        loadFileTree(),
+        cleanupAssetTempFiles(),
+      ]);
+
+      if (!cancelled) {
+        await unlockWindow();
+      }
+    };
+
+    void initializeVault();
 
     return () => {
+      cancelled = true;
       clearAssetUrlCache();
     };
-  }, [currentVault, loadFavorites, loadMetadata, loadAssets, loadFileTree, cleanupAssetTempFiles, clearAssetUrlCache]);
+  }, [currentVault, loadStarred, loadMetadata, loadAssets, loadFileTree, cleanupAssetTempFiles, clearAssetUrlCache]);
+
+  useEffect(() => {
+    if (!currentVault || !pendingStarredNavigation) return;
+    if (pendingStarredNavigation.vaultPath !== currentVault.path) return;
+    if (notesPath !== currentVault.path || !rootFolder) return;
+
+    let cancelled = false;
+
+    const navigateToStarredTarget = async () => {
+      if (pendingStarredNavigation.kind === 'folder') {
+        revealFolder(pendingStarredNavigation.relativePath);
+      } else {
+        await openNote(pendingStarredNavigation.relativePath);
+      }
+
+      if (!cancelled) {
+        setPendingStarredNavigation(null);
+      }
+    };
+
+    void navigateToStarredTarget();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    currentVault,
+    pendingStarredNavigation,
+    notesPath,
+    rootFolder,
+    revealFolder,
+    openNote,
+    setPendingStarredNavigation,
+  ]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -123,11 +174,9 @@ export function NotesView() {
   useGlobalSearch(() => setShowSearch(prev => !prev));
 
 
-  if (!currentVault) {
+  if (!currentVault && !currentNotePath) {
     return (
       <div className="h-full bg-[var(--neko-bg-primary)] relative flex flex-col">
-        {/* Minimal TitleBar for dragging - Only needed if AppShell is hidden, but if AppShell is visible, this might be double */}
-        {/* We will handle the "No Vault" case in App.tsx to hide sidebar/titlebar if desired, or show them empty */}
         <VaultWelcome />
       </div>
     );

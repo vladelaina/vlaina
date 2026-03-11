@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 import { SidebarContent } from './SidebarContent';
 import { NotesOutline } from './Outline';
+import { NotesSidebarSurface } from './NotesSidebarPrimitives';
 
 interface NotesSidebarPanelProps {
   rootFolder: any;
@@ -23,7 +24,7 @@ export function NotesSidebarPanel({
   const sidebarView = useUIStore((s) => s.notesSidebarView);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <NotesSidebarSurface isPeeking={isPeeking} className="min-h-0">
       {sidebarView === 'workspace' ? (
         <SidebarContent
           rootFolder={rootFolder}
@@ -42,6 +43,6 @@ export function NotesSidebarPanel({
           )}
         />
       )}
-    </div>
+    </NotesSidebarSurface>
   );
 }

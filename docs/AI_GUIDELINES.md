@@ -23,6 +23,7 @@ If the request would cause the code to violate these thresholds:
 * **INSTEAD**, output a **Warning Block** first:
     > ⚠️ **Refactoring Recommended**: The target file/function is becoming too complex. I suggest extracting logic into a new [Function/Class/File] named `X` before proceeding.
 * Wait for user confirmation OR provide the refactored solution structure immediately if the user implies autonomy.
+* **Deletion Timing (Recommended):** When splitting a file into new modules, prefer keeping the original file in place until the replacement has been fully wired and validated. Delete the old file only after the new structure passes the relevant checks and tests.
 
 
 ## Output Completeness **No "Lazy" Placeholders:** * Unless explicitly asked to "summarize" or "show diff only", you must output the **FULL, WORKING code**. * **Strictly Prohibited:** Do not use // ... existing code ... or // ... rest of implementation. * If modifying a large file, output the complete function or the complete file so it can be directly piped/copied.

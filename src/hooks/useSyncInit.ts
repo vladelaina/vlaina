@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
+import { useGithubSyncStore } from '@/stores/githubSync';
 import { hasBackendCommands } from '@/lib/tauri/invoke';
 import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
 import { setUnifiedStorageAutoSyncTrigger } from '@/lib/storage/unifiedStorage';

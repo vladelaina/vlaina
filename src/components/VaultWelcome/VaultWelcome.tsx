@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { LogicalSize } from '@tauri-apps/api/dpi';
 import { useVaultStore } from '@/stores/useVaultStore';
-import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
+import { useGithubSyncStore } from '@/stores/githubSync';
 import { openDialog, hasNativeDialogs } from '@/lib/storage/dialog';
 import { windowCommands, hasBackendCommands } from '@/lib/tauri/invoke';
 import { isTauri } from '@/lib/storage/adapter';

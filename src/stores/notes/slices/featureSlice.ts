@@ -3,13 +3,16 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { NotesStore, FileTreeNode, MetadataFile } from '../types';
 import {
-  saveFavoritesToFile,
   loadRecentNotes,
-  loadFavoritesFromFile,
   loadNoteMetadata,
   saveNoteMetadata,
   setNoteEntry,
 } from '../storage';
+import {
+  loadStarredForVault,
+  removeStarredEntryById,
+  toggleStarredEntry,
+} from '../starred';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -18,20 +21,24 @@ function escapeRegExp(value: string): string {
 export interface FeatureSlice {
   recentNotes: NotesStore['recentNotes'];
   noteContentsCache: NotesStore['noteContentsCache'];
+  starredEntries: NotesStore['starredEntries'];
   starredNotes: NotesStore['starredNotes'];
   starredFolders: NotesStore['starredFolders'];
-  favoritesLoaded: NotesStore['favoritesLoaded'];
+  starredLoaded: NotesStore['starredLoaded'];
+  pendingStarredNavigation: NotesStore['pendingStarredNavigation'];
   noteMetadata: MetadataFile | null;
 
-  loadFavorites: (vaultPath: string) => Promise<void>;
+  loadStarred: (vaultPath: string) => Promise<void>;
   loadMetadata: (vaultPath: string) => Promise<void>;
   scanAllNotes: () => Promise<void>;
   getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];
   getAllTags: () => { tag: string; count: number }[];
   toggleStarred: (path: string) => void;
   toggleFolderStarred: (path: string) => void;
+  removeStarredEntry: (id: string) => void;
   isStarred: (path: string) => boolean;
   isFolderStarred: (path: string) => boolean;
+  setPendingStarredNavigation: (navigation: NotesStore['pendingStarredNavigation']) => void;
   getNoteIcon: (path: string) => string | undefined;
   setNoteIcon: (path: string, emoji: string | null) => void;
   updateAllIconColors: (newColor: string) => void;
@@ -46,14 +53,15 @@ export interface FeatureSlice {
 export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> = (set, get) => ({
   recentNotes: loadRecentNotes(),
   noteContentsCache: new Map(),
+  starredEntries: [],
   starredNotes: [],
   starredFolders: [],
-  favoritesLoaded: false,
+  starredLoaded: false,
+  pendingStarredNavigation: null,
   noteMetadata: null,
 
-  loadFavorites: async (vaultPath: string) => {
-    const data = await loadFavoritesFromFile(vaultPath);
-    set({ starredNotes: data.notes, starredFolders: data.folders, favoritesLoaded: true });
+  loadStarred: async (vaultPath: string) => {
+    await loadStarredForVault(set, get, vaultPath);
   },
 
   loadMetadata: async (vaultPath: string) => {
@@ -157,28 +165,22 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
   },
 
   toggleStarred: (path: string) => {
-    const { starredNotes, starredFolders, notesPath } = get();
-    const isCurrentlyStarred = starredNotes.includes(path);
-    const updated = isCurrentlyStarred
-      ? starredNotes.filter((p) => p !== path)
-      : [...starredNotes, path];
-    set({ starredNotes: updated });
-    if (notesPath) saveFavoritesToFile(notesPath, { notes: updated, folders: starredFolders });
+    toggleStarredEntry(set, get, 'note', path);
   },
 
   toggleFolderStarred: (path: string) => {
-    const { starredNotes, starredFolders, notesPath } = get();
-    const isCurrentlyStarred = starredFolders.includes(path);
-    const updated = isCurrentlyStarred
-      ? starredFolders.filter((p) => p !== path)
-      : [...starredFolders, path];
-    set({ starredFolders: updated });
-    if (notesPath) saveFavoritesToFile(notesPath, { notes: starredNotes, folders: updated });
+    toggleStarredEntry(set, get, 'folder', path);
+  },
+
+  removeStarredEntry: (id: string) => {
+    removeStarredEntryById(set, get, id);
   },
 
   isStarred: (path: string) => get().starredNotes.includes(path),
 
   isFolderStarred: (path: string) => get().starredFolders.includes(path),
+
+  setPendingStarredNavigation: (pendingStarredNavigation) => set({ pendingStarredNavigation }),
 
   getNoteIcon: (path: string) => {
     const { noteMetadata } = get();

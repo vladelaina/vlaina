@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Icon } from '@/components/ui/icons';
-import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
+import { useGithubSyncStore } from '@/stores/githubSync';
 import { cn } from '@/lib/utils';
 
 interface SyncButtonProps {

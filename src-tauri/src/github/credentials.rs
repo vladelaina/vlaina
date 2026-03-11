@@ -23,9 +23,7 @@ pub(crate) struct GitHubCredentials {
 }
 
 pub fn get_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    app.path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())
+    app.path().app_data_dir().map_err(|e| e.to_string())
 }
 
 fn get_github_creds_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -75,7 +73,10 @@ pub(crate) fn load_github_credentials(app: &tauri::AppHandle) -> Option<GitHubCr
     serde_json::from_str(&content).ok()
 }
 
-pub(crate) fn save_github_credentials(app: &tauri::AppHandle, creds: &GitHubCredentials) -> Result<(), String> {
+pub(crate) fn save_github_credentials(
+    app: &tauri::AppHandle,
+    creds: &GitHubCredentials,
+) -> Result<(), String> {
     let path = get_github_creds_path(app)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -114,12 +115,12 @@ pub fn save_github_sync_meta(app: &tauri::AppHandle, meta: &GitHubSyncMeta) -> R
 }
 
 pub fn load_github_sync_meta(app: &tauri::AppHandle) -> GitHubSyncMeta {
-  if let Ok(path) = get_github_sync_meta_path(app) {
+    if let Ok(path) = get_github_sync_meta_path(app) {
         if let Ok(content) = fs::read_to_string(&path) {
             if let Ok(meta) = serde_json::from_str(&content) {
                 return meta;
             }
         }
-  }
-  GitHubSyncMeta::default()
+    }
+    GitHubSyncMeta::default()
 }

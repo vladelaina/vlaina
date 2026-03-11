@@ -8,6 +8,7 @@ import {
   updateFolderExpanded,
   updateFolderNode,
   collectExpandedPaths,
+  expandFoldersForPath,
   restoreExpandedState,
   addNodeToTree,
 } from '../fileTreeUtils';
@@ -16,9 +17,9 @@ import {
   ensureNotesFolder,
   loadNoteMetadata,
   loadWorkspaceState,
-  loadFavoritesFromFile,
   saveWorkspaceState,
 } from '../storage';
+import { getVaultStarredPaths } from '../starred';
 import { createNoteImpl } from '../utils/fs/crudOperations';
 import { processFolderRename } from '../utils/fs/batchOperations';
 import { deleteNoteImpl, deleteFolderImpl } from '../utils/fs/deleteOperations';
@@ -33,6 +34,7 @@ export interface FileSystemSlice {
 
   loadFileTree: (skipRestore?: boolean) => Promise<void>;
   toggleFolder: (path: string) => void;
+  revealFolder: (path: string) => void;
   createNote: (folderPath?: string) => Promise<string>;
   createNoteWithContent: (
     folderPath: string | undefined,
@@ -68,7 +70,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       const children = await buildFileTree(basePath);
       const metadata = await loadNoteMetadata(basePath);
       const workspace = await loadWorkspaceState(basePath);
-      const favorites = await loadFavoritesFromFile(basePath);
+      const starredPaths = getVaultStarredPaths(get().starredEntries, basePath);
 
       let restoredChildren = children;
       if (workspace?.expandedFolders?.length) {
@@ -87,8 +89,8 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
           expanded: true,
         },
         noteMetadata: metadata,
-        starredNotes: favorites.notes,
-        starredFolders: favorites.folders,
+        starredNotes: starredPaths.notes,
+        starredFolders: starredPaths.folders,
         isLoading: false,
       });
 
@@ -121,6 +123,22 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     if (notesPath) {
       const expandedPaths = collectExpandedPaths(updatedChildren);
       const { currentNote } = get();
+      saveWorkspaceState(notesPath, {
+        currentNotePath: currentNote?.path || null,
+        expandedFolders: Array.from(expandedPaths),
+      });
+    }
+  },
+
+  revealFolder: (path: string) => {
+    const { rootFolder, notesPath, currentNote } = get();
+    if (!rootFolder) return;
+
+    const updatedChildren = expandFoldersForPath(rootFolder.children, path);
+    set({ rootFolder: { ...rootFolder, children: updatedChildren } });
+
+    if (notesPath) {
+      const expandedPaths = collectExpandedPaths(updatedChildren);
       saveWorkspaceState(notesPath, {
         currentNotePath: currentNote?.path || null,
         expandedFolders: Array.from(expandedPaths),
@@ -172,7 +190,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       }
 
       set({
-        currentNote: { path: relativePath, content: '' },
+        currentNote: { path: relativePath, content: '', source: 'local' },
         isDirty: false,
         openTabs: updatedTabs,
         recentNotes: updatedRecent,
@@ -240,7 +258,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       }
 
       set({
-        currentNote: { path: relativePath, content },
+        currentNote: { path: relativePath, content, source: 'local' },
         isDirty: false,
         recentNotes: updatedRecent,
         openTabs: updatedTabs
@@ -253,13 +271,20 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   deleteNote: async (path: string) => {
-    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders } = get();
+    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries } = get();
     try {
-        const result = await deleteNoteImpl(notesPath, path, { rootFolder, currentNote, openTabs, starredNotes, starredFolders }, set);
+        const result = await deleteNoteImpl(
+          notesPath,
+          path,
+          { rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries },
+          set
+        );
         
         set({ 
-            openTabs: result.updatedTabs, 
-            starredNotes: result.updatedStarredNotes 
+            openTabs: result.updatedTabs,
+            starredEntries: result.updatedStarredEntries,
+            starredNotes: result.updatedStarredNotes,
+            starredFolders: result.updatedStarredFolders,
         });
 
         if (rootFolder) {
@@ -277,18 +302,20 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   renameNote: async (path: string, newName: string) => {
-    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders, noteMetadata } = get();
+    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries, noteMetadata } = get();
     try {
         const result = await renameNoteImpl(
             notesPath, path, newName, 
-            { rootFolder, currentNote, openTabs, starredNotes, starredFolders, noteMetadata }, 
+            { rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries, noteMetadata },
             set
         );
 
         if (!result) return;
 
         set({
-            starredNotes: result.updatedStarred,
+            starredEntries: result.updatedStarredEntries,
+            starredNotes: result.updatedStarredNotes,
+            starredFolders: result.updatedStarredFolders,
             noteMetadata: result.updatedMetadata,
             openTabs: result.updatedTabs,
             currentNote: result.nextCurrentNote
@@ -303,7 +330,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   renameFolder: async (path: string, newName: string) => {
-    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders } = get();
+    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries } = get();
     const storage = getStorageAdapter();
 
     try {
@@ -315,13 +342,24 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       await storage.rename(fullPath, newFullPath);
 
       const {
+          updatedStarredEntries,
           updatedStarredFolders,
           updatedStarredNotes,
           updatedTabs,
           updatedCurrentNote
-      } = await processFolderRename(notesPath, path, newName, { starredFolders, starredNotes, openTabs, currentNote }, set);
+      } = await processFolderRename(
+        notesPath,
+        path,
+        newName,
+        { starredFolders, starredNotes, starredEntries, openTabs, currentNote },
+        set
+      );
 
-      set({ starredFolders: updatedStarredFolders, starredNotes: updatedStarredNotes });
+      set({
+        starredEntries: updatedStarredEntries,
+        starredFolders: updatedStarredFolders,
+        starredNotes: updatedStarredNotes,
+      });
 
       if (rootFolder) {
         const updatedChildren = updateFolderNode(rootFolder.children, path, newName, newPath);
@@ -386,16 +424,17 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   clearNewlyCreatedFolder: () => set({ newlyCreatedFolderPath: null }),
 
   deleteFolder: async (path: string) => {
-    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders } = get();
+    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries } = get();
     try {
         const result = await deleteFolderImpl(
             notesPath, path,
-            { rootFolder, currentNote, openTabs, starredNotes, starredFolders },
+            { rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries },
             set,
             (p) => get().openNote(p)
         );
 
         set({
+            starredEntries: result.updatedStarredEntries,
             starredFolders: result.updatedStarredFolders,
             starredNotes: result.updatedStarredNotes,
             openTabs: result.updatedTabs,
@@ -418,15 +457,16 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   moveItem: async (sourcePath: string, targetFolderPath: string) => {
-    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders } = get();
+    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries } = get();
     try {
         const result = await moveItemImpl(
             notesPath, sourcePath, targetFolderPath,
-            { rootFolder, currentNote, openTabs, starredNotes, starredFolders },
+            { rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries },
             set
         );
 
         set({
+            starredEntries: result.updatedStarredEntries,
             starredNotes: result.updatedStarredNotes,
             starredFolders: result.updatedStarredFolders,
             openTabs: result.updatedTabs,

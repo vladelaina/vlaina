@@ -6,7 +6,6 @@ import {
   STORE_FOLDER,
   METADATA_FILE,
   WORKSPACE_FILE,
-  FAVORITES_FILE,
 } from './constants';
 import type { MetadataFile, NoteMetadataEntry } from './types';
 
@@ -172,47 +171,5 @@ export async function saveWorkspaceState(vaultPath: string, state: WorkspaceStat
     await safeWriteTextFile(wsPath, JSON.stringify(state, null, 2));
   } catch (error) {
     console.error('[NotesStorage] Failed to save workspace state:', error);
-  }
-}
-
-export interface FavoritesData {
-  notes: string[];
-  folders: string[];
-}
-
-export async function loadFavoritesFromFile(vaultPath: string): Promise<FavoritesData> {
-  try {
-    const storage = getStorageAdapter();
-    const favPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, STORE_FOLDER, FAVORITES_FILE);
-
-    if (!(await storage.exists(favPath))) {
-      return { notes: [], folders: [] };
-    }
-
-    const content = await storage.readFile(favPath);
-    const data = JSON.parse(content);
-    return {
-      notes: Array.isArray(data.notes) ? data.notes : [],
-      folders: Array.isArray(data.folders) ? data.folders : [],
-    };
-  } catch (error) {
-    console.error('[NotesStorage] Failed to load favorites:', error);
-    return { notes: [], folders: [] };
-  }
-}
-
-export async function saveFavoritesToFile(vaultPath: string, favorites: FavoritesData): Promise<void> {
-  try {
-    const storage = getStorageAdapter();
-    const storePath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, STORE_FOLDER);
-
-    if (!(await storage.exists(storePath))) {
-      await storage.mkdir(storePath, true);
-    }
-
-    const favPath = await joinPath(storePath, FAVORITES_FILE);
-    await safeWriteTextFile(favPath, JSON.stringify(favorites, null, 2));
-  } catch (error) {
-    console.error('[NotesStorage] Failed to save favorites:', error);
   }
 }

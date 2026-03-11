@@ -1,4 +1,5 @@
 import { type FolderNode } from '@/stores/useNotesStore';
+import { NotesSidebarEmptyState, NotesSidebarList } from '../Sidebar/NotesSidebarPrimitives';
 import { FileTreeItem } from './FileTreeItem';
 
 interface FileTreeProps {
@@ -25,19 +26,12 @@ export function FileTree({ rootFolder, isLoading, currentNotePath }: FileTreePro
 
   if (!rootFolder || rootFolder.children.length === 0) {
     return (
-      <div className="px-3 py-8 text-center">
-        <p className="text-[12px] text-[var(--neko-text-tertiary)]">
-          No notes yet
-        </p>
-        <p className="text-[11px] text-[var(--neko-text-disabled)] mt-1">
-          Click + to create one
-        </p>
-      </div>
+      <NotesSidebarEmptyState title="No notes yet" description="Click + to create one" />
     );
   }
 
   return (
-    <div className="py-1">
+    <NotesSidebarList className="py-1">
       {rootFolder.children.map((node) => (
         <FileTreeItem 
           key={node.id} 
@@ -46,6 +40,6 @@ export function FileTree({ rootFolder, isLoading, currentNotePath }: FileTreePro
           currentNotePath={currentNotePath}
         />
       ))}
-    </div>
+    </NotesSidebarList>
   );
 }

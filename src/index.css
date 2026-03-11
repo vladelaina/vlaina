@@ -187,6 +187,52 @@ html, body, #root {
   --neko-header-height: 52px;
   --neko-font-base: 16px;
   --neko-line-height: 1.6;
+  --chat-sidebar-surface: #ffffff;
+  --chat-sidebar-row-hover: #f7f7f8;
+  --chat-sidebar-row-active: #f1f1f2;
+  --chat-sidebar-text: #2f3136;
+  --chat-sidebar-text-muted: #6b7280;
+  --chat-sidebar-text-soft: #9ca3af;
+  --chat-sidebar-icon: #9ca3af;
+  --chat-sidebar-icon-hover: #6b7280;
+  --chat-sidebar-pin: #a0a7b4;
+  --chat-sidebar-status-info: #3b82f6;
+  --chat-sidebar-status-warning: #f59e0b;
+  --chat-sidebar-fade: #ffffff;
+
+  --notes-sidebar-surface: #ffffff;
+  --notes-sidebar-row-hover: #f7f7f8;
+  --notes-sidebar-row-active: #f1f1f2;
+  --notes-sidebar-row-drag: rgba(30, 150, 235, 0.1);
+  --notes-sidebar-text: #2f3136;
+  --notes-sidebar-text-muted: #6b7280;
+  --notes-sidebar-text-soft: #9ca3af;
+  --notes-sidebar-section-label: #9aa0a6;
+  --notes-sidebar-section-label-hover: #5f6670;
+  --notes-sidebar-icon: #9ca3af;
+  --notes-sidebar-icon-hover: #6b7280;
+  --notes-sidebar-file-icon: #9aa4b2;
+  --notes-sidebar-folder-icon: #c4a574;
+  --notes-sidebar-status-info: #3b82f6;
+  --notes-sidebar-status-success: #22c55e;
+  --notes-sidebar-status-warning: #f59e0b;
+  --notes-sidebar-status-danger: #ef4444;
+  --notes-sidebar-empty-surface: #f1f1f2;
+  --notes-sidebar-menu-bg: #ffffff;
+  --notes-sidebar-menu-border: rgba(17, 24, 39, 0.08);
+  --notes-sidebar-menu-shadow: 0 12px 36px -12px rgba(15, 23, 42, 0.24);
+  --notes-sidebar-fade: #ffffff;
+
+  --todo-sidebar-surface: #ffffff;
+  --todo-sidebar-row-hover: #f9f9fa;
+  --todo-sidebar-row-active: #f5f5f5;
+  --todo-sidebar-text: #1f2937;
+  --todo-sidebar-text-muted: #4b5563;
+  --todo-sidebar-text-soft: #9ca3af;
+  --todo-sidebar-icon: #9ca3af;
+  --todo-sidebar-icon-active: #1f2937;
+  --todo-sidebar-count: #9ca3af;
+  --todo-sidebar-count-active: #1f2937;
 }
 
 .dark {
@@ -211,6 +257,52 @@ html, body, #root {
   --neko-hover: rgba(255, 255, 255, 0.06);
   --neko-hover-filled: #2c2c2c;
   --neko-sidebar-bg: #161616;
+  --chat-sidebar-surface: #171717;
+  --chat-sidebar-row-hover: #1e1e1e;
+  --chat-sidebar-row-active: #232323;
+  --chat-sidebar-text: #f3f4f6;
+  --chat-sidebar-text-muted: #9ca3af;
+  --chat-sidebar-text-soft: #6b7280;
+  --chat-sidebar-icon: #6b7280;
+  --chat-sidebar-icon-hover: #d1d5db;
+  --chat-sidebar-pin: #8b93a1;
+  --chat-sidebar-status-info: #60a5fa;
+  --chat-sidebar-status-warning: #fbbf24;
+  --chat-sidebar-fade: #171717;
+
+  --notes-sidebar-surface: #171717;
+  --notes-sidebar-row-hover: #1e1e1e;
+  --notes-sidebar-row-active: #232323;
+  --notes-sidebar-row-drag: rgba(30, 150, 235, 0.15);
+  --notes-sidebar-text: #f3f4f6;
+  --notes-sidebar-text-muted: #9ca3af;
+  --notes-sidebar-text-soft: #6b7280;
+  --notes-sidebar-section-label: #6b7280;
+  --notes-sidebar-section-label-hover: #d1d5db;
+  --notes-sidebar-icon: #6b7280;
+  --notes-sidebar-icon-hover: #d1d5db;
+  --notes-sidebar-file-icon: #818cf8;
+  --notes-sidebar-folder-icon: #d0a86e;
+  --notes-sidebar-status-info: #60a5fa;
+  --notes-sidebar-status-success: #4ade80;
+  --notes-sidebar-status-warning: #fbbf24;
+  --notes-sidebar-status-danger: #f87171;
+  --notes-sidebar-empty-surface: rgba(255, 255, 255, 0.05);
+  --notes-sidebar-menu-bg: #1f1f1f;
+  --notes-sidebar-menu-border: rgba(255, 255, 255, 0.08);
+  --notes-sidebar-menu-shadow: 0 16px 40px -14px rgba(0, 0, 0, 0.45);
+  --notes-sidebar-fade: #171717;
+
+  --todo-sidebar-surface: #171717;
+  --todo-sidebar-row-hover: #1e1e1e;
+  --todo-sidebar-row-active: #222222;
+  --todo-sidebar-text: #e5e7eb;
+  --todo-sidebar-text-muted: #9ca3af;
+  --todo-sidebar-text-soft: #6b7280;
+  --todo-sidebar-icon: #6b7280;
+  --todo-sidebar-icon-active: #e5e7eb;
+  --todo-sidebar-count: #9ca3af;
+  --todo-sidebar-count-active: #e5e7eb;
 }
 
 /* ============================================

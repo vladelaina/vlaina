@@ -33,9 +33,6 @@ chrono = { version = "0.4", features = ["serde"] }
 thiserror = "1"
 open = "5"
 
-# Git operations (libgit2)
-git2 = "0.19"
-dirs = "5"
 trash = "5"
 
 [dev-dependencies]

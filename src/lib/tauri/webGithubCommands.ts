@@ -3,12 +3,48 @@ const WEB_GITHUB_CREDS_KEY = 'nekotick_github_creds';
 const WEB_SESSION_TOKEN_KEY = 'nekotick_session_token';
 const WEB_RESULT_POLL_ATTEMPTS = 10;
 const WEB_RESULT_POLL_DELAY_MS = 300;
+const WEB_REPO_UNSUPPORTED_ERROR =
+  'GitHub repository sync is only available in the desktop app';
 
 interface WebGithubCredentials {
   username: string;
   githubId?: number;
   avatarUrl?: string;
   lastSyncTime?: number;
+}
+
+interface WebRepoChangeOperation {
+  operationType: 'upsert' | 'delete';
+  path: string;
+  content?: string;
+  previousSha?: string | null;
+}
+
+interface WebRepoCommitResult {
+  sha: string;
+  message: string;
+  htmlUrl?: string;
+}
+
+interface WebRepoCommitConflict {
+  path: string;
+  reason: 'modified' | 'deleted' | 'created';
+}
+
+interface WebRepoCommittedFile {
+  path: string;
+  sha: string;
+}
+
+interface WebRepoChangesetCommitResult {
+  status: 'committed' | 'conflict';
+  commit: WebRepoCommitResult | null;
+  conflicts: WebRepoCommitConflict[];
+  updatedFiles: WebRepoCommittedFile[];
+}
+
+function unsupportedWebRepoError(): Error {
+  return new Error(WEB_REPO_UNSUPPORTED_ERROR);
 }
 
 function getWebGithubCredentials(): WebGithubCredentials | null {
@@ -120,7 +156,12 @@ export const webGithubCommands = {
     }
   },
 
-  getStatus(): { connected: boolean; username: string | null; avatarUrl: string | null; lastSyncTime: number | null } {
+  getStatus(): {
+    connected: boolean;
+    username: string | null;
+    avatarUrl: string | null;
+    lastSyncTime: number | null;
+  } {
     const creds = getWebGithubCredentials();
     const token = getWebSessionToken();
     const connected = !!creds && !!token;
@@ -149,6 +190,40 @@ export const webGithubCommands = {
       creds.lastSyncTime = timestamp;
       saveWebGithubCredentials(creds);
     }
+  },
+
+  async listRepos(): Promise<never> {
+    throw unsupportedWebRepoError();
+  },
+
+  async createRepo(
+    _name: string,
+    _isPrivate: boolean,
+    _description?: string
+  ): Promise<never> {
+    throw unsupportedWebRepoError();
+  },
+
+  async getRepoTreeRecursive(
+    _owner: string,
+    _repo: string,
+    _branch: string
+  ): Promise<never> {
+    throw unsupportedWebRepoError();
+  },
+
+  async getFileContent(_owner: string, _repo: string, _path: string): Promise<never> {
+    throw unsupportedWebRepoError();
+  },
+
+  async commitChangeset(
+    _owner: string,
+    _repo: string,
+    _branch: string,
+    _message: string,
+    _operations: WebRepoChangeOperation[]
+  ): Promise<WebRepoChangesetCommitResult> {
+    throw unsupportedWebRepoError();
   },
 };
 

@@ -3,8 +3,8 @@ import { Icon } from '@/components/ui/icons';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { IconButton } from '@/components/ui/icon-button';
 import { FileTree } from './FileTree';
-import { CollapsibleSection } from '@/components/ui/collapsible-section';
 import { type FolderNode } from '@/stores/useNotesStore';
+import { NotesSidebarSection } from '../Sidebar/NotesSidebarPrimitives';
 
 interface WorkspaceSectionProps {
     rootFolder: FolderNode | null;
@@ -23,8 +23,7 @@ export function WorkspaceSection({
 }: WorkspaceSectionProps) {
     const [expanded, setExpanded] = useState(true);
     const { currentVault } = useVaultStore();
-
-    const vaultName = currentVault?.name || 'Workspace';
+    const vaultName = currentVault?.name || 'Local Workspace';
 
     const headerActions = (
         <>
@@ -48,17 +47,23 @@ export function WorkspaceSection({
     );
 
     return (
-        <CollapsibleSection
+        <NotesSidebarSection
             title={vaultName}
             expanded={expanded}
             onToggle={() => setExpanded(!expanded)}
-            actions={headerActions}
+            actions={currentVault ? headerActions : undefined}
         >
-            <FileTree
-                rootFolder={rootFolder}
-                isLoading={isLoading}
-                currentNotePath={currentNotePath}
-            />
-        </CollapsibleSection>
+            {currentVault ? (
+                <FileTree
+                    rootFolder={rootFolder}
+                    isLoading={isLoading}
+                    currentNotePath={currentNotePath}
+                />
+            ) : (
+                <div className="px-3 py-3 text-[12px] text-[var(--notes-sidebar-text-soft)]">
+                    Open a local vault to browse local notes.
+                </div>
+            )}
+        </NotesSidebarSection>
     );
 }

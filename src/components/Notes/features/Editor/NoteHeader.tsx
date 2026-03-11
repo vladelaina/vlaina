@@ -15,6 +15,7 @@ interface NoteHeaderProps {
 }
 
 export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
+    const currentNoteSource = useNotesStore(s => s.currentNote?.source ?? 'local');
     const currentNotePath = useNotesStore(s => s.currentNote?.path);
     const setNoteIcon = useNotesStore(s => s.setNoteIcon);
     const setGlobalIconSize = useNotesStore(s => s.setGlobalIconSize);
@@ -92,6 +93,21 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
             setGlobalIconSize(size);
         }
     };
+
+    if (currentNoteSource === 'cloud') {
+        return currentNotePath ? (
+            <div className={EDITOR_LAYOUT_CLASS}>
+                <div className="mx-auto mb-4 w-full max-w-3xl px-10 pt-10">
+                    <div className="group/note-title">
+                        <NotePathBreadcrumb notePath={currentNotePath} />
+                        <div className="w-full text-[42px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--neko-text-primary)]">
+                            {noteName}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        ) : null;
+    }
 
     return (
         <HeroIconHeader

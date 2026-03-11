@@ -1,261 +1,224 @@
 import { useState, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { Icon } from '@/components/ui/icons';
-import { ToggleIcon } from '@/components/common/ToggleIcon';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
+import { useNotesStore } from '@/stores/useNotesStore';
 import { type RepositoryInfo } from '@/lib/tauri/githubRepoCommands';
-import { LocalFileTree } from './LocalFileTree';
+import { CloudRepoTree } from './CloudRepoTree';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
+import {
+  NotesSidebarContextMenu,
+  NotesSidebarContextMenuDivider,
+  NotesSidebarContextMenuItem,
+} from '../Sidebar/NotesSidebarContextMenu';
+import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 
 interface RepositoryItemProps {
-    repository: RepositoryInfo;
-    isRefreshing?: boolean;
+  repository: RepositoryInfo;
+  isRefreshing?: boolean;
 }
 
 export function RepositoryItem({ repository, isRefreshing = false }: RepositoryItemProps) {
-    const {
-        expandedRepos,
-        toggleRepoExpanded,
-        syncStatus,
-        cloningRepos,
-        syncRepository,
-        pullChanges,
-        pushChanges,
-        removeRepository,
-        hasChanges,
-        isCloned,
-    } = useGithubReposStore();
+  const {
+    expandedRepos,
+    toggleRepoExpanded,
+    syncStatus,
+    syncRepository,
+    removeRepository,
+    hasChanges,
+    getDraftCounts,
+    createRemoteNote,
+    createRemoteFolder,
+  } = useGithubReposStore();
+  const openCloudNote = useNotesStore((state) => state.openCloudNote);
 
-    const [showMenu, setShowMenu] = useState(false);
-    const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
-    const buttonRef = useRef<HTMLButtonElement>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
-    const isExpanded = expandedRepos.has(repository.id);
-    const status = syncStatus.get(repository.id) || 'not_cloned';
-    const isCloning = cloningRepos.has(repository.id);
-    const isSyncing = status === 'syncing' || isCloning;
-    const repoIsCloned = isCloned(repository.id);
-    const repoHasChanges = hasChanges(repository.id);
+  const isExpanded = expandedRepos.has(repository.id);
+  const status = syncStatus.get(repository.id) || 'synced';
+  const isSyncing = status === 'syncing';
+  const draftCounts = getDraftCounts(repository.id);
+  const repoHasChanges = hasChanges(repository.id);
 
-    const getCloudIcon = () => {
-        const iconClass = "w-[18px] h-[18px] text-amber-500";
+  const getCloudIcon = () => {
+    const iconClass = 'size-[20px] text-[var(--notes-sidebar-icon)]';
 
-        if (isRefreshing || isSyncing) {
-            return <Icon name="common.refresh" className={cn(iconClass, "animate-spin")} />;
-        }
+    if (isRefreshing || isSyncing) {
+      return <Icon name="common.refresh" className={cn(iconClass, 'animate-spin')} />;
+    }
 
-        if (!repoIsCloned) {
-            return <Icon name="file.cloudOff" className={iconClass} />;
-        }
+    if (draftCounts.conflict > 0) {
+      return (
+        <Icon
+          name="common.error"
+          className={cn(iconClass, 'text-[var(--notes-sidebar-status-danger)]')}
+        />
+      );
+    }
 
-        if (repoHasChanges) {
-            return <Icon name="common.upload" className={iconClass} />;
-        }
+    if (repoHasChanges) {
+      return (
+        <Icon
+          name="common.upload"
+          className={cn(iconClass, 'text-[var(--notes-sidebar-status-warning)]')}
+        />
+      );
+    }
 
-        switch (status) {
-            case 'synced':
-                return <Icon name="file.cloud" className={iconClass} />;
-            case 'has_changes':
-                return <Icon name="common.upload" className={iconClass} />;
-            case 'error':
-                return <Icon name="common.error" className={iconClass} />;
-            default:
-                return <Icon name="file.cloud" className={iconClass} />;
-        }
-    };
+    return <Icon name="file.cloud" className={iconClass} />;
+  };
 
-    const handleClick = useCallback(() => {
-        toggleRepoExpanded(repository.id);
-    }, [repository.id, toggleRepoExpanded]);
+  const handleClick = useCallback(() => {
+    void toggleRepoExpanded(repository.id);
+  }, [repository.id, toggleRepoExpanded]);
 
-    const handleContextMenu = (e: React.MouseEvent) => {
-        e.preventDefault();
-        if (buttonRef.current) {
-            const rect = buttonRef.current.getBoundingClientRect();
-            setMenuPosition({
-                top: rect.bottom + 4,
-                left: rect.right - 160,
-            });
-        }
-        setShowMenu(true);
-    };
+  const handleContextMenu = (event: React.MouseEvent) => {
+    event.preventDefault();
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + 4,
+        left: rect.right - 160,
+      });
+    }
+    setShowMenu(true);
+  };
 
-    const handleSyncNow = async () => {
-        setShowMenu(false);
-        await syncRepository(repository.id);
-    };
+  const handleSyncNow = async () => {
+    setShowMenu(false);
+    await syncRepository(repository.id);
+  };
 
-    const handlePull = async () => {
-        setShowMenu(false);
-        await pullChanges(repository.id);
-    };
+  const handleOpenInGitHub = () => {
+    window.open(repository.htmlUrl, '_blank');
+    setShowMenu(false);
+  };
 
-    const handlePush = async () => {
-        setShowMenu(false);
-        await pushChanges(repository.id);
-    };
+  const handleCreateNote = async () => {
+    setShowMenu(false);
+    const snapshot = await createRemoteNote(repository.id, '', undefined);
+    if (snapshot) {
+      await openCloudNote(snapshot);
+    }
+  };
 
-    const handleOpenInGitHub = () => {
-        window.open(repository.htmlUrl, '_blank');
-        setShowMenu(false);
-    };
+  const handleCreateFolder = async () => {
+    setShowMenu(false);
+    await createRemoteFolder(repository.id, '', undefined);
+  };
 
-    const handleRemove = () => {
-        removeRepository(repository.id);
-        setShowMenu(false);
-    };
+  const handleRemove = () => {
+    removeRepository(repository.id);
+    setShowMenu(false);
+  };
 
-    return (
-        <div className="relative">
-            <div
-                onClick={handleClick}
-                onContextMenu={handleContextMenu}
-                className="flex items-center h-[30px] cursor-pointer"
-            >
-                <div style={{ width: 8 }} className="flex-shrink-0" />
-
-                <div
-                    className={cn(
-                        "group flex-1 flex items-center gap-1 h-full pr-2 rounded-md transition-colors",
-                        "hover:bg-[var(--neko-hover)]"
-                    )}
-                >
-                    <span className="w-[18px] h-[18px] flex items-center justify-center">
-                        <ToggleIcon
-                            expanded={isExpanded}
-                            size="md"
-                            className="text-[var(--neko-icon-secondary)]"
-                        />
-                    </span>
-
-                    <span className="w-[18px] h-[18px] flex items-center justify-center">
-                        {getCloudIcon()}
-                    </span>
-
-                    <span className="flex-1 min-w-0 text-[13px] truncate text-[var(--neko-text-primary)]">
-                        {repository.displayName}
-                    </span>
-
-                    <button
-                        ref={buttonRef}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (!showMenu && buttonRef.current) {
-                                const rect = buttonRef.current.getBoundingClientRect();
-                                setMenuPosition({
-                                    top: rect.bottom + 4,
-                                    left: rect.right - 160,
-                                });
-                            }
-                            setShowMenu(!showMenu);
-                        }}
-                        className={cn(
-                            "p-0.5 opacity-0 group-hover:opacity-100 transition-opacity",
-                            iconButtonStyles
-                        )}
-                    >
- <Icon size="md" name="common.more" />
-                    </button>
-                </div>
-            </div>
-
-            {showMenu && createPortal(
-                <>
-                    <div
-                        className="fixed inset-0 z-[9998]"
-                        onClick={() => setShowMenu(false)}
-                    />
-                    <div
-                        style={{ top: menuPosition.top, left: menuPosition.left }}
-                        className={cn(
-                            "fixed z-[9999] min-w-[160px] py-1.5 rounded-lg shadow-lg",
-                            "bg-[var(--neko-bg-primary)] border border-[var(--neko-border)]"
-                        )}
-                    >
-                        <MenuItem
-                            icon={<Icon name="common.refresh" />}
-                            label="Sync Now"
-                            onClick={handleSyncNow}
-                            disabled={isSyncing || !repoIsCloned}
-                        />
-                        <MenuItem
-                            icon={<Icon name="common.download" />}
-                            label="Pull from Remote"
-                            onClick={handlePull}
-                            disabled={isSyncing || !repoIsCloned}
-                        />
-                        <MenuItem
-                            icon={<Icon name="common.upload" />}
-                            label="Push to Remote"
-                            onClick={handlePush}
-                            disabled={isSyncing || !repoIsCloned || !repoHasChanges}
-                        />
-                        <div className="h-px bg-[var(--neko-divider)] my-1.5 mx-2" />
-                        <MenuItem
-                            icon={<Icon name="nav.external" />}
-                            label="Open in GitHub"
-                            onClick={handleOpenInGitHub}
-                        />
-                        <div className="h-px bg-[var(--neko-divider)] my-1.5 mx-2" />
-                        <MenuItem
-                            icon={<Icon name="common.delete" />}
-                            label="Remove from List"
-                            onClick={handleRemove}
-                            danger
-                        />
-                    </div>
-                </>,
-                document.body
-            )}
-
-            {isExpanded && repoIsCloned && (
-                <LocalFileTree
-                    repoId={repository.id}
-                    owner={repository.owner}
-                    repo={repository.name}
-                    depth={1}
-                />
-            )}
-
-            {isExpanded && !repoIsCloned && isCloning && (
-                <div className="flex items-center gap-2 px-4 py-3 text-[12px] text-[var(--neko-text-tertiary)]">
- <Icon size="md" name="common.refresh" className="animate-spin" />
-                    Cloning repository...
-                </div>
-            )}
-        </div>
-    );
-}
-
-function MenuItem({
-    icon,
-    label,
-    onClick,
-    danger = false,
-    disabled = false,
-}: {
-    icon: React.ReactNode;
-    label: string;
-    onClick: () => void;
-    danger?: boolean;
-    disabled?: boolean;
-}) {
-    return (
-        <button
-            onClick={onClick}
-            disabled={disabled}
-            className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] transition-colors",
-                danger
-                    ? "text-red-500 hover:bg-red-500/10"
-                    : "text-[var(--neko-text-primary)] hover:bg-[var(--neko-hover)]",
-                disabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
-            )}
-        >
-            <span className="w-[18px] h-[18px] flex items-center justify-center [&>svg]:w-[18px] [&>svg]:h-[18px]">
-                {icon}
+  return (
+    <div className="relative">
+      <NotesSidebarRow
+        depth={0}
+        onClick={handleClick}
+        onContextMenu={handleContextMenu}
+        leadingClassName="w-10"
+        leading={
+          <div className="flex w-10 items-center gap-1">
+            <span className="flex size-[20px] items-center justify-center">
+              <CollapseTriangleAffordance
+                collapsed={!isExpanded}
+                visibility="always"
+                size={16}
+                className="size-[20px] text-[var(--notes-sidebar-icon)]"
+              />
             </span>
-            {label}
-        </button>
-    );
+            <span className="flex size-[20px] items-center justify-center">{getCloudIcon()}</span>
+          </div>
+        }
+        main={
+          <div className="min-w-0">
+            <span className="block truncate text-[13px] text-[var(--notes-sidebar-text)]">
+              {repository.displayName}
+            </span>
+            {draftCounts.dirty > 0 || draftCounts.conflict > 0 ? (
+              <span className="truncate text-[11px] text-[var(--notes-sidebar-text-soft)]">
+                {draftCounts.conflict > 0
+                  ? `${draftCounts.conflict} conflict${draftCounts.conflict > 1 ? 's' : ''}`
+                  : `${draftCounts.dirty} unsynced change${draftCounts.dirty > 1 ? 's' : ''}`}
+              </span>
+            ) : null}
+          </div>
+        }
+        actions={
+          <button
+            ref={buttonRef}
+            type="button"
+            aria-label="Open repository menu"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!showMenu && buttonRef.current) {
+                const rect = buttonRef.current.getBoundingClientRect();
+                setMenuPosition({
+                  top: rect.bottom + 4,
+                  left: rect.right - 180,
+                });
+              }
+              setShowMenu(!showMenu);
+            }}
+            className={cn(
+              'rounded-md p-1 focus:outline-none',
+              iconButtonStyles,
+              'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
+            )}
+          >
+            <Icon size="md" name="common.more" />
+          </button>
+        }
+      />
+
+      <NotesSidebarContextMenu
+        isOpen={showMenu}
+        onClose={() => setShowMenu(false)}
+        position={menuPosition}
+      >
+        <NotesSidebarContextMenuItem
+          icon={<Icon name="file.add" size="md" />}
+          label="New Note"
+          onClick={handleCreateNote}
+        />
+        <NotesSidebarContextMenuItem
+          icon={<Icon name="file.folder" size="md" />}
+          label="New Folder"
+          onClick={handleCreateFolder}
+        />
+        <NotesSidebarContextMenuDivider />
+        <NotesSidebarContextMenuItem
+          icon={<Icon name="common.refresh" size="md" />}
+          label="Sync Now"
+          onClick={handleSyncNow}
+          disabled={isSyncing}
+        />
+        <NotesSidebarContextMenuDivider />
+        <NotesSidebarContextMenuItem
+          icon={<Icon name="nav.external" size="md" />}
+          label="Open in GitHub"
+          onClick={handleOpenInGitHub}
+        />
+        <NotesSidebarContextMenuDivider />
+        <NotesSidebarContextMenuItem
+          icon={<DeleteIcon />}
+          label="Hide for Now"
+          onClick={handleRemove}
+          danger
+        />
+      </NotesSidebarContextMenu>
+
+      {isExpanded ? (
+        <CloudRepoTree
+          repoId={repository.id}
+          depth={1}
+        />
+      ) : null}
+    </div>
+  );
 }

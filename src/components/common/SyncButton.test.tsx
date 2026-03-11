@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as fc from 'fast-check';
 import { render } from '@testing-library/react';
 import { SyncButton } from './SyncButton';
-import type { GithubSyncStatusType } from '@/stores/useGithubSyncStore';
+import type { GithubSyncStatusType } from '@/stores/githubSync';
 
 interface MockSyncStore {
   isConnected: boolean;
@@ -24,7 +24,7 @@ const mockSyncStore: MockSyncStore = {
   syncError: null,
 };
 
-vi.mock('@/stores/useGithubSyncStore', () => ({
+vi.mock('@/stores/githubSync', () => ({
   useGithubSyncStore: () => mockSyncStore,
 }));
 

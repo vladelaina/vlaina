@@ -1,6 +1,6 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { removeDisplayName } from '../../displayNameUtils';
-import { saveFavoritesToFile } from '../../storage';
+import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry } from '../../starred';
 import { removeNodeFromTree } from '../../fileTreeUtils';
 
 export async function deleteNoteImpl(
@@ -13,7 +13,7 @@ export async function deleteNoteImpl(
     const fullPath = await joinPath(notesPath, path);
     await storage.deleteFile(fullPath);
 
-    const { openTabs, starredNotes, starredFolders, currentNote, rootFolder } = currentStore;
+    const { openTabs, starredEntries, currentNote, rootFolder } = currentStore;
 
     // 1. Tabs
     const updatedTabs = openTabs.filter((t: any) => t.path !== path);
@@ -21,11 +21,14 @@ export async function deleteNoteImpl(
     // 2. Display Name
     removeDisplayName(set, path);
 
-    // 3. Favorites
-    let updatedStarredNotes = starredNotes;
-    if (starredNotes.includes(path)) {
-        updatedStarredNotes = starredNotes.filter((p: string) => p !== path);
-        saveFavoritesToFile(notesPath, { notes: updatedStarredNotes, folders: starredFolders });
+    // 3. Starred
+    const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath, kind) => {
+        if (kind !== 'note') return relativePath;
+        return relativePath === path ? null : relativePath;
+    });
+    const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
+    if (starredResult.changed) {
+        void saveStarredRegistry(starredResult.entries);
     }
 
     // 4. Current Note & Navigation
@@ -46,7 +49,9 @@ export async function deleteNoteImpl(
 
     return {
         updatedTabs,
-        updatedStarredNotes,
+        updatedStarredEntries: starredResult.entries,
+        updatedStarredNotes: starredPaths.notes,
+        updatedStarredFolders: starredPaths.folders,
         nextCurrentNote,
         nextAction,
         newChildren
@@ -64,22 +69,17 @@ export async function deleteFolderImpl(
     const fullPath = await joinPath(notesPath, path);
     await storage.deleteDir(fullPath, true);
 
-    const { openTabs, starredNotes, starredFolders, currentNote, rootFolder } = currentStore;
+    const { openTabs, starredEntries, currentNote, rootFolder } = currentStore;
 
-    // 1. Favorites
-    const updatedStarredFolders = starredFolders.filter(
-        (p: string) => p !== path && !p.startsWith(path + '/')
-    );
-    const updatedStarredNotes = starredNotes.filter((p: string) => !p.startsWith(path + '/'));
-
-    if (
-        updatedStarredFolders.length !== starredFolders.length ||
-        updatedStarredNotes.length !== starredNotes.length
-    ) {
-        saveFavoritesToFile(notesPath, {
-            notes: updatedStarredNotes,
-            folders: updatedStarredFolders,
-        });
+    const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath) => {
+        if (relativePath === path || relativePath.startsWith(path + '/')) {
+            return null;
+        }
+        return relativePath;
+    });
+    const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
+    if (starredResult.changed) {
+        void saveStarredRegistry(starredResult.entries);
     }
 
     // 2. Tabs
@@ -104,8 +104,9 @@ export async function deleteFolderImpl(
     const newChildren = rootFolder ? removeNodeFromTree(rootFolder.children, path) : [];
 
     return {
-        updatedStarredFolders,
-        updatedStarredNotes,
+        updatedStarredEntries: starredResult.entries,
+        updatedStarredFolders: starredPaths.folders,
+        updatedStarredNotes: starredPaths.notes,
         updatedTabs,
         updatedCurrentNote,
         newChildren

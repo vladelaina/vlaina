@@ -37,8 +37,8 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
     const [cropParams, setCropParams] = useState<CropParams | null>(null);
 
     // Global Store
-    const notesPath = useNotesStore(s => s.notesPath);
-    const currentNotePath = useNotesStore(s => s.currentNote?.path);
+    const notesPath = useNotesStore(s => s.currentNote?.source === 'cloud' ? '' : s.notesPath);
+    const currentNotePath = useNotesStore(s => s.currentNote?.source === 'cloud' ? undefined : s.currentNote?.path);
 
     // Source Resolution
     const baseSrc = parsedSource.baseSrc;

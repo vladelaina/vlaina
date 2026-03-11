@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { selectClassName, selectStyle, settingsButtonClassName } from '../styles';
-import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
+import { useGithubSyncStore } from '@/stores/githubSync';
 import { STORAGE_KEY_AUTO_UPDATE } from '@/lib/config';
 
 export function AboutTab() {

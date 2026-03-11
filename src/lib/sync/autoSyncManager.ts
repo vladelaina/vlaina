@@ -1,4 +1,4 @@
-import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
+import { useGithubSyncStore } from '@/stores/githubSync';
 
 export interface AutoSyncConfig {
   debounceMs: number;

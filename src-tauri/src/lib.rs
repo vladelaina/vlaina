@@ -1,5 +1,5 @@
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, LogicalPosition};
 use tauri::window::Color;
+use tauri::{AppHandle, LogicalPosition, Manager, WebviewUrl, WebviewWindowBuilder};
 
 // GitHub sync module
 pub mod github;
@@ -21,7 +21,17 @@ fn escape_html(input: &str) -> String {
 
 // Create drag overlay window
 #[tauri::command]
-async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, width: f64, height: f64, is_done: bool, is_dark: bool, color: Option<String>) -> Result<(), String> {
+async fn create_drag_window(
+    app: AppHandle,
+    content: String,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    is_done: bool,
+    is_dark: bool,
+    color: Option<String>,
+) -> Result<(), String> {
     // Close existing drag window if any
     if let Some(existing) = app.get_webview_window("drag-overlay") {
         let _ = existing.destroy();
@@ -33,7 +43,7 @@ async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, wid
     } else {
         ("#fff", "#e5e5e5", "#18181b", "#a1a1aa")
     };
-    
+
     // Task color - Apple style colors
     let task_color = match color.as_deref() {
         Some("red") => "#FE002D",
@@ -45,28 +55,35 @@ async fn create_drag_window(app: AppHandle, content: String, x: f64, y: f64, wid
         Some("brown") => "#B47D58",
         _ => text_muted,
     };
-    
+
     let has_color = color.is_some() && color.as_deref() != Some("default");
-    
+
     // Style for completed tasks
     let content_style = if is_done {
         format!("text-decoration:line-through;color:{}", text_muted)
     } else {
         String::new()
     };
-    
+
     let checkbox_html = if is_done {
         format!("<svg class=\"checkbox\" viewBox=\"0 0 16 16\"><rect x=\"0.5\" y=\"0.5\" width=\"15\" height=\"15\" rx=\"2\" fill=\"{}\" stroke=\"{}\"/><path d=\"M4 8l3 3 5-6\" stroke=\"white\" stroke-width=\"2\" fill=\"none\"/></svg>", text_color, text_color)
     } else if has_color {
-        format!("<div class=\"checkbox\" style=\"border:2px solid {}\"></div>", task_color)
+        format!(
+            "<div class=\"checkbox\" style=\"border:2px solid {}\"></div>",
+            task_color
+        )
     } else {
-        format!("<div class=\"checkbox\" style=\"border-color:{}\"></div>", text_muted)
+        format!(
+            "<div class=\"checkbox\" style=\"border-color:{}\"></div>",
+            text_muted
+        )
     };
 
     let escaped_content = escape_html(&content);
 
     // HTML content - transparent background, card fills window
-    let html = format!(r#"<!DOCTYPE html>
+    let html = format!(
+        r#"<!DOCTYPE html>
 <html style="background:transparent!important">
 <head>
 <style>
@@ -98,34 +115,45 @@ body{{font-family:system-ui,-apple-system,sans-serif;display:flex}}
 <span class="content" style="{}">{}</span>
 </div>
 </body>
-</html>"#, bg_color, border_color, text_color, text_muted, text_muted, checkbox_html, content_style, escaped_content);
+</html>"#,
+        bg_color,
+        border_color,
+        text_color,
+        text_muted,
+        text_muted,
+        checkbox_html,
+        content_style,
+        escaped_content
+    );
 
     // Create transparent window - hidden first, show after setup
-    let window = WebviewWindowBuilder::new(
-        &app,
-        "drag-overlay",
-        WebviewUrl::default(),
-    )
-    .title("")
-    .inner_size(width, height)
-    .position(x - 20.0, y - (height / 2.0))
-    .decorations(false)
-    .shadow(false)
-    .background_color(Color(0, 0, 0, 0))
-    .always_on_top(true)
-    .skip_taskbar(true)
-    .resizable(false)
-    .focused(false)
-    .visible(false)
-    .build()
-    .map_err(|e| e.to_string())?;
+    let window = WebviewWindowBuilder::new(&app, "drag-overlay", WebviewUrl::default())
+        .title("")
+        .inner_size(width, height)
+        .position(x - 20.0, y - (height / 2.0))
+        .decorations(false)
+        .shadow(false)
+        .background_color(Color(0, 0, 0, 0))
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .resizable(false)
+        .focused(false)
+        .visible(false)
+        .build()
+        .map_err(|e| e.to_string())?;
 
     // Ignore cursor events so drag continues
-    window.set_ignore_cursor_events(true).map_err(|e| e.to_string())?;
+    window
+        .set_ignore_cursor_events(true)
+        .map_err(|e| e.to_string())?;
 
     // Inject HTML content safely (JSON string escaping avoids JS template injection).
     let html_json = serde_json::to_string(&html).map_err(|e| e.to_string())?;
-    window.eval(&format!(r#"document.open(); document.write({}); document.close();"#, html_json))
+    window
+        .eval(&format!(
+            r#"document.open(); document.write({}); document.close();"#,
+            html_json
+        ))
         .map_err(|e| e.to_string())?;
 
     // Show window
@@ -139,9 +167,12 @@ body{{font-family:system-ui,-apple-system,sans-serif;display:flex}}
 async fn update_drag_window_position(app: AppHandle, x: f64, y: f64) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("drag-overlay") {
         // Get window height for vertical centering
-        let size = window.outer_size().unwrap_or(tauri::PhysicalSize::new(0, 36));
+        let size = window
+            .outer_size()
+            .unwrap_or(tauri::PhysicalSize::new(0, 36));
         let half_height = (size.height as f64) / 2.0;
-        window.set_position(LogicalPosition::new(x - 20.0, y - half_height))
+        window
+            .set_position(LogicalPosition::new(x - 20.0, y - half_height))
             .map_err(|e| e.to_string())?;
     }
     Ok(())
@@ -161,7 +192,7 @@ async fn destroy_drag_window(app: AppHandle) -> Result<(), String> {
 async fn toggle_fullscreen(app: AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("main") {
         let is_maximized = window.is_maximized().map_err(|e| e.to_string())?;
-        
+
         if is_maximized {
             // Exit fullscreen - keep decorations hidden (app has custom titlebar)
             window.unmaximize().map_err(|e| e.to_string())?;
@@ -178,52 +209,49 @@ async fn toggle_fullscreen(app: AppHandle) -> Result<(), String> {
 async fn create_new_window(app: AppHandle) -> Result<(), String> {
     use std::sync::atomic::{AtomicU32, Ordering};
     static WINDOW_COUNTER: AtomicU32 = AtomicU32::new(1);
-    
+
     let window_id = WINDOW_COUNTER.fetch_add(1, Ordering::SeqCst);
     let window_label = format!("main-{}", window_id);
-    
+
     // Use URL with query param to indicate new window should show welcome screen
     let url = WebviewUrl::App("index.html?newWindow=true".into());
-    
+
     // Calculate offset position based on window count (cascade effect)
     let offset = (window_id as f64) * 30.0;
-    
+
     // Get target position before creating window
     let target_pos = if let Some(current_window) = app.get_webview_window("main") {
-        current_window.outer_position().ok().map(|pos| {
-            (pos.x as f64 + offset, pos.y as f64 + offset)
-        })
+        current_window
+            .outer_position()
+            .ok()
+            .map(|pos| (pos.x as f64 + offset, pos.y as f64 + offset))
     } else {
         None
     };
-    
+
     // Create window hidden first, with position if available
-    let mut builder = WebviewWindowBuilder::new(
-        &app,
-        &window_label,
-        url,
-    )
-    .title("Nekotick")
-    .inner_size(720.0, 660.0)
-    .min_inner_size(720.0, 540.0)
-    .decorations(false)
-    .background_color(Color(0, 0, 0, 0))
-    .resizable(false) // Start locked (Welcome mode)
-    .maximizable(false)
-    .visible(false); // Start hidden
-    
+    let mut builder = WebviewWindowBuilder::new(&app, &window_label, url)
+        .title("Nekotick")
+        .inner_size(720.0, 660.0)
+        .min_inner_size(720.0, 540.0)
+        .decorations(false)
+        .background_color(Color(0, 0, 0, 0))
+        .resizable(false) // Start locked (Welcome mode)
+        .maximizable(false)
+        .visible(false); // Start hidden
+
     // Set position in builder if we have it
     if let Some((x, y)) = target_pos {
         builder = builder.position(x, y);
     } else {
         builder = builder.center();
     }
-    
+
     let window = builder.build().map_err(|e: tauri::Error| e.to_string())?;
-    
+
     // Show window after it's positioned
     window.show().map_err(|e: tauri::Error| e.to_string())?;
-    
+
     Ok(())
 }
 
@@ -243,7 +271,9 @@ async fn focus_window(app: AppHandle, label: String) -> Result<bool, String> {
 #[tauri::command]
 async fn set_window_resizable(window: tauri::WebviewWindow, resizable: bool) -> Result<(), String> {
     window.set_resizable(resizable).map_err(|e| e.to_string())?;
-    window.set_maximizable(resizable).map_err(|e| e.to_string())?;
+    window
+        .set_maximizable(resizable)
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -269,13 +299,13 @@ pub fn run() {
             set_window_resizable,
             focus_window,
             move_to_trash,
-            github::auth_commands::github_auth,
-            github::auth_commands::github_disconnect,
-            github::auth_commands::get_github_sync_status,
-            github::auth_commands::get_managed_session_token,
-            github::auth_commands::get_managed_models,
-            github::auth_commands::get_managed_budget,
-            github::auth_commands::managed_chat_completion,
+            github::auth::commands::github_auth,
+            github::auth::commands::github_disconnect,
+            github::auth::commands::get_github_sync_status,
+            github::auth::commands::get_managed_session_token,
+            github::auth::commands::get_managed_models,
+            github::auth::commands::get_managed_budget,
+            github::auth::commands::managed_chat_completion,
             // Config sync commands
             github::config_commands::sync_config_to_github,
             github::config_commands::restore_config_from_github,
@@ -283,24 +313,10 @@ pub fn run() {
             github::config_commands::check_config_remote_data,
             // GitHub Repository commands
             github::repo_commands::list_github_repos,
-            github::repo_commands::get_repo_tree,
+            github::repo_commands::get_repo_tree_recursive,
             github::repo_commands::get_repo_file_content,
-            github::repo_commands::update_repo_file,
             github::repo_commands::create_github_repo,
-            github::repo_commands::delete_repo_file,
-            // Git local operations
-            github::git_commands::clone_github_repo,
-            github::git_commands::is_repo_cloned,
-            github::git_commands::get_repo_local_path,
-            github::git_commands::pull_github_repo,
-            github::git_commands::push_github_repo,
-            github::git_commands::commit_repo_changes,
-            github::git_commands::get_repo_status,
-            github::git_commands::get_repo_log,
-            github::git_commands::get_file_diff,
-            github::git_commands::sync_github_repo,
-            github::git_commands::delete_local_repo,
-            github::git_commands::list_local_repos
+            github::repo_commands::commit_repo_changeset,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

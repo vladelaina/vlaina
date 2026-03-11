@@ -1,5 +1,5 @@
 import { moveDisplayName } from '../../displayNameUtils';
-import { saveFavoritesToFile } from '../../storage';
+import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry } from '../../starred';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 
 export function batchUpdateTabsOnRename(
@@ -19,7 +19,7 @@ export function batchUpdateTabsOnFolderRename(
     openTabs: { path: string; name: string; isDirty: boolean }[],
     oldFolderPath: string,
     newFolderPath: string,
-    set: any // Zustand setter to update display names
+    set: any
 ) {
     return openTabs.map(tab => {
         if (tab.path.startsWith(oldFolderPath + '/')) {
@@ -48,30 +48,22 @@ export async function processFolderRename(
     currentStore: any,
     set: any
 ) {
-    const { starredFolders, starredNotes } = currentStore;
+    const { starredEntries } = currentStore;
     
     // 1. Calculate Paths
     const dirPath = path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : '';
     const newPath = dirPath ? `${dirPath}/${newName}` : newName;
     
-    // 2. Favorites Update
-    let favoritesChanged = false;
-    const updatedStarredFolders = starredFolders.map((p: string) => {
-        if (p === path) { favoritesChanged = true; return newPath; }
-        if (p.startsWith(path + '/')) { favoritesChanged = true; return p.replace(path, newPath); }
-        return p;
+    // 2. Starred Update
+    const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath, kind) => {
+        if (kind === 'folder' && relativePath === path) return newPath;
+        if (relativePath.startsWith(path + '/')) return relativePath.replace(path, newPath);
+        return relativePath;
     });
-    
-    const updatedStarredNotes = starredNotes.map((p: string) => {
-        if (p.startsWith(path + '/')) { favoritesChanged = true; return p.replace(path, newPath); }
-        return p;
-    });
+    const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
 
-    if (favoritesChanged) {
-        saveFavoritesToFile(notesPath, {
-            notes: updatedStarredNotes,
-            folders: updatedStarredFolders,
-        });
+    if (starredResult.changed) {
+        void saveStarredRegistry(starredResult.entries);
     }
 
     // 3. Tabs Update
@@ -87,8 +79,9 @@ export async function processFolderRename(
 
     return {
         newPath,
-        updatedStarredFolders,
-        updatedStarredNotes,
+        updatedStarredEntries: starredResult.entries,
+        updatedStarredFolders: starredPaths.folders,
+        updatedStarredNotes: starredPaths.notes,
         updatedTabs,
         updatedCurrentNote
     };

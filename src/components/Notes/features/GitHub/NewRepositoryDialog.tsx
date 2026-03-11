@@ -170,7 +170,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                                 )}
                             >
                                 <Icon name="file.lock" className={cn(
-                                    "w-[18px] h-[18px]",
+                                    "size-[20px]",
                                     isPrivate ? "text-[var(--neko-accent)]" : "text-[var(--neko-text-tertiary)]"
                                 )} />
                                 <div className="text-left">
@@ -199,7 +199,7 @@ export function NewRepositoryDialog({ isOpen, onClose }: NewRepositoryDialogProp
                                 )}
                             >
                                 <Icon name="file.public" className={cn(
-                                    "w-[18px] h-[18px]",
+                                    "size-[20px]",
                                     !isPrivate ? "text-[var(--neko-accent)]" : "text-[var(--neko-text-tertiary)]"
                                 )} />
                                 <div className="text-left">

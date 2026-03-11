@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useNotesOutline } from './useNotesOutline';
-import { COLLAPSE_TRIANGLE_PATH, COLLAPSE_TRIANGLE_VIEW_BOX } from '../../common/collapseTriangle';
+import { CollapseTriangleAffordance } from '../../common/collapseTrianglePrimitive';
 import {
   buildOutlineTree,
   cleanupCollapsedHeadingIds,
@@ -64,22 +64,13 @@ export function NotesOutline({ enabled, className }: NotesOutlineProps) {
                   event.stopPropagation();
                   toggleOutlineNode(node.id);
                 }}
-                className={cn(
-                  'mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-[var(--neko-text-tertiary)] transition-opacity duration-150 hover:text-[var(--neko-text-secondary)]',
-                  isCollapsed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
-                )}
+                className="mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-secondary)]"
               >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox={COLLAPSE_TRIANGLE_VIEW_BOX}
-                  fill="currentColor"
-                  className={cn('transition-transform duration-150', isCollapsed && '-rotate-90')}
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <path d={COLLAPSE_TRIANGLE_PATH} />
-                </svg>
+                <CollapseTriangleAffordance
+                  collapsed={isCollapsed}
+                  visibility="hover-unless-collapsed"
+                  size={14}
+                />
               </button>
             ) : (
               <span className="mr-1 inline-flex h-4 w-4 shrink-0" aria-hidden="true" />

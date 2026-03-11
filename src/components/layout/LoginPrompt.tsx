@@ -1,6 +1,6 @@
 import React from "react";
 import { Icon } from "@/components/ui/icons";
-import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
+import { useGithubSyncStore } from "@/stores/githubSync";
 import { useUserAvatar } from "@/hooks/useUserAvatar";
 import { cn } from "@/lib/utils";
 

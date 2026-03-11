@@ -1,11 +1,16 @@
 use crate::github::config_sync;
-use crate::github::types::{
-    GitHubSyncResult, GitHubBidirectionalSyncResult, GitHubRemoteDataInfo, GitHubSyncMeta,
-};
 use crate::github::credentials::save_github_sync_meta;
+use crate::github::types::{
+    GitHubBidirectionalSyncResult, GitHubRemoteDataInfo, GitHubSyncMeta, GitHubSyncResult,
+};
 
 fn persist_sync_time(app: &tauri::AppHandle, now: i64) {
-    let _ = save_github_sync_meta(app, &GitHubSyncMeta { last_sync_time: Some(now) });
+    let _ = save_github_sync_meta(
+        app,
+        &GitHubSyncMeta {
+            last_sync_time: Some(now),
+        },
+    );
 }
 
 #[tauri::command]
@@ -49,7 +54,9 @@ pub async fn restore_config_from_github(app: tauri::AppHandle) -> Result<GitHubS
 }
 
 #[tauri::command]
-pub async fn sync_config_bidirectional(app: tauri::AppHandle) -> Result<GitHubBidirectionalSyncResult, String> {
+pub async fn sync_config_bidirectional(
+    app: tauri::AppHandle,
+) -> Result<GitHubBidirectionalSyncResult, String> {
     match config_sync::sync_config_bidirectional(&app).await {
         Ok((pulled, pushed)) => {
             let now = chrono::Utc::now().timestamp();
@@ -73,7 +80,9 @@ pub async fn sync_config_bidirectional(app: tauri::AppHandle) -> Result<GitHubBi
 }
 
 #[tauri::command]
-pub async fn check_config_remote_data(app: tauri::AppHandle) -> Result<GitHubRemoteDataInfo, String> {
+pub async fn check_config_remote_data(
+    app: tauri::AppHandle,
+) -> Result<GitHubRemoteDataInfo, String> {
     match config_sync::check_config_remote(&app).await {
         Ok((exists, modified_time)) => Ok(GitHubRemoteDataInfo {
             exists,

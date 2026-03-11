@@ -2,6 +2,7 @@ import { useMemo, useEffect, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
+import { ChatSidebarList, ChatSidebarRow, ChatSidebarScrollArea, ChatSidebarSurface } from './ChatSidebarPrimitives';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,18 +19,18 @@ interface ChatSidebarProps {
 }
 
 export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
-  const { 
-      sessions, 
-      currentSessionId, 
+  const {
+      sessions,
+      currentSessionId,
       openNewChat,
-      switchSession, 
-      deleteSession, 
-      updateSession, 
+      switchSession,
+      deleteSession,
+      updateSession,
       isSessionLoading,
       isSessionUnread,
       markSessionRead
   } = useAIStore();
-  
+
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
@@ -71,7 +72,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
 
     window.addEventListener('neko-create-new', handleCreateNew);
     window.addEventListener('neko-delete-chat', handleDeleteChat);
-    
+
     return () => {
         window.removeEventListener('neko-create-new', handleCreateNew);
         window.removeEventListener('neko-delete-chat', handleDeleteChat);
@@ -123,17 +124,14 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
 
   return (
     <>
-      <div className={cn(
-        "h-full flex flex-col bg-white dark:bg-[#171717]",
-        isPeeking ? 'opacity-95' : ''
-      )}>
-        <div className="flex-1 overflow-y-auto px-2 py-2 neko-scrollbar">
+      <ChatSidebarSurface isPeeking={isPeeking}>
+        <ChatSidebarScrollArea>
           {!hasSessions ? (
-             <div className="px-4 py-8 text-center text-xs text-gray-400">
+             <div className="px-4 py-8 text-center text-xs text-[var(--chat-sidebar-text-soft)]">
                 No conversations yet
               </div>
           ) : (
-            <div className="flex flex-col gap-0.5">
+            <ChatSidebarList>
               {sortedSessions.map(session => {
                 const isActive = currentSessionId === session.id;
                 const isGenerating = isSessionLoading(session.id);
@@ -142,31 +140,26 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                 const displayTitle = session.title || 'New Chat';
                 const showMenuByDefault = isActive && !session.isPinned;
                 const statusIndicator = isGenerating && !isActive ? (
-                  <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] animate-pulse" />
+                  <div className="h-2 w-2 rounded-full bg-[var(--chat-sidebar-status-warning)] shadow-[0_0_8px_rgba(245,158,11,0.45)] animate-pulse" />
                 ) : isUnread ? (
-                  <div className="w-2 h-2 rounded-full bg-blue-500 shadow-sm" />
+                  <div className="h-2 w-2 rounded-full bg-[var(--chat-sidebar-status-info)] shadow-sm" />
                 ) : session.isPinned ? (
-                  <Icon name="common.pinPrimer" size={14} className="text-gray-400 dark:text-gray-500" />
+                  <Icon name="common.pinPrimer" size={14} className="text-[var(--chat-sidebar-pin)]" />
                 ) : null;
 
                 return (
-                  <div
+                  <ChatSidebarRow
                     key={session.id}
-                    className={cn(
-                      "group relative flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer transition-all duration-200 ease-out",
-                      isActive 
-                        ? "bg-[#f5f5f5] dark:bg-[#222] text-gray-900 dark:text-gray-100 font-medium" 
-                        : "text-gray-600 dark:text-gray-400 hover:bg-[#F9F9FA] dark:hover:bg-[#1E1E1E]"
-                    )}
+                    isActive={isActive}
+                    showActionsByDefault={showMenuByDefault}
                     onClick={() => {
                       if (isRenaming) {
                         return;
                       }
                       handleSwitch(session.id, isUnread);
                     }}
-                  >
-                    <div className="flex-1 truncate relative z-10 pr-8">
-                      {isRenaming ? (
+                    main={
+                      isRenaming ? (
                         <input
                           ref={renameInputRef}
                           value={renameDraft}
@@ -185,61 +178,42 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                             }
                           }}
                           className={cn(
-                            "w-full min-w-0 bg-transparent border-none outline-none p-0 m-0",
-                            "text-sm leading-5",
-                            (isGenerating || isUnread)
-                              ? "font-medium text-gray-900 dark:text-gray-100"
-                              : "text-gray-600 dark:text-gray-400"
+                            'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
+                            isGenerating || isUnread
+                              ? 'font-medium text-[var(--chat-sidebar-text)]'
+                              : 'text-[var(--chat-sidebar-text-muted)]'
                           )}
                         />
                       ) : (
-                        <span className={cn(
-                            "truncate transition-opacity block", 
-                            (isGenerating || isUnread) && "font-medium text-gray-900 dark:text-gray-100"
-                        )}>
-                            {displayTitle}
+                        <span
+                          className={cn(
+                            'block truncate transition-opacity',
+                            isGenerating || isUnread
+                              ? 'font-medium text-[var(--chat-sidebar-text)]'
+                              : undefined
+                          )}
+                        >
+                          {displayTitle}
                         </span>
-                      )}
-                    </div>
-
-                    {statusIndicator && !showMenuByDefault ? (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10 transition-opacity duration-200 pointer-events-none group-hover:opacity-0">
-                        {statusIndicator}
-                      </div>
-                    ) : null}
-
-                    <div 
-                      className={cn(
-                        "absolute right-1 top-1/2 -translate-y-1/2 flex items-center z-20",
-                        "transition-opacity duration-200",
-                        showMenuByDefault
-                          ? "opacity-100 pointer-events-auto"
-                          : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
-                      )}
-                      onClick={(e) => e.stopPropagation()} 
-                    >
-                       <div className={cn(
-                          "absolute right-full top-0 h-full w-8 bg-gradient-to-l pointer-events-none",
-                          isActive 
-                            ? "from-[#f5f5f5] to-transparent dark:from-[#222]" 
-                            : "from-white to-transparent dark:from-[#171717] group-hover:from-[#F9F9FA] dark:group-hover:from-[#1E1E1E]"
-                      )} />
-                      
+                      )
+                    }
+                    trailing={statusIndicator}
+                    actions={
                       <DropdownMenu>
-                          <DropdownMenuTrigger 
+                          <DropdownMenuTrigger
                               onClick={(e) => { e.stopPropagation(); }}
                               className={cn(
                                   "p-1 rounded-md focus:outline-none",
                                   iconButtonStyles,
-                                  isActive 
-                                    ? "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" 
-                                    : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                                  isActive
+                                    ? "text-[var(--chat-sidebar-icon-hover)] hover:text-[var(--chat-sidebar-text)]"
+                                    : "text-[var(--chat-sidebar-icon)] hover:text-[var(--chat-sidebar-icon-hover)]"
                               )}
                           >
                               <Icon name="common.more" size="md" />
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent 
-                              align="end" 
+                          <DropdownMenuContent
+                              align="end"
                               sideOffset={6}
                               onCloseAutoFocus={(event) => {
                                 if (!preventNextMenuAutoFocusRef.current) {
@@ -255,7 +229,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                   "animate-in fade-in-0 zoom-in-95 duration-75"
                               )}
                           >
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                   onSelect={() => {
                                       preventNextMenuAutoFocusRef.current = true;
                                       handleRename(session.id, session.title);
@@ -269,7 +243,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                   <Icon name="common.rename" size="md" className="mr-2 text-neutral-500 dark:text-neutral-400" />
                                   <span>Rename</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                   onClick={(e) => {
                                       e.stopPropagation();
                                       handleTogglePin(session.id, session.isPinned);
@@ -288,7 +262,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                   <span>{session.isPinned ? 'Unpin' : 'Pin'}</span>
                               </DropdownMenuItem>
                               <DropdownMenuSeparator className="bg-neutral-200 dark:bg-neutral-700 my-1 opacity-70" />
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                   onClick={(e) => {
                                       e.stopPropagation();
                                       setDeleteId(session.id);
@@ -304,14 +278,14 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                               </DropdownMenuItem>
                           </DropdownMenuContent>
                       </DropdownMenu>
-                    </div>
-                  </div>
+                    }
+                  />
                 );
               })}
-            </div>
+            </ChatSidebarList>
           )}
-        </div>
-      </div>
+        </ChatSidebarScrollArea>
+      </ChatSidebarSurface>
 
       <ConfirmDialog
         isOpen={!!deleteId}

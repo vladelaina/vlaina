@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
-import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
+import { useGithubSyncStore } from '@/stores/githubSync';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
-import { hasBackendCommands } from '@/lib/tauri/invoke';
-import { CollapsibleSection } from '@/components/ui/collapsible-section';
 import { RepositoryItem } from './RepositoryItem';
 import { NewRepositoryDialog } from './NewRepositoryDialog';
-import { cn } from '@/lib/utils';
+import { cn, iconButtonStyles } from '@/lib/utils';
+import { NotesSidebarEmptyState, NotesSidebarSection } from '../Sidebar/NotesSidebarPrimitives';
 
 function GitHubIcon({ className }: { className?: string }) {
     return (
@@ -33,16 +32,18 @@ export function GitHubSection() {
     } = useGithubReposStore();
 
     const [showNewRepoDialog, setShowNewRepoDialog] = useState(false);
+    const previousConnectedRef = useRef(isConnected);
 
     useEffect(() => {
-        if (isConnected && !sectionExpanded) {
+        if (!previousConnectedRef.current && isConnected && !sectionExpanded) {
             toggleSectionExpanded();
         }
-    }, [isConnected]);
+        previousConnectedRef.current = isConnected;
+    }, [isConnected, sectionExpanded, toggleSectionExpanded]);
 
     useEffect(() => {
-        if (isConnected && hasBackendCommands()) {
-            loadRepositories();
+        if (isConnected) {
+            void loadRepositories();
         }
     }, [isConnected, username, loadRepositories]);
 
@@ -60,17 +61,23 @@ export function GitHubSection() {
                     loadRepositories();
                 }}
                 disabled={isLoadingRepos}
-                className="p-1 rounded hover:bg-[var(--neko-hover-filled)] text-[var(--neko-text-tertiary)] transition-colors disabled:opacity-50"
+                className={cn(
+                    'rounded-md p-1 text-[var(--notes-sidebar-icon)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-icon-hover)] disabled:opacity-50',
+                    iconButtonStyles
+                )}
                 title="Refresh"
             >
- <Icon size="md" name="common.refresh" className={cn("", isLoadingRepos &&"animate-spin")} />
+ <Icon size="md" name="common.refresh" className={cn(isLoadingRepos && "animate-spin")} />
             </button>
             <button
                 onClick={(e) => {
                     e.stopPropagation();
                     setShowNewRepoDialog(true);
                 }}
-                className="p-1 rounded hover:bg-[var(--neko-hover-filled)] text-[var(--neko-text-tertiary)] transition-colors"
+                className={cn(
+                    'rounded-md p-1 text-[var(--notes-sidebar-icon)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-icon-hover)]',
+                    iconButtonStyles
+                )}
                 title="New Repository"
             >
  <Icon size="md" name="common.add" />
@@ -80,18 +87,17 @@ export function GitHubSection() {
 
     return (
         <>
-            <CollapsibleSection
-                title="GitHub"
+            <NotesSidebarSection
+                title="Cloud Repositories"
                 expanded={sectionExpanded}
                 onToggle={toggleSectionExpanded}
                 actions={headerActions}
-                className="mb-2"
             >
                 {!isConnected ? (
                     <div className="flex flex-col items-center py-3">
                         <button
                             onClick={handleConnect}
-                            disabled={isConnecting || !hasBackendCommands()}
+                            disabled={isConnecting}
                             className={cn(
                                 "flex items-center gap-2 px-4 py-2 rounded-lg",
                                 "bg-[#24292e] hover:bg-[#2f363d] text-white text-[13px] font-medium",
@@ -101,34 +107,26 @@ export function GitHubSection() {
                             {isConnecting ? (
  <Icon size="md" name="common.refresh" className="animate-spin" />
                             ) : (
-                                <GitHubIcon className="w-[18px] h-[18px]" />
+                                <GitHubIcon className="size-[20px]" />
                             )}
                             {isConnecting ? 'Connecting...' : 'Connect GitHub'}
                         </button>
-                        {!hasBackendCommands() && (
-                            <span className="text-[11px] text-[var(--neko-text-tertiary)] mt-2">
-                                Desktop app required
-                            </span>
-                        )}
                     </div>
                 ) : isLoadingRepos && !hasRepos ? (
                     <div className="flex items-center justify-center py-8">
-                        <Icon name="common.refresh" className="w-5 h-5 animate-spin text-[var(--neko-text-tertiary)]" />
+                        <Icon name="common.refresh" size="md" className="animate-spin text-[var(--notes-sidebar-icon)]" />
                     </div>
                 ) : !hasRepos ? (
-                    <div className="flex flex-col items-center gap-3 py-8">
-                        <div className="w-14 h-14 rounded-full bg-[var(--neko-bg-tertiary)] flex items-center justify-center">
-                            <Icon name="file.archive" className="w-6 h-6 text-[var(--neko-text-tertiary)]" />
-                        </div>
-                        <span className="text-[13px] text-[var(--neko-text-tertiary)]">
-                            No repositories
-                        </span>
+                    <div className="flex flex-col items-center gap-3 py-3">
+                        <NotesSidebarEmptyState
+                            icon={<Icon name="file.archive" size="md" className="text-[var(--notes-sidebar-icon)]" />}
+                            title="No repositories"
+                        />
                         <button
                             onClick={() => setShowNewRepoDialog(true)}
                             className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-md",
-                                "bg-[var(--neko-bg-tertiary)] hover:bg-[var(--neko-hover-filled)]",
-                                "text-[var(--neko-text-secondary)] text-[12px]",
+                                "flex items-center gap-2 rounded-md px-3 py-1.5",
+                                "bg-[var(--notes-sidebar-row-active)] text-[12px] text-[var(--notes-sidebar-text-muted)] hover:bg-[var(--notes-sidebar-row-hover)]",
                                 "transition-colors"
                             )}
                         >
@@ -145,7 +143,7 @@ export function GitHubSection() {
                 )}
 
                 {error && (
-                    <div className="mx-2 mb-2 p-2 rounded-md bg-red-500/10 border border-red-500/20">
+                    <div className="mx-2 mb-2 rounded-xl border border-red-500/20 bg-red-500/10 p-2">
                         <p className="text-[12px] text-red-400">{error}</p>
                         <button
                             onClick={clearError}
@@ -155,7 +153,7 @@ export function GitHubSection() {
                         </button>
                     </div>
                 )}
-            </CollapsibleSection>
+            </NotesSidebarSection>
 
             <NewRepositoryDialog
                 isOpen={showNewRepoDialog}
