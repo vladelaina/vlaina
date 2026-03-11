@@ -2,6 +2,7 @@ use crate::github::{
     config_sync,
     credentials::{
         delete_github_credentials, get_stored_app_session_token, save_github_credentials,
+        update_stored_app_session_token,
         GitHubCredentials,
     },
     types::{GitHubAuthResult, GitHubSyncStatus},
@@ -13,6 +14,8 @@ use super::{
     oauth_api::{read_api_base_url, request_worker_auth_start, wait_for_worker_auth_result},
     status::get_github_sync_status_impl,
 };
+
+const APP_SESSION_HEADER: &str = "x-app-session-token";
 
 fn error_result(error: String) -> GitHubAuthResult {
     GitHubAuthResult {
@@ -50,6 +53,7 @@ fn require_managed_session_token(app: &tauri::AppHandle) -> Result<String, Strin
 }
 
 async fn request_managed_json(
+    app: &tauri::AppHandle,
     session_token: &str,
     method: reqwest::Method,
     url: String,
@@ -71,6 +75,17 @@ async fn request_managed_json(
         .send()
         .await
         .map_err(|e| format!("Managed API request failed: {}", e))?;
+
+    if let Some(rotated_token) = response
+        .headers()
+        .get(APP_SESSION_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        update_stored_app_session_token(app, rotated_token.to_string())
+            .map_err(|e| format!("Failed to persist rotated session token: {}", e))?;
+    }
 
     let status = response.status();
     let raw_body = response
@@ -203,6 +218,7 @@ pub async fn get_github_sync_status(app: tauri::AppHandle) -> Result<GitHubSyncS
 pub async fn get_managed_models(app: tauri::AppHandle) -> Result<Value, String> {
     let session_token = require_managed_session_token(&app)?;
     request_managed_json(
+        &app,
         &session_token,
         reqwest::Method::GET,
         managed_models_url(),
@@ -215,6 +231,7 @@ pub async fn get_managed_models(app: tauri::AppHandle) -> Result<Value, String> 
 pub async fn get_managed_budget(app: tauri::AppHandle) -> Result<Value, String> {
     let session_token = require_managed_session_token(&app)?;
     request_managed_json(
+        &app,
         &session_token,
         reqwest::Method::GET,
         managed_budget_url(),
@@ -227,6 +244,7 @@ pub async fn get_managed_budget(app: tauri::AppHandle) -> Result<Value, String> 
 pub async fn managed_chat_completion(app: tauri::AppHandle, body: Value) -> Result<Value, String> {
     let session_token = require_managed_session_token(&app)?;
     request_managed_json(
+        &app,
         &session_token,
         reqwest::Method::POST,
         managed_chat_completions_url(),

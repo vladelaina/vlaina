@@ -153,6 +153,16 @@ pub fn get_stored_app_session_token(app: &tauri::AppHandle) -> Option<String> {
     load_github_credentials(app).and_then(|c| c.app_session_token)
 }
 
+pub fn update_stored_app_session_token(
+    app: &tauri::AppHandle,
+    app_session_token: String,
+) -> Result<(), String> {
+    let mut creds = load_github_credentials(app)
+        .ok_or_else(|| "GitHub credentials not found".to_string())?;
+    creds.app_session_token = Some(app_session_token);
+    save_github_credentials(app, &creds)
+}
+
 pub fn get_stored_github_username(app: &tauri::AppHandle) -> Option<String> {
     load_github_credentials(app).map(|c| c.username)
 }
