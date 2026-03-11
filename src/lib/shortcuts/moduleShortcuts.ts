@@ -33,7 +33,6 @@ const COMMON_SECTIONS: ModuleShortcutSection[] = [
     title: 'General',
     shortcuts: [
       { action: 'Show shortcuts', keys: ['Ctrl', '/'] },
-      { action: 'Toggle sidebar', keys: resolveShortcutKeys('toggleSidebar', ['Ctrl', '\\']) },
       { action: 'Global search', keys: resolveShortcutKeys('globalSearch', ['Ctrl', 'F']) },
       { action: 'Toggle drawer', keys: resolveShortcutKeys('toggleDrawer', ['Ctrl', 'D']) },
       { action: 'Open settings', keys: resolveShortcutKeys('open-settings', ['Ctrl', ',']) },

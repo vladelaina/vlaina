@@ -47,7 +47,7 @@ export function NotesView() {
   const rootFolder = useNotesStore(s => s.rootFolder);
 
   const { currentVault } = useVaultStore();
-  const { sidebarWidth, sidebarPeeking } = useUIStore(); // unified store
+  const sidebarWidth = useUIStore((s) => s.sidebarWidth);
 
   const [showSearch, setShowSearch] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -187,10 +187,7 @@ export function NotesView() {
       <div className="h-full w-full relative flex min-w-0">
         <div className="flex-1 min-w-0">
           {currentNotePath ? (
-            <MarkdownEditor
-              peekOffset={sidebarWidth}
-              isPeeking={sidebarPeeking}
-            />
+            <MarkdownEditor peekOffset={sidebarWidth} />
           ) : (
             <div className="flex-1 h-full" />
           )}
@@ -230,7 +227,7 @@ export function NotesView() {
               </button>
             </TooltipTrigger>
             <TooltipContent side="left" sideOffset={5} className="flex items-center gap-1.5 text-xs">
-              <span>Toggle Sidebar</span>
+              <span>Toggle chat panel</span>
               <ShortcutKeys keys={['Ctrl', 'L']} />
             </TooltipContent>
           </Tooltip>

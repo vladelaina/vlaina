@@ -13,7 +13,6 @@ const DEFAULT_VAULT_CONFIG = {
 
 const DEFAULT_WORKSPACE_STATE = {
   lastOpenedFile: null,
-  sidebarCollapsed: false,
 };
 
 const WELCOME_NOTE_NAME = 'Welcome';

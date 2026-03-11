@@ -9,7 +9,6 @@ import type { ShortcutConfig } from './types';
  */
 export const DEFAULT_SHORTCUTS: ShortcutConfig[] = [
   // Global Navigation & Actions
-  { id: 'toggleSidebar', keys: ['Ctrl', '\\'], description: 'Toggle sidebar', scope: 'global', isSystem: true },
   { id: 'globalSearch', keys: ['Ctrl', 'F'], description: 'Global Search', scope: 'global', isSystem: true },
   
   // App Specific

@@ -9,10 +9,7 @@ interface AppShellProps {
   sidebarContent?: ReactNode;
   sidebarWidth: number;
   sidebarCollapsed: boolean;
-  onSidebarWidthChange: (width: number) => void;
   onSidebarToggle: () => void;
-  onPeekChange?: (isPeeking: boolean) => void;
-  sidebarPeekContent?: ReactNode;
   
   titleBarLeft?: ReactNode;
   titleBarCenter?: ReactNode;
@@ -28,10 +25,7 @@ export function AppShell({
   sidebarContent,
   sidebarWidth,
   sidebarCollapsed,
-  onSidebarWidthChange,
   onSidebarToggle,
-  onPeekChange,
-  sidebarPeekContent,
   
   titleBarLeft,
   titleBarCenter,
@@ -64,10 +58,7 @@ export function AppShell({
           <UnifiedSidebarContainer
             width={sidebarWidth}
             collapsed={sidebarCollapsed}
-            onWidthChange={onSidebarWidthChange}
-            onPeekChange={onPeekChange}
             backgroundColor={backgroundColor}
-            peekContent={sidebarPeekContent}
           >
             {sidebarContent}
           </UnifiedSidebarContainer>

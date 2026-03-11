@@ -88,9 +88,7 @@ function AppContent() {
     appViewMode,
     sidebarCollapsed,
     sidebarWidth,
-    setSidebarWidth,
     toggleSidebar,
-    setSidebarPeeking,
     setAppViewMode
   } = useUIStore();
   const { currentVault, initialize } = useVaultStore();
@@ -154,7 +152,6 @@ function AppContent() {
   );
 
   let sidebarContent = null;
-  let sidebarPeekContent = null;
 
   if (appViewMode === 'calendar') {
     sidebarContent = (
@@ -174,20 +171,10 @@ function AppContent() {
         <ChatSidebar isPeeking={false} />
       </Suspense>
     );
-    sidebarPeekContent = (
-      <Suspense fallback={null}>
-        <ChatSidebar isPeeking={true} />
-      </Suspense>
-    );
   } else if (appViewMode === 'notes' && currentVault) {
     sidebarContent = (
       <Suspense fallback={null}>
         <NotesSidebarWrapper isPeeking={false} />
-      </Suspense>
-    );
-    sidebarPeekContent = (
-      <Suspense fallback={null}>
-        <NotesSidebarWrapper isPeeking={true} />
       </Suspense>
     );
   }
@@ -259,12 +246,8 @@ function AppContent() {
       <AppShell
         sidebarWidth={sidebarWidth}
         sidebarCollapsed={sidebarCollapsed}
-        onSidebarWidthChange={setSidebarWidth}
         onSidebarToggle={toggleSidebar}
-        onPeekChange={setSidebarPeeking}
-
         sidebarContent={sidebarContent}
-        sidebarPeekContent={sidebarPeekContent || sidebarContent}
 
         titleBarLeft={
           (appViewMode !== 'notes' || currentVault) ? (

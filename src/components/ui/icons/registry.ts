@@ -171,7 +171,6 @@ export const icons: Record<string, IconSource> = {
   'sidebar.calendar': CalendarIcon,
   'sidebar.stats': ChartPieIcon,
   'sidebar.completed': CheckCircleIcon,
-  'sidebar.collapse': ChevronDoubleLeftIcon,
   'sidebar.panel': ViewColumnsIcon,
   
   // --- User/Auth ---

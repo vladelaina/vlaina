@@ -16,11 +16,10 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
   const { scope = 'global', handlers: extraHandlers = {} } = options;
   
   const { activeGroupId, archiveCompletedTasks, setActiveGroup } = useGroupStore();
-  const { toggleDrawer, appViewMode, toggleSidebar } = useAppUIStore();
+  const { toggleDrawer, appViewMode } = useAppUIStore();
   const { createNote, currentNote } = useNotesStore();
 
   const builtinHandlers = useMemo<Record<string, ShortcutHandler>>(() => ({
-    toggleSidebar: toggleSidebar,
     globalSearch: () => {
       window.dispatchEvent(new Event('neko-open-search'));
     },
@@ -43,7 +42,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       }
     },
     openArchive: () => setActiveGroup('__archive__'),
-  }), [toggleSidebar, createNote, currentNote?.path, toggleDrawer, activeGroupId, archiveCompletedTasks, setActiveGroup]);
+  }), [createNote, currentNote?.path, toggleDrawer, activeGroupId, archiveCompletedTasks, setActiveGroup]);
 
   const handlers = useMemo(() => ({
     ...builtinHandlers,

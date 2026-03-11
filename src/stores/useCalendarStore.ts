@@ -88,7 +88,7 @@ export function useCalendarStore() {
     dayStartTime: settingsStore.data.settings.dayStartTime ?? DEFAULT_DAY_START_TIME,
 
     selectedDate: uiStore.selectedDate,
-    showSidebar: !uiStore.sidebarCollapsed,
+    showSidebar: true,
     showContextPanel: uiStore.showContextPanel,
     editingEventId: uiStore.editingEventId,
     editingEventPosition: uiStore.editingEventPosition,
@@ -119,7 +119,6 @@ export function useCalendarStore() {
     setDayStartTime: settingsStore.setDayStartTime,
 
     setSelectedDate: uiStore.setSelectedDate,
-    toggleSidebar: uiStore.toggleSidebar,
     toggleContextPanel: uiStore.toggleContextPanel,
     setEditingEventId: uiStore.setEditingEventId,
     setSelectedEventId: uiStore.setSelectedEventId,
