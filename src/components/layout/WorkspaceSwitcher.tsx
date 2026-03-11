@@ -1,7 +1,7 @@
 import React, { useCallback } from "react";
 import { Icon } from "@/components/ui/icons";
 import * as Popover from "@radix-ui/react-popover";
-import { useGithubSyncStore } from "@/stores/useGithubSyncStore";
+import { useGithubSyncStore } from "@/stores/githubSync";
 import { useUserAvatar } from "@/hooks/useUserAvatar";
 import { cn } from "@/lib/utils";
 import { LoginPrompt } from "./LoginPrompt";

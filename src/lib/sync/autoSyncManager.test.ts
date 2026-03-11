@@ -7,10 +7,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import * as fc from 'fast-check';
 import { getAutoSyncManager, resetAutoSyncManager, AutoSyncConfig } from './autoSyncManager';
-import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
+import { useGithubSyncStore } from '@/stores/githubSync';
 
 // Mock store
-vi.mock('@/stores/useGithubSyncStore', () => ({
+vi.mock('@/stores/githubSync', () => ({
   useGithubSyncStore: {
     getState: vi.fn(() => ({
       isConnected: true,

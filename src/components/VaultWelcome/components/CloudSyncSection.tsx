@@ -1,4 +1,4 @@
-import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
+import { useGithubSyncStore } from '@/stores/githubSync';
 import {
   Tooltip,
   TooltipContent,

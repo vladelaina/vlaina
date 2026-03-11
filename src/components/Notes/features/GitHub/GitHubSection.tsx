@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
-import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
+import { useGithubSyncStore } from '@/stores/githubSync';
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { RepositoryItem } from './RepositoryItem';
 import { NewRepositoryDialog } from './NewRepositoryDialog';

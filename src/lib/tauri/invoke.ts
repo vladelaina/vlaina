@@ -55,6 +55,6 @@ export const windowCommands = {
   },
 };
 
-export { githubCommands } from './githubAuthCommands';
+export { githubSyncCommands } from './githubSyncCommands';
 export { githubRepoCommands, type RepositoryInfo, type TreeEntry, type FileContent, type CommitResult } from './githubRepoCommands';
 export { webGithubCommands, handleOAuthCallback } from './webGithubCommands';
