@@ -1,4 +1,8 @@
 import { githubRepoCommands } from '@/lib/tauri/githubRepoCommands';
+import {
+  filterManagedContentRepositories,
+  isManagedContentRepoName,
+} from '@/lib/tauri/githubManagedRepoPolicy';
 import { friendlySyncError } from '@/lib/sync/syncErrors';
 import { createCloudNoteLogicalPath } from './ids';
 import { createRepositoryStatus } from './syncState';
@@ -34,7 +38,9 @@ export function createCloudRepoRepositoryActions(
     loadRepositories: async () => {
       set({ isLoadingRepos: true, error: null });
       try {
-        const repositories = await githubRepoCommands.listRepos();
+        const repositories = filterManagedContentRepositories(
+          await githubRepoCommands.listRepos()
+        );
         set({ repositories, isLoadingRepos: false });
         await Promise.all(
           repositories.map((repository) => runtime.hydrateRepository(repository.id))
@@ -52,7 +58,7 @@ export function createCloudRepoRepositoryActions(
     createRepository: async (name, isPrivate, description) => {
       try {
         const repository = await githubRepoCommands.createRepo(name, isPrivate, description);
-        if (!repository) return null;
+        if (!repository || !isManagedContentRepoName(repository.name)) return null;
         set((state) => ({
           repositories: [repository, ...state.repositories],
           syncStatus: createRepositoryStatus(state.syncStatus, repository.id, 'synced'),

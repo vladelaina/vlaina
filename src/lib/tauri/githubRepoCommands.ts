@@ -1,4 +1,9 @@
 import { isTauri } from '@/lib/storage/adapter';
+import {
+  assertManagedContentRepoName,
+  filterManagedContentRepositories,
+  normalizeManagedContentRepoName,
+} from './githubManagedRepoPolicy';
 import { safeInvoke } from './invoke';
 import { webGithubCommands } from './webGithubCommands';
 
@@ -63,15 +68,16 @@ export interface RepoChangesetCommitResult {
 export const githubRepoCommands = {
   async listRepos(): Promise<RepositoryInfo[]> {
     if (!isTauri()) {
-      return webGithubCommands.listRepos();
+      return filterManagedContentRepositories(await webGithubCommands.listRepos());
     }
     const result = await safeInvoke<RepositoryInfo[]>('list_github_repos', undefined, {
       webFallback: [],
     });
-    return result || [];
+    return filterManagedContentRepositories(result || []);
   },
 
   async getRepoTreeRecursive(owner: string, repo: string, branch: string): Promise<TreeEntry[]> {
+    assertManagedContentRepoName(repo);
     if (!isTauri()) {
       return webGithubCommands.getRepoTreeRecursive(owner, repo, branch);
     }
@@ -86,6 +92,7 @@ export const githubRepoCommands = {
   },
 
   async getFileContent(owner: string, repo: string, path: string): Promise<FileContent | null> {
+    assertManagedContentRepoName(repo);
     if (!isTauri()) {
       return webGithubCommands.getFileContent(owner, repo, path);
     }
@@ -102,6 +109,7 @@ export const githubRepoCommands = {
     message: string,
     operations: RepoChangeOperation[]
   ): Promise<RepoChangesetCommitResult> {
+    assertManagedContentRepoName(repo);
     if (!isTauri()) {
       return webGithubCommands.commitChangeset(owner, repo, branch, message, operations);
     }
@@ -132,13 +140,15 @@ export const githubRepoCommands = {
     isPrivate: boolean,
     description?: string
   ): Promise<RepositoryInfo | null> {
+    const normalizedName = normalizeManagedContentRepoName(name);
+    assertManagedContentRepoName(normalizedName);
     if (!isTauri()) {
-      return webGithubCommands.createRepo(name, isPrivate, description);
+      return webGithubCommands.createRepo(normalizedName, isPrivate, description);
     }
     const result = await safeInvoke<RepositoryInfo>(
       'create_github_repo',
       {
-        name,
+        name: normalizedName,
         private: isPrivate,
         description,
       },
@@ -146,6 +156,6 @@ export const githubRepoCommands = {
         webFallback: undefined,
       }
     );
-    return result || null;
+    return result ? filterManagedContentRepositories([result])[0] ?? null : null;
   },
 };

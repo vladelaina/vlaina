@@ -15,8 +15,8 @@ vi.mock('@/lib/tauri/githubRepoCommands', () => ({
 
 describe('cloud repo repository actions', () => {
   it('loadRepositories hydrates every returned repository', async () => {
-    const first = createRepository({ id: 1, name: 'one' });
-    const second = createRepository({ id: 2, name: 'two' });
+    const first = createRepository({ id: 1, name: 'nekotick-one' });
+    const second = createRepository({ id: 2, name: 'nekotick-two' });
     const { state, get, set } = createCloudRepoStoreHarness();
     const runtime = createRuntimeMock({
       hydrateRepository: vi.fn(async () => undefined),
@@ -32,10 +32,44 @@ describe('cloud repo repository actions', () => {
     expect(state.isLoadingRepos).toBe(false);
   });
 
+  it('loadRepositories keeps only managed content repositories', async () => {
+    const first = createRepository({ id: 1, name: 'nekotick-one' });
+    const second = createRepository({ id: 2, name: 'other' });
+    const third = createRepository({ id: 3, name: 'nekotick-config' });
+    const { state, get, set } = createCloudRepoStoreHarness();
+    const runtime = createRuntimeMock({
+      hydrateRepository: vi.fn(async () => undefined),
+    });
+    githubRepoCommandsMock.listRepos.mockResolvedValue([first, second, third]);
+    const actions = createCloudRepoRepositoryActions(set, get, runtime);
+
+    await actions.loadRepositories();
+
+    expect(state.repositories).toEqual([first]);
+    expect(runtime.hydrateRepository).toHaveBeenCalledWith(1);
+    expect(runtime.hydrateRepository).not.toHaveBeenCalledWith(2);
+    expect(runtime.hydrateRepository).not.toHaveBeenCalledWith(3);
+    expect(state.isLoadingRepos).toBe(false);
+  });
+
   it('createRepository prepends the new repository and initializes sync status', async () => {
-    const repository = createRepository({ id: 9, name: 'new-repo' });
+    const repository = createRepository({
+      id: 9,
+      name: 'nekotick-new-repo',
+      displayName: 'new-repo',
+      fullName: 'owner/nekotick-new-repo',
+      htmlUrl: 'https://example.test/owner/nekotick-new-repo',
+    });
     const { state, get, set } = createCloudRepoStoreHarness({
-      repositories: [createRepository({ id: 1, name: 'old-repo' })],
+      repositories: [
+        createRepository({
+          id: 1,
+          name: 'nekotick-old-repo',
+          displayName: 'old-repo',
+          fullName: 'owner/nekotick-old-repo',
+          htmlUrl: 'https://example.test/owner/nekotick-old-repo',
+        }),
+      ],
     });
     githubRepoCommandsMock.createRepo.mockResolvedValue(repository);
     const actions = createCloudRepoRepositoryActions(set, get, createRuntimeMock());

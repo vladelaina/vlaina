@@ -34,12 +34,12 @@ import { useGithubReposStore } from './store';
 function createRepository(overrides: Partial<RepositoryInfo> = {}): RepositoryInfo {
   return {
     id: 1,
-    name: 'repo',
+    name: 'nekotick-repo',
     displayName: 'repo',
-    fullName: 'owner/repo',
+    fullName: 'owner/nekotick-repo',
     owner: 'owner',
     private: true,
-    htmlUrl: 'https://example.test/owner/repo',
+    htmlUrl: 'https://example.test/owner/nekotick-repo',
     defaultBranch: 'main',
     updatedAt: '2026-03-10T00:00:00Z',
     description: null,

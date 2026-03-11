@@ -1,4 +1,10 @@
 import { commitWebGithubChangeset } from '../webGithubChangeset';
+import {
+  assertManagedContentRepoAccess,
+  assertManagedContentRepoName,
+  filterManagedContentRepositories,
+  normalizeManagedContentRepoName,
+} from '../githubManagedRepoPolicy';
 import { githubFetch } from './client';
 
 interface WebRepoContentsResponse {
@@ -53,6 +59,12 @@ function mapRepositoryInfo(repo: any) {
   };
 }
 
+async function ensureWebManagedRepoAccess(owner: string, repo: string): Promise<void> {
+  assertManagedContentRepoName(repo);
+  const repositories = await listWebGithubRepos();
+  assertManagedContentRepoAccess(repositories, owner, repo);
+}
+
 export async function listWebGithubRepos() {
   const allRepos: any[] = [];
   let page = 1;
@@ -68,9 +80,7 @@ export async function listWebGithubRepos() {
     page += 1;
   }
 
-  return allRepos
-    .filter((repo) => repo.name.startsWith('nekotick-') && repo.name !== 'nekotick-config')
-    .map(mapRepositoryInfo);
+  return filterManagedContentRepositories(allRepos.map(mapRepositoryInfo));
 }
 
 export async function createWebGithubRepo(
@@ -78,7 +88,8 @@ export async function createWebGithubRepo(
   isPrivate: boolean,
   description?: string
 ) {
-  const fullName = name.startsWith('nekotick-') ? name : `nekotick-${name}`;
+  const fullName = normalizeManagedContentRepoName(name);
+  assertManagedContentRepoName(fullName);
   const repo = await githubFetch<any>('/user/repos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -90,10 +101,11 @@ export async function createWebGithubRepo(
     }),
   });
 
-  return mapRepositoryInfo(repo);
+  return filterManagedContentRepositories([mapRepositoryInfo(repo)])[0] ?? null;
 }
 
 export async function getWebGithubRepoTreeRecursive(owner: string, repo: string, branch: string) {
+  await ensureWebManagedRepoAccess(owner, repo);
   const reference = await githubFetch<WebGitReferenceResponse>(
     `/repos/${owner}/${repo}/git/ref/heads/${branch}`
   );
@@ -118,6 +130,7 @@ export async function getWebGithubRepoTreeRecursive(owner: string, repo: string,
 }
 
 export async function getWebGithubFileContent(owner: string, repo: string, path: string) {
+  await ensureWebManagedRepoAccess(owner, repo);
   const content = await githubFetch<WebRepoContentsResponse>(`/repos/${owner}/${repo}/contents/${path}`);
   const decodedContent = decodeUtf8Base64((content.content ?? '').replace(/\n/g, ''));
   return {
@@ -140,6 +153,7 @@ export async function commitWebRepoChangeset(
     previousSha?: string | null;
   }>
 ) {
+  await ensureWebManagedRepoAccess(owner, repo);
   return commitWebGithubChangeset({
     githubFetch,
     owner,
