@@ -2,8 +2,6 @@ import { useMemo } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
-import { parseCloudNoteLogicalPath } from '@/stores/cloudRepos';
-import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { useDisplayName } from '@/hooks/useTitleSync';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { findNode } from '@/stores/notes/fileTreeUtils';
@@ -69,26 +67,11 @@ function expandFolderChain(targetPath: string): void {
 }
 
 export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
-  const currentNoteSource = useNotesStore((s) => s.currentNote?.source ?? 'local');
   const notesPath = useNotesStore((s) => s.notesPath);
   const vaultName = useVaultStore((s) => s.currentVault?.name ?? 'Root');
-  const repositories = useGithubReposStore((s) => s.repositories);
   const displayName = useDisplayName(notePath);
-  const parsedCloudPath = useMemo(() => parseCloudNoteLogicalPath(notePath), [notePath]);
-  const currentRepository = useMemo(
-    () =>
-      parsedCloudPath
-        ? repositories.find((repository) => repository.id === parsedCloudPath.repositoryId) ?? null
-        : null,
-    [parsedCloudPath, repositories]
-  );
 
-  const displayPath = useMemo(() => {
-    if (currentNoteSource === 'cloud') {
-      return parsedCloudPath?.relativePath ?? notePath;
-    }
-    return resolveDisplayPath(notePath, notesPath);
-  }, [currentNoteSource, notePath, notesPath, parsedCloudPath]);
+  const displayPath = useMemo(() => resolveDisplayPath(notePath, notesPath), [notePath, notesPath]);
   const folderSegments = useMemo(() => buildFolderSegments(displayPath), [displayPath]);
   const noteLabel = useMemo(() => {
     if (displayName?.trim()) return displayName.trim();
@@ -126,19 +109,15 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
 
   return (
     <div className="h-4">
-      <div className="flex h-full flex-wrap items-center gap-x-1 gap-y-0 text-[12px] leading-none opacity-0 transition-opacity duration-150 pointer-events-none group-hover/note-title:opacity-100 group-hover/note-title:pointer-events-auto group-focus-within/note-title:opacity-100 group-focus-within/note-title:pointer-events-auto">
+      <div className="pointer-events-none flex h-full flex-wrap items-center gap-x-1 gap-y-0 text-[12px] leading-none opacity-0 transition-opacity duration-150 group-hover/note-title:pointer-events-auto group-hover/note-title:opacity-100 group-focus-within/note-title:pointer-events-auto group-focus-within/note-title:opacity-100">
         <button
           type="button"
-          onClick={currentNoteSource === 'local' ? handleRootClick : undefined}
+          onClick={handleRootClick}
           className={cn(
-            'rounded px-1 py-0 text-[var(--neko-text-tertiary)] transition-colors',
-            currentNoteSource === 'local' &&
-              'hover:bg-[var(--neko-hover-filled)] hover:text-[var(--neko-text-primary)]',
+            'rounded px-1 py-0 text-[var(--neko-text-tertiary)] transition-colors hover:bg-[var(--neko-hover-filled)] hover:text-[var(--neko-text-primary)]'
           )}
         >
-          {currentNoteSource === 'cloud'
-            ? currentRepository?.displayName || currentRepository?.name || 'Cloud Repository'
-            : vaultName}
+          {vaultName}
         </button>
         <span className="text-[var(--neko-text-disabled)]">/</span>
 
@@ -146,11 +125,9 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
           <div key={segment.fullPath} className="inline-flex items-center gap-1.5">
             <button
               type="button"
-              onClick={currentNoteSource === 'local' ? () => handleFolderClick(segment.fullPath) : undefined}
+              onClick={() => handleFolderClick(segment.fullPath)}
               className={cn(
-                'rounded px-1 py-0 text-[var(--neko-text-tertiary)] transition-colors',
-                currentNoteSource === 'local' &&
-                  'hover:bg-[var(--neko-hover-filled)] hover:text-[var(--neko-text-primary)]',
+                'rounded px-1 py-0 text-[var(--neko-text-tertiary)] transition-colors hover:bg-[var(--neko-hover-filled)] hover:text-[var(--neko-text-primary)]'
               )}
             >
               {segment.label}

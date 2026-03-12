@@ -84,7 +84,7 @@ If the request would cause the code to violate these thresholds:
 * **Rationale:** To ensure visual consistency, accessibility, and professional appearance throughout the application.
 
 
-## GitHub Synchronization Constraints
-* **File Fragmentation Rule:** Since all data is synced via GitHub, we must heavily prioritize file size management.
-* **Principle:** Any feature that generates potentially unbounded data (like chat history, logs, or user-generated content) **MUST** be split into multiple smaller files (e.g., one file per session) rather than stored in a single monolithic configuration file.
-* **Goal:** To ensure efficient Git synchronization and prevent hitting file size limits.
+## Local Data Constraints
+* **File Fragmentation Rule:** Since user data is stored locally, we still need to avoid unbounded single-file growth.
+* **Principle:** Any feature that generates potentially unbounded data (like chat history, logs, or user-generated content) **MUST** be split into multiple smaller files when persistence is required, rather than stored in one monolithic file.
+* **Goal:** To keep local workspace performance predictable and reduce corruption risk during writes.

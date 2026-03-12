@@ -1,47 +1,40 @@
 import { useEffect, useRef } from 'react';
-import { useGithubSyncStore } from '@/stores/githubSync';
+import { useAccountSessionStore } from '@/stores/accountSession';
 import { hasBackendCommands } from '@/lib/tauri/invoke';
-import { getAutoSyncManager } from '@/lib/sync/autoSyncManager';
-import { setUnifiedStorageAutoSyncTrigger } from '@/lib/storage/unifiedStorage';
 
 const TOKEN_CHECK_INTERVAL = 4 * 60 * 1000;
 
 export function useSyncInit() {
-  const checkStatus = useGithubSyncStore((state) => state.checkStatus);
-  const handleOAuthCallback = useGithubSyncStore((state) => state.handleOAuthCallback);
-  const isConnected = useGithubSyncStore((state) => state.isConnected);
+  const checkStatus = useAccountSessionStore((state) => state.checkStatus);
+  const handleAuthCallback = useAccountSessionStore((state) => state.handleAuthCallback);
+  const isConnected = useAccountSessionStore((state) => state.isConnected);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const oauthHandledRef = useRef(false);
+  const authHandledRef = useRef(false);
 
   useEffect(() => {
-    setUnifiedStorageAutoSyncTrigger(() => {
-      const syncState = useGithubSyncStore.getState();
-      if (syncState.isConnected) {
-        getAutoSyncManager().triggerSync();
+    if (hasBackendCommands() || authHandledRef.current) return;
+    authHandledRef.current = true;
+
+    const run = async () => {
+      const handled = await handleAuthCallback();
+      if (!handled) {
+        await checkStatus();
       }
-    });
-
-    return () => {
-      setUnifiedStorageAutoSyncTrigger(null);
     };
-  }, []);
-
-  useEffect(() => {
-    if (hasBackendCommands() || oauthHandledRef.current) return;
-    oauthHandledRef.current = true;
 
     const params = new URLSearchParams(window.location.search);
-    if (params.has('auth_state') || params.has('auth_error')) {
-      handleOAuthCallback();
-    } else {
-      checkStatus();
+    if (params.has('auth_state') || params.has('auth_error') || params.has('auth_provider')) {
+      void run();
+      return;
     }
-  }, [handleOAuthCallback, checkStatus]);
+
+    void checkStatus();
+  }, [handleAuthCallback, checkStatus]);
 
   useEffect(() => {
-    useGithubSyncStore.getState().hydrateAvatar();
+    void useAccountSessionStore.getState().hydrateAvatar();
     if (!hasBackendCommands()) return;
-    checkStatus();
+    void checkStatus();
   }, [checkStatus]);
 
   useEffect(() => {
@@ -52,7 +45,7 @@ export function useSyncInit() {
 
     if (isConnected) {
       intervalRef.current = setInterval(() => {
-        checkStatus();
+        void checkStatus();
       }, TOKEN_CHECK_INTERVAL);
     }
 

@@ -24,7 +24,7 @@ export const imageNodeViewPlugin = $prose(() => {
         },
         appendTransaction: (transactions, oldState, newState) => {
             const { notesPath, currentNote } = useNotesStore.getState();
-            if (!notesPath || currentNote?.source === 'cloud') return null;
+            if (!notesPath) return null;
 
             const hasRelevantDocChange = transactions.some(
                 tr => tr.docChanged && !tr.getMeta('imageDragMove')

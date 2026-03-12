@@ -1,5 +1,4 @@
 import { isAbsolutePath } from '@/lib/storage/adapter';
-import { isCloudNoteLogicalPath } from '@/stores/cloudRepos';
 
 export async function openStoredNotePath(
   path: string,
@@ -8,7 +7,7 @@ export async function openStoredNotePath(
     openNoteByAbsolutePath: (path: string) => Promise<void>;
   }
 ): Promise<void> {
-  if (isCloudNoteLogicalPath(path) || !isAbsolutePath(path)) {
+  if (!isAbsolutePath(path)) {
     await handlers.openNote(path);
     return;
   }

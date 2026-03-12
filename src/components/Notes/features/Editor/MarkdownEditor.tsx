@@ -169,7 +169,6 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
 export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeeking?: boolean; peekOffset?: number }) {
   const { contentOffset } = useEditorLayout(isPeeking, peekOffset);
 
-  const currentNoteSource = useNotesStore(s => s.currentNote?.source ?? 'local');
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
   const isStarred = useNotesStore(s => s.isStarred);
@@ -181,9 +180,9 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
   }, [currentNotePath, noteMetadata]);
   const textStats = useMemo(() => calculateTextStats(currentNoteContent), [currentNoteContent]);
 
-  const starred = currentNoteSource === 'local' && currentNotePath ? isStarred(currentNotePath) : false;
-  const coverController = useNoteCoverController(currentNoteSource === 'local' ? currentNotePath : undefined);
-  const coverUrl = currentNoteSource === 'local' ? coverController.cover.url : null;
+  const starred = currentNotePath ? isStarred(currentNotePath) : false;
+  const coverController = useNoteCoverController(currentNotePath);
+  const coverUrl = coverController.cover.url;
 
   const handleEditorClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -195,22 +194,20 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
   return (
     <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative" onClick={handleEditorClick}>
       <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
-        {currentNoteSource === 'local' ? (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              currentNotePath && toggleStarred(currentNotePath);
-            }}
-            className={cn(
-              "p-1.5 transition-colors",
-              starred
-                ? "text-yellow-500"
-                : `${iconButtonStyles} hover:text-yellow-500`
-            )}
-          >
-            <Icon size="md" name="misc.star" style={{ fill: starred ? "currentColor" : "none" }} />
-          </button>
-        ) : null}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            currentNotePath && toggleStarred(currentNotePath);
+          }}
+          className={cn(
+            "p-1.5 transition-colors",
+            starred
+              ? "text-yellow-500"
+              : `${iconButtonStyles} hover:text-yellow-500`
+          )}
+        >
+          <Icon size="md" name="misc.star" style={{ fill: starred ? "currentColor" : "none" }} />
+        </button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -251,7 +248,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
         className="flex-1 overflow-auto neko-scrollbar flex flex-col items-center relative"
         data-note-scroll-root="true"
       >
-        {currentNoteSource === 'local' ? <NoteCoverCanvas controller={coverController} /> : null}
+        <NoteCoverCanvas controller={coverController} />
 
         <div
           className="w-full flex flex-col items-center"

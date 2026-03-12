@@ -1,8 +1,8 @@
 import type { AIModel, Provider } from '@/lib/ai/types';
 import { buildScopedModelId } from '@/lib/ai/utils';
 import { hasBackendCommands } from '@/lib/tauri/invoke';
-import { githubCommands } from '@/lib/tauri/githubAuthCommands';
-import { webGithubCommands } from '@/lib/tauri/webGithubCommands';
+import { accountCommands } from '@/lib/tauri/accountAuthCommands';
+import { webAccountCommands } from '@/lib/tauri/webAccountCommands';
 
 export const MANAGED_PROVIDER_ID = 'nekotick-managed';
 export const MANAGED_PROVIDER_NAME = 'NekoTick AI';
@@ -99,7 +99,7 @@ function normalizeModelGroup(model: Record<string, unknown>, modelId: string): s
 async function parseManagedError(response: Response): Promise<Error> {
   const raw = await response.text().catch(() => '');
   if (response.status === 401 || response.status === 403) {
-    webGithubCommands.clearClientSession();
+    webAccountCommands.clearClientSession();
     return new Error(MANAGED_AUTH_REQUIRED_ERROR);
   }
 
@@ -145,7 +145,7 @@ async function requestManagedWebJson<T>(path: string, init?: RequestInit): Promi
 
 export async function fetchManagedModels(): Promise<AIModel[]> {
   if (hasBackendCommands()) {
-    const payload = (await githubCommands.getManagedModels()) as ManagedModelsPayload | undefined;
+    const payload = (await accountCommands.getManagedModels()) as ManagedModelsPayload | undefined;
     return normalizeManagedModelsPayload(payload ?? {});
   }
 
@@ -157,7 +157,7 @@ export async function fetchManagedModels(): Promise<AIModel[]> {
 
 export async function fetchManagedBudget(): Promise<ManagedBudgetStatus> {
   if (hasBackendCommands()) {
-    const payload = (await githubCommands.getManagedBudget()) as ManagedBudgetPayload | undefined;
+    const payload = (await accountCommands.getManagedBudget()) as ManagedBudgetPayload | undefined;
     return normalizeManagedBudgetPayload(payload ?? {});
   }
 
@@ -171,7 +171,7 @@ export async function requestManagedChatCompletion(
   body: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
   if (hasBackendCommands()) {
-    return (await githubCommands.managedChatCompletion(body)) as Record<string, unknown>;
+    return (await accountCommands.managedChatCompletion(body)) as Record<string, unknown>;
   }
 
   return requestManagedWebJson<Record<string, unknown>>('/chat/completions', {

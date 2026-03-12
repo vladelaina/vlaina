@@ -10,9 +10,10 @@ import { AppearanceTab } from './tabs/AppearanceTab';
 import { ShortcutsTab } from './tabs/ShortcutsTab';
 import { ImagesTab } from './tabs/ImagesTab';
 import { AITab } from './tabs/AITab';
-import { useGithubSyncStore } from '@/stores/githubSync';
+import { useAccountSessionStore } from '@/stores/accountSession';
 import { useUserAvatar } from '@/hooks/useUserAvatar';
 import { cn } from '@/lib/utils';
+import { getAccountProviderLabel } from '@/lib/account/provider';
 
 interface SettingsModalProps {
   open: boolean;
@@ -53,7 +54,7 @@ const sidebarGroups: SidebarGroup[] = [
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
 
-  const { username, isConnected } = useGithubSyncStore();
+  const { username, primaryEmail, isConnected, provider } = useAccountSessionStore();
   const avatarUrl = useUserAvatar();
 
   useEffect(() => {
@@ -170,7 +171,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-50 truncate">
-                          {isConnected && username ? username : 'Guest User'}
+                          {isConnected ? username || primaryEmail || 'Guest User' : 'Guest User'}
                         </span>
                         <span className={cn(
                           "px-1.5 py-[1px] rounded-[4px] text-[10px] font-bold tracking-tight uppercase",
@@ -178,11 +179,11 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                             ? "bg-[#E6F4FF] text-[#007AFF] dark:bg-[#007AFF]/20 dark:text-[#0A84FF]"
                             : "bg-zinc-200/80 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
                         )}>
-                          {isConnected ? 'CLOUD' : 'LOCAL'}
+                          {isConnected ? 'ACCOUNT' : 'LOCAL'}
                         </span>
                       </div>
                       <div className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate opacity-80 group-hover:opacity-100 transition-opacity">
-                        {isConnected ? 'Synced via GitHub' : 'Local Workspace'}
+                        {isConnected ? `Signed in via ${getAccountProviderLabel(provider)}` : 'Local Workspace'}
                       </div>
                     </div>
                   </div>

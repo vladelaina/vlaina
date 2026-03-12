@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { useEffect } from 'react'
 import { useUnifiedStore } from './useUnifiedStore'
-import { useGithubSyncStore } from './useGithubSyncStore'
+import { useAccountSessionStore } from './accountSession'
 import { useManagedAIStore } from './useManagedAIStore'
 import type { Provider, AIModel, ChatMessage, ChatSession, MessageVersion } from '@/lib/ai/types'
 import { buildScopedModelId, generateModelName, generateModelGroup } from '@/lib/ai/utils'
@@ -757,7 +757,7 @@ export const useAIStore = () => {
   const uiState = useAIUIStore();
   const loaded = useUnifiedStore(s => s.loaded);
   const load = useUnifiedStore(s => s.load);
-  const githubConnected = useGithubSyncStore((s) => s.isConnected);
+  const accountConnected = useAccountSessionStore((s) => s.isConnected);
 
   useEffect(() => {
       if (!loaded) {
@@ -804,7 +804,7 @@ export const useAIStore = () => {
   }, [loaded]);
 
   useEffect(() => {
-    if (!loaded || !githubConnected) {
+    if (!loaded || !accountConnected) {
       return;
     }
 
@@ -838,10 +838,10 @@ export const useAIStore = () => {
     return () => {
       cancelled = true;
     };
-  }, [loaded, githubConnected]);
+  }, [loaded, accountConnected]);
 
   useEffect(() => {
-    if (!loaded || githubConnected) {
+    if (!loaded || accountConnected) {
       return;
     }
     const store = useUnifiedStore.getState();
@@ -872,7 +872,7 @@ export const useAIStore = () => {
       selectedModelId: nextSelectedModelId,
     });
     useManagedAIStore.getState().clearBudget();
-  }, [loaded, githubConnected]);
+  }, [loaded, accountConnected]);
 
   return {
     providers: aiData?.providers || [],

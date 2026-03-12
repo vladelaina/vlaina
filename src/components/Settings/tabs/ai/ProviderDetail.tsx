@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useAIStore } from '@/stores/useAIStore';
-import { useGithubSyncStore } from '@/stores/useGithubSyncStore';
+import { useAccountSessionStore } from '@/stores/accountSession';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import { backgroundBenchmarkRunner } from '@/lib/ai/healthCheck';
@@ -10,6 +10,7 @@ import { type HealthStatus } from './components/ModelListItem';
 import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 import { ManagedProviderPanel } from './provider-detail/ManagedProviderPanel';
 import { ProviderModelsPanel } from './provider-detail/ProviderModelsPanel';
+import type { OauthAccountProvider } from '@/lib/account/provider';
 
 interface ProviderDetailProps {
   provider: Provider | undefined;
@@ -30,7 +31,7 @@ function maskApiKey(value: string): string {
 
 export function ProviderDetail({ provider: initialProvider }: ProviderDetailProps) {
   const { updateProvider, models, addModel, addModels, deleteModel, deleteProvider, refreshManagedProvider } = useAIStore();
-  const { isConnected, isConnecting, connect, disconnect } = useGithubSyncStore();
+  const { isConnected, isConnecting, error: authError, signIn, requestEmailCode, verifyEmailCode, signOut } = useAccountSessionStore();
   const { budget, isRefreshingBudget, budgetError, lastBudgetSyncAt, refreshBudget } = useManagedAIStore();
 
   const [name, setName] = useState(initialProvider?.name || '');
@@ -278,8 +279,8 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
     backgroundBenchmarkRunner.clear(initialProvider.id);
   };
 
-  const handleManagedConnect = async () => {
-    await connect();
+  const handleManagedConnect = async (provider: OauthAccountProvider) => {
+    await signIn(provider);
   };
 
   const handleManagedRefresh = async () => {
@@ -333,8 +334,11 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
         budgetError={budgetError}
         lastBudgetSyncAt={lastBudgetSyncAt}
         providerModels={providerModels}
+        authError={authError}
         onConnect={handleManagedConnect}
-        onDisconnect={disconnect}
+        onRequestEmailCode={requestEmailCode}
+        onVerifyEmailCode={verifyEmailCode}
+        onDisconnect={signOut}
         onRefresh={handleManagedRefresh}
       />
     );

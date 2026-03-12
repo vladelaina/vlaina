@@ -1,8 +1,6 @@
 import { StateCreator } from 'zustand';
 import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
-import { useGithubReposStore } from '@/stores/useGithubReposStore';
-import { isCloudNoteLogicalPath, parseCloudNoteLogicalPath } from '@/stores/cloudRepos';
 import { NotesStore } from '../types';
 import { updateDisplayName, removeDisplayName } from '../displayNameUtils';
 import {
@@ -31,19 +29,6 @@ export interface WorkspaceSlice {
 
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean) => Promise<void>;
-  openCloudNote: (
-    note: {
-      repositoryId: number;
-      owner: string;
-      repo: string;
-      branch: string;
-      relativePath: string;
-      logicalPath: string;
-      content: string;
-      sha: string | null;
-    },
-    openInNewTab?: boolean
-  ) => Promise<void>;
   saveNote: () => Promise<void>;
   updateContent: (content: string) => void;
   closeNote: () => void;
@@ -66,26 +51,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   displayNames: new Map(),
 
   openNote: async (path: string, openInNewTab: boolean = false) => {
-    if (isCloudNoteLogicalPath(path)) {
-      const parsed = parseCloudNoteLogicalPath(path);
-      if (!parsed) {
-        set({ error: 'Failed to parse cloud note path' });
-        return;
-      }
-
-      const snapshot = await useGithubReposStore
-        .getState()
-        .openRemoteNote(parsed.repositoryId, parsed.relativePath);
-
-      if (!snapshot) {
-        set({ error: 'Failed to open cloud note' });
-        return;
-      }
-
-      await get().openCloudNote(snapshot, openInNewTab);
-      return;
-    }
-
     const { notesPath, isDirty, saveNote, recentNotes, openTabs, currentNote } = get();
     if (isDirty) {
       await saveNote();
@@ -118,7 +83,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
       updateDisplayName(set, path, tabName);
       set({
-        currentNote: { path, content, source: 'local' },
+        currentNote: { path, content },
         isDirty: false,
         error: null,
         recentNotes: updatedRecent,
@@ -149,7 +114,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     try {
       const storage = getStorageAdapter();
       const content = await storage.readFile(absolutePath);
-
       const fileName = getNoteTitleFromPath(absolutePath);
       const tabName = fileName;
       const existingTab = openTabs.find((t) => t.path === absolutePath);
@@ -171,7 +135,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
       updateDisplayName(set, absolutePath, tabName);
       set({
-        currentNote: { path: absolutePath, content, source: 'local' },
+        currentNote: { path: absolutePath, content },
         isDirty: false,
         error: null,
         openTabs: updatedTabs,
@@ -182,90 +146,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
   },
 
-  openCloudNote: async (note, openInNewTab: boolean = false) => {
-    const { isDirty, saveNote, openTabs, currentNote } = get();
-    if (isDirty) {
-      await saveNote();
-      if (get().isDirty) return;
-    }
-
-    const tabName = getNoteTitleFromPath(note.relativePath);
-    const existingTab = openTabs.find((tab) => tab.path === note.logicalPath);
-
-    let updatedTabs = openTabs;
-    if (existingTab) {
-      updatedTabs = openTabs.map((tab) =>
-        tab.path === note.logicalPath ? { ...tab, name: tabName } : tab
-      );
-    } else if (openInNewTab || openTabs.length === 0) {
-      updatedTabs = [...openTabs, { path: note.logicalPath, name: tabName, isDirty: false }];
-    } else {
-      const currentTabIndex = openTabs.findIndex((tab) => tab.path === currentNote?.path);
-      if (currentTabIndex !== -1) {
-        updatedTabs = [...openTabs];
-        updatedTabs[currentTabIndex] = {
-          path: note.logicalPath,
-          name: tabName,
-          isDirty: false,
-        };
-      } else {
-        updatedTabs = [...openTabs, { path: note.logicalPath, name: tabName, isDirty: false }];
-      }
-    }
-
-    updateDisplayName(set, note.logicalPath, tabName);
-    set({
-      currentNote: {
-        path: note.logicalPath,
-        content: note.content,
-        source: 'cloud',
-        repositoryId: note.repositoryId,
-        repositoryOwner: note.owner,
-        repositoryName: note.repo,
-        repositoryBranch: note.branch,
-        remotePath: note.relativePath,
-        remoteSha: note.sha,
-      },
-      isDirty: false,
-      error: null,
-      openTabs: updatedTabs,
-      isNewlyCreated: false,
-    });
-  },
-
   saveNote: async () => {
     const { currentNote, notesPath } = get();
     if (!currentNote) return;
-
-    if (currentNote.source === 'cloud') {
-      if (
-        !currentNote.repositoryId ||
-        !currentNote.repositoryOwner ||
-        !currentNote.repositoryName ||
-        !currentNote.repositoryBranch ||
-        !currentNote.remotePath
-      ) {
-        set({ error: 'Cloud note is missing repository context' });
-        return;
-      }
-
-      try {
-        await useGithubReposStore.getState().saveDraft({
-          repositoryId: currentNote.repositoryId,
-          owner: currentNote.repositoryOwner,
-          repo: currentNote.repositoryName,
-          branch: currentNote.repositoryBranch,
-          relativePath: currentNote.remotePath,
-          logicalPath: currentNote.path,
-          content: currentNote.content,
-          sha: currentNote.remoteSha ?? null,
-        });
-        set({ isDirty: false });
-      } catch (error) {
-        set({ error: error instanceof Error ? error.message : 'Failed to save cloud draft' });
-      }
-      return;
-    }
 
     try {
       const fullPath = isAbsolutePath(currentNote.path)
@@ -282,7 +165,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
       set({
         isDirty: false,
-        noteMetadata: updatedMetadata
+        noteMetadata: updatedMetadata,
       });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save note' });
@@ -379,13 +262,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         });
       } else {
         set({ currentNote: null, isDirty: false });
-        if (notesPath && rootFolder) {
-          const expandedPaths = collectExpandedPaths(rootFolder.children);
-          saveWorkspaceState(notesPath, {
-            currentNotePath: null,
-            expandedFolders: Array.from(expandedPaths),
-          });
-        }
       }
     }
   },
@@ -399,25 +275,18 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
   reorderTabs: (fromIndex: number, toIndex: number) => {
     const { openTabs } = get();
-    if (
-      fromIndex === toIndex ||
-      fromIndex < 0 ||
-      fromIndex >= openTabs.length ||
-      toIndex < 0 ||
-      toIndex >= openTabs.length
-    )
-      return;
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
 
-    const updatedTabs = [...openTabs];
-    const [movedTab] = updatedTabs.splice(fromIndex, 1);
-    updatedTabs.splice(toIndex, 0, movedTab);
-    set({ openTabs: updatedTabs });
+    const tabs = [...openTabs];
+    const [moved] = tabs.splice(fromIndex, 1);
+    if (!moved) return;
+    tabs.splice(toIndex, 0, moved);
+    set({ openTabs: tabs });
   },
 
-  syncDisplayName: (path: string, title: string) => updateDisplayName(set, path, title),
-
-  getDisplayName: (path: string) => {
-    const state = get();
-    return state.displayNames.get(path) || getNoteTitleFromPath(path);
+  syncDisplayName: (path: string, title: string) => {
+    updateDisplayName(set, path, title);
   },
+
+  getDisplayName: (path: string) => get().displayNames.get(path) ?? getNoteTitleFromPath(path),
 });

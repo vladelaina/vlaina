@@ -3,7 +3,6 @@ import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
-import { isCloudNoteLogicalPath } from '@/stores/cloudRepos';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
@@ -35,25 +34,22 @@ function TabContent({ tab, isActive, icon, displayName }: TabContentProps) {
   return (
     <>
       {icon ? (
-        <span className="flex-shrink-0 pointer-events-none">
+        <span className="pointer-events-none flex-shrink-0">
           <NoteIcon icon={icon} size="md" />
         </span>
       ) : (
         <Icon
           name="file.text"
-          className="w-[18px] h-[18px] flex-shrink-0 pointer-events-none text-current opacity-70"
+          className="pointer-events-none h-[18px] w-[18px] flex-shrink-0 text-current opacity-70"
         />
       )}
 
-      <span className={cn(
-        "text-[13px] truncate pointer-events-none text-current",
-        isActive && "font-medium"
-      )}>
+      <span className={cn('pointer-events-none truncate text-[13px] text-current', isActive && 'font-medium')}>
         {displayName || tab.name}
       </span>
 
       {tab.isDirty && (
-        <span className="w-1.5 h-1.5 rounded-full bg-[var(--neko-accent)] flex-shrink-0 pointer-events-none" />
+        <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[var(--neko-accent)] pointer-events-none" />
       )}
     </>
   );
@@ -70,13 +66,7 @@ interface SortableTabProps {
 const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick, showSeparator }: SortableTabProps) {
   const icon = useDisplayIcon(tab.path);
   const displayName = useDisplayName(tab.path);
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    isDragging,
-  } = useSortable({ id: tab.path });
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ id: tab.path });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -84,7 +74,6 @@ const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick,
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    // Middle click closes tab without triggering drag
     if (e.button === 1) {
       e.preventDefault();
       e.stopPropagation();
@@ -114,17 +103,15 @@ const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick,
             }
           }}
           className={cn(
-            "group relative flex items-center gap-2 px-3 py-1.5 cursor-pointer min-w-0 flex-shrink",
-            "rounded-md transition-colors",
+            'group relative flex min-w-0 flex-shrink cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 transition-colors',
             isActive
-              ? "text-zinc-800 dark:text-zinc-100"
-              : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300",
-            isDragging && "opacity-50 z-50"
+              ? 'text-zinc-800 dark:text-zinc-100'
+              : 'text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300',
+            isDragging && 'z-50 opacity-50'
           )}
         >
-          {/* Subtle separator line between tabs */}
           {showSeparator && (
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-[18px] bg-zinc-200 dark:bg-zinc-700" />
+            <div className="absolute left-0 top-1/2 h-[18px] w-px -translate-y-1/2 bg-zinc-200 dark:bg-zinc-700" />
           )}
           <TabContent tab={tab} isActive={isActive} icon={icon} displayName={displayName} />
 
@@ -135,13 +122,11 @@ const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick,
             }}
             onPointerDown={(e) => e.stopPropagation()}
             className={cn(
-              "p-0.5 rounded transition-all ml-auto",
-              "opacity-0 group-hover:opacity-100",
-              "text-zinc-300 dark:text-zinc-600",
-              "hover:text-zinc-500 dark:hover:text-zinc-400"
+              'ml-auto rounded p-0.5 opacity-0 transition-all group-hover:opacity-100',
+              'text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400'
             )}
           >
- <Icon size="md" name="common.close" />
+            <Icon size="md" name="common.close" />
           </button>
         </div>
       </TooltipTrigger>
@@ -163,11 +148,8 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
   return (
     <div
       className={cn(
-        "flex items-center gap-2 px-3 py-1.5 min-w-0 max-w-[200px]",
-        "rounded-md shadow-md bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm",
-        isActive
-          ? "text-zinc-800 dark:text-zinc-100"
-          : "text-zinc-500 dark:text-zinc-400"
+        'flex min-w-0 max-w-[200px] items-center gap-2 rounded-md bg-white/90 px-3 py-1.5 shadow-md backdrop-blur-sm dark:bg-zinc-800/90',
+        isActive ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400'
       )}
     >
       <TabContent tab={tab} isActive={isActive} icon={icon} displayName={displayName} />
@@ -176,12 +158,12 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
 }
 
 export function NotesTabRow() {
-  const currentNote = useNotesStore(s => s.currentNote);
-  const openTabs = useNotesStore(s => s.openTabs);
-  const closeTab = useNotesStore(s => s.closeTab);
-  const openNote = useNotesStore(s => s.openNote);
-  const createNote = useNotesStore(s => s.createNote);
-  const reorderTabs = useNotesStore(s => s.reorderTabs);
+  const currentNote = useNotesStore((s) => s.currentNote);
+  const openTabs = useNotesStore((s) => s.openTabs);
+  const closeTab = useNotesStore((s) => s.closeTab);
+  const openNote = useNotesStore((s) => s.openNote);
+  const createNote = useNotesStore((s) => s.createNote);
+  const reorderTabs = useNotesStore((s) => s.reorderTabs);
 
   const [activeTabId, setActiveTabId] = React.useState<string | null>(null);
 
@@ -192,10 +174,10 @@ export function NotesTabRow() {
   );
 
   const handleCreateNote = useCallback(() => {
-    const folderPath =
-      currentNote?.path && !isCloudNoteLogicalPath(currentNote.path)
-        ? currentNote.path.substring(0, currentNote.path.lastIndexOf('/')) || undefined
-        : undefined;
+    const currentPath = currentNote?.path;
+    const folderPath = currentPath && currentPath.includes('/')
+      ? currentPath.substring(0, currentPath.lastIndexOf('/')) || undefined
+      : undefined;
     createNote(folderPath);
   }, [currentNote?.path, createNote]);
 
@@ -207,75 +189,61 @@ export function NotesTabRow() {
     const { active, over } = event;
     setActiveTabId(null);
     if (over && active.id !== over.id) {
-      const oldIndex = openTabs.findIndex(tab => tab.path === active.id);
-      const newIndex = openTabs.findIndex(tab => tab.path === over.id);
+      const oldIndex = openTabs.findIndex((tab) => tab.path === active.id);
+      const newIndex = openTabs.findIndex((tab) => tab.path === over.id);
       if (oldIndex !== -1 && newIndex !== -1) {
         reorderTabs(oldIndex, newIndex);
       }
     }
   };
 
-  const activeTab = activeTabId ? openTabs.find(tab => tab.path === activeTabId) : null;
+  const activeTab = activeTabId ? openTabs.find((tab) => tab.path === activeTabId) : null;
 
   return (
-    <div className="flex-1 flex items-center overflow-hidden min-w-0 h-full" data-tauri-drag-region>
-        <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-        >
-            <SortableContext
-                items={openTabs.map(tab => tab.path)}
-                strategy={horizontalListSortingStrategy}
-            >
-                <div className="flex items-center px-2 h-full min-w-0 flex-shrink" data-tauri-drag-region>
-                    {openTabs.map((tab, index) => (
-                        <SortableTab
-                            key={tab.path}
-                            tab={tab}
-                            isActive={currentNote?.path === tab.path}
-                            onClose={closeTab}
-                            onClick={openNote}
-                            showSeparator={index > 0}
-                        />
-                    ))}
+    <div className="flex h-full min-w-0 items-center gap-1 px-2">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={openTabs.map((tab) => tab.path)} strategy={horizontalListSortingStrategy}>
+          <div className="flex min-w-0 flex-1 items-center overflow-x-auto">
+            {openTabs.map((tab, index) => (
+              <SortableTab
+                key={tab.path}
+                tab={tab}
+                isActive={currentNote?.path === tab.path}
+                onClose={closeTab}
+                onClick={(path) => void openNote(path)}
+                showSeparator={index > 0}
+              />
+            ))}
+          </div>
+        </SortableContext>
 
-                    {/* Add new tab button */}
-                    {openTabs.length > 0 && (
-                        <Tooltip delayDuration={1000}>
-                            <TooltipTrigger asChild>
-                                <button
-                                    onClick={handleCreateNote}
-                                    className={cn(
-                                        "flex-shrink-0 p-1.5 rounded-lg transition-colors",
-                                        "text-zinc-300 dark:text-zinc-600",
-                                        "hover:text-zinc-500 dark:hover:text-zinc-400"
-                                    )}
-                                >
- <Icon size="md" name="common.add" />
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" sideOffset={2}>
-                                <span className="flex items-center gap-1.5">
-                                    New Tab
-                                    <ShortcutKeys keys={['Ctrl', 'T']} />
-                                </span>
-                            </TooltipContent>
-                        </Tooltip>
-                    )}
-                </div>
-            </SortableContext>
+        <DragOverlay>
+          {activeTab ? (
+            <TabOverlay tab={activeTab} isActive={currentNote?.path === activeTab.path} />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
-            <DragOverlay dropAnimation={null}>
-                {activeTab ? (
-                    <TabOverlay
-                        tab={activeTab}
-                        isActive={currentNote?.path === activeTab.path}
-                    />
-                ) : null}
-            </DragOverlay>
-        </DndContext>
+      <Tooltip delayDuration={500}>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={handleCreateNote}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+          >
+            <Icon name="common.add" className="h-4 w-4" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" sideOffset={5} className="flex items-center gap-1.5 text-xs">
+          <span>New Note</span>
+          <ShortcutKeys keys={['Ctrl', 'N']} />
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 }

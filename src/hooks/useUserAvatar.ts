@@ -1,7 +1,7 @@
-import { useGithubSyncStore } from '@/stores/githubSync';
+import { useAccountSessionStore } from '@/stores/accountSession';
 
 export function useUserAvatar() {
-    const { avatarUrl, localAvatarUrl } = useGithubSyncStore();
+    const { avatarUrl, localAvatarUrl } = useAccountSessionStore();
 
     return localAvatarUrl || avatarUrl || null;
 }

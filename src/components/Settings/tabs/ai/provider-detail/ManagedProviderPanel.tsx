@@ -1,6 +1,8 @@
 import type { AIModel } from '@/lib/ai/types';
 import type { ManagedBudgetStatus } from '@/lib/ai/managedService';
 import { MANAGED_API_BASE } from '@/lib/ai/managedService';
+import { AccountSignInOptions } from '@/components/account/AccountSignInOptions';
+import type { OauthAccountProvider } from '@/lib/account/provider';
 
 interface ManagedProviderPanelProps {
   isConnected: boolean;
@@ -10,7 +12,10 @@ interface ManagedProviderPanelProps {
   budgetError: string | null;
   lastBudgetSyncAt: number | null;
   providerModels: AIModel[];
-  onConnect: () => void | Promise<void>;
+  authError: string | null;
+  onConnect: (provider: OauthAccountProvider) => void | Promise<void>;
+  onRequestEmailCode: (email: string) => Promise<boolean>;
+  onVerifyEmailCode: (email: string, code: string) => Promise<boolean>;
   onDisconnect: () => void | Promise<void>;
   onRefresh: () => void | Promise<void>;
 }
@@ -23,7 +28,10 @@ export function ManagedProviderPanel({
   budgetError,
   lastBudgetSyncAt,
   providerModels,
+  authError,
   onConnect,
+  onRequestEmailCode,
+  onVerifyEmailCode,
   onDisconnect,
   onRefresh,
 }: ManagedProviderPanelProps) {
@@ -35,7 +43,7 @@ export function ManagedProviderPanel({
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Managed by NekoTick Worker</h3>
               <p className="text-xs text-gray-500">
-                Official hosted service. GitHub sign-in proves identity, while NekoTick controls model access and budget on the server.
+                Official hosted service. Your NekoTick account proves identity, while NekoTick controls model access and budget on the server.
               </p>
               <p className="text-xs text-gray-500">Base URL: {MANAGED_API_BASE}</p>
             </div>
@@ -58,17 +66,20 @@ export function ManagedProviderPanel({
                   </button>
                 </>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => void onConnect()}
-                  disabled={isConnecting}
-                  className="h-9 px-4 text-xs font-semibold rounded-lg bg-black text-white dark:bg-white dark:text-black disabled:opacity-50"
-                >
-                  {isConnecting ? 'Signing In...' : 'Sign In with GitHub'}
-                </button>
+                <div className="text-xs text-gray-500">Choose a provider below</div>
               )}
             </div>
           </div>
+
+          {!isConnected ? (
+            <AccountSignInOptions
+              isConnecting={isConnecting}
+              error={authError}
+              onOauthSignIn={onConnect}
+              onEmailCodeRequest={onRequestEmailCode}
+              onEmailCodeVerify={onVerifyEmailCode}
+            />
+          ) : null}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-white/[0.02] p-4">

@@ -10,16 +10,16 @@ vi.mock('@/lib/tauri/invoke', () => ({
   hasBackendCommands: hasBackendCommandsMock,
 }));
 
-vi.mock('@/lib/tauri/githubAuthCommands', () => ({
-  githubCommands: {
+vi.mock('@/lib/tauri/accountAuthCommands', () => ({
+  accountCommands: {
     getManagedModels: getManagedModelsMock,
     getManagedBudget: vi.fn(),
     managedChatCompletion: vi.fn(),
   },
 }));
 
-vi.mock('@/lib/tauri/webGithubCommands', () => ({
-  webGithubCommands: {
+vi.mock('@/lib/tauri/webAccountCommands', () => ({
+  webAccountCommands: {
     clearClientSession: clearClientSessionMock,
   },
 }));

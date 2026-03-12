@@ -42,9 +42,10 @@ Thumbs.db
 
 .kiro
 
+# Nested scratch repo accidentally created in the workspace root.
+/account
 api
 admin
-account
 
 worktrees
 .reference

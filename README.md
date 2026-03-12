@@ -36,15 +36,13 @@ NekoTick is built on the shoulders of giants. We gratefully acknowledge the foll
 *   And many others listed in `package.json`.
 *   Third-party license details: `THIRD_PARTY_NOTICES.md`
 
-## ☁️ Cloud Sync
+## Local-First
 
-NekoTick uses GitHub as its sync backend. When you connect your GitHub account:
+NekoTick is a local-first editor.
 
-- A private repository named **`nekotick-config`** will be automatically created to sync your app configuration (calendar, todos, settings, AI chat configs) across devices.
-- Your notebooks are synced via separate **`nekotick-*`** repositories, each visible in the app's vault panel.
-- Cloud sync is available to all connected users.
-
-All sync repositories are private and only accessible by you.
+- Your notes and workspace data live on your own device.
+- Account sign-in is provider-agnostic and currently supports Google, 6-digit email codes, and GitHub.
+- GitHub is optional. It is not required for note storage, managed AI access, or future sync setup.
 
 ## 🛠️ Development
 

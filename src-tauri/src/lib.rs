@@ -1,8 +1,8 @@
 use tauri::window::Color;
 use tauri::{AppHandle, LogicalPosition, Manager, WebviewUrl, WebviewWindowBuilder};
 
-// GitHub sync module
-pub mod github;
+// Account auth module
+pub mod account;
 
 fn escape_html(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
@@ -299,23 +299,14 @@ pub fn run() {
             set_window_resizable,
             focus_window,
             move_to_trash,
-            github::auth::commands::github_auth,
-            github::auth::commands::github_disconnect,
-            github::auth::commands::get_github_sync_status,
-            github::auth::commands::get_managed_models,
-            github::auth::commands::get_managed_budget,
-            github::auth::commands::managed_chat_completion,
-            // Config sync commands
-            github::config_commands::sync_config_to_github,
-            github::config_commands::restore_config_from_github,
-            github::config_commands::sync_config_bidirectional,
-            github::config_commands::check_config_remote_data,
-            // GitHub Repository commands
-            github::repo_commands::list_github_repos,
-            github::repo_commands::get_repo_tree_recursive,
-            github::repo_commands::get_repo_file_content,
-            github::repo_commands::create_github_repo,
-            github::repo_commands::commit_repo_changeset,
+            account::auth::session_commands::account_auth,
+            account::auth::session_commands::account_disconnect,
+            account::auth::session_commands::get_account_session_status,
+            account::auth::session_commands::request_email_auth_code,
+            account::auth::session_commands::verify_email_auth_code,
+            account::auth::managed_api_commands::get_managed_models,
+            account::auth::managed_api_commands::get_managed_budget,
+            account::auth::managed_api_commands::managed_chat_completion,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

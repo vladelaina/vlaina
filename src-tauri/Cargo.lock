@@ -2228,6 +2228,7 @@ dependencies = [
  "chrono",
  "keyring",
  "open",
+ "rand 0.8.5",
  "reqwest",
  "serde",
  "serde_json",

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { LogicalSize } from '@tauri-apps/api/dpi';
 import { useVaultStore } from '@/stores/useVaultStore';
-import { useGithubSyncStore } from '@/stores/githubSync';
 import { openDialog, hasNativeDialogs } from '@/lib/storage/dialog';
 import { windowCommands, hasBackendCommands } from '@/lib/tauri/invoke';
 import { isTauri } from '@/lib/storage/adapter';
@@ -10,14 +9,12 @@ import { cn } from '@/lib/utils';
 import { BrandHeader } from './components/BrandHeader';
 import { RecentVaultsList } from './components/RecentVaultsList';
 import { ActionButtons } from './components/ActionButtons';
-import { CloudSyncSection } from './components/CloudSyncSection';
 import { CreateVaultModal } from './components/CreateVaultModal';
 import './VaultWelcome.css';
 
 export function VaultWelcome() {
   const { initialize, recentVaults, openVault, checkVaultOpenInOtherWindow, isLoading } =
     useVaultStore();
-  const { isConnected: isSyncConnected } = useGithubSyncStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -31,26 +28,20 @@ export function VaultWelcome() {
     const lockWindow = async () => {
       try {
         const appWindow = getCurrentWindow();
-
         await windowCommands.setResizable(false);
-
-        const width = 450;
-        const height = isSyncConnected ? 520 : 640;
-
-        await appWindow.setSize(new LogicalSize(width, height));
+        await appWindow.setSize(new LogicalSize(450, 560));
         await appWindow.center();
       } catch (e) {
         console.error('Failed to lock window:', e);
       }
     };
 
-    lockWindow();
+    void lockWindow();
 
     return () => {
       const unlockWindow = async () => {
         try {
           const appWindow = getCurrentWindow();
-
           await windowCommands.setResizable(true);
           await appWindow.setSize(new LogicalSize(1024, 768));
           await appWindow.center();
@@ -58,9 +49,9 @@ export function VaultWelcome() {
           console.error('Failed to unlock window:', e);
         }
       };
-      unlockWindow();
+      void unlockWindow();
     };
-  }, [isSyncConnected]);
+  }, []);
 
   const handleOpenLocal = async () => {
     if (!hasNativeDialogs()) {
@@ -113,8 +104,6 @@ export function VaultWelcome() {
             onCreateNew={() => setShowCreateModal(true)}
             onOpenLocal={handleOpenLocal}
           />
-
-          <CloudSyncSection />
         </div>
       </div>
 

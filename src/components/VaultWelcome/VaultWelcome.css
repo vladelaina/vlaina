@@ -83,7 +83,7 @@
 
 /* ... (skipping unchanged lines) ... */
 
-/* Cloud Sync Section - Minimalist Footer */
+/* Account Section - Minimalist Footer */
 .vault-cloud {
   display: flex;
   flex-direction: column;
@@ -391,7 +391,7 @@
   /* Clean sans-serif for label */
 }
 
-/* Cloud Sync Section - Minimalist Footer */
+/* Account Section - Minimalist Footer */
 .vault-cloud {
   display: flex;
   flex-direction: column;

@@ -190,7 +190,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       }
 
       set({
-        currentNote: { path: relativePath, content: '', source: 'local' },
+        currentNote: { path: relativePath, content: '' },
         isDirty: false,
         openTabs: updatedTabs,
         recentNotes: updatedRecent,
@@ -258,7 +258,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       }
 
       set({
-        currentNote: { path: relativePath, content, source: 'local' },
+        currentNote: { path: relativePath, content },
         isDirty: false,
         recentNotes: updatedRecent,
         openTabs: updatedTabs

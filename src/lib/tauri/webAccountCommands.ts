@@ -1,0 +1,275 @@
+import type { AccountProvider } from '@/stores/accountSession/state';
+import { normalizeAccountProvider } from '@/lib/account/provider';
+import {
+  clearWebAccountCredentials,
+  getCachedWebAccountStatus,
+  saveWebAccountCredentials,
+  type WebAccountStatus,
+} from './webAccountSession';
+import { handleWebAccountAuthCallback } from './webAccountCallback';
+
+const API_BASE = 'https://api.nekotick.com';
+const WEB_RESULT_POLL_ATTEMPTS = 10;
+const WEB_RESULT_POLL_DELAY_MS = 300;
+
+interface WebAuthResult {
+  success: boolean;
+  pending?: boolean;
+  provider?: string;
+  username?: string;
+  primaryEmail?: string | null;
+  avatarUrl?: string | null;
+  error?: string;
+}
+
+interface SessionStatusResponse {
+  success: boolean;
+  connected: boolean;
+  provider?: string | null;
+  username?: string | null;
+  primaryEmail?: string | null;
+  avatarUrl?: string | null;
+}
+
+function authStartPath(provider: Exclude<AccountProvider, 'email'>): string {
+  return provider === 'google' ? '/auth/google' : '/auth/github';
+}
+
+function webResultPath(provider: Exclude<AccountProvider, 'email'>): string {
+  return provider === 'google' ? '/auth/google/web/result' : '/auth/github/web/result';
+}
+
+interface NormalizedWebAccountResult {
+  success: boolean;
+  provider: AccountProvider | null;
+  username?: string;
+  primaryEmail: string | null;
+  avatarUrl: string | null;
+  error?: string;
+}
+
+function normalizeWebAuthResult(
+  data: WebAuthResult,
+  fallbackProvider: AccountProvider
+): NormalizedWebAccountResult {
+  return {
+    success: data.success,
+    provider: normalizeAccountProvider(data.provider) || fallbackProvider,
+    username: data.username,
+    primaryEmail: data.primaryEmail || null,
+    avatarUrl: data.avatarUrl || null,
+    error: data.error,
+  };
+}
+
+function persistConnectedWebAccount(result: NormalizedWebAccountResult): void {
+  if (!result.success || !result.username || !result.provider) {
+    return;
+  }
+
+  saveWebAccountCredentials({
+    provider: result.provider,
+    username: result.username,
+    primaryEmail: result.primaryEmail,
+    avatarUrl: result.avatarUrl,
+  });
+}
+
+async function probeWebSession(): Promise<WebAccountStatus> {
+  const response = await fetch(`${API_BASE}/auth/session`, {
+    method: 'GET',
+    cache: 'no-store',
+    credentials: 'include',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    clearWebAccountCredentials();
+    return {
+      connected: false,
+      provider: null,
+      username: null,
+      primaryEmail: null,
+      avatarUrl: null,
+    };
+  }
+
+  if (!response.ok) {
+    throw new Error(`Failed to verify session: HTTP ${response.status}`);
+  }
+
+  const data = (await response.json()) as SessionStatusResponse;
+  return {
+    connected: data.connected === true,
+    provider: normalizeAccountProvider(data.provider),
+    username: typeof data.username === 'string' ? data.username : null,
+    primaryEmail: typeof data.primaryEmail === 'string' ? data.primaryEmail : null,
+    avatarUrl: typeof data.avatarUrl === 'string' ? data.avatarUrl : null,
+  };
+}
+
+async function revokeWebSession(): Promise<void> {
+  const response = await fetch(`${API_BASE}/auth/session/revoke`, {
+    method: 'POST',
+    cache: 'no-store',
+    credentials: 'include',
+  });
+
+  if (response.ok || response.status === 401 || response.status === 403) {
+    return;
+  }
+
+  throw new Error(`Failed to revoke session: HTTP ${response.status}`);
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function readJsonErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const payload = (await response.json()) as { error?: string };
+    if (typeof payload.error === 'string' && payload.error.trim()) {
+      return payload.error;
+    }
+  } catch {
+    // no-op
+  }
+  return fallback;
+}
+
+export const webAccountCommands = {
+  clearClientSession(): void {
+    clearWebAccountCredentials();
+  },
+
+  async startAuth(
+    provider: Exclude<AccountProvider, 'email'>
+  ): Promise<{ authUrl: string; state: string } | null> {
+    try {
+      const res = await fetch(`${API_BASE}${authStartPath(provider)}`, {
+        cache: 'no-store',
+        credentials: 'include',
+      });
+      if (!res.ok) return null;
+      return res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async completeAuth(
+    provider: Exclude<AccountProvider, 'email'>,
+    state: string
+  ): Promise<{
+    success: boolean;
+    provider?: AccountProvider | null;
+    username?: string;
+    primaryEmail?: string | null;
+    avatarUrl?: string | null;
+    error?: string;
+  }> {
+    try {
+      const endpoint = new URL(`${API_BASE}${webResultPath(provider)}`);
+      endpoint.searchParams.set('state', state);
+      for (let attempt = 0; attempt < WEB_RESULT_POLL_ATTEMPTS; attempt += 1) {
+        const res = await fetch(endpoint, {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'include',
+        });
+        const data = (await res.json()) as WebAuthResult;
+        if (data.pending === true && !data.success) {
+          await delay(WEB_RESULT_POLL_DELAY_MS);
+          continue;
+        }
+
+        const result = normalizeWebAuthResult(data, provider);
+        persistConnectedWebAccount(result);
+        return result;
+      }
+      return { success: false, error: 'Account sign-in timed out' };
+    } catch (e) {
+      return { success: false, error: String(e) };
+    }
+  },
+
+  async requestEmailCode(email: string): Promise<boolean> {
+    const response = await fetch(`${API_BASE}/auth/email/request-code`, {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    if (response.ok) {
+      return true;
+    }
+
+    throw new Error(await readJsonErrorMessage(response, `Failed to send verification code: HTTP ${response.status}`));
+  },
+
+  async verifyEmailCode(email: string, code: string): Promise<{
+    success: boolean;
+    provider?: AccountProvider | null;
+    username?: string;
+    primaryEmail?: string | null;
+    avatarUrl?: string | null;
+    error?: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE}/auth/email/verify-code`, {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, code, target: 'web' }),
+      });
+      const data = (await response.json()) as WebAuthResult;
+      const result = normalizeWebAuthResult(data, 'email');
+      persistConnectedWebAccount(result);
+      return result;
+    } catch (e) {
+      return { success: false, error: String(e) };
+    }
+  },
+
+  getStatus(): WebAccountStatus {
+    return getCachedWebAccountStatus();
+  },
+
+  async probeStatus(): Promise<WebAccountStatus> {
+    const cached = getCachedWebAccountStatus();
+    try {
+      const status = await probeWebSession();
+      if (status.connected) {
+        return {
+          connected: true,
+          provider: status.provider || cached.provider,
+          username: status.username || cached.username,
+          primaryEmail: status.primaryEmail || cached.primaryEmail,
+          avatarUrl: status.avatarUrl || cached.avatarUrl,
+        };
+      }
+      return status;
+    } catch {
+      return cached;
+    }
+  },
+
+  async disconnect(): Promise<void> {
+    await revokeWebSession();
+    clearWebAccountCredentials();
+  },
+};
+
+export const handleAuthCallback = handleWebAccountAuthCallback;
