@@ -7,7 +7,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Editor, rootCtx, defaultValueCtx, editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { commonmark } from '@milkdown/kit/preset/commonmark';
+import {
+  schema as commonmarkSchema,
+  inputRules as commonmarkInputRules,
+  markInputRules as commonmarkMarkInputRules,
+  commands as commonmarkCommands,
+  keymap as commonmarkKeymap,
+  plugins as commonmarkPlugins,
+  syncListOrderPlugin,
+} from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
@@ -25,6 +33,15 @@ import { useEditorSave } from './hooks/useEditorSave';
 import { calculateTextStats } from './utils/textStats';
 import { setCurrentEditorView } from './utils/editorViewRegistry';
 import './styles/index.css';
+
+const customCommonmark = [
+  commonmarkSchema,
+  commonmarkInputRules,
+  commonmarkMarkInputRules,
+  commonmarkCommands,
+  commonmarkKeymap,
+  commonmarkPlugins.filter((plugin) => plugin !== syncListOrderPlugin),
+].flat();
 
 const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   const updateContent = useNotesStore(s => s.updateContent);
@@ -100,7 +117,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
             });
           });
       })
-      .use(commonmark)
+      .use(customCommonmark)
       .use(gfm)
       .use(history)
       .use(listener)
@@ -193,7 +210,11 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
   };
 
   return (
-    <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative" onClick={handleEditorClick}>
+    <div
+      className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative"
+      data-note-toolbar-root="true"
+      onClick={handleEditorClick}
+    >
       <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
         {currentNoteSource === 'local' ? (
           <button

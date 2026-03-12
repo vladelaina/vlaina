@@ -1,6 +1,7 @@
 import {
   floatingToolbarPlugin,
   colorMarksPlugin,
+  blockAlignmentPlugin,
   headingPlugin,
   collapsePlugin,
   mathPlugin,
@@ -21,6 +22,8 @@ import {
   taskListClickPlugin,
   listTabIndentPlugin,
   listCollapsePlugin,
+  blockquoteAliasPlugin,
+  orderedListStartSyncPlugin,
   markdownLinkPlugin,
   clipboardPlugin,
   imageBlockPlugin,
@@ -35,6 +38,7 @@ import {
 export const customPlugins = [
   floatingToolbarPlugin,
   ...colorMarksPlugin,
+  ...blockAlignmentPlugin,
   ...headingPlugin,
   collapsePlugin,
   ...mathPlugin,
@@ -55,6 +59,8 @@ export const customPlugins = [
   taskListClickPlugin,
   listTabIndentPlugin,
   listCollapsePlugin,
+  blockquoteAliasPlugin,
+  orderedListStartSyncPlugin,
   markdownLinkPlugin,
   clipboardPlugin,
   imageUploadPlugin,

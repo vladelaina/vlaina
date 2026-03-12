@@ -2,7 +2,7 @@
 // Utilities for extracting state from editor selection
 
 import type { EditorView } from '@milkdown/kit/prose/view';
-import type { BlockType } from './types';
+import type { BlockType, TextAlignment } from './types';
 
 export function getActiveMarks(view: EditorView): Set<string> {
   const { state } = view;
@@ -42,6 +42,21 @@ export function getCurrentBlockType(view: EditorView): BlockType {
   }
 
   return 'paragraph';
+}
+
+export function getCurrentAlignment(view: EditorView): TextAlignment {
+  const { state } = view;
+  const { $from } = state.selection;
+  const parent = $from.parent;
+
+  if (parent.type.name === 'paragraph' || parent.type.name === 'heading') {
+    const align = parent.attrs.align;
+    if (align === 'center' || align === 'right') {
+      return align;
+    }
+  }
+
+  return 'left';
 }
 
 export function isSelectionInFirstH1(view: EditorView): boolean {
@@ -123,4 +138,22 @@ export function calculatePosition(view: EditorView): {
   const finalY = placement === 'top' ? start.top - 8 : end.bottom + 8;
 
   return { x, y: finalY, placement };
+}
+
+export function calculateBottomPosition(view: EditorView): {
+  x: number;
+  y: number;
+  placement: 'bottom';
+} {
+  const { state } = view;
+  const { from, to } = state.selection;
+
+  const start = view.coordsAtPos(from);
+  const end = view.coordsAtPos(to);
+
+  return {
+    x: start.left,
+    y: end.bottom + 8,
+    placement: 'bottom',
+  };
 }

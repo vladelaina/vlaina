@@ -17,8 +17,10 @@ export type BlockType =
   | 'taskList'
   | 'codeBlock';
 
+export type TextAlignment = 'left' | 'center' | 'right';
+
 // Sub-menu types
-export type SubMenuType = 'block' | 'link' | 'color' | null;
+export type SubMenuType = 'ai' | 'block' | 'link' | 'color' | 'alignment' | null;
 
 // Toolbar placement relative to selection
 export type ToolbarPlacement = 'top' | 'bottom';
@@ -30,6 +32,8 @@ export interface FloatingToolbarState {
   placement: ToolbarPlacement;
   activeMarks: Set<string>;
   currentBlockType: BlockType;
+  currentAlignment: TextAlignment;
+  copied: boolean;
   linkUrl: string | null;
   textColor: string | null;
   bgColor: string | null;
@@ -70,6 +74,7 @@ export const TOOLBAR_ACTIONS = {
   SET_ACTIVE_MARKS: 'SET_ACTIVE_MARKS',
   SET_BLOCK_TYPE: 'SET_BLOCK_TYPE',
   SET_SUB_MENU: 'SET_SUB_MENU',
+  SET_COPIED: 'SET_COPIED',
   SET_LINK_URL: 'SET_LINK_URL',
   SET_TEXT_COLOR: 'SET_TEXT_COLOR',
   SET_BG_COLOR: 'SET_BG_COLOR',

@@ -2,8 +2,8 @@
 // This file provides a single entry point for all editor plugins
 
 // Floating Toolbar (selection-based formatting)
-export { floatingToolbarPlugin, floatingToolbarKey, colorMarksPlugin } from './floating-toolbar';
-export type { FloatingToolbarState, BlockType, SubMenuType } from './floating-toolbar';
+export { floatingToolbarPlugin, floatingToolbarKey, colorMarksPlugin, blockAlignmentPlugin } from './floating-toolbar';
+export type { FloatingToolbarState, BlockType, SubMenuType, TextAlignment } from './floating-toolbar';
 
 // Heading plugins
 export { headingPlugin, collapsePlugin } from './heading';
@@ -41,6 +41,9 @@ export { taskListClickPlugin, listTabIndentPlugin } from './task-list';
 
 // List collapse
 export { listCollapsePlugin } from './collapse';
+
+// Markdown input aliases
+export { blockquoteAliasPlugin, orderedListStartSyncPlugin } from './blockquoteAlias';
 
 // Clipboard (clean text serialization)
 export { clipboardPlugin } from './clipboard';
