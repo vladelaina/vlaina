@@ -6,7 +6,6 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { type RepositoryInfo } from '@/lib/tauri/githubRepoCommands';
 import { CloudRepoTree } from './CloudRepoTree';
 import { cn, iconButtonStyles } from '@/lib/utils';
-import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 import {
   NotesSidebarContextMenu,
   NotesSidebarContextMenuDivider,
@@ -123,15 +122,7 @@ export function RepositoryItem({ repository, isRefreshing = false }: RepositoryI
         onContextMenu={handleContextMenu}
         leadingClassName="w-10"
         leading={
-          <div className="flex w-10 items-center gap-1">
-            <span className="flex size-[20px] items-center justify-center">
-              <CollapseTriangleAffordance
-                collapsed={!isExpanded}
-                visibility="always"
-                size={16}
-                className="size-[20px] text-[var(--notes-sidebar-icon)]"
-              />
-            </span>
+          <div className="flex w-10 items-center">
             <span className="flex size-[20px] items-center justify-center">{getCloudIcon()}</span>
           </div>
         }

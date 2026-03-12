@@ -7,6 +7,7 @@ import {
   DEFAULT_GROUP_ID,
 } from '@/lib/config';
 import { getDefaultSidebarWidth } from '@/lib/layout/sidebarWidth';
+const STORAGE_KEY_SIDEBAR_WIDTH = 'nekotick_sidebar_width';
 const STORAGE_KEY_IMAGE_STORAGE_MODE = 'nekotick_image_storage_mode';
 const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'nekotick_image_subfolder_name';
 const STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME = 'nekotick_image_vault_subfolder_name';
@@ -36,6 +37,7 @@ interface UIStore {
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
   sidebarWidth: number;
+  setSidebarWidth: (width: number) => void;
 
   sidebarHeaderHovered: boolean;
   setSidebarHeaderHovered: (hovered: boolean) => void;
@@ -153,6 +155,19 @@ function loadBoolean(key: string, defaultValue: boolean): boolean {
   return defaultValue;
 }
 
+function loadNumber(key: string, defaultValue: number): number {
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved !== null) {
+      const parsed = parseFloat(saved);
+      return Number.isNaN(parsed) ? defaultValue : parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return defaultValue;
+}
+
 function saveColorFilter(colors: ItemColor[]): void {
   localStorage.setItem(STORAGE_KEY_COLOR_FILTER, JSON.stringify(colors));
 }
@@ -239,7 +254,11 @@ export const useUIStore = create<UIStore>()((set, get) => ({
     localStorage.setItem(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, String(next));
     return { sidebarCollapsed: next };
   }),
-  sidebarWidth: getDefaultSidebarWidth(),
+  sidebarWidth: loadNumber(STORAGE_KEY_SIDEBAR_WIDTH, getDefaultSidebarWidth()),
+  setSidebarWidth: (width) => {
+    localStorage.setItem(STORAGE_KEY_SIDEBAR_WIDTH, String(width));
+    set({ sidebarWidth: width });
+  },
   sidebarHeaderHovered: false,
   setSidebarHeaderHovered: (hovered) => set({ sidebarHeaderHovered: hovered }),
   notesSidebarView: 'workspace',

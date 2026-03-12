@@ -2,7 +2,7 @@ import type { CSSProperties, MouseEventHandler } from 'react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
-import { RESIZE_HANDLE_HIT_WIDTH } from './ResizeDividerVisual';
+import { ResizeDividerVisual, RESIZE_HANDLE_HIT_WIDTH } from './ResizeDividerVisual';
 
 interface ResizeHandleProps {
   onMouseDown: MouseEventHandler<HTMLDivElement>;
@@ -20,7 +20,7 @@ export function ResizeHandle({
   isDragging,
   positionStyle,
   tooltipSide,
-  tooltipLabel = 'Toggle panel',
+  tooltipLabel,
   shortcutKeys,
   zIndexClassName = 'z-30',
   className,
@@ -37,11 +37,13 @@ export function ResizeHandle({
             className,
           )}
           style={{ width: RESIZE_HANDLE_HIT_WIDTH, ...positionStyle }}
-        />
+        >
+          <ResizeDividerVisual isVisible={isDragging} />
+        </div>
       </TooltipTrigger>
       {shortcutKeys && shortcutKeys.length > 0 && (
         <TooltipContent side={tooltipSide} sideOffset={5} className="flex items-center gap-1.5 text-xs">
-          <span>{tooltipLabel}</span>
+          {tooltipLabel ? <span>{tooltipLabel}</span> : null}
           <ShortcutKeys keys={shortcutKeys} />
         </TooltipContent>
       )}

@@ -41,7 +41,11 @@ export function CollapseTriangleIcon({
       width={size}
       height={size}
       viewBox={COLLAPSE_TRIANGLE_VIEW_BOX}
-      fill="currentColor"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={cn(collapsed && '-rotate-90', className)}
       style={{ transition: 'transform 0.15s ease', ...style }}
       focusable="false"

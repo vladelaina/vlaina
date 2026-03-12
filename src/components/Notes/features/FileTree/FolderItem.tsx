@@ -6,7 +6,6 @@ import { FolderItemMenu } from './components/FolderItemMenu';
 import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
 import { useFolderItemState } from './hooks/useFolderItemState';
 import { cn, iconButtonStyles } from '@/lib/utils';
-import { CollapseTriangleIcon } from '../common/collapseTrianglePrimitive';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 
 interface FolderItemProps {
@@ -44,23 +43,9 @@ export const FolderItem = memo(function FolderItem({
   } = useFolderItemState(node);
 
   const leading = node.expanded ? (
-    <Icon name="file.folderOpen" size="md" className="text-[var(--notes-sidebar-folder-icon)] group-hover:hidden" />
+    <Icon name="file.folderOpen" size="sidebar" className="text-[var(--notes-sidebar-folder-icon)]" />
   ) : (
-    <Icon name="file.folder" size="md" className="text-[var(--notes-sidebar-folder-icon)] group-hover:hidden" />
-  );
-
-  const hoverLeading = node.expanded ? (
-    <CollapseTriangleIcon
-      collapsed={false}
-      size={16}
-      className="hidden text-[var(--notes-sidebar-folder-icon)] group-hover:block"
-    />
-  ) : (
-    <CollapseTriangleIcon
-      collapsed
-      size={16}
-      className="hidden text-[var(--notes-sidebar-folder-icon)] group-hover:block"
-    />
+    <Icon name="file.folder" size="sidebar" className="text-[var(--notes-sidebar-folder-icon)]" />
   );
 
   return (
@@ -70,7 +55,6 @@ export const FolderItem = memo(function FolderItem({
         leading={
           <span className="relative flex size-[20px] items-center justify-center">
             {leading}
-            {hoverLeading}
           </span>
         }
         isDragOver={isDragOver}

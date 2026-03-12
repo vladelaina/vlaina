@@ -9,6 +9,7 @@ interface AppShellProps {
   sidebarContent?: ReactNode;
   sidebarWidth: number;
   sidebarCollapsed: boolean;
+  onSidebarWidthChange: (width: number) => void;
   onSidebarToggle: () => void;
   
   titleBarLeft?: ReactNode;
@@ -25,6 +26,7 @@ export function AppShell({
   sidebarContent,
   sidebarWidth,
   sidebarCollapsed,
+  onSidebarWidthChange,
   onSidebarToggle,
   
   titleBarLeft,
@@ -58,6 +60,7 @@ export function AppShell({
           <UnifiedSidebarContainer
             width={sidebarWidth}
             collapsed={sidebarCollapsed}
+            onWidthChange={onSidebarWidthChange}
             backgroundColor={backgroundColor}
           >
             {sidebarContent}

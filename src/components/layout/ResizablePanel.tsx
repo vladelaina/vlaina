@@ -74,7 +74,6 @@ export function ResizablePanel({
         onMouseDown={handleDragStart}
         isDragging={isDragging}
         tooltipSide="left"
-        tooltipLabel="Toggle chat panel"
         shortcutKeys={shortcutKeys}
         zIndexClassName="z-[100]"
         positionStyle={{

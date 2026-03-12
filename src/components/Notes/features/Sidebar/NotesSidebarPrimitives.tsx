@@ -86,7 +86,7 @@ export function NotesSidebarSection({
                 <CollapseTriangleAffordance
                   collapsed={!expanded}
                   visibility="hover-unless-collapsed"
-                  size={16}
+                  size={12}
                   className="ml-1 h-[18px] w-[18px] text-[var(--notes-sidebar-icon)] group-hover:text-[var(--notes-sidebar-icon-hover)] group-focus-within:text-[var(--notes-sidebar-icon-hover)]"
                 />
               ) : null}

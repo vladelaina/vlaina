@@ -88,6 +88,7 @@ function AppContent() {
     appViewMode,
     sidebarCollapsed,
     sidebarWidth,
+    setSidebarWidth,
     toggleSidebar,
     setAppViewMode
   } = useUIStore();
@@ -246,6 +247,7 @@ function AppContent() {
       <AppShell
         sidebarWidth={sidebarWidth}
         sidebarCollapsed={sidebarCollapsed}
+        onSidebarWidthChange={setSidebarWidth}
         onSidebarToggle={toggleSidebar}
         sidebarContent={sidebarContent}
 

@@ -66,11 +66,11 @@ export function NotesOutline({ enabled, className }: NotesOutlineProps) {
                 }}
                 className="mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-secondary)]"
               >
-                <CollapseTriangleAffordance
-                  collapsed={isCollapsed}
-                  visibility="hover-unless-collapsed"
-                  size={14}
-                />
+              <CollapseTriangleAffordance
+                collapsed={isCollapsed}
+                visibility="hover-unless-collapsed"
+                size={12}
+              />
               </button>
             ) : (
               <span className="mr-1 inline-flex h-4 w-4 shrink-0" aria-hidden="true" />

@@ -6,7 +6,6 @@ import { createCloudNoteLogicalPath, type CloudRepoNode, type CloudRepoNodeKind 
 import { useGithubReposStore } from '@/stores/useGithubReposStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { TreeItemDeleteDialog } from '../FileTree/components/TreeItemDeleteDialog';
-import { CollapseTriangleIcon } from '../common/collapseTrianglePrimitive';
 import {
   NotesSidebarContextMenu,
   NotesSidebarContextMenuDivider,
@@ -181,17 +180,12 @@ export function CloudTreeItem({ node, repoId, branch, depth }: CloudTreeItemProp
             <span className="relative flex size-[20px] items-center justify-center">
               <Icon
                 name={node.expanded ? 'file.folderOpen' : 'file.folder'}
-                size="md"
-                className="text-[var(--notes-sidebar-folder-icon)] group-hover/notes-sidebar-row:hidden"
-              />
-              <CollapseTriangleIcon
-                collapsed={!node.expanded}
-                size={16}
-                className="hidden text-[var(--notes-sidebar-folder-icon)] group-hover/notes-sidebar-row:block"
+                size="sidebar"
+                className="text-[var(--notes-sidebar-folder-icon)]"
               />
             </span>
           ) : (
-            <Icon name="file.text" size="md" className="text-[var(--notes-sidebar-file-icon)]" />
+            <Icon name="file.text" size="sidebar" className="text-[var(--notes-sidebar-file-icon)]" />
           )
         }
         main={

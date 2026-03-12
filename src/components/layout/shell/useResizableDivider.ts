@@ -14,6 +14,7 @@ interface UseResizableDividerOptions {
   direction?: 'normal' | 'reverse';
   snap?: ResizableSnapOptions;
   useOverlay?: boolean;
+  allowDoubleClickReset?: boolean;
 }
 
 function clampWidth(width: number, minWidth: number, maxWidth: number): number {
@@ -29,6 +30,7 @@ export function useResizableDivider({
   direction = 'normal',
   snap,
   useOverlay = false,
+  allowDoubleClickReset = true,
 }: UseResizableDividerOptions) {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartX = useRef(0);
@@ -44,7 +46,7 @@ export function useResizableDivider({
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
 
-    if (e.detail === 2) {
+    if (allowDoubleClickReset && e.detail === 2) {
       applyDefaultWidth();
       return;
     }
@@ -66,7 +68,7 @@ export function useResizableDivider({
     overlay.style.cursor = 'col-resize';
     document.body.appendChild(overlay);
     didCreateOverlayRef.current = true;
-  }, [applyDefaultWidth, useOverlay, width]);
+  }, [allowDoubleClickReset, applyDefaultWidth, useOverlay, width]);
 
   useEffect(() => {
     if (!isDragging) return;
