@@ -1,9 +1,12 @@
 // Floating Toolbar Commands
 import type { EditorView } from '@milkdown/kit/prose/view';
-import type { BlockType } from './types';
+import type { BlockType, TextAlignment } from './types';
 import { TOOLBAR_ACTIONS } from './types';
 import { setBlockType, wrapIn, lift } from '@milkdown/kit/prose/commands';
 import { floatingToolbarKey } from './floatingToolbarPlugin';
+import { normalizeSerializedMarkdownSelection } from '../clipboard/markdownSerializationUtils';
+import { serializeSliceToText } from '../clipboard/serializer';
+import { writeTextToClipboard } from '../cursor/blockSelectionCommands';
 
 export function toggleMark(view: EditorView, markName: string): void {
   const { state, dispatch } = view;
@@ -171,6 +174,64 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
   }
 
   view.focus();
+}
+
+export function setTextAlignment(view: EditorView, alignment: TextAlignment): void {
+  const { state, dispatch } = view;
+  const { from, to, $from } = state.selection;
+  const tr = state.tr;
+  let updated = false;
+
+  state.doc.nodesBetween(from, to, (node, pos, parent) => {
+    if (node.type.name !== 'paragraph' && node.type.name !== 'heading') {
+      return;
+    }
+
+    if (parent?.type.name === 'list_item') {
+      return false;
+    }
+
+    tr.setNodeMarkup(pos, undefined, {
+      ...node.attrs,
+      align: alignment,
+    });
+    updated = true;
+
+    return false;
+  });
+
+  if (!updated) {
+    const parent = $from.parent;
+    if (parent.type.name === 'paragraph' || parent.type.name === 'heading') {
+      tr.setNodeMarkup($from.before(), undefined, {
+        ...parent.attrs,
+        align: alignment,
+      });
+      updated = true;
+    }
+  }
+
+  if (!updated) {
+    return;
+  }
+
+  dispatch(tr);
+  view.focus();
+}
+
+export async function copySelectionToClipboard(view: EditorView): Promise<boolean> {
+  const { from, to } = view.state.selection;
+  if (from === to) {
+    return false;
+  }
+
+  const text = normalizeSerializedMarkdownSelection(
+    serializeSliceToText(view.state.doc.slice(from, to))
+  );
+
+  await writeTextToClipboard(text);
+  view.focus();
+  return true;
 }
 
 export function openLinkEditor(view: EditorView): void {

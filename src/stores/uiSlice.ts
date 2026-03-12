@@ -7,7 +7,6 @@ import {
   DEFAULT_GROUP_ID,
 } from '@/lib/config';
 import { getDefaultSidebarWidth } from '@/lib/layout/sidebarWidth';
-
 const STORAGE_KEY_SIDEBAR_WIDTH = 'nekotick_sidebar_width';
 const STORAGE_KEY_IMAGE_STORAGE_MODE = 'nekotick_image_storage_mode';
 const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'nekotick_image_subfolder_name';
@@ -36,14 +35,12 @@ interface UIStore {
   setTaskSortMode: (mode: TaskSortMode) => void;
 
   sidebarCollapsed: boolean;
-  sidebarWidth: number;
   toggleSidebar: () => void;
+  sidebarWidth: number;
   setSidebarWidth: (width: number) => void;
 
   sidebarHeaderHovered: boolean;
   setSidebarHeaderHovered: (hovered: boolean) => void;
-  sidebarPeeking: boolean;
-  setSidebarPeeking: (peeking: boolean) => void;
   notesSidebarView: NotesSidebarView;
   setNotesSidebarView: (view: NotesSidebarView) => void;
 
@@ -128,31 +125,6 @@ interface UIStore {
   setImageFilenameFormat: (format: ImageFilenameFormat) => void;
 }
 
-function loadNumber(key: string, defaultValue: number): number {
-  try {
-    const saved = localStorage.getItem(key);
-    if (saved !== null) {
-      const parsed = parseFloat(saved);
-      return isNaN(parsed) ? defaultValue : parsed;
-    }
-  } catch {
-    // ignore
-  }
-  return defaultValue;
-}
-
-function loadBoolean(key: string, defaultValue: boolean): boolean {
-  try {
-    const saved = localStorage.getItem(key);
-    if (saved !== null) {
-      return saved === 'true';
-    }
-  } catch {
-    // ignore
-  }
-  return defaultValue;
-}
-
 function loadColorFilter(): ItemColor[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_COLOR_FILTER);
@@ -169,6 +141,31 @@ function loadColorFilter(): ItemColor[] {
   } catch {
   }
   return [...ALL_COLORS];
+}
+
+function loadBoolean(key: string, defaultValue: boolean): boolean {
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved !== null) {
+      return saved === 'true';
+    }
+  } catch {
+    // ignore
+  }
+  return defaultValue;
+}
+
+function loadNumber(key: string, defaultValue: number): number {
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved !== null) {
+      const parsed = parseFloat(saved);
+      return Number.isNaN(parsed) ? defaultValue : parsed;
+    }
+  } catch {
+    // ignore
+  }
+  return defaultValue;
 }
 
 function saveColorFilter(colors: ItemColor[]): void {
@@ -252,20 +249,18 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   setTaskSortMode: (mode) => set({ taskSortMode: mode }),
 
   sidebarCollapsed: loadBoolean(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, false),
-  sidebarWidth: loadNumber(STORAGE_KEY_SIDEBAR_WIDTH, getDefaultSidebarWidth()),
   toggleSidebar: () => set((state) => {
-    const newState = !state.sidebarCollapsed;
-    localStorage.setItem(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, String(newState));
-    return { sidebarCollapsed: newState };
+    const next = !state.sidebarCollapsed;
+    localStorage.setItem(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, String(next));
+    return { sidebarCollapsed: next };
   }),
+  sidebarWidth: loadNumber(STORAGE_KEY_SIDEBAR_WIDTH, getDefaultSidebarWidth()),
   setSidebarWidth: (width) => {
     localStorage.setItem(STORAGE_KEY_SIDEBAR_WIDTH, String(width));
     set({ sidebarWidth: width });
   },
   sidebarHeaderHovered: false,
   setSidebarHeaderHovered: (hovered) => set({ sidebarHeaderHovered: hovered }),
-  sidebarPeeking: false,
-  setSidebarPeeking: (peeking) => set({ sidebarPeeking: peeking }),
   notesSidebarView: 'workspace',
   setNotesSidebarView: (view) => set({ notesSidebarView: view }),
 

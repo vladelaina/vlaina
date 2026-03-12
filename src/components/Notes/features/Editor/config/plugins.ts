@@ -1,6 +1,7 @@
 import {
   floatingToolbarPlugin,
   colorMarksPlugin,
+  blockAlignmentPlugin,
   headingPlugin,
   collapsePlugin,
   mathPlugin,
@@ -35,6 +36,7 @@ import {
 export const customPlugins = [
   floatingToolbarPlugin,
   ...colorMarksPlugin,
+  ...blockAlignmentPlugin,
   ...headingPlugin,
   collapsePlugin,
   ...mathPlugin,

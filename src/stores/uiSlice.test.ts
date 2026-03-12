@@ -19,7 +19,6 @@ describe('UIStore Property Tests', () => {
     // Reset UIStore to initial state before each test
     useUIStore.setState({
       appViewMode: 'calendar',
-      sidebarCollapsed: false,
       showContextPanel: true,
       selectedDate: new Date(),
       editingEventId: null,
@@ -97,31 +96,11 @@ describe('UIStore Property Tests', () => {
   describe('Property 1: UI State Toggle Idempotence', () => {
     /**
      * Property 1: Toggle Idempotence
-     * For any initial boolean UI state (sidebarCollapsed, showContextPanel), 
+     * For any initial boolean UI state (showContextPanel),
      * toggling twice SHALL return to the original state.
      * 
      * **Validates: Requirements 1.2, 1.3**
      */
-    it('toggleSidebar twice returns to original state', () => {
-      fc.assert(
-        fc.property(
-          fc.boolean(),
-          (initialState) => {
-            // Setup
-            useUIStore.setState({ sidebarCollapsed: initialState });
-            
-            // Action: toggle twice
-            useUIStore.getState().toggleSidebar();
-            useUIStore.getState().toggleSidebar();
-            
-            // Assert: should return to original state
-            expect(useUIStore.getState().sidebarCollapsed).toBe(initialState);
-          }
-        ),
-        { numRuns: 100 }
-      );
-    });
-
     it('toggleContextPanel twice returns to original state', () => {
       fc.assert(
         fc.property(
@@ -146,17 +125,11 @@ describe('UIStore Property Tests', () => {
       fc.assert(
         fc.property(
           fc.boolean(),
-          fc.boolean(),
-          (sidebarState, contextPanelState) => {
+          (contextPanelState) => {
             // Setup
-            useUIStore.setState({ 
-              sidebarCollapsed: sidebarState,
-              showContextPanel: contextPanelState 
+            useUIStore.setState({
+              showContextPanel: contextPanelState
             });
-            
-            // Action & Assert for sidebar
-            useUIStore.getState().toggleSidebar();
-            expect(useUIStore.getState().sidebarCollapsed).toBe(!sidebarState);
             
             // Action & Assert for context panel
             useUIStore.getState().toggleContextPanel();
@@ -275,7 +248,6 @@ describe('UIStore Property Tests', () => {
      * React components. However, by code inspection, useCalendarStore simply
      * returns UIStore state without transformation:
      * 
-     *   showSidebar: uiStore.showSidebar,
      *   showContextPanel: uiStore.showContextPanel,
      *   selectedDate: uiStore.selectedDate,
      *   editingEventId: uiStore.editingEventId,
@@ -291,7 +263,6 @@ describe('UIStore Property Tests', () => {
       fc.assert(
         fc.property(
           fc.boolean(),
-          fc.boolean(),
           fc.date({ min: new Date('2020-01-01'), max: new Date('2030-12-31') }),
           fc.oneof(fc.constant(null), fc.string({ minLength: 1, maxLength: 50 })),
           fc.option(
@@ -302,10 +273,9 @@ describe('UIStore Property Tests', () => {
             { nil: null }
           ),
           fc.oneof(fc.constant(null), fc.string({ minLength: 1, maxLength: 50 })),
-          (sidebarCollapsed, showContextPanel, selectedDate, editingEventId, editingEventPosition, selectedEventId) => {
+          (showContextPanel, selectedDate, editingEventId, editingEventPosition, selectedEventId) => {
             // Setup: set all calendar UI state
             useUIStore.setState({
-              sidebarCollapsed,
               showContextPanel,
               selectedDate,
               editingEventId,
@@ -315,7 +285,6 @@ describe('UIStore Property Tests', () => {
             
             // Assert: all state is retrievable with exact values
             const state = useUIStore.getState();
-            expect(state.sidebarCollapsed).toBe(sidebarCollapsed);
             expect(state.showContextPanel).toBe(showContextPanel);
             expect(state.selectedDate.getTime()).toBe(selectedDate.getTime());
             expect(state.editingEventId).toBe(editingEventId);
@@ -331,21 +300,17 @@ describe('UIStore Property Tests', () => {
       fc.assert(
         fc.property(
           fc.boolean(),
-          fc.boolean(),
-          (initialSidebar, initialContextPanel) => {
+          (initialContextPanel) => {
             // Setup
             useUIStore.setState({
-              sidebarCollapsed: initialSidebar,
               showContextPanel: initialContextPanel,
             });
             
             // Action: use UIStore actions (same actions exposed by useCalendarStore)
-            useUIStore.getState().toggleSidebar();
             useUIStore.getState().toggleContextPanel();
             
             // Assert: state is correctly modified
             const state = useUIStore.getState();
-            expect(state.sidebarCollapsed).toBe(!initialSidebar);
             expect(state.showContextPanel).toBe(!initialContextPanel);
           }
         ),

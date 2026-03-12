@@ -1,7 +1,7 @@
 import { ReactNode, useCallback } from 'react';
-import { cn, NOTES_COLORS } from '@/lib/utils';
+import { Icon } from '@/components/ui/icons';
+import { NOTES_COLORS } from '@/lib/utils';
 import { WindowControls } from '@/components/layout/WindowControls';
-import { SidebarExpandButton } from '@/components/layout/SidebarExpandButton';
 import { blurComposerInput, isComposerInputFocused } from '@/lib/ui/composerFocusRegistry';
 
 interface UnifiedTitleBarProps {
@@ -10,13 +10,10 @@ interface UnifiedTitleBarProps {
   rightSlot?: ReactNode;
   sidebarWidth: number;
   sidebarCollapsed: boolean;
-  isPeeking?: boolean;
-  onToggleSidebar?: () => void;
+  onToggleSidebar: () => void;
   backgroundColor?: string;
   showWindowControls?: boolean;
 }
-
-const RESIZE_HANDLE_WIDTH = 4;
 
 export function UnifiedTitleBar({
   leftSlot,
@@ -24,7 +21,6 @@ export function UnifiedTitleBar({
   rightSlot,
   sidebarWidth,
   sidebarCollapsed,
-  isPeeking = false,
   onToggleSidebar,
   backgroundColor = NOTES_COLORS.sidebarBg,
   showWindowControls = true
@@ -53,33 +49,34 @@ export function UnifiedTitleBar({
       data-tauri-drag-region
       onMouseDownCapture={handleTitleBarMouseDownCapture}
     >
-      <div
-        className={cn(
-          'h-full flex-shrink-0 z-20 group flex flex-col justify-center',
-          sidebarCollapsed ? 'hidden' : 'flex'
-        )}
-        style={{ width: sidebarWidth }}
-        data-tauri-drag-region
-      >
-        {leftSlot}
-      </div>
-
-      {sidebarCollapsed && onToggleSidebar && (
-        <SidebarExpandButton onClick={onToggleSidebar} isPeeking={isPeeking} />
-      )}
-
-      {!sidebarCollapsed && <div className="w-1 h-full flex-shrink-0" />}
-
-      {!sidebarCollapsed && (
+      {sidebarCollapsed ? (
+        <div className="relative z-20 flex h-full items-center pl-2">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            aria-label="Expand sidebar"
+            className="group flex h-8 w-8 items-center justify-center rounded-md text-[var(--neko-text-tertiary)] transition-colors hover:bg-[#f5f5f5] hover:text-[var(--neko-text-primary)] dark:hover:bg-white/10"
+          >
+            <>
+              <Icon name="common.menu" size="md" className="group-hover:hidden" />
+              <Icon name="nav.expand" size="md" className="hidden group-hover:block" />
+            </>
+          </button>
+        </div>
+      ) : (
         <div
-          className="absolute top-0 bottom-0 right-0 bg-white dark:bg-zinc-800"
-          style={{ left: sidebarWidth + RESIZE_HANDLE_WIDTH }}
-        />
+          className="h-full flex-shrink-0 z-20 group flex flex-col justify-center"
+          style={{ width: sidebarWidth }}
+          data-tauri-drag-region
+        >
+          {leftSlot}
+        </div>
       )}
 
-      {sidebarCollapsed && (
-        <div className="absolute top-0 bottom-0 left-0 right-0 bg-white dark:bg-zinc-800" />
-      )}
+      <div
+        className="absolute top-0 bottom-0 right-0 bg-white dark:bg-zinc-800"
+        style={{ left: sidebarCollapsed ? 0 : sidebarWidth }}
+      />
 
       <div className="flex-1 flex items-center z-20 overflow-hidden min-w-0 h-full relative" data-tauri-drag-region>
         {centerSlot}

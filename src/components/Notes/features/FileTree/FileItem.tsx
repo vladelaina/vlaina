@@ -52,9 +52,9 @@ export const FileItem = memo(function FileItem({
         depth={depth}
         leading={
           noteIcon ? (
-            <NoteIcon icon={noteIcon} size="md" />
+            <NoteIcon icon={noteIcon} size="sidebar" />
           ) : (
-            <Icon name="file.text" size="md" className="text-[var(--notes-sidebar-file-icon)]" />
+            <Icon name="file.text" size="sidebar" className="text-[var(--notes-sidebar-file-icon)]" />
           )
         }
         isActive={isActive}

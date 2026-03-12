@@ -81,7 +81,7 @@ export function StarredSection() {
               leading={
                 <Icon
                   name={entry.kind === 'folder' ? 'file.folder' : 'file.text'}
-                  size="md"
+                  size="sidebar"
                   className={
                     entry.kind === 'folder'
                       ? 'text-[var(--notes-sidebar-folder-icon)]'

@@ -192,7 +192,11 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
   };
 
   return (
-    <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative" onClick={handleEditorClick}>
+    <div
+      className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative"
+      data-note-toolbar-root="true"
+      onClick={handleEditorClick}
+    >
       <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
         <button
           onClick={(e) => {

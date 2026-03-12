@@ -1,0 +1,6 @@
+packages:
+  - '.'
+  - 'vendor/milkdown/dev'
+  - 'vendor/milkdown/packages/*'
+  - 'vendor/milkdown/packages/plugins/*'
+  - 'vendor/milkdown/packages/integrations/*'

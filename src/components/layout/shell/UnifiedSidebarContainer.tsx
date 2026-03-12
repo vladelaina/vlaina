@@ -1,8 +1,7 @@
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { NOTES_COLORS } from '@/lib/utils';
 import { SPRING_PREMIUM } from '@/lib/animations';
-import { HoverPeekOverlay } from '@/components/ui/HoverPeekOverlay';
 import { useShellSidebarResize } from './useShellSidebarResize';
 import { RESIZE_HANDLE_HALF_WIDTH } from './ResizeDividerVisual';
 import { ResizeHandle } from './ResizeHandle';
@@ -12,9 +11,7 @@ interface UnifiedSidebarContainerProps {
   width: number;
   collapsed: boolean;
   onWidthChange: (width: number) => void;
-  onPeekChange?: (isPeeking: boolean) => void;
   backgroundColor?: string;
-  peekContent?: ReactNode;
 }
 
 export function UnifiedSidebarContainer({
@@ -22,20 +19,12 @@ export function UnifiedSidebarContainer({
   width,
   collapsed,
   onWidthChange,
-  onPeekChange,
   backgroundColor = NOTES_COLORS.sidebarBg,
-  peekContent
 }: UnifiedSidebarContainerProps) {
   const { isDragging, handleDragStart } = useShellSidebarResize({
     width,
-    onWidthChange
+    onWidthChange,
   });
-
-  const [isPeeking, setIsPeeking] = useState(false);
-
-  useEffect(() => {
-    onPeekChange?.(isPeeking);
-  }, [isPeeking, onPeekChange]);
 
   return (
     <>
@@ -52,15 +41,6 @@ export function UnifiedSidebarContainer({
         {children}
       </motion.aside>
 
-      <HoverPeekOverlay
-        isEnabled={collapsed}
-        width={width}
-        style={{ backgroundColor }}
-        onPeekChange={setIsPeeking}
-      >
-        {peekContent || children}
-      </HoverPeekOverlay>
-
       {!collapsed && (
         <>
           <div className="w-0.5 flex-shrink-0 z-20" style={{ backgroundColor }} />
@@ -71,7 +51,7 @@ export function UnifiedSidebarContainer({
             shortcutKeys={['Ctrl', '\\']}
             positionStyle={{
               left: width - RESIZE_HANDLE_HALF_WIDTH,
-              pointerEvents: collapsed ? 'none' : 'auto',
+              pointerEvents: 'auto',
             }}
           />
         </>

@@ -3,11 +3,22 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import type { FloatingToolbarState, ToolbarMeta } from './types';
 import { TOOLBAR_ACTIONS } from './types';
-import { getActiveMarks, getCurrentBlockType, getLinkUrl, getTextColor, getBgColor, calculatePosition } from './selectionHelpers';
-import { renderToolbarContent, cleanupToolbarEventDelegation } from './renderToolbar';
+import {
+  getActiveMarks,
+  calculateBottomPosition,
+  getCurrentAlignment,
+  getCurrentBlockType,
+  getLinkUrl,
+  getTextColor,
+  getBgColor,
+  calculatePosition,
+} from './selectionHelpers';
+import { renderToolbarContent, cleanupToolbarEventDelegation, cleanupToolbarRendering } from './renderToolbar';
 import { toggleMark } from './commands';
 
 export const floatingToolbarKey = new PluginKey<FloatingToolbarState>('floatingToolbar');
+const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
+const TOOLBAR_ROOT_SELECTOR = '[data-note-toolbar-root="true"]';
 
 let currentBlockElement: HTMLElement | null = null;
 
@@ -33,11 +44,68 @@ function updateCurrentBlockElement(view: { state: { selection: { $from: { pos: n
 }
 
 function createInitialState(): FloatingToolbarState {
-  return { isVisible: false, position: { x: 0, y: 0 }, placement: 'top', activeMarks: new Set(), currentBlockType: 'paragraph', linkUrl: null, textColor: null, bgColor: null, subMenu: null };
+  return {
+    isVisible: false,
+    position: { x: 0, y: 0 },
+    placement: 'top',
+    activeMarks: new Set(),
+    currentBlockType: 'paragraph',
+    currentAlignment: 'left',
+    copied: false,
+    linkUrl: null,
+    textColor: null,
+    bgColor: null,
+    subMenu: null,
+  };
 }
 
 let toolbarElement: HTMLElement | null = null;
 let lastRenderState: string = '';
+
+function getScrollRoot(view: { dom: HTMLElement }): HTMLElement | null {
+  return view.dom.closest(SCROLL_ROOT_SELECTOR) as HTMLElement | null;
+}
+
+function getToolbarRoot(view: { dom: HTMLElement }): HTMLElement | null {
+  return view.dom.closest(TOOLBAR_ROOT_SELECTOR) as HTMLElement | null;
+}
+
+function toContainerPosition(
+  position: { x: number; y: number },
+  container: HTMLElement | null
+): { x: number; y: number } {
+  if (!container) {
+    return position;
+  }
+
+  const containerRect = container.getBoundingClientRect();
+  return {
+    x: position.x - containerRect.left,
+    y: position.y - containerRect.top,
+  };
+}
+
+function clampToolbarX(
+  x: number,
+  container: HTMLElement | null,
+  isAiMode: boolean
+): number {
+  if (!container || !toolbarElement) {
+    return x;
+  }
+
+  const margin = 12;
+  const minX = margin;
+  const maxX = container.clientWidth - margin;
+  const toolbarWidth = toolbarElement.offsetWidth;
+
+  if (isAiMode) {
+    return Math.min(x, Math.max(minX, maxX - toolbarWidth));
+  }
+
+  const halfWidth = toolbarWidth / 2;
+  return Math.max(minX + halfWidth, Math.min(x, maxX - halfWidth));
+}
 
 function createToolbarElement(): HTMLElement {
   const toolbar = document.createElement('div');
@@ -51,7 +119,10 @@ function showToolbar(position: { x: number; y: number }, placement: 'top' | 'bot
   if (!toolbarElement) return;
   toolbarElement.style.left = `${position.x}px`;
   toolbarElement.style.top = `${position.y}px`;
-  toolbarElement.style.transform = `translateX(-50%) translateY(${placement === 'top' ? '-100%' : '0'})`;
+  const isAiMode = toolbarElement.querySelector('.floating-toolbar-ai-mode');
+  toolbarElement.style.transform = isAiMode
+    ? `translateX(0) translateY(${placement === 'top' ? '-100%' : '0'})`
+    : `translateX(-50%) translateY(${placement === 'top' ? '-100%' : '0'})`;
   if (!toolbarElement.classList.contains('visible')) { toolbarElement.classList.add('visible'); toolbarElement.classList.remove('hidden'); }
 }
 
@@ -64,6 +135,7 @@ export const floatingToolbarPlugin = $prose(() => {
   let isMouseDown = false;
   let pendingShow = false;
   let pendingRaf: number | null = null;
+  let layoutRaf: number | null = null;
 
   return new Plugin<FloatingToolbarState>({
     key: floatingToolbarKey,
@@ -74,15 +146,16 @@ export const floatingToolbarPlugin = $prose(() => {
         if (meta) {
           switch (meta.type) {
             case TOOLBAR_ACTIONS.SHOW: return { ...prevState, isVisible: true, ...meta.payload };
-            case TOOLBAR_ACTIONS.HIDE: return { ...prevState, isVisible: false, subMenu: null };
+            case TOOLBAR_ACTIONS.HIDE: return { ...prevState, isVisible: false, subMenu: null, copied: false };
             case TOOLBAR_ACTIONS.UPDATE_POSITION: return { ...prevState, ...meta.payload };
             case TOOLBAR_ACTIONS.SET_SUB_MENU: return { ...prevState, subMenu: meta.payload?.subMenu ?? null };
+            case TOOLBAR_ACTIONS.SET_COPIED: return { ...prevState, copied: meta.payload?.copied ?? false };
             default: return { ...prevState, ...meta.payload };
           }
         }
         if (tr.selectionSet) {
           const { selection } = newState;
-          if (selection.empty) { if (prevState.isVisible) return { ...prevState, isVisible: false, subMenu: null }; }
+          if (selection.empty) { if (prevState.isVisible) return { ...prevState, isVisible: false, subMenu: null, copied: false }; }
           else {
             if (!isMouseDown && !prevState.isVisible) return { ...prevState, isVisible: true };
             if (isMouseDown) pendingShow = true;
@@ -93,7 +166,16 @@ export const floatingToolbarPlugin = $prose(() => {
     },
     view(editorView) {
       toolbarElement = createToolbarElement();
-      document.body.appendChild(toolbarElement);
+      const scrollRoot = getScrollRoot(editorView);
+      const toolbarRoot = getToolbarRoot(editorView);
+      (toolbarRoot ?? scrollRoot ?? document.body).appendChild(toolbarElement);
+      const scheduleToolbarUpdate = () => {
+        if (layoutRaf !== null) return;
+        layoutRaf = requestAnimationFrame(() => {
+          layoutRaf = null;
+          updateToolbar();
+        });
+      };
       const handleMouseDown = () => { isMouseDown = true; pendingShow = false; };
       const handleMouseUp = () => {
         isMouseDown = false;
@@ -110,6 +192,20 @@ export const floatingToolbarPlugin = $prose(() => {
       };
       document.addEventListener('mousedown', handleMouseDown);
       document.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('resize', scheduleToolbarUpdate);
+      scrollRoot?.addEventListener('scroll', scheduleToolbarUpdate, { passive: true });
+      const resizeObserver = typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => {
+            scheduleToolbarUpdate();
+          })
+        : null;
+      resizeObserver?.observe(editorView.dom);
+      if (scrollRoot) {
+        resizeObserver?.observe(scrollRoot);
+      }
+      if (toolbarRoot && toolbarRoot !== scrollRoot) {
+        resizeObserver?.observe(toolbarRoot);
+      }
       const updateToolbar = () => {
         const { selection } = editorView.state;
         
@@ -135,18 +231,50 @@ export const floatingToolbarPlugin = $prose(() => {
         updateCurrentBlockElement(editorView);
         const state = floatingToolbarKey.getState(editorView.state);
         if (!state?.isVisible) { hideToolbar(); lastRenderState = ''; return; }
-        const { x, y, placement } = calculatePosition(editorView);
+        const aiPosition = calculateBottomPosition(editorView);
+        const nextPosition = state.subMenu === 'ai'
+          ? {
+              ...aiPosition,
+              x: currentBlockElement?.getBoundingClientRect().left ?? aiPosition.x,
+            }
+          : calculatePosition(editorView);
+        const containerPosition = toContainerPosition(nextPosition, toolbarRoot ?? scrollRoot);
         const activeMarks = getActiveMarks(editorView);
         const currentBlockType = getCurrentBlockType(editorView);
+        const currentAlignment = getCurrentAlignment(editorView);
         const linkUrl = getLinkUrl(editorView);
         const textColor = getTextColor(editorView);
         const bgColor = getBgColor(editorView);
-        const cacheKey = [Array.from(activeMarks).sort().join(','), currentBlockType, linkUrl || '', textColor || '', bgColor || '', state.subMenu || ''].join('|');
+        const cacheKey = [
+          Array.from(activeMarks).sort().join(','),
+          currentBlockType,
+          currentAlignment,
+          linkUrl || '',
+          textColor || '',
+          bgColor || '',
+          state.copied ? 'copied' : '',
+          state.subMenu || '',
+        ].join('|');
         if (cacheKey !== lastRenderState) {
           lastRenderState = cacheKey;
-          renderToolbarContent(toolbarElement!, editorView, { ...state, activeMarks, currentBlockType, linkUrl, textColor, bgColor });
+          renderToolbarContent(toolbarElement!, editorView, {
+            ...state,
+            activeMarks,
+            currentBlockType,
+            currentAlignment,
+            linkUrl,
+            textColor,
+            bgColor,
+          });
         }
-        showToolbar({ x, y }, placement);
+        const isAiMode = state.subMenu === 'ai';
+        showToolbar(
+          {
+            x: clampToolbarX(containerPosition.x, toolbarRoot ?? scrollRoot, isAiMode),
+            y: containerPosition.y,
+          },
+          nextPosition.placement
+        );
       };
       const handleClickOutside = (e: MouseEvent) => {
         if (toolbarElement && !toolbarElement.contains(e.target as Node)) {
@@ -166,11 +294,15 @@ export const floatingToolbarPlugin = $prose(() => {
         update: updateToolbar,
         destroy() {
           if (pendingRaf !== null) { cancelAnimationFrame(pendingRaf); pendingRaf = null; }
+          if (layoutRaf !== null) { cancelAnimationFrame(layoutRaf); layoutRaf = null; }
           document.removeEventListener('mousedown', handleMouseDown);
           document.removeEventListener('mouseup', handleMouseUp);
           document.removeEventListener('mousedown', handleClickOutside);
           document.removeEventListener('keydown', handleKeyDown);
-          if (toolbarElement) { cleanupToolbarEventDelegation(toolbarElement); toolbarElement.remove(); toolbarElement = null; }
+          window.removeEventListener('resize', scheduleToolbarUpdate);
+          scrollRoot?.removeEventListener('scroll', scheduleToolbarUpdate);
+          resizeObserver?.disconnect();
+          if (toolbarElement) { cleanupToolbarEventDelegation(toolbarElement); cleanupToolbarRendering(); toolbarElement.remove(); toolbarElement = null; }
           lastRenderState = ''; currentBlockElement = null; isMouseDown = false; pendingShow = false;
         },
       };

@@ -79,32 +79,17 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   }, [displayPath, displayName]);
 
   const setNotesSidebarView = useUIStore((s) => s.setNotesSidebarView);
-  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
 
   const handleFolderClick = (targetPath: string) => {
-    if (sidebarCollapsed) {
-      toggleSidebar();
-    }
     setNotesSidebarView('workspace');
-
-    const revealDelay = sidebarCollapsed ? 220 : 0;
-    window.setTimeout(() => {
-      expandFolderChain(targetPath);
-      requestAnimationFrame(() => scrollToFolder(targetPath));
-    }, revealDelay);
+    expandFolderChain(targetPath);
+    requestAnimationFrame(() => scrollToFolder(targetPath));
   };
 
   const handleRootClick = () => {
-    if (sidebarCollapsed) {
-      toggleSidebar();
-    }
     setNotesSidebarView('workspace');
-    const revealDelay = sidebarCollapsed ? 220 : 0;
-    window.setTimeout(() => {
-      const scrollRoot = document.querySelector<HTMLElement>('[data-notes-sidebar-scroll-root="true"]');
-      if (scrollRoot) scrollRoot.scrollTo({ top: 0, behavior: 'smooth' });
-    }, revealDelay);
+    const scrollRoot = document.querySelector<HTMLElement>('[data-notes-sidebar-scroll-root="true"]');
+    if (scrollRoot) scrollRoot.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (

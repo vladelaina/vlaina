@@ -9,6 +9,7 @@ interface ResizeHandleProps {
   isDragging: boolean;
   positionStyle: CSSProperties;
   tooltipSide: 'left' | 'right';
+  tooltipLabel?: string;
   shortcutKeys?: string[];
   zIndexClassName?: string;
   className?: string;
@@ -19,6 +20,7 @@ export function ResizeHandle({
   isDragging,
   positionStyle,
   tooltipSide,
+  tooltipLabel,
   shortcutKeys,
   zIndexClassName = 'z-30',
   className,
@@ -41,7 +43,7 @@ export function ResizeHandle({
       </TooltipTrigger>
       {shortcutKeys && shortcutKeys.length > 0 && (
         <TooltipContent side={tooltipSide} sideOffset={5} className="flex items-center gap-1.5 text-xs">
-          <span>Toggle Sidebar</span>
+          {tooltipLabel ? <span>{tooltipLabel}</span> : null}
           <ShortcutKeys keys={shortcutKeys} />
         </TooltipContent>
       )}

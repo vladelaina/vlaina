@@ -5,6 +5,12 @@
 
 import { rootCtx } from '@milkdown/kit/core';
 import type { Ctx } from '@milkdown/kit/ctx';
+import {
+    getTextAlignmentComment,
+    isTextAlignment,
+    readMarkdownNodeAlignment,
+} from './plugins/floating-toolbar/blockAlignmentMarkdown';
+import type { TextAlignment } from './plugins/floating-toolbar/types';
 
 // Class mappings for 1:1 visual replication
 export const themeClasses = {
@@ -61,6 +67,30 @@ import { listItemSchema, bulletListSchema, orderedListSchema } from '@milkdown/k
 import { tableSchema, tableRowSchema, tableHeaderSchema, tableCellSchema } from '@milkdown/kit/preset/gfm';
 import { codeBlockSchema } from '@milkdown/kit/preset/commonmark';
 
+function normalizeTextAlignment(value: unknown): TextAlignment {
+    return isTextAlignment(value) ? value : 'left';
+}
+
+function getAlignedBlockDomAttrs(className: string, align: unknown) {
+    const normalizedAlign = normalizeTextAlignment(align);
+    const attrs: Record<string, string> = { class: className };
+
+    if (normalizedAlign !== 'left') {
+        attrs['data-text-align'] = normalizedAlign;
+        attrs.style = `text-align: ${normalizedAlign}`;
+    }
+
+    return attrs;
+}
+
+function getDomTextAlignment(dom: HTMLElement): TextAlignment {
+    return normalizeTextAlignment(
+        dom.getAttribute('data-text-align') ||
+        dom.style.textAlign ||
+        dom.getAttribute('align')
+    );
+}
+
 // Plugin to apply theme classes
 export function configureTheme(ctx: Ctx) {
     return async () => {
@@ -75,16 +105,92 @@ export function configureTheme(ctx: Ctx) {
         // Typography & Blocks
         ctx.update(paragraphSchema.key, (prev: any) => ({
             ...prev,
-            toDOM: (_node: any) => ['p', { class: themeClasses.paragraph }, 0]
+            attrs: {
+                ...(prev.attrs || {}),
+                align: { default: 'left' },
+            },
+            toDOM: (node: any) => [
+                'p',
+                getAlignedBlockDomAttrs(themeClasses.paragraph, node.attrs.align),
+                0
+            ],
+            parseDOM: [
+                {
+                    tag: 'p',
+                    getAttrs: (dom: HTMLElement) => ({
+                        align: getDomTextAlignment(dom),
+                    }),
+                },
+                ...(prev.parseDOM || []),
+            ],
+            parseMarkdown: {
+                match: (node: any) => node.type === 'paragraph',
+                runner: (state: any, node: any, type: any) => {
+                    const align = readMarkdownNodeAlignment(node);
+                    state.openNode(type, align !== 'left' ? { align } : undefined);
+                    state.next(node.children);
+                    state.closeNode();
+                },
+            },
+            toMarkdown: {
+                match: (node: any) => node.type.name === 'paragraph',
+                runner: (state: any, node: any) => {
+                    const align = normalizeTextAlignment(node.attrs.align);
+                    state.openNode('paragraph');
+                    state.next(node.content);
+                    state.closeNode();
+                    if (align !== 'left') {
+                        state.addNode('html', undefined, getTextAlignmentComment(align));
+                    }
+                },
+            },
         }));
 
         ctx.update(headingSchema.key, (prev: any) => ({
             ...prev,
+            attrs: {
+                ...(prev.attrs || {}),
+                align: { default: 'left' },
+            },
             toDOM: (node: any) => {
                 const level = node.attrs.level;
                 const className = themeClasses.heading[`h${level}` as keyof typeof themeClasses.heading];
-                return [`h${level}`, { class: className }, 0];
-            }
+                return [`h${level}`, getAlignedBlockDomAttrs(className, node.attrs.align), 0];
+            },
+            parseDOM: [
+                ...Array.from({ length: 6 }, (_, index) => ({
+                    tag: `h${index + 1}`,
+                    getAttrs: (dom: HTMLElement) => ({
+                        level: index + 1,
+                        align: getDomTextAlignment(dom),
+                    }),
+                })),
+                ...(prev.parseDOM || []),
+            ],
+            parseMarkdown: {
+                match: (node: any) => node.type === 'heading',
+                runner: (state: any, node: any, type: any) => {
+                    const align = readMarkdownNodeAlignment(node);
+                    const attrs = align !== 'left'
+                        ? { level: node.depth, align }
+                        : { level: node.depth };
+                    state.openNode(type, attrs);
+                    state.next(node.children);
+                    state.closeNode();
+                },
+            },
+            toMarkdown: {
+                match: (node: any) => node.type.name === 'heading',
+                runner: (state: any, node: any) => {
+                    const align = normalizeTextAlignment(node.attrs.align);
+                    state.openNode('heading', { depth: node.attrs.level });
+                    state.next(node.content);
+                    state.closeNode();
+                    if (align !== 'left') {
+                        state.addNode('html', undefined, getTextAlignmentComment(align));
+                    }
+                },
+            },
         }));
 
         ctx.update(blockquoteSchema.key, (prev: any) => ({
@@ -126,12 +232,55 @@ export function configureTheme(ctx: Ctx) {
 
         ctx.update(orderedListSchema.key, (prev: any) => ({
             ...prev,
-            toDOM: (_node: any) => ['ol', { class: themeClasses.lists.ol }, 0]
+            parseMarkdown: {
+                match: ({ type, ordered }: { type: string; ordered?: boolean }) => type === 'list' && !!ordered,
+                runner: (state: any, node: any, type: any) => {
+                    const spread = node.spread != null ? `${node.spread}` : 'true';
+                    const order = typeof node.start === 'number' ? node.start : 1;
+                    state.openNode(type, { spread, order }).next(node.children).closeNode();
+                },
+            },
+            toMarkdown: {
+                match: (node: any) => node.type.name === 'ordered_list',
+                runner: (state: any, node: any) => {
+                    state.openNode('list', undefined, {
+                        ordered: true,
+                        start: typeof node.attrs.order === 'number' ? node.attrs.order : 1,
+                        spread: node.attrs.spread === 'true' || node.attrs.spread === true,
+                    });
+                    state.next(node.content);
+                    state.closeNode();
+                },
+            },
+            toDOM: (node: any) => {
+                const order = typeof node.attrs?.order === 'number' ? node.attrs.order : 1;
+                return [
+                    'ol',
+                    {
+                        class: themeClasses.lists.ol,
+                        ...(order !== 1 ? { start: String(order) } : {}),
+                    },
+                    0,
+                ];
+            }
         }));
 
         ctx.update(listItemSchema.key, (prev: any) => ({
             ...prev,
-            toDOM: (_node: any) => ['li', { class: themeClasses.lists.li }, 0]
+            toDOM: (node: any) => {
+                const label = typeof node.attrs.label === 'string' ? node.attrs.label : '';
+                const numericValue = node.attrs.listType === 'ordered'
+                    ? Number.parseInt(label, 10)
+                    : Number.NaN;
+
+                return ['li', {
+                    class: themeClasses.lists.li,
+                    'data-label': node.attrs.label,
+                    'data-list-type': node.attrs.listType,
+                    'data-spread': node.attrs.spread,
+                    ...(Number.isFinite(numericValue) ? { value: String(numericValue) } : {}),
+                }, 0];
+            }
         }));
 
         // Code Block

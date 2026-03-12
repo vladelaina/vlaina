@@ -20,7 +20,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
   const { createNote, currentNote } = useNotesStore();
 
   const builtinHandlers = useMemo<Record<string, ShortcutHandler>>(() => ({
-    toggleSidebar: toggleSidebar,
+    toggleSidebar,
     globalSearch: () => {
       window.dispatchEvent(new Event('neko-open-search'));
     },

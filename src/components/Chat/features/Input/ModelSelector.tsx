@@ -56,7 +56,7 @@ const ModelOption = memo(({
 });
 
 interface ModelSelectorProps {
-  composerInputRef: RefObject<HTMLTextAreaElement | null>
+  composerInputRef: RefObject<HTMLInputElement | HTMLTextAreaElement | null>
 }
 
 export function ModelSelector({ composerInputRef }: ModelSelectorProps) {

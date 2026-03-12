@@ -85,27 +85,33 @@
   list-style-type: disc;
 }
 
-.milkdown ol>li {
+.milkdown ol>li:not([data-item-type="task"]) {
+  display: list-item;
   list-style-type: decimal;
 }
 
-.milkdown ol ol>li {
+.milkdown ol ol>li:not([data-item-type="task"]) {
+  display: list-item;
   list-style-type: lower-alpha;
 }
 
-.milkdown ol ol ol>li {
+.milkdown ol ol ol>li:not([data-item-type="task"]) {
+  display: list-item;
   list-style-type: lower-roman;
 }
 
-.milkdown ol ol ol ol>li {
+.milkdown ol ol ol ol>li:not([data-item-type="task"]) {
+  display: list-item;
   list-style-type: decimal;
 }
 
-.milkdown ol ol ol ol ol>li {
+.milkdown ol ol ol ol ol>li:not([data-item-type="task"]) {
+  display: list-item;
   list-style-type: lower-alpha;
 }
 
-.milkdown ol ol ol ol ol ol>li {
+.milkdown ol ol ol ol ol ol>li:not([data-item-type="task"]) {
+  display: list-item;
   list-style-type: lower-roman;
 }
 

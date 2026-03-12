@@ -41,7 +41,7 @@ export function NotesSidebarRow({
   children,
   ...props
 }: NotesSidebarRowProps) {
-  const paddingLeft = 8 + depth * 16;
+  const paddingLeft = depth * 16;
   const hasActions = Boolean(actions);
   const showTrailing = Boolean(trailing) && (!hasActions || !showActionsByDefault);
 

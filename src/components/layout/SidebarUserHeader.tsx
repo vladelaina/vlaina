@@ -96,24 +96,24 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                         <Icon name="common.search" size="md" />
                     </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" sideOffset={2}>
-                    <span className="flex items-center gap-1.5">
-                        Search
-                        <ShortcutKeys keys={['Ctrl', 'F']} />
-                    </span>
-                </TooltipContent>
+            <TooltipContent side="bottom" sideOffset={2}>
+                <span className="flex items-center gap-1.5">
+                    Search
+                    <ShortcutKeys keys={['Ctrl', 'F']} />
+                </span>
+            </TooltipContent>
             </Tooltip>
 
-            {/* Collapse button */}
             <button
                 onClick={toggleSidebar}
+                aria-label="Collapse sidebar"
                 className={cn(
                     "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0 transition-colors",
                     "hover:bg-[#f5f5f5] dark:hover:bg-white/10",
                     iconButtonStyles
                 )}
             >
-                <Icon name="sidebar.collapse" size="md" />
+                <Icon name="nav.collapse" size="md" />
             </button>
         </div>
     );
