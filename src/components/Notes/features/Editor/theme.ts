@@ -267,7 +267,20 @@ export function configureTheme(ctx: Ctx) {
 
         ctx.update(listItemSchema.key, (prev: any) => ({
             ...prev,
-            toDOM: (_node: any) => ['li', { class: themeClasses.lists.li }, 0]
+            toDOM: (node: any) => {
+                const label = typeof node.attrs.label === 'string' ? node.attrs.label : '';
+                const numericValue = node.attrs.listType === 'ordered'
+                    ? Number.parseInt(label, 10)
+                    : Number.NaN;
+
+                return ['li', {
+                    class: themeClasses.lists.li,
+                    'data-label': node.attrs.label,
+                    'data-list-type': node.attrs.listType,
+                    'data-spread': node.attrs.spread,
+                    ...(Number.isFinite(numericValue) ? { value: String(numericValue) } : {}),
+                }, 0];
+            }
         }));
 
         // Code Block

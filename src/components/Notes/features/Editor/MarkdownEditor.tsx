@@ -7,15 +7,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Editor, rootCtx, defaultValueCtx, editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import {
-  schema as commonmarkSchema,
-  inputRules as commonmarkInputRules,
-  markInputRules as commonmarkMarkInputRules,
-  commands as commonmarkCommands,
-  keymap as commonmarkKeymap,
-  plugins as commonmarkPlugins,
-  syncListOrderPlugin,
-} from '@milkdown/kit/preset/commonmark';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
@@ -33,15 +25,6 @@ import { useEditorSave } from './hooks/useEditorSave';
 import { calculateTextStats } from './utils/textStats';
 import { setCurrentEditorView } from './utils/editorViewRegistry';
 import './styles/index.css';
-
-const customCommonmark = [
-  commonmarkSchema,
-  commonmarkInputRules,
-  commonmarkMarkInputRules,
-  commonmarkCommands,
-  commonmarkKeymap,
-  commonmarkPlugins.filter((plugin) => plugin !== syncListOrderPlugin),
-].flat();
 
 const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   const updateContent = useNotesStore(s => s.updateContent);
@@ -117,7 +100,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
             });
           });
       })
-      .use(customCommonmark)
+      .use(commonmark)
       .use(gfm)
       .use(history)
       .use(listener)

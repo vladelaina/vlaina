@@ -42,9 +42,6 @@ export { taskListClickPlugin, listTabIndentPlugin } from './task-list';
 // List collapse
 export { listCollapsePlugin } from './collapse';
 
-// Markdown input aliases
-export { blockquoteAliasPlugin, orderedListStartSyncPlugin } from './blockquoteAlias';
-
 // Clipboard (clean text serialization)
 export { clipboardPlugin } from './clipboard';
 
