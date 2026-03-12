@@ -1,0 +1,19 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib",
+    "emitDeclarationOnly": true,
+    "tsBuildInfoFile": "./lib/tsconfig.tsbuildinfo"
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../../core" },
+    { "path": "../../ctx" },
+    { "path": "../../prose" },
+    { "path": "../preset-commonmark" },
+    { "path": "../../transformer" },
+    { "path": "../../exception" },
+    { "path": "../../utils" }
+  ]
+}

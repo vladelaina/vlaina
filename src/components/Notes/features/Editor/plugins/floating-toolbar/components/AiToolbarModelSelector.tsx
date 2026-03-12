@@ -1,4 +1,3 @@
-import React from 'react';
 import type { RefObject } from 'react';
 import { ModelSelector } from '@/components/Chat/features/Input/ModelSelector';
 

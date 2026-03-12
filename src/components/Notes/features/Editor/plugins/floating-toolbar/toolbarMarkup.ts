@@ -157,9 +157,8 @@ export function renderToolbarMarkup(state: FloatingToolbarState): string {
     </button>
   `;
 
-  const aiButtonActive = state.subMenu === 'ai' ? 'active' : '';
   const aiButton = `
-    <button class="toolbar-btn toolbar-ai-btn has-tooltip ${aiButtonActive}"
+    <button class="toolbar-btn toolbar-ai-btn has-tooltip"
             data-action="ai">
       <span class="toolbar-ai-btn-icon" aria-hidden="true">💫</span>
       <span class="toolbar-ai-btn-label">Ask AI</span>

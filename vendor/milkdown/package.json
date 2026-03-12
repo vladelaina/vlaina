@@ -1,0 +1,12 @@
+{
+  "name": "@nekotick/vendor-milkdown",
+  "private": true,
+  "description": "Vendored Milkdown workspace maintained inside NekoTick.",
+  "packageManager": "pnpm@10.24.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build:tsc": "tsc -b tsconfig.json --pretty false"
+  }
+}

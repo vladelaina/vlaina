@@ -1,0 +1,52 @@
+{
+  "name": "@milkdown/preset-gfm",
+  "type": "module",
+  "version": "7.17.3",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Milkdown/milkdown.git",
+    "directory": "packages/plugins/preset-gfm"
+  },
+  "keywords": [
+    "milkdown",
+    "milkdown plugin",
+    "markdown",
+    "gfm"
+  ],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./src/index.ts"
+    }
+  },
+  "main": "./src/index.ts",
+  "publishConfig": {
+    "main": "./lib/index.js",
+    "types": "./lib/index.d.ts",
+    "exports": {
+      ".": {
+        "import": "./lib/index.js",
+        "types": "./lib/index.d.ts"
+      }
+    }
+  },
+  "scripts": {
+    "build": "vite build"
+  },
+  "files": [
+    "lib",
+    "src"
+  ],
+  "dependencies": {
+    "@milkdown/core": "workspace:*",
+    "@milkdown/ctx": "workspace:*",
+    "@milkdown/prose": "workspace:*",
+    "@milkdown/preset-commonmark": "workspace:*",
+    "@milkdown/transformer": "workspace:*",
+    "@milkdown/exception": "workspace:*",
+    "@milkdown/utils": "workspace:*",
+    "prosemirror-safari-ime-span": "^1.0.1",
+    "remark-gfm": "^4.0.1"
+  }
+}

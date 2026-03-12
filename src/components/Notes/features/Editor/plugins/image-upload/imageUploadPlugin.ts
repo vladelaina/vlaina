@@ -1,5 +1,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 
 export const imageUploadPluginKey = new PluginKey('neko-image-upload');
@@ -43,7 +44,7 @@ export const imageUploadPlugin = $prose(() => {
                     const files = event.dataTransfer?.files;
                     if (!files || files.length === 0) return false;
 
-                    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+                    const imageFiles = Array.from(files as FileList).filter((file: File) => file.type.startsWith('image/'));
 
                     if (imageFiles.length > 0) {
                         event.preventDefault();
@@ -62,7 +63,7 @@ export const imageUploadPlugin = $prose(() => {
     });
 });
 
-async function handleImageUpload(file: File, view: any) {
+async function handleImageUpload(file: File, view: EditorView) {
     const { uploadAsset, currentNote } = useNotesStore.getState();
 
     try {

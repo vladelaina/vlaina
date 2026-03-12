@@ -23,7 +23,8 @@
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@milkdown/*": ["./src/types/milkdown/index.d.ts"]
     }
   },
   "include": ["src"],
