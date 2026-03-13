@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { ProviderDetail } from './ai/ProviderDetail';
 import { AIBehaviorSettings } from './ai/AIBehaviorSettings';
@@ -8,28 +8,31 @@ import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 
 export function AITab() {
   const { providers, addProvider } = useAIStore();
+  const customProviders = useMemo(
+    () => providers.filter((provider) => provider.id !== MANAGED_PROVIDER_ID),
+    [providers]
+  );
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (providers.length === 0) {
+    if (customProviders.length === 0) {
       setSelectedProviderId(null);
       return;
     }
 
-    const managedProvider = providers.find((provider) => provider.id === MANAGED_PROVIDER_ID);
-    const preferredId = managedProvider?.id || providers[0].id;
+    const preferredId = customProviders[0].id;
 
     if (!selectedProviderId) {
       setSelectedProviderId(preferredId);
     } else {
-      const exists = providers.some(p => p.id === selectedProviderId);
+      const exists = customProviders.some((provider) => provider.id === selectedProviderId);
       if (!exists) {
         setSelectedProviderId(preferredId);
       }
     }
-  }, [providers, selectedProviderId]);
+  }, [customProviders, selectedProviderId]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -44,7 +47,7 @@ export function AITab() {
   }, []);
 
   const currentProvider = selectedProviderId
-    ? providers.find(p => p.id === selectedProviderId)
+    ? customProviders.find((provider) => provider.id === selectedProviderId)
     : undefined;
 
   const handleSelectProvider = (id: string) => {
@@ -53,7 +56,7 @@ export function AITab() {
   };
 
   const handleAddCustomProvider = () => {
-    const customIndex = providers.filter((provider) => provider.id !== MANAGED_PROVIDER_ID).length + 1;
+    const customIndex = customProviders.length + 1;
     const nextId = addProvider({
       name: `Custom Channel ${customIndex}`,
       type: 'newapi',
@@ -91,7 +94,7 @@ export function AITab() {
             {isDropdownOpen && (
               <div className="absolute z-30 mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1E1E1E] shadow-lg overflow-hidden">
                 <div className="max-h-64 overflow-y-auto p-1">
-                  {providers.map((provider) => {
+                  {customProviders.map((provider) => {
                     const isSelected = provider.id === selectedProviderId;
                     return (
                       <div

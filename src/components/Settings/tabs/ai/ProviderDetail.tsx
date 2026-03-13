@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useAIStore } from '@/stores/useAIStore';
 import { useAccountSessionStore } from '@/stores/accountSession';
-import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import { backgroundBenchmarkRunner } from '@/lib/ai/healthCheck';
 import { Provider } from '@/lib/ai/types';
@@ -32,7 +31,6 @@ function maskApiKey(value: string): string {
 export function ProviderDetail({ provider: initialProvider }: ProviderDetailProps) {
   const { updateProvider, models, addModel, addModels, deleteModel, deleteProvider, refreshManagedProvider } = useAIStore();
   const { isConnected, isConnecting, error: authError, signIn, requestEmailCode, verifyEmailCode, signOut } = useAccountSessionStore();
-  const { budget, isRefreshingBudget, budgetError, lastBudgetSyncAt, refreshBudget } = useManagedAIStore();
 
   const [name, setName] = useState(initialProvider?.name || '');
   const [apiKey, setApiKey] = useState(initialProvider?.apiKey || '');
@@ -112,13 +110,6 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
       setIsHealthChecking(snapshot.isRunning);
     });
   }, [providerId]);
-
-  useEffect(() => {
-    if (!isManagedProvider || !isConnected) {
-      return;
-    }
-    void refreshBudget();
-  }, [isConnected, isManagedProvider, refreshBudget]);
 
   const canUseConnectionActions = Boolean(initialProvider && apiHost.trim() && apiKey.trim());
   const canBenchmark = canUseConnectionActions && providerModels.length > 0;
@@ -329,11 +320,6 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
       <ManagedProviderPanel
         isConnected={isConnected}
         isConnecting={isConnecting}
-        isRefreshingBudget={isRefreshingBudget}
-        budget={budget}
-        budgetError={budgetError}
-        lastBudgetSyncAt={lastBudgetSyncAt}
-        providerModels={providerModels}
         authError={authError}
         onConnect={handleManagedConnect}
         onRequestEmailCode={requestEmailCode}

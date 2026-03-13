@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useAccountSessionStore } from '@/stores/accountSession';
+import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useUserAvatar } from '@/hooks/useUserAvatar';
 import { cn, iconButtonStyles } from '@/lib/utils';
-import { getAccountProviderLabel } from '@/lib/account/provider';
 
 interface UserIdentityCardProps {
   onLogout: () => void;
@@ -11,12 +11,21 @@ interface UserIdentityCardProps {
 }
 
 export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, onSwitchAccount }) => {
-  const { username, primaryEmail, isConnected, provider } = useAccountSessionStore();
+  const { username, primaryEmail, isConnected } = useAccountSessionStore();
+  const { budget, refreshBudget } = useManagedAIStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const displayName = username || primaryEmail || 'NekoTick';
   const userAvatar = useUserAvatar();
   const displayAvatar = userAvatar || '/logo.png';
+  const remainingPercent = Math.max(0, Math.min(100, budget?.remainingPercent || 0));
+
+  useEffect(() => {
+    if (!isConnected) {
+      return;
+    }
+    void refreshBudget();
+  }, [isConnected, refreshBudget]);
 
   return (
     <div className="group relative flex select-none items-start gap-3 px-3 pb-2.5 pt-3">
@@ -59,9 +68,21 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
           </button>
         </div>
 
-        <div className="text-[11px] text-[var(--neko-text-tertiary)]">
-          {isConnected ? `Signed in via ${getAccountProviderLabel(provider)}` : 'Using local-only mode'}
-        </div>
+        {isConnected && budget ? (
+          <div className="mt-1 flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="h-1.5 overflow-hidden rounded-full bg-[#e9e6df]">
+                <div
+                  className="h-full rounded-full bg-[#10b981] transition-all"
+                  style={{ width: `${remainingPercent}%` }}
+                />
+              </div>
+            </div>
+            <span className="shrink-0 text-[11px] text-[var(--neko-text-tertiary)]">
+              {`${remainingPercent.toFixed(0)}%`}
+            </span>
+          </div>
+        ) : null}
 
         {isMenuOpen && (
           <>

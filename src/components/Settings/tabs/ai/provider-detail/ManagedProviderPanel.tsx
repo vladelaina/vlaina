@@ -1,5 +1,3 @@
-import type { AIModel } from '@/lib/ai/types';
-import type { ManagedBudgetStatus } from '@/lib/ai/managedService';
 import { MANAGED_API_BASE } from '@/lib/ai/managedService';
 import { AccountSignInOptions } from '@/components/account/AccountSignInOptions';
 import type { OauthAccountProvider } from '@/lib/account/provider';
@@ -7,11 +5,6 @@ import type { OauthAccountProvider } from '@/lib/account/provider';
 interface ManagedProviderPanelProps {
   isConnected: boolean;
   isConnecting: boolean;
-  isRefreshingBudget: boolean;
-  budget: ManagedBudgetStatus | null;
-  budgetError: string | null;
-  lastBudgetSyncAt: number | null;
-  providerModels: AIModel[];
   authError: string | null;
   onConnect: (provider: OauthAccountProvider) => void | Promise<void>;
   onRequestEmailCode: (email: string) => Promise<boolean>;
@@ -23,11 +16,6 @@ interface ManagedProviderPanelProps {
 export function ManagedProviderPanel({
   isConnected,
   isConnecting,
-  isRefreshingBudget,
-  budget,
-  budgetError,
-  lastBudgetSyncAt,
-  providerModels,
   authError,
   onConnect,
   onRequestEmailCode,
@@ -88,59 +76,15 @@ export function ManagedProviderPanel({
                 {isConnected ? 'Connected' : 'Not connected'}
               </div>
             </div>
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-white/[0.02] p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Authorized Models</div>
-              <div className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">{providerModels.length}</div>
-            </div>
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-white/[0.02] p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Budget</div>
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-white/[0.02] p-4 md:col-span-2">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Account</div>
               <div className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-                {budget ? `${budget.remainingPercent.toFixed(2)}% remaining` : isConnected ? 'Unknown' : 'Sign in required'}
+                {isConnected ? 'Signed in to NekoTick AI' : 'Sign in required'}
               </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="h-2 rounded-full bg-gray-100 dark:bg-white/10 overflow-hidden">
-              <div
-                className="h-full bg-black dark:bg-white transition-all"
-                style={{ width: `${Math.max(0, Math.min(100, budget?.usedPercent || 0))}%` }}
-              />
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
-              <span>
-                {budget
-                  ? `Used ${budget.usedPercent.toFixed(2)}% · Remaining ${budget.remainingPercent.toFixed(2)}%`
-                  : isRefreshingBudget
-                  ? 'Refreshing budget...'
-                  : 'Budget status unavailable'}
-              </span>
-              <span>{lastBudgetSyncAt ? `Updated ${new Date(lastBudgetSyncAt).toLocaleString()}` : ''}</span>
-            </div>
-            {budgetError && <p className="text-xs text-red-600 dark:text-red-400">{budgetError}</p>}
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#202020] p-6">
-        <div className="space-y-2">
-          <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Available Models</h4>
-          <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-            {providerModels.length === 0 ? (
-              <p className="text-xs text-gray-500">
-                {isConnected ? 'No models available yet.' : 'Sign in first to load your authorized models.'}
+              <p className="mt-1 text-xs text-gray-500">
+                Budget progress is shown in the account card under your avatar.
               </p>
-            ) : (
-              providerModels.map((model) => (
-                <div
-                  key={model.id}
-                  className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-200"
-                >
-                  <div className="font-medium">{model.name}</div>
-                  <div className="text-xs text-gray-500">{model.apiModelId}</div>
-                </div>
-              ))
-            )}
+            </div>
           </div>
         </div>
       </section>

@@ -109,8 +109,8 @@ function AppContent() {
       await appWindow.setMaximizable(true);
       await appWindow.setMinSize(new LogicalSize(800, 600));
       const size = await appWindow.outerSize();
-      if (size.width < 800) {
-        await appWindow.setSize(new LogicalSize(1024, 768));
+      if (size.width < 1080 || size.height < 720) {
+        await appWindow.setSize(new LogicalSize(1080, 720));
         await appWindow.center();
       }
     };
