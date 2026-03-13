@@ -1,5 +1,7 @@
 const OPENING_FENCE_PATTERN = /^```[^`]*$/;
 const CLOSING_FENCE_PATTERN = /^```+$/;
+const THEMATIC_BREAK_PATTERN = /^(\s*)([-*_])(?:\s*\2){2,}\s*$/;
+const GENERIC_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 
 const normalizeLineEnding = (value: string) => value.replace(/\r\n?/g, '\n');
 
@@ -11,6 +13,35 @@ export interface FencedCodePayload {
 export interface AtxHeadingPayload {
     level: number;
     text: string;
+}
+
+interface FenceState {
+    marker: '`' | '~';
+    size: number;
+}
+
+function getFenceState(line: string): FenceState | null {
+    const match = line.match(GENERIC_FENCE_PATTERN);
+    if (!match) return null;
+
+    const fence = match[1];
+    return {
+        marker: fence[0] as '`' | '~',
+        size: fence.length,
+    };
+}
+
+function isFenceClose(line: string, fence: FenceState): boolean {
+    const match = line.match(/^ {0,3}(`{3,}|~{3,})[ \t]*$/);
+    if (!match) return false;
+
+    const markerRun = match[1];
+    return markerRun[0] === fence.marker && markerRun.length >= fence.size;
+}
+
+function isNonBlankContentLine(line: string | undefined): boolean {
+    if (line === undefined || line.trim().length === 0) return false;
+    return getFenceState(line) === null;
 }
 
 export const parseStandaloneFencedCodeBlock = (value: string): FencedCodePayload | null => {
@@ -60,6 +91,57 @@ export const parseStandaloneAtxHeading = (value: string): AtxHeadingPayload | nu
         level,
         text,
     };
+};
+
+export const normalizeStandaloneThematicBreaksForPaste = (value: string): string => {
+    const normalized = normalizeLineEnding(value);
+    const lines = normalized.split('\n');
+
+    if (lines.length < 2) return normalized;
+
+    const result: string[] = [];
+    let activeFence: FenceState | null = null;
+
+    for (let index = 0; index < lines.length; index += 1) {
+        const line = lines[index];
+        if (activeFence) {
+            result.push(line);
+            if (isFenceClose(line, activeFence)) {
+                activeFence = null;
+            }
+            continue;
+        }
+
+        const openingFence = getFenceState(line);
+        if (openingFence) {
+            activeFence = openingFence;
+            result.push(line);
+            continue;
+        }
+
+        if (!THEMATIC_BREAK_PATTERN.test(line)) {
+            result.push(line);
+            continue;
+        }
+
+        const previousLine = lines[index - 1];
+        const nextLine = lines[index + 1];
+        const previousIsContent = isNonBlankContentLine(previousLine);
+        const nextIsContent = isNonBlankContentLine(nextLine);
+        const lastResultLine = result[result.length - 1];
+
+        if (previousIsContent && lastResultLine !== '') {
+            result.push('');
+        }
+
+        result.push(line);
+
+        if (nextIsContent) {
+            result.push('');
+        }
+    }
+
+    return result.join('\n');
 };
 
 export const looksLikeMarkdownForPaste = (value: string): boolean => {

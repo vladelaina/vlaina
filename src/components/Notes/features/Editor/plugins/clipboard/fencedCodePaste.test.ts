@@ -3,6 +3,7 @@ import {
     extractLargestMarkdownFenceContent,
     isStandaloneFencedCodeBlock,
     looksLikeMarkdownForPaste,
+    normalizeStandaloneThematicBreaksForPaste,
     parseStandaloneAtxHeading,
     parseStandaloneFencedCodeBlock,
 } from './fencedCodePaste';
@@ -110,5 +111,24 @@ describe('extractLargestMarkdownFenceContent', () => {
 
     it('returns null when markdown fence is missing', () => {
         expect(extractLargestMarkdownFenceContent('```ts\nconst a = 1;\n```')).toBeNull();
+    });
+});
+
+describe('normalizeStandaloneThematicBreaksForPaste', () => {
+    it('adds blank lines around thematic breaks next to plain content', () => {
+        expect(normalizeStandaloneThematicBreaksForPaste('---\n测试\n---')).toBe('---\n\n测试\n\n---');
+    });
+
+    it('disambiguates a trailing thematic break from a setext heading underline', () => {
+        expect(normalizeStandaloneThematicBreaksForPaste('Title\n---')).toBe('Title\n\n---');
+    });
+
+    it('keeps existing blank-line-separated thematic breaks unchanged', () => {
+        expect(normalizeStandaloneThematicBreaksForPaste('---\n\nBody\n\n---')).toBe('---\n\nBody\n\n---');
+    });
+
+    it('does not rewrite thematic-break-like lines inside fenced code', () => {
+        const value = ['```md', 'alpha', '---', 'beta', '```', '---', 'tail'].join('\n');
+        expect(normalizeStandaloneThematicBreaksForPaste(value)).toBe(['```md', 'alpha', '---', 'beta', '```', '---', '', 'tail'].join('\n'));
     });
 });

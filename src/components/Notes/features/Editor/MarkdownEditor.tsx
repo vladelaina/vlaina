@@ -20,6 +20,7 @@ import { useNoteCoverController, NoteCoverCanvas } from '../Cover';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { configureTheme } from './theme';
 import { customPlugins } from './config/plugins';
+import { notesRemarkStringifyOptions } from './config/stringifyOptions';
 import { useEditorLayout } from './hooks/useEditorLayout';
 import { useEditorSave } from './hooks/useEditorSave';
 import { calculateTextStats } from './utils/textStats';
@@ -66,7 +67,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
         ctx.set(defaultValueCtx, initialContent);
         ctx.update(remarkStringifyOptionsCtx, (prev) => ({
           ...prev,
-          bullet: '-' as const,
+          ...notesRemarkStringifyOptions,
         }));
 
         const initTime = Date.now();
