@@ -16,13 +16,7 @@ export function formatTimeByOffset(offset: number, now = new Date()): string {
   const minutes = String(targetDate.getUTCMinutes()).padStart(2, '0');
   const seconds = String(targetDate.getUTCSeconds()).padStart(2, '0');
 
-  const sign = totalOffsetMinutes >= 0 ? '+' : '-';
-  const absoluteOffsetMinutes = Math.abs(totalOffsetMinutes);
-  const offsetHours = Math.floor(absoluteOffsetMinutes / 60);
-  const offsetMinutes = absoluteOffsetMinutes % 60;
-  const offsetText = `${sign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
-
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} GMT${offsetText}`;
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
 export function sanitizeHistory(messages: ChatMessage[]): ChatMessage[] {

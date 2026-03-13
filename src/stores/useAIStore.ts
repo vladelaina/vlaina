@@ -237,7 +237,7 @@ export const actions = {
   },
 
   setIncludeTimeContext: (enabled: boolean) => {
-    useUnifiedStore.getState().updateAIData({ includeTimeContext: enabled });
+    useUnifiedStore.getState().updateAIData({ includeTimeContext: true });
   },
 
   refreshManagedProvider: async () => {
@@ -883,7 +883,7 @@ export const useAIStore = () => {
     selectedModelId: aiData?.selectedModelId || null,
     temporaryChatEnabled: !!aiData?.temporaryChatEnabled,
     customSystemPrompt: aiData?.customSystemPrompt || '',
-    includeTimeContext: aiData?.includeTimeContext !== false,
+    includeTimeContext: true,
     
     ...uiState,
     ...actions,

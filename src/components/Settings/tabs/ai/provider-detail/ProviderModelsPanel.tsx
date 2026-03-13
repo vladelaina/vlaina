@@ -1,6 +1,7 @@
 import { Icon } from '@/components/ui/icons';
 import type { AIModel } from '@/lib/ai/types';
 import { ModelListItem, type HealthStatus } from '../components/ModelListItem';
+import { SettingsTextInput } from '@/components/Settings/components/SettingsFields';
 
 interface ProviderModelsPanelProps {
   providerId: string;
@@ -100,8 +101,8 @@ export function ProviderModelsPanel({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-2">
-          <input
+        <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
+          <SettingsTextInput
             type="text"
             value={quickAddModelId}
             onChange={(e) => {
@@ -116,7 +117,6 @@ export function ProviderModelsPanel({
             }}
             list={datalistId}
             placeholder="Enter model ID or select from fetched results"
-            className="h-10 px-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:ring-2 focus:ring-gray-500/20"
           />
           <button
             onClick={onQuickAdd}
@@ -135,24 +135,25 @@ export function ProviderModelsPanel({
           <p className="mt-2 text-xs text-red-600 dark:text-red-400">{quickAddError || fetchError}</p>
         )}
 
-        <div className="mt-3 relative">
-          <Icon name="common.search" className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
+        <div className="mt-3">
+          <SettingsTextInput
             type="text"
             value={modelQuery}
             onChange={(e) => onModelQueryChange(e.target.value)}
             placeholder="Filter selected and discovered models..."
-            className="w-full h-10 pl-9 pr-9 text-sm rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 outline-none focus:ring-2 focus:ring-gray-500/20"
+            leading={<Icon name="common.search" className="h-4 w-4 text-gray-400" />}
+            trailing={
+              modelQuery ? (
+                <button
+                  onClick={() => onModelQueryChange('')}
+                  className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-white/10"
+                  title="Clear"
+                >
+                  <Icon name="common.close" size="xs" />
+                </button>
+              ) : null
+            }
           />
-          {modelQuery && (
-            <button
-              onClick={() => onModelQueryChange('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400"
-              title="Clear"
-            >
-              <Icon name="common.close" size="xs" />
-            </button>
-          )}
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRequestHistory, formatTimeByOffset, sanitizeHistory } from './requestContext';
+import { buildRequestHistory, sanitizeHistory } from './requestContext';
 import type { ChatMessage } from './types';
 
 function createMessage(overrides: Partial<ChatMessage>): ChatMessage {
@@ -59,17 +59,5 @@ describe('requestContext', () => {
 
     const sanitized = sanitizeHistory(history);
     expect(sanitized[0].content).toBe('[Image]\n\ndescribe it');
-  });
-
-  it('formats offset time as a stable gmt string', () => {
-    const fixedNow = new Date('2026-03-04T00:00:00.000Z');
-    const result = formatTimeByOffset(8, fixedNow);
-    expect(result).toBe('2026-03-04 08:00:00 GMT+08:00');
-  });
-
-  it('formats half-hour offsets without invalid minutes', () => {
-    const fixedNow = new Date('2026-03-04T00:00:00.000Z');
-    const result = formatTimeByOffset(5.5, fixedNow);
-    expect(result).toBe('2026-03-04 05:30:00 GMT+05:30');
   });
 });

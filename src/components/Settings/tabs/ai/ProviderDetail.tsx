@@ -10,6 +10,7 @@ import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 import { ManagedProviderPanel } from './provider-detail/ManagedProviderPanel';
 import { ProviderModelsPanel } from './provider-detail/ProviderModelsPanel';
 import type { OauthAccountProvider } from '@/lib/account/provider';
+import { SettingsTextInput } from '@/components/Settings/components/SettingsFields';
 
 interface ProviderDetailProps {
   provider: Provider | undefined;
@@ -338,7 +339,7 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
           <div className="grid grid-cols-1 gap-4">
             <div className="space-y-1.5">
               <label className="text-[11px] font-medium text-gray-500">Base URL</label>
-              <input
+              <SettingsTextInput
                 type="text"
                 value={apiHost}
                 onChange={(e) => {
@@ -348,56 +349,54 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
                   setFetchError('');
                 }}
                 placeholder="https://api.example.com"
-                className="w-full h-11 px-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:ring-2 focus:ring-gray-500/20"
               />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-[11px] font-medium text-gray-500">API Key</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={showApiKey ? apiKey : maskApiKey(apiKey)}
-                  readOnly={!showApiKey}
-                  onChange={(e) => {
-                    setApiKey(e.target.value);
-                    setConnectionStatus('idle');
-                    setConnectionMessage('');
-                    setFetchError('');
-                  }}
-                  placeholder="sk-..."
-                  className="w-full h-11 px-3 pr-20 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm font-mono outline-none focus:ring-2 focus:ring-gray-500/20"
-                />
-                <div className="absolute inset-y-0 right-2 flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey((prev) => !prev)}
-                    className="h-7 w-7 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors flex items-center justify-center"
-                    title={showApiKey ? 'Hide API Key' : 'Show API Key'}
-                  >
-                    <Icon name={showApiKey ? 'common.eyeOff' : 'common.eye'} size="sm" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCopyApiKey}
-                    disabled={!apiKey}
-                    className="h-7 w-7 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
-                    title={apiKeyCopied ? 'Copied' : 'Copy API Key'}
-                  >
-                    <Icon name={apiKeyCopied ? 'common.check' : 'common.copy'} size="sm" />
-                  </button>
-                </div>
-              </div>
+              <SettingsTextInput
+                type="text"
+                value={showApiKey ? apiKey : maskApiKey(apiKey)}
+                readOnly={!showApiKey}
+                onChange={(e) => {
+                  setApiKey(e.target.value);
+                  setConnectionStatus('idle');
+                  setConnectionMessage('');
+                  setFetchError('');
+                }}
+                placeholder="sk-..."
+                inputClassName="font-mono"
+                trailing={
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey((prev) => !prev)}
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-gray-200"
+                      title={showApiKey ? 'Hide API Key' : 'Show API Key'}
+                    >
+                      <Icon name={showApiKey ? 'common.eyeOff' : 'common.eye'} size="sm" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCopyApiKey}
+                      disabled={!apiKey}
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/10 dark:hover:text-gray-200"
+                      title={apiKeyCopied ? 'Copied' : 'Copy API Key'}
+                    >
+                      <Icon name={apiKeyCopied ? 'common.check' : 'common.copy'} size="sm" />
+                    </button>
+                  </>
+                }
+              />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-[11px] font-medium text-gray-500">Channel Label (optional)</label>
-              <input
+              <SettingsTextInput
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="New Channel"
-                className="w-full h-10 px-3 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700 text-sm outline-none focus:ring-2 focus:ring-gray-500/20"
               />
             </div>
           </div>
