@@ -39,6 +39,8 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
         >
             <WorkspaceSwitcher onOpenSettings={onOpenSettings} />
 
+            <div className="flex-1 h-full" data-tauri-drag-region />
+
             <Tooltip delayDuration={1000}>
                 <TooltipTrigger asChild>
                     <button
@@ -57,8 +59,6 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                     <span className="text-xs">{switchTarget.label}</span>
                 </TooltipContent>
             </Tooltip>
-
-            <div className="flex-1 h-full" data-tauri-drag-region />
 
             {appViewMode === 'notes' && (
                 <Tooltip delayDuration={1000}>
