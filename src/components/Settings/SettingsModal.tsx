@@ -127,6 +127,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               className="w-[1080px] h-[720px] max-w-full max-h-[90vh] bg-white dark:bg-[#1C1C1C] rounded-[16px] shadow-2xl flex overflow-hidden pointer-events-auto ring-1 ring-black/5 dark:ring-white/5 select-none"
               onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
               tabIndex={-1}
             >
               <div className="w-[260px] flex-shrink-0 bg-[var(--neko-sidebar-bg)] flex flex-col">

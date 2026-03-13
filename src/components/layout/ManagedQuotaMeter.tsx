@@ -19,7 +19,7 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
       <div className="min-w-0 flex-1">
         <div className="h-1.5 overflow-hidden rounded-full bg-[#e9e6df]">
           <div
-            className="h-full rounded-full bg-[#10b981] transition-all"
+            className="h-full rounded-full bg-[#4ade80] transition-all"
             style={{ width: `${remainingPercent}%` }}
           />
         </div>

@@ -11,11 +11,13 @@ import { isComposerFocusTarget, selectComposerInputAll } from '@/lib/ui/composer
 interface UseChatShortcutsOptions {
   onFocusInput: () => void;
   onToggleShortcuts: () => void;
+  onStopGeneration?: () => void;
+  isGenerating?: boolean;
   scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function useChatShortcuts(
-  { onFocusInput, onToggleShortcuts, scrollRef }: UseChatShortcutsOptions,
+  { onFocusInput, onToggleShortcuts, onStopGeneration, isGenerating = false, scrollRef }: UseChatShortcutsOptions,
   enabled: boolean = true,
 ) {
   useEffect(() => {
@@ -27,6 +29,11 @@ export function useChatShortcuts(
       if (target instanceof HTMLTextAreaElement) return true;
       if ((target as HTMLElement).isContentEditable) return true;
       return !!target.closest('[contenteditable="true"]');
+    };
+
+    const isInsideDialog = (target: EventTarget | null): boolean => {
+      if (!(target instanceof Element)) return false;
+      return !!target.closest('[role="dialog"], [aria-modal="true"]');
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -42,6 +49,20 @@ export function useChatShortcuts(
       if (isToggleShortcutsBinding(e)) {
         e.preventDefault();
         onToggleShortcuts();
+        return;
+      }
+
+      if (
+        e.key === 'Escape' &&
+        !e.shiftKey &&
+        !e.altKey &&
+        !isMod &&
+        isGenerating &&
+        !isInsideDialog(e.target)
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        onStopGeneration?.();
         return;
       }
 
@@ -231,5 +252,5 @@ export function useChatShortcuts(
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [enabled, onFocusInput, onToggleShortcuts, scrollRef]);
+  }, [enabled, isGenerating, onFocusInput, onStopGeneration, onToggleShortcuts, scrollRef]);
 }

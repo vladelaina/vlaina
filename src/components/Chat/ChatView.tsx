@@ -90,6 +90,38 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
       setFocusInputTrigger(n => n + 1);
   }, [currentSessionId]);
 
+  useEffect(() => {
+    if (!isEmbedded || !isSessionActive) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key !== 'Escape' ||
+        event.shiftKey ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey
+      ) {
+        return;
+      }
+
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[role="dialog"], [aria-modal="true"]')
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      stop();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isEmbedded, isSessionActive, stop]);
+
   useChatShortcuts({
     onFocusInput: () => {
       if (!focusComposerInput()) {
@@ -97,6 +129,8 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
       }
     },
     onToggleShortcuts: () => setIsShortcutsOpen(prev => !prev),
+    onStopGeneration: stop,
+    isGenerating: isSessionActive,
     scrollRef: containerRef,
   }, !isEmbedded);
 

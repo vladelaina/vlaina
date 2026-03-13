@@ -42,15 +42,19 @@ vi.mock("@/lib/ui/composerFocusRegistry", () => ({
 function TestHarness({
   onFocusInput,
   onToggleShortcuts,
+  onStopGeneration,
+  isGenerating = false,
   scrollRef,
   enabled = true,
 }: {
   onFocusInput: () => void;
   onToggleShortcuts: () => void;
+  onStopGeneration?: () => void;
+  isGenerating?: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;
   enabled?: boolean;
 }) {
-  useChatShortcuts({ onFocusInput, onToggleShortcuts, scrollRef }, enabled);
+  useChatShortcuts({ onFocusInput, onToggleShortcuts, onStopGeneration, isGenerating, scrollRef }, enabled);
   return null;
 }
 
@@ -85,11 +89,13 @@ function createState(overrides?: any) {
 
 function setup(options?: {
   state?: any;
+  isGenerating?: boolean;
   scrollRef?: RefObject<HTMLDivElement | null>;
   enabled?: boolean;
 }) {
   const onFocusInput = vi.fn();
   const onToggleShortcuts = vi.fn();
+  const onStopGeneration = vi.fn();
   const scrollRef = options?.scrollRef ?? ({ current: null } as RefObject<HTMLDivElement | null>);
   mocked.getState.mockReturnValue(options?.state ?? createState());
 
@@ -97,12 +103,14 @@ function setup(options?: {
     <TestHarness
       onFocusInput={onFocusInput}
       onToggleShortcuts={onToggleShortcuts}
+      onStopGeneration={onStopGeneration}
+      isGenerating={options?.isGenerating ?? false}
       scrollRef={scrollRef}
       enabled={options?.enabled}
     />,
   );
 
-  return { ...rendered, onFocusInput, onToggleShortcuts, scrollRef };
+  return { ...rendered, onFocusInput, onToggleShortcuts, onStopGeneration, scrollRef };
 }
 
 describe("useChatShortcuts", () => {
@@ -148,6 +156,35 @@ describe("useChatShortcuts", () => {
 
     expect(event.defaultPrevented).toBe(true);
     expect(onFocusInput).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops the current response on Escape while generating", () => {
+    const { onStopGeneration } = setup({ isGenerating: true });
+
+    const event = fireKeydown({ key: "Escape" });
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(onStopGeneration).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not intercept Escape inside a dialog", () => {
+    const { onStopGeneration } = setup({ isGenerating: true });
+
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    const button = document.createElement("button");
+    dialog.appendChild(button);
+    document.body.appendChild(dialog);
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    });
+    button.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(onStopGeneration).not.toHaveBeenCalled();
   });
 
   it("intercepts Ctrl+A to select composer content instead of selecting page text", () => {
