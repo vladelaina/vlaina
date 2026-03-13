@@ -6,7 +6,6 @@ import { useUserAvatar } from '@/hooks/useUserAvatar';
 import { cn } from '@/lib/utils';
 import { LoginPrompt } from './LoginPrompt';
 import { UserIdentityCard } from './UserIdentityCard';
-import { AppNavigation } from './AppNavigation';
 import { AppMenu } from './AppMenu';
 
 interface WorkspaceSwitcherProps {
@@ -17,18 +16,6 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
   const { isConnected, username, primaryEmail, signOut } = useAccountSessionStore();
 
   const [isOpen, setIsOpen] = React.useState(false);
-  const [tooltipsEnabled, setTooltipsEnabled] = React.useState(false);
-
-  React.useEffect(() => {
-    if (isOpen) {
-      setTooltipsEnabled(false);
-      const timer = setTimeout(() => {
-        setTooltipsEnabled(true);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-    setTooltipsEnabled(false);
-  }, [isOpen]);
 
   const handleLogout = useCallback(async () => {
     await signOut();
@@ -85,10 +72,6 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
             )}
 
             {isConnected && <div className="mx-3 my-1 h-[1px] bg-[var(--neko-border)] opacity-50" />}
-
-            <AppNavigation onCloseMenu={() => setIsOpen(false)} tooltipsEnabled={tooltipsEnabled} />
-
-            <div className="mx-3 my-1 h-[1px] bg-[var(--neko-border)] opacity-50" />
 
             <AppMenu onOpenSettings={handleOpenSettings} onCloseMenu={() => setIsOpen(false)} />
           </div>

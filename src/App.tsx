@@ -190,12 +190,10 @@ function AppContent() {
         sidebarContent={sidebarContent}
 
         titleBarLeft={
-          (appViewMode !== 'notes' || currentVault) ? (
-            <SidebarUserHeader
-              onOpenSettings={() => setSettingsOpen(true)}
-              toggleSidebar={toggleSidebar}
-            />
-          ) : null
+          <SidebarUserHeader
+            onOpenSettings={() => setSettingsOpen(true)}
+            toggleSidebar={toggleSidebar}
+          />
         }
         titleBarCenter={centerSlot}
         titleBarRight={rightSlot}

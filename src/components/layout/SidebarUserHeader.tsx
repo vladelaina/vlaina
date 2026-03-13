@@ -14,6 +14,7 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
     const appViewMode = useUIStore(s => s.appViewMode);
     const notesSidebarView = useUIStore(s => s.notesSidebarView);
     const setNotesSidebarView = useUIStore(s => s.setNotesSidebarView);
+    const setAppViewMode = useUIStore(s => s.setAppViewMode);
 
     const handleSearchClick = () => {
         window.dispatchEvent(new Event('neko-open-search'));
@@ -27,15 +28,36 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
         setNotesSidebarView(notesSidebarView === 'workspace' ? 'outline' : 'workspace');
     };
 
+    const switchTarget = appViewMode === 'chat'
+        ? { mode: 'notes' as const, icon: 'file.text', label: 'Switch to Notes' }
+        : { mode: 'chat' as const, icon: 'common.sparkle', label: 'Switch to Chat' };
+
     return (
         <div
             className="flex items-center px-3 h-10 w-full gap-1"
             data-tauri-drag-region
         >
-            {/* User info with dropdown */}
             <WorkspaceSwitcher onOpenSettings={onOpenSettings} />
 
-            {/* Simple spacer to push buttons to the right */}
+            <Tooltip delayDuration={1000}>
+                <TooltipTrigger asChild>
+                    <button
+                        onClick={() => setAppViewMode(switchTarget.mode)}
+                        className={cn(
+                            "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0 transition-colors",
+                            "hover:bg-[#f5f5f5] dark:hover:bg-white/10",
+                            iconButtonStyles
+                        )}
+                        aria-label={switchTarget.label}
+                    >
+                        <Icon name={switchTarget.icon} size="md" />
+                    </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={2}>
+                    <span className="text-xs">{switchTarget.label}</span>
+                </TooltipContent>
+            </Tooltip>
+
             <div className="flex-1 h-full" data-tauri-drag-region />
 
             {appViewMode === 'notes' && (
