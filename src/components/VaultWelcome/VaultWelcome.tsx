@@ -29,7 +29,7 @@ export function VaultWelcome() {
       try {
         const appWindow = getCurrentWindow();
         await windowCommands.setResizable(false);
-        await appWindow.setSize(new LogicalSize(1080, 720));
+        await appWindow.setSize(new LogicalSize(980, 640));
         await appWindow.center();
       } catch (e) {
         console.error('Failed to lock window:', e);
@@ -43,7 +43,7 @@ export function VaultWelcome() {
         try {
           const appWindow = getCurrentWindow();
           await windowCommands.setResizable(true);
-          await appWindow.setSize(new LogicalSize(1080, 720));
+          await appWindow.setSize(new LogicalSize(980, 640));
           await appWindow.center();
         } catch (e) {
           console.error('Failed to unlock window:', e);

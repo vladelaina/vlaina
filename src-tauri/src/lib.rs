@@ -232,7 +232,7 @@ async fn create_new_window(app: AppHandle) -> Result<(), String> {
     // Create window hidden first, with position if available
     let mut builder = WebviewWindowBuilder::new(&app, &window_label, url)
         .title("Nekotick")
-        .inner_size(1080.0, 720.0)
+        .inner_size(980.0, 640.0)
         .min_inner_size(720.0, 540.0)
         .decorations(false)
         .background_color(Color(0, 0, 0, 0))

@@ -1,16 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
-import { SettingsToggle } from '@/components/Settings/components/SettingsControls';
 
 const SYSTEM_PROMPT_MAX_LENGTH = 4000;
 
 export function AIBehaviorSettings() {
-  const {
-    customSystemPrompt,
-    setCustomSystemPrompt,
-    includeTimeContext,
-    setIncludeTimeContext
-  } = useAIStore();
+  const { customSystemPrompt, setCustomSystemPrompt } = useAIStore();
   const [draftSystemPrompt, setDraftSystemPrompt] = useState(customSystemPrompt);
   const isEditingPromptRef = useRef(false);
   const latestDraftRef = useRef(draftSystemPrompt);
@@ -66,16 +60,6 @@ export function AIBehaviorSettings() {
         placeholder="Example: Reply in concise Chinese and keep markdown output clean."
         className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1A1A1A] px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-gray-500/20 resize-y min-h-[110px]"
       />
-
-      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-start justify-between gap-4">
-        <div>
-          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Send Current Time</div>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Include current date/time in requests. Enabled by default.
-          </p>
-        </div>
-        <SettingsToggle checked={includeTimeContext} onChange={setIncludeTimeContext} />
-      </div>
     </section>
   );
 }
