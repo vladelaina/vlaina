@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
+import { SettingsTextarea } from '@/components/Settings/components/SettingsFields';
 
 const SYSTEM_PROMPT_MAX_LENGTH = 4000;
 
@@ -40,15 +41,13 @@ export function AIBehaviorSettings() {
   };
 
   return (
-    <section className="mb-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-white/5 p-4">
-      <div className="mb-3">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">System Prompt</h3>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          This instruction is automatically sent with every AI request.
-        </p>
+    <section className="mx-auto mb-7 max-w-5xl">
+      <div className="mb-3 px-1">
+        <h3 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">System Prompt</h3>
       </div>
 
-      <textarea
+      <SettingsTextarea
+        autoGrow={true}
         value={draftSystemPrompt}
         onChange={(event) => {
           isEditingPromptRef.current = true;
@@ -56,9 +55,9 @@ export function AIBehaviorSettings() {
         }}
         onBlur={commitPromptDraft}
         maxLength={SYSTEM_PROMPT_MAX_LENGTH}
-        rows={5}
-        placeholder="Example: Reply in concise Chinese and keep markdown output clean."
-        className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1A1A1A] px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-gray-500/20 resize-y min-h-[110px]"
+        rows={1}
+        placeholder="Style, tone, or other response preferences"
+        textareaClassName="max-h-[320px]"
       />
     </section>
   );
