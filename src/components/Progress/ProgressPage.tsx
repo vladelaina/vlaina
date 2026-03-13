@@ -12,7 +12,7 @@ import {
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Icon } from '@/components/ui/icons';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useProgressStore } from '@/stores/useProgressStore';
+import { useProgressStore } from '@/stores/progress/useProgressStore';
 import { useProgressDrag } from './hooks/useProgressDrag';
 import { useDayChange } from '@/hooks/useDayChange';
 import { ItemCard, ActiveItemCard, ArchivedItemCard } from './features/ItemCard';

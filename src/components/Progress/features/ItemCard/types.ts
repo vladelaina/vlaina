@@ -1,4 +1,4 @@
-import { ProgressOrCounter } from '@/stores/useProgressStore';
+import { ProgressOrCounter } from '@/stores/progress/useProgressStore';
 
 export interface ItemCardProps {
   item: ProgressOrCounter;

@@ -1,6 +1,7 @@
 import { getStorageAdapter, joinPath } from './adapter';
 import type { ChatMessage } from '@/lib/ai/types';
 import { createPersistenceQueue, type PersistenceQueue } from './persistenceEngine';
+import { getStorageBasePath } from './basePath';
 
 const sessionQueues = new Map<string, PersistenceQueue<string>>();
 const DEFAULT_DEBOUNCE_MS = 180;
@@ -31,7 +32,7 @@ function getSessionQueue(sessionId: string): PersistenceQueue<string> {
 
 async function writeSessionJsonRaw(sessionId: string, payload: string) {
   const storage = getStorageAdapter();
-  const base = await storage.getBasePath();
+  const base = await getStorageBasePath();
   const chatRoot = await joinPath(base, '.nekotick', 'chat');
   const dir = await joinPath(chatRoot, 'sessions');
 
@@ -95,7 +96,7 @@ export async function deleteSessionJson(sessionId: string): Promise<void> {
   }
 
   const storage = getStorageAdapter();
-  const base = await storage.getBasePath();
+  const base = await getStorageBasePath();
   const path = await joinPath(base, '.nekotick', 'chat', 'sessions', `${sessionId}.json`);
   if (await storage.exists(path)) {
     await storage.deleteFile(path);
@@ -104,7 +105,7 @@ export async function deleteSessionJson(sessionId: string): Promise<void> {
 
 export async function loadSessionJson(sessionId: string): Promise<ChatMessage[] | null> {
   const storage = getStorageAdapter();
-  const base = await storage.getBasePath();
+  const base = await getStorageBasePath();
   const path = await joinPath(base, '.nekotick', 'chat', 'sessions', `${sessionId}.json`);
   
   if (await storage.exists(path)) {

@@ -1,10 +1,6 @@
 import { create } from 'zustand';
-import { ALL_COLORS, type ItemColor } from '@/lib/colors';
-import { type TimeView } from '@/lib/date';
 import {
-  STORAGE_KEY_COLOR_FILTER,
   STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED,
-  DEFAULT_GROUP_ID,
 } from '@/lib/config';
 import { getDefaultSidebarWidth } from '@/lib/layout/sidebarWidth';
 const STORAGE_KEY_SIDEBAR_WIDTH = 'nekotick_sidebar_width';
@@ -14,9 +10,7 @@ const STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME = 'nekotick_image_vault_subfolder_n
 const STORAGE_KEY_IMAGE_FILENAME_FORMAT = 'nekotick_image_filename_format';
 const STORAGE_KEY_TAG_FILTER = 'nekotick_tag_filter';
 
-export type TaskSortMode = 'default' | 'time' | 'priority';
-
-export type AppViewMode = 'calendar' | 'notes' | 'todo' | 'chat' | 'lab';
+export type AppViewMode = 'notes' | 'chat' | 'lab';
 export type NotesSidebarView = 'workspace' | 'outline';
 
 export type ImageStorageMode = 'vault' | 'vaultSubfolder' | 'currentFolder' | 'subfolder';
@@ -27,12 +21,6 @@ interface UIStore {
   appViewMode: AppViewMode;
   setAppViewMode: (mode: AppViewMode) => void;
   toggleAppViewMode: () => void;
-
-  activeGroupId: string;
-  setActiveGroupId: (id: string) => void;
-
-  taskSortMode: TaskSortMode;
-  setTaskSortMode: (mode: TaskSortMode) => void;
 
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
@@ -60,47 +48,11 @@ interface UIStore {
   setDrawerOpen: (open: boolean) => void;
   toggleDrawer: () => void;
 
-  hideCompleted: boolean;
-  setHideCompleted: (hide: boolean) => void;
-
   searchQuery: string;
   setSearchQuery: (query: string) => void;
 
-  selectedColors: ItemColor[];
-  setSelectedColors: (colors: ItemColor[]) => void;
-  toggleColor: (color: ItemColor) => void;
-  toggleAllColors: () => void;
-
   selectedTag: string | null;
   setSelectedTag: (tag: string | null) => void;
-
-  archiveTimeView: TimeView;
-  archiveDayRange: number | 'all';
-  archiveWeekRange: number | 'all';
-  archiveMonthRange: number | 'all';
-  setArchiveTimeView: (view: TimeView) => void;
-  setArchiveRange: (view: TimeView, range: number | 'all') => void;
-  getArchiveMaxDays: () => number | null;
-
-  draggingTaskId: string | null;
-  setDraggingTaskId: (id: string | null) => void;
-
-  draggingToCalendarTaskId: string | null;
-  setDraggingToCalendarTaskId: (id: string | null) => void;
-
-  showContextPanel: boolean;
-  toggleContextPanel: () => void;
-
-  selectedDate: Date;
-  setSelectedDate: (date: Date) => void;
-
-  editingEventId: string | null;
-  editingEventPosition: { x: number; y: number } | null;
-  setEditingEventId: (id: string | null, position?: { x: number; y: number }) => void;
-  closeEditingEvent: () => void;
-
-  selectedEventId: string | null;
-  setSelectedEventId: (id: string | null) => void;
 
   universalPreviewTarget: string | null;
   universalPreviewIcon: string | null;
@@ -123,24 +75,6 @@ interface UIStore {
   setImageVaultSubfolderName: (name: string) => void;
   imageFilenameFormat: ImageFilenameFormat;
   setImageFilenameFormat: (format: ImageFilenameFormat) => void;
-}
-
-function loadColorFilter(): ItemColor[] {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY_COLOR_FILTER);
-    if (saved) {
-      const parsed = JSON.parse(saved) as ItemColor[];
-      const validColors = parsed.filter(c => ALL_COLORS.includes(c));
-
-      if (validColors.length === 0) {
-        return [...ALL_COLORS];
-      }
-
-      return validColors;
-    }
-  } catch {
-  }
-  return [...ALL_COLORS];
 }
 
 function loadBoolean(key: string, defaultValue: boolean): boolean {
@@ -166,10 +100,6 @@ function loadNumber(key: string, defaultValue: number): number {
     // ignore
   }
   return defaultValue;
-}
-
-function saveColorFilter(colors: ItemColor[]): void {
-  localStorage.setItem(STORAGE_KEY_COLOR_FILTER, JSON.stringify(colors));
 }
 
 function loadTagFilter(): string | null {
@@ -235,18 +165,12 @@ function loadImageFilenameFormat(): ImageFilenameFormat {
   return 'original'; // Default: use original filename
 }
 
-export const useUIStore = create<UIStore>()((set, get) => ({
+export const useUIStore = create<UIStore>()((set) => ({
   appViewMode: 'notes' as AppViewMode,
   setAppViewMode: (mode) => set({ appViewMode: mode }),
   toggleAppViewMode: () => set((state) => ({
-    appViewMode: state.appViewMode === 'calendar' ? 'notes' : 'calendar'
+    appViewMode: state.appViewMode === 'chat' ? 'notes' : 'chat'
   })),
-
-  activeGroupId: DEFAULT_GROUP_ID,
-  setActiveGroupId: (id) => set({ activeGroupId: id }),
-
-  taskSortMode: 'default',
-  setTaskSortMode: (mode) => set({ taskSortMode: mode }),
 
   sidebarCollapsed: loadBoolean(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, false),
   toggleSidebar: () => set((state) => {
@@ -292,95 +216,14 @@ export const useUIStore = create<UIStore>()((set, get) => ({
   setDrawerOpen: (open) => set({ drawerOpen: open }),
   toggleDrawer: () => set((state) => ({ drawerOpen: !state.drawerOpen })),
 
-  hideCompleted: false,
-  setHideCompleted: (hide) => set({ hideCompleted: hide }),
-
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),
-
-  selectedColors: loadColorFilter(),
-
-  setSelectedColors: (colors) => {
-    set({ selectedColors: colors });
-    saveColorFilter(colors);
-  },
-
-  toggleColor: (color) => {
-    set((state) => {
-      const newColors = state.selectedColors.includes(color)
-        ? state.selectedColors.filter(c => c !== color)
-        : [...state.selectedColors, color];
-
-      saveColorFilter(newColors);
-      return { selectedColors: newColors };
-    });
-  },
-
-  toggleAllColors: () => {
-    set((state) => {
-      const newColors = state.selectedColors.length === ALL_COLORS.length ? [] : [...ALL_COLORS];
-      saveColorFilter(newColors);
-      return { selectedColors: newColors };
-    });
-  },
 
   selectedTag: loadTagFilter(),
   setSelectedTag: (tag) => {
     saveTagFilter(tag);
     set({ selectedTag: tag });
   },
-
-  archiveTimeView: 'day',
-  archiveDayRange: 7,
-  archiveWeekRange: 4,
-  archiveMonthRange: 3,
-
-  setArchiveTimeView: (view) => set({ archiveTimeView: view }),
-
-  setArchiveRange: (view, range) => {
-    if (view === 'day') set({ archiveDayRange: range });
-    else if (view === 'week') set({ archiveWeekRange: range });
-    else set({ archiveMonthRange: range });
-  },
-
-  getArchiveMaxDays: (): number | null => {
-    const state = get();
-    const { archiveTimeView, archiveDayRange, archiveWeekRange, archiveMonthRange } = state;
-
-    if (archiveTimeView === 'day') {
-      return archiveDayRange === 'all' ? null : archiveDayRange as number;
-    } else if (archiveTimeView === 'week') {
-      return archiveWeekRange === 'all' ? null : (archiveWeekRange as number) * 7;
-    } else {
-      return archiveMonthRange === 'all' ? null : (archiveMonthRange as number) * 30;
-    }
-  },
-
-  draggingTaskId: null,
-  setDraggingTaskId: (id) => set({ draggingTaskId: id }),
-
-  draggingToCalendarTaskId: null,
-  setDraggingToCalendarTaskId: (id) => set({ draggingToCalendarTaskId: id }),
-
-  showContextPanel: true,
-  toggleContextPanel: () => set((state) => ({ showContextPanel: !state.showContextPanel })),
-
-  selectedDate: new Date(),
-  setSelectedDate: (date) => set({ selectedDate: date }),
-
-  editingEventId: null,
-  editingEventPosition: null,
-  setEditingEventId: (id, position) => set({
-    editingEventId: id,
-    editingEventPosition: position || null
-  }),
-  closeEditingEvent: () => set({
-    editingEventId: null,
-    editingEventPosition: null
-  }),
-
-  selectedEventId: null,
-  setSelectedEventId: (id) => set({ selectedEventId: id }),
 
   universalPreviewTarget: null,
   universalPreviewIcon: null,

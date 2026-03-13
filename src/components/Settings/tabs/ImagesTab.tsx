@@ -173,7 +173,7 @@ export function ImagesTab() {
                         id="timestamp"
                         label="Timestamp"
                         description="Use date and time (e.g., 2024-01-21_14-30-52.png)"
-                        icon="legacy.editCalendar"
+                        icon="misc.clock"
                     />
                 </div>
             </div>

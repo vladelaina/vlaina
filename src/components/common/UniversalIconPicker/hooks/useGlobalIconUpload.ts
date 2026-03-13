@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { useUnifiedStore } from '@/stores/useUnifiedStore';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { saveGlobalAsset } from '@/lib/storage/assetStorage';
 import type { CustomIcon } from '@/lib/storage/unifiedStorage';
 

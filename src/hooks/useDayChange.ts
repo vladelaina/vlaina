@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useProgressStore } from '../stores/useProgressStore';
+import { useProgressStore } from '../stores/progress/useProgressStore';
 
 export function useDayChange() {
   const { validateDailyState } = useProgressStore();

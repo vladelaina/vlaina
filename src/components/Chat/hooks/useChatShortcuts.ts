@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
-import { useUnifiedStore } from '@/stores/useUnifiedStore';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
 import { isToggleShortcutsBinding } from '@/lib/shortcuts';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';

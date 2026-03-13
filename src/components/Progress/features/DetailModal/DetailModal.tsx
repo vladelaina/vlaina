@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import type { ProgressOrCounter } from '@/stores/useProgressStore';
+import type { ProgressOrCounter } from '@/stores/progress/useProgressStore';
 import { AppIcon } from '@/components/common/AppIcon';
 import { useDetailModal } from './useDetailModal';
 import { DetailActions } from './DetailActions';

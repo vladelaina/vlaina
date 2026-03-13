@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@/components/ui/icons';
-import type { ProgressOrCounter } from '@/stores/useProgressStore';
+import type { ProgressOrCounter } from '@/stores/progress/useProgressStore';
 import { HistoryWaveform } from '../HistoryWaveform';
 import { SPRING_SNAPPY } from '@/lib/animations';
 

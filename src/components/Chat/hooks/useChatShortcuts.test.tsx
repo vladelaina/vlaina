@@ -24,7 +24,7 @@ vi.mock("@/stores/useAIStore", () => ({
   },
 }));
 
-vi.mock("@/stores/useUnifiedStore", () => ({
+vi.mock("@/stores/unified/useUnifiedStore", () => ({
   useUnifiedStore: {
     getState: mocked.getState,
   },

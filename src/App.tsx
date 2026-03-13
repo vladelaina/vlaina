@@ -8,7 +8,6 @@ import { AppShell } from '@/components/layout/shell/AppShell';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
-import { useCalendarEventsStore } from '@/stores/calendarEventsSlice';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -23,19 +22,9 @@ const SettingsModal = lazy(async () => {
   return { default: mod.SettingsModal };
 });
 
-const CalendarView = lazy(async () => {
-  const mod = await import('@/components/Calendar/CalendarView');
-  return { default: mod.CalendarView };
-});
-
 const NotesView = lazy(async () => {
   const mod = await import('@/components/Notes/NotesView');
   return { default: mod.NotesView };
-});
-
-const TodoView = lazy(async () => {
-  const mod = await import('@/components/Todo/TodoView');
-  return { default: mod.TodoView };
 });
 
 const ChatView = lazy(async () => {
@@ -46,16 +35,6 @@ const ChatView = lazy(async () => {
 const LabView = lazy(async () => {
   const mod = await import('@/components/Lab/LabView');
   return { default: mod.LabView };
-});
-
-const CalendarSidebarWrapper = lazy(async () => {
-  const mod = await import('@/components/Calendar/features/Sidebar/CalendarSidebarWrapper');
-  return { default: mod.CalendarSidebarWrapper };
-});
-
-const TodoSidebar = lazy(async () => {
-  const mod = await import('@/components/Todo/TodoSidebar');
-  return { default: mod.TodoSidebar };
 });
 
 const NotesSidebarWrapper = lazy(async () => {
@@ -71,11 +50,6 @@ const ChatSidebar = lazy(async () => {
 const TemporaryChatToggle = lazy(async () => {
   const mod = await import('@/components/Chat/features/Temporary/TemporaryChatToggle');
   return { default: mod.TemporaryChatToggle };
-});
-
-const CalendarHeaderControl = lazy(async () => {
-  const mod = await import('@/components/Calendar/features/Grid/CalendarHeaderControl');
-  return { default: mod.CalendarHeaderControl };
 });
 
 const NotesTabRow = lazy(async () => {
@@ -114,15 +88,10 @@ function AppContent() {
   useShortcuts();
 
   useSyncInit();
-  const loadCalendarEvents = useCalendarEventsStore(state => state.load);
 
   useEffect(() => {
     initialize();
   }, [initialize]);
-
-  useEffect(() => {
-    loadCalendarEvents();
-  }, [loadCalendarEvents]);
 
   useEffect(() => {
     if (appViewMode === 'chat' || typeof document === 'undefined') {
@@ -154,19 +123,7 @@ function AppContent() {
 
   let sidebarContent = null;
 
-  if (appViewMode === 'calendar') {
-    sidebarContent = (
-      <Suspense fallback={null}>
-        <CalendarSidebarWrapper />
-      </Suspense>
-    );
-  } else if (appViewMode === 'todo') {
-    sidebarContent = (
-      <Suspense fallback={null}>
-        <TodoSidebar />
-      </Suspense>
-    );
-  } else if (appViewMode === 'chat') {
+  if (appViewMode === 'chat') {
     sidebarContent = (
       <Suspense fallback={null}>
         <ChatSidebar isPeeking={false} />
@@ -184,14 +141,7 @@ function AppContent() {
   let centerSlot = null;
   let rightSlot = null;
 
-  if (appViewMode === 'calendar') {
-    centerSlot = (
-      <Suspense fallback={null}>
-        <CalendarHeaderControl />
-      </Suspense>
-    );
-  } else if (appViewMode === 'todo') {
-  } else if (appViewMode === 'notes' && currentVault) {
+  if (appViewMode === 'notes' && currentVault) {
     centerSlot = (
       <Suspense fallback={null}>
         <NotesTabRow />
@@ -206,19 +156,7 @@ function AppContent() {
   }
 
   let mainContent = null;
-  if (appViewMode === 'calendar') {
-    mainContent = (
-      <Suspense fallback={null}>
-        <CalendarView />
-      </Suspense>
-    );
-  } else if (appViewMode === 'todo') {
-    mainContent = (
-      <Suspense fallback={null}>
-        <TodoView />
-      </Suspense>
-    );
-  } else if (appViewMode === 'chat') {
+  if (appViewMode === 'chat') {
     mainContent = (
       <Suspense fallback={null}>
         <ChatView />
@@ -281,7 +219,6 @@ function App() {
       const tasks: Array<{ name: string; task: Promise<unknown> }> = [
         { name: 'unified storage', task: flushPendingSave() },
         { name: 'chat session storage', task: flushPendingSessionJsonSaves() },
-        { name: 'calendar/todo storage', task: useCalendarEventsStore.getState().flushPersistence() },
       ];
 
       const notesState = useNotesStore.getState();

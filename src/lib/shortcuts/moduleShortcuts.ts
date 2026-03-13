@@ -1,6 +1,6 @@
 import { DEFAULT_SHORTCUTS } from './config';
 
-export type ModuleShortcutId = 'notes' | 'todo' | 'calendar' | 'chat';
+export type ModuleShortcutId = 'notes' | 'chat';
 
 export interface ModuleShortcutItem {
   action: string;
@@ -82,30 +82,6 @@ const NOTES_SECTIONS: ModuleShortcutSection[] = [
   ...COMMON_SECTIONS,
 ];
 
-const TODO_SECTIONS: ModuleShortcutSection[] = [
-  {
-    title: 'Todo',
-    shortcuts: [
-      { action: 'Archive completed tasks', keys: resolveShortcutKeys('archiveCompleted', ['Ctrl', 'Shift', 'E']) },
-      { action: 'Open archive', keys: resolveShortcutKeys('openArchive', ['Ctrl', 'Shift', 'A']) },
-    ],
-  },
-  ...COMMON_SECTIONS,
-];
-
-const CALENDAR_SECTIONS: ModuleShortcutSection[] = [
-  {
-    title: 'Calendar',
-    shortcuts: [
-      { action: 'Delete selected event', keys: ['Delete'] },
-      { action: 'Delete selected event', keys: ['Backspace'] },
-      { action: 'Clear selected event', keys: ['Esc'] },
-      { action: 'Zoom timeline', keys: ['Ctrl', 'Mouse wheel'] },
-    ],
-  },
-  ...COMMON_SECTIONS,
-];
-
 export function getModuleShortcutPreset(
   module: ModuleShortcutId,
   options: ModuleShortcutPresetOptions = {},
@@ -118,18 +94,6 @@ export function getModuleShortcutPreset(
         title: 'Keyboard shortcuts',
         description: 'Available keyboard shortcuts for Notes.',
         sections: NOTES_SECTIONS,
-      };
-    case 'todo':
-      return {
-        title: 'Keyboard shortcuts',
-        description: 'Available keyboard shortcuts for Todo.',
-        sections: TODO_SECTIONS,
-      };
-    case 'calendar':
-      return {
-        title: 'Keyboard shortcuts',
-        description: 'Available keyboard shortcuts for Calendar.',
-        sections: CALENDAR_SECTIONS,
       };
     case 'chat':
     default:

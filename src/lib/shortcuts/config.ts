@@ -18,8 +18,6 @@ export const DEFAULT_SHORTCUTS: ShortcutConfig[] = [
   
   // Actions
   { id: 'toggleDrawer', keys: ['Ctrl', 'D'], description: 'Toggle drawer', scope: 'global' },
-  { id: 'archiveCompleted', keys: ['Ctrl', 'Shift', 'E'], description: 'Archive completed tasks', scope: 'global' },
-  { id: 'openArchive', keys: ['Ctrl', 'Shift', 'A'], description: 'Open archive', scope: 'global' },
   { id: 'open-settings', keys: ['Ctrl', ','], description: 'Open settings', scope: 'global', isSystem: true },
   { id: 'newWindow', keys: ['Ctrl', 'Shift', 'N'], description: 'New Window', scope: 'global', isSystem: true },
 ];

@@ -4,7 +4,7 @@ import { DndContext, pointerWithin, PointerSensor, useSensor, useSensors, DragOv
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Icon } from '@/components/ui/icons';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useProgressStore } from '@/stores/useProgressStore';
+import { useProgressStore } from '@/stores/progress/useProgressStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useProgressDrag } from '../../hooks/useProgressDrag';
 import { useDayChange } from '@/hooks/useDayChange';

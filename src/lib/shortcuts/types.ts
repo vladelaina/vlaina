@@ -1,4 +1,4 @@
-export type ShortcutScope = 'global' | 'notes' | 'calendar' | 'chat';
+export type ShortcutScope = 'global' | 'notes' | 'chat';
 
 export interface ShortcutConfig {
   id: string;

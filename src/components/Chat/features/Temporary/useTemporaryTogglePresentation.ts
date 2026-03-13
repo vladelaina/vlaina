@@ -1,4 +1,4 @@
-import { useUnifiedStore } from '@/stores/useUnifiedStore';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { hasUserMessage } from '@/lib/ai/temporaryChat';
 
 export function useTemporaryTogglePresentation() {

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import type { NekoEvent } from '@/lib/ics/types';
 import {
   normalizeTag,
   normalizeTags,
@@ -15,14 +14,23 @@ import {
   countTasksByTag,
 } from './tagUtils';
 
-function createTask(overrides: Partial<NekoEvent> = {}): NekoEvent {
+interface TestTask {
+  uid: string;
+  summary: string;
+  dtstart: Date;
+  dtend: Date;
+  allDay: boolean;
+  createdAt?: number;
+  tags?: string[];
+}
+
+function createTask(overrides: Partial<TestTask> = {}): TestTask {
   return {
     uid: 'task-1',
     summary: 'Task',
     dtstart: new Date('2026-03-04T08:00:00.000Z'),
     dtend: new Date('2026-03-04T08:30:00.000Z'),
     allDay: false,
-    calendarId: 'main',
     ...overrides,
   };
 }
@@ -92,7 +100,7 @@ describe('tagUtils', () => {
   });
 
   it('collects unique tags and counts tasks by tag', () => {
-    const tasks: NekoEvent[] = [
+    const tasks: TestTask[] = [
       createTask({ uid: '1', tags: ['Work', 'Learning'] }),
       createTask({ uid: '2', tags: ['work'] }),
       createTask({ uid: '3', tags: ['Personal'] }),

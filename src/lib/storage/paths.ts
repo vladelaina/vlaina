@@ -1,15 +1,8 @@
 import { getStorageAdapter, joinPath } from './adapter';
-
-let basePath: string | null = null;
+import { getStorageBasePath } from './basePath';
 
 export async function getBasePath(): Promise<string> {
-  if (basePath === null) {
-    const storage = getStorageAdapter();
-    const appData = await storage.getBasePath();
-    basePath =
-      appData.endsWith('\\') || appData.endsWith('/') ? appData.slice(0, -1) : appData;
-  }
-  return basePath;
+  return getStorageBasePath();
 }
 
 export async function getPaths() {

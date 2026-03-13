@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { useEffect } from 'react'
-import { useUnifiedStore } from './useUnifiedStore'
+import { useUnifiedStore } from './unified/useUnifiedStore'
 import { useAccountSessionStore } from './accountSession'
 import { useManagedAIStore } from './useManagedAIStore'
 import type { Provider, AIModel, ChatMessage, ChatSession, MessageVersion } from '@/lib/ai/types'

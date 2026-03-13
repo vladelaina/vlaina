@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useAIStore } from '@/stores/useAIStore';
-import { useUnifiedStore } from '@/stores/useUnifiedStore';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useChatService } from '@/hooks/useChatService';
 import { useMessageAutoscroll } from '@/hooks/useMessageAutoscroll';
 import { useChatShortcuts } from './hooks/useChatShortcuts';

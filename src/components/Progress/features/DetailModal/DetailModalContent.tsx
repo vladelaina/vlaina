@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@/components/ui/icons';
-import type { ProgressOrCounter, ProgressItem, CounterItem } from '@/stores/useProgressStore';
+import type { ProgressOrCounter, ProgressItem, CounterItem } from '@/stores/progress/useProgressStore';
 import { MetadataSection } from './MetadataSection';
 import type { FocusTarget } from './useDetailModal';
 

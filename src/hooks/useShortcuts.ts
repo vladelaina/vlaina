@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
 import { isTauri } from '@/lib/storage/adapter';
-import { useGroupStore } from '@/stores/useGroupStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore as useAppUIStore } from '@/stores/uiSlice';
 import { getShortcuts, getKeysFromEvent, matchShortcut, ShortcutScope, ShortcutHandler } from '@/lib/shortcuts';
@@ -14,8 +13,6 @@ interface UseShortcutsOptions {
 
 export function useShortcuts(options: UseShortcutsOptions = {}) {
   const { scope = 'global', handlers: extraHandlers = {} } = options;
-  
-  const { activeGroupId, archiveCompletedTasks, setActiveGroup } = useGroupStore();
   const { toggleDrawer, appViewMode, toggleSidebar } = useAppUIStore();
   const { createNote, currentNote } = useNotesStore();
 
@@ -37,13 +34,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       createNote(folderPath);
     },
     toggleDrawer,
-    archiveCompleted: async () => {
-      if (activeGroupId && activeGroupId !== '__archive__') {
-        await archiveCompletedTasks(activeGroupId);
-      }
-    },
-    openArchive: () => setActiveGroup('__archive__'),
-  }), [toggleSidebar, createNote, currentNote?.path, toggleDrawer, activeGroupId, archiveCompletedTasks, setActiveGroup]);
+  }), [toggleSidebar, createNote, currentNote?.path, toggleDrawer]);
 
   const handlers = useMemo(() => ({
     ...builtinHandlers,

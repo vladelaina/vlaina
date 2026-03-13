@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { ProgressOrCounter, ProgressItem, CounterItem } from '@/stores/useProgressStore';
+import type { ProgressOrCounter, ProgressItem, CounterItem } from '@/stores/progress/useProgressStore';
 
 export type FocusTarget = 'title' | 'current' | 'total' | 'step' | 'unit' | 'tags' | 'resetFrequency';
 

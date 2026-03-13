@@ -1,84 +1,25 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { createPersistenceQueue } from './persistenceEngine';
-import type { TimeView } from '@/lib/date';
-import type { NekoCalendar } from '@/lib/ics/types';
-import {
-  DEFAULT_TIMEZONE,
-  DEFAULT_VIEW_MODE,
-  DEFAULT_DAY_COUNT,
-} from '@/lib/config';
-
-export interface UnifiedProgress {
-  id: string;
-  type: 'progress' | 'counter';
-  title: string;
-  tags?: string[];
-  icon?: string;
-  direction?: 'increment' | 'decrement';
-  total?: number;
-  step: number;
-  unit: string;
-  current: number;
-  todayCount: number;
-  lastUpdateDate?: string;
-  history?: Record<string, number>;
-  frequency?: 'daily' | 'weekly' | 'monthly';
-  resetFrequency?: 'daily' | 'weekly' | 'monthly' | 'none';
-  createdAt: number;
-  archived?: boolean;
-}
-
-export interface CustomIcon {
-  id: string;
-  url: string;
-  name: string;
-  createdAt: number;
-}
-
-import type { Provider, AIModel, ChatMessage, ChatSession } from '@/lib/ai/types';
+import type { ChatSession } from '@/lib/ai/types';
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
-import { buildScopedModelId } from '@/lib/ai/utils';
+import { getStorageBasePath } from './basePath';
+import { normalizeLoadedAIModels } from './unifiedStorageAI';
+import {
+  createDefaultUnifiedData,
+  type DataFile,
+  type UnifiedData,
+} from './unifiedStorageTypes';
 
-export interface TimezoneInfo {
-  offset: number;
-  city: string;
-}
-
-export interface UnifiedData {
-  calendars: NekoCalendar[];
-  progress: UnifiedProgress[];
-  settings: {
-    timezone: TimezoneInfo;
-    viewMode: TimeView;
-    dayCount: number;
-    hourHeight?: number;
-    use24Hour?: boolean;
-    dayStartTime?: number;
-  };
-  customIcons?: CustomIcon[];
-  ai?: {
-    providers: Provider[];
-    models: AIModel[];
-    sessions: ChatSession[];
-    messages: Record<string, ChatMessage[]>;
-    selectedModelId: string | null;
-    currentSessionId: string | null;
-    temporaryChatEnabled?: boolean;
-    customSystemPrompt?: string;
-    includeTimeContext?: boolean;
-  };
-}
-
-interface DataFile {
-  version: 2;
-  lastModified: number;
-  data: UnifiedData;
-}
+export type {
+  UnifiedProgress,
+  CustomIcon,
+  TimezoneInfo,
+  UnifiedData,
+} from './unifiedStorageTypes';
 
 const MAIN_DATA_FILE = 'data.json';
 const MAIN_DATA_BACKUP_FILE = 'data.backup.json';
 
-let basePath: string | null = null;
 let autoSyncTrigger: (() => void) | null = null;
 
 export function setUnifiedStorageAutoSyncTrigger(trigger: (() => void) | null): void {
@@ -86,78 +27,7 @@ export function setUnifiedStorageAutoSyncTrigger(trigger: (() => void) | null): 
 }
 
 async function getBasePath(): Promise<string> {
-  if (basePath === null) {
-    const storage = getStorageAdapter();
-    const appData = await storage.getBasePath();
-    basePath =
-      appData.endsWith(String.fromCharCode(92)) || appData.endsWith('/') ? appData.slice(0, -1) : appData;
-  }
-  return basePath;
-}
-
-function getDefaultData(): UnifiedData {
-  return {
-    calendars: [{ id: 'main', name: 'Main', color: 'blue', visible: true }],
-    progress: [],
-    settings: {
-      timezone: { offset: DEFAULT_TIMEZONE, city: 'Beijing' },
-      viewMode: DEFAULT_VIEW_MODE,
-      dayCount: DEFAULT_DAY_COUNT,
-    },
-  };
-}
-
-function normalizeLoadedAIModels(
-  providers: Provider[],
-  models: AIModel[],
-  selectedModelId: string | null,
-  sessions: ChatSession[]
-): {
-  models: AIModel[];
-  selectedModelId: string | null;
-  sessions: ChatSession[];
-} {
-  const providerIds = new Set(providers.map((provider) => provider.id));
-  const idMapping = new Map<string, string>();
-
-  const normalizedModels = models
-    .filter((model) => providerIds.has(model.providerId))
-    .map((model) => {
-      const apiModelId =
-        typeof (model as AIModel & { apiModelId?: string }).apiModelId === 'string' &&
-        (model as AIModel & { apiModelId?: string }).apiModelId.trim().length > 0
-          ? (model as AIModel & { apiModelId?: string }).apiModelId.trim()
-          : model.id;
-
-      const normalizedId = buildScopedModelId(model.providerId, apiModelId);
-      idMapping.set(model.id, normalizedId);
-      return {
-        ...model,
-        id: normalizedId,
-        apiModelId,
-      };
-    });
-
-  const availableIds = new Set(normalizedModels.map((model) => model.id));
-
-  const remapModelId = (modelId: string | null | undefined): string | null => {
-    if (!modelId) return null;
-    const direct = idMapping.get(modelId) || modelId;
-    if (availableIds.has(direct)) return direct;
-    const fallback = normalizedModels.find((model) => model.apiModelId === modelId)?.id || null;
-    return fallback && availableIds.has(fallback) ? fallback : null;
-  };
-
-  const normalizedSessions = sessions.map((session) => ({
-    ...session,
-    modelId: remapModelId(session.modelId) || session.modelId,
-  }));
-
-  return {
-    models: normalizedModels,
-    selectedModelId: remapModelId(selectedModelId),
-    sessions: normalizedSessions,
-  };
+  return getStorageBasePath();
 }
 
 export async function loadUnifiedData(): Promise<UnifiedData> {
@@ -169,7 +39,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     const sessionsPath = await joinPath(base, '.nekotick', 'chat', 'sessions.json');
     const channelsDir = await joinPath(base, '.nekotick', 'chat', 'channels');
 
-    let combinedData = getDefaultData();
+    let combinedData = createDefaultUnifiedData();
 
     const loadMainDataFromPath = async (path: string): Promise<UnifiedData | null> => {
       if (!(await storage.exists(path))) {
@@ -275,7 +145,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     return combinedData;
   } catch (error) {
     console.error('[Storage] Failed to load unified data:', error);
-    return getDefaultData();
+    return createDefaultUnifiedData();
   }
 }
 

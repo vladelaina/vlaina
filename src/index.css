@@ -223,16 +223,6 @@ html, body, #root {
   --notes-sidebar-menu-shadow: 0 12px 36px -12px rgba(15, 23, 42, 0.24);
   --notes-sidebar-fade: #fbfbfc;
 
-  --todo-sidebar-surface: #fbfbfc;
-  --todo-sidebar-row-hover: #f9f9fa;
-  --todo-sidebar-row-active: #f5f5f5;
-  --todo-sidebar-text: #1f2937;
-  --todo-sidebar-text-muted: #4b5563;
-  --todo-sidebar-text-soft: #9ca3af;
-  --todo-sidebar-icon: #9ca3af;
-  --todo-sidebar-icon-active: #1f2937;
-  --todo-sidebar-count: #9ca3af;
-  --todo-sidebar-count-active: #1f2937;
 }
 
 .dark {
@@ -293,16 +283,6 @@ html, body, #root {
   --notes-sidebar-menu-shadow: 0 16px 40px -14px rgba(0, 0, 0, 0.45);
   --notes-sidebar-fade: #171717;
 
-  --todo-sidebar-surface: #171717;
-  --todo-sidebar-row-hover: #1e1e1e;
-  --todo-sidebar-row-active: #222222;
-  --todo-sidebar-text: #e5e7eb;
-  --todo-sidebar-text-muted: #9ca3af;
-  --todo-sidebar-text-soft: #6b7280;
-  --todo-sidebar-icon: #6b7280;
-  --todo-sidebar-icon-active: #e5e7eb;
-  --todo-sidebar-count: #9ca3af;
-  --todo-sidebar-count-active: #e5e7eb;
 }
 
 /* ============================================

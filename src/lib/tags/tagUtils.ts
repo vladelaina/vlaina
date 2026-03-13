@@ -1,4 +1,3 @@
-import type { NekoEvent } from '@/lib/ics/types';
 import { formatDateKey, getTodayKey } from '@/lib/date';
 
 export const SYSTEM_TAG_PREFIX = '__system__:';
@@ -9,6 +8,12 @@ interface TagFilterableItem {
   tags?: string[] | null;
   lastUpdateDate?: string;
   history?: Record<string, number>;
+}
+
+interface TaggedTemporalItem {
+  tags?: string[] | null;
+  createdAt?: number;
+  dtstart?: Date;
 }
 
 function toTagKey(tag: string): string {
@@ -69,7 +74,7 @@ export function hasTag(tags: string[] | null | undefined, tag: string): boolean 
   return normalizedTags.some(item => toTagKey(item) === targetKey);
 }
 
-export function taskHasTag(task: NekoEvent, tag: string): boolean {
+export function taskHasTag(task: TaggedTemporalItem, tag: string): boolean {
   return hasTag(task.tags, tag);
 }
 
@@ -130,7 +135,7 @@ function hasCurrentWeekActivity(item: TagFilterableItem): boolean {
   });
 }
 
-function getTaskReferenceDate(task: NekoEvent): Date | null {
+function getTaskReferenceDate(task: TaggedTemporalItem): Date | null {
   if (typeof task.createdAt === 'number') {
     const createdAtDate = new Date(task.createdAt);
     if (!Number.isNaN(createdAtDate.getTime())) return createdAtDate;
@@ -144,7 +149,7 @@ function getTaskReferenceDate(task: NekoEvent): Date | null {
   return null;
 }
 
-export function matchesSelectedTag(task: NekoEvent, selectedTag: string | null): boolean {
+export function matchesSelectedTag(task: TaggedTemporalItem, selectedTag: string | null): boolean {
   if (!selectedTag) return true;
   if (isTodaySystemTag(selectedTag)) {
     const referenceDate = getTaskReferenceDate(task);
@@ -169,7 +174,7 @@ export function matchesSelectedTagForProgressItem(
   return hasTag(item.tags, selectedTag);
 }
 
-export function collectUniqueTags(tasks: NekoEvent[]): string[] {
+export function collectUniqueTags(tasks: readonly TaggedTemporalItem[]): string[] {
   const deduped = new Map<string, string>();
 
   for (const task of tasks) {
@@ -184,6 +189,6 @@ export function collectUniqueTags(tasks: NekoEvent[]): string[] {
   return Array.from(deduped.values()).sort((a, b) => a.localeCompare(b));
 }
 
-export function countTasksByTag(tasks: NekoEvent[], tag: string): number {
+export function countTasksByTag(tasks: readonly TaggedTemporalItem[], tag: string): number {
   return tasks.filter(task => taskHasTag(task, tag)).length;
 }

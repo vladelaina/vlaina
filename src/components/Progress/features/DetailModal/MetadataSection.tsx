@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
-import type { ProgressOrCounter, ProgressItem, CounterItem } from '@/stores/useProgressStore';
+import type { ProgressOrCounter, ProgressItem, CounterItem } from '@/stores/progress/useProgressStore';
 import { MetadataField, MetadataInput } from './MetadataField';
 import type { FocusTarget } from './useDetailModal';
 import { normalizeTags } from '@/lib/tags/tagUtils';

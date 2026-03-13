@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { format, subDays, startOfWeek, endOfWeek, subWeeks, startOfMonth, subMonths } from 'date-fns';
-import type { ProgressOrCounter } from '@/stores/useProgressStore';
+import type { ProgressOrCounter } from '@/stores/progress/useProgressStore';
 
 interface HistoryWaveformProps {
   item: ProgressOrCounter;
