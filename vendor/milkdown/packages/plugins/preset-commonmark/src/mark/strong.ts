@@ -90,12 +90,13 @@ export const strongInputRule = $inputRule((ctx) => {
   // colon or slash (to prevent matches inside file paths, URLs, or intra-word like `a**b**c`).
   // Also ensure the closing delimiter is not followed by such characters (mirrors strike-through rule).
   return markRule(
-    /(?<![\w:/])(?:\*\*|__)([^*_]+?)(?:\*\*|__)(?![\w/])$/,
+    /(?<![\w:/])(?:\*\*|＊＊|__)([^*_＊]+?)(?:\*\*|＊＊|__)(?![\w/])$/,
     strongSchema.type(ctx),
     {
       getAttr: (match) => {
         return {
-          marker: match[0].startsWith('*') ? '*' : '_',
+          marker:
+            match[0].startsWith('*') || match[0].startsWith('＊') ? '*' : '_',
         }
       },
     }

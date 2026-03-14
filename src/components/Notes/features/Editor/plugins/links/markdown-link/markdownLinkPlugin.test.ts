@@ -6,6 +6,11 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     expect(shouldHandleMarkdownLinkPaste('Read [Docs](https://example.com)')).toBe(true);
   });
 
+  it('handles localized markdown link text', () => {
+    expect(shouldHandleMarkdownLinkPaste('阅读【文档】（https://example.com）')).toBe(true);
+    expect(shouldHandleMarkdownLinkPaste('阅读[文档】（https://example.com)')).toBe(true);
+  });
+
   it('does not handle multiline markdown content', () => {
     expect(
       shouldHandleMarkdownLinkPaste('# Title\n\n[Docs](https://example.com)\n- item'),
@@ -15,6 +20,7 @@ describe('shouldHandleMarkdownLinkPaste', () => {
   it('does not handle structural markdown line with link', () => {
     expect(shouldHandleMarkdownLinkPaste('# [Docs](https://example.com)')).toBe(false);
     expect(shouldHandleMarkdownLinkPaste('- [Docs](https://example.com)')).toBe(false);
+    expect(shouldHandleMarkdownLinkPaste('＃ 【文档】（https://example.com）')).toBe(false);
   });
 
   it('does not handle standalone fenced code block payload', () => {
