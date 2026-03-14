@@ -1,6 +1,6 @@
 import type { BlockType, FloatingToolbarState, TextAlignment } from './types';
-import type { ToolbarButtonConfig } from './toolbarConfig';
-import { EXTRA_BUTTONS, FORMAT_BUTTONS } from './toolbarConfig';
+import type { ToolbarButtonConfig, ToolbarGroupKey, ToolbarLayout } from './toolbarConfig';
+import { EXTRA_BUTTONS, FORMAT_BUTTONS, TOOLBAR_LAYOUTS } from './toolbarConfig';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 
 const IS_MAC =
@@ -119,16 +119,44 @@ function renderAiComposerMarkup(): string {
   `;
 }
 
-export function renderToolbarMarkup(state: FloatingToolbarState): string {
-  if (state.subMenu === 'ai') {
-    return renderAiComposerMarkup();
-  }
+function renderAiButton(): string {
+  return `
+    <button class="toolbar-btn toolbar-ai-btn has-tooltip"
+            data-action="ai">
+      <span class="toolbar-ai-btn-icon" aria-hidden="true">💫</span>
+      <span class="toolbar-ai-btn-label">Ask AI</span>
+      ${EDITOR_ICONS.chevronDown}
+    </button>
+  `;
+}
 
+function renderBlockButton(state: FloatingToolbarState): string {
+  const blockButtonActive = state.subMenu === 'block' ? 'active' : '';
+  return `
+    <button class="toolbar-btn toolbar-dropdown-btn has-tooltip ${blockButtonActive}" 
+            data-action="block" 
+            data-tooltip="Text Type">
+      ${renderBlockTypeContent(state.currentBlockType)}
+      ${EDITOR_ICONS.chevronDown}
+    </button>
+  `;
+}
+
+function renderAlignmentButton(state: FloatingToolbarState): string {
+  const alignmentButtonActive = state.subMenu === 'alignment' ? 'active' : '';
+  return `
+    <button class="toolbar-btn toolbar-dropdown-btn has-tooltip ${alignmentButtonActive}"
+            data-action="alignment"
+            data-tooltip="Align">
+      ${getAlignmentIcon(state.currentAlignment)}
+      ${EDITOR_ICONS.chevronDown}
+    </button>
+  `;
+}
+
+function renderLinkColorGroup(state: FloatingToolbarState): string {
   const linkButton = getExtraButton('link');
   const colorButtonConfig = getExtraButton('color');
-  const copyButton = getExtraButton('copy');
-  const deleteButton = getExtraButton('delete');
-
   const colorButton = renderButton(
     colorButtonConfig,
     state.activeMarks,
@@ -137,60 +165,72 @@ export function renderToolbarMarkup(state: FloatingToolbarState): string {
       : ''
   );
 
-  const blockButtonActive = state.subMenu === 'block' ? 'active' : '';
-  const blockButton = `
-    <button class="toolbar-btn toolbar-dropdown-btn has-tooltip ${blockButtonActive}" 
-            data-action="block" 
-            data-tooltip="Text Type">
-      ${renderBlockTypeContent(state.currentBlockType)}
-      ${EDITOR_ICONS.chevronDown}
-    </button>
+  return `
+    <div class="toolbar-group">
+      ${renderButton(linkButton, state.activeMarks)}
+      ${colorButton}
+    </div>
   `;
+}
 
-  const alignmentButtonActive = state.subMenu === 'alignment' ? 'active' : '';
-  const alignmentButton = `
-    <button class="toolbar-btn toolbar-dropdown-btn has-tooltip ${alignmentButtonActive}"
-            data-action="alignment"
-            data-tooltip="Align">
-      ${getAlignmentIcon(state.currentAlignment)}
-      ${EDITOR_ICONS.chevronDown}
-    </button>
+function renderCopyDeleteGroup(state: FloatingToolbarState): string {
+  const copyButton = getExtraButton('copy');
+  const deleteButton = getExtraButton('delete');
+  return `
+    <div class="toolbar-group">
+      ${renderButton(copyButton, state.activeMarks, '', state.copied, state.copied ? 'Copied' : undefined)}
+      ${renderButton(deleteButton, state.activeMarks)}
+    </div>
   `;
+}
 
-  const aiButton = `
-    <button class="toolbar-btn toolbar-ai-btn has-tooltip"
-            data-action="ai">
-      <span class="toolbar-ai-btn-icon" aria-hidden="true">💫</span>
-      <span class="toolbar-ai-btn-label">Ask AI</span>
-      ${EDITOR_ICONS.chevronDown}
-    </button>
-  `;
+function renderToolbarGroup(group: ToolbarGroupKey, state: FloatingToolbarState): string {
+  switch (group) {
+    case 'ai':
+      return `<div class="toolbar-group toolbar-ai-group">${renderAiButton()}</div>`;
+    case 'block':
+      return `<div class="toolbar-group toolbar-block-group">${renderBlockButton(state)}</div>`;
+    case 'alignment':
+      return `<div class="toolbar-group toolbar-alignment-group">${renderAlignmentButton(state)}</div>`;
+    case 'format':
+      return renderButtonGroup(FORMAT_BUTTONS, state.activeMarks, 'toolbar-format-group');
+    case 'linkColor':
+      return renderLinkColorGroup(state);
+    case 'copyDelete':
+      return renderCopyDeleteGroup(state);
+  }
+}
+
+function getToolbarLayout(state: FloatingToolbarState): ToolbarLayout {
+  if (state.currentBlockType === 'codeBlock') {
+    return 'codeBlock';
+  }
+
+  return 'default';
+}
+
+function renderToolbarBody(state: FloatingToolbarState): string {
+  const groups = TOOLBAR_LAYOUTS[getToolbarLayout(state)];
+  const parts: string[] = [];
+
+  groups.forEach((group, index) => {
+    parts.push(renderToolbarGroup(group, state));
+    if (index < groups.length - 1) {
+      parts.push('<div class="toolbar-divider"></div>');
+    }
+  });
 
   return `
     <div class="floating-toolbar-inner">
-      <div class="toolbar-group toolbar-ai-group">
-        ${aiButton}
-      </div>
-      <div class="toolbar-divider"></div>
-      <div class="toolbar-group toolbar-block-group">
-        ${blockButton}
-      </div>
-      <div class="toolbar-divider"></div>
-      <div class="toolbar-group toolbar-alignment-group">
-        ${alignmentButton}
-      </div>
-      <div class="toolbar-divider"></div>
-      ${renderButtonGroup(FORMAT_BUTTONS, state.activeMarks, 'toolbar-format-group')}
-      <div class="toolbar-divider"></div>
-      <div class="toolbar-group">
-        ${renderButton(linkButton, state.activeMarks)}
-        ${colorButton}
-      </div>
-      <div class="toolbar-divider"></div>
-      <div class="toolbar-group">
-        ${renderButton(copyButton, state.activeMarks, '', state.copied, state.copied ? 'Copied' : undefined)}
-        ${renderButton(deleteButton, state.activeMarks)}
-      </div>
+      ${parts.join('')}
     </div>
   `;
+}
+
+export function renderToolbarMarkup(state: FloatingToolbarState): string {
+  if (state.subMenu === 'ai') {
+    return renderAiComposerMarkup();
+  }
+
+  return renderToolbarBody(state);
 }

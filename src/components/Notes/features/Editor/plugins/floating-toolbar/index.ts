@@ -16,4 +16,4 @@ export { TOOLBAR_ACTIONS } from './types';
 export * from './commands';
 export * from './utils';
 export * from './selectionHelpers';
-export { renderToolbarContent } from './renderToolbar';
+export { createToolbarRenderer } from './renderToolbar';

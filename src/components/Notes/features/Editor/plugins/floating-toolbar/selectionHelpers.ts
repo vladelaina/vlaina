@@ -34,11 +34,15 @@ export function getCurrentBlockType(view: EditorView): BlockType {
   if (parent.type.name === 'code_block') return 'codeBlock';
 
   // Check for list context
-  const grandparent = $from.node(-1);
-  if (grandparent) {
-    if (grandparent.type.name === 'bullet_list') return 'bulletList';
-    if (grandparent.type.name === 'ordered_list') return 'orderedList';
-    if (grandparent.type.name === 'task_list') return 'taskList';
+  if ($from.depth >= 2) {
+    const listItem = $from.node($from.depth - 1);
+    const listContainer = $from.node($from.depth - 2);
+
+    if (listItem?.type.name === 'list_item') {
+      if (listItem.attrs.checked != null) return 'taskList';
+      if (listContainer?.type.name === 'bullet_list') return 'bulletList';
+      if (listContainer?.type.name === 'ordered_list') return 'orderedList';
+    }
   }
 
   return 'paragraph';
