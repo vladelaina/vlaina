@@ -5,14 +5,11 @@ import { isStandaloneFencedCodeBlock } from '../../clipboard/fencedCodePaste';
 
 export const markdownLinkPluginKey = new PluginKey('markdown-link-paste');
 
-// Regex to capture [text](url) - Markdown link format
-const LINK_REGEX = /\[([^\]]+)\]\(([^)]+)\)/g;
-// Regex to find a markdown link pattern ending at position (for live conversion)
-const LINK_PATTERN_BEFORE = /\[([^\]]+)\]\(([^)]+)\)$/;
-// Regex to find markdown link at any position in text
-const LINK_PATTERN_GLOBAL = /\[([^\]]+)\]\(([^)]+)\)/g;
+const LINK_REGEX = /(?:\[|【)([^】\]]+)(?:\]|】)(?:\(|（)([^)）]+)(?:\)|）)/g;
+const LINK_PATTERN_BEFORE = /(?:\[|【)([^】\]]+)(?:\]|】)(?:\(|（)([^)）]+)(?:\)|）)$/;
+const LINK_PATTERN_GLOBAL = /(?:\[|【)([^】\]]+)(?:\]|】)(?:\(|（)([^)）]+)(?:\)|）)/g;
 const MULTI_LINE_PATTERN = /[\r\n]/;
-const STRUCTURAL_MARKDOWN_PREFIX_PATTERN = /^\s{0,3}(#{1,6}\s+|[-+*]\s+|\d+[.)]\s+|>\s+|```|~~~|[-*_]{3,}\s*$|\|.+\|)/;
+const STRUCTURAL_MARKDOWN_PREFIX_PATTERN = /^\s{0,3}([#＃]{1,6}\s+|[-+*－＋＊]\s+|[0-9０-９]+[.)．]\s+|[>》]\s+|```|~~~|···|～～～|[-*_－＿＊]{3,}\s*$|[|｜].+[|｜])/;
 
 export const shouldHandleMarkdownLinkPaste = (text: string): boolean => {
     if (!text) return false;
@@ -96,7 +93,7 @@ export const markdownLinkPlugin = $prose(() => {
         props: {
             handleTextInput(view, from, _to, inputText) {
                 // Only trigger on space, newline, or certain punctuation
-                if (!/^[\s.,;:!?]$/.test(inputText)) {
+                if (!/^[\s.,;:!?，。；：！？、】【》）]$/.test(inputText)) {
                     return false;
                 }
 

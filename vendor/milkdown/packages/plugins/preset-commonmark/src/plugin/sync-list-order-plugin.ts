@@ -31,10 +31,11 @@ export const syncListOrderPlugin = $prose((ctx) => {
 
     const handleNodeItem = (
       attrs: Record<string, any>,
-      index: number
+      index: number,
+      order: number
     ): boolean => {
       let changed = false
-      const expectedLabel = `${index + 1}.`
+      const expectedLabel = `${index + order}.`
       if (attrs.label !== expectedLabel) {
         attrs.label = expectedLabel
         changed = true
@@ -54,8 +55,12 @@ export const syncListOrderPlugin = $prose((ctx) => {
             base?.type === listItemType &&
             base.attrs.listType === 'ordered'
           ) {
+            const order = Number.parseInt(base.attrs.label, 10) || 1
             needDispatch = true
-            tr.setNodeMarkup(pos, orderedListType, { spread: 'true' })
+            tr.setNodeMarkup(pos, orderedListType, {
+              order,
+              spread: Boolean(node.attrs.spread),
+            })
 
             node.descendants(
               (
@@ -66,7 +71,7 @@ export const syncListOrderPlugin = $prose((ctx) => {
               ) => {
                 if (child.type === listItemType) {
                   const attrs = { ...child.attrs }
-                  const changed = handleNodeItem(attrs, index)
+                  const changed = handleNodeItem(attrs, index, order)
                   if (changed) tr = tr.setNodeMarkup(pos, undefined, attrs)
                 }
                 return false
@@ -84,8 +89,8 @@ export const syncListOrderPlugin = $prose((ctx) => {
             changed = true
           }
 
-          const base = parent?.maybeChild(0)
-          if (base) changed = handleNodeItem(attrs, index)
+          const order = parent.attrs.order ?? 1
+          changed = handleNodeItem(attrs, index, order) || changed
 
           if (changed) {
             tr = tr.setNodeMarkup(pos, undefined, attrs)

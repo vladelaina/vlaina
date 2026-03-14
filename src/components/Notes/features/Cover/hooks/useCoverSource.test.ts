@@ -190,4 +190,34 @@ describe('useCoverSource', () => {
     });
     expect(result.current.isSelectionCommitting).toBe(false);
   });
+
+  it('resolves each switched url only once', async () => {
+    hoisted.resolveSystemAssetPath.mockImplementation(async (_vaultPath: string, assetPath: string) => {
+      if (assetPath === 'covers/a.png') return '/vault/.nekotick/assets/covers/a.png';
+      return '/vault/.nekotick/assets/covers/b.png';
+    });
+    hoisted.loadImageAsBlob.mockImplementation(async (fullPath: string) => {
+      if (fullPath.includes('/a.png')) return 'blob:cover-a';
+      return 'blob:cover-b';
+    });
+
+    const { result, rerender } = renderHook(
+      ({ url }) => useCoverSource({ url, vaultPath: '/vault-a' }),
+      { initialProps: { url: 'covers/a.png' as string | null } }
+    );
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:cover-a');
+    });
+
+    rerender({ url: 'covers/b.png' });
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:cover-b');
+    });
+
+    expect(hoisted.resolveSystemAssetPath).toHaveBeenCalledTimes(2);
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(2);
+    expect(hoisted.loadImageWithDimensions).toHaveBeenCalledTimes(2);
+  });
 });

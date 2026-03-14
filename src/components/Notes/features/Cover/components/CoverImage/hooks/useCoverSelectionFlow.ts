@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import { DEFAULT_POSITION_PERCENT, DEFAULT_SCALE, loadImageWithDimensions } from '../../../utils/coverUtils';
 import { useCoverSource } from '../../../hooks/useCoverSource';
 import { resolveCoverAssetUrl } from '../../../utils/resolveCoverAssetUrl';
+import { resolveCoverFlowPhase } from './coverSelectionPhase';
 
 interface UseCoverSelectionFlowOptions {
   url: string | null;
@@ -10,8 +11,6 @@ interface UseCoverSelectionFlowOptions {
   onUpdate: (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => void;
   setShowPicker: (open: boolean) => void;
 }
-
-export type CoverFlowPhase = 'idle' | 'previewing' | 'committing' | 'ready' | 'error';
 
 export function useCoverSelectionFlow({
   url,
@@ -33,15 +32,15 @@ export function useCoverSelectionFlow({
     prevSrcRef,
   } = useCoverSource({ url, vaultPath });
 
-  const phase: CoverFlowPhase = useMemo(() => {
-    if (isError) return 'error';
-    if (!url && !previewSrc) return 'idle';
-    if (isSelectionCommitting) return 'committing';
-    if (previewSrc) return 'previewing';
-    return 'ready';
-  }, [isError, isSelectionCommitting, previewSrc, url]);
+  const phase = useMemo(() => resolveCoverFlowPhase({
+    url,
+    previewSrc,
+    isError,
+    isSelectionCommitting,
+  }), [isError, isSelectionCommitting, previewSrc, url]);
 
   const lastPreviewPathRef = useRef<string | null>(null);
+  const previewRequestRef = useRef(new Map<string, Promise<string | null>>());
 
   const handleCoverSelect = useCallback((assetPath: string) => {
     if (assetPath === url) {
@@ -76,13 +75,27 @@ export function useCoverSelectionFlow({
     }
 
     try {
-      const imageUrl = await resolveCoverAssetUrl({
-        assetPath,
-        vaultPath,
-        localCategory: 'auto',
-      });
-      const dimensions = await loadImageWithDimensions(imageUrl);
-      if (!dimensions) {
+      const requestKey = `${vaultPath}::${assetPath}`;
+      let request = previewRequestRef.current.get(requestKey);
+      if (!request) {
+        request = (async () => {
+          try {
+            const imageUrl = await resolveCoverAssetUrl({
+              assetPath,
+              vaultPath,
+              localCategory: 'auto',
+            });
+            const dimensions = await loadImageWithDimensions(imageUrl);
+            return dimensions ? imageUrl : null;
+          } finally {
+            previewRequestRef.current.delete(requestKey);
+          }
+        })();
+        previewRequestRef.current.set(requestKey, request);
+      }
+
+      const imageUrl = await request;
+      if (!imageUrl) {
         if (assetPath === lastPreviewPathRef.current) setPreviewSrc(null);
         return;
       }

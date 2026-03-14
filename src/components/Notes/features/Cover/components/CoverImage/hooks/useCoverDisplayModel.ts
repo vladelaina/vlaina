@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { CoverFlowPhase } from './useCoverSelectionFlow';
+import type { CoverFlowPhase } from '../coverFlowPhase';
 import { DEFAULT_POSITION_PERCENT, DEFAULT_SCALE } from '../../../utils/coverUtils';
 
 interface UseCoverDisplayModelProps {

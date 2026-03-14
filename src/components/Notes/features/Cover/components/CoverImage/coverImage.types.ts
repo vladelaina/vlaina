@@ -1,5 +1,5 @@
 import type { CoverRendererProps } from './coverRenderer.types';
-import type { CoverFlowPhase } from './hooks/useCoverSelectionFlow';
+import type { CoverFlowPhase } from './coverFlowPhase';
 
 export interface CoverImageProps {
   url: string | null;

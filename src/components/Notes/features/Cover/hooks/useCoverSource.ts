@@ -1,95 +1,11 @@
 import { useReducer, useRef, useEffect, useCallback } from 'react';
 import { loadImageWithDimensions } from '../utils/coverUtils';
 import { resolveCoverAssetUrl } from '../utils/resolveCoverAssetUrl';
+import { coverSourceReducer, initialCoverSourceState } from './coverSourceState';
 
 interface UseCoverSourceProps {
     url: string | null;
     vaultPath: string;
-}
-
-interface CoverSourceState {
-    resolvedSrc: string | null;
-    previewSrc: string | null;
-    isImageReady: boolean;
-    isError: boolean;
-    isSelectionCommitting: boolean;
-}
-
-type CoverSourceAction =
-    | { type: 'preview-set'; src: string | null }
-    | { type: 'selection-commit-start' }
-    | { type: 'selection-commit-end' }
-    | { type: 'image-ready-set'; ready: boolean }
-    | { type: 'url-switch-reset' }
-    | { type: 'source-clear' }
-    | { type: 'resolve-error' }
-    | { type: 'resolve-success'; imageUrl: string };
-
-const initialCoverSourceState: CoverSourceState = {
-    resolvedSrc: null,
-    previewSrc: null,
-    isImageReady: false,
-    isError: false,
-    isSelectionCommitting: false,
-};
-
-function coverSourceReducer(state: CoverSourceState, action: CoverSourceAction): CoverSourceState {
-    switch (action.type) {
-        case 'preview-set':
-            return {
-                ...state,
-                previewSrc: action.src,
-                isSelectionCommitting: action.src ? false : state.isSelectionCommitting,
-            };
-        case 'selection-commit-start':
-            return {
-                ...state,
-                isSelectionCommitting: true,
-            };
-        case 'selection-commit-end':
-            return {
-                ...state,
-                isSelectionCommitting: false,
-            };
-        case 'image-ready-set':
-            return {
-                ...state,
-                isImageReady: action.ready,
-            };
-        case 'url-switch-reset':
-            return {
-                ...state,
-                resolvedSrc: null,
-                isImageReady: false,
-                isError: false,
-            };
-        case 'source-clear':
-            return {
-                ...state,
-                resolvedSrc: null,
-                previewSrc: null,
-                isError: false,
-                isSelectionCommitting: false,
-            };
-        case 'resolve-error':
-            return {
-                ...state,
-                resolvedSrc: null,
-                previewSrc: null,
-                isError: true,
-                isSelectionCommitting: false,
-            };
-        case 'resolve-success':
-            return {
-                ...state,
-                resolvedSrc: action.imageUrl,
-                previewSrc: null,
-                isError: false,
-                isSelectionCommitting: false,
-            };
-        default:
-            return state;
-    }
 }
 
 export function useCoverSource({ url, vaultPath }: UseCoverSourceProps) {
@@ -100,7 +16,6 @@ export function useCoverSource({ url, vaultPath }: UseCoverSourceProps) {
 
     const prevSrcRef = useRef<string | null>(null);
     const prevUrlRef = useRef<string | null>(null);
-    const lastResolvedKeyRef = useRef<string | null>(null);
 
     const setPreviewSrc = useCallback((src: string | null) => {
         dispatch({ type: 'preview-set', src });
@@ -137,14 +52,11 @@ export function useCoverSource({ url, vaultPath }: UseCoverSourceProps) {
 
         prevUrlRef.current = url;
         dispatch({ type: 'url-switch-reset' });
-        lastResolvedKeyRef.current = null;
     }, [url, state.previewSrc, state.resolvedSrc]);
 
     useEffect(() => {
         let ignore = false;
         async function resolve() {
-            const resolveKey = `${vaultPath}::${url ?? ''}`;
-            if (resolveKey === lastResolvedKeyRef.current && state.resolvedSrc) return;
             if (!url) {
                 dispatch({ type: 'source-clear' });
                 return;
@@ -171,11 +83,10 @@ export function useCoverSource({ url, vaultPath }: UseCoverSourceProps) {
                 return;
             }
             dispatch({ type: 'resolve-success', imageUrl });
-            lastResolvedKeyRef.current = resolveKey;
         }
         resolve();
         return () => { ignore = true; };
-    }, [url, vaultPath, state.resolvedSrc]);
+    }, [url, vaultPath]);
 
     return {
         resolvedSrc: state.resolvedSrc,

@@ -73,12 +73,12 @@ withMeta(toggleEmphasisCommand, {
 
 /// Input rule for use `*` to create emphasis mark.
 export const emphasisStarInputRule = $inputRule((ctx) => {
-  return markRule(/(?:^|[^*])\*([^*]+)\*$/, emphasisSchema.type(ctx), {
+  return markRule(/(?:^|[^*＊])[*＊]([^*＊]+)[*＊]$/, emphasisSchema.type(ctx), {
     getAttr: () => ({
       marker: '*',
     }),
     updateCaptured: ({ fullMatch, start }) =>
-      !fullMatch.startsWith('*')
+      !fullMatch.startsWith('*') && !fullMatch.startsWith('＊')
         ? { fullMatch: fullMatch.slice(1), start: start + 1 }
         : {},
   })

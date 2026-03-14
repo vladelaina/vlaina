@@ -52,7 +52,7 @@ export function CoverImageShell({
   return (
     <div
       className={cn('relative w-full bg-[var(--neko-bg-primary)] shrink-0 select-none overflow-hidden group')}
-      style={{ height: coverHeight }}
+      style={{ height: coverHeight, overflowAnchor: 'none' }}
       ref={containerRef}
       data-note-cover-region="true"
     >

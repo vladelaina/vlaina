@@ -1,24 +1,14 @@
 import { createRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { CoverRenderer, type CoverRendererProps } from './CoverRenderer';
-
-const { cropperSpy } = vi.hoisted(() => ({
-  cropperSpy: vi.fn(),
-}));
-
-vi.mock('react-easy-crop', () => ({
-  default: (props: unknown) => {
-    cropperSpy(props);
-    return <div data-testid="cover-cropper" />;
-  },
-}));
 
 function buildProps(overrides?: Partial<CoverRendererProps>): CoverRendererProps {
   return {
     displaySrc: '/cover.png',
     isImageReady: false,
     isResizing: false,
+    mediaSize: { width: 1200, height: 600 },
     wrapperRef: createRef<HTMLDivElement>(),
     frozenImgRef: createRef<HTMLImageElement>(),
     frozenImageState: { top: 12, left: 22, width: 320, height: 180 },
@@ -44,7 +34,7 @@ function buildProps(overrides?: Partial<CoverRendererProps>): CoverRendererProps
 
 describe('CoverRenderer', () => {
   beforeEach(() => {
-    cropperSpy.mockReset();
+    vi.restoreAllMocks();
   });
 
   it('renders placeholder and cropper when not resizing', () => {
@@ -57,7 +47,9 @@ describe('CoverRenderer', () => {
 
     const cropper = container.querySelector('[data-testid="cover-cropper"]');
     expect(cropper).not.toBeNull();
-    expect(cropperSpy).toHaveBeenCalledTimes(1);
+    expect(cropper?.getAttribute('data-object-fit')).toBe('horizontal-cover');
+    expect(cropper?.getAttribute('style')).toContain('overscroll-behavior: none');
+    expect(cropper?.getAttribute('style')).toContain('overflow-anchor: none');
   });
 
   it('hides cropper and shows frozen layer during resize', () => {
@@ -92,9 +84,110 @@ describe('CoverRenderer', () => {
 
     expect(container.querySelector('img[alt="Cover"]')).toBeNull();
     expect(container.querySelector('img[alt="Frozen Cover"]')).toBeNull();
-    expect(cropperSpy).toHaveBeenCalledTimes(1);
-    expect(cropperSpy.mock.calls[0][0]).toMatchObject({
-      image: undefined,
+    expect(container.querySelector('[data-testid="cover-cropper"]')).not.toBeNull();
+    expect(container.querySelector('img[alt="Cover Cropper"]')).toBeNull();
+  });
+
+  it('emits media loaded and pointer interaction through local cropper layer', () => {
+    const props = buildProps();
+    const { container } = render(<CoverRenderer {...props} />);
+
+    const cropper = container.querySelector('[data-testid="cover-cropper"]') as HTMLDivElement | null;
+    const image = container.querySelector('img[alt="Cover Cropper"]') as HTMLImageElement | null;
+
+    expect(cropper).not.toBeNull();
+    expect(image).not.toBeNull();
+
+    if (!image || !cropper) return;
+
+    Object.defineProperty(image, 'naturalWidth', { value: 1200, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 600, configurable: true });
+    Object.defineProperty(image, 'clientWidth', { value: 800, configurable: true });
+    Object.defineProperty(image, 'clientHeight', { value: 400, configurable: true });
+
+    fireEvent.load(image);
+    expect(props.onMediaLoaded).toHaveBeenCalledWith({
+      width: 800,
+      height: 400,
+      naturalWidth: 1200,
+      naturalHeight: 600,
     });
+    expect(props.onMediaLoaded).toHaveBeenCalledTimes(1);
+
+    fireEvent.pointerDown(cropper, { clientX: 10, clientY: 20, pointerId: 1 });
+    fireEvent.pointerMove(cropper, { clientX: 25, clientY: 45, pointerId: 1 });
+    fireEvent.pointerUp(cropper, { clientX: 25, clientY: 45, pointerId: 1 });
+
+    expect(props.onInteractionStart).toHaveBeenCalled();
+    expect(props.onCropperCropChange).toHaveBeenCalledWith({ x: 25, y: 45 });
+    expect(props.onInteractionEnd).toHaveBeenCalled();
+  });
+
+  it('does not emit duplicate media loaded payloads for the same image state', () => {
+    const props = buildProps();
+    const { container } = render(<CoverRenderer {...props} />);
+    const image = container.querySelector('img[alt="Cover Cropper"]') as HTMLImageElement | null;
+
+    expect(image).not.toBeNull();
+    if (!image) return;
+
+    Object.defineProperty(image, 'naturalWidth', { value: 1200, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 600, configurable: true });
+    Object.defineProperty(image, 'clientWidth', { value: 800, configurable: true });
+    Object.defineProperty(image, 'clientHeight', { value: 400, configurable: true });
+
+    fireEvent.load(image);
+    fireEvent.load(image);
+
+    expect(props.onMediaLoaded).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses wheel to zoom through a native non-passive listener', () => {
+    const props = buildProps({
+      zoom: 1,
+    });
+    const { container } = render(<CoverRenderer {...props} />);
+    const cropper = container.querySelector('[data-testid="cover-cropper"]') as HTMLDivElement | null;
+
+    expect(cropper).not.toBeNull();
+    if (!cropper) return;
+
+    fireEvent.wheel(cropper, { deltaY: -100 });
+
+    expect(props.onInteractionStart).toHaveBeenCalled();
+    expect(props.onNonPointerIntent).toHaveBeenCalled();
+    expect(props.onCropperZoomChange).toHaveBeenCalledTimes(1);
+    expect(props.onCropperZoomChange).toHaveBeenCalledWith(expect.any(Number));
+  });
+
+  it('applies zoom through transform', () => {
+    const props = buildProps({
+      zoom: 2,
+    });
+    const { container } = render(<CoverRenderer {...props} />);
+    const image = container.querySelector('img[alt="Cover Cropper"]') as HTMLImageElement | null;
+
+    expect(image).not.toBeNull();
+    if (!image) return;
+
+    expect(image.style.transform).toContain('scale(2)');
+  });
+
+  it('keeps fallback sizing aspect-safe before media dimensions are ready', () => {
+    const { container } = render(
+      <CoverRenderer
+        {...buildProps({
+          mediaSize: null,
+          objectFitMode: 'horizontal-cover',
+        })}
+      />
+    );
+    const image = container.querySelector('img[alt="Cover Cropper"]') as HTMLImageElement | null;
+
+    expect(image).not.toBeNull();
+    if (!image) return;
+
+    expect(image.style.width).toBe('100%');
+    expect(image.style.height).toBe('auto');
   });
 });

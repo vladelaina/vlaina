@@ -1,4 +1,4 @@
-import { MAX_HEIGHT, MIN_HEIGHT, getBaseDimensions } from './coverUtils';
+import { DEFAULT_SCALE, MAX_HEIGHT, MAX_SCALE, MIN_HEIGHT, getBaseDimensions } from './coverUtils';
 
 interface Size {
   width: number;
@@ -69,6 +69,21 @@ export function calculateVerticalShift(
     shiftY = effectiveHeight - maxVisualHeightNoShift;
   }
   return Math.max(0, Math.min(shiftY, maxShiftDown));
+}
+
+export function calculateResizedScale(
+  snapshot: ResizeSnapshot,
+  mediaSize: Size,
+  containerSize: Size
+): number {
+  const nextBaseDimensions = getBaseDimensions(mediaSize, containerSize);
+  const nextScale = snapshot.scaledHeight / nextBaseDimensions.height;
+
+  if (!Number.isFinite(nextScale) || nextScale <= 0) {
+    return DEFAULT_SCALE;
+  }
+
+  return Math.max(DEFAULT_SCALE, Math.min(MAX_SCALE, nextScale));
 }
 
 export function calculateFinalCropFromResize(

@@ -14,12 +14,17 @@ import {
 import { tableHeaderSchema, tableSchema } from './schema'
 import { createTable } from './utils'
 
+const normalizeTableShortcutNumber = (value: string) =>
+  value.replace(/[０-９]/g, (char) =>
+    String.fromCharCode(char.charCodeAt(0) - 0xfee0)
+  )
+
 /// A input rule for creating table.
 /// For example, `|2x2|` will create a 2x2 table.
 export const insertTableInputRule = $inputRule(
   (ctx) =>
     new InputRule(
-      /^\|(?<col>\d+)[xX](?<row>\d+)\|\s$/,
+      /^[|｜](?<col>[0-9０-９]+)[xX×](?<row>[0-9０-９]+)[|｜]\s$/,
       (state, match, start, end) => {
         const $start = state.doc.resolve(start)
         if (
@@ -33,9 +38,16 @@ export const insertTableInputRule = $inputRule(
         )
           return null
 
-        const row = Math.max(Number(match.groups?.row ?? 0), 2)
+        const row = Math.max(
+          Number(normalizeTableShortcutNumber(match.groups?.row ?? '0')),
+          2
+        )
 
-        const tableNode = createTable(ctx, row, Number(match.groups?.col))
+        const tableNode = createTable(
+          ctx,
+          row,
+          Number(normalizeTableShortcutNumber(match.groups?.col ?? '0'))
+        )
         const tr = state.tr.replaceRangeWith(start, end, tableNode)
         return tr
           .setSelection(TextSelection.create(tr.doc, start + 3))

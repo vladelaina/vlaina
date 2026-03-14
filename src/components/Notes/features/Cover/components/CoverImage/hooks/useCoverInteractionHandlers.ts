@@ -5,6 +5,7 @@ import { DRAG_THRESHOLD } from '../../../utils/coverUtils';
 interface UseCoverInteractionHandlersProps {
   readOnly: boolean;
   cachedBounds: TranslateBounds;
+  clampCropForZoom: (crop: { x: number; y: number }, zoom: number) => { x: number; y: number };
   effectiveMinZoom: number;
   setCrop: (crop: { x: number; y: number }) => void;
   setZoom: (zoom: number) => void;
@@ -20,6 +21,7 @@ interface UseCoverInteractionHandlersProps {
 export function useCoverInteractionHandlers({
   readOnly,
   cachedBounds,
+  clampCropForZoom,
   effectiveMinZoom,
   setCrop,
   setZoom,
@@ -38,8 +40,13 @@ export function useCoverInteractionHandlers({
   const wasPickerOpenRef = useRef(false);
   const interactionStartCropRef = useRef(crop);
   const interactionStartZoomRef = useRef(zoom);
+  const latestCropRef = useRef(crop);
+  const latestZoomRef = useRef(zoom);
   const allowPickerToggleRef = useRef(false);
   const interactionIntentRef = useRef<'pointer' | 'non-pointer' | 'unknown'>('unknown');
+
+  latestCropRef.current = crop;
+  latestZoomRef.current = zoom;
 
   const handleInteractionStart = useCallback(() => {
     setIsInteracting(true);
@@ -58,7 +65,7 @@ export function useCoverInteractionHandlers({
 
     if (dragOccurredRef.current || nonPointerChangeRef.current) {
       ignoreCropSyncRef.current = true;
-      saveToDb(crop, zoom);
+      saveToDb(latestCropRef.current, latestZoomRef.current);
       pointerStartRef.current = null;
       return;
     }
@@ -78,7 +85,7 @@ export function useCoverInteractionHandlers({
     }
     setShowPicker(!wasPickerOpenRef.current);
     pointerStartRef.current = null;
-  }, [readOnly, crop, zoom, saveToDb, setShowPicker, setIsInteracting, ignoreCropSyncRef]);
+  }, [readOnly, saveToDb, setShowPicker, setIsInteracting, ignoreCropSyncRef]);
 
   const onCropperCropChange = useCallback((newCrop: { x: number; y: number }) => {
     if (readOnly || showPicker) return;
@@ -86,10 +93,11 @@ export function useCoverInteractionHandlers({
     const clamped = clampCropToBounds(newCrop, cachedBounds);
     const dxFromStart = Math.abs(clamped.x - interactionStartCropRef.current.x);
     const dyFromStart = Math.abs(clamped.y - interactionStartCropRef.current.y);
-    const dxFromCurrent = Math.abs(clamped.x - crop.x);
-    const dyFromCurrent = Math.abs(clamped.y - crop.y);
+    const dxFromCurrent = Math.abs(clamped.x - latestCropRef.current.x);
+    const dyFromCurrent = Math.abs(clamped.y - latestCropRef.current.y);
 
     if (dxFromCurrent > 0.001 || dyFromCurrent > 0.001) {
+      latestCropRef.current = clamped;
       setCrop(clamped);
     }
     if (dxFromStart > DRAG_THRESHOLD || dyFromStart > DRAG_THRESHOLD) {
@@ -98,13 +106,23 @@ export function useCoverInteractionHandlers({
     if (!allowPickerToggleRef.current && (dxFromStart > 0.001 || dyFromStart > 0.001)) {
       nonPointerChangeRef.current = true;
     }
-  }, [readOnly, showPicker, cachedBounds, crop, setCrop]);
+  }, [readOnly, showPicker, cachedBounds, setCrop]);
 
   const onCropperZoomChange = useCallback((newZoom: number) => {
     if (readOnly || showPicker) return;
 
     const clampedZoom = Math.max(newZoom, effectiveMinZoom);
-    if (Math.abs(clampedZoom - zoom) > 0.0001) {
+    const clampedCrop = clampCropForZoom(latestCropRef.current, clampedZoom);
+    const cropChanged =
+      Math.abs(clampedCrop.x - latestCropRef.current.x) > 0.001 ||
+      Math.abs(clampedCrop.y - latestCropRef.current.y) > 0.001;
+
+    if (cropChanged) {
+      latestCropRef.current = clampedCrop;
+      setCrop(clampedCrop);
+    }
+    if (Math.abs(clampedZoom - latestZoomRef.current) > 0.0001) {
+      latestZoomRef.current = clampedZoom;
       setZoom(clampedZoom);
     }
     const zoomDelta = Math.abs(clampedZoom - interactionStartZoomRef.current);
@@ -114,7 +132,7 @@ export function useCoverInteractionHandlers({
     if (!allowPickerToggleRef.current && zoomDelta > 0.0001) {
       nonPointerChangeRef.current = true;
     }
-  }, [readOnly, showPicker, effectiveMinZoom, zoom, setZoom]);
+  }, [readOnly, showPicker, clampCropForZoom, effectiveMinZoom, setCrop, setZoom]);
 
   const markPointerIntent = useCallback((x?: number, y?: number) => {
     interactionIntentRef.current = 'pointer';

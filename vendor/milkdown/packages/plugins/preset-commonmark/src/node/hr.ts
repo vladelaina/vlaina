@@ -46,13 +46,16 @@ withMeta(hrSchema.ctx, {
 /// For example, `---` will be converted to a hr.
 export const insertHrInputRule = $inputRule(
   (ctx) =>
-    new InputRule(/^(?:---|___\s|\*\*\*\s)$/, (state, match, start, end) => {
+    new InputRule(
+      /^(?:-{3,}|－{3,}|_{3,}|＿{3,}|\*{3,}|＊{3,})\s$/,
+      (state, match, start, end) => {
       const { tr } = state
 
       if (match[0]) tr.replaceWith(start - 1, end, hrSchema.type(ctx).create())
 
       return tr
-    })
+      }
+    )
 )
 
 withMeta(insertHrInputRule, {

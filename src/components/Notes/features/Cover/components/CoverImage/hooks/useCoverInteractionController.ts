@@ -14,7 +14,6 @@ interface UseCoverInteractionControllerProps {
   coverHeight: number;
   setCoverHeight: (height: number) => void;
   url: string | null;
-  scale: number;
   readOnly: boolean;
   onUpdate: (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => void;
   setIsInteracting: (interacting: boolean) => void;
@@ -40,7 +39,6 @@ export function useCoverInteractionController({
   coverHeight,
   setCoverHeight,
   url,
-  scale,
   readOnly,
   onUpdate,
   setIsInteracting,
@@ -68,13 +66,13 @@ export function useCoverInteractionController({
     coverHeight,
     setCoverHeight,
     setCrop,
+    setZoom,
     setIsResizing,
     isManualResizingRef,
     containerRef,
     wrapperRef,
     onUpdate,
     url,
-    scale,
   });
 
   const {
