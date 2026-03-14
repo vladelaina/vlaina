@@ -33,4 +33,22 @@ describe('toolbar markup', () => {
     expect(markup).not.toContain('data-action="link"');
     expect(markup).not.toContain('data-action="color"');
   });
+
+  it('renders neutral dropdown states for mixed selections and activates link/color buttons from shared state', () => {
+    const markup = renderToolbarMarkup(
+      createState({
+        currentBlockType: null,
+        currentAlignment: null,
+        linkUrl: 'https://example.com',
+        bgColor: '#ffeeaa',
+      })
+    );
+
+    expect(markup).toContain('data-action="block"');
+    expect(markup).toContain('data-action="alignment"');
+    expect(markup).toContain('data-action="link"');
+    expect(markup).toContain('data-action="color"');
+    expect(markup).toContain('background-color: #ffeeaa');
+    expect(markup).toContain('class="toolbar-btn has-tooltip active"');
+  });
 });

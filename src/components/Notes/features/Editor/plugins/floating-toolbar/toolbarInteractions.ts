@@ -3,11 +3,13 @@ import type { FloatingToolbarState } from './types';
 import { TOOLBAR_ACTIONS } from './types';
 import { floatingToolbarKey } from './floatingToolbarPlugin';
 import { copySelectionToClipboard, toggleMark, setLink } from './commands';
+import { applyFormatPreview, clearFormatPreview, hasFormatPreview } from './previewStyles';
 import { getLinkUrl } from './selectionHelpers';
 import { linkTooltipPluginKey } from '../links';
 
 export interface ToolbarEventDelegationController {
   update: (view: EditorView, state: FloatingToolbarState) => void;
+  clearTransientUi: () => void;
   destroy: () => void;
 }
 
@@ -65,7 +67,7 @@ export function createToolbarEventDelegation(
     view: EditorView,
     action: string,
     state: FloatingToolbarState
-  ) => {
+  ): Promise<boolean> => {
     const markActions: Record<string, string> = {
       bold: 'strong',
       italic: 'emphasis',
@@ -77,7 +79,7 @@ export function createToolbarEventDelegation(
 
     if (markActions[action]) {
       toggleMark(view, markActions[action]);
-      return;
+      return true;
     }
 
     if (action === 'link') {
@@ -85,7 +87,7 @@ export function createToolbarEventDelegation(
 
       if (linkUrl !== null && linkUrl !== '') {
         setLink(view, null);
-        return;
+        return true;
       }
 
       const { state: editorState, dispatch } = view;
@@ -98,7 +100,7 @@ export function createToolbarEventDelegation(
         })
       );
       view.focus();
-      return;
+      return false;
     }
 
     if (action === 'delete') {
@@ -108,13 +110,13 @@ export function createToolbarEventDelegation(
         dispatch(editorState.tr.delete(from, to));
       }
       view.focus();
-      return;
+      return true;
     }
 
     if (action === 'copy') {
       const copied = await copySelectionToClipboard(view);
       if (!copied) {
-        return;
+        return false;
       }
 
       view.dispatch(
@@ -137,7 +139,7 @@ export function createToolbarEventDelegation(
           })
         );
       }, 1200);
-      return;
+      return true;
     }
 
     if (action === 'ai' || action === 'color' || action === 'block' || action === 'alignment') {
@@ -147,7 +149,10 @@ export function createToolbarEventDelegation(
           payload: { subMenu: state.subMenu === action ? null : action },
         })
       );
+      return false;
     }
+
+    return false;
   };
 
   const handleMouseDown = (e: Event) => {
@@ -171,9 +176,24 @@ export function createToolbarEventDelegation(
     e.preventDefault();
     e.stopPropagation();
 
+    clearFormatPreview(currentView);
+
     const action = button.dataset.action;
     if (action) {
-      void handleToolbarAction(currentView, action, currentState);
+      void handleToolbarAction(currentView, action, currentState).then((shouldHideToolbar) => {
+        const view = currentView;
+        if (!shouldHideToolbar || !view) {
+          return;
+        }
+
+        clearFormatPreview(view);
+        hideTooltip();
+        view.dispatch(
+          view.state.tr.setMeta(floatingToolbarKey, {
+            type: TOOLBAR_ACTIONS.HIDE,
+          })
+        );
+      });
     }
   };
 
@@ -182,6 +202,12 @@ export function createToolbarEventDelegation(
     const button = target.closest('[data-action]') as HTMLElement | null;
     if (!button || !currentView) {
       return;
+    }
+
+    const action = button.dataset.action;
+    const isActive = button.classList.contains('active');
+    if (action && hasFormatPreview(action) && !isActive) {
+      applyFormatPreview(currentView, action, false);
     }
 
     if (button.dataset.shortcut) {
@@ -203,6 +229,11 @@ export function createToolbarEventDelegation(
       return;
     }
 
+    const action = button.dataset.action;
+    if (action && hasFormatPreview(action)) {
+      clearFormatPreview(currentView);
+    }
+
     hideTooltip();
   };
 
@@ -215,6 +246,12 @@ export function createToolbarEventDelegation(
     update(view, state) {
       currentView = view;
       currentState = state;
+    },
+    clearTransientUi() {
+      if (currentView) {
+        clearFormatPreview(currentView);
+      }
+      hideTooltip();
     },
     destroy() {
       toolbarElement.removeEventListener('mousedown', handleMouseDown);

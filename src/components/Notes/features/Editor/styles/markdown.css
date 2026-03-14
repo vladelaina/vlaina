@@ -44,6 +44,17 @@
   border-radius: 18px;
 }
 
+.milkdown [data-preview-block-type="blockquote"]::before {
+  content: '';
+  width: 2px;
+  height: calc(100% - 20px);
+  position: absolute;
+  left: 0;
+  top: 10px;
+  background: var(--neko-text-tertiary);
+  border-radius: 18px;
+}
+
 /* Lists */
 .milkdown ul,
 .milkdown ol {
@@ -82,6 +93,38 @@
 .milkdown li:has(> [data-text-align="right"]) > ul,
 .milkdown li:has(> [data-text-align="right"]) > ol {
   text-align: left;
+}
+
+.milkdown [data-preview-block-type="bulletList"]::before,
+.milkdown [data-preview-block-type="orderedList"]::before,
+.milkdown [data-preview-block-type="taskList"]::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--neko-text-tertiary);
+}
+
+.milkdown [data-preview-block-type="bulletList"]::before {
+  content: '•';
+  font-size: 1.1em;
+  line-height: inherit;
+}
+
+.milkdown [data-preview-block-type="orderedList"]::before {
+  content: attr(data-preview-list-label);
+  font-size: 0.95em;
+  font-variant-numeric: tabular-nums;
+  line-height: inherit;
+}
+
+.milkdown [data-preview-block-type="taskList"]::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  top: 0.3em;
+  border: 2px solid var(--neko-text-tertiary);
+  border-radius: 4px;
+  box-sizing: border-box;
 }
 
 .milkdown ul>li:not(.task-list-item) {

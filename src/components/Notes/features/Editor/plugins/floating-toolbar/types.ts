@@ -31,8 +31,8 @@ export interface FloatingToolbarState {
   position: { x: number; y: number };
   placement: ToolbarPlacement;
   activeMarks: Set<string>;
-  currentBlockType: BlockType;
-  currentAlignment: TextAlignment;
+  currentBlockType: BlockType | null;
+  currentAlignment: TextAlignment | null;
   copied: boolean;
   linkUrl: string | null;
   textColor: string | null;

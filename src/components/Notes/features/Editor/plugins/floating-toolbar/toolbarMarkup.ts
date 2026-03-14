@@ -59,7 +59,11 @@ function getExtraButton(action: string): ToolbarButtonConfig {
   return button;
 }
 
-function getBlockTypeLabel(blockType: BlockType): string {
+function getBlockTypeLabel(blockType: BlockType | null): string {
+  if (blockType === null) {
+    return '';
+  }
+
   const labels: Record<BlockType, string> = {
     paragraph: '',
     heading1: 'H1',
@@ -78,7 +82,11 @@ function getBlockTypeLabel(blockType: BlockType): string {
   return labels[blockType] || '';
 }
 
-function renderBlockTypeContent(blockType: BlockType): string {
+function renderBlockTypeContent(blockType: BlockType | null): string {
+  if (blockType === null) {
+    return EDITOR_ICONS.text;
+  }
+
   if (blockType === 'paragraph') {
     return EDITOR_ICONS.text;
   }
@@ -86,7 +94,11 @@ function renderBlockTypeContent(blockType: BlockType): string {
   return `<span class="block-type-label">${getBlockTypeLabel(blockType)}</span>`;
 }
 
-function getAlignmentIcon(alignment: TextAlignment): string {
+function getAlignmentIcon(alignment: TextAlignment | null): string {
+  if (alignment === null) {
+    return EDITOR_ICONS.align;
+  }
+
   if (alignment === 'center') {
     return EDITOR_ICONS.alignCenter;
   }
@@ -160,14 +172,15 @@ function renderLinkColorGroup(state: FloatingToolbarState): string {
   const colorButton = renderButton(
     colorButtonConfig,
     state.activeMarks,
-    state.textColor
-      ? `<span class="color-indicator" style="background-color: ${state.textColor}"></span>`
-      : ''
+    state.textColor || state.bgColor
+      ? `<span class="color-indicator" style="background-color: ${state.textColor || state.bgColor}"></span>`
+      : '',
+    Boolean(state.textColor || state.bgColor)
   );
 
   return `
-    <div class="toolbar-group">
-      ${renderButton(linkButton, state.activeMarks)}
+    <div class="toolbar-group toolbar-link-color-group">
+      ${renderButton(linkButton, state.activeMarks, '', Boolean(state.linkUrl))}
       ${colorButton}
     </div>
   `;

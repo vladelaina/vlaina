@@ -7,6 +7,7 @@ import { floatingToolbarKey } from './floatingToolbarPlugin';
 import { renderAlignmentDropdown } from './components/AlignmentDropdown';
 import { AiToolbarModelSelector } from './components/AiToolbarModelSelector';
 import { renderBlockDropdown } from './components/BlockDropdown';
+import { renderColorPicker } from './components/ColorPicker';
 import { createToolbarEventDelegation } from './toolbarInteractions';
 import { renderToolbarMarkup } from './toolbarMarkup';
 
@@ -24,11 +25,11 @@ export function createToolbarRenderer(toolbarElement: HTMLElement): ToolbarRende
     aiModelSelectorRoot = null;
   };
 
-  const closeSubMenu = (view: EditorView) => {
+  const hideToolbar = (view: EditorView) => {
+    eventDelegation.clearTransientUi();
     view.dispatch(
       view.state.tr.setMeta(floatingToolbarKey, {
-        type: TOOLBAR_ACTIONS.SET_SUB_MENU,
-        payload: { subMenu: null },
+        type: TOOLBAR_ACTIONS.HIDE,
       })
     );
   };
@@ -87,14 +88,21 @@ export function createToolbarRenderer(toolbarElement: HTMLElement): ToolbarRende
       if (state.subMenu === 'block') {
         const blockGroup = toolbarElement.querySelector('.toolbar-block-group');
         if (blockGroup instanceof HTMLElement) {
-          renderBlockDropdown(blockGroup, view, state, () => closeSubMenu(view));
+          renderBlockDropdown(blockGroup, view, state, () => hideToolbar(view));
         }
       }
 
       if (state.subMenu === 'alignment') {
         const alignmentGroup = toolbarElement.querySelector('.toolbar-alignment-group');
         if (alignmentGroup instanceof HTMLElement) {
-          renderAlignmentDropdown(alignmentGroup, view, state, () => closeSubMenu(view));
+          renderAlignmentDropdown(alignmentGroup, view, state, () => hideToolbar(view));
+        }
+      }
+
+      if (state.subMenu === 'color') {
+        const colorGroup = toolbarElement.querySelector('.toolbar-link-color-group');
+        if (colorGroup instanceof HTMLElement) {
+          renderColorPicker(colorGroup, view, state, () => hideToolbar(view));
         }
       }
     },

@@ -63,18 +63,20 @@ describe('Floating Toolbar Properties', () => {
 
   /**
    * Property 2: Toolbar Positioning Logic
-   * For any text selection with a bounding rectangle, if the selection's top edge
-   * is within 60px of the viewport top, the toolbar SHALL be placed below the selection;
-   * otherwise, it SHALL be placed above the selection.
+   * For any text selection with a bounding rectangle, the toolbar SHALL prefer
+   * the space below the selection and only move above when the viewport bottom
+   * is too close.
    * **Validates: Requirements 1.2**
    */
   describe('Property 2: Toolbar Positioning Logic', () => {
-    it('should place toolbar below when selection is near viewport top', () => {
+    it('should place toolbar below when there is enough space below the selection', () => {
       fc.assert(
         fc.property(
-          fc.integer({ min: 0, max: 59 }),
-          (selectionTop) => {
-            const placement = computeToolbarPlacement(selectionTop, 0);
+          fc.integer({ min: 0, max: 1940 }),
+          fc.integer({ min: 60, max: 600 }),
+          (selectionBottom, spaceBelow) => {
+            const viewportBottom = selectionBottom + spaceBelow;
+            const placement = computeToolbarPlacement(selectionBottom, viewportBottom);
             return placement === 'bottom';
           }
         ),
@@ -82,12 +84,14 @@ describe('Floating Toolbar Properties', () => {
       );
     });
 
-    it('should place toolbar above when selection is far from viewport top', () => {
+    it('should place toolbar above when there is not enough space below the selection', () => {
       fc.assert(
         fc.property(
-          fc.integer({ min: 60, max: 2000 }),
-          (selectionTop) => {
-            const placement = computeToolbarPlacement(selectionTop, 0);
+          fc.integer({ min: 0, max: 1940 }),
+          fc.integer({ min: 0, max: 59 }),
+          (selectionBottom, spaceBelow) => {
+            const viewportBottom = selectionBottom + spaceBelow;
+            const placement = computeToolbarPlacement(selectionBottom, viewportBottom);
             return placement === 'top';
           }
         ),
@@ -99,11 +103,11 @@ describe('Floating Toolbar Properties', () => {
       fc.assert(
         fc.property(
           fc.integer({ min: 0, max: 2000 }),
-          fc.integer({ min: 0, max: 500 }),
-          (selectionTop, viewportTop) => {
-            const distanceFromTop = selectionTop - viewportTop;
-            const expectedPlacement = distanceFromTop < 60 ? 'bottom' : 'top';
-            const actualPlacement = computeToolbarPlacement(selectionTop, viewportTop);
+          fc.integer({ min: 0, max: 2500 }),
+          (selectionBottom, viewportBottom) => {
+            const spaceBelow = viewportBottom - selectionBottom;
+            const expectedPlacement = spaceBelow < 60 ? 'top' : 'bottom';
+            const actualPlacement = computeToolbarPlacement(selectionBottom, viewportBottom);
             return actualPlacement === expectedPlacement;
           }
         ),
