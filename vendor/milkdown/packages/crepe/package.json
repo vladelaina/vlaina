@@ -3,11 +3,7 @@
   "type": "module",
   "version": "7.17.3",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Milkdown/milkdown.git",
-    "directory": "packages/crepe"
-  },
+  "private": true,
   "keywords": [
     "milkdown",
     "milkdown plugin",
@@ -139,9 +135,7 @@
     "src"
   ],
   "scripts": {
-    "build": "pnpm run build:es && pnpm run build:theme && echo",
-    "build:es": "rollup -c",
-    "build:theme": "postcss src/theme --base src/theme --dir lib/theme"
+    "build": "node build.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.2.4",
