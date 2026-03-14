@@ -182,12 +182,15 @@ export function setTextAlignment(view: EditorView, alignment: TextAlignment): vo
   const tr = state.tr;
   let updated = false;
 
+  const isUnsupportedContainer = (typeName: string | undefined) =>
+    typeName === 'table_cell' || typeName === 'table_header';
+
   state.doc.nodesBetween(from, to, (node, pos, parent) => {
     if (node.type.name !== 'paragraph' && node.type.name !== 'heading') {
       return;
     }
 
-    if (parent?.type.name === 'list_item') {
+    if (isUnsupportedContainer(parent?.type.name)) {
       return false;
     }
 
@@ -202,8 +205,13 @@ export function setTextAlignment(view: EditorView, alignment: TextAlignment): vo
 
   if (!updated) {
     const parent = $from.parent;
-    if (parent.type.name === 'paragraph' || parent.type.name === 'heading') {
-      tr.setNodeMarkup($from.before(), undefined, {
+    const ancestor = $from.node(-1);
+    if (
+      (parent.type.name === 'paragraph' || parent.type.name === 'heading') &&
+      !isUnsupportedContainer(ancestor.type.name)
+    ) {
+      const targetPos = $from.before();
+      tr.setNodeMarkup(targetPos, undefined, {
         ...parent.attrs,
         align: alignment,
       });

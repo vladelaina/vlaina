@@ -91,247 +91,246 @@ function getDomTextAlignment(dom: HTMLElement): TextAlignment {
     );
 }
 
-// Plugin to apply theme classes
-export function configureTheme(ctx: Ctx) {
-    return async () => {
-        // Apply root classes
-        ctx.update(rootCtx, (root: unknown) => {
-            if (root instanceof HTMLElement) {
-                root.classList.add(...themeClasses.root.split(' '));
-            }
-            return root as (HTMLElement | null);
-        });
+function updateSchemaFactory(
+    ctx: Ctx,
+    key: string,
+    updater: (prev: any, innerCtx: Ctx) => any
+) {
+    ctx.update(key as any, (prev: any) => {
+        if (typeof prev !== 'function') {
+            return prev;
+        }
 
-        // Typography & Blocks
-        ctx.update(paragraphSchema.key, (prev: any) => ({
-            ...prev,
-            attrs: {
-                ...(prev.attrs || {}),
-                align: { default: 'left' },
+        return (innerCtx: Ctx) => updater(prev(innerCtx), innerCtx);
+    });
+}
+
+function applyRootThemeClasses(ctx: Ctx) {
+    ctx.update(rootCtx, (root: unknown) => {
+        if (root instanceof HTMLElement) {
+            root.classList.add(...themeClasses.root.split(' '));
+        }
+        return root as (HTMLElement | null);
+    });
+}
+
+function applySchemaThemeOverrides(ctx: Ctx) {
+    updateSchemaFactory(ctx, paragraphSchema.key, (prev: any) => ({
+        ...prev,
+        attrs: {
+            ...(prev.attrs || {}),
+            align: { default: 'left' },
+        },
+        toDOM: (node: any) => [
+            'p',
+            getAlignedBlockDomAttrs(themeClasses.paragraph, node.attrs.align),
+            0
+        ],
+        parseDOM: [
+            {
+                tag: 'p',
+                getAttrs: (dom: HTMLElement) => ({
+                    align: getDomTextAlignment(dom),
+                }),
             },
-            toDOM: (node: any) => [
-                'p',
-                getAlignedBlockDomAttrs(themeClasses.paragraph, node.attrs.align),
-                0
-            ],
-            parseDOM: [
+            ...(prev.parseDOM || []),
+        ],
+        parseMarkdown: {
+            match: (node: any) => node.type === 'paragraph',
+            runner: (state: any, node: any, type: any) => {
+                const align = readMarkdownNodeAlignment(node);
+                state.openNode(type, align !== 'left' ? { align } : undefined);
+                state.next(node.children);
+                state.closeNode();
+            },
+        },
+        toMarkdown: {
+            match: (node: any) => node.type.name === 'paragraph',
+            runner: (state: any, node: any) => {
+                const align = normalizeTextAlignment(node.attrs.align);
+                state.openNode('paragraph');
+                state.next(node.content);
+                state.closeNode();
+                if (align !== 'left') {
+                    state.addNode('html', undefined, getTextAlignmentComment(align));
+                }
+            },
+        },
+    }));
+
+    updateSchemaFactory(ctx, headingSchema.key, (prev: any) => ({
+        ...prev,
+        attrs: {
+            ...(prev.attrs || {}),
+            align: { default: 'left' },
+        },
+        toDOM: (node: any) => {
+            const level = node.attrs.level;
+            const className = themeClasses.heading[`h${level}` as keyof typeof themeClasses.heading];
+            return [`h${level}`, getAlignedBlockDomAttrs(className, node.attrs.align), 0];
+        },
+        parseDOM: [
+            ...Array.from({ length: 6 }, (_, index) => ({
+                tag: `h${index + 1}`,
+                getAttrs: (dom: HTMLElement) => ({
+                    level: index + 1,
+                    align: getDomTextAlignment(dom),
+                }),
+            })),
+            ...(prev.parseDOM || []),
+        ],
+        parseMarkdown: {
+            match: (node: any) => node.type === 'heading',
+            runner: (state: any, node: any, type: any) => {
+                const align = readMarkdownNodeAlignment(node);
+                const attrs = align !== 'left'
+                    ? { level: node.depth, align }
+                    : { level: node.depth };
+                state.openNode(type, attrs);
+                state.next(node.children);
+                state.closeNode();
+            },
+        },
+        toMarkdown: {
+            match: (node: any) => node.type.name === 'heading',
+            runner: (state: any, node: any) => {
+                const align = normalizeTextAlignment(node.attrs.align);
+                state.openNode('heading', { depth: node.attrs.level });
+                state.next(node.content);
+                state.closeNode();
+                if (align !== 'left') {
+                    state.addNode('html', undefined, getTextAlignmentComment(align));
+                }
+            },
+        },
+    }));
+
+    updateSchemaFactory(ctx, blockquoteSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (_node: any) => ['blockquote', { class: themeClasses.blockquote }, 0]
+    }));
+
+    updateSchemaFactory(ctx, hrSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (_node: any) => ['hr', { class: themeClasses.hr }]
+    }));
+
+    updateSchemaFactory(ctx, strongSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (_node: any) => ['strong', { class: themeClasses.strong }, 0]
+    }));
+
+    updateSchemaFactory(ctx, emphasisSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (_node: any) => ['em', { class: themeClasses.em }, 0]
+    }));
+
+    updateSchemaFactory(ctx, inlineCodeSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (_node: any) => ['code', { class: themeClasses.code }, 0]
+    }));
+
+    updateSchemaFactory(ctx, linkSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (node: any) => ['a', { ...node.attrs, class: themeClasses.link }, 0]
+    }));
+
+    updateSchemaFactory(ctx, bulletListSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (_node: any) => ['ul', { class: themeClasses.lists.ul }, 0]
+    }));
+
+    updateSchemaFactory(ctx, orderedListSchema.key, (prev: any) => ({
+        ...prev,
+        parseMarkdown: {
+            match: ({ type, ordered }: { type: string; ordered?: boolean }) => type === 'list' && !!ordered,
+            runner: (state: any, node: any, type: any) => {
+                const spread = node.spread != null ? `${node.spread}` : 'true';
+                const order = typeof node.start === 'number' ? node.start : 1;
+                state.openNode(type, { spread, order }).next(node.children).closeNode();
+            },
+        },
+        toMarkdown: {
+            match: (node: any) => node.type.name === 'ordered_list',
+            runner: (state: any, node: any) => {
+                state.openNode('list', undefined, {
+                    ordered: true,
+                    start: typeof node.attrs.order === 'number' ? node.attrs.order : 1,
+                    spread: node.attrs.spread === 'true' || node.attrs.spread === true,
+                });
+                state.next(node.content);
+                state.closeNode();
+            },
+        },
+        toDOM: (node: any) => {
+            const order = typeof node.attrs?.order === 'number' ? node.attrs.order : 1;
+            return [
+                'ol',
                 {
-                    tag: 'p',
-                    getAttrs: (dom: HTMLElement) => ({
-                        align: getDomTextAlignment(dom),
-                    }),
+                    class: themeClasses.lists.ol,
+                    ...(order !== 1 ? { start: String(order) } : {}),
                 },
-                ...(prev.parseDOM || []),
-            ],
-            parseMarkdown: {
-                match: (node: any) => node.type === 'paragraph',
-                runner: (state: any, node: any, type: any) => {
-                    const align = readMarkdownNodeAlignment(node);
-                    state.openNode(type, align !== 'left' ? { align } : undefined);
-                    state.next(node.children);
-                    state.closeNode();
-                },
-            },
-            toMarkdown: {
-                match: (node: any) => node.type.name === 'paragraph',
-                runner: (state: any, node: any) => {
-                    const align = normalizeTextAlignment(node.attrs.align);
-                    state.openNode('paragraph');
-                    state.next(node.content);
-                    state.closeNode();
-                    if (align !== 'left') {
-                        state.addNode('html', undefined, getTextAlignmentComment(align));
-                    }
-                },
-            },
-        }));
+                0,
+            ];
+        }
+    }));
 
-        ctx.update(headingSchema.key, (prev: any) => ({
+    updateSchemaFactory(ctx, listItemSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (node: any) => {
+            const label = typeof node.attrs.label === 'string' ? node.attrs.label : '';
+            const numericValue = node.attrs.listType === 'ordered'
+                ? Number.parseInt(label, 10)
+                : Number.NaN;
+
+            return ['li', {
+                class: themeClasses.lists.li,
+                'data-label': node.attrs.label,
+                'data-list-type': node.attrs.listType,
+                'data-spread': node.attrs.spread,
+                ...(Number.isFinite(numericValue) ? { value: String(numericValue) } : {}),
+            }, 0];
+        }
+    }));
+
+    updateSchemaFactory(ctx, codeBlockSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (node: any) => ['div', { class: themeClasses.fence, 'data-language': node.attrs.language }, ['pre', ['code', { spellcheck: 'false' }, 0]]]
+    }));
+
+    updateSchemaFactory(ctx, imageSchema.key, (prev: any) => {
+        const escapeHtml = (str: string) => {
+            if (!str) return '';
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+
+        return {
             ...prev,
             attrs: {
-                ...(prev.attrs || {}),
-                align: { default: 'left' },
+                src: { default: null },
+                alt: { default: null },
+                title: { default: null },
+                align: { default: 'center' },
+                width: { default: null }
             },
             toDOM: (node: any) => {
-                const level = node.attrs.level;
-                const className = themeClasses.heading[`h${level}` as keyof typeof themeClasses.heading];
-                return [`h${level}`, getAlignedBlockDomAttrs(className, node.attrs.align), 0];
+                return ['img', {
+                    src: node.attrs.src,
+                    alt: node.attrs.alt,
+                    title: node.attrs.title,
+                    align: node.attrs.align,
+                    width: node.attrs.width,
+                    class: themeClasses.image
+                }];
             },
-            parseDOM: [
-                ...Array.from({ length: 6 }, (_, index) => ({
-                    tag: `h${index + 1}`,
-                    getAttrs: (dom: HTMLElement) => ({
-                        level: index + 1,
-                        align: getDomTextAlignment(dom),
-                    }),
-                })),
-                ...(prev.parseDOM || []),
-            ],
-            parseMarkdown: {
-                match: (node: any) => node.type === 'heading',
-                runner: (state: any, node: any, type: any) => {
-                    const align = readMarkdownNodeAlignment(node);
-                    const attrs = align !== 'left'
-                        ? { level: node.depth, align }
-                        : { level: node.depth };
-                    state.openNode(type, attrs);
-                    state.next(node.children);
-                    state.closeNode();
-                },
-            },
-            toMarkdown: {
-                match: (node: any) => node.type.name === 'heading',
-                runner: (state: any, node: any) => {
-                    const align = normalizeTextAlignment(node.attrs.align);
-                    state.openNode('heading', { depth: node.attrs.level });
-                    state.next(node.content);
-                    state.closeNode();
-                    if (align !== 'left') {
-                        state.addNode('html', undefined, getTextAlignmentComment(align));
-                    }
-                },
-            },
-        }));
-
-        ctx.update(blockquoteSchema.key, (prev: any) => ({
-            ...prev,
-            toDOM: (_node: any) => ['blockquote', { class: themeClasses.blockquote }, 0]
-        }));
-
-        ctx.update(hrSchema.key, (prev: any) => ({
-            ...prev,
-            toDOM: (_node: any) => ['hr', { class: themeClasses.hr }]
-        }));
-
-        // Inline
-        ctx.update(strongSchema.key, (prev: any) => ({
-            ...prev,
-            toDOM: (_node: any) => ['strong', { class: themeClasses.strong }, 0]
-        }));
-
-        ctx.update(emphasisSchema.key, (prev: any) => ({
-            ...prev,
-            toDOM: (_node: any) => ['em', { class: themeClasses.em }, 0]
-        }));
-
-        ctx.update(inlineCodeSchema.key, (prev: any) => ({
-            ...prev,
-            toDOM: (_node: any) => ['code', { class: themeClasses.code }, 0]
-        }));
-
-        ctx.update(linkSchema.key, (prev: any) => ({
-            ...prev,
-            toDOM: (node: any) => ['a', { ...node.attrs, class: themeClasses.link }, 0]
-        }));
-
-        // Lists
-        ctx.update(bulletListSchema.key, (prev: any) => ({
-            ...prev,
-            toDOM: (_node: any) => ['ul', { class: themeClasses.lists.ul }, 0]
-        }));
-
-        ctx.update(orderedListSchema.key, (prev: any) => ({
-            ...prev,
-            parseMarkdown: {
-                match: ({ type, ordered }: { type: string; ordered?: boolean }) => type === 'list' && !!ordered,
-                runner: (state: any, node: any, type: any) => {
-                    const spread = node.spread != null ? `${node.spread}` : 'true';
-                    const order = typeof node.start === 'number' ? node.start : 1;
-                    state.openNode(type, { spread, order }).next(node.children).closeNode();
-                },
-            },
-            toMarkdown: {
-                match: (node: any) => node.type.name === 'ordered_list',
-                runner: (state: any, node: any) => {
-                    state.openNode('list', undefined, {
-                        ordered: true,
-                        start: typeof node.attrs.order === 'number' ? node.attrs.order : 1,
-                        spread: node.attrs.spread === 'true' || node.attrs.spread === true,
-                    });
-                    state.next(node.content);
-                    state.closeNode();
-                },
-            },
-            toDOM: (node: any) => {
-                const order = typeof node.attrs?.order === 'number' ? node.attrs.order : 1;
-                return [
-                    'ol',
-                    {
-                        class: themeClasses.lists.ol,
-                        ...(order !== 1 ? { start: String(order) } : {}),
-                    },
-                    0,
-                ];
-            }
-        }));
-
-        ctx.update(listItemSchema.key, (prev: any) => ({
-            ...prev,
-            toDOM: (node: any) => {
-                const label = typeof node.attrs.label === 'string' ? node.attrs.label : '';
-                const numericValue = node.attrs.listType === 'ordered'
-                    ? Number.parseInt(label, 10)
-                    : Number.NaN;
-
-                return ['li', {
-                    class: themeClasses.lists.li,
-                    'data-label': node.attrs.label,
-                    'data-list-type': node.attrs.listType,
-                    'data-spread': node.attrs.spread,
-                    ...(Number.isFinite(numericValue) ? { value: String(numericValue) } : {}),
-                }, 0];
-            }
-        }));
-
-        // Code Block
-        ctx.update(codeBlockSchema.key, (prev: any) => ({
-            ...prev,
-            toDOM: (node: any) => ['div', { class: themeClasses.fence, 'data-language': node.attrs.language }, ['pre', ['code', { spellcheck: 'false' }, 0]]]
-        }));
-
-        ctx.update(imageSchema.key, (prev: any) => {
-            const escapeHtml = (str: string) => {
-                if (!str) return '';
-                return str
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#39;');
-            };
-
-            return {
-                ...prev,
-                attrs: {
-                    src: { default: null },
-                    alt: { default: null },
-                    title: { default: null },
-                    align: { default: 'center' },
-                    width: { default: null }
-                },
-                toDOM: (node: any) => {
-                    return ['img', { 
-                        src: node.attrs.src,
-                        alt: node.attrs.alt,
-                        title: node.attrs.title,
-                        align: node.attrs.align,
-                        width: node.attrs.width,
-                        class: themeClasses.image 
-                    }];
-                },
-                parseDOM: prev.parseDOM ? [
-                    ...prev.parseDOM,
-                    {
-                        tag: 'img[src]',
-                        getAttrs: (dom: HTMLElement) => ({
-                            src: dom.getAttribute('src'),
-                            alt: dom.getAttribute('alt'),
-                            title: dom.getAttribute('title'),
-                            align: dom.getAttribute('align') || 'center',
-                            width: dom.getAttribute('width') || null
-                        })
-                    }
-                ] : [{
+            parseDOM: prev.parseDOM ? [
+                ...prev.parseDOM,
+                {
                     tag: 'img[src]',
                     getAttrs: (dom: HTMLElement) => ({
                         src: dom.getAttribute('src'),
@@ -340,95 +339,111 @@ export function configureTheme(ctx: Ctx) {
                         align: dom.getAttribute('align') || 'center',
                         width: dom.getAttribute('width') || null
                     })
-                }],
-                parseMarkdown: {
-                    match: (node: any) => {
-                        if (node.type === 'html' && typeof node.value === 'string') {
-                            return node.value.trim().startsWith('<img');
-                        }
-                        return node.type === 'image';
-                    },
-                    runner: (state: any, node: any, type: any) => {
-                        if (node.type === 'html') {
-                            const html = node.value as string;
-                            const srcMatch = html.match(/src=["']([^"']+)["']/);
-                            const altMatch = html.match(/alt=["']([^"']*)["']/);
-                            const widthMatch = html.match(/width=["']([^"']+)["']/);
-                            const alignMatch = html.match(/align=["']([^"']+)["']/);
-                            const titleMatch = html.match(/title=["']([^"']+)["']/);
-                            
-                            if (srcMatch) {
-                                state.addNode(type, {
-                                    src: srcMatch[1],
-                                    alt: altMatch ? altMatch[1] : '',
-                                    title: titleMatch ? titleMatch[1] : null,
-                                    width: widthMatch ? widthMatch[1] : null,
-                                    align: alignMatch ? alignMatch[1] : 'center',
-                                });
-                            }
-                        } else if (node.type === 'image') {
-                            state.addNode(type, {
-                                src: node.url,
-                                alt: node.alt || '',
-                                title: node.title || null,
-                                align: 'center',
-                                width: null
-                            });
-                        }
+                }
+            ] : [{
+                tag: 'img[src]',
+                getAttrs: (dom: HTMLElement) => ({
+                    src: dom.getAttribute('src'),
+                    alt: dom.getAttribute('alt'),
+                    title: dom.getAttribute('title'),
+                    align: dom.getAttribute('align') || 'center',
+                    width: dom.getAttribute('width') || null
+                })
+            }],
+            parseMarkdown: {
+                match: (node: any) => {
+                    if (node.type === 'html' && typeof node.value === 'string') {
+                        return node.value.trim().startsWith('<img');
                     }
+                    return node.type === 'image';
                 },
-                toMarkdown: {
-                    match: (node: any) => node.type.name === 'image',
-                    runner: (state: any, node: any) => {
-                        const { src, alt, title, align, width } = node.attrs;
-                        
-                        const hasCustomAlign = align && align !== 'center';
-                        const hasCustomWidth = width && width !== '';
-                        
-                        if (!hasCustomAlign && !hasCustomWidth) {
-                            state.addNode('image', undefined, undefined, {
-                                title: title || undefined,
-                                url: src || '',
-                                alt: alt || undefined,
+                runner: (state: any, node: any, type: any) => {
+                    if (node.type === 'html') {
+                        const html = node.value as string;
+                        const srcMatch = html.match(/src=["']([^"']+)["']/);
+                        const altMatch = html.match(/alt=["']([^"']*)["']/);
+                        const widthMatch = html.match(/width=["']([^"']+)["']/);
+                        const alignMatch = html.match(/align=["']([^"']+)["']/);
+                        const titleMatch = html.match(/title=["']([^"']+)["']/);
+
+                        if (srcMatch) {
+                            state.addNode(type, {
+                                src: srcMatch[1],
+                                alt: altMatch ? altMatch[1] : '',
+                                title: titleMatch ? titleMatch[1] : null,
+                                width: widthMatch ? widthMatch[1] : null,
+                                align: alignMatch ? alignMatch[1] : 'center',
                             });
-                            return;
                         }
-                        
-                        const attrs: string[] = [];
-                        if (hasCustomWidth) attrs.push(`width="${escapeHtml(width)}"`);
-                        if (hasCustomAlign) attrs.push(`align="${escapeHtml(align)}"`);
-                        if (title) attrs.push(`title="${escapeHtml(title)}"`);
-                        
-                        const attrsStr = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
-                        const srcStr = escapeHtml(src || '');
-                        const altStr = escapeHtml(alt || '');
-                        
-                        state.write(`<img src="${srcStr}" alt="${altStr}"${attrsStr} />`);
+                    } else if (node.type === 'image') {
+                        state.addNode(type, {
+                            src: node.url,
+                            alt: node.alt || '',
+                            title: node.title || null,
+                            align: 'center',
+                            width: null
+                        });
                     }
                 }
-            };
-        });
+            },
+            toMarkdown: {
+                match: (node: any) => node.type.name === 'image',
+                runner: (state: any, node: any) => {
+                    const { src, alt, title, align, width } = node.attrs;
 
-        // Table Nodes
-        ctx.update(tableRowSchema.key, (prev: any) => ({
-            ...prev,
-            toDOM: (_node: any) => ['tr', { class: themeClasses.tr }, 0]
-        }));
+                    const hasCustomAlign = align && align !== 'center';
+                    const hasCustomWidth = width && width !== '';
 
-        ctx.update(tableHeaderSchema.key, (prev: any) => ({
-            ...prev,
-            toDOM: (_node: any) => ['th', { ..._node.attrs, class: themeClasses.th }, 0]
-        }));
+                    if (!hasCustomAlign && !hasCustomWidth) {
+                        state.addNode('image', undefined, undefined, {
+                            title: title || undefined,
+                            url: src || '',
+                            alt: alt || undefined,
+                        });
+                        return;
+                    }
 
-        ctx.update(tableCellSchema.key, (prev: any) => ({
-            ...prev,
-            toDOM: (_node: any) => ['td', { ..._node.attrs, class: themeClasses.td }, 0]
-        }));
+                    const attrs: string[] = [];
+                    if (hasCustomWidth) attrs.push(`width="${escapeHtml(width)}"`);
+                    if (hasCustomAlign) attrs.push(`align="${escapeHtml(align)}"`);
+                    if (title) attrs.push(`title="${escapeHtml(title)}"`);
 
-        // Table Wrapper (already updated, keeping as is)
-        ctx.update(tableSchema.key, (prev: any) => ({
-            ...prev,
-            toDOM: (_node: any) => ['table', { class: themeClasses.table }, ['tbody', 0]]
-        }));
+                    const attrsStr = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
+                    const srcStr = escapeHtml(src || '');
+                    const altStr = escapeHtml(alt || '');
+
+                    state.write(`<img src="${srcStr}" alt="${altStr}"${attrsStr} />`);
+                }
+            }
+        };
+    });
+
+    updateSchemaFactory(ctx, tableRowSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (_node: any) => ['tr', { class: themeClasses.tr }, 0]
+    }));
+
+    updateSchemaFactory(ctx, tableHeaderSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (_node: any) => ['th', { ..._node.attrs, class: themeClasses.th }, 0]
+    }));
+
+    updateSchemaFactory(ctx, tableCellSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (_node: any) => ['td', { ..._node.attrs, class: themeClasses.td }, 0]
+    }));
+
+    updateSchemaFactory(ctx, tableSchema.key, (prev: any) => ({
+        ...prev,
+        toDOM: (_node: any) => ['table', { class: themeClasses.table }, ['tbody', 0]]
+    }));
+}
+
+// Plugin to apply theme classes
+export function configureTheme(ctx: Ctx) {
+    applySchemaThemeOverrides(ctx);
+
+    return async () => {
+        applyRootThemeClasses(ctx);
     };
 }

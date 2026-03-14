@@ -59,6 +59,11 @@ export function renderAlignmentDropdown(
   });
 
   dropdown.querySelectorAll<HTMLElement>('[data-alignment]').forEach((button) => {
+    button.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();

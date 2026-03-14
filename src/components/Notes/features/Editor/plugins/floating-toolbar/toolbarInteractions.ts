@@ -141,6 +141,7 @@ function hideTooltip() {
 let currentView: EditorView | null = null;
 let currentState: FloatingToolbarState | null = null;
 let delegateHandler: ((e: Event) => void) | null = null;
+let mouseDownHandler: ((e: Event) => void) | null = null;
 let hoverHandler: ((e: Event) => void) | null = null;
 let leaveHandler: ((e: Event) => void) | null = null;
 
@@ -155,6 +156,18 @@ export function setupToolbarEventDelegation(
   if (delegateHandler) {
     return;
   }
+
+  mouseDownHandler = (e: Event) => {
+    const target = e.target as HTMLElement;
+    const button = target.closest('[data-action]') as HTMLElement | null;
+
+    if (!button) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+  };
 
   delegateHandler = (e: Event) => {
     const target = e.target as HTMLElement;
@@ -217,6 +230,7 @@ export function setupToolbarEventDelegation(
     hideTooltip();
   };
 
+  toolbarElement.addEventListener('mousedown', mouseDownHandler);
   toolbarElement.addEventListener('click', delegateHandler);
   toolbarElement.addEventListener('mouseover', hoverHandler);
   toolbarElement.addEventListener('mouseout', leaveHandler);
@@ -228,6 +242,11 @@ export function updateToolbarState(view: EditorView, state: FloatingToolbarState
 }
 
 export function cleanupToolbarEventDelegation(toolbarElement: HTMLElement) {
+  if (mouseDownHandler) {
+    toolbarElement.removeEventListener('mousedown', mouseDownHandler);
+    mouseDownHandler = null;
+  }
+
   if (delegateHandler) {
     toolbarElement.removeEventListener('click', delegateHandler);
     delegateHandler = null;

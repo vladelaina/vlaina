@@ -83,12 +83,7 @@ export const footnoteDefSchema = $node('footnote_def', () => ({
   },
   toMarkdown: {
     match: (node) => node.type.name === 'footnote_def',
-    runner: (state, node) => {
-      // Output as [^id]: followed by content
-      state.addNode('paragraph');
-      state.addNode('text', undefined, `[^${node.attrs.id}]: `);
-      state.next(node.content);
-    }
+    runner: (state, node) => serializeFootnoteDefinitionToMarkdown(state, node)
   }
 }));
 
@@ -125,3 +120,22 @@ export const footnotePlugin = [
   footnoteDefSchema,
   footnoteRefInputRule
 ];
+
+export function serializeFootnoteDefinitionToMarkdown(
+  state: {
+    openNode: (...args: any[]) => any;
+    next: (...args: any[]) => any;
+    closeNode: (...args: any[]) => any;
+  },
+  node: {
+    attrs: { id?: string };
+    content: unknown;
+  }
+): void {
+  state.openNode('footnoteDefinition', undefined, {
+    label: node.attrs.id ?? '',
+    identifier: node.attrs.id ?? '',
+  });
+  state.next(node.content);
+  state.closeNode();
+}

@@ -109,6 +109,11 @@ export function renderBlockDropdown(
   
   // Add event listeners
   dropdown.querySelectorAll('[data-block-type]').forEach((btn) => {
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();

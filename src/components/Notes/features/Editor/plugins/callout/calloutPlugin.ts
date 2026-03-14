@@ -2,6 +2,10 @@
 import { $node, $nodeAttr } from '@milkdown/kit/utils';
 import type { CalloutBlockAttrs, IconData } from './types';
 import { DEFAULT_CALLOUT_ICON } from './types';
+import {
+  getTextAlignmentComment,
+  isTextAlignment,
+} from '../floating-toolbar/blockAlignmentMarkdown';
 
 // Callout block attributes
 export const calloutIdAttr = $nodeAttr('callout', () => ({
@@ -113,39 +117,7 @@ export const calloutSchema = $node('callout', () => ({
   },
   toMarkdown: {
     match: (node) => node.type.name === 'callout',
-    runner: (state, node) => {
-      const icon = (node.attrs as CalloutBlockAttrs).icon;
-
-      let hasParagraph = false;
-      node.forEach((child) => {
-        if (child.type.name === 'paragraph') hasParagraph = true;
-      });
-
-      state.openNode('blockquote');
-
-      if (!hasParagraph) {
-        state.openNode('paragraph');
-        state.addNode('text', undefined, `${icon.value}`);
-        state.closeNode();
-      }
-
-      let isFirst = true;
-      node.forEach((child) => {
-        if (isFirst && child.type.name === 'paragraph') {
-          state.openNode('paragraph');
-          state.addNode('text', undefined, `${icon.value} `);
-          child.forEach((inline) => {
-            state.next(inline);
-          });
-          state.closeNode();
-          isFirst = false;
-        } else {
-          state.next(child);
-        }
-      });
-
-      state.closeNode();
-    }
+    runner: (state, node) => serializeCalloutToMarkdown(state, node)
   }
 }));
 
@@ -154,3 +126,64 @@ export const calloutPlugin = [
   calloutIdAttr,
   calloutSchema
 ];
+
+function getCalloutParagraphAlignmentComment(node: { attrs?: { align?: unknown } }): string | null {
+  const align = node.attrs?.align;
+  if (!isTextAlignment(align) || align === 'left') {
+    return null;
+  }
+
+  return getTextAlignmentComment(align);
+}
+
+export function serializeCalloutToMarkdown(
+  state: {
+    openNode: (...args: any[]) => any;
+    addNode: (...args: any[]) => any;
+    next: (...args: any[]) => any;
+    closeNode: (...args: any[]) => any;
+  },
+  node: {
+    attrs: Record<string, unknown>;
+    firstChild?: {
+      type: { name: string };
+      attrs?: Record<string, unknown>;
+      content: unknown;
+    } | null;
+    childCount: number;
+    child: (index: number) => unknown;
+    content: unknown;
+  }
+): void {
+  const icon = (node.attrs.icon as IconData | undefined) ?? DEFAULT_CALLOUT_ICON;
+  const firstChild = node.firstChild;
+
+  state.openNode('blockquote');
+
+  if (firstChild?.type.name === 'paragraph') {
+    const hasParagraphContent =
+      typeof (firstChild.content as { size?: unknown } | null | undefined)?.size === 'number'
+        ? ((firstChild.content as { size: number }).size > 0)
+        : Boolean(firstChild.content);
+    state.openNode('paragraph');
+    state.addNode('text', undefined, hasParagraphContent ? `${icon.value} ` : `${icon.value}`);
+    state.next(firstChild.content);
+    state.closeNode();
+
+    const alignmentComment = getCalloutParagraphAlignmentComment(firstChild);
+    if (alignmentComment) {
+      state.addNode('html', undefined, alignmentComment);
+    }
+
+    for (let index = 1; index < node.childCount; index += 1) {
+      state.next(node.child(index));
+    }
+  } else {
+    state.openNode('paragraph');
+    state.addNode('text', undefined, `${icon.value}`);
+    state.closeNode();
+    state.next(node.content);
+  }
+
+  state.closeNode();
+}
