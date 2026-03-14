@@ -3,11 +3,7 @@
   "type": "module",
   "version": "7.17.3",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Milkdown/milkdown.git",
-    "directory": "packages/prose"
-  },
+  "private": true,
   "sideEffects": false,
   "exports": {
     ".": {
@@ -52,9 +48,9 @@
     "./tables": {
       "import": "./src/tables.ts"
     },
-    "./view/style/prosemirror.css": "./lib/style/prosemirror.css",
-    "./tables/style/tables.css": "./lib/style/tables.css",
-    "./gapcursor/style/gapcursor.css": "./lib/style/gapcursor.css"
+    "./view/style/prosemirror.css": "./src/style/prosemirror.css",
+    "./tables/style/tables.css": "./src/style/tables.css",
+    "./gapcursor/style/gapcursor.css": "./src/style/gapcursor.css"
   },
   "main": "./src/index.ts",
   "publishConfig": {
@@ -170,7 +166,7 @@
     "src"
   ],
   "scripts": {
-    "build": "rollup -c"
+    "build": "node build.mjs"
   },
   "dependencies": {
     "@milkdown/exception": "workspace:*",

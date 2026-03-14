@@ -72,7 +72,6 @@ export const defaultConfig: InlineSyncConfig = {
 /// }));
 /// ```
 ///
-/// You can find the default config [here](https://github.com/Milkdown/milkdown/blob/main/packages/plugin-automd/src/config.ts).
 export const inlineSyncConfig = $ctx<InlineSyncConfig, 'inlineSyncConfig'>(
   defaultConfig,
   'inlineSyncConfig'
