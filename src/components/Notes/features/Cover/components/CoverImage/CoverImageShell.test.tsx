@@ -28,6 +28,7 @@ function buildRendererProps(overrides?: Partial<Omit<CoverRendererProps, 'displa
     placeholderSrc: '/placeholder.webp',
     isImageReady: true,
     isResizing: false,
+    mediaSize: { width: 1200, height: 600 },
     wrapperRef: createRef<HTMLDivElement>(),
     frozenImgRef: createRef<HTMLImageElement>(),
     frozenImageState: null,
@@ -100,7 +101,7 @@ describe('CoverImageShell', () => {
   });
 
   it('renders cover renderer when url exists', () => {
-    render(
+    const { container } = render(
       <CoverImageShell
         {...buildShellProps({
           phase: 'ready',
@@ -111,5 +112,6 @@ describe('CoverImageShell', () => {
     );
     expect(screen.getByTestId('cover-renderer')).toBeInTheDocument();
     expect(hoisted.coverRendererSpy).toHaveBeenCalled();
+    expect(container.firstElementChild?.getAttribute('style')).toContain('overflow-anchor: none');
   });
 });

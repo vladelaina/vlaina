@@ -98,4 +98,33 @@ describe('startCoverResizeSession', () => {
     expect(moveRemoves).toHaveLength(1);
     expect(upRemoves).toHaveLength(1);
   });
+
+  it('keeps the image pinned to the top after reaching the top in one resize session', () => {
+    const onFrame = vi.fn();
+    const onCommit = vi.fn();
+    const addSpy = vi.spyOn(document, 'addEventListener');
+
+    startCoverResizeSession({
+      startY: 100,
+      startHeight: 200,
+      snapshot,
+      onFrame,
+      onCommit,
+    });
+
+    const moveHandler = addSpy.mock.calls.find(([eventName]) => eventName === 'mousemove')?.[1];
+    expect(moveHandler).toBeTypeOf('function');
+
+    (moveHandler as EventListener)(new MouseEvent('mousemove', { clientY: 200 }));
+    (moveHandler as EventListener)(new MouseEvent('mousemove', { clientY: 150 }));
+
+    expect(onFrame).toHaveBeenNthCalledWith(1, {
+      effectiveHeight: 300,
+      shiftY: 20,
+    });
+    expect(onFrame).toHaveBeenNthCalledWith(2, {
+      effectiveHeight: 250,
+      shiftY: 20,
+    });
+  });
 });

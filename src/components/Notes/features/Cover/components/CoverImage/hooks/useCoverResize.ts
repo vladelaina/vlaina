@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { calculateCropPercentage } from '../../../utils/coverUtils';
 import {
   buildResizeSnapshot,
+  calculateResizedScale,
 } from '../../../utils/coverResizeMath';
 import {
   applyFrozenSnapshot,
@@ -21,13 +22,13 @@ interface UseCoverResizeProps {
   coverHeight: number;
   setCoverHeight: (h: number) => void;
   setCrop: (c: { x: number; y: number }) => void;
+  setZoom: (zoom: number) => void;
   setIsResizing: (resizing: boolean) => void;
   isManualResizingRef: React.MutableRefObject<boolean>;
   containerRef: React.RefObject<HTMLDivElement | null>;
   wrapperRef: React.RefObject<HTMLDivElement | null>;
   onUpdate: (url: string | null, x: number, y: number, h?: number, s?: number) => void;
   url: string | null;
-  scale: number;
 }
 
 export function useCoverResize({
@@ -38,13 +39,13 @@ export function useCoverResize({
   coverHeight,
   setCoverHeight,
   setCrop,
+  setZoom,
   setIsResizing,
   isManualResizingRef,
   containerRef,
   wrapperRef,
   onUpdate,
   url,
-  scale
 }: UseCoverResizeProps) {
   const [frozenImageState, setFrozenImageState] = useState<{
     top: number;
@@ -136,11 +137,13 @@ export function useCoverResize({
         setCrop(finalCrop);
 
         const tempContainerSize = { width: effectiveContainerSize.width, height: effectiveHeight };
-        const percent = calculateCropPercentage(finalCrop, mediaSize, tempContainerSize, zoom);
+        const nextScale = calculateResizedScale(snapshot, mediaSize, tempContainerSize);
+        const percent = calculateCropPercentage(finalCrop, mediaSize, tempContainerSize, nextScale);
         const safePctX = Number.isFinite(percent.x) ? percent.x : 50;
         const safePctY = Number.isFinite(percent.y) ? percent.y : 50;
+        setZoom(nextScale);
 
-        onUpdate(url, safePctX, safePctY, effectiveHeight, scale);
+        onUpdate(url, safePctX, safePctY, effectiveHeight, nextScale);
       },
     });
   }, [
@@ -152,6 +155,7 @@ export function useCoverResize({
     coverHeight,
     setCoverHeight,
     setCrop,
+    setZoom,
     setIsResizing,
     isManualResizingRef,
     containerRef,
@@ -160,7 +164,6 @@ export function useCoverResize({
     releaseManualResizeSoon,
     onUpdate,
     url,
-    scale,
   ]);
 
   return {

@@ -27,6 +27,7 @@ export function startCoverResizeSession({
 }: StartCoverResizeSessionProps) {
   let rafId: number | null = null;
   let disposed = false;
+  let topPinned = snapshot.maxShiftDown === 0;
 
   const buildFrame = (clientY: number): ResizeFrame => {
     const delta = clientY - startY;
@@ -40,7 +41,13 @@ export function startCoverResizeSession({
       snapshot.maxVisualHeightNoShift,
       snapshot.maxShiftDown
     );
-    return { effectiveHeight, shiftY };
+    if (shiftY >= snapshot.maxShiftDown - 0.001) {
+      topPinned = true;
+    }
+    return {
+      effectiveHeight,
+      shiftY: topPinned ? snapshot.maxShiftDown : shiftY,
+    };
   };
 
   const dispose = () => {

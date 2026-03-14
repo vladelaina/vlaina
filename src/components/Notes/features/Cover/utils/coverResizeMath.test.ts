@@ -3,6 +3,7 @@ import {
   buildResizeSnapshot,
   calculateEffectiveResizeHeight,
   calculateFinalCropFromResize,
+  calculateResizedScale,
   calculateVerticalShift,
 } from './coverResizeMath';
 
@@ -43,5 +44,22 @@ describe('coverResizeMath', () => {
 
     expect(Number.isFinite(crop.x)).toBe(true);
     expect(Number.isFinite(crop.y)).toBe(true);
+  });
+
+  it('preserves rendered image size across height changes by adjusting scale', () => {
+    const snapshot = buildResizeSnapshot(
+      { width: 1200, height: 600 },
+      { width: 400, height: 300 },
+      1,
+      { x: 0, y: 0 }
+    );
+
+    const nextScale = calculateResizedScale(
+      snapshot,
+      { width: 1200, height: 600 },
+      { width: 400, height: 200 }
+    );
+
+    expect(nextScale).toBeCloseTo(1.5, 6);
   });
 });
