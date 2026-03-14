@@ -59,7 +59,7 @@ const NotesTabRow = lazy(async () => {
 });
 
 function AppContent() {
-  useAIStore((state) => state.providers.length);
+  useAIStore();
 
   const {
     appViewMode,

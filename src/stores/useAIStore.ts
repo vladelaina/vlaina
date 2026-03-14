@@ -236,7 +236,7 @@ export const actions = {
     useUnifiedStore.getState().updateAIData({ customSystemPrompt: prompt });
   },
 
-  setIncludeTimeContext: (enabled: boolean) => {
+  setIncludeTimeContext: (_enabled: boolean) => {
     useUnifiedStore.getState().updateAIData({ includeTimeContext: true });
   },
 
