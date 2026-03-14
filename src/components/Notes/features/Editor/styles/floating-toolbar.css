@@ -10,8 +10,8 @@
   transform: translateX(-50%) translateY(-100%);
   transform-origin: center bottom;
   transition:
-    opacity 0.12s ease-out,
-    transform 0.12s ease-out;
+    opacity 0.14s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.14s cubic-bezier(0.2, 0.8, 0.2, 1);
   will-change: opacity, transform;
 }
 
@@ -96,9 +96,10 @@
   color: var(--neko-text-primary, #18181b);
   cursor: pointer;
   transition:
-    background-color 0.12s ease,
-    color 0.12s ease,
-    border-color 0.12s ease;
+    background-color 0.14s cubic-bezier(0.2, 0.8, 0.2, 1),
+    color 0.14s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.14s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.14s cubic-bezier(0.2, 0.8, 0.2, 1);
   position: relative;
   white-space: nowrap;
   box-sizing: border-box;
@@ -108,10 +109,12 @@
   width: 20px;
   height: 20px;
   font-size: 20px;
+  stroke-width: 1.75;
 }
 
 .toolbar-btn:hover {
   background-color: var(--neko-hover, #f4f4f5);
+  transform: translateY(-1px);
 }
 
 .toolbar-btn.active {
@@ -142,6 +145,10 @@
 .dark .toolbar-btn[data-action="copy"].active {
   background-color: rgb(96 165 250 / 0.16);
   color: #60a5fa;
+}
+
+.toolbar-btn:active {
+  transform: translateY(0) scale(0.98);
 }
 
 /* Toolbar button tooltip */
@@ -220,12 +227,10 @@
 }
 
 .toolbar-ai-btn {
-  width: auto;
-  min-width: unset;
-  padding: 2px 6px;
-  gap: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 4px;
 }
 
 .toolbar-ai-btn-icon {
@@ -234,12 +239,7 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  font-size: 16px;
-  line-height: 1;
-}
-
-.toolbar-ai-btn-label {
-  line-height: 20px;
+  line-height: 0;
 }
 
 .block-type-label {
@@ -260,6 +260,7 @@
 
 /* Sub-menus */
 .toolbar-submenu {
+  --toolbar-submenu-enter-y: -6px;
   position: absolute;
   top: 100%;
   right: 0;
@@ -276,6 +277,23 @@
   padding: 6px;
   z-index: 10;
   box-sizing: border-box;
+  opacity: 0;
+  transform: translateY(var(--toolbar-submenu-enter-y)) scale(0.98);
+  transform-origin: top right;
+  will-change: opacity, transform;
+  animation: toolbar-submenu-in 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes toolbar-submenu-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--toolbar-submenu-enter-y)) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Custom scrollbar for dropdown */
@@ -306,10 +324,12 @@
 
 /* Dropdown opens above when not enough space below */
 .toolbar-submenu.dropdown-above {
+  --toolbar-submenu-enter-y: 6px;
   top: auto;
   bottom: 100%;
   margin-top: 0;
   margin-bottom: 12px;
+  transform-origin: bottom right;
 }
 
 .dark .toolbar-submenu {
@@ -333,12 +353,15 @@
   text-align: left;
   cursor: pointer;
   transition:
-    background-color 0.12s ease,
-    color 0.12s ease;
+    background-color 0.16s cubic-bezier(0.2, 0.8, 0.2, 1),
+    color 0.16s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .block-dropdown-item:hover {
   background-color: var(--neko-hover, #f4f4f5);
+  transform: translateX(1px);
 }
 
 .dark .block-dropdown-item {
@@ -352,11 +375,17 @@
 .block-dropdown-item.active {
   background-color: rgb(39 131 222 / 0.12);
   color: var(--neko-accent, #2783de);
+  box-shadow: inset 0 0 0 0.5px rgb(39 131 222 / 0.18);
 }
 
 .dark .block-dropdown-item.active {
   background-color: rgb(96 165 250 / 0.16);
   color: #60a5fa;
+  box-shadow: inset 0 0 0 0.5px rgb(96 165 250 / 0.24);
+}
+
+.block-dropdown-item:active {
+  transform: scale(0.985);
 }
 
 .block-dropdown-item-icon {
@@ -366,12 +395,25 @@
   align-items: center;
   justify-content: center;
   color: var(--neko-text-tertiary, #a1a1aa);
+  transition:
+    color 0.16s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .block-dropdown-item-icon svg {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
+  stroke-width: 1.75;
+  transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.block-dropdown-item.active .block-dropdown-item-icon {
+  color: currentColor;
+}
+
+.block-dropdown-item.active .block-dropdown-item-icon svg {
+  transform: scale(1.02);
 }
 
 .block-dropdown-item-shortcut {

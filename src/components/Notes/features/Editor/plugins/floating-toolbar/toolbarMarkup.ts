@@ -122,10 +122,10 @@ function renderAiComposerMarkup(): string {
 function renderAiButton(): string {
   return `
     <button class="toolbar-btn toolbar-ai-btn has-tooltip"
-            data-action="ai">
-      <span class="toolbar-ai-btn-icon" aria-hidden="true">💫</span>
-      <span class="toolbar-ai-btn-label">Ask AI</span>
-      ${EDITOR_ICONS.chevronDown}
+            data-action="ai"
+            aria-label="Ask AI"
+            data-tooltip="Ask AI">
+      <span class="toolbar-ai-btn-icon" aria-hidden="true">${EDITOR_ICONS.star}</span>
     </button>
   `;
 }

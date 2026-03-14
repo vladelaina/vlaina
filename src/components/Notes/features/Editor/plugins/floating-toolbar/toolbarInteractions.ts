@@ -3,7 +3,6 @@ import type { FloatingToolbarState } from './types';
 import { TOOLBAR_ACTIONS } from './types';
 import { floatingToolbarKey } from './floatingToolbarPlugin';
 import { copySelectionToClipboard, toggleMark, setLink } from './commands';
-import { applyFormatPreview, clearFormatPreview, hasFormatPreview } from './previewStyles';
 import { getLinkUrl } from './selectionHelpers';
 import { linkTooltipPluginKey } from '../links';
 
@@ -172,8 +171,6 @@ export function createToolbarEventDelegation(
     e.preventDefault();
     e.stopPropagation();
 
-    clearFormatPreview(currentView);
-
     const action = button.dataset.action;
     if (action) {
       void handleToolbarAction(currentView, action, currentState);
@@ -185,12 +182,6 @@ export function createToolbarEventDelegation(
     const button = target.closest('[data-action]') as HTMLElement | null;
     if (!button || !currentView) {
       return;
-    }
-
-    const action = button.dataset.action;
-    const isActive = button.classList.contains('active');
-    if (action && hasFormatPreview(action) && !isActive) {
-      applyFormatPreview(currentView, action, false);
     }
 
     if (button.dataset.shortcut) {
@@ -210,11 +201,6 @@ export function createToolbarEventDelegation(
     const relatedTarget = mouseEvent.relatedTarget as HTMLElement | null;
     if (relatedTarget && button.contains(relatedTarget)) {
       return;
-    }
-
-    const action = button.dataset.action;
-    if (action && hasFormatPreview(action)) {
-      clearFormatPreview(currentView);
     }
 
     hideTooltip();
