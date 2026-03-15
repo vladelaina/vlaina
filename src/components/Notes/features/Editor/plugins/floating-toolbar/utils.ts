@@ -42,10 +42,10 @@ export const BLOCK_TYPES: BlockTypeConfig[] = [
   { type: 'heading4', label: 'Heading 4', icon: 'h4' },
   { type: 'heading5', label: 'Heading 5', icon: 'h5' },
   { type: 'heading6', label: 'Heading 6', icon: 'h6' },
-  { type: 'blockquote', label: 'Quote', icon: 'quote' },
   { type: 'bulletList', label: 'Bullet List', icon: 'list' },
   { type: 'orderedList', label: 'Numbered List', icon: 'listOrdered' },
   { type: 'taskList', label: 'Task List', icon: 'listCheck' },
+  { type: 'blockquote', label: 'Quote', icon: 'quote' },
   { type: 'codeBlock', label: 'Code Block', icon: 'code' },
 ];
 
@@ -54,11 +54,11 @@ export function computeToolbarVisibility(from: number, to: number): boolean {
 }
 
 export function computeToolbarPlacement(
-  selectionTop: number,
-  viewportTop: number = 0
+  selectionBottom: number,
+  viewportBottom: number
 ): 'top' | 'bottom' {
-  const distanceFromTop = selectionTop - viewportTop;
-  return distanceFromTop < 60 ? 'bottom' : 'top';
+  const spaceBelow = viewportBottom - selectionBottom;
+  return spaceBelow < 60 ? 'top' : 'bottom';
 }
 
 export function isValidUrl(input: string): boolean {

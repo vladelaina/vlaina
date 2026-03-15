@@ -2,7 +2,13 @@
 // This file provides a single entry point for all editor plugins
 
 // Floating Toolbar (selection-based formatting)
-export { floatingToolbarPlugin, floatingToolbarKey, colorMarksPlugin, blockAlignmentPlugin } from './floating-toolbar';
+export {
+  floatingToolbarPlugin,
+  floatingToolbarKey,
+  floatingToolbarInlinePreviewPlugin,
+  colorMarksPlugin,
+  blockAlignmentPlugin,
+} from './floating-toolbar';
 export type { FloatingToolbarState, BlockType, SubMenuType, TextAlignment } from './floating-toolbar';
 
 // Heading plugins

@@ -3,163 +3,178 @@ import type { FloatingToolbarState } from './types';
 import { TOOLBAR_ACTIONS } from './types';
 import { floatingToolbarKey } from './floatingToolbarPlugin';
 import { copySelectionToClipboard, toggleMark, setLink } from './commands';
+import { openAiSelectionReview } from './ai/reviewFlow';
 import { applyFormatPreview, clearFormatPreview, hasFormatPreview } from './previewStyles';
 import { getLinkUrl } from './selectionHelpers';
 import { linkTooltipPluginKey } from '../links';
 
-let copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+export interface ToolbarEventDelegationController {
+  update: (view: EditorView, state: FloatingToolbarState) => void;
+  clearTransientUi: () => void;
+  destroy: () => void;
+}
 
-async function handleToolbarAction(view: EditorView, action: string, state: FloatingToolbarState) {
-  const markActions: Record<string, string> = {
-    bold: 'strong',
-    italic: 'emphasis',
-    underline: 'underline',
-    strike: 'strike_through',
-    code: 'inlineCode',
-    highlight: 'highlight',
+export function createToolbarEventDelegation(
+  toolbarElement: HTMLElement
+): ToolbarEventDelegationController {
+  let currentView: EditorView | null = null;
+  let currentState: FloatingToolbarState | null = null;
+  let copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+  let tooltipElement: HTMLElement | null = null;
+  let tooltipTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const getTooltipElement = () => {
+    if (!tooltipElement) {
+      tooltipElement = document.createElement('div');
+      tooltipElement.className = 'toolbar-tooltip';
+      document.body.appendChild(tooltipElement);
+    }
+    return tooltipElement;
   };
 
-  if (markActions[action]) {
-    toggleMark(view, markActions[action]);
-    return;
-  }
+  const hideTooltip = () => {
+    if (tooltipTimer) {
+      clearTimeout(tooltipTimer);
+      tooltipTimer = null;
+    }
 
-  if (action === 'link') {
-    const linkUrl = getLinkUrl(view);
+    if (tooltipElement) {
+      tooltipElement.classList.remove('visible');
+    }
+  };
 
-    if (linkUrl !== null && linkUrl !== '') {
-      setLink(view, null);
+  const showTooltip = (button: HTMLElement) => {
+    const shortcut = button.dataset.shortcut;
+    if (!shortcut) {
       return;
     }
 
-    const { state: editorState, dispatch } = view;
-    const { from, to } = editorState.selection;
-    const tr = editorState.tr.setMeta(linkTooltipPluginKey, {
-      type: 'SHOW_LINK_TOOLTIP',
-      from,
-      to,
-    });
-    dispatch(tr);
-    view.focus();
-    return;
-  }
+    const tooltip = getTooltipElement();
+    const keys = shortcut.split('+').map((k) => `<kbd>${k}</kbd>`).join('');
+    tooltip.innerHTML = `
+      <span class="toolbar-tooltip-shortcut">${keys}</span>
+      <span class="toolbar-tooltip-arrow" aria-hidden="true"></span>
+    `;
+    tooltip.dataset.side = 'top';
 
-  if (action === 'delete') {
-    const { state: editorState, dispatch } = view;
-    const { from, to } = editorState.selection;
-    if (from < to) {
-      dispatch(editorState.tr.delete(from, to));
-    }
-    view.focus();
-    return;
-  }
+    const rect = button.getBoundingClientRect();
+    tooltip.style.left = `${rect.left + rect.width / 2}px`;
+    tooltip.style.top = `${rect.top - 8}px`;
+    tooltip.style.transform = 'translate(-50%, -100%)';
+    tooltip.classList.add('visible');
+  };
 
-  if (action === 'copy') {
-    const copied = await copySelectionToClipboard(view);
-    if (!copied) {
-      return;
-    }
+  const handleToolbarAction = async (
+    view: EditorView,
+    action: string,
+    state: FloatingToolbarState
+  ): Promise<boolean> => {
+    const markActions: Record<string, string> = {
+      bold: 'strong',
+      italic: 'emphasis',
+      underline: 'underline',
+      strike: 'strike_through',
+      code: 'inlineCode',
+      highlight: 'highlight',
+    };
 
-    view.dispatch(
-      view.state.tr.setMeta(floatingToolbarKey, {
-        type: TOOLBAR_ACTIONS.SET_COPIED,
-        payload: { copied: true },
-      })
-    );
-
-    if (copyFeedbackTimer) {
-      clearTimeout(copyFeedbackTimer);
+    if (markActions[action]) {
+      toggleMark(view, markActions[action]);
+      return true;
     }
 
-    copyFeedbackTimer = setTimeout(() => {
-      copyFeedbackTimer = null;
+    if (action === 'link') {
+      const linkUrl = getLinkUrl(view);
+
+      if (linkUrl !== null && linkUrl !== '') {
+        setLink(view, null);
+        return true;
+      }
+
+      const { state: editorState, dispatch } = view;
+      const { from, to } = editorState.selection;
+      dispatch(
+        editorState.tr.setMeta(linkTooltipPluginKey, {
+          type: 'SHOW_LINK_TOOLTIP',
+          from,
+          to,
+        })
+      );
+      view.focus();
+      return false;
+    }
+
+    if (action === 'delete') {
+      const { state: editorState, dispatch } = view;
+      const { from, to } = editorState.selection;
+      if (from < to) {
+        dispatch(editorState.tr.delete(from, to));
+      }
+      view.focus();
+      return true;
+    }
+
+    if (action === 'copy') {
+      const copied = await copySelectionToClipboard(view);
+      if (!copied) {
+        return false;
+      }
+
       view.dispatch(
         view.state.tr.setMeta(floatingToolbarKey, {
           type: TOOLBAR_ACTIONS.SET_COPIED,
-          payload: { copied: false },
+          payload: { copied: true },
         })
       );
-    }, 1200);
-    return;
-  }
 
-  if (action === 'ai' || action === 'color' || action === 'block' || action === 'alignment') {
-    view.dispatch(
-      view.state.tr.setMeta(floatingToolbarKey, {
-        type: TOOLBAR_ACTIONS.SET_SUB_MENU,
-        payload: { subMenu: state.subMenu === action ? null : action },
-      })
-    );
-  }
-}
+      if (copyFeedbackTimer) {
+        clearTimeout(copyFeedbackTimer);
+      }
 
-let tooltipElement: HTMLElement | null = null;
-let tooltipTimer: ReturnType<typeof setTimeout> | null = null;
+      copyFeedbackTimer = setTimeout(() => {
+        copyFeedbackTimer = null;
+        view.dispatch(
+          view.state.tr.setMeta(floatingToolbarKey, {
+            type: TOOLBAR_ACTIONS.SET_COPIED,
+            payload: { copied: false },
+          })
+        );
+      }, 1200);
+      return true;
+    }
 
-function getTooltipElement(): HTMLElement {
-  if (!tooltipElement) {
-    tooltipElement = document.createElement('div');
-    tooltipElement.className = 'toolbar-tooltip';
-    document.body.appendChild(tooltipElement);
-  }
-  return tooltipElement;
-}
+    if (action === 'ai') {
+      openAiSelectionReview(view);
+      return false;
+    }
 
-function showTooltip(button: HTMLElement) {
-  const tooltip = getTooltipElement();
-  const shortcut = button.dataset.shortcut;
+    if (action === 'color' || action === 'block' || action === 'alignment') {
+      view.dispatch(
+        view.state.tr.setMeta(floatingToolbarKey, {
+          type: TOOLBAR_ACTIONS.SET_SUB_MENU,
+          payload: { subMenu: state.subMenu === action ? null : action },
+        })
+      );
+      return false;
+    }
 
-  if (!shortcut) return;
+    return false;
+  };
 
-  const keys = shortcut.split('+').map((k) => `<kbd>${k}</kbd>`).join('');
-  const html = `
-    <span class="toolbar-tooltip-shortcut">${keys}</span>
-    <span class="toolbar-tooltip-arrow" aria-hidden="true"></span>
-  `;
-
-  tooltip.innerHTML = html;
-  tooltip.dataset.side = 'top';
-
-  const rect = button.getBoundingClientRect();
-  tooltip.style.left = `${rect.left + rect.width / 2}px`;
-  tooltip.style.top = `${rect.top - 8}px`;
-  tooltip.style.transform = 'translate(-50%, -100%)';
-  tooltip.classList.add('visible');
-}
-
-function hideTooltip() {
-  if (tooltipTimer) {
-    clearTimeout(tooltipTimer);
-    tooltipTimer = null;
-  }
-
-  if (tooltipElement) {
-    tooltipElement.classList.remove('visible');
-  }
-}
-
-let currentView: EditorView | null = null;
-let currentState: FloatingToolbarState | null = null;
-let delegateHandler: ((e: Event) => void) | null = null;
-let hoverHandler: ((e: Event) => void) | null = null;
-let leaveHandler: ((e: Event) => void) | null = null;
-
-export function setupToolbarEventDelegation(
-  toolbarElement: HTMLElement,
-  view: EditorView,
-  state: FloatingToolbarState
-) {
-  currentView = view;
-  currentState = state;
-
-  if (delegateHandler) {
-    return;
-  }
-
-  delegateHandler = (e: Event) => {
+  const handleMouseDown = (e: Event) => {
     const target = e.target as HTMLElement;
     const button = target.closest('[data-action]') as HTMLElement | null;
+    if (!button) {
+      return;
+    }
 
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleClick = (e: Event) => {
+    const target = e.target as HTMLElement;
+    const button = target.closest('[data-action]') as HTMLElement | null;
     if (!button || !currentView || !currentState) {
       return;
     }
@@ -171,14 +186,26 @@ export function setupToolbarEventDelegation(
 
     const action = button.dataset.action;
     if (action) {
-      void handleToolbarAction(currentView, action, currentState);
+      void handleToolbarAction(currentView, action, currentState).then((shouldHideToolbar) => {
+        const view = currentView;
+        if (!shouldHideToolbar || !view) {
+          return;
+        }
+
+        clearFormatPreview(view);
+        hideTooltip();
+        view.dispatch(
+          view.state.tr.setMeta(floatingToolbarKey, {
+            type: TOOLBAR_ACTIONS.HIDE,
+          })
+        );
+      });
     }
   };
 
-  hoverHandler = (e: Event) => {
+  const handleMouseOver = (e: Event) => {
     const target = e.target as HTMLElement;
     const button = target.closest('[data-action]') as HTMLElement | null;
-
     if (!button || !currentView) {
       return;
     }
@@ -195,11 +222,10 @@ export function setupToolbarEventDelegation(
     }
   };
 
-  leaveHandler = (e: Event) => {
+  const handleMouseOut = (e: Event) => {
     const mouseEvent = e as MouseEvent;
     const target = e.target as HTMLElement;
     const button = target.closest('[data-action]') as HTMLElement | null;
-
     if (!button || !currentView) {
       return;
     }
@@ -217,44 +243,42 @@ export function setupToolbarEventDelegation(
     hideTooltip();
   };
 
-  toolbarElement.addEventListener('click', delegateHandler);
-  toolbarElement.addEventListener('mouseover', hoverHandler);
-  toolbarElement.addEventListener('mouseout', leaveHandler);
-}
+  toolbarElement.addEventListener('mousedown', handleMouseDown);
+  toolbarElement.addEventListener('click', handleClick);
+  toolbarElement.addEventListener('mouseover', handleMouseOver);
+  toolbarElement.addEventListener('mouseout', handleMouseOut);
 
-export function updateToolbarState(view: EditorView, state: FloatingToolbarState) {
-  currentView = view;
-  currentState = state;
-}
+  return {
+    update(view, state) {
+      currentView = view;
+      currentState = state;
+    },
+    clearTransientUi() {
+      if (currentView) {
+        clearFormatPreview(currentView);
+      }
+      hideTooltip();
+    },
+    destroy() {
+      toolbarElement.removeEventListener('mousedown', handleMouseDown);
+      toolbarElement.removeEventListener('click', handleClick);
+      toolbarElement.removeEventListener('mouseover', handleMouseOver);
+      toolbarElement.removeEventListener('mouseout', handleMouseOut);
 
-export function cleanupToolbarEventDelegation(toolbarElement: HTMLElement) {
-  if (delegateHandler) {
-    toolbarElement.removeEventListener('click', delegateHandler);
-    delegateHandler = null;
-  }
+      hideTooltip();
 
-  if (hoverHandler) {
-    toolbarElement.removeEventListener('mouseover', hoverHandler);
-    hoverHandler = null;
-  }
+      if (copyFeedbackTimer) {
+        clearTimeout(copyFeedbackTimer);
+        copyFeedbackTimer = null;
+      }
 
-  if (leaveHandler) {
-    toolbarElement.removeEventListener('mouseout', leaveHandler);
-    leaveHandler = null;
-  }
+      if (tooltipElement) {
+        tooltipElement.remove();
+        tooltipElement = null;
+      }
 
-  hideTooltip();
-
-  if (copyFeedbackTimer) {
-    clearTimeout(copyFeedbackTimer);
-    copyFeedbackTimer = null;
-  }
-
-  if (tooltipElement) {
-    tooltipElement.remove();
-    tooltipElement = null;
-  }
-
-  currentView = null;
-  currentState = null;
+      currentView = null;
+      currentState = null;
+    },
+  };
 }

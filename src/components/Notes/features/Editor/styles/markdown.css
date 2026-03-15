@@ -44,6 +44,17 @@
   border-radius: 18px;
 }
 
+.milkdown [data-preview-block-type="blockquote"]::before {
+  content: '';
+  width: 2px;
+  height: calc(100% - 20px);
+  position: absolute;
+  left: 0;
+  top: 10px;
+  background: var(--neko-text-tertiary);
+  border-radius: 18px;
+}
+
 /* Lists */
 .milkdown ul,
 .milkdown ol {
@@ -55,6 +66,65 @@
   margin: 6px 0;
   /* Increase breathing room */
   line-height: calc(1em + 8px);
+}
+
+.milkdown li:has(> [data-text-align="center"]) {
+  text-align: center;
+}
+
+.milkdown li:has(> [data-text-align="right"]) {
+  text-align: right;
+}
+
+.milkdown li:has(> [data-text-align="center"]):not([data-item-type="task"]),
+.milkdown li:has(> [data-text-align="right"]):not([data-item-type="task"]) {
+  list-style-position: inside;
+}
+
+.milkdown li:has(> [data-text-align="center"]):not([data-item-type="task"]) > [data-text-align],
+.milkdown li:has(> [data-text-align="right"]):not([data-item-type="task"]) > [data-text-align] {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.milkdown li:has(> [data-text-align="center"]) > ul,
+.milkdown li:has(> [data-text-align="center"]) > ol,
+.milkdown li:has(> [data-text-align="right"]) > ul,
+.milkdown li:has(> [data-text-align="right"]) > ol {
+  text-align: left;
+}
+
+.milkdown [data-preview-block-type="bulletList"]::before,
+.milkdown [data-preview-block-type="orderedList"]::before,
+.milkdown [data-preview-block-type="taskList"]::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--neko-text-tertiary);
+}
+
+.milkdown [data-preview-block-type="bulletList"]::before {
+  content: '•';
+  font-size: 1.1em;
+  line-height: inherit;
+}
+
+.milkdown [data-preview-block-type="orderedList"]::before {
+  content: attr(data-preview-list-label);
+  font-size: 0.95em;
+  font-variant-numeric: tabular-nums;
+  line-height: inherit;
+}
+
+.milkdown [data-preview-block-type="taskList"]::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  top: 0.3em;
+  border: 2px solid var(--neko-text-tertiary);
+  border-radius: 4px;
+  box-sizing: border-box;
 }
 
 .milkdown ul>li:not(.task-list-item) {
@@ -188,6 +258,26 @@
   min-width: 0;
   margin: 0;
   /* Remove potential margin to ensure perfect alignment */
+}
+
+.milkdown li[data-item-type="task"]:has(> [data-text-align="center"]) {
+  justify-content: center;
+}
+
+.milkdown li[data-item-type="task"]:has(> [data-text-align="right"]) {
+  justify-content: flex-end;
+}
+
+.milkdown li[data-item-type="task"]:has(> [data-text-align="center"])::before,
+.milkdown li[data-item-type="task"]:has(> [data-text-align="right"])::before {
+  margin-left: 0;
+}
+
+.milkdown li[data-item-type="task"]:has(> [data-text-align="center"])>[data-text-align],
+.milkdown li[data-item-type="task"]:has(> [data-text-align="right"])>[data-text-align] {
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: calc(100% - 24px);
 }
 
 /* Horizontal Rule */

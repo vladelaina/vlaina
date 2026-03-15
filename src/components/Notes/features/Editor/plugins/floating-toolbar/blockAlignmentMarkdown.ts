@@ -1,4 +1,5 @@
-import { $remark } from '@milkdown/kit/utils';
+import { remarkPluginsCtx, schemaTimerCtx } from '@milkdown/core';
+import { createTimer, type MilkdownPlugin } from '@milkdown/ctx';
 import type { TextAlignment } from './types';
 
 interface AlignmentAwareMdastNode {
@@ -40,8 +41,8 @@ export function readMarkdownNodeAlignment(node: { align?: unknown } | null | und
   return 'left';
 }
 
-function isAlignableNode(node: AlignmentAwareMdastNode): boolean {
-  return node.type === 'paragraph' || node.type === 'heading';
+function isAlignableNode(node: AlignmentAwareMdastNode | undefined): node is AlignmentAwareMdastNode {
+  return !!node && (node.type === 'paragraph' || node.type === 'heading');
 }
 
 function visitAlignmentComments(node: AlignmentAwareMdastNode): void {
@@ -49,29 +50,63 @@ function visitAlignmentComments(node: AlignmentAwareMdastNode): void {
     return;
   }
 
+  const nextChildren: AlignmentAwareMdastNode[] = [];
+
   for (let index = 0; index < node.children.length; index += 1) {
     const child = node.children[index];
-    const nextSibling = node.children[index + 1];
-    const alignment = extractTextAlignmentComment(nextSibling?.value);
+    const childAlignment = extractTextAlignmentComment(child.value);
 
-    if (alignment && isAlignableNode(child)) {
-      child.align = alignment;
-      node.children.splice(index + 1, 1);
+    if (childAlignment) {
+      const previousSibling = nextChildren[nextChildren.length - 1];
+      const nextSibling = node.children[index + 1];
+
+      if (isAlignableNode(previousSibling) && !isTextAlignment(previousSibling.align)) {
+        previousSibling.align = childAlignment;
+      } else if (isAlignableNode(nextSibling) && !isTextAlignment(nextSibling.align)) {
+        nextSibling.align = childAlignment;
+      }
+
+      continue;
     }
 
     visitAlignmentComments(child);
+    nextChildren.push(child);
   }
+
+  node.children = nextChildren;
+}
+
+export function applyAlignmentCommentsToTree(tree: AlignmentAwareMdastNode): void {
+  visitAlignmentComments(tree);
 }
 
 function remarkBlockAlignment() {
   return (tree: unknown) => {
-    visitAlignmentComments(tree as AlignmentAwareMdastNode);
+    applyAlignmentCommentsToTree(tree as AlignmentAwareMdastNode);
   };
 }
 
-export const remarkBlockAlignmentPlugin = $remark(
-  'remarkBlockAlignment',
-  () => remarkBlockAlignment
-);
+const blockAlignmentRemarkReady = createTimer('blockAlignmentRemarkReady');
+
+export const remarkBlockAlignmentPlugin: MilkdownPlugin = (ctx) => {
+  ctx.record(blockAlignmentRemarkReady);
+  ctx.update(schemaTimerCtx, (timers) => timers.concat(blockAlignmentRemarkReady));
+
+  return async () => {
+    const remarkPlugin = {
+      plugin: remarkBlockAlignment,
+      options: undefined,
+    };
+
+    ctx.update(remarkPluginsCtx, (plugins) => plugins.concat(remarkPlugin as any));
+    ctx.done(blockAlignmentRemarkReady);
+
+    return () => {
+      ctx.update(remarkPluginsCtx, (plugins) => plugins.filter((plugin) => plugin !== remarkPlugin));
+      ctx.update(schemaTimerCtx, (timers) => timers.filter((timer) => timer !== blockAlignmentRemarkReady));
+      ctx.clearTimer(blockAlignmentRemarkReady);
+    };
+  };
+};
 
 export const blockAlignmentPlugin = [remarkBlockAlignmentPlugin].flat();

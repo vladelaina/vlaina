@@ -48,9 +48,13 @@ const ModelOption = memo(({
 
 interface ModelSelectorProps {
   composerInputRef: RefObject<HTMLInputElement | HTMLTextAreaElement | null>
+  dropdownPlacement?: 'top' | 'bottom'
 }
 
-export function ModelSelector({ composerInputRef }: ModelSelectorProps) {
+export function ModelSelector({
+  composerInputRef,
+  dropdownPlacement = 'top',
+}: ModelSelectorProps) {
   const { models, providers, selectedModelId, selectModel, getSelectedModel } = useAIStore()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -250,7 +254,9 @@ export function ModelSelector({ composerInputRef }: ModelSelectorProps) {
       {isOpen && (
         <div 
           className={cn(
-            "absolute bottom-full right-0 mb-1 w-64",
+            dropdownPlacement === 'bottom'
+              ? "absolute top-full right-0 mt-1 w-64"
+              : "absolute bottom-full right-0 mb-1 w-64",
             "bg-white dark:bg-neutral-800 rounded-2xl shadow-xl",
             "border border-neutral-100 dark:border-neutral-600/40",
             "backdrop-blur-lg z-50 overflow-hidden flex flex-col",
