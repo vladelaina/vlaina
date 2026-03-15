@@ -151,7 +151,7 @@ export function ModelSelector({
       isKeyboardNavigating.current = value;
   }, []);
 
-  const openSelector = useCallback((source: 'button' | 'shortcut') => {
+  const openSelector = useCallback(() => {
       const initialFocusedId = selectedModelId ?? null;
       requestCenterScroll();
       setFocusedModelId(initialFocusedId);
@@ -167,12 +167,12 @@ export function ModelSelector({
       }
   }, [clearScrollMode, focusComposerInput]);
 
-  const toggleSelector = useCallback((source: 'button' | 'shortcut') => {
+  const toggleSelector = useCallback(() => {
       if (isOpen) {
           closeSelector(false);
           return;
       }
-      openSelector(source);
+      openSelector();
   }, [closeSelector, isOpen, openSelector]);
 
   useEffect(() => {
@@ -197,7 +197,7 @@ export function ModelSelector({
       focusedModelId,
       setFocusedModelId,
       setKeyboardNavigating,
-      onShortcutToggle: () => toggleSelector('shortcut'),
+      onShortcutToggle: toggleSelector,
       onClose: () => closeSelector(true),
       onSelectModel: handleSelectModel,
       requestNearestScroll,
@@ -230,7 +230,7 @@ export function ModelSelector({
   return (
     <div className="relative select-none w-fit" ref={dropdownRef}>
       <button
-        onClick={() => toggleSelector('button')}
+        onClick={toggleSelector}
         className={cn(
           "flex items-center gap-1.5 px-3 h-9 rounded-full transition-all group",
           "bg-transparent border-none",

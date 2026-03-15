@@ -280,7 +280,7 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
     setActiveBenchmarkScopes(normalizedScopes);
   };
 
-  const resolveActiveBenchmarkScopes = (modelIds: string[]) => {
+  const resolveActiveBenchmarkScopes = (modelIds: string[]): BenchmarkScope[] => {
     const runningIds = new Set(modelIds);
     return normalizeBenchmarkScopes([
       ...(selectedBenchmarkModels.some((model) => runningIds.has(model.id)) ? ['selected' as const] : []),
@@ -301,12 +301,17 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
     return normalizeBenchmarkScopes([...currentScopes, nextScope]);
   };
 
-  const removeBenchmarkScope = (scopes: BenchmarkScope[], scopeToRemove: Exclude<BenchmarkScope, 'all'>) => {
+  const removeBenchmarkScope = (
+    scopes: BenchmarkScope[],
+    scopeToRemove: Exclude<BenchmarkScope, 'all'>
+  ): BenchmarkScope[] => {
     const normalizedScopes = normalizeBenchmarkScopes(scopes);
     if (normalizedScopes.includes('all')) {
       return scopeToRemove === 'selected' ? ['available'] : ['selected'];
     }
-    return normalizedScopes.filter((scope) => scope !== scopeToRemove);
+    return normalizedScopes.filter(
+      (scope): scope is Exclude<BenchmarkScope, 'all'> => scope !== scopeToRemove
+    );
   };
 
   const resolveBenchmarkModelsForScopes = (scopes: BenchmarkScope[]): AIModel[] => {
@@ -628,8 +633,13 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
       return;
     }
 
+    if (!initialProvider) {
+      return;
+    }
+
     const tempProvider = buildTempProvider();
     if (!tempProvider) return;
+    const providerId = initialProvider.id;
 
     setIsFetchingModels(true);
     setFetchError('');
@@ -637,7 +647,7 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
     try {
       const modelsList = await openaiClient.getModels(tempProvider);
       setFetchedModels(modelsList);
-      setProviderFetchedModels(initialProvider.id, modelsList);
+      setProviderFetchedModels(providerId, modelsList);
       if (modelsList.length === 0) {
         setFetchError('Connected, but no models were returned.');
       }

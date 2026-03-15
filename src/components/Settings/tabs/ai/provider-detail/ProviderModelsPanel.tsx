@@ -285,7 +285,8 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
   const quickAddItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const hasFetchedModels = props.sortedFetchedModels.length > 0;
   const quickAddIds = parseQuickAddModelIds(props.quickAddModelId);
-  const quickAddQuery = props.quickAddModelId.split(/[,\uFF0C]/).at(-1)?.trim() ?? '';
+  const quickAddSegments = props.quickAddModelId.split(/[,\uFF0C]/);
+  const quickAddQuery = quickAddSegments[quickAddSegments.length - 1]?.trim() ?? '';
   const queuedQuickAddIds = new Set(quickAddIds.slice(0, -1).map((id) => id.toLowerCase()));
   const selectedModelsSource = props.filteredProviderModels.length > 0
     ? props.filteredProviderModels
