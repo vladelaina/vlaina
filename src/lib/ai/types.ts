@@ -21,6 +21,19 @@ export interface AIModel {
   createdAt: number
 }
 
+export interface PersistedBenchmarkItem {
+  status: 'success' | 'error'
+  latency?: number
+  error?: string
+  checkedAt: number
+}
+
+export interface ProviderBenchmarkRecord {
+  items: Record<string, PersistedBenchmarkItem>
+  overall: 'idle' | 'success' | 'error'
+  updatedAt: number
+}
+
 export interface ChatSession {
   id: string
   title: string

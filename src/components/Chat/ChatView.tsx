@@ -35,6 +35,7 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
     currentSessionId, 
     switchSession,
     switchMessageVersion, 
+    providers,
     selectedModel,
     models,
     selectModel,
@@ -79,16 +80,55 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
       isStreaming: isSessionActive,
       chatId: currentSessionId
   });
+
+  const firstEnabledModel = useMemo(() => {
+    const enabledProviderIds = new Set(
+      providers.filter((provider) => provider.enabled !== false).map((provider) => provider.id)
+    );
+    return models.find((model) => enabledProviderIds.has(model.providerId));
+  }, [models, providers]);
   
   useEffect(() => {
-      if (!selectedModel && models.length > 0) {
-          selectModel(models[0].id);
+      if (!selectedModel && firstEnabledModel) {
+          selectModel(firstEnabledModel.id);
       }
-  }, [models, selectedModel, selectModel]);
+  }, [firstEnabledModel, selectedModel, selectModel]);
 
   useEffect(() => {
       setFocusInputTrigger(n => n + 1);
   }, [currentSessionId]);
+
+  useEffect(() => {
+    if (!isEmbedded || !isSessionActive) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key !== 'Escape' ||
+        event.shiftKey ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey
+      ) {
+        return;
+      }
+
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[role="dialog"], [aria-modal="true"]')
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      stop();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isEmbedded, isSessionActive, stop]);
 
   useChatShortcuts({
     onFocusInput: () => {
@@ -97,6 +137,8 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
       }
     },
     onToggleShortcuts: () => setIsShortcutsOpen(prev => !prev),
+    onStopGeneration: stop,
+    isGenerating: isSessionActive,
     scrollRef: containerRef,
   }, !isEmbedded);
 

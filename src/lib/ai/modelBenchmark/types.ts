@@ -16,6 +16,7 @@ export interface ModelBenchmarkProgress {
 
 export interface CheckModelHealthOptions {
   timeoutMs?: number;
+  signal?: AbortSignal;
 }
 
 export interface BenchmarkModelsOptions extends CheckModelHealthOptions {

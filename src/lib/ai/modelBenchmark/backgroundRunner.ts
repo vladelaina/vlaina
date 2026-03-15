@@ -24,6 +24,7 @@ type SnapshotListener = (snapshot: ProviderBenchmarkSnapshot) => void;
 class BackgroundBenchmarkRunner {
   private snapshots = new Map<string, ProviderBenchmarkSnapshot>();
   private listeners = new Map<string, Set<SnapshotListener>>();
+  private abortControllers = new Map<string, AbortController>();
   private nextRunId = 1;
 
   getSnapshot(providerId: string): ProviderBenchmarkSnapshot | null {
@@ -51,6 +52,11 @@ class BackgroundBenchmarkRunner {
   }
 
   clear(providerId: string): void {
+    const controller = this.abortControllers.get(providerId);
+    if (controller) {
+      controller.abort();
+      this.abortControllers.delete(providerId);
+    }
     this.snapshots.delete(providerId);
     const listeners = this.listeners.get(providerId);
     if (!listeners || listeners.size === 0) {
@@ -72,6 +78,10 @@ class BackgroundBenchmarkRunner {
     }
   }
 
+  stop(providerId: string): void {
+    this.clear(providerId);
+  }
+
   start(provider: Provider, models: AIModel[]): boolean {
     if (models.length === 0) {
       return false;
@@ -84,10 +94,13 @@ class BackgroundBenchmarkRunner {
 
     const runId = this.nextRunId++;
     const startedAt = Date.now();
+    const abortController = new AbortController();
     const items: Record<string, BenchmarkItemState> = {};
     for (const model of models) {
       items[model.id] = { status: 'loading' };
     }
+
+    this.abortControllers.set(provider.id, abortController);
 
     this.setSnapshot(provider.id, {
       providerId: provider.id,
@@ -100,7 +113,7 @@ class BackgroundBenchmarkRunner {
       runId,
     });
 
-    void this.run(provider, models, runId);
+    void this.run(provider, models, runId, abortController);
     return true;
   }
 
@@ -129,9 +142,15 @@ class BackgroundBenchmarkRunner {
     return next;
   }
 
-  private async run(provider: Provider, models: AIModel[], runId: number): Promise<void> {
+  private async run(
+    provider: Provider,
+    models: AIModel[],
+    runId: number,
+    abortController: AbortController
+  ): Promise<void> {
     try {
       const results = await benchmarkModels(provider, models, {
+        signal: abortController.signal,
         onProgress: ({ modelId, result, completed }) => {
           const current = this.snapshots.get(provider.id);
           if (!current || current.runId !== runId) {
@@ -169,6 +188,11 @@ class BackgroundBenchmarkRunner {
         overall: 'error',
         finishedAt: Date.now(),
       });
+    } finally {
+      const currentController = this.abortControllers.get(provider.id);
+      if (currentController === abortController) {
+        this.abortControllers.delete(provider.id);
+      }
     }
   }
 }

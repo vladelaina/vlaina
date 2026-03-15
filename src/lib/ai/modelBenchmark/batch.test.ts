@@ -63,4 +63,26 @@ describe('benchmarkModels', () => {
     expect(resultMap['m-2']?.status).toBe('success');
     expect(resultMap['m-3']?.status).toBe('success');
   });
+
+  it('forwards abort signals to single-model checks', async () => {
+    const mockedCheckModelHealth = vi.mocked(checkModelHealth);
+    const controller = new AbortController();
+
+    mockedCheckModelHealth.mockResolvedValue({
+      status: 'success',
+      latency: 10,
+      endpoint: 'chat',
+    });
+
+    await benchmarkModels(provider, [createModel('m-1')], {
+      signal: controller.signal,
+      batchDelayMs: 0,
+    });
+
+    expect(mockedCheckModelHealth).toHaveBeenCalledWith(
+      provider,
+      expect.objectContaining({ id: 'm-1' }),
+      expect.objectContaining({ signal: controller.signal })
+    );
+  });
 });

@@ -61,6 +61,57 @@ describe('checkModelHealth', () => {
     expect(result.error).toContain('quota exceeded');
   });
 
+  it('reports embedded xml errors returned inside chat success payloads', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content:
+                  '<error type="SERVER_ERROR" code="503">No available channel for model grok-4.1 under group default</error>',
+              },
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
+
+    const result = await checkModelHealth(provider, createModel('grok-4.1'));
+    expect(result.status).toBe('error');
+    expect(result.error).toContain('No available channel for model grok-4.1 under group default');
+  });
+
+  it('treats plain-text 200 responses as errors', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('No available channel for model grok-4.1 under group default', {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain' },
+      })
+    );
+
+    const result = await checkModelHealth(provider, createModel('grok-4.1'));
+    expect(result.status).toBe('error');
+    expect(result.error).toContain('No available channel for model grok-4.1 under group default');
+  });
+
+  it('treats unexpected 200 payloads as errors', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({}), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const result = await checkModelHealth(provider, createModel('gpt-4o-mini'));
+    expect(result.status).toBe('error');
+    expect(result.error).toContain('Unexpected benchmark response');
+  });
+
   it('uses responses endpoint for codex-style models', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ output: [] }), {

@@ -69,6 +69,8 @@ function createDefaultAIData(): NonNullable<UnifiedData['ai']> {
   return {
     providers: [],
     models: [],
+    benchmarkResults: {},
+    fetchedModels: {},
     sessions: [],
     messages: {},
     selectedModelId: null,
@@ -87,6 +89,8 @@ function normalizeUnifiedData(data: UnifiedData): UnifiedData {
     ? {
         ...createDefaultAIData(),
         ...ai,
+        benchmarkResults: ai.benchmarkResults || {},
+        fetchedModels: ai.fetchedModels || {},
         customSystemPrompt: ai.customSystemPrompt || '',
         includeTimeContext: ai.includeTimeContext !== false,
         temporaryChatEnabled: false,

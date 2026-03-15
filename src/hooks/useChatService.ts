@@ -68,6 +68,10 @@ export function useChatService() {
         setError('Provider not found');
         return;
       }
+      if (provider.enabled === false) {
+        setError('This channel is turned off.');
+        return;
+      }
 
       const normalizedInput = text.replace(INVISIBLE_BREAK_REGEX, '').replace(UNIVERSAL_NEWLINE_REGEX, '\n');
       const userMessageText = normalizedInput.trim();
@@ -233,6 +237,10 @@ export function useChatService() {
       const sessionId = currentSessionId;
       const provider = providers.find((p) => p.id === selectedModel.providerId);
       if (!provider) return;
+      if (provider.enabled === false) {
+        setError('This channel is turned off.');
+        return;
+      }
       const initialMessages = useUnifiedStore.getState().data.ai?.messages[sessionId] || [];
       if (!initialMessages.some((m) => m.id === messageId)) {
         return;
@@ -329,6 +337,10 @@ export function useChatService() {
       const history = messages.slice(0, msgIndex - 1);
       const provider = providers.find((p) => p.id === selectedModel.providerId);
       if (!provider) return;
+      if (provider.enabled === false) {
+        setError('This channel is turned off.');
+        return;
+      }
 
       addVersion(msgId);
 

@@ -1,7 +1,7 @@
 import type { AIClient } from '../client'
 import type { Provider, AIModel, ChatCompletionRequest, ChatCompletionStreamChunk, ChatMessage, ChatMessageContent, ChatSendOptions } from '../types'
 import { parseAPIError, parseHTTPError } from '../errors'
-import { normalizeApiHost, resolveApiModelId } from '../utils'
+import { buildOpenAIBaseUrl, resolveApiModelId } from '../utils'
 import {
   fetchManagedModels,
   MANAGED_PROVIDER_ID,
@@ -80,8 +80,7 @@ export class OpenAICompatibleClient implements AIClient {
     }
 
     const apiKey = await this.resolveApiKey(provider)
-    const host = normalizeApiHost(provider.apiHost)
-    const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
+    const baseUrl = buildOpenAIBaseUrl(provider.apiHost)
     const url = `${baseUrl}/chat/completions`
     const headers = {
       Authorization: `Bearer ${apiKey}`,
@@ -212,8 +211,7 @@ export class OpenAICompatibleClient implements AIClient {
       }
 
       const apiKey = await this.resolveApiKey(provider)
-      const host = normalizeApiHost(provider.apiHost)
-      const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
+      const baseUrl = buildOpenAIBaseUrl(provider.apiHost)
       const url = `${baseUrl}/models`
 
       const controller = new AbortController()
@@ -241,8 +239,7 @@ export class OpenAICompatibleClient implements AIClient {
     }
 
     const apiKey = await this.resolveApiKey(provider)
-    const host = normalizeApiHost(provider.apiHost)
-    const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
+    const baseUrl = buildOpenAIBaseUrl(provider.apiHost)
     const url = `${baseUrl}/models`
 
     const controller = new AbortController()

@@ -1,9 +1,12 @@
-import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { getStorageAdapter, isTauri, joinPath } from '@/lib/storage/adapter';
 import { createPersistenceQueue } from './persistenceEngine';
+import type { Provider } from '@/lib/ai/types';
 import type { ChatSession } from '@/lib/ai/types';
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
 import { getStorageBasePath } from './basePath';
 import { normalizeLoadedAIModels } from './unifiedStorageAI';
+import { aiProviderSecretCommands } from '@/lib/tauri/aiProviderSecretCommands';
+import { useToastStore } from '@/stores/useToastStore';
 import {
   createDefaultUnifiedData,
   type DataFile,
@@ -21,6 +24,8 @@ const MAIN_DATA_FILE = 'data.json';
 const MAIN_DATA_BACKUP_FILE = 'data.backup.json';
 
 let autoSyncTrigger: (() => void) | null = null;
+let hasShownPersistenceFailureToast = false;
+let hasShownSecretLoadFailureToast = false;
 
 export function setUnifiedStorageAutoSyncTrigger(trigger: (() => void) | null): void {
   autoSyncTrigger = trigger;
@@ -28,6 +33,65 @@ export function setUnifiedStorageAutoSyncTrigger(trigger: (() => void) | null): 
 
 async function getBasePath(): Promise<string> {
   return getStorageBasePath();
+}
+
+async function hydrateProvidersWithSecrets(
+  providers: Provider[]
+): Promise<Provider[]> {
+  if (!isTauri() || providers.length === 0) {
+    return providers;
+  }
+
+  let secretMap: Record<string, string> = {};
+  try {
+    secretMap = await aiProviderSecretCommands.getProviderSecrets(providers.map((provider) => provider.id));
+    hasShownSecretLoadFailureToast = false;
+  } catch (error) {
+    console.error('[Storage] Failed to load AI provider secrets from system keychain:', error);
+    if (!hasShownSecretLoadFailureToast) {
+      hasShownSecretLoadFailureToast = true;
+      useToastStore
+        .getState()
+        .addToast('Could not access your system keychain. Custom channel API keys may need to be re-entered.', 'error', 6000);
+    }
+  }
+
+  return providers.map((provider) => {
+      const storedSecret = secretMap[provider.id]?.trim() || '';
+      return storedSecret ? { ...provider, apiKey: storedSecret } : { ...provider, apiKey: '' };
+    });
+}
+
+function sanitizeProviderForDisk(provider: Provider): Provider {
+  if (!isTauri()) {
+    return provider;
+  }
+
+  if (!provider.apiKey) {
+    return provider;
+  }
+
+  return {
+    ...provider,
+    apiKey: '',
+  };
+}
+
+async function syncProviderSecrets(providers: Provider[]): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+
+  await Promise.all(
+    providers.map(async (provider) => {
+      const apiKey = provider.apiKey?.trim() || '';
+      if (apiKey) {
+        await aiProviderSecretCommands.setProviderSecret(provider.id, apiKey);
+      } else {
+        await aiProviderSecretCommands.deleteProviderSecret(provider.id);
+      }
+    })
+  );
 }
 
 export async function loadUnifiedData(): Promise<UnifiedData> {
@@ -76,6 +140,8 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     combinedData.ai = {
         providers: [],
         models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
         sessions: [],
         selectedModelId: null,
         currentSessionId: null,
@@ -128,9 +194,17 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
                 if (p.models) {
                     combinedData.ai!.models.push(...p.models);
                 }
+                if (p.benchmarkResults) {
+                    combinedData.ai!.benchmarkResults![p.provider.id] = p.benchmarkResults;
+                }
+                if (Array.isArray(p.fetchedModels)) {
+                    combinedData.ai!.fetchedModels![p.provider.id] = p.fetchedModels;
+                }
             }
         });
     }
+
+    combinedData.ai.providers = await hydrateProvidersWithSecrets(combinedData.ai.providers);
 
     const normalizedAI = normalizeLoadedAIModels(
       combinedData.ai.providers,
@@ -178,6 +252,8 @@ async function performSplitSave(data: UnifiedData) {
 
     // 2. Save AI Data
     if (ai) {
+        await syncProviderSecrets(ai.providers);
+
         const persistedSessions = ai.sessions.filter((session) => !isTemporarySession(session));
         const persistedSessionIds = new Set(persistedSessions.map((session) => session.id));
         const activeProviderIds = new Set(ai.providers.map((provider) => provider.id));
@@ -200,8 +276,10 @@ async function performSplitSave(data: UnifiedData) {
         for (const provider of ai.providers) {
             const pModels = ai.models.filter(m => m.providerId === provider.id);
             const pData = {
-                provider,
-                models: pModels
+                provider: sanitizeProviderForDisk(provider),
+                models: pModels,
+                benchmarkResults: ai.benchmarkResults?.[provider.id],
+                fetchedModels: ai.fetchedModels?.[provider.id] || []
             };
             const pPath = await joinPath(channelsDir, `${provider.id}.json`);
             await storage.writeFile(pPath, JSON.stringify(pData, null, 2));
@@ -217,6 +295,9 @@ async function performSplitSave(data: UnifiedData) {
                 continue;
             }
             try {
+                if (isTauri()) {
+                    await aiProviderSecretCommands.deleteProviderSecret(providerId);
+                }
                 await storage.deleteFile(entry.path);
             } catch (error) {
                 console.warn('[Storage] failed to cleanup stale provider channel file:', entry.path, error);
@@ -229,10 +310,17 @@ const unifiedSaveQueue = createPersistenceQueue<UnifiedData>({
   debounceMs: 120,
   write: async (data) => {
     await performSplitSave(data);
+    hasShownPersistenceFailureToast = false;
     triggerAutoSyncIfEligible();
   },
   onError: (error) => {
     console.error('[Storage] save failed:', error);
+    if (!hasShownPersistenceFailureToast) {
+      hasShownPersistenceFailureToast = true;
+      useToastStore
+        .getState()
+        .addToast('Failed to save changes securely. Please try again.', 'error', 5000);
+    }
   },
 });
 

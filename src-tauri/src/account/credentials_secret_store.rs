@@ -14,7 +14,9 @@ fn secret_store_lock() -> &'static Mutex<()> {
     LOCK.get_or_init(|| Mutex::new(()))
 }
 
-fn with_secret_store_lock<T>(operation: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
+pub(crate) fn with_secret_store_lock<T>(
+    operation: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
     let _guard = secret_store_lock()
         .lock()
         .map_err(|_| "Credential store lock poisoned".to_string())?;
@@ -25,7 +27,7 @@ fn secret_entry(account: &str) -> Result<Entry, String> {
     Entry::new(SECRET_SERVICE_NAME, account).map_err(|e| e.to_string())
 }
 
-fn read_secret(account: &str) -> Result<Option<String>, String> {
+pub(crate) fn read_secret(account: &str) -> Result<Option<String>, String> {
     let entry = secret_entry(account)?;
     match entry.get_password() {
         Ok(value) => {
@@ -41,12 +43,12 @@ fn read_secret(account: &str) -> Result<Option<String>, String> {
     }
 }
 
-fn write_secret(account: &str, value: &str) -> Result<(), String> {
+pub(crate) fn write_secret(account: &str, value: &str) -> Result<(), String> {
     let entry = secret_entry(account)?;
     entry.set_password(value).map_err(|e| e.to_string())
 }
 
-fn delete_secret(account: &str) -> Result<(), String> {
+pub(crate) fn delete_secret(account: &str) -> Result<(), String> {
     let entry = secret_entry(account)?;
     match entry.delete_credential() {
         Ok(()) | Err(Error::NoEntry) => Ok(()),

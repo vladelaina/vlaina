@@ -1,13 +1,12 @@
 import { parseAPIError, parseHTTPError } from '../errors';
-import { normalizeApiHost, resolveApiModelId } from '../utils';
+import { buildOpenAIBaseUrl, resolveApiModelId } from '../utils';
 import type { AIModel, Provider } from '../types';
 import { DEFAULT_BENCHMARK_TIMEOUT_MS } from './constants';
 import { inferBenchmarkEndpoint } from './endpoint';
 import type { BenchmarkEndpoint, CheckModelHealthOptions, HealthCheckResult } from './types';
 
 function buildBenchmarkUrl(provider: Provider, endpoint: BenchmarkEndpoint): string {
-  const host = normalizeApiHost(provider.apiHost);
-  const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`;
+  const baseUrl = buildOpenAIBaseUrl(provider.apiHost);
 
   if (endpoint === 'embeddings') {
     return `${baseUrl}/embeddings`;
@@ -65,37 +64,182 @@ function buildBenchmarkBody(modelId: string, endpoint: BenchmarkEndpoint): Recor
 }
 
 function readErrorMessage(payload: unknown): string | undefined {
+  if (typeof payload === 'string') {
+    return readEmbeddedErrorMessage(payload) || payload.trim() || undefined;
+  }
+
   if (!payload || typeof payload !== 'object') {
     return undefined;
   }
 
   const body = payload as Record<string, unknown>;
   const topLevelError = body.error;
-  if (!topLevelError) {
+  if (topLevelError) {
+    if (typeof topLevelError === 'string') {
+      return topLevelError;
+    }
+
+    if (typeof topLevelError === 'object' && topLevelError !== null) {
+      const nested = topLevelError as Record<string, unknown>;
+      if (typeof nested.message === 'string') {
+        return nested.message;
+      }
+      if (typeof nested.error === 'string') {
+        return nested.error;
+      }
+      if (typeof nested.error === 'object' && nested.error !== null) {
+        const deepNested = nested.error as Record<string, unknown>;
+        if (typeof deepNested.message === 'string') {
+          return deepNested.message;
+        }
+      }
+    }
+  }
+
+  const nestedContentError = readContentPayloadError(body);
+  if (nestedContentError) {
+    return nestedContentError;
+  }
+
+  const fallbackMessage =
+    readStringField(body, 'message') ||
+    readStringField(body, 'msg') ||
+    readStringField(body, 'detail') ||
+    readStringField(body, 'error_description');
+  if (fallbackMessage) {
+    return fallbackMessage;
+  }
+
+  return undefined;
+}
+
+function readStringField(payload: Record<string, unknown>, key: string): string | undefined {
+  const value = payload[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function readEmbeddedErrorMessage(text: string): string | undefined {
+  const trimmed = text.trim();
+  if (!trimmed) {
     return undefined;
   }
 
-  if (typeof topLevelError === 'string') {
-    return topLevelError;
+  const xmlMatch = trimmed.match(/^<error\b[^>]*>([\s\S]*?)<\/error>$/i);
+  if (xmlMatch) {
+    return xmlMatch[1]?.trim() || 'Unknown error';
   }
 
-  if (typeof topLevelError === 'object' && topLevelError !== null) {
-    const nested = topLevelError as Record<string, unknown>;
-    if (typeof nested.message === 'string') {
-      return nested.message;
-    }
-    if (typeof nested.error === 'string') {
-      return nested.error;
-    }
-    if (typeof nested.error === 'object' && nested.error !== null) {
-      const deepNested = nested.error as Record<string, unknown>;
-      if (typeof deepNested.message === 'string') {
-        return deepNested.message;
+  return undefined;
+}
+
+function readContentPayloadError(payload: Record<string, unknown>): string | undefined {
+  const choiceContent = readChoiceContentError(payload);
+  if (choiceContent) {
+    return choiceContent;
+  }
+
+  const responseContent = readResponsesContentError(payload);
+  if (responseContent) {
+    return responseContent;
+  }
+
+  return undefined;
+}
+
+function readChoiceContentError(payload: Record<string, unknown>): string | undefined {
+  const choices = payload.choices;
+  if (!Array.isArray(choices) || choices.length === 0) {
+    return undefined;
+  }
+
+  const firstChoice = choices[0];
+  if (!firstChoice || typeof firstChoice !== 'object') {
+    return undefined;
+  }
+
+  const message = (firstChoice as Record<string, unknown>).message;
+  if (!message || typeof message !== 'object') {
+    return undefined;
+  }
+
+  const content = (message as Record<string, unknown>).content;
+  if (typeof content === 'string') {
+    return readEmbeddedErrorMessage(content);
+  }
+
+  if (Array.isArray(content)) {
+    for (const item of content) {
+      if (!item || typeof item !== 'object') {
+        continue;
+      }
+
+      const text = (item as Record<string, unknown>).text;
+      if (typeof text === 'string') {
+        const embeddedError = readEmbeddedErrorMessage(text);
+        if (embeddedError) {
+          return embeddedError;
+        }
       }
     }
   }
 
   return undefined;
+}
+
+function readResponsesContentError(payload: Record<string, unknown>): string | undefined {
+  if (typeof payload.output_text === 'string') {
+    return readEmbeddedErrorMessage(payload.output_text);
+  }
+
+  const output = payload.output;
+  if (!Array.isArray(output)) {
+    return undefined;
+  }
+
+  for (const item of output) {
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
+
+    const content = (item as Record<string, unknown>).content;
+    if (!Array.isArray(content)) {
+      continue;
+    }
+
+    for (const part of content) {
+      if (!part || typeof part !== 'object') {
+        continue;
+      }
+
+      const text = (part as Record<string, unknown>).text;
+      if (typeof text === 'string') {
+        const embeddedError = readEmbeddedErrorMessage(text);
+        if (embeddedError) {
+          return embeddedError;
+        }
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function isExpectedSuccessPayload(payload: unknown, endpoint: BenchmarkEndpoint): boolean {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+
+  const body = payload as Record<string, unknown>;
+
+  if (endpoint === 'embeddings' || endpoint === 'image') {
+    return Array.isArray(body.data) && body.data.length > 0;
+  }
+
+  if (endpoint === 'responses') {
+    return Array.isArray(body.output) || typeof body.output_text === 'string';
+  }
+
+  return Array.isArray(body.choices) && body.choices.length > 0;
 }
 
 async function parseResponsePayload(response: Response): Promise<unknown> {
@@ -124,9 +268,24 @@ export async function checkModelHealth(
     : DEFAULT_BENCHMARK_TIMEOUT_MS;
   const start = performance.now();
   const controller = new AbortController();
+  const externalSignal = options.signal;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let detachExternalAbort: (() => void) | undefined;
+  let didTimeout = false;
   if (timeoutMs > 0) {
-    timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    timeoutId = setTimeout(() => {
+      didTimeout = true;
+      controller.abort();
+    }, timeoutMs);
+  }
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else {
+      const forwardAbort = () => controller.abort();
+      externalSignal.addEventListener('abort', forwardAbort);
+      detachExternalAbort = () => externalSignal.removeEventListener('abort', forwardAbort);
+    }
   }
 
   try {
@@ -137,7 +296,7 @@ export async function checkModelHealth(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(buildBenchmarkBody(apiModelId, endpoint)),
-      signal: timeoutMs > 0 ? controller.signal : undefined,
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -157,6 +316,10 @@ export async function checkModelHealth(
       throw new Error(upstreamErrorMessage);
     }
 
+    if (!isExpectedSuccessPayload(payload, endpoint)) {
+      throw new Error('Unexpected benchmark response');
+    }
+
     return {
       status: 'success',
       latency: Math.round(performance.now() - start),
@@ -166,7 +329,7 @@ export async function checkModelHealth(
     if (error instanceof Error && error.name === 'AbortError') {
       return {
         status: 'error',
-        error: timeoutMs > 0
+        error: didTimeout
           ? `Request timed out (${Math.round(timeoutMs / 1000)}s)`
           : 'Request aborted',
         endpoint,
@@ -180,6 +343,7 @@ export async function checkModelHealth(
       endpoint,
     };
   } finally {
+    detachExternalAbort?.();
     if (timeoutId !== undefined) {
       clearTimeout(timeoutId);
     }

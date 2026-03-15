@@ -1,36 +1,62 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useAIStore } from '@/stores/useAIStore';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import { backgroundBenchmarkRunner } from '@/lib/ai/healthCheck';
-import { Provider } from '@/lib/ai/types';
+import { AIModel, PersistedBenchmarkItem, Provider } from '@/lib/ai/types';
+import { buildScopedModelId, generateModelGroup, generateModelName } from '@/lib/ai/utils';
 import { type HealthStatus } from './components/ModelListItem';
 import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 import { ManagedProviderPanel } from './provider-detail/ManagedProviderPanel';
 import { ProviderModelsPanel } from './provider-detail/ProviderModelsPanel';
 import type { OauthAccountProvider } from '@/lib/account/provider';
 import { SettingsTextInput } from '@/components/Settings/components/SettingsFields';
+import type { ProviderBenchmarkRecord } from '@/lib/ai/types';
+
+type BenchmarkScope = 'selected' | 'available' | 'all';
+const EMPTY_FETCHED_MODELS: string[] = [];
+
+function toHealthStatusMap(record?: ProviderBenchmarkRecord): Record<string, HealthStatus> {
+  if (!record) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(record.items).map(([modelId, item]) => [
+      modelId,
+      {
+        status: item.status,
+        latency: item.latency,
+        error: item.error,
+      },
+    ])
+  );
+}
+
+function areBenchmarkScopesEqual(left: BenchmarkScope[], right: BenchmarkScope[]) {
+  return left.length === right.length && left.every((scope, index) => scope === right[index]);
+}
 
 interface ProviderDetailProps {
   provider: Provider | undefined;
+  onDraftChange?: (draft: { name?: string; apiHost?: string }) => void;
+  onDraftClear?: () => void;
 }
 
-type ConnectionStatus = 'idle' | 'checking' | 'success' | 'error';
-
-function maskApiKey(value: string): string {
-  if (!value) return '';
-  if (value.length <= 4) {
-    return '*'.repeat(value.length);
-  }
-  if (value.length <= 11) {
-    return `${value.slice(0, 1)}${'*'.repeat(Math.max(1, value.length - 2))}${value.slice(-1)}`;
-  }
-  return `${value.slice(0, 7)}${'*'.repeat(value.length - 11)}${value.slice(-4)}`;
-}
-
-export function ProviderDetail({ provider: initialProvider }: ProviderDetailProps) {
-  const { updateProvider, models, addModel, addModels, deleteModel, deleteProvider, refreshManagedProvider } = useAIStore();
+export function ProviderDetail({ provider: initialProvider, onDraftChange, onDraftClear }: ProviderDetailProps) {
+  const {
+    updateProvider,
+    models,
+    benchmarkResults,
+    fetchedModels: persistedFetchedModels,
+    addModel,
+    addModels,
+    deleteModel,
+    refreshManagedProvider,
+    setProviderBenchmarkResults,
+    setProviderFetchedModels,
+  } = useAIStore();
   const { isConnected, isConnecting, error: authError, signIn, requestEmailCode, verifyEmailCode, signOut } = useAccountSessionStore();
 
   const [name, setName] = useState(initialProvider?.name || '');
@@ -47,18 +73,25 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
   const [isFetchingModels, setIsFetchingModels] = useState(false);
   const [fetchedModels, setFetchedModels] = useState<string[]>([]);
 
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
-  const [connectionMessage, setConnectionMessage] = useState('');
-
   const [healthStatus, setHealthStatus] = useState<Record<string, HealthStatus>>({});
   const [isHealthChecking, setIsHealthChecking] = useState(false);
   const [healthCheckOverall, setHealthCheckOverall] = useState<'idle' | 'success' | 'error'>('idle');
+  const [benchmarkingModelIds, setBenchmarkingModelIds] = useState<string[]>([]);
+  const [activeBenchmarkScopes, setActiveBenchmarkScopes] = useState<BenchmarkScope[]>([]);
+  const [queuedBenchmarkScopes, setQueuedBenchmarkScopes] = useState<BenchmarkScope[]>([]);
+  const activeBenchmarkScopesRef = useRef<BenchmarkScope[]>([]);
+  const benchmarkResultsRef = useRef(benchmarkResults);
 
   const providerModels = initialProvider ? models.filter((m) => m.providerId === initialProvider.id) : [];
   const providerModelIdSet = useMemo(() => new Set(providerModels.map((m) => m.apiModelId.toLowerCase())), [providerModels]);
   const isManagedProvider = initialProvider?.id === MANAGED_PROVIDER_ID;
+  const enabled = initialProvider?.enabled ?? true;
 
   const providerId = initialProvider?.id;
+  const persistedProviderFetchedModels = useMemo(
+    () => (providerId ? persistedFetchedModels[providerId] ?? EMPTY_FETCHED_MODELS : EMPTY_FETCHED_MODELS),
+    [providerId, persistedFetchedModels]
+  );
 
   useEffect(() => {
     if (initialProvider) {
@@ -75,45 +108,62 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
     setQuickAddError('');
     setFetchError('');
     setModelQuery('');
-    setFetchedModels([]);
-    setConnectionStatus('idle');
-    setConnectionMessage('');
+    activeBenchmarkScopesRef.current = [];
+    setActiveBenchmarkScopes([]);
+    setQueuedBenchmarkScopes([]);
     setShowApiKey(false);
     setApiKeyCopied(false);
+    onDraftClear?.();
   }, [providerId]);
+
+  useEffect(() => {
+    setFetchedModels(persistedProviderFetchedModels);
+  }, [persistedProviderFetchedModels]);
+
+  useEffect(() => {
+    benchmarkResultsRef.current = benchmarkResults;
+  }, [benchmarkResults]);
 
   useEffect(() => {
     if (!providerId) {
       setHealthStatus({});
       setHealthCheckOverall('idle');
       setIsHealthChecking(false);
+      setBenchmarkingModelIds([]);
       return;
     }
 
     const applySnapshot = () => {
+      const persistedRecord = benchmarkResultsRef.current[providerId];
+      const persistedStatus = toHealthStatusMap(persistedRecord);
       const snapshot = backgroundBenchmarkRunner.getSnapshot(providerId);
       if (!snapshot) {
-        setHealthStatus({});
-        setHealthCheckOverall('idle');
+        setHealthStatus(persistedStatus);
+        setHealthCheckOverall(persistedRecord?.overall || 'idle');
         setIsHealthChecking(false);
+        setBenchmarkingModelIds([]);
+        setActiveBenchmarkScopes([]);
+        activeBenchmarkScopesRef.current = [];
         return;
       }
-      setHealthStatus(snapshot.items);
+      setHealthStatus({ ...persistedStatus, ...snapshot.items });
       setHealthCheckOverall(snapshot.overall);
       setIsHealthChecking(snapshot.isRunning);
+      setBenchmarkingModelIds(Object.keys(snapshot.items));
     };
 
     applySnapshot();
 
     return backgroundBenchmarkRunner.subscribe(providerId, (snapshot) => {
-      setHealthStatus(snapshot.items);
+      const persistedStatus = toHealthStatusMap(benchmarkResultsRef.current[providerId]);
+      setHealthStatus({ ...persistedStatus, ...snapshot.items });
       setHealthCheckOverall(snapshot.overall);
       setIsHealthChecking(snapshot.isRunning);
+      setBenchmarkingModelIds(Object.keys(snapshot.items));
     });
   }, [providerId]);
 
   const canUseConnectionActions = Boolean(initialProvider && apiHost.trim() && apiKey.trim());
-  const canBenchmark = canUseConnectionActions && providerModels.length > 0;
 
   const sortedFetchedModels = useMemo(() => {
     return [...new Set(fetchedModels)].sort((a, b) => a.localeCompare(b));
@@ -131,6 +181,9 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
     return sortedFetchedModels.filter((id) => id.toLowerCase().includes(normalizedQuery));
   }, [sortedFetchedModels, normalizedQuery]);
 
+  const availableFetchedModels = useMemo(() => {
+    return sortedFetchedModels.filter((id) => !providerModelIdSet.has(id.toLowerCase()));
+  }, [sortedFetchedModels, providerModelIdSet]);
   const buildTempProvider = (): Provider | null => {
     if (!initialProvider) return null;
     return {
@@ -138,6 +191,7 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
       name,
       apiHost,
       apiKey,
+      enabled,
       updatedAt: Date.now(),
     };
   };
@@ -154,46 +208,419 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
 
     const timer = setTimeout(() => {
       updateProvider(initialProvider.id, { name, apiKey, apiHost, updatedAt: Date.now() });
-    }, 300);
+    }, 240);
 
     return () => clearTimeout(timer);
   }, [initialProvider, name, apiHost, apiKey, updateProvider]);
 
-  const handleTestConnection = async () => {
-    if (!canUseConnectionActions) {
-      setConnectionStatus('error');
-      setConnectionMessage('Base URL and API Key are required.');
+  const buildFetchedBenchmarkModels = (modelIds: string[]) => {
+    if (!initialProvider) {
+      return [];
+    }
+
+    const now = Date.now();
+    return modelIds.map((modelId) => ({
+      id: buildScopedModelId(initialProvider.id, modelId),
+      apiModelId: modelId,
+      name: generateModelName(modelId),
+      group: generateModelGroup(modelId),
+      providerId: initialProvider.id,
+      enabled: true,
+      createdAt: now,
+    }));
+  };
+
+  const selectedBenchmarkModels = useMemo(() => providerModels, [providerModels]);
+  const availableBenchmarkModels = useMemo(
+    () => buildFetchedBenchmarkModels(availableFetchedModels),
+    [availableFetchedModels, initialProvider]
+  );
+
+  const selectedBenchmarkActive = useMemo(
+    () =>
+      activeBenchmarkScopes.includes('selected') ||
+      activeBenchmarkScopes.includes('all') ||
+      queuedBenchmarkScopes.includes('selected') ||
+      queuedBenchmarkScopes.includes('all'),
+    [activeBenchmarkScopes, queuedBenchmarkScopes]
+  );
+  const availableBenchmarkActive = useMemo(
+    () =>
+      activeBenchmarkScopes.includes('available') ||
+      activeBenchmarkScopes.includes('all') ||
+      queuedBenchmarkScopes.includes('available') ||
+      queuedBenchmarkScopes.includes('all'),
+    [activeBenchmarkScopes, queuedBenchmarkScopes]
+  );
+  const benchmarkAllActive = useMemo(
+    () =>
+      activeBenchmarkScopes.includes('all') ||
+      queuedBenchmarkScopes.includes('all') ||
+      (selectedBenchmarkActive && availableBenchmarkActive),
+    [activeBenchmarkScopes, queuedBenchmarkScopes, selectedBenchmarkActive, availableBenchmarkActive]
+  );
+
+  const normalizeBenchmarkScopes = (scopes: BenchmarkScope[]): BenchmarkScope[] => {
+    if (scopes.includes('all')) {
+      return ['all'];
+    }
+    if (scopes.includes('selected') && scopes.includes('available')) {
+      return ['all'];
+    }
+    return scopes;
+  };
+
+  const syncActiveBenchmarkScopes = (scopes: BenchmarkScope[]) => {
+    const normalizedScopes = normalizeBenchmarkScopes(scopes);
+    if (areBenchmarkScopesEqual(activeBenchmarkScopesRef.current, normalizedScopes)) {
+      return;
+    }
+
+    activeBenchmarkScopesRef.current = normalizedScopes;
+    setActiveBenchmarkScopes(normalizedScopes);
+  };
+
+  const resolveActiveBenchmarkScopes = (modelIds: string[]) => {
+    const runningIds = new Set(modelIds);
+    return normalizeBenchmarkScopes([
+      ...(selectedBenchmarkModels.some((model) => runningIds.has(model.id)) ? ['selected' as const] : []),
+      ...(availableBenchmarkModels.some((model) => runningIds.has(model.id)) ? ['available' as const] : []),
+    ]);
+  };
+
+  const mergeBenchmarkScopes = (
+    currentScopes: BenchmarkScope[],
+    nextScope: BenchmarkScope
+  ): BenchmarkScope[] => {
+    if (nextScope === 'all') {
+      return ['all'];
+    }
+    if (currentScopes.includes('all') || currentScopes.includes(nextScope)) {
+      return currentScopes;
+    }
+    return normalizeBenchmarkScopes([...currentScopes, nextScope]);
+  };
+
+  const removeBenchmarkScope = (scopes: BenchmarkScope[], scopeToRemove: Exclude<BenchmarkScope, 'all'>) => {
+    const normalizedScopes = normalizeBenchmarkScopes(scopes);
+    if (normalizedScopes.includes('all')) {
+      return scopeToRemove === 'selected' ? ['available'] : ['selected'];
+    }
+    return normalizedScopes.filter((scope) => scope !== scopeToRemove);
+  };
+
+  const resolveBenchmarkModelsForScopes = (scopes: BenchmarkScope[]): AIModel[] => {
+    const includeSelected = scopes.includes('all') || scopes.includes('selected');
+    const includeAvailable = scopes.includes('all') || scopes.includes('available');
+    const nextModels = [
+      ...(includeSelected ? selectedBenchmarkModels : []),
+      ...(includeAvailable ? availableBenchmarkModels : []),
+    ];
+
+    return Array.from(new Map(nextModels.map((model) => [model.id, model])).values());
+  };
+
+  const toPersistedItems = (source: Record<string, HealthStatus>) => {
+    return Object.fromEntries(
+      Object.entries(source).flatMap(([modelId, status]) => {
+        if (status.status === 'loading') {
+          return [];
+        }
+
+        const nextItem: PersistedBenchmarkItem = {
+          status: status.status,
+          latency: status.latency,
+          error: status.error,
+          checkedAt: Date.now(),
+        };
+
+        return [[modelId, nextItem]];
+      })
+    );
+  };
+
+  const persistBenchmarkHealthStatus = (source: Record<string, HealthStatus>) => {
+    if (!initialProvider) {
+      return null;
+    }
+
+    const previousItems = benchmarkResultsRef.current[initialProvider.id]?.items || {};
+    const nextItems = {
+      ...previousItems,
+      ...toPersistedItems(source),
+    };
+    const nextOverall =
+      Object.keys(nextItems).length === 0
+        ? 'idle'
+        : Object.values(nextItems).some((item) => item.status === 'error')
+          ? 'error'
+          : 'success';
+    const nextRecord = {
+      items: nextItems,
+      overall: nextOverall,
+      updatedAt: Date.now(),
+    } satisfies ProviderBenchmarkRecord;
+
+    benchmarkResultsRef.current = {
+      ...benchmarkResultsRef.current,
+      [initialProvider.id]: nextRecord,
+    };
+    setProviderBenchmarkResults(initialProvider.id, nextRecord);
+    return nextRecord;
+  };
+
+  const clearBenchmarkScopes = (scopes: BenchmarkScope[]) => {
+    if (!initialProvider) {
+      return;
+    }
+
+    const normalizedScopes = normalizeBenchmarkScopes(scopes);
+    const targetIds = new Set(resolveBenchmarkModelsForScopes(normalizedScopes).map((model) => model.id));
+    const previousItems = benchmarkResultsRef.current[initialProvider.id]?.items || {};
+    const nextItems = Object.fromEntries(
+      Object.entries(previousItems).filter(([modelId]) => !targetIds.has(modelId))
+    );
+    const nextOverall =
+      Object.keys(nextItems).length === 0
+        ? 'idle'
+        : Object.values(nextItems).some((item) => item.status === 'error')
+          ? 'error'
+          : 'success';
+    const nextRecord = {
+      items: nextItems,
+      overall: nextOverall,
+      updatedAt: Date.now(),
+    } satisfies ProviderBenchmarkRecord;
+
+    benchmarkResultsRef.current = {
+      ...benchmarkResultsRef.current,
+      [initialProvider.id]: nextRecord,
+    };
+    setProviderBenchmarkResults(initialProvider.id, nextRecord);
+
+    setHealthStatus((prev) =>
+      Object.fromEntries(Object.entries(prev).filter(([modelId]) => !targetIds.has(modelId)))
+    );
+    setHealthCheckOverall(nextOverall);
+  };
+
+  const getBenchmarkableModels = (
+    modelsToCheck: AIModel[],
+    options?: { ignoreQueuedScopes?: BenchmarkScope[] }
+  ) => {
+    const ignoredQueuedScopes = normalizeBenchmarkScopes(options?.ignoreQueuedScopes || []);
+    const queuedScopesToBlock = areBenchmarkScopesEqual(
+      normalizeBenchmarkScopes(queuedBenchmarkScopes),
+      ignoredQueuedScopes
+    )
+      ? []
+      : queuedBenchmarkScopes;
+    const blockedIds = new Set([
+      ...(isHealthChecking ? benchmarkingModelIds : []),
+      ...resolveBenchmarkModelsForScopes(queuedScopesToBlock).map((model) => model.id),
+    ]);
+    return modelsToCheck.filter((model) => !blockedIds.has(model.id));
+  };
+
+  const startBenchmarkRun = (scopes: BenchmarkScope[]) => {
+    if (!initialProvider) return;
+
+    const tempProvider = buildTempProvider();
+    if (!tempProvider) return;
+
+    const normalizedScopes = normalizeBenchmarkScopes(scopes);
+    const nextModels = getBenchmarkableModels(resolveBenchmarkModelsForScopes(normalizedScopes), {
+      ignoreQueuedScopes: normalizedScopes,
+    });
+    if (nextModels.length === 0) {
+      return;
+    }
+
+    clearBenchmarkScopes(normalizedScopes);
+    setBenchmarkingModelIds([]);
+    syncActiveBenchmarkScopes(normalizedScopes);
+    backgroundBenchmarkRunner.start(tempProvider, nextModels);
+  };
+
+  const stopBenchmarkRun = () => {
+    if (!initialProvider) {
+      return;
+    }
+
+    const nextRecord = persistBenchmarkHealthStatus(healthStatus);
+    if (nextRecord) {
+      setHealthStatus(toHealthStatusMap(nextRecord));
+      setHealthCheckOverall(nextRecord.overall);
+    }
+    setIsHealthChecking(false);
+    setBenchmarkingModelIds([]);
+    setQueuedBenchmarkScopes([]);
+    syncActiveBenchmarkScopes([]);
+    backgroundBenchmarkRunner.stop(initialProvider.id);
+  };
+
+  const cancelBenchmarkScope = (scope: Exclude<BenchmarkScope, 'all'>) => {
+    if (!initialProvider) {
+      return;
+    }
+
+    const activeScopes = normalizeBenchmarkScopes(activeBenchmarkScopesRef.current);
+    const queuedScopes = normalizeBenchmarkScopes(queuedBenchmarkScopes);
+    const nextQueuedScopes = removeBenchmarkScope(queuedScopes, scope);
+    const scopeIsRunning =
+      activeScopes.includes(scope) ||
+      activeScopes.includes('all');
+
+    if (!scopeIsRunning) {
+      setQueuedBenchmarkScopes(nextQueuedScopes);
+      return;
+    }
+
+    const nextActiveScopes = removeBenchmarkScope(activeScopes, scope);
+    const nextRecord = persistBenchmarkHealthStatus(healthStatus);
+    const persistedStatus = toHealthStatusMap(nextRecord || benchmarkResultsRef.current[initialProvider.id]);
+    const resumeModels = resolveBenchmarkModelsForScopes(nextActiveScopes).filter((model) => {
+      const status = healthStatus[model.id];
+      return !status || status.status === 'loading';
+    });
+
+    backgroundBenchmarkRunner.stop(initialProvider.id);
+    setHealthStatus(persistedStatus);
+    setHealthCheckOverall(nextRecord?.overall || 'idle');
+    setBenchmarkingModelIds([]);
+    setQueuedBenchmarkScopes(nextQueuedScopes);
+
+    if (nextActiveScopes.length === 0 || resumeModels.length === 0) {
+      setIsHealthChecking(false);
+      syncActiveBenchmarkScopes([]);
       return;
     }
 
     const tempProvider = buildTempProvider();
-    if (!tempProvider) return;
-
-    setConnectionStatus('checking');
-    setConnectionMessage('Testing connection...');
-
-    try {
-      const ok = await openaiClient.testConnection(tempProvider);
-      if (ok) {
-        setConnectionStatus('success');
-        setConnectionMessage('Connection successful.');
-      } else {
-        setConnectionStatus('error');
-        setConnectionMessage('Connection failed. Please verify URL and key.');
-      }
-    } catch {
-      setConnectionStatus('error');
-      setConnectionMessage('Connection failed. Please verify URL and key.');
+    if (!tempProvider) {
+      setIsHealthChecking(false);
+      syncActiveBenchmarkScopes([]);
+      return;
     }
+
+    setIsHealthChecking(true);
+    setBenchmarkingModelIds(resumeModels.map((model) => model.id));
+    syncActiveBenchmarkScopes(nextActiveScopes);
+    backgroundBenchmarkRunner.start(tempProvider, resumeModels);
   };
+
+  const queueOrStartBenchmark = (scope: BenchmarkScope) => {
+    const nextModels = getBenchmarkableModels(resolveBenchmarkModelsForScopes([scope]));
+    if (nextModels.length === 0) {
+      return;
+    }
+
+    if (backgroundBenchmarkRunner.getSnapshot(initialProvider?.id || '')?.isRunning) {
+      setQueuedBenchmarkScopes((prev) => mergeBenchmarkScopes(prev, scope));
+      return;
+    }
+
+    setQueuedBenchmarkScopes([]);
+    startBenchmarkRun([scope]);
+  };
+
+  const canBenchmarkSelected =
+    canUseConnectionActions && getBenchmarkableModels(selectedBenchmarkModels).length > 0;
+  const canBenchmarkAvailable =
+    canUseConnectionActions && getBenchmarkableModels(availableBenchmarkModels).length > 0;
+  const canBenchmarkAll =
+    canUseConnectionActions &&
+    getBenchmarkableModels([...selectedBenchmarkModels, ...availableBenchmarkModels]).length > 0;
 
   const handleBenchmarkModels = async () => {
-    if (!initialProvider || !canBenchmark) return;
-
-    const tempProvider = buildTempProvider();
-    if (!tempProvider) return;
-    backgroundBenchmarkRunner.start(tempProvider, providerModels);
+    if (selectedBenchmarkActive) {
+      cancelBenchmarkScope('selected');
+      return;
+    }
+    if (!canBenchmarkSelected) return;
+    queueOrStartBenchmark('selected');
   };
+
+  const handleBenchmarkAvailableModels = async () => {
+    if (availableBenchmarkActive) {
+      cancelBenchmarkScope('available');
+      return;
+    }
+    if (!canBenchmarkAvailable) return;
+    queueOrStartBenchmark('available');
+  };
+
+  const handleBenchmarkAllModels = async () => {
+    if (benchmarkAllActive) {
+      stopBenchmarkRun();
+      return;
+    }
+    if (!canBenchmarkAll) return;
+    queueOrStartBenchmark('all');
+  };
+
+  useEffect(() => {
+    if (!initialProvider || isHealthChecking || queuedBenchmarkScopes.length === 0) {
+      return;
+    }
+
+    const nextScopes = queuedBenchmarkScopes;
+    setQueuedBenchmarkScopes([]);
+    startBenchmarkRun(nextScopes);
+  }, [initialProvider, isHealthChecking, queuedBenchmarkScopes, name, apiHost, apiKey]);
+
+  useEffect(() => {
+    if (isHealthChecking || queuedBenchmarkScopes.length > 0 || activeBenchmarkScopesRef.current.length === 0) {
+      return;
+    }
+
+    setActiveBenchmarkScopes([]);
+    activeBenchmarkScopesRef.current = [];
+  }, [isHealthChecking, queuedBenchmarkScopes]);
+
+  useEffect(() => {
+    if (!isHealthChecking) {
+      return;
+    }
+
+    syncActiveBenchmarkScopes(resolveActiveBenchmarkScopes(benchmarkingModelIds));
+  }, [isHealthChecking, benchmarkingModelIds, selectedBenchmarkModels, availableBenchmarkModels]);
+
+  useEffect(() => {
+    if (!initialProvider || isHealthChecking || Object.keys(healthStatus).length === 0) {
+      return;
+    }
+
+    const items = toPersistedItems(healthStatus);
+
+    const persistedRecord = benchmarkResults[initialProvider.id];
+    const sameOverall = persistedRecord?.overall === healthCheckOverall;
+    const persistedItems = persistedRecord?.items || {};
+    const nextKeys = Object.keys(items);
+    const persistedKeys = Object.keys(persistedItems);
+    const sameItems =
+      nextKeys.length === persistedKeys.length &&
+      nextKeys.every((key) => {
+        const nextItem = items[key];
+        const prevItem = persistedItems[key];
+        return (
+          prevItem &&
+          prevItem.status === nextItem.status &&
+          prevItem.latency === nextItem.latency &&
+          prevItem.error === nextItem.error
+        );
+      });
+
+    if (sameOverall && sameItems) {
+      return;
+    }
+
+    setProviderBenchmarkResults(initialProvider.id, {
+      items,
+      overall: healthCheckOverall,
+      updatedAt: Date.now(),
+    });
+  }, [initialProvider, isHealthChecking, healthStatus, healthCheckOverall, benchmarkResults, setProviderBenchmarkResults]);
 
   const handleFetchModels = async () => {
     if (!canUseConnectionActions) {
@@ -206,11 +633,11 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
 
     setIsFetchingModels(true);
     setFetchError('');
-    setFetchedModels([]);
 
     try {
       const modelsList = await openaiClient.getModels(tempProvider);
       setFetchedModels(modelsList);
+      setProviderFetchedModels(initialProvider.id, modelsList);
       if (modelsList.length === 0) {
         setFetchError('Connected, but no models were returned.');
       }
@@ -268,7 +695,9 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
     setHealthStatus({});
     setHealthCheckOverall('idle');
     setIsHealthChecking(false);
-    backgroundBenchmarkRunner.clear(initialProvider.id);
+    setQueuedBenchmarkScopes([]);
+    syncActiveBenchmarkScopes([]);
+    backgroundBenchmarkRunner.stop(initialProvider.id);
   };
 
   const handleManagedConnect = async (provider: OauthAccountProvider) => {
@@ -277,26 +706,6 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
 
   const handleManagedRefresh = async () => {
     await refreshManagedProvider();
-  };
-
-  const handleDeleteProvider = () => {
-    if (!initialProvider || isManagedProvider) return;
-    if (!window.confirm('Delete this channel and all its models?')) return;
-    deleteProvider(initialProvider.id);
-  };
-
-  const handleQuickAdd = () => {
-    const modelId = quickAddModelId.trim();
-    if (!modelId) return;
-
-    const ok = handleAddModel(modelId);
-    if (!ok) {
-      setQuickAddError('Model already exists in this channel, or ID is invalid.');
-      return;
-    }
-
-    setQuickAddError('');
-    setQuickAddModelId('');
   };
 
   const handleCopyApiKey = async () => {
@@ -309,11 +718,7 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
   };
 
   if (!initialProvider) {
-    return (
-      <div className="h-full rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-white/5 flex items-center justify-center">
-        <p className="text-sm text-gray-400">Please create or select a channel.</p>
-      </div>
-    );
+    return null;
   }
 
   if (isManagedProvider) {
@@ -331,40 +736,63 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
     );
   }
 
-  const datalistId = `provider-model-options-${initialProvider.id}`;
-
   return (
     <div className="max-w-5xl mx-auto flex flex-col gap-4">
-        <section className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#202020] p-6">
+        <section className="p-1">
           <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-medium text-gray-500">Channel Label</label>
+              <SettingsTextInput
+                type="text"
+                value={name}
+                onChange={(e) => {
+                  const nextName = e.target.value;
+                  setName(nextName);
+                  onDraftChange?.({ name: nextName });
+                }}
+                placeholder="New Channel"
+              />
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-[11px] font-medium text-gray-500">Base URL</label>
               <SettingsTextInput
                 type="text"
                 value={apiHost}
                 onChange={(e) => {
-                  setApiHost(e.target.value);
-                  setConnectionStatus('idle');
-                  setConnectionMessage('');
+                  const nextApiHost = e.target.value;
+                  setApiHost(nextApiHost);
+                  onDraftChange?.({ apiHost: nextApiHost });
                   setFetchError('');
                 }}
-                placeholder="https://api.example.com"
+                placeholder="https://api.openai.com"
+                name={`provider-api-host-${initialProvider.id}`}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                data-lpignore="true"
+                data-1p-ignore="true"
               />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-[11px] font-medium text-gray-500">API Key</label>
               <SettingsTextInput
-                type="text"
-                value={showApiKey ? apiKey : maskApiKey(apiKey)}
-                readOnly={!showApiKey}
+                type={showApiKey ? 'text' : 'password'}
+                value={apiKey}
                 onChange={(e) => {
                   setApiKey(e.target.value);
-                  setConnectionStatus('idle');
-                  setConnectionMessage('');
                   setFetchError('');
                 }}
                 placeholder="sk-..."
+                name={`provider-api-key-${initialProvider.id}`}
+                autoComplete="new-password"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                data-lpignore="true"
+                data-1p-ignore="true"
                 inputClassName="font-mono"
                 trailing={
                   <>
@@ -390,44 +818,6 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-medium text-gray-500">Channel Label (optional)</label>
-              <SettingsTextInput
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="New Channel"
-              />
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            <button
-              onClick={handleTestConnection}
-              disabled={!canUseConnectionActions || connectionStatus === 'checking'}
-              className="h-9 px-4 text-xs font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {connectionStatus === 'checking' ? 'Testing...' : 'Test Connection'}
-            </button>
-            {connectionMessage && (
-              <span
-                className={`text-xs px-2.5 py-1 rounded-md border ${
-                  connectionStatus === 'success'
-                    ? 'text-green-700 dark:text-green-400 border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-900/20'
-                    : connectionStatus === 'error'
-                    ? 'text-red-700 dark:text-red-400 border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-900/20'
-                    : 'text-gray-500 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-white/5'
-                }`}
-              >
-                {connectionMessage}
-              </span>
-            )}
-            <button
-              onClick={handleDeleteProvider}
-              className="h-9 px-4 text-xs font-semibold rounded-lg border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
-            >
-              Delete Channel
-            </button>
           </div>
         </section>
 
@@ -444,16 +834,21 @@ export function ProviderDetail({ provider: initialProvider }: ProviderDetailProp
           fetchError={fetchError}
           isFetchingModels={isFetchingModels}
           canUseConnectionActions={canUseConnectionActions}
-          canBenchmark={canBenchmark}
+          canBenchmark={canBenchmarkAll}
+          canBenchmarkSelected={canBenchmarkSelected}
+          canBenchmarkAvailable={canBenchmarkAvailable}
           isHealthChecking={isHealthChecking}
+          benchmarkAllActive={benchmarkAllActive}
+          selectedBenchmarkActive={selectedBenchmarkActive}
+          availableBenchmarkActive={availableBenchmarkActive}
           healthCheckOverall={healthCheckOverall}
           healthStatus={healthStatus}
-          datalistId={datalistId}
           onQuickAddModelIdChange={setQuickAddModelId}
           onModelQueryChange={setModelQuery}
-          onQuickAdd={handleQuickAdd}
           onFetchModels={handleFetchModels}
-          onBenchmark={handleBenchmarkModels}
+          onBenchmark={handleBenchmarkAllModels}
+          onBenchmarkSelected={handleBenchmarkModels}
+          onBenchmarkAvailable={handleBenchmarkAvailableModels}
           onClearAllModels={handleClearAllModels}
           onDeleteModel={deleteModel}
           onAddModel={handleAddModel}
