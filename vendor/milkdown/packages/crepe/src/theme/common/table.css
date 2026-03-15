@@ -5,16 +5,49 @@
     display: block;
     margin: 4px 0;
     position: relative;
-    width: fit-content;
-    max-width: 100%;
+    width: 100%;
+    max-width: none;
 
     .table-wrapper {
-      display: inline-block;
+      display: block;
       position: relative;
       overflow: visible;
-      width: fit-content;
+      width: var(--table-block-max-width, 100%);
+      max-width: var(--table-block-max-width, 100%);
+      margin-left: calc(-1 * var(--table-block-bleed-left, 0px));
+    }
+
+    .table-scroll {
+      display: block;
       max-width: 100%;
-      vertical-align: top;
+      overflow-x: auto;
+      overflow-y: hidden;
+      overflow-anchor: none;
+      overscroll-behavior-x: contain;
+    }
+
+    .table-scroll-track {
+      display: flex;
+      width: max-content;
+      min-width: 100%;
+    }
+
+    .table-scroll-spacer {
+      flex: none;
+
+      &[data-side='start'] {
+        width: var(--table-block-scroll-start, 0px);
+      }
+
+      &[data-side='end'] {
+        width: var(--table-block-scroll-end, 0px);
+      }
+    }
+
+    .table-scroll .children {
+      flex: none;
+      min-width: var(--table-block-table-min-width, 100%);
+      max-width: none;
     }
 
     th,

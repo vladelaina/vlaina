@@ -12,6 +12,7 @@ import {
 } from '@milkdown/preset-gfm'
 
 import type { Refs } from './types'
+import { rememberTableScroll } from './table-scroll-memory'
 import { isTableContentNodeEmpty } from './table-node-content'
 
 export function useOperation(
@@ -45,6 +46,28 @@ export function useOperation(
       rowCount,
       colCount,
     }
+  }
+
+  const preserveTableScroll = (run: () => void) => {
+    const scrollElement = contentWrapperRef.value?.closest('.table-scroll')
+    if (!(scrollElement instanceof HTMLElement)) {
+      run()
+      return
+    }
+
+    const scrollLeft = scrollElement.scrollLeft
+    const scrollTop = scrollElement.scrollTop
+    const maxScrollLeft = Math.max(
+      0,
+      scrollElement.scrollWidth - scrollElement.clientWidth
+    )
+    rememberTableScroll(getPos?.(), {
+      scrollLeft,
+      scrollTop,
+      stickToRight: maxScrollLeft > 0 && maxScrollLeft - scrollLeft <= 1,
+    })
+
+    run()
   }
 
   const isCellEmpty = (rowIndex: number, colIndex: number) => {
@@ -96,15 +119,17 @@ export function useOperation(
     const commands = ctx.get(commandsCtx)
 
     const pos = (getPos?.() ?? 0) + 1
-    if (cols.length === colIndex) {
-      commands.call(selectColCommand.key, { pos, index: colIndex - 1 })
-      commands.call(addColAfterCommand.key)
-    } else {
-      commands.call(selectColCommand.key, { pos, index: colIndex })
-      commands.call(addColBeforeCommand.key)
-    }
+    preserveTableScroll(() => {
+      if (cols.length === colIndex) {
+        commands.call(selectColCommand.key, { pos, index: colIndex - 1 })
+        commands.call(addColAfterCommand.key)
+      } else {
+        commands.call(selectColCommand.key, { pos, index: colIndex })
+        commands.call(addColBeforeCommand.key)
+      }
 
-    commands.call(selectColCommand.key, { pos, index: colIndex })
+      commands.call(selectColCommand.key, { pos, index: colIndex })
+    })
   }
 
   const onAppendRow = () => {
@@ -133,8 +158,10 @@ export function useOperation(
     const pos = (getPos?.() ?? 0) + 1
     const lastColIndex = shape.colCount - 1
 
-    commands.call(selectColCommand.key, { pos, index: lastColIndex })
-    commands.call(addColAfterCommand.key)
+    preserveTableScroll(() => {
+      commands.call(selectColCommand.key, { pos, index: lastColIndex })
+      commands.call(addColAfterCommand.key)
+    })
   }
 
   const canShrinkRow = () => {
@@ -183,8 +210,10 @@ export function useOperation(
     const pos = (getPos?.() ?? 0) + 1
     const lastColIndex = shape.colCount - 1
 
-    commands.call(selectColCommand.key, { pos, index: lastColIndex })
-    commands.call(deleteSelectedCellsCommand.key)
+    preserveTableScroll(() => {
+      commands.call(selectColCommand.key, { pos, index: lastColIndex })
+      commands.call(deleteSelectedCellsCommand.key)
+    })
   }
 
   return {

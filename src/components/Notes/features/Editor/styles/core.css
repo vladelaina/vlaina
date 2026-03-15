@@ -179,18 +179,51 @@
 .milkdown .milkdown-table-block {
   position: relative;
   display: block;
-  width: fit-content;
-  max-width: 100%;
+  width: 100%;
+  max-width: none;
   margin: 4px 0;
 }
 
 .milkdown .milkdown-table-block .table-wrapper {
-  display: inline-block;
+  display: block;
   position: relative;
-  width: fit-content;
-  max-width: 100%;
+  width: var(--table-block-max-width, 100%);
+  max-width: var(--table-block-max-width, 100%);
+  margin-left: calc(-1 * var(--table-block-bleed-left, 0px));
   overflow: visible;
-  vertical-align: top;
+}
+
+.milkdown .milkdown-table-block .table-scroll {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overflow-anchor: none;
+  overscroll-behavior-x: contain;
+}
+
+.milkdown .milkdown-table-block .table-scroll-track {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+}
+
+.milkdown .milkdown-table-block .table-scroll-spacer {
+  flex: none;
+}
+
+.milkdown .milkdown-table-block .table-scroll-spacer[data-side='start'] {
+  width: var(--table-block-scroll-start, 0px);
+}
+
+.milkdown .milkdown-table-block .table-scroll-spacer[data-side='end'] {
+  width: var(--table-block-scroll-end, 0px);
+}
+
+.milkdown .milkdown-table-block .table-scroll .children {
+  flex: none;
+  min-width: var(--table-block-table-min-width, 100%);
+  max-width: none;
 }
 
 .milkdown .milkdown-table-block .handle {
