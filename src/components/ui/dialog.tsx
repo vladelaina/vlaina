@@ -1,6 +1,7 @@
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { Icon } from "@/components/ui/icons"
+import { BlurBackdrop, type BlurBackdropProps } from "@/components/common/BlurBackdrop"
 
 import { cn } from "@/lib/utils"
 
@@ -48,13 +49,29 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  useBlurBackdrop = false,
+  blurBackdropProps,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  useBlurBackdrop?: boolean
+  blurBackdropProps?: Partial<Pick<BlurBackdropProps, "className" | "overlayClassName" | "zIndex" | "blurPx" | "duration">>
 }) {
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
+      {useBlurBackdrop ? (
+        <DialogPrimitive.Overlay asChild>
+          <BlurBackdrop
+            className={cn("z-50", blurBackdropProps?.className)}
+            overlayClassName={blurBackdropProps?.overlayClassName}
+            zIndex={blurBackdropProps?.zIndex ?? 50}
+            blurPx={blurBackdropProps?.blurPx}
+            duration={blurBackdropProps?.duration}
+          />
+        </DialogPrimitive.Overlay>
+      ) : (
+        <DialogOverlay />
+      )}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <DialogPrimitive.Content
           data-slot="dialog-content"

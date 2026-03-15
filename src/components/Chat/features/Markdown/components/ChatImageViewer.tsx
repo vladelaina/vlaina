@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Cropper from "react-easy-crop";
 import { Icon } from "@/components/ui/icons";
+import { BlurBackdrop } from "@/components/common/BlurBackdrop";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
 import { downloadImageWithPrompt } from "@/components/Chat/common/imageDownload";
@@ -200,123 +201,126 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
   }
 
   return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={alt || "Image preview"}
-      className="fixed inset-0 z-[120] bg-white/70"
-      data-no-focus-input="true"
-      onClick={(event) => {
-        if (isPointOnImage(event.clientX, event.clientY)) {
-          return;
-        }
-        onOpenChange(false);
-      }}
-    >
-      <button
-        type="button"
-        aria-label="Close preview"
+    <>
+      <BlurBackdrop className="pointer-events-none" zIndex={120} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={alt || "Image preview"}
+        className="fixed inset-0 z-[121]"
         data-no-focus-input="true"
-        className={cn(
-          "absolute right-4 top-4 z-10 rounded-full bg-black/45 p-1.5 text-white/90 backdrop-blur-sm hover:bg-black/55 hover:text-white",
-          iconButtonStyles,
-          "text-white/90 hover:text-white"
-        )}
         onClick={(event) => {
-          event.stopPropagation();
+          if (isPointOnImage(event.clientX, event.clientY)) {
+            return;
+          }
           onOpenChange(false);
         }}
       >
-        <Icon name="common.close" size="md" />
-      </button>
+        <button
+          type="button"
+          aria-label="Close preview"
+          data-no-focus-input="true"
+          className={cn(
+            "absolute right-4 top-4 z-10 rounded-full bg-black/45 p-1.5 text-white/90 backdrop-blur-sm hover:bg-black/55 hover:text-white",
+            iconButtonStyles,
+            "text-white/90 hover:text-white"
+          )}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenChange(false);
+          }}
+        >
+          <Icon name="common.close" size="md" />
+        </button>
 
-      <div className="relative h-full w-full">
-        <div className="absolute inset-0">
-          <Cropper
-            image={src}
-            crop={crop}
-            zoom={zoom}
-            minZoom={previewMetrics.minZoom}
-            maxZoom={MAX_ZOOM}
-            showGrid={false}
-            zoomWithScroll={true}
-            zoomSpeed={0.12}
-            restrictPosition={false}
-            objectFit="contain"
-            onCropChange={setCrop}
-            onZoomChange={(value) => setZoom(clampZoom(value))}
-            style={{
-              containerStyle: { backgroundColor: "transparent" },
-              cropAreaStyle: {
-                border: "none",
-                boxShadow: "none",
-                color: "transparent",
-                outline: "none",
-                background: "transparent",
-              },
-              mediaStyle: {
-                maxWidth: "none",
-                maxHeight: "none",
-              },
-            }}
-          />
-        </div>
+        <div className="relative h-full w-full">
+          <div className="absolute inset-0">
+            <Cropper
+              image={src}
+              crop={crop}
+              zoom={zoom}
+              minZoom={previewMetrics.minZoom}
+              maxZoom={MAX_ZOOM}
+              showGrid={false}
+              zoomWithScroll={true}
+              zoomSpeed={0.12}
+              restrictPosition={false}
+              objectFit="contain"
+              onCropChange={setCrop}
+              onZoomChange={(value) => setZoom(clampZoom(value))}
+              style={{
+                containerStyle: { backgroundColor: "transparent" },
+                cropAreaStyle: {
+                  border: "none",
+                  boxShadow: "none",
+                  color: "transparent",
+                  outline: "none",
+                  background: "transparent",
+                },
+                mediaStyle: {
+                  maxWidth: "none",
+                  maxHeight: "none",
+                },
+              }}
+            />
+          </div>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
-          <div
-            className="pointer-events-auto flex items-center gap-1 rounded-full bg-black/45 px-2 py-1.5 text-white/90 backdrop-blur-sm"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              aria-label="Zoom out"
-              data-no-focus-input="true"
-              className={cn("p-1", iconButtonStyles, "text-white/90 hover:text-white")}
-              onClick={() => setZoom((value) => clampZoom(value - ZOOM_STEP))}
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
+            <div
+              className="pointer-events-auto flex items-center gap-1 rounded-full bg-black/45 px-2 py-1.5 text-white/90 backdrop-blur-sm"
+              onClick={(event) => event.stopPropagation()}
             >
-              <Icon name="common.remove" size="md" />
-            </button>
-            <span className="min-w-[52px] text-center text-xs font-medium tabular-nums">{percentLabel}</span>
-            <button
-              type="button"
-              aria-label="Zoom in"
-              data-no-focus-input="true"
-              className={cn("p-1", iconButtonStyles, "text-white/90 hover:text-white")}
-              onClick={() => setZoom((value) => clampZoom(value + ZOOM_STEP))}
-            >
-              <Icon name="common.add" size="md" />
-            </button>
-            {imageSizeLabel && (
-              <span className="min-w-[78px] text-center text-xs font-medium tabular-nums text-white/80">
-                {imageSizeLabel}
-              </span>
-            )}
-            <button
-              type="button"
-              aria-label="Copy image"
-              data-no-focus-input="true"
-              className={cn("p-1", iconButtonStyles, "text-white/90 hover:text-white")}
-              onClick={() => {
-                void handleCopy();
-              }}
-            >
-              <Icon name={copied ? "common.check" : "common.copy"} size="md" />
-            </button>
-            <button
-              type="button"
-              aria-label="Download image"
-              data-no-focus-input="true"
-              className={cn("p-1", iconButtonStyles, "text-white/90 hover:text-white")}
-              onClick={() => {
-                void downloadImageWithPrompt(src, alt);
-              }}
-            >
-              <Icon name="common.download" size="md" />
-            </button>
+              <button
+                type="button"
+                aria-label="Zoom out"
+                data-no-focus-input="true"
+                className={cn("p-1", iconButtonStyles, "text-white/90 hover:text-white")}
+                onClick={() => setZoom((value) => clampZoom(value - ZOOM_STEP))}
+              >
+                <Icon name="common.remove" size="md" />
+              </button>
+              <span className="min-w-[52px] text-center text-xs font-medium tabular-nums">{percentLabel}</span>
+              <button
+                type="button"
+                aria-label="Zoom in"
+                data-no-focus-input="true"
+                className={cn("p-1", iconButtonStyles, "text-white/90 hover:text-white")}
+                onClick={() => setZoom((value) => clampZoom(value + ZOOM_STEP))}
+              >
+                <Icon name="common.add" size="md" />
+              </button>
+              {imageSizeLabel && (
+                <span className="min-w-[78px] text-center text-xs font-medium tabular-nums text-white/80">
+                  {imageSizeLabel}
+                </span>
+              )}
+              <button
+                type="button"
+                aria-label="Copy image"
+                data-no-focus-input="true"
+                className={cn("p-1", iconButtonStyles, "text-white/90 hover:text-white")}
+                onClick={() => {
+                  void handleCopy();
+                }}
+              >
+                <Icon name={copied ? "common.check" : "common.copy"} size="md" />
+              </button>
+              <button
+                type="button"
+                aria-label="Download image"
+                data-no-focus-input="true"
+                className={cn("p-1", iconButtonStyles, "text-white/90 hover:text-white")}
+                onClick={() => {
+                  void downloadImageWithPrompt(src, alt);
+                }}
+              >
+                <Icon name="common.download" size="md" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>,
+    </>,
     document.body
   );
 }

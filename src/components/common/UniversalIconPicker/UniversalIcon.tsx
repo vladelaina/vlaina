@@ -2,6 +2,7 @@ import { memo, useMemo, useState, useEffect } from 'react';
 import { icons } from '@/components/ui/icons/registry';
 import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
 import { cn } from '@/lib/utils';
+import { ImageEdgeMask } from '@/components/common/ImageEdgeMask';
 import { resolveEmojiForSkinTone } from './randomEmoji';
 
 export interface UniversalIconProps {
@@ -26,23 +27,45 @@ const ImageIconRenderer = memo(function ImageIconRenderer({
   src,
   size,
   className,
-  rounding
+  rounding,
+  maskColor,
 }: {
   src: string;
   size?: number | string | IconSize;
   className?: string;
   rounding?: string;
+  maskColor?: string | null;
 }) {
   if (!src) return null;
   const resolvedSize = resolveSize(size);
+  const radiusClassName = rounding || 'rounded-sm';
+
+  if (!maskColor) {
+    return (
+      <img
+        src={src}
+        className={cn('object-cover select-none pointer-events-none', radiusClassName, className)}
+        style={{ width: resolvedSize, height: resolvedSize, display: 'inline-block' }}
+        draggable={false}
+        alt="icon"
+      />
+    );
+  }
+
   return (
-    <img
-      src={src}
-      className={cn("object-cover select-none pointer-events-none", rounding || "rounded-sm", className)}
-      style={{ width: resolvedSize, height: resolvedSize, display: 'inline-block' }}
-      draggable={false}
-      alt="icon"
-    />
+    <span
+      className={cn('relative inline-flex overflow-hidden align-middle', radiusClassName, className)}
+      style={{ width: resolvedSize, height: resolvedSize }}
+    >
+      <img
+        src={src}
+        className={cn('h-full w-full object-cover select-none pointer-events-none', radiusClassName)}
+        style={{ display: 'inline-block' }}
+        draggable={false}
+        alt="icon"
+      />
+      <ImageEdgeMask color={maskColor} rounding={radiusClassName} />
+    </span>
   );
 });
 
@@ -184,7 +207,17 @@ export function UniversalIcon({
   if (!icon) return null;
 
   if (icon.startsWith('img:')) {
-    return imgSrc ? <ImageIconRenderer src={imgSrc} size={size} className={className} rounding={rounding} /> : <div style={{ width: resolvedSize, height: resolvedSize }} className={className} />;
+    return imgSrc ? (
+      <ImageIconRenderer
+        src={imgSrc}
+        size={size}
+        className={className}
+        rounding={rounding}
+        maskColor={previewColor || color || null}
+      />
+    ) : (
+      <div style={{ width: resolvedSize, height: resolvedSize }} className={className} />
+    );
   }
 
   if (icon.startsWith('icon:') || icon in icons) {

@@ -498,18 +498,6 @@
 }
 
 /* Create Vault Modal - Luxury Redesign */
-.vault-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-
 .vault-modal {
   width: 90%;
   max-width: 460px;
