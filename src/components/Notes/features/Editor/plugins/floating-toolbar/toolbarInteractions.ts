@@ -3,6 +3,7 @@ import type { FloatingToolbarState } from './types';
 import { TOOLBAR_ACTIONS } from './types';
 import { floatingToolbarKey } from './floatingToolbarPlugin';
 import { copySelectionToClipboard, toggleMark, setLink } from './commands';
+import { openAiSelectionReview } from './ai/reviewFlow';
 import { applyFormatPreview, clearFormatPreview, hasFormatPreview } from './previewStyles';
 import { getLinkUrl } from './selectionHelpers';
 import { linkTooltipPluginKey } from '../links';
@@ -142,7 +143,12 @@ export function createToolbarEventDelegation(
       return true;
     }
 
-    if (action === 'ai' || action === 'color' || action === 'block' || action === 'alignment') {
+    if (action === 'ai') {
+      openAiSelectionReview(view);
+      return false;
+    }
+
+    if (action === 'color' || action === 'block' || action === 'alignment') {
       view.dispatch(
         view.state.tr.setMeta(floatingToolbarKey, {
           type: TOOLBAR_ACTIONS.SET_SUB_MENU,

@@ -2,6 +2,8 @@
  * Floating Toolbar Styles
  */
 
+@import './floating-toolbar.ai-review.css';
+
 .floating-toolbar {
   position: absolute;
   z-index: 90;
@@ -411,124 +413,54 @@
   min-width: 56px;
 }
 
-.floating-toolbar-ai-mode {
-  min-width: 620px;
-  padding: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
+.ai-dropdown {
+  min-width: 176px;
+  padding: 6px;
 }
 
-.toolbar-ai-composer {
+.ai-dropdown-item {
   display: flex;
   align-items: center;
-  gap: 10px;
   width: 100%;
-  min-height: 42px;
-  padding: 0 12px;
-  border-radius: 10px;
-  background-color: var(--neko-bg-primary, #ffffff);
-  border: 1px solid rgb(0 0 0 / 0.08);
-  box-sizing: border-box;
-  box-shadow:
-    0 8px 24px rgb(15 23 42 / 0.08),
-    0 2px 6px rgb(15 23 42 / 0.05);
-}
-
-.toolbar-ai-model-selector-slot {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.dark .toolbar-ai-composer {
-  background-color: var(--neko-bg-secondary, #27272a);
-  border-color: rgb(255 255 255 / 0.08);
-  box-shadow:
-    0 12px 28px rgb(0 0 0 / 0.28),
-    0 3px 8px rgb(0 0 0 / 0.18);
-}
-
-.toolbar-ai-composer-input {
-  min-width: 0;
-  flex: 1;
-  height: 42px;
-  padding: 0;
+  min-height: 32px;
+  padding: 0 10px;
   border: none;
-  outline: none;
+  border-radius: 4px;
   background: transparent;
-  font-size: 13px;
   color: var(--neko-text-primary, #18181b);
+  cursor: pointer;
+  transition:
+    background-color 0.16s cubic-bezier(0.2, 0.8, 0.2, 1),
+    color 0.16s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.toolbar-ai-composer-input::placeholder {
-  color: #8d8d95;
+.ai-dropdown-item:hover {
+  background-color: var(--neko-hover, #f4f4f5);
 }
 
-.dark .toolbar-ai-composer-input {
+.ai-dropdown-item:active {
+  transform: scale(0.98);
+}
+
+.ai-dropdown-item:disabled {
+  cursor: default;
+  opacity: 0.6;
+  transform: none;
+}
+
+.ai-dropdown-item-label {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.dark .ai-dropdown-item {
   color: var(--neko-text-primary, #fafafa);
 }
 
-.toolbar-ai-send {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 9999px;
-  background-color: #000;
-  color: white;
-  flex-shrink: 0;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.18);
-  transition:
-    transform 0.2s ease,
-    background-color 0.2s ease,
-    box-shadow 0.2s ease;
-  cursor: pointer;
-}
-
-.toolbar-ai-send.is-disabled,
-.toolbar-ai-send:disabled {
-  background-color: #f9fafb;
-  color: #d1d5db;
-  cursor: default;
-  box-shadow: none;
-}
-
-.toolbar-ai-send:hover {
-  transform: scale(1.05);
-  box-shadow: 0 8px 18px rgb(0 0 0 / 0.2);
-}
-
-.toolbar-ai-send:active {
-  transform: scale(0.95);
-}
-
-.toolbar-ai-send.is-disabled:hover,
-.toolbar-ai-send:disabled:hover,
-.toolbar-ai-send.is-disabled:active,
-.toolbar-ai-send:disabled:active {
-  transform: none;
-  box-shadow: none;
-}
-
-.toolbar-ai-send svg {
-  width: 20px;
-  height: 20px;
-}
-
-.dark .toolbar-ai-send {
-  background-color: #fff;
-  color: #000;
-  box-shadow: 0 4px 12px rgb(255 255 255 / 0.08);
-}
-
-.dark .toolbar-ai-send.is-disabled,
-.dark .toolbar-ai-send:disabled {
-  background-color: #27272a;
-  color: #52525b;
-  box-shadow: none;
+.dark .ai-dropdown-item:hover {
+  background-color: var(--neko-hover, #3f3f46);
 }
 
 /* Link editor */

@@ -1,4 +1,6 @@
 import { AnimationLab } from './playground/AnimationLab';
+import { AiQuickActionsLab } from './playground/AiQuickActionsLab';
+import { AiReviewLab } from './playground/AiReviewLab';
 import { InputLab } from './playground/InputLab';
 
 // Lab Registry: Add new experiments here
@@ -16,6 +18,20 @@ export const LAB_MODULES = [
     icon: 'file.input',
     component: InputLab,
     description: 'Chat input field styles, buttons, and interactions.'
+  },
+  {
+    id: 'ai-quick-actions',
+    label: 'AI Quick Actions',
+    icon: 'common.sparkle',
+    component: AiQuickActionsLab,
+    description: 'Prompt suggestions under the AI input.'
+  },
+  {
+    id: 'ai-review',
+    label: 'AI Review',
+    icon: 'common.sparkle',
+    component: AiReviewLab,
+    description: 'Review surfaces for before-and-after AI edits.'
   }
 ];
 

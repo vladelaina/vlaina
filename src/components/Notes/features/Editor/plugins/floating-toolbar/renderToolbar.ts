@@ -1,13 +1,13 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import React from 'react';
-import { createRoot, type Root } from 'react-dom/client';
 import type { FloatingToolbarState } from './types';
 import { TOOLBAR_ACTIONS } from './types';
 import { floatingToolbarKey } from './floatingToolbarPlugin';
 import { renderAlignmentDropdown } from './components/AlignmentDropdown';
-import { AiToolbarModelSelector } from './components/AiToolbarModelSelector';
+import { createAiDropdownController } from './components/AiDropdown';
+import { createAiReviewPanelController } from './components/AiReviewPanel';
 import { renderBlockDropdown } from './components/BlockDropdown';
 import { renderColorPicker } from './components/ColorPicker';
+import { logAiSelectionDebug } from './ai/debug';
 import { createToolbarEventDelegation } from './toolbarInteractions';
 import { renderToolbarMarkup } from './toolbarMarkup';
 
@@ -18,14 +18,11 @@ export interface ToolbarRenderer {
 
 export function createToolbarRenderer(toolbarElement: HTMLElement): ToolbarRenderer {
   const eventDelegation = createToolbarEventDelegation(toolbarElement);
-  let aiModelSelectorRoot: Root | null = null;
-
-  const cleanupAiModelSelector = () => {
-    aiModelSelectorRoot?.unmount();
-    aiModelSelectorRoot = null;
-  };
+  const aiDropdownController = createAiDropdownController();
+  const aiReviewPanelController = createAiReviewPanelController();
 
   const hideToolbar = (view: EditorView) => {
+    logAiSelectionDebug('toolbar:hide');
     eventDelegation.clearTransientUi();
     view.dispatch(
       view.state.tr.setMeta(floatingToolbarKey, {
@@ -33,56 +30,30 @@ export function createToolbarRenderer(toolbarElement: HTMLElement): ToolbarRende
       })
     );
   };
-
-  const mountAiModelSelector = () => {
-    const host = toolbarElement.querySelector('.toolbar-ai-model-selector-slot');
-    const input = toolbarElement.querySelector('.toolbar-ai-composer-input');
-    if (!(host instanceof HTMLElement) || !(input instanceof HTMLInputElement)) {
-      return;
-    }
-
-    cleanupAiModelSelector();
-    aiModelSelectorRoot = createRoot(host);
-    aiModelSelectorRoot.render(
-      React.createElement(AiToolbarModelSelector, {
-        composerInputRef: { current: input },
-      })
-    );
-  };
-
-  const syncAiComposerState = () => {
-    const input = toolbarElement.querySelector('.toolbar-ai-composer-input');
-    const sendButton = toolbarElement.querySelector('.toolbar-ai-send');
-    if (!(input instanceof HTMLInputElement) || !(sendButton instanceof HTMLButtonElement)) {
-      return;
-    }
-
-    const updateDisabledState = () => {
-      const hasValue = input.value.trim().length > 0;
-      sendButton.disabled = !hasValue;
-      sendButton.classList.toggle('is-disabled', !hasValue);
-    };
-
-    updateDisabledState();
-    input.addEventListener('input', updateDisabledState);
-  };
-
   return {
     render(view, state) {
-      cleanupAiModelSelector();
+      logAiSelectionDebug('toolbar:render', {
+        subMenu: state.subMenu,
+        isVisible: state.isVisible,
+        placement: state.placement,
+        selectionFrom: view.state.selection.from,
+        selectionTo: view.state.selection.to,
+      });
+      aiDropdownController.cleanup();
+      aiReviewPanelController.cleanup();
       eventDelegation.update(view, state);
 
       toolbarElement.innerHTML = renderToolbarMarkup(state);
 
       if (state.subMenu === 'ai') {
-        requestAnimationFrame(() => {
-          mountAiModelSelector();
-          const input = toolbarElement.querySelector('.toolbar-ai-composer-input');
-          if (input instanceof HTMLInputElement) {
-            input.focus();
-          }
-          syncAiComposerState();
-        });
+        const aiGroup = toolbarElement.querySelector('.toolbar-ai-group');
+        if (aiGroup instanceof HTMLElement) {
+          aiDropdownController.render(aiGroup, view, () => hideToolbar(view));
+        }
+      }
+
+      if (state.subMenu === 'aiReview') {
+        aiReviewPanelController.render(toolbarElement, view, state, () => hideToolbar(view));
       }
 
       if (state.subMenu === 'block') {
@@ -107,7 +78,9 @@ export function createToolbarRenderer(toolbarElement: HTMLElement): ToolbarRende
       }
     },
     destroy() {
-      cleanupAiModelSelector();
+      logAiSelectionDebug('toolbar:destroy');
+      aiDropdownController.destroy();
+      aiReviewPanelController.destroy();
       eventDelegation.destroy();
     },
   };

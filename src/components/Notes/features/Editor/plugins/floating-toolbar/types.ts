@@ -19,8 +19,20 @@ export type BlockType =
 
 export type TextAlignment = 'left' | 'center' | 'right';
 
+export interface AiReviewState {
+  instruction: string | null;
+  commandId: string | null;
+  toneId: string | null;
+  customPrompt: string;
+  from: number;
+  to: number;
+  originalText: string;
+  suggestedText: string;
+  isLoading: boolean;
+}
+
 // Sub-menu types
-export type SubMenuType = 'ai' | 'block' | 'link' | 'color' | 'alignment' | null;
+export type SubMenuType = 'ai' | 'aiReview' | 'block' | 'link' | 'color' | 'alignment' | null;
 
 // Toolbar placement relative to selection
 export type ToolbarPlacement = 'top' | 'bottom';
@@ -30,6 +42,7 @@ export interface FloatingToolbarState {
   isVisible: boolean;
   position: { x: number; y: number };
   placement: ToolbarPlacement;
+  dragPosition: { x: number; y: number } | null;
   activeMarks: Set<string>;
   currentBlockType: BlockType | null;
   currentAlignment: TextAlignment | null;
@@ -38,6 +51,7 @@ export interface FloatingToolbarState {
   textColor: string | null;
   bgColor: string | null;
   subMenu: SubMenuType;
+  aiReview: AiReviewState | null;
 }
 
 // Toolbar action definition
@@ -78,6 +92,8 @@ export const TOOLBAR_ACTIONS = {
   SET_LINK_URL: 'SET_LINK_URL',
   SET_TEXT_COLOR: 'SET_TEXT_COLOR',
   SET_BG_COLOR: 'SET_BG_COLOR',
+  SET_AI_REVIEW: 'SET_AI_REVIEW',
+  CLEAR_AI_REVIEW: 'CLEAR_AI_REVIEW',
 } as const;
 
 export type ToolbarActionType = typeof TOOLBAR_ACTIONS[keyof typeof TOOLBAR_ACTIONS];
