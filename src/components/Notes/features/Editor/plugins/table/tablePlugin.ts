@@ -1,6 +1,6 @@
 // Enhanced table plugin
 import { $prose } from '@milkdown/kit/utils';
-import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import { Selection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import {
@@ -13,6 +13,9 @@ import {
   deleteTable,
 } from '@milkdown/kit/prose/tables';
 import type { TableMenuState } from './types';
+import { createEmptyTableNode, getPipeShortcutColumnCount } from './pipeTableShortcut';
+import { findLeadingTableDeleteRange } from './tableDeleteShortcut';
+import { handleTableSelectAll } from './tableSelectAll';
 
 export const tablePluginKey = new PluginKey<TableMenuState>('tableMenu');
 
@@ -96,6 +99,77 @@ export const tablePlugin = $prose(() => {
         const { state } = view;
         const { selection } = state;
         const { $from } = selection;
+
+        if (handleTableSelectAll(view, event)) {
+          return true;
+        }
+
+        if (
+          event.key === 'Backspace' &&
+          !event.metaKey &&
+          !event.ctrlKey &&
+          !event.altKey
+        ) {
+          const deleteRange = findLeadingTableDeleteRange(state);
+          if (!deleteRange) return false;
+
+          event.preventDefault();
+          const paragraphType = state.schema.nodes.paragraph;
+          let tr =
+            paragraphType
+              ? state.tr.replaceWith(deleteRange.from, deleteRange.to, paragraphType.create())
+              : state.tr.delete(deleteRange.from, deleteRange.to);
+
+          if (tr.doc.content.size === 0 && paragraphType) {
+            tr = tr.insert(0, paragraphType.create());
+          }
+
+          const anchorPos = Math.max(
+            0,
+            Math.min(deleteRange.from + 1, tr.doc.content.size)
+          );
+          const resolvedAnchor = tr.doc.resolve(anchorPos);
+          const nextSelection =
+            Selection.findFrom(resolvedAnchor, 1, true) ??
+            Selection.findFrom(resolvedAnchor, -1, true);
+
+          view.dispatch((nextSelection ? tr.setSelection(nextSelection) : tr).scrollIntoView());
+          view.focus();
+          return true;
+        }
+
+        if (
+          event.key === 'Enter' &&
+          selection instanceof TextSelection &&
+          selection.empty &&
+          $from.parent.type.name === 'paragraph' &&
+          $from.parentOffset === $from.parent.content.size
+        ) {
+          const columnCount = getPipeShortcutColumnCount($from.parent.textContent);
+          if (columnCount) {
+            const tableNode = createEmptyTableNode(state.schema, columnCount);
+            if (tableNode && $from.depth >= 1) {
+              const parent = $from.node($from.depth - 1);
+              if (
+                parent.canReplaceWith(
+                  $from.index($from.depth - 1),
+                  $from.indexAfter($from.depth - 1),
+                  tableNode.type
+                )
+              ) {
+                event.preventDefault();
+                const from = $from.before($from.depth);
+                const to = $from.after($from.depth);
+                const tr = state.tr.replaceRangeWith(from, to, tableNode);
+                const nextSelection = Selection.findFrom(tr.doc.resolve(from + 1), 1, true);
+                view.dispatch(
+                  (nextSelection ? tr.setSelection(nextSelection) : tr).scrollIntoView()
+                );
+                return true;
+              }
+            }
+          }
+        }
         
         // Check if we're in a table cell
         let depth = $from.depth;

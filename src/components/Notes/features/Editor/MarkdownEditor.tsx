@@ -11,6 +11,7 @@ import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
+import { tableBlock } from '@milkdown/kit/component/table-block';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -106,6 +107,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       .use(history)
       .use(listener)
       .use(configureTheme)
+      .use(tableBlock)
       .use(customPlugins),
     [currentNotePath]
   );

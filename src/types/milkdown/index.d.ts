@@ -381,6 +381,13 @@ declare module '@milkdown/kit/preset/gfm' {
   export const insertTableCommand: CommandKeyLike;
 }
 
+declare module '@milkdown/kit/component/table-block' {
+  export const tableBlock: any;
+  export const tableBlockConfig: MilkdownCtxToken<{
+    renderButton: (renderType: string) => string;
+  }>;
+}
+
 declare module '@milkdown/kit/prose/commands' {
   export function setBlockType(nodeType: any, attrs?: AnyRecord): MilkdownCommand;
   export function wrapIn(nodeType: any, attrs?: AnyRecord): MilkdownCommand;

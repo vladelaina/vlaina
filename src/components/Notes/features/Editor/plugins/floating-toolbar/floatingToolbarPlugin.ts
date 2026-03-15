@@ -19,6 +19,7 @@ import { toggleMark } from './commands';
 export const floatingToolbarKey = new PluginKey<FloatingToolbarState>('floatingToolbar');
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const TOOLBAR_ROOT_SELECTOR = '[data-note-toolbar-root="true"]';
+const TABLE_RESIZE_TOOLBAR_SUPPRESS_ATTR = 'data-table-resize-toolbar-suppress';
 
 let currentBlockElement: HTMLElement | null = null;
 
@@ -68,6 +69,14 @@ function getScrollRoot(view: { dom: HTMLElement }): HTMLElement | null {
 
 function getToolbarRoot(view: { dom: HTMLElement }): HTMLElement | null {
   return view.dom.closest(TOOLBAR_ROOT_SELECTOR) as HTMLElement | null;
+}
+
+function isTableResizeToolbarSuppressed(): boolean {
+  if (typeof document === 'undefined') return false;
+  return (
+    document.documentElement.hasAttribute(TABLE_RESIZE_TOOLBAR_SUPPRESS_ATTR) ||
+    document.body.hasAttribute(TABLE_RESIZE_TOOLBAR_SUPPRESS_ATTR)
+  );
 }
 
 function toContainerPosition(
@@ -157,6 +166,10 @@ export const floatingToolbarPlugin = $prose(() => {
           const { selection } = newState;
           if (selection.empty) { if (prevState.isVisible) return { ...prevState, isVisible: false, subMenu: null, copied: false }; }
           else {
+            if (isTableResizeToolbarSuppressed()) {
+              if (prevState.isVisible) return { ...prevState, isVisible: false, subMenu: null, copied: false };
+              return prevState;
+            }
             if (!isMouseDown && !prevState.isVisible) return { ...prevState, isVisible: true };
             if (isMouseDown) pendingShow = true;
           }
@@ -179,12 +192,18 @@ export const floatingToolbarPlugin = $prose(() => {
       const handleMouseDown = () => { isMouseDown = true; pendingShow = false; };
       const handleMouseUp = () => {
         isMouseDown = false;
+        if (isTableResizeToolbarSuppressed()) {
+          pendingShow = false;
+          hideToolbar();
+          return;
+        }
         if (pendingShow) {
           pendingShow = false;
           if (pendingRaf !== null) cancelAnimationFrame(pendingRaf);
           pendingRaf = requestAnimationFrame(() => {
             pendingRaf = null;
             if (isMouseDown) return;
+            if (isTableResizeToolbarSuppressed()) return;
             const { selection } = editorView.state;
             if (!selection.empty) editorView.dispatch(editorView.state.tr.setMeta(floatingToolbarKey, { type: TOOLBAR_ACTIONS.SHOW }));
           });
@@ -207,6 +226,13 @@ export const floatingToolbarPlugin = $prose(() => {
         resizeObserver?.observe(toolbarRoot);
       }
       const updateToolbar = () => {
+        if (isTableResizeToolbarSuppressed()) {
+          hideToolbar();
+          lastRenderState = '';
+          currentBlockElement = null;
+          return;
+        }
+
         const { selection } = editorView.state;
         
         // Only show toolbar for TextSelection

@@ -4,6 +4,51 @@
   .milkdown-table-block {
     display: block;
     margin: 4px 0;
+    position: relative;
+    width: 100%;
+    max-width: none;
+
+    .table-wrapper {
+      display: block;
+      position: relative;
+      overflow: visible;
+      width: var(--table-block-max-width, 100%);
+      max-width: var(--table-block-max-width, 100%);
+      margin-left: calc(-1 * var(--table-block-bleed-left, 0px));
+    }
+
+    .table-scroll {
+      display: block;
+      max-width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      overflow-anchor: none;
+      overscroll-behavior-x: contain;
+    }
+
+    .table-scroll-track {
+      display: flex;
+      width: max-content;
+      min-width: 100%;
+    }
+
+    .table-scroll-spacer {
+      flex: none;
+
+      &[data-side='start'] {
+        width: var(--table-block-scroll-start, 0px);
+      }
+
+      &[data-side='end'] {
+        width: var(--table-block-scroll-end, 0px);
+      }
+    }
+
+    .table-scroll .children {
+      flex: none;
+      min-width: var(--table-block-table-min-width, 100%);
+      max-width: none;
+    }
 
     th,
     td {
@@ -30,26 +75,6 @@
       }
     }
 
-    .drag-preview {
-      background-color: var(--crepe-color-surface);
-      opacity: 0.4;
-      position: absolute;
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      outline: 1px solid var(--crepe-color-primary);
-      outline-offset: -1px;
-      &[data-show='false'] {
-        display: none;
-      }
-      th,
-      td {
-        &:has(.ProseMirror-selectednode) {
-          outline: none;
-        }
-      }
-    }
-
     .handle {
       position: absolute;
       font-size: 14px;
@@ -64,143 +89,80 @@
       fill: var(--crepe-color-outline);
     }
 
-    .cell-handle {
-      z-index: 50;
-      left: -999px;
-      top: -999px;
-      cursor: grab;
-      background-color: var(--crepe-color-surface);
-      color: var(--crepe-color-outline);
-      border-radius: 100px;
-      box-shadow: var(--crepe-shadow-1);
-      transition: background-color 0.2s ease-in-out;
-
-      &:hover {
-        background-color: var(--crepe-color-hover);
-      }
-      &:has(.button-group:hover) {
-        background-color: var(--crepe-color-surface);
-      }
-
-      &[data-role='col-drag-handle'] {
-        transform: translateY(50%);
-        padding: 0 6px;
-        width: 28px;
-        height: 16px;
-      }
-      &[data-role='row-drag-handle'] {
-        transform: translateX(50%);
-        padding: 6px 0;
-        width: 16px;
-        height: 28px;
-      }
-
-      .button-group {
-        position: absolute;
-        transform: translateX(-50%);
-        left: 50%;
-        top: -52px;
-        display: flex;
-        background-color: var(--crepe-color-surface);
-        border-radius: 8px;
-        box-shadow: var(--crepe-shadow-1);
-
-        &::after {
-          content: '';
-          position: absolute;
-          bottom: -8px;
-          height: 8px;
-          background-color: transparent;
-          width: 100%;
-        }
-
-        &[data-show='false'] {
-          display: none;
-        }
-
-        button {
-          cursor: pointer;
-          margin: 6px;
-          padding: 4px;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          border-radius: 4px;
-          svg {
-            width: 24px;
-            height: 24px;
-          }
-          &:hover {
-            border-radius: 8px;
-            background-color: var(--crepe-color-hover);
-          }
-          &:active {
-            background: var(--crepe-color-selected);
-          }
-        }
-      }
-
-      &:hover {
-        opacity: 1;
-      }
-    }
-
     .line-handle {
+      display: none;
       z-index: 20;
       background-color: var(--crepe-color-primary);
+      pointer-events: none;
       &:hover {
         opacity: 1;
-      }
-      .add-button {
-        cursor: pointer;
-        background-color: var(--crepe-color-surface);
-        color: var(--crepe-color-outline);
-        border-radius: 100px;
-        box-shadow: var(--crepe-shadow-1);
-        transition: background-color 0.2s ease-in-out;
-
-        svg {
-          width: 16px;
-          height: 16px;
-        }
-
-        &:hover {
-          background-color: var(--crepe-color-hover);
-        }
-        &:active {
-          background: var(--crepe-color-selected);
-        }
       }
       &[data-role='x-line-drag-handle'] {
         height: 1px;
         z-index: 2;
-        .add-button {
-          position: absolute;
-          transform: translateX(-50%) translateY(-50%);
-          padding: 6px 0;
-          width: 16px;
-          height: 28px;
-        }
       }
       &[data-role='y-line-drag-handle'] {
         width: 1px;
         z-index: 1;
-        .add-button {
-          position: absolute;
-          transform: translateY(-50%) translateX(-50%);
-          padding: 0 6px;
-          width: 28px;
-          height: 16px;
+      }
+    }
+
+    .edge-create-zone {
+      position: absolute;
+      z-index: 15;
+      opacity: 0;
+      background-color: transparent;
+      transition: none;
+
+      &::before {
+        display: none;
+      }
+
+      &:hover {
+        opacity: 0;
+        background-color: transparent;
+      }
+
+      &[data-axis='col'] {
+        top: 0;
+        left: 0;
+        width: 18px;
+        cursor: col-resize;
+
+        &::before {
+          display: none;
         }
       }
-      &[data-display-type='indicator'] {
-        .add-button {
+
+      &[data-axis='row'] {
+        left: 0;
+        top: 0;
+        height: 18px;
+        cursor: row-resize;
+
+        &::before {
+          display: none;
+        }
+      }
+
+      &[data-axis='both'] {
+        top: 0;
+        left: 0;
+        width: 22px;
+        height: 22px;
+        cursor: nwse-resize;
+
+        &::before {
           display: none;
         }
       }
     }
 
     &.readonly .handle {
+      display: none;
+    }
+
+    &.readonly .edge-create-zone {
       display: none;
     }
   }

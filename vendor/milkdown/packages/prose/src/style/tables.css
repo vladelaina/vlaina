@@ -1,11 +1,13 @@
 .ProseMirror .tableWrapper {
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .ProseMirror table {
   border-collapse: collapse;
   table-layout: fixed;
-  width: 100%;
+  width: max-content;
+  max-width: 100%;
   overflow: hidden;
 }
 
@@ -18,7 +20,7 @@
 
 .ProseMirror td:not([data-colwidth]):not(.column-resize-dragging),
 .ProseMirror th:not([data-colwidth]):not(.column-resize-dragging) {
-  min-width: var(--default-cell-min-width);
+  min-width: max(var(--default-cell-min-width), 150px);
 }
 
 .ProseMirror .column-resize-handle {

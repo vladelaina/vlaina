@@ -9,10 +9,11 @@ import {
   deleteSelectedCellsCommand,
   selectColCommand,
   selectRowCommand,
-  setAlignCommand,
 } from '@milkdown/preset-gfm'
 
 import type { Refs } from './types'
+import { rememberTableScroll } from './table-scroll-memory'
+import { isTableContentNodeEmpty } from './table-node-content'
 
 export function useOperation(
   refs: Refs,
@@ -22,11 +23,58 @@ export function useOperation(
   const {
     xLineHandleRef,
     contentWrapperRef,
-    colHandleRef,
-    rowHandleRef,
-    hoverIndex,
     lineHoverIndex,
   } = refs
+
+  const getTableNode = () => {
+    if (!ctx) return
+    const pos = getPos?.()
+    if (pos == null) return
+    const view = ctx.get(editorViewCtx)
+    return view.state.doc.nodeAt(pos)
+  }
+
+  const getTableShape = () => {
+    const table = getTableNode()
+    if (!table) return
+
+    const rowCount = table.childCount
+    const colCount = table.firstChild?.childCount ?? 0
+
+    return {
+      table,
+      rowCount,
+      colCount,
+    }
+  }
+
+  const preserveTableScroll = (run: () => void) => {
+    const scrollElement = contentWrapperRef.value?.closest('.table-scroll')
+    if (!(scrollElement instanceof HTMLElement)) {
+      run()
+      return
+    }
+
+    const scrollLeft = scrollElement.scrollLeft
+    const scrollTop = scrollElement.scrollTop
+    const maxScrollLeft = Math.max(
+      0,
+      scrollElement.scrollWidth - scrollElement.clientWidth
+    )
+    rememberTableScroll(getPos?.(), {
+      scrollLeft,
+      scrollTop,
+      stickToRight: maxScrollLeft > 0 && maxScrollLeft - scrollLeft <= 1,
+    })
+
+    run()
+  }
+
+  const isCellEmpty = (rowIndex: number, colIndex: number) => {
+    const table = getTableNode()
+    const cell = table?.child(rowIndex)?.child(colIndex)
+    return isTableContentNodeEmpty(cell)
+  }
 
   const onAddRow = () => {
     if (!ctx) return
@@ -71,78 +119,111 @@ export function useOperation(
     const commands = ctx.get(commandsCtx)
 
     const pos = (getPos?.() ?? 0) + 1
-    if (cols.length === colIndex) {
-      commands.call(selectColCommand.key, { pos, index: colIndex - 1 })
-      commands.call(addColAfterCommand.key)
-    } else {
+    preserveTableScroll(() => {
+      if (cols.length === colIndex) {
+        commands.call(selectColCommand.key, { pos, index: colIndex - 1 })
+        commands.call(addColAfterCommand.key)
+      } else {
+        commands.call(selectColCommand.key, { pos, index: colIndex })
+        commands.call(addColBeforeCommand.key)
+      }
+
       commands.call(selectColCommand.key, { pos, index: colIndex })
-      commands.call(addColBeforeCommand.key)
-    }
-
-    commands.call(selectColCommand.key, { pos, index: colIndex })
-  }
-
-  const selectCol = () => {
-    if (!ctx) return
-    const [_, colIndex] = hoverIndex.value!
-    const commands = ctx.get(commandsCtx)
-    const pos = (getPos?.() ?? 0) + 1
-    commands.call(selectColCommand.key, { pos, index: colIndex })
-    const buttonGroup =
-      colHandleRef.value?.querySelector<HTMLElement>('.button-group')
-    if (buttonGroup)
-      buttonGroup.dataset.show =
-        buttonGroup.dataset.show === 'true' ? 'false' : 'true'
-  }
-
-  const selectRow = () => {
-    if (!ctx) return
-    const [rowIndex, _] = hoverIndex.value!
-    const commands = ctx.get(commandsCtx)
-    const pos = (getPos?.() ?? 0) + 1
-    commands.call(selectRowCommand.key, { pos, index: rowIndex })
-    const buttonGroup =
-      rowHandleRef.value?.querySelector<HTMLElement>('.button-group')
-    if (buttonGroup && rowIndex > 0)
-      buttonGroup.dataset.show =
-        buttonGroup.dataset.show === 'true' ? 'false' : 'true'
-  }
-
-  const deleteSelected = (e: PointerEvent) => {
-    if (!ctx) return
-
-    if (!ctx.get(editorViewCtx).editable) return
-
-    e.preventDefault()
-    e.stopPropagation()
-    const commands = ctx.get(commandsCtx)
-    commands.call(deleteSelectedCellsCommand.key)
-    requestAnimationFrame(() => {
-      ctx.get(editorViewCtx).focus()
     })
   }
 
-  const onAlign =
-    (direction: 'left' | 'center' | 'right') => (e: PointerEvent) => {
-      if (!ctx) return
+  const onAppendRow = () => {
+    if (!ctx) return
+    if (!ctx.get(editorViewCtx).editable) return
 
-      if (!ctx.get(editorViewCtx).editable) return
+    const shape = getTableShape()
+    if (!shape || shape.rowCount === 0) return
 
-      e.preventDefault()
-      e.stopPropagation()
-      const commands = ctx.get(commandsCtx)
-      commands.call(setAlignCommand.key, direction)
-      requestAnimationFrame(() => {
-        ctx.get(editorViewCtx).focus()
-      })
-    }
+    const commands = ctx.get(commandsCtx)
+    const pos = (getPos?.() ?? 0) + 1
+    const lastRowIndex = shape.rowCount - 1
+
+    commands.call(selectRowCommand.key, { pos, index: lastRowIndex })
+    commands.call(addRowAfterCommand.key)
+  }
+
+  const onAppendCol = () => {
+    if (!ctx) return
+    if (!ctx.get(editorViewCtx).editable) return
+
+    const shape = getTableShape()
+    if (!shape || shape.colCount === 0) return
+
+    const commands = ctx.get(commandsCtx)
+    const pos = (getPos?.() ?? 0) + 1
+    const lastColIndex = shape.colCount - 1
+
+    preserveTableScroll(() => {
+      commands.call(selectColCommand.key, { pos, index: lastColIndex })
+      commands.call(addColAfterCommand.key)
+    })
+  }
+
+  const canShrinkRow = () => {
+    const shape = getTableShape()
+    if (!shape || shape.rowCount <= 2) return false
+
+    const lastRowIndex = shape.rowCount - 1
+    return Array.from({ length: shape.colCount }).every((_, colIndex) =>
+      isCellEmpty(lastRowIndex, colIndex)
+    )
+  }
+
+  const canShrinkCol = () => {
+    const shape = getTableShape()
+    if (!shape || shape.colCount <= 1) return false
+
+    const lastColIndex = shape.colCount - 1
+    return Array.from({ length: shape.rowCount }).every((_, rowIndex) =>
+      isCellEmpty(rowIndex, lastColIndex)
+    )
+  }
+
+  const onShrinkRow = () => {
+    if (!ctx) return
+    if (!ctx.get(editorViewCtx).editable) return
+    if (!canShrinkRow()) return
+
+    const shape = getTableShape()
+    if (!shape) return
+    const commands = ctx.get(commandsCtx)
+    const pos = (getPos?.() ?? 0) + 1
+    const lastRowIndex = shape.rowCount - 1
+
+    commands.call(selectRowCommand.key, { pos, index: lastRowIndex })
+    commands.call(deleteSelectedCellsCommand.key)
+  }
+
+  const onShrinkCol = () => {
+    if (!ctx) return
+    if (!ctx.get(editorViewCtx).editable) return
+    if (!canShrinkCol()) return
+
+    const shape = getTableShape()
+    if (!shape) return
+    const commands = ctx.get(commandsCtx)
+    const pos = (getPos?.() ?? 0) + 1
+    const lastColIndex = shape.colCount - 1
+
+    preserveTableScroll(() => {
+      commands.call(selectColCommand.key, { pos, index: lastColIndex })
+      commands.call(deleteSelectedCellsCommand.key)
+    })
+  }
 
   return {
     onAddRow,
     onAddCol,
-    selectCol,
-    selectRow,
-    deleteSelected,
-    onAlign,
+    onAppendRow,
+    onAppendCol,
+    onShrinkRow,
+    onShrinkCol,
+    canShrinkRow,
+    canShrinkCol,
   }
 }
