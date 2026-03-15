@@ -283,6 +283,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
   const [isQuickAddFocused, setIsQuickAddFocused] = useState(false);
   const [highlightedQuickAddIndex, setHighlightedQuickAddIndex] = useState(0);
   const quickAddItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const hasFetchedModels = props.sortedFetchedModels.length > 0;
   const quickAddIds = parseQuickAddModelIds(props.quickAddModelId);
   const quickAddQuery = props.quickAddModelId.split(/[,\uFF0C]/).at(-1)?.trim() ?? '';
   const queuedQuickAddIds = new Set(quickAddIds.slice(0, -1).map((id) => id.toLowerCase()));
@@ -385,109 +386,138 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
     <section className="p-1">
       <div className="overflow-hidden rounded-[28px] border border-zinc-200/85 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.04)]">
         <div className="space-y-4 px-5 py-5">
-          <div className="flex flex-wrap items-center gap-2">
-            <ActionButton
-              label={props.isFetchingModels ? 'Fetching...' : 'Fetch'}
-              icon="common.download"
-              disabled={!props.canUseConnectionActions || props.isFetchingModels}
-              onClick={() => {
-                void props.onFetchModels();
-              }}
-            />
-            <ActionButton
-              label={props.benchmarkAllActive ? 'Stop Benchmark' : 'Benchmark All'}
-              icon="misc.activity"
-              muted
-              disabled={!props.canBenchmark && !props.benchmarkAllActive}
-              busy={props.benchmarkAllActive}
-              onClick={() => {
-                void props.onBenchmark();
-              }}
-            />
-          </div>
+          {hasFetchedModels ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <ActionButton
+                label={props.isFetchingModels ? 'Fetching...' : 'Fetch'}
+                icon="common.download"
+                disabled={!props.canUseConnectionActions || props.isFetchingModels}
+                onClick={() => {
+                  void props.onFetchModels();
+                }}
+              />
+              <ActionButton
+                label={props.benchmarkAllActive ? 'Stop Benchmark' : 'Benchmark All'}
+                icon="misc.activity"
+                muted
+                disabled={!props.canBenchmark && !props.benchmarkAllActive}
+                busy={props.benchmarkAllActive}
+                onClick={() => {
+                  void props.onBenchmark();
+                }}
+              />
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3 rounded-[22px] border border-zinc-200/80 bg-white px-4 py-3">
+              <div className="min-w-0 text-[14px] font-medium text-zinc-800">Models</div>
+              <button
+                type="button"
+                disabled={!props.canUseConnectionActions || props.isFetchingModels}
+                onClick={() => {
+                  void props.onFetchModels();
+                }}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 text-[12px] font-medium text-emerald-700 shadow-[0_8px_18px_rgba(16,185,129,0.08)] transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {props.isFetchingModels ? (
+                  <span className="h-3 w-3 rounded-full border-2 border-zinc-300 border-t-emerald-500 animate-spin" />
+                ) : (
+                  <Icon name="common.download" size="xs" />
+                )}
+                {props.isFetchingModels ? 'Fetching...' : 'Fetch'}
+              </button>
+            </div>
+          )}
 
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-            <div className="relative">
-              <SettingsTextInput
-                type="text"
-                value={props.quickAddModelId}
-                onFocus={() => {
-                  setIsQuickAddFocused(true);
-                }}
-                onBlur={() => setIsQuickAddFocused(false)}
-                onChange={(e) => {
-                  setIsQuickAddFocused(true);
-                  props.onQuickAddModelIdChange(e.target.value);
-                  setHighlightedQuickAddIndex(0);
-                  if (props.quickAddError) {
-                    props.onSetQuickAddError('');
-                  }
-                }}
+          {hasFetchedModels ? (
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="relative">
+                <SettingsTextInput
+                  type="text"
+                  value={props.quickAddModelId}
+                  onFocus={() => {
+                    setIsQuickAddFocused(true);
+                  }}
+                  onBlur={() => setIsQuickAddFocused(false)}
+                  onChange={(e) => {
+                    setIsQuickAddFocused(true);
+                    props.onQuickAddModelIdChange(e.target.value);
+                    setHighlightedQuickAddIndex(0);
+                    if (props.quickAddError) {
+                      props.onSetQuickAddError('');
+                    }
+                  }}
                 onKeyDown={(e) => {
-                  if (showQuickAddSuggestions && e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    setHighlightedQuickAddIndex((current) =>
-                      Math.min(current + 1, quickAddSuggestions.length - 1)
-                    );
-                    return;
-                  }
-
-                  if (showQuickAddSuggestions && e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    setHighlightedQuickAddIndex((current) => Math.max(current - 1, 0));
-                    return;
-                  }
-
-                  if (showQuickAddSuggestions && e.key === 'Escape') {
-                    e.preventDefault();
-                    setIsQuickAddFocused(false);
-                    return;
-                  }
-
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (showQuickAddSuggestions) {
-                      handleSubmitQuickAdd(quickAddSuggestions[highlightedQuickAddIndex]);
+                    if (showQuickAddSuggestions && e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setHighlightedQuickAddIndex((current) =>
+                        Math.min(current + 1, quickAddSuggestions.length - 1)
+                      );
                       return;
                     }
-                    handleSubmitQuickAdd();
+
+                    if (showQuickAddSuggestions && e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setHighlightedQuickAddIndex((current) => Math.max(current - 1, 0));
+                      return;
+                    }
+
+                    if (showQuickAddSuggestions && e.key === 'Escape') {
+                      e.preventDefault();
+                      setIsQuickAddFocused(false);
+                      return;
+                    }
+
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (showQuickAddSuggestions) {
+                        handleSubmitQuickAdd(quickAddSuggestions[highlightedQuickAddIndex]);
+                        return;
+                      }
+                      handleSubmitQuickAdd();
                   }
                 }}
                 placeholder="Add a model ID"
-                leading={<Icon name="common.add" className="h-4 w-4 text-zinc-400" />}
               />
-              {showQuickAddSuggestions ? (
-                <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[22px] border border-zinc-200/90 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-                  <div className="max-h-64 overflow-y-auto p-1.5">
-                    {quickAddSuggestions.map((modelId, index) => (
-                      <button
-                        key={modelId}
-                        ref={(node) => {
-                          quickAddItemRefs.current[index] = node;
-                        }}
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                        }}
-                        onClick={() => handleSelectQuickAddSuggestion(modelId)}
-                        onMouseEnter={() => setHighlightedQuickAddIndex(index)}
-                        className={cn(
-                          'flex w-full items-center rounded-[16px] px-3.5 py-2.5 text-left text-[13px] font-medium transition-colors',
-                          index === highlightedQuickAddIndex
-                            ? 'bg-zinc-100 text-zinc-950'
-                            : 'text-zinc-700 hover:bg-zinc-50 hover:text-zinc-950'
-                        )}
-                      >
-                        <span className="truncate">{modelId}</span>
-                      </button>
-                    ))}
+                {showQuickAddSuggestions ? (
+                  <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[22px] border border-zinc-200/90 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+                    <div className="max-h-64 overflow-y-auto p-1.5">
+                      {quickAddSuggestions.map((modelId, index) => (
+                        <button
+                          key={modelId}
+                          ref={(node) => {
+                            quickAddItemRefs.current[index] = node;
+                          }}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                          }}
+                          onClick={() => handleSelectQuickAddSuggestion(modelId)}
+                          onMouseEnter={() => setHighlightedQuickAddIndex(index)}
+                          className={cn(
+                            'flex w-full items-center rounded-[16px] px-3.5 py-2.5 text-left text-[13px] font-medium transition-colors',
+                            index === highlightedQuickAddIndex
+                              ? 'bg-zinc-100 text-zinc-950'
+                              : 'text-zinc-700 hover:bg-zinc-50 hover:text-zinc-950'
+                          )}
+                        >
+                          <span className="truncate">{modelId}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ) : null}
-            </div>
+                ) : null}
+              </div>
 
-            <ActionButton label="Add" compact onClick={handleSubmitQuickAdd} />
-          </div>
+              <button
+                type="button"
+                aria-label="Add models"
+                onClick={() => handleSubmitQuickAdd()}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+              >
+                <Icon name="common.add" size="md" />
+              </button>
+            </div>
+          ) : null}
 
           {props.quickAddError ? (
             <div className="text-[12px] text-red-500">{props.quickAddError}</div>
@@ -496,60 +526,60 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
             <div className="text-[12px] text-red-500">{props.fetchError}</div>
           ) : null}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <SectionHeader
-                label="Selected"
-                disabled={!props.canBenchmarkSelected}
-                busy={props.selectedBenchmarkActive}
-                onBenchmark={props.onBenchmarkSelected}
-              />
-              {selectedModels.length > 0 ? (
-                selectedModels.map((model) => (
-                  <ModelRow
-                    key={model.id}
-                    model={model.apiModelId}
-                    selected
-                    health={props.healthStatus[model.id]}
-                    onClick={() => props.onDeleteModel(model.id)}
-                    trailing={null}
-                  />
-                ))
-              ) : (
-                <div className="rounded-[18px] border border-zinc-200/80 bg-zinc-50/60 px-3.5 py-3 text-[13px] text-zinc-500">
-                  No models added yet.
-                </div>
-              )}
-            </div>
+          {hasFetchedModels ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <SectionHeader
+                  label="Selected"
+                  disabled={!props.canBenchmarkSelected}
+                  busy={props.selectedBenchmarkActive}
+                  onBenchmark={props.onBenchmarkSelected}
+                />
+                {selectedModels.length > 0 ? (
+                  selectedModels.map((model) => (
+                    <ModelRow
+                      key={model.id}
+                      model={model.apiModelId}
+                      selected
+                      health={props.healthStatus[model.id]}
+                      onClick={() => props.onDeleteModel(model.id)}
+                      trailing={null}
+                    />
+                  ))
+                ) : (
+                  <div className="rounded-[18px] border border-zinc-200/80 bg-zinc-50/60 px-3.5 py-3 text-[13px] text-zinc-500">
+                    No models added yet.
+                  </div>
+                )}
+              </div>
 
-            <div className="space-y-2">
-              <SectionHeader
-                label="Available"
-                disabled={!props.canBenchmarkAvailable}
-                busy={props.availableBenchmarkActive}
-                onBenchmark={props.onBenchmarkAvailable}
-              />
-              {availableModels.length > 0 ? (
-                availableModels.map((modelId) => (
-                  <ModelRow
-                    key={modelId}
-                    model={modelId}
-                    health={props.healthStatus[buildScopedModelId(props.providerId, modelId)]}
-                    onClick={() => {
-                      props.onAddModel(modelId);
-                    }}
-                    trailing={null}
-                  />
-                ))
-              ) : (
-                <div className="rounded-[18px] border border-zinc-200/80 bg-zinc-50/60 px-3.5 py-3 text-[13px] text-zinc-500">
-                  {props.sortedFetchedModels.length > 0
-                    ? 'All fetched models are already selected.'
-                    : 'Fetch models to see available ones here.'}
-                </div>
-              )}
+              <div className="space-y-2">
+                <SectionHeader
+                  label="Available"
+                  disabled={!props.canBenchmarkAvailable}
+                  busy={props.availableBenchmarkActive}
+                  onBenchmark={props.onBenchmarkAvailable}
+                />
+                {availableModels.length > 0 ? (
+                  availableModels.map((modelId) => (
+                    <ModelRow
+                      key={modelId}
+                      model={modelId}
+                      health={props.healthStatus[buildScopedModelId(props.providerId, modelId)]}
+                      onClick={() => {
+                        props.onAddModel(modelId);
+                      }}
+                      trailing={null}
+                    />
+                  ))
+                ) : (
+                  <div className="rounded-[18px] border border-zinc-200/80 bg-zinc-50/60 px-3.5 py-3 text-[13px] text-zinc-500">
+                    All fetched models are already selected.
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
     </section>

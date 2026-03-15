@@ -3,6 +3,7 @@ import { Icon, IconName } from '@/components/ui/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
+import { BlurBackdrop } from '@/components/common/BlurBackdrop';
 import { useModalBehavior } from './hooks/useModalBehavior';
 import { AboutTab } from './tabs/AboutTab';
 import { AppearanceTab } from './tabs/AppearanceTab';
@@ -82,16 +83,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     <AnimatePresence>
       {open && (
         <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-white/20 dark:bg-white/5 z-[100] backdrop-blur-[6px]"
-            onClick={() => {
-              onClose();
-            }}
-          />
+          <BlurBackdrop onClick={onClose} />
 
           <div className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none p-4">
             <div

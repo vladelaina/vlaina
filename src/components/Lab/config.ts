@@ -1,11 +1,10 @@
-import { ChannelTransitionLab } from './playground/ChannelTransitionLab';
+import { ShortcutDialogLab } from './playground/ShortcutDialogLab';
 
-// Lab Registry: Add new experiments here
 export const LAB_MODULES = [
   {
-    id: 'channel-transition',
-    label: 'Channel Motion',
-    component: ChannelTransitionLab,
+    id: 'shortcut-dialog',
+    label: 'Shortcut Dialog',
+    component: ShortcutDialogLab,
   },
 ] as const;
 
