@@ -364,3 +364,49 @@ body[data-chat-selection-freeze="1"],
 body[data-chat-selection-freeze="1"] * {
   user-select: none !important;
 }
+
+html[data-table-resize-selection-lock="1"],
+html[data-table-resize-selection-lock="1"] *,
+body[data-table-resize-selection-lock="1"],
+body[data-table-resize-selection-lock="1"] * {
+  user-select: none !important;
+}
+
+html[data-table-resize-selection-lock="1"] .milkdown .milkdown-table-block .selectedCell::after,
+body[data-table-resize-selection-lock="1"] .milkdown .milkdown-table-block .selectedCell::after {
+  opacity: 0 !important;
+  background: transparent !important;
+}
+
+html[data-table-resize-selection-lock="1"] .milkdown .milkdown-table-block th:has(.ProseMirror-selectednode),
+html[data-table-resize-selection-lock="1"] .milkdown .milkdown-table-block td:has(.ProseMirror-selectednode),
+body[data-table-resize-selection-lock="1"] .milkdown .milkdown-table-block th:has(.ProseMirror-selectednode),
+body[data-table-resize-selection-lock="1"] .milkdown .milkdown-table-block td:has(.ProseMirror-selectednode) {
+  outline: none !important;
+}
+
+html[data-table-resize-selection-lock="1"] .milkdown .milkdown-table-block .ProseMirror-selectednode,
+body[data-table-resize-selection-lock="1"] .milkdown .milkdown-table-block .ProseMirror-selectednode {
+  background: transparent !important;
+}
+
+html[data-table-resize-cursor="col-resize"],
+html[data-table-resize-cursor="col-resize"] *,
+body[data-table-resize-cursor="col-resize"],
+body[data-table-resize-cursor="col-resize"] * {
+  cursor: col-resize !important;
+}
+
+html[data-table-resize-cursor="row-resize"],
+html[data-table-resize-cursor="row-resize"] *,
+body[data-table-resize-cursor="row-resize"],
+body[data-table-resize-cursor="row-resize"] * {
+  cursor: row-resize !important;
+}
+
+html[data-table-resize-cursor="nwse-resize"],
+html[data-table-resize-cursor="nwse-resize"] *,
+body[data-table-resize-cursor="nwse-resize"],
+body[data-table-resize-cursor="nwse-resize"] * {
+  cursor: nwse-resize !important;
+}

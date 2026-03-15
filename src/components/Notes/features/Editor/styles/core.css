@@ -175,3 +175,86 @@
 .neko-block-drag-preview-layer > * {
   pointer-events: none !important;
 }
+
+.milkdown .milkdown-table-block {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.milkdown .milkdown-table-block .table-wrapper {
+  display: inline-block;
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  overflow: visible;
+  vertical-align: top;
+}
+
+.milkdown .milkdown-table-block .handle {
+  position: absolute;
+  font-size: 14px;
+  transition: opacity 0.16s ease-in-out;
+}
+
+.milkdown .milkdown-table-block .line-handle {
+  display: none !important;
+  pointer-events: none;
+}
+
+.milkdown .milkdown-table-block .handle[data-show='false'] {
+  opacity: 0;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone {
+  position: absolute;
+  z-index: 15;
+  opacity: 0;
+  background-color: transparent !important;
+  transition: none;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone::before {
+  display: none;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone:hover {
+  opacity: 0;
+  background-color: transparent !important;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone[data-axis='col'] {
+  top: 0;
+  left: 0;
+  width: 18px;
+  cursor: col-resize;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone[data-axis='col']::before {
+  display: none;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone[data-axis='row'] {
+  left: 0;
+  top: 0;
+  height: 18px;
+  cursor: row-resize;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone[data-axis='row']::before {
+  display: none;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone[data-axis='both'] {
+  top: 0;
+  left: 0;
+  width: 22px;
+  height: 22px;
+  cursor: nwse-resize;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone[data-axis='both']::before {
+  display: none;
+}

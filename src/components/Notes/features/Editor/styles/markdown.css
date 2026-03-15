@@ -238,7 +238,8 @@
 
 /* Tables */
 .milkdown table {
-  width: 100%;
+  width: max-content;
+  max-width: 100%;
   border-collapse: separate;
   /* Required for border-radius */
   border-spacing: 0;
@@ -254,6 +255,7 @@
 .milkdown td {
   border-bottom: 1px solid var(--neko-border);
   border-right: 1px solid var(--neko-border);
+  min-width: 150px;
   padding: 0.5rem 0.75rem;
   text-align: left;
 }

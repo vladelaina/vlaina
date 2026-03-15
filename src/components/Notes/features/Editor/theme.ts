@@ -48,7 +48,7 @@ export const themeClasses = {
     image: 'rounded-md border border-[var(--neko-border)] bg-[var(--neko-bg-tertiary)]',
 
     // Table
-    table: 'w-full caption-bottom text-sm my-[26px] overflow-y-auto',
+    table: 'w-max max-w-full caption-bottom text-sm my-[26px] overflow-y-auto',
     thead: '[&_tr]:border-b border-[var(--neko-border)]',
     tbody: '[&_tr:last-child]:border-0',
     tr: 'border-b border-[var(--neko-border)] transition-colors hover:bg-[var(--neko-bg-hover)] data-[state=selected]:bg-[var(--neko-bg-tertiary)]',

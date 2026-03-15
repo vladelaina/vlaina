@@ -15,6 +15,7 @@ import {
 import type { TableMenuState } from './types';
 import { createEmptyTableNode, getPipeShortcutColumnCount } from './pipeTableShortcut';
 import { findLeadingTableDeleteRange } from './tableDeleteShortcut';
+import { handleTableSelectAll } from './tableSelectAll';
 
 export const tablePluginKey = new PluginKey<TableMenuState>('tableMenu');
 
@@ -98,6 +99,10 @@ export const tablePlugin = $prose(() => {
         const { state } = view;
         const { selection } = state;
         const { $from } = selection;
+
+        if (handleTableSelectAll(view, event)) {
+          return true;
+        }
 
         if (
           event.key === 'Backspace' &&
