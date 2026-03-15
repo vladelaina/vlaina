@@ -90,3 +90,32 @@ export const SettingsTextarea = forwardRef<HTMLTextAreaElement, SettingsTextarea
     );
   }
 );
+
+interface SettingsSwitchProps {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  className?: string;
+}
+
+export function SettingsSwitch({ checked, onChange, className }: SettingsSwitchProps) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'relative inline-flex h-7 w-11 items-center rounded-full p-0.5 transition-colors duration-200',
+        checked ? 'bg-[#d1fae5]' : 'bg-zinc-200 dark:bg-zinc-700',
+        className
+      )}
+    >
+      <span
+        className={cn(
+          'h-6 w-6 rounded-full shadow-[0_1px_4px_rgba(16,185,129,0.2)] transition-transform duration-200',
+          checked ? 'translate-x-4 bg-[#10b981]' : 'translate-x-0 bg-white'
+        )}
+      />
+    </button>
+  );
+}

@@ -5,16 +5,7 @@ import { cn } from '@/lib/utils'
 import { useModelSelectorKeyboard } from './hooks/useModelSelectorKeyboard'
 import { useModelSelectorScroll } from './hooks/useModelSelectorScroll'
 import type { AIModel } from '@/lib/ai/types';
-
-function debugModelSelectorLog(message: string, payload?: Record<string, unknown>) {
-    if (typeof window === 'undefined') {
-        return;
-    }
-    if (window.localStorage.getItem('debug:model-selector') !== '1') {
-        return;
-    }
-    console.info('[ModelSelector]', message, payload ?? {});
-}
+import { isManagedProviderId, MANAGED_PROVIDER_NAME } from '@/lib/ai/managedService'
 
 const ModelOption = memo(({ 
     model, 
@@ -47,7 +38,7 @@ const ModelOption = memo(({
             )}>
                 {model.name}
             </span>
-            
+
             {isSelected && (
                 <Icon name="common.check" size="md" className="text-gray-900 dark:text-gray-100 ml-4 flex-shrink-0" />
             )}
@@ -60,7 +51,7 @@ interface ModelSelectorProps {
 }
 
 export function ModelSelector({ composerInputRef }: ModelSelectorProps) {
-  const { models, selectedModelId, selectModel, getSelectedModel } = useAIStore()
+  const { models, providers, selectedModelId, selectModel, getSelectedModel } = useAIStore()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [focusedModelId, setFocusedModelId] = useState<string | null>(null)
@@ -71,7 +62,15 @@ export function ModelSelector({ composerInputRef }: ModelSelectorProps) {
 
   const selectedModel = getSelectedModel()
 
-  const enabledModels = useMemo(() => models.filter(m => m.enabled), [models]);
+  const enabledProviderIds = useMemo(
+    () => new Set(providers.filter((provider) => provider.enabled !== false).map((provider) => provider.id)),
+    [providers]
+  );
+
+  const enabledModels = useMemo(
+    () => models.filter((model) => model.enabled && enabledProviderIds.has(model.providerId)),
+    [enabledProviderIds, models]
+  );
 
   const filteredModels = useMemo(() => {
       const term = searchQuery.toLowerCase();
@@ -81,6 +80,44 @@ export function ModelSelector({ composerInputRef }: ModelSelectorProps) {
       );
   }, [enabledModels, searchQuery]);
 
+  const groupedFilteredModels = useMemo(() => {
+      const providerMap = new Map(providers.map((provider) => [provider.id, provider]));
+      const modelsByProvider = new Map<string, AIModel[]>();
+
+      filteredModels.forEach((model) => {
+          const existing = modelsByProvider.get(model.providerId);
+          if (existing) {
+              existing.push(model);
+              return;
+          }
+          modelsByProvider.set(model.providerId, [model]);
+      });
+
+      return Array.from(modelsByProvider.entries())
+          .sort(([leftProviderId], [rightProviderId]) => {
+              const leftManaged = isManagedProviderId(leftProviderId);
+              const rightManaged = isManagedProviderId(rightProviderId);
+              if (leftManaged !== rightManaged) {
+                  return leftManaged ? 1 : -1;
+              }
+
+              const leftProvider = providerMap.get(leftProviderId);
+              const rightProvider = providerMap.get(rightProviderId);
+              const leftCreatedAt = leftProvider?.createdAt ?? 0;
+              const rightCreatedAt = rightProvider?.createdAt ?? 0;
+              return leftCreatedAt - rightCreatedAt;
+          })
+          .map(([providerId, providerModels]) => ({
+              providerId,
+              providerName: isManagedProviderId(providerId)
+                ? MANAGED_PROVIDER_NAME
+                : providerMap.get(providerId)?.name || 'Unknown Channel',
+              models: providerModels,
+          }));
+  }, [filteredModels, providers]);
+
+  const showGroupedSections = groupedFilteredModels.length > 1;
+
   const {
       requestCenterScroll,
       requestNearestScroll,
@@ -89,7 +126,6 @@ export function ModelSelector({ composerInputRef }: ModelSelectorProps) {
       isOpen,
       focusedModelId,
       listRef,
-      onDebugLog: debugModelSelectorLog,
   });
 
   const focusSearchInput = useCallback(() => {
@@ -115,7 +151,6 @@ export function ModelSelector({ composerInputRef }: ModelSelectorProps) {
       const initialFocusedId = selectedModelId ?? null;
       requestCenterScroll();
       setFocusedModelId(initialFocusedId);
-      debugModelSelectorLog('open-initial-focus', { selectedModelId: initialFocusedId, from: source });
       setIsOpen(true);
       focusSearchInput();
   }, [focusSearchInput, requestCenterScroll, selectedModelId]);
@@ -252,16 +287,44 @@ export function ModelSelector({ composerInputRef }: ModelSelectorProps) {
                 No models found
               </div>
             ) : (
-              <div className="flex flex-col">
-                {filteredModels.map(model => (
-                                            <ModelOption 
-                                                key={model.id}
-                                                model={model}
-                                                isSelected={selectedModelId === model.id}
-                                                isFocused={focusedModelId === model.id}
-                                                onSelect={handleSelectModel}
-                                                onHover={handleHover}
-                                            />                ))}
+              <div className={cn("flex flex-col", showGroupedSections && "gap-2")}>
+                {groupedFilteredModels.map((group) => (
+                  <div key={group.providerId} className={cn(showGroupedSections && "px-1")}>
+                    {showGroupedSections ? (
+                      <>
+                        <div className="px-2 pt-2 pb-1 text-[11px] font-medium text-neutral-400">
+                          {group.providerName}
+                        </div>
+                        <div className="border-t border-neutral-100" />
+                        <div className="pt-1">
+                          {group.models.map(model => (
+                            <ModelOption 
+                              key={model.id}
+                              model={model}
+                              isSelected={selectedModelId === model.id}
+                              isFocused={focusedModelId === model.id}
+                              onSelect={handleSelectModel}
+                              onHover={handleHover}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {group.models.map(model => (
+                          <ModelOption 
+                            key={model.id}
+                            model={model}
+                            isSelected={selectedModelId === model.id}
+                            isFocused={focusedModelId === model.id}
+                            onSelect={handleSelectModel}
+                            onHover={handleHover}
+                          />
+                        ))}
+                      </>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>

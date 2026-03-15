@@ -101,3 +101,11 @@ export function normalizeApiHost(url: string): string {
     return url
   }
 }
+
+export function buildOpenAIBaseUrl(url: string): string {
+  const normalizedHost = normalizeApiHost(url)
+    .replace(/\/(chat\/completions|responses|embeddings|images\/generations|models)$/i, '')
+    .replace(/\/v1$/i, '')
+
+  return `${normalizedHost}/v1`
+}

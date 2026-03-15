@@ -1,5 +1,5 @@
 import type { TimeView } from '@/lib/date';
-import type { Provider, AIModel, ChatMessage, ChatSession } from '@/lib/ai/types';
+import type { Provider, AIModel, ChatMessage, ChatSession, ProviderBenchmarkRecord } from '@/lib/ai/types';
 import {
   DEFAULT_TIMEZONE,
   DEFAULT_VIEW_MODE,
@@ -52,6 +52,8 @@ export interface UnifiedData {
   ai?: {
     providers: Provider[];
     models: AIModel[];
+    benchmarkResults?: Record<string, ProviderBenchmarkRecord>;
+    fetchedModels?: Record<string, string[]>;
     sessions: ChatSession[];
     messages: Record<string, ChatMessage[]>;
     selectedModelId: string | null;

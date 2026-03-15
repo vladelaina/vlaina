@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { useUnifiedStore } from './unified/useUnifiedStore'
 import { useAccountSessionStore } from './accountSession'
 import { useManagedAIStore } from './useManagedAIStore'
-import type { Provider, AIModel, ChatMessage, ChatSession, MessageVersion } from '@/lib/ai/types'
+import type { Provider, AIModel, ChatMessage, ChatSession, MessageVersion, ProviderBenchmarkRecord } from '@/lib/ai/types'
 import { buildScopedModelId, generateModelName, generateModelGroup } from '@/lib/ai/utils'
 import { saveSessionJson, loadSessionJson, scheduleSessionJsonSave, cancelSessionJsonSave, deleteSessionJson } from '@/lib/storage/chatStorage'
 import { requestManager } from '@/lib/ai/requestManager'
@@ -129,6 +129,13 @@ function replaceProviderModels(allModels: AIModel[], providerId: string, nextMod
   return [...otherModels, ...nextModels]
 }
 
+function filterModelsByEnabledProviders(models: AIModel[], providers: Provider[]): AIModel[] {
+  const enabledProviderIds = new Set(
+    providers.filter((provider) => provider.enabled !== false).map((provider) => provider.id)
+  )
+  return models.filter((model) => enabledProviderIds.has(model.providerId))
+}
+
 export const actions = {
   addProvider: (provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>) => {
     const id = `provider-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
@@ -145,11 +152,15 @@ export const actions = {
       return
     }
     const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
     const providers = state.data.ai?.providers || [];
+    const nextProviders = providers.map((p) =>
+      p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p
+    );
+    const enabledModels = filterModelsByEnabledProviders(ai.models, nextProviders)
     state.updateAIData({
-      providers: providers.map((p) =>
-        p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p
-      )
+      providers: nextProviders,
+      selectedModelId: chooseFallbackSelectedModelId(ai.selectedModelId, enabledModels)
     })
   },
 
@@ -160,9 +171,15 @@ export const actions = {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
     const remainingModels = ai.models.filter((m) => m.providerId !== id)
+    const nextBenchmarkResults = { ...(ai.benchmarkResults || {}) }
+    const nextFetchedModels = { ...(ai.fetchedModels || {}) }
+    delete nextBenchmarkResults[id]
+    delete nextFetchedModels[id]
     state.updateAIData({
       providers: ai.providers.filter((p) => p.id !== id),
       models: remainingModels,
+      benchmarkResults: nextBenchmarkResults,
+      fetchedModels: nextFetchedModels,
       selectedModelId: chooseFallbackSelectedModelId(
         ai.selectedModelId && ai.models.find(m => m.id === ai.selectedModelId)?.providerId === id ? null : ai.selectedModelId,
         remainingModels
@@ -222,10 +239,69 @@ export const actions = {
   deleteModel: (id: string) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
+    const model = ai.models.find((item) => item.id === id)
+    const nextBenchmarkResults = { ...(ai.benchmarkResults || {}) }
+    if (model) {
+      const currentProviderResults = nextBenchmarkResults[model.providerId]
+      if (currentProviderResults?.items[id]) {
+        const nextItems = { ...currentProviderResults.items }
+        delete nextItems[id]
+        nextBenchmarkResults[model.providerId] = {
+          ...currentProviderResults,
+          items: nextItems,
+          updatedAt: Date.now(),
+        }
+      }
+    }
     state.updateAIData({
       models: ai.models.filter((m) => m.id !== id),
+      benchmarkResults: nextBenchmarkResults,
       selectedModelId: ai.selectedModelId === id ? null : ai.selectedModelId
     })
+  },
+
+  setProviderBenchmarkResults: (providerId: string, record: ProviderBenchmarkRecord) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    state.updateAIData({
+      benchmarkResults: {
+        ...(ai.benchmarkResults || {}),
+        [providerId]: record,
+      }
+    });
+  },
+
+  clearProviderBenchmarkResults: (providerId: string) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    if (!ai.benchmarkResults?.[providerId]) {
+      return;
+    }
+    const nextBenchmarkResults = { ...ai.benchmarkResults };
+    delete nextBenchmarkResults[providerId];
+    state.updateAIData({ benchmarkResults: nextBenchmarkResults });
+  },
+
+  setProviderFetchedModels: (providerId: string, modelIds: string[]) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    state.updateAIData({
+      fetchedModels: {
+        ...(ai.fetchedModels || {}),
+        [providerId]: [...new Set(modelIds)],
+      }
+    });
+  },
+
+  clearProviderFetchedModels: (providerId: string) => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    if (!ai.fetchedModels?.[providerId]) {
+      return;
+    }
+    const nextFetchedModels = { ...ai.fetchedModels };
+    delete nextFetchedModels[providerId];
+    state.updateAIData({ fetchedModels: nextFetchedModels });
   },
 
   selectModel: (modelId: string | null) => {
@@ -877,6 +953,8 @@ export const useAIStore = () => {
   return {
     providers: aiData?.providers || [],
     models: aiData?.models || [],
+    benchmarkResults: aiData?.benchmarkResults || {},
+    fetchedModels: aiData?.fetchedModels || {},
     sessions: aiData?.sessions || [],
     currentSessionId: aiData?.currentSessionId || null,
     messages: aiData?.messages || {},
@@ -890,8 +968,18 @@ export const useAIStore = () => {
 
     getProvider: (id: string) => aiData?.providers.find(p => p.id === id),
     getModel: (id: string) => aiData?.models.find(m => m.id === id),
-    getSelectedModel: () => aiData?.selectedModelId ? aiData.models.find(m => m.id === aiData.selectedModelId) : undefined,
-    getModelsByProvider: (pid: string) => aiData?.models.filter(m => m.providerId === pid && m.enabled) || [],
+    getSelectedModel: () => {
+      if (!aiData?.selectedModelId) return undefined
+      const selectedModel = aiData.models.find(m => m.id === aiData.selectedModelId)
+      if (!selectedModel) return undefined
+      const provider = aiData.providers.find((item) => item.id === selectedModel.providerId)
+      return provider?.enabled === false ? undefined : selectedModel
+    },
+    getModelsByProvider: (pid: string) => {
+      const provider = aiData?.providers.find((item) => item.id === pid)
+      if (provider?.enabled === false) return []
+      return aiData?.models.filter(m => m.providerId === pid && m.enabled) || []
+    },
     isTemporarySession: (sessionId: string) => {
       const session = aiData?.sessions.find((item) => item.id === sessionId);
       return isTemporarySessionId(sessionId) || isTemporarySession(session);
@@ -900,6 +988,13 @@ export const useAIStore = () => {
     isSessionLoading: (sessionId: string) => !!uiState.generatingSessions[sessionId],
     isSessionUnread: (sessionId: string) => !!uiState.unreadSessions[sessionId],
     isLoading: aiData?.currentSessionId ? !!uiState.generatingSessions[aiData.currentSessionId] : false,
-    selectedModel: aiData?.selectedModelId ? aiData.models.find(m => m.id === aiData.selectedModelId) : undefined
+    selectedModel: aiData?.selectedModelId
+      ? (() => {
+          const model = aiData.models.find(m => m.id === aiData.selectedModelId)
+          if (!model) return undefined
+          const provider = aiData.providers.find((item) => item.id === model.providerId)
+          return provider?.enabled === false ? undefined : model
+        })()
+      : undefined
   };
 };

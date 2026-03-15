@@ -112,12 +112,18 @@ export function useChatShortcuts(
       }
 
       if (e.shiftKey && e.key === 'ArrowUp') {
+        if (isEditableTarget(e.target)) {
+          return;
+        }
         e.preventDefault();
         navigateMessages('prev');
         return;
       }
 
       if (e.shiftKey && e.key === 'ArrowDown') {
+        if (isEditableTarget(e.target)) {
+          return;
+        }
         e.preventDefault();
         navigateMessages('next');
         return;

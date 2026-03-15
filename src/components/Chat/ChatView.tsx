@@ -35,6 +35,7 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
     currentSessionId, 
     switchSession,
     switchMessageVersion, 
+    providers,
     selectedModel,
     models,
     selectModel,
@@ -79,12 +80,19 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
       isStreaming: isSessionActive,
       chatId: currentSessionId
   });
+
+  const firstEnabledModel = useMemo(() => {
+    const enabledProviderIds = new Set(
+      providers.filter((provider) => provider.enabled !== false).map((provider) => provider.id)
+    );
+    return models.find((model) => enabledProviderIds.has(model.providerId));
+  }, [models, providers]);
   
   useEffect(() => {
-      if (!selectedModel && models.length > 0) {
-          selectModel(models[0].id);
+      if (!selectedModel && firstEnabledModel) {
+          selectModel(firstEnabledModel.id);
       }
-  }, [models, selectedModel, selectModel]);
+  }, [firstEnabledModel, selectedModel, selectModel]);
 
   useEffect(() => {
       setFocusInputTrigger(n => n + 1);

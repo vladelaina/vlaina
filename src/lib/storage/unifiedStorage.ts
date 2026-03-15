@@ -140,6 +140,8 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     combinedData.ai = {
         providers: [],
         models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
         sessions: [],
         selectedModelId: null,
         currentSessionId: null,
@@ -191,6 +193,12 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
                 combinedData.ai!.providers.push(p.provider);
                 if (p.models) {
                     combinedData.ai!.models.push(...p.models);
+                }
+                if (p.benchmarkResults) {
+                    combinedData.ai!.benchmarkResults![p.provider.id] = p.benchmarkResults;
+                }
+                if (Array.isArray(p.fetchedModels)) {
+                    combinedData.ai!.fetchedModels![p.provider.id] = p.fetchedModels;
                 }
             }
         });
@@ -269,7 +277,9 @@ async function performSplitSave(data: UnifiedData) {
             const pModels = ai.models.filter(m => m.providerId === provider.id);
             const pData = {
                 provider: sanitizeProviderForDisk(provider),
-                models: pModels
+                models: pModels,
+                benchmarkResults: ai.benchmarkResults?.[provider.id],
+                fetchedModels: ai.fetchedModels?.[provider.id] || []
             };
             const pPath = await joinPath(channelsDir, `${provider.id}.json`);
             await storage.writeFile(pPath, JSON.stringify(pData, null, 2));

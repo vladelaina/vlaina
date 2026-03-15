@@ -126,6 +126,16 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               exit={{ opacity: 0, scale: 0.96, y: 10 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               className="w-[1080px] h-[720px] max-w-full max-h-[90vh] bg-white dark:bg-[#1C1C1C] rounded-[16px] shadow-2xl flex overflow-hidden pointer-events-auto ring-1 ring-black/5 dark:ring-white/5 select-none"
+              onMouseDownCapture={(e) => {
+                if (e.button === 1) {
+                  e.preventDefault();
+                }
+              }}
+              onAuxClickCapture={(e) => {
+                if (e.button === 1) {
+                  e.preventDefault();
+                }
+              }}
               onClick={(e) => e.stopPropagation()}
               role="dialog"
               aria-modal="true"
@@ -177,10 +187,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </div>
 
               <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#1E1E1E] relative">
-                <div className="absolute top-5 right-5 z-20">
+                <div className="absolute top-3.5 right-5 z-20">
                   <button
                     onClick={onClose}
-                    className="p-2 rounded-full text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-all duration-200"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors duration-200"
                   >
                     <Icon name="common.close" className="w-5 h-5" />
                   </button>

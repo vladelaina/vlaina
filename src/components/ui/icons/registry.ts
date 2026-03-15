@@ -92,6 +92,7 @@ import { TemporaryChatOffIcon } from './custom/mit/TemporaryChatOffIcon';
 import { TemporaryChatOnIcon } from './custom/mit/TemporaryChatOnIcon';
 import { PrimerPinIcon } from './custom/mit/PrimerPinIcon';
 import { PrimerUnpinIcon } from './custom/mit/PrimerUnpinIcon';
+import { ActivityIcon } from './custom/mit/ActivityIcon';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
@@ -223,7 +224,7 @@ export const icons: Record<string, IconSource> = {
   'misc.star': StarIcon,
   'misc.heart': HeartIcon,
   'misc.shuffle': ArrowsRightLeftIcon,
-  'misc.activity': ChartPieIcon, 
+  'misc.activity': ActivityIcon,
   'misc.lab': BeakerIcon,
   'misc.box': ArchiveBoxIcon,
   // --- Legacy / Compatibility ---
