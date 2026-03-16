@@ -283,9 +283,16 @@ interface MilkdownNodeAttrSpec {
 }
 
 interface MilkdownCtx {
+  inject<T>(token: MilkdownCtxToken<T>, value?: T): MilkdownCtx;
+  remove<T>(token: MilkdownCtxToken<T> | string): MilkdownCtx;
+  record(timer: MilkdownTimerType): MilkdownCtx;
+  clearTimer(timer: MilkdownTimerType): MilkdownCtx;
   set<T>(token: MilkdownCtxToken<T>, value: T): void;
   get<T>(token: MilkdownCtxToken<T>): T;
   update<T>(token: MilkdownCtxToken<T>, updater: (prev: T) => T): void;
+  done(timer: MilkdownTimerType): void;
+  wait(timer: MilkdownTimerType): Promise<void>;
+  waitTimers(token: MilkdownCtxToken<MilkdownTimerType[]>): Promise<void>;
 }
 
 interface MilkdownEditorInstance {
@@ -310,6 +317,14 @@ type MilkdownCommand = (
 ) => boolean;
 
 type MilkdownCommandFactory = (...args: any[]) => MilkdownCommand;
+type MilkdownRunner = () => void | Promise<void> | (() => void | Promise<void>) | Promise<() => void | Promise<void>>;
+type MilkdownPlugin = ((ctx: MilkdownCtx) => MilkdownRunner) & { meta?: Record<string, any> };
+
+interface MilkdownTimerType {
+  readonly id: symbol;
+  readonly name: string;
+  readonly timeout: number;
+}
 
 declare module '@milkdown/kit/core' {
   export const rootCtx: MilkdownCtxToken<HTMLElement>;
@@ -327,6 +342,18 @@ declare module '@milkdown/kit/core' {
 
 declare module '@milkdown/kit/ctx' {
   export type Ctx = MilkdownCtx;
+}
+
+declare module '@milkdown/core' {
+  export const remarkPluginsCtx: MilkdownCtxToken<any[]>;
+  export const schemaTimerCtx: MilkdownCtxToken<MilkdownTimerType[]>;
+}
+
+declare module '@milkdown/ctx' {
+  export type Ctx = MilkdownCtx;
+  export type MilkdownPlugin = globalThis.MilkdownPlugin;
+  export type TimerType = MilkdownTimerType;
+  export function createTimer(name: string, timeout?: number): MilkdownTimerType;
 }
 
 declare module '@milkdown/kit/plugin/history' {
@@ -379,6 +406,13 @@ declare module '@milkdown/kit/preset/gfm' {
   export const tableHeaderSchema: any;
   export const tableCellSchema: any;
   export const insertTableCommand: CommandKeyLike;
+}
+
+declare module '@milkdown/kit/component/table-block' {
+  export const tableBlock: any;
+  export const tableBlockConfig: MilkdownCtxToken<{
+    renderButton: (renderType: string) => string;
+  }>;
 }
 
 declare module '@milkdown/kit/prose/commands' {

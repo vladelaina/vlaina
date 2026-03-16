@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
-import Cropper from 'react-easy-crop';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import type { LoadedCoverMedia } from '../coverRenderer.types';
+import { getBaseDimensions } from '../../../utils/coverUtils';
+import { useCoverCropperInteraction } from '../hooks/useCoverCropperInteraction';
 
 interface CoverCropperLayerProps {
   displaySrc: string;
   isImageReady: boolean;
   isResizing: boolean;
+  mediaSize: { width: number; height: number } | null;
   wrapperRef: React.RefObject<HTMLDivElement | null>;
   crop: { x: number; y: number };
   zoom: number;
@@ -28,6 +30,7 @@ export function CoverCropperLayer({
   displaySrc,
   isImageReady,
   isResizing,
+  mediaSize,
   wrapperRef,
   crop,
   zoom,
@@ -44,64 +47,132 @@ export function CoverCropperLayer({
   onInteractionEnd,
   onMediaLoaded,
 }: CoverCropperLayerProps) {
-  const cropperStyle = useMemo(() => ({
-    containerStyle: { backgroundColor: 'transparent' },
-    cropAreaStyle: {
-      border: 'none',
-      boxShadow: 'none',
-      color: 'transparent',
-      outline: 'none',
-      background: 'transparent',
-    },
-    mediaStyle: {
-      willChange: 'transform',
-      backfaceVisibility: 'hidden' as 'hidden',
-      transform: 'translateZ(0)',
-      maxWidth: 'none',
-      maxHeight: 'none',
-    },
-  }), []);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const lastLoadedMediaKeyRef = useRef<string | null>(null);
 
-  const mediaProps = useMemo(() => ({
-    style: {
-      willChange: 'transform',
-      backfaceVisibility: 'hidden' as 'hidden',
-      transform: 'translateZ(0)',
-      maxWidth: 'none',
-    },
-  }), []);
+  const baseDimensions = useMemo(() => {
+    if (!effectiveContainerSize || !mediaSize) {
+      return null;
+    }
+
+    return getBaseDimensions(mediaSize, effectiveContainerSize);
+  }, [effectiveContainerSize, mediaSize]);
+
+  const imageStyle = useMemo(() => {
+    if (!baseDimensions) {
+      const fallbackSizing =
+        objectFitMode === 'vertical-cover'
+          ? { width: 'auto', height: '100%' }
+          : { width: '100%', height: 'auto' };
+
+      return {
+        ...fallbackSizing,
+        left: '50%',
+        top: '50%',
+        transform: `translate(calc(-50% + ${crop.x}px), calc(-50% + ${crop.y}px)) scale(${zoom})`,
+      };
+    }
+
+    return {
+      width: `${baseDimensions.width}px`,
+      height: `${baseDimensions.height}px`,
+      left: '50%',
+      top: '50%',
+      transform: `translate(calc(-50% + ${crop.x}px), calc(-50% + ${crop.y}px)) scale(${zoom})`,
+    };
+  }, [baseDimensions, crop.x, crop.y, objectFitMode, zoom]);
+
+  const emitMediaLoaded = useCallback(() => {
+    const image = imageRef.current;
+    if (!image || !image.naturalWidth || !image.naturalHeight) return;
+
+    const media = {
+      width: image.clientWidth || image.naturalWidth,
+      height: image.clientHeight || image.naturalHeight,
+      naturalWidth: image.naturalWidth,
+      naturalHeight: image.naturalHeight,
+    };
+    const mediaKey = `${displaySrc}::${media.width}x${media.height}::${media.naturalWidth}x${media.naturalHeight}`;
+
+    if (lastLoadedMediaKeyRef.current === mediaKey) {
+      return;
+    }
+
+    lastLoadedMediaKeyRef.current = mediaKey;
+    onMediaLoaded(media);
+  }, [displaySrc, onMediaLoaded]);
+
+  useEffect(() => {
+    lastLoadedMediaKeyRef.current = null;
+  }, [displaySrc]);
+
+  useEffect(() => {
+    emitMediaLoaded();
+  }, [emitMediaLoaded]);
+
+  const {
+    bindWheelTarget,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerEnd,
+  } = useCoverCropperInteraction({
+    displaySrc,
+    crop,
+    zoom,
+    effectiveMinZoom,
+    effectiveMaxZoom,
+    onCropperCropChange,
+    onCropperZoomChange,
+    onPointerIntent,
+    onPointerMoveIntent,
+    onNonPointerIntent,
+    onInteractionStart,
+    onInteractionEnd,
+  });
+
+  const setWrapperNode = useCallback((node: HTMLDivElement | null) => {
+    bindWheelTarget(node);
+    (wrapperRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+  }, [bindWheelTarget, wrapperRef]);
 
   if (isResizing) return null;
 
   return (
     <div
-      ref={wrapperRef}
+      ref={setWrapperNode}
       className={cn('absolute -inset-px', isImageReady ? 'opacity-100' : 'opacity-0')}
-      style={{ willChange: 'transform' }}
-      onPointerDownCapture={(e) => onPointerIntent(e.clientX, e.clientY)}
-      onPointerMoveCapture={(e) => onPointerMoveIntent(e.clientX, e.clientY)}
-      onWheelCapture={onNonPointerIntent}
+      style={{
+        willChange: 'transform',
+        touchAction: 'none',
+        overscrollBehavior: 'none',
+        overflowAnchor: 'none',
+      }}
+      data-testid="cover-cropper"
+      data-object-fit={objectFitMode}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerEnd}
+      onPointerCancel={handlePointerEnd}
+      onLostPointerCapture={handlePointerEnd}
       onKeyDownCapture={onNonPointerIntent}
     >
-      <Cropper
-        image={displaySrc || undefined}
-        crop={crop}
-        zoom={zoom}
-        cropSize={effectiveContainerSize ?? undefined}
-        minZoom={effectiveMinZoom}
-        maxZoom={effectiveMaxZoom}
-        objectFit={objectFitMode}
-        restrictPosition={true}
-        zoomWithScroll={true}
-        showGrid={false}
-        onCropChange={onCropperCropChange}
-        onZoomChange={onCropperZoomChange}
-        onInteractionStart={onInteractionStart}
-        onInteractionEnd={onInteractionEnd}
-        onMediaLoaded={onMediaLoaded}
-        style={cropperStyle}
-        mediaProps={mediaProps}
-      />
+      {displaySrc ? (
+        <img
+          ref={imageRef}
+          src={displaySrc}
+          alt="Cover Cropper"
+          draggable={false}
+          onLoad={emitMediaLoaded}
+          className="absolute select-none pointer-events-none max-w-none"
+          style={{
+            ...imageStyle,
+            willChange: 'transform',
+            backfaceVisibility: 'hidden',
+            transformOrigin: 'center center',
+            userSelect: 'none',
+          }}
+        />
+      ) : null}
     </div>
   );
 }

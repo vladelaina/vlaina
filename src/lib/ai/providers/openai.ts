@@ -1,16 +1,29 @@
 import type { AIClient } from '../client'
 import type { Provider, AIModel, ChatCompletionRequest, ChatMessage, ChatMessageContent, ChatSendOptions } from '../types'
 import { parseAPIError, parseHTTPError } from '../errors'
-import { normalizeApiHost, resolveApiModelId } from '../utils'
+import { buildOpenAIBaseUrl, resolveApiModelId } from '../utils'
 import {
   fetchManagedModels,
   MANAGED_PROVIDER_ID,
+  requestManagedChatCompletion,
   requestManagedChatCompletionStream,
 } from '@/lib/ai/managedService'
 import { consumeOpenAIStream } from '@/lib/ai/streaming'
 
 export class OpenAICompatibleClient implements AIClient {
   private readonly timeout = 300000
+
+  private extractManagedResponseContent(payload: Record<string, unknown>): string {
+    const choices = Array.isArray(payload.choices) ? payload.choices : []
+    const firstChoice = choices[0]
+    if (!firstChoice || typeof firstChoice !== 'object') return ''
+
+    const message = (firstChoice as Record<string, unknown>).message
+    if (!message || typeof message !== 'object') return ''
+
+    const content = (message as Record<string, unknown>).content
+    return typeof content === 'string' ? content : ''
+  }
 
   private buildChatRequest(
     message: ChatMessageContent,
@@ -37,7 +50,21 @@ export class OpenAICompatibleClient implements AIClient {
     onChunk?: (chunk: string) => void,
     signal?: AbortSignal
   ): Promise<string> {
-    return requestManagedChatCompletionStream(body, onChunk || (() => {}), signal)
+    if (body.stream === false) {
+      const payload = await requestManagedChatCompletion({
+        ...body,
+        stream: false,
+      } as unknown as Record<string, unknown>)
+      const content = this.extractManagedResponseContent(payload)
+      ;(onChunk || (() => {}))(content)
+      return content
+    }
+
+    return requestManagedChatCompletionStream(
+      body as unknown as Record<string, unknown>,
+      onChunk || (() => {}),
+      signal
+    )
   }
 
   private async resolveApiKey(provider: Provider): Promise<string> {
@@ -64,8 +91,7 @@ export class OpenAICompatibleClient implements AIClient {
     }
 
     const apiKey = await this.resolveApiKey(provider)
-    const host = normalizeApiHost(provider.apiHost)
-    const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
+    const baseUrl = buildOpenAIBaseUrl(provider.apiHost)
     const url = `${baseUrl}/chat/completions`
     const headers = {
       Authorization: `Bearer ${apiKey}`,
@@ -128,8 +154,7 @@ export class OpenAICompatibleClient implements AIClient {
       }
 
       const apiKey = await this.resolveApiKey(provider)
-      const host = normalizeApiHost(provider.apiHost)
-      const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
+      const baseUrl = buildOpenAIBaseUrl(provider.apiHost)
       const url = `${baseUrl}/models`
 
       const controller = new AbortController()
@@ -157,8 +182,7 @@ export class OpenAICompatibleClient implements AIClient {
     }
 
     const apiKey = await this.resolveApiKey(provider)
-    const host = normalizeApiHost(provider.apiHost)
-    const baseUrl = host.endsWith('/v1') ? host : `${host}/v1`
+    const baseUrl = buildOpenAIBaseUrl(provider.apiHost)
     const url = `${baseUrl}/models`
 
     const controller = new AbortController()

@@ -1,6 +1,6 @@
 import type { AccountProvider } from '@/stores/accountSession/state';
-import type { Channel } from '@tauri-apps/api/core';
 import { safeInvoke } from './invoke';
+import { listen } from '@tauri-apps/api/event';
 
 export const accountCommands = {
   async getAccountSessionStatus() {
@@ -99,15 +99,82 @@ export const accountCommands = {
     });
   },
 
-  async managedChatCompletionStream<T>(body: object, onEvent: Channel<T>) {
-    return safeInvoke<Record<string, unknown>>(
-      'managed_chat_completion_stream',
-      { body, onEvent },
-      {
-        throwOnWeb: true,
-        webErrorMessage: 'Managed streaming is not available on web platform via Tauri command',
+  async managedChatCompletionStream(
+    body: Record<string, unknown>,
+    onChunk: (chunk: string) => void,
+    signal?: AbortSignal
+  ) {
+    const requestId = `managed-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const chunkEvent = `managed-chat-stream:${requestId}:chunk`;
+    const doneEvent = `managed-chat-stream:${requestId}:done`;
+    const errorEvent = `managed-chat-stream:${requestId}:error`;
+
+    let fullContent = '';
+
+    return await new Promise<string>(async (resolve, reject) => {
+      const cleanupCallbacks: Array<() => void> = [];
+      const cleanup = () => {
+        while (cleanupCallbacks.length > 0) {
+          const dispose = cleanupCallbacks.pop();
+          try {
+            dispose?.();
+          } catch {
+            // no-op
+          }
+        }
+      };
+
+      const abortHandler = () => {
+        cleanup();
+        reject(new DOMException('The operation was aborted', 'AbortError'));
+      };
+
+      if (signal) {
+        if (signal.aborted) {
+          abortHandler();
+          return;
+        }
+        signal.addEventListener('abort', abortHandler, { once: true });
+        cleanupCallbacks.push(() => signal.removeEventListener('abort', abortHandler));
       }
-    );
+
+      try {
+        const unlistenChunk = await listen<string>(chunkEvent, (event) => {
+          if (typeof event.payload !== 'string') {
+            return;
+          }
+          fullContent = event.payload;
+          onChunk(fullContent);
+        });
+        cleanupCallbacks.push(unlistenChunk);
+
+        const unlistenDone = await listen<string | null>(doneEvent, (event) => {
+          if (typeof event.payload === 'string') {
+            fullContent = event.payload;
+          }
+          cleanup();
+          resolve(fullContent);
+        });
+        cleanupCallbacks.push(unlistenDone);
+
+        const unlistenError = await listen<string>(errorEvent, (event) => {
+          cleanup();
+          reject(new Error(typeof event.payload === 'string' ? event.payload : 'Managed stream failed'));
+        });
+        cleanupCallbacks.push(unlistenError);
+
+        await safeInvoke('managed_chat_completion_stream', {
+          requestId,
+          body,
+        }, {
+          webFallback: undefined,
+          throwOnWeb: true,
+        });
+      } catch (error) {
+        cleanup();
+        reject(error);
+      }
+    });
   },
 
   async accountDisconnect() {

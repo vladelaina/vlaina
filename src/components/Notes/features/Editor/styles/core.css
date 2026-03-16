@@ -175,3 +175,119 @@
 .neko-block-drag-preview-layer > * {
   pointer-events: none !important;
 }
+
+.milkdown .milkdown-table-block {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin: 4px 0;
+}
+
+.milkdown .milkdown-table-block .table-wrapper {
+  display: block;
+  position: relative;
+  width: var(--table-block-max-width, 100%);
+  max-width: var(--table-block-max-width, 100%);
+  margin-left: calc(-1 * var(--table-block-bleed-left, 0px));
+  overflow: visible;
+}
+
+.milkdown .milkdown-table-block .table-scroll {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overflow-anchor: none;
+  overscroll-behavior-x: contain;
+}
+
+.milkdown .milkdown-table-block .table-scroll-track {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+}
+
+.milkdown .milkdown-table-block .table-scroll-spacer {
+  flex: none;
+}
+
+.milkdown .milkdown-table-block .table-scroll-spacer[data-side='start'] {
+  width: var(--table-block-scroll-start, 0px);
+}
+
+.milkdown .milkdown-table-block .table-scroll-spacer[data-side='end'] {
+  width: var(--table-block-scroll-end, 0px);
+}
+
+.milkdown .milkdown-table-block .table-scroll .children {
+  flex: none;
+  min-width: var(--table-block-table-min-width, 100%);
+  max-width: none;
+}
+
+.milkdown .milkdown-table-block .handle {
+  position: absolute;
+  font-size: 14px;
+  transition: opacity 0.16s ease-in-out;
+}
+
+.milkdown .milkdown-table-block .line-handle {
+  display: none !important;
+  pointer-events: none;
+}
+
+.milkdown .milkdown-table-block .handle[data-show='false'] {
+  opacity: 0;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone {
+  position: absolute;
+  z-index: 15;
+  opacity: 0;
+  background-color: transparent !important;
+  transition: none;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone::before {
+  display: none;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone:hover {
+  opacity: 0;
+  background-color: transparent !important;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone[data-axis='col'] {
+  top: 0;
+  left: 0;
+  width: 18px;
+  cursor: col-resize;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone[data-axis='col']::before {
+  display: none;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone[data-axis='row'] {
+  left: 0;
+  top: 0;
+  height: 18px;
+  cursor: row-resize;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone[data-axis='row']::before {
+  display: none;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone[data-axis='both'] {
+  top: 0;
+  left: 0;
+  width: 22px;
+  height: 22px;
+  cursor: nwse-resize;
+}
+
+.milkdown .milkdown-table-block .edge-create-zone[data-axis='both']::before {
+  display: none;
+}

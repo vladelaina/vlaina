@@ -38,6 +38,9 @@ export const EDITOR_ICONS = {
   text: `<svg width="${EDITOR_ICON_SIZE}" height="${EDITOR_ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <path d="M4 7V4h16v3M9 20h6M12 4v16"/>
   </svg>`,
+  star: `<svg width="${EDITOR_ICON_SIZE}" height="${EDITOR_ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.2 1 5.9L12 17l-5.2 2.8 1-5.9-4.3-4.2 5.9-.9L12 3.5z"></path>
+  </svg>`,
   chevronDown: `<svg width="${EDITOR_ICON_SIZE}" height="${EDITOR_ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <polyline points="6 9 12 15 18 9"></polyline>
   </svg>`,
@@ -45,6 +48,11 @@ export const EDITOR_ICONS = {
     <line x1="4" y1="6" x2="20" y2="6"></line>
     <line x1="4" y1="12" x2="14" y2="12"></line>
     <line x1="4" y1="18" x2="18" y2="18"></line>
+  </svg>`,
+  align: `<svg width="${EDITOR_ICON_SIZE}" height="${EDITOR_ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <line x1="4" y1="6" x2="20" y2="6"></line>
+    <line x1="4" y1="12" x2="20" y2="12"></line>
+    <line x1="4" y1="18" x2="20" y2="18"></line>
   </svg>`,
   alignCenter: `<svg width="${EDITOR_ICON_SIZE}" height="${EDITOR_ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <line x1="4" y1="6" x2="20" y2="6"></line>

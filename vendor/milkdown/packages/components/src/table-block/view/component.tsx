@@ -1,35 +1,31 @@
 import type { Ctx } from '@milkdown/ctx'
-import type { Node } from '@milkdown/prose/model'
 import type { EditorView } from '@milkdown/prose/view'
 
 import {
   defineComponent,
   ref,
   type VNodeRef,
-  h,
   onMounted,
-  type Ref,
+  onBeforeUnmount,
 } from 'vue'
 
-import type { TableBlockConfig } from '../config'
-import type { CellIndex, DragInfo, Refs } from './types'
+import type { CellIndex, Refs } from './types'
 
-import { Icon } from '../../__internal__/components/icon'
-import { useDragHandlers } from './drag'
+import { useCornerCreateHandlers } from './corner-create'
+import { useEdgeCreateHandlers } from './edge-create'
 import { useOperation } from './operation'
 import { usePointerHandlers } from './pointer'
-import { recoveryStateBetweenUpdate } from './utils'
+import {
+  forgetTableScroll,
+  peekTableScroll,
+} from './table-scroll-memory'
 
 type TableBlockProps = {
   view: EditorView
   ctx: Ctx
   getPos: () => number | undefined
-  config: TableBlockConfig
   onMount: (div: Element) => void
-  node: Ref<Node>
 }
-
-h
 
 export const TableBlock = defineComponent<TableBlockProps>({
   props: {
@@ -45,173 +41,323 @@ export const TableBlock = defineComponent<TableBlockProps>({
       type: Function,
       required: true,
     },
-    config: {
-      type: Object,
-      required: true,
-    },
     onMount: {
       type: Function,
       required: true,
     },
-    node: {
-      type: Object,
-      required: true,
-    },
   },
-  setup({ view, node, ctx, getPos, config, onMount }) {
+  setup({ view, ctx, getPos, onMount }) {
+    let resizeObserver: ResizeObserver | undefined
+    let observedScrollRoot: HTMLElement | undefined
+    const rootRef = ref<HTMLDivElement>()
     const contentWrapperRef = ref<HTMLElement>()
+    const tableScrollRef = ref<HTMLDivElement>()
     const contentWrapperFunctionRef: VNodeRef = (div) => {
       if (div == null) return
       if (div instanceof HTMLElement) {
         contentWrapperRef.value = div
         onMount(div)
+        requestAnimationFrame(syncEdgeCreateZones)
       } else {
         contentWrapperRef.value = undefined
       }
     }
-    const colHandleRef = ref<HTMLDivElement>()
-    const rowHandleRef = ref<HTMLDivElement>()
     const xLineHandleRef = ref<HTMLDivElement>()
     const yLineHandleRef = ref<HTMLDivElement>()
     const tableWrapperRef = ref<HTMLDivElement>()
-    const dragPreviewRef = ref<HTMLDivElement>()
-    const hoverIndex = ref<CellIndex>([0, 0])
+    const bottomEdgeZoneRef = ref<HTMLDivElement>()
+    const rightEdgeZoneRef = ref<HTMLDivElement>()
+    const cornerEdgeZoneRef = ref<HTMLDivElement>()
     const lineHoverIndex = ref<CellIndex>([-1, -1])
-    const dragInfo = ref<DragInfo>()
 
     const refs: Refs = {
-      dragPreviewRef,
       tableWrapperRef,
       contentWrapperRef,
       yLineHandleRef,
       xLineHandleRef,
-      colHandleRef,
-      rowHandleRef,
-      hoverIndex,
       lineHoverIndex,
-      dragInfo,
+    }
+
+    const syncWideLayout = () => {
+      const root = rootRef.value
+      const wrapper = tableWrapperRef.value
+      const scroll = tableScrollRef.value
+      const content = contentWrapperRef.value
+      if (!root || !wrapper || !scroll || !content) return
+
+      const closestScrollRoot = root.closest('[data-note-scroll-root="true"]')
+      const scrollRoot =
+        closestScrollRoot instanceof HTMLElement ? closestScrollRoot : undefined
+
+      if (
+        scrollRoot &&
+        observedScrollRoot !== scrollRoot &&
+        resizeObserver != null
+      ) {
+        if (observedScrollRoot) resizeObserver.unobserve(observedScrollRoot)
+        resizeObserver.observe(scrollRoot)
+        observedScrollRoot = scrollRoot
+      }
+
+      const rootRect = root.getBoundingClientRect()
+      const scrollRootRect = scrollRoot?.getBoundingClientRect()
+      const baseWidth = rootRect.width
+      const leftReach = scrollRootRect
+        ? Math.max(0, rootRect.left - scrollRootRect.left)
+        : 0
+      const rightReach = scrollRootRect
+        ? Math.max(0, scrollRootRect.right - rootRect.right)
+        : 0
+      const availableWidth = baseWidth + leftReach + rightReach
+      const naturalWidth = Math.ceil(content.scrollWidth)
+      const isWideLayout = naturalWidth > baseWidth + 1
+      const maxWidth = isWideLayout ? availableWidth : baseWidth
+      const bleedLeft = isWideLayout ? leftReach : 0
+      const scrollStart = isWideLayout ? leftReach : 0
+      const scrollEnd = isWideLayout ? rightReach : 0
+      const tableMinWidth = isWideLayout ? '0px' : '100%'
+
+      wrapper.style.setProperty('--table-block-max-width', `${maxWidth}px`)
+      wrapper.style.setProperty('--table-block-bleed-left', `${bleedLeft}px`)
+      wrapper.style.setProperty('--table-block-scroll-start', `${scrollStart}px`)
+      wrapper.style.setProperty('--table-block-scroll-end', `${scrollEnd}px`)
+      wrapper.style.setProperty('--table-block-table-min-width', tableMinWidth)
+
+      if (scroll.clientWidth === 0 || scroll.scrollWidth === 0) return
+
+      let tableKey: number | undefined
+      try {
+        tableKey = getPos()
+      } catch {
+        tableKey = undefined
+      }
+
+      const pendingScroll = peekTableScroll(tableKey)
+      if (!pendingScroll) return
+
+      const maxScrollLeft = Math.max(0, scroll.scrollWidth - scroll.clientWidth)
+      const nextScrollLeft = pendingScroll.stickToRight
+        ? maxScrollLeft
+        : Math.max(0, Math.min(pendingScroll.scrollLeft, maxScrollLeft))
+      const maxScrollTop = Math.max(0, scroll.scrollHeight - scroll.clientHeight)
+      const nextScrollTop = Math.max(
+        0,
+        Math.min(pendingScroll.scrollTop, maxScrollTop)
+      )
+
+      if (
+        Math.abs(scroll.scrollLeft - nextScrollLeft) > 1 ||
+        Math.abs(scroll.scrollTop - nextScrollTop) > 1
+      ) {
+        scroll.scrollLeft = nextScrollLeft
+        scroll.scrollTop = nextScrollTop
+      }
+      forgetTableScroll(tableKey)
+    }
+
+    const syncEdgeCreateZones = () => {
+      syncWideLayout()
+
+      const wrapper = tableWrapperRef.value
+      const content = contentWrapperRef.value
+      const bottomZone = bottomEdgeZoneRef.value
+      const rightZone = rightEdgeZoneRef.value
+      const cornerZone = cornerEdgeZoneRef.value
+      if (!wrapper || !content) return
+
+      const wrapperRect = wrapper.getBoundingClientRect()
+      const contentRect = content.getBoundingClientRect()
+      const left = contentRect.left - wrapperRect.left
+      const top = contentRect.top - wrapperRect.top
+      const width = contentRect.width
+      const height = contentRect.height
+
+      if (bottomZone) {
+        Object.assign(bottomZone.style, {
+          left: `${left}px`,
+          top: `${top + height - 18}px`,
+          width: `${width}px`,
+        })
+      }
+
+      if (rightZone) {
+        Object.assign(rightZone.style, {
+          top: `${top}px`,
+          left: `${left + width - 9}px`,
+          height: `${height}px`,
+        })
+      }
+
+      if (cornerZone) {
+        Object.assign(cornerZone.style, {
+          top: `${top + height - 22}px`,
+          left: `${left + width - 22}px`,
+        })
+      }
     }
 
     const { pointerLeave, pointerMove } = usePointerHandlers(refs, view)
-    const { dragRow, dragCol } = useDragHandlers(refs, ctx, getPos)
     const {
-      onAddRow,
-      onAddCol,
-      selectCol,
-      selectRow,
-      deleteSelected,
-      onAlign,
+      onAppendRow,
+      onAppendCol,
+      onShrinkRow,
+      onShrinkCol,
+      canShrinkRow,
+      canShrinkCol,
     } = useOperation(refs, ctx, getPos)
+    const {
+      startRowEdgeCreate,
+      startColEdgeCreate,
+      startRowEdgeCreateMouse,
+      startColEdgeCreateMouse,
+      prepareRowEdgeCreate,
+      prepareColEdgeCreate,
+    } = useEdgeCreateHandlers(
+      refs,
+      onAppendRow,
+      onAppendCol,
+      onShrinkRow,
+      onShrinkCol,
+      canShrinkRow,
+      canShrinkCol,
+      getPos
+    )
+    const { prepareCornerCreate, startCornerCreate, startCornerCreateMouse } =
+      useCornerCreateHandlers(
+        refs,
+        onAppendRow,
+        onAppendCol,
+        onShrinkRow,
+        onShrinkCol,
+        canShrinkRow,
+        canShrinkCol,
+        getPos
+      )
 
     onMounted(() => {
+      window.addEventListener('resize', syncEdgeCreateZones)
+      if (typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => {
+          syncEdgeCreateZones()
+        })
+
+        if (tableWrapperRef.value) resizeObserver.observe(tableWrapperRef.value)
+        if (tableScrollRef.value) resizeObserver.observe(tableScrollRef.value)
+        if (contentWrapperRef.value) resizeObserver.observe(contentWrapperRef.value)
+      }
+
       requestAnimationFrame(() => {
-        // This is a wordaround to keep the popover open when click the select col/row button
-        if (view.editable) recoveryStateBetweenUpdate(refs, view, node.value)
+        syncEdgeCreateZones()
       })
     })
+
+    onBeforeUnmount(() => {
+      window.removeEventListener('resize', syncEdgeCreateZones)
+      if (observedScrollRoot) resizeObserver?.unobserve(observedScrollRoot)
+      resizeObserver?.disconnect()
+    })
+
+    const handleZonePointerEnter =
+      (axis: 'row' | 'col') => (e: PointerEvent) => {
+        syncEdgeCreateZones()
+        if (axis === 'row') prepareRowEdgeCreate()
+        else prepareColEdgeCreate()
+      }
+
+    const handleZonePointerDown =
+      (axis: 'row' | 'col') => (e: PointerEvent) => {
+        if (axis === 'row') startRowEdgeCreate(e)
+        else startColEdgeCreate(e)
+      }
+
+    const handleZoneMouseDown =
+      (axis: 'row' | 'col') => (e: MouseEvent) => {
+        if (axis === 'row') startRowEdgeCreateMouse(e)
+        else startColEdgeCreateMouse(e)
+      }
+
+    const handleCornerPointerEnter = (e: PointerEvent) => {
+      syncEdgeCreateZones()
+      prepareCornerCreate()
+    }
+
+    const handleCornerPointerDown = (e: PointerEvent) => {
+      startCornerCreate(e)
+    }
+
+    const handleCornerMouseDown = (e: MouseEvent) => {
+      startCornerCreateMouse(e)
+    }
+
+    const handleTableScroll = () => {
+      syncEdgeCreateZones()
+    }
 
     return () => {
       return (
         <div
-          onDragstart={(e) => e.preventDefault()}
-          onDragover={(e) => e.preventDefault()}
-          onDragleave={(e) => e.preventDefault()}
+          ref={rootRef}
           onPointermove={pointerMove}
           onPointerleave={pointerLeave}
         >
-          <div
-            data-show="false"
-            contenteditable="false"
-            draggable="true"
-            data-role="col-drag-handle"
-            class="handle cell-handle"
-            onDragstart={dragCol}
-            onClick={selectCol}
-            onPointerdown={(e: PointerEvent) => e.stopPropagation()}
-            onPointermove={(e: PointerEvent) => e.stopPropagation()}
-            ref={colHandleRef}
-          >
-            <Icon icon={config.renderButton('col_drag_handle')} />
-            <div
-              data-show="false"
-              class="button-group"
-              onPointermove={(e: PointerEvent) => e.stopPropagation()}
-            >
-              <button type="button" onPointerdown={onAlign('left')}>
-                <Icon icon={config.renderButton('align_col_left')} />
-              </button>
-              <button type="button" onPointerdown={onAlign('center')}>
-                <Icon icon={config.renderButton('align_col_center')} />
-              </button>
-              <button type="button" onPointerdown={onAlign('right')}>
-                <Icon icon={config.renderButton('align_col_right')} />
-              </button>
-              <button type="button" onPointerdown={deleteSelected}>
-                <Icon icon={config.renderButton('delete_col')} />
-              </button>
-            </div>
-          </div>
-          <div
-            data-show="false"
-            contenteditable="false"
-            draggable="true"
-            data-role="row-drag-handle"
-            class="handle cell-handle"
-            onDragstart={dragRow}
-            onClick={selectRow}
-            onPointerdown={(e: PointerEvent) => e.stopPropagation()}
-            onPointermove={(e: PointerEvent) => e.stopPropagation()}
-            ref={rowHandleRef}
-          >
-            <Icon icon={config.renderButton('row_drag_handle')} />
-            <div
-              data-show="false"
-              class="button-group"
-              onPointermove={(e: PointerEvent) => e.stopPropagation()}
-            >
-              <button type="button" onPointerdown={deleteSelected}>
-                <Icon icon={config.renderButton('delete_row')} />
-              </button>
-            </div>
-          </div>
           <div class="table-wrapper" ref={tableWrapperRef}>
             <div
-              data-show="false"
-              class="drag-preview"
-              data-direction="vertical"
-              ref={dragPreviewRef}
-            >
-              <table>
-                <tbody></tbody>
-              </table>
-            </div>
+              contenteditable="false"
+              data-role="bottom-edge-create-zone"
+              class="edge-create-zone"
+              data-axis="row"
+              onPointerenter={handleZonePointerEnter('row')}
+              onPointerdown={handleZonePointerDown('row')}
+              onMousedown={handleZoneMouseDown('row')}
+              ref={bottomEdgeZoneRef}
+            />
+            <div
+              contenteditable="false"
+              data-role="right-edge-create-zone"
+              class="edge-create-zone"
+              data-axis="col"
+              onPointerenter={handleZonePointerEnter('col')}
+              onPointerdown={handleZonePointerDown('col')}
+              onMousedown={handleZoneMouseDown('col')}
+              ref={rightEdgeZoneRef}
+            />
+            <div
+              contenteditable="false"
+              data-role="corner-edge-create-zone"
+              class="edge-create-zone"
+              data-axis="both"
+              onPointerenter={handleCornerPointerEnter}
+              onPointerdown={handleCornerPointerDown}
+              onMousedown={handleCornerMouseDown}
+              ref={cornerEdgeZoneRef}
+            />
             <div
               data-show="false"
               contenteditable="false"
               data-display-type="tool"
               data-role="x-line-drag-handle"
               class="handle line-handle"
-              onPointermove={(e: PointerEvent) => e.stopPropagation()}
               ref={xLineHandleRef}
-            >
-              <button type="button" onClick={onAddRow} class="add-button">
-                <Icon icon={config.renderButton('add_row')} />
-              </button>
-            </div>
+            />
             <div
               data-show="false"
               contenteditable="false"
               data-display-type="tool"
               data-role="y-line-drag-handle"
               class="handle line-handle"
-              onPointermove={(e: PointerEvent) => e.stopPropagation()}
               ref={yLineHandleRef}
+            />
+            <div
+              class="table-scroll"
+              ref={tableScrollRef}
+              onScroll={handleTableScroll}
             >
-              <button type="button" onClick={onAddCol} class="add-button">
-                <Icon icon={config.renderButton('add_col')} />
-              </button>
+              <div class="table-scroll-track">
+                <div class="table-scroll-spacer" data-side="start" />
+                <table ref={contentWrapperFunctionRef} class="children"></table>
+                <div class="table-scroll-spacer" data-side="end" />
+              </div>
             </div>
-            <table ref={contentWrapperFunctionRef} class="children"></table>
           </div>
         </div>
       )

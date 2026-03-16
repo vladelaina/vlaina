@@ -54,6 +54,49 @@ Magic phrase: `Refactor This`
 - Do not create summary markdown files just to explain your work unless the user explicitly asks for a documentation file or the file is part of the product structure.
 - Remove temporary debug code and diagnostic artifacts after the issue is resolved unless the user asks to keep them.
 
+## Commit Message Rules
+
+- Use the format `<emoji><type>(<optional-scope>): <summary>`.
+- Example: `🐛fix(editor): resolve markdown paste ambiguity`.
+- Do not use plain commit subjects when a typed keyword format is expected.
+- Keep commit messages in English-only.
+
+Preferred commit types:
+
+- `✨feat`: add a new feature or module
+- `🐛fix`: fix a bug or defect
+- `📚docs`: documentation-only changes
+- `💅style`: formatting-only changes with no logic impact
+- `♻️refactor`: structural refactor without feature or bug changes
+- `🗑️remove`: remove code, features, or modules
+- `⚡perf`: performance improvements
+- `✅test`: add or update tests
+- `🏗️build`: build tooling or packaging changes
+- `🤖ci`: CI configuration changes
+- `🔧chore`: maintenance or miscellaneous non-feature work
+- `⏪revert`: revert a previous change
+- `🔀merge`: merge commit
+- `🚧wip`: work in progress
+- `🕒temp`: temporary checkpoint commit
+- `🎉init`: initial project setup
+- `📦deps`: dependency changes
+- `⚙️config`: configuration changes
+- `🚀release`: release preparation or release commit
+- `🩹hotfix`: urgent production fix
+- `⬆️upgrade`: version or capability upgrade
+- `⬇️downgrade`: version downgrade
+- `🔒security`: security fix
+- `🧹lint`: lint-only changes
+- `🧠ux`: user experience improvement
+- `🌐i18n`: internationalization changes
+- `♿a11y`: accessibility improvements
+- `✏️typo`: spelling or wording fixes
+- `📈log`: logging changes
+- `🎨ui`: UI polish or visual changes
+- `🔌api`: API-related changes
+- `🧪mock`: mock data changes
+- `🌱env`: environment variable changes
+
 ## UI Standards
 
 ### Icons

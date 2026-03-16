@@ -11,6 +11,7 @@ import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
+import { tableBlock } from '@milkdown/kit/component/table-block';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -20,6 +21,7 @@ import { useNoteCoverController, NoteCoverCanvas } from '../Cover';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { configureTheme } from './theme';
 import { customPlugins } from './config/plugins';
+import { notesRemarkStringifyOptions } from './config/stringifyOptions';
 import { useEditorLayout } from './hooks/useEditorLayout';
 import { useEditorSave } from './hooks/useEditorSave';
 import { calculateTextStats } from './utils/textStats';
@@ -66,7 +68,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
         ctx.set(defaultValueCtx, initialContent);
         ctx.update(remarkStringifyOptionsCtx, (prev) => ({
           ...prev,
-          bullet: '-' as const,
+          ...notesRemarkStringifyOptions,
         }));
 
         const initTime = Date.now();
@@ -105,6 +107,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       .use(history)
       .use(listener)
       .use(configureTheme)
+      .use(tableBlock)
       .use(customPlugins),
     [currentNotePath]
   );

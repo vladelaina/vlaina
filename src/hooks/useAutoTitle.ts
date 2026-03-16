@@ -9,6 +9,7 @@ export function useAutoTitle() {
       try {
           const provider = providers.find(p => p.id === providerId);
           if (!provider) return;
+          if (provider.enabled === false) return;
           const model = getModel(modelId);
           if (!model) return;
 

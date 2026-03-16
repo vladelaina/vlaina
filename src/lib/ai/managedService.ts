@@ -3,11 +3,9 @@ import { buildScopedModelId } from '@/lib/ai/utils';
 import { hasBackendCommands } from '@/lib/tauri/invoke';
 import { accountCommands } from '@/lib/tauri/accountAuthCommands';
 import { webAccountCommands } from '@/lib/tauri/webAccountCommands';
-import { Channel } from '@tauri-apps/api/core';
-import { consumeOpenAIStream, createStreamAccumulator, type StreamDeltaPayload } from '@/lib/ai/streaming';
 
 export const MANAGED_PROVIDER_ID = 'nekotick-managed';
-export const MANAGED_PROVIDER_NAME = 'NekoTick AI';
+export const MANAGED_PROVIDER_NAME = 'NekoTick';
 export const MANAGED_API_BASE = 'https://api.nekotick.com/v1';
 export const MANAGED_AUTH_REQUIRED_ERROR = 'NekoTick sign-in required';
 
@@ -98,12 +96,6 @@ function normalizeModelGroup(model: Record<string, unknown>, modelId: string): s
   return 'other';
 }
 
-function createAbortError(): Error {
-  const error = new Error('The operation was aborted')
-  error.name = 'AbortError'
-  return error
-}
-
 async function parseManagedError(response: Response): Promise<Error> {
   const raw = await response.text().catch(() => '');
   if (response.status === 401 || response.status === 403) {
@@ -151,6 +143,105 @@ async function requestManagedWebJson<T>(path: string, init?: RequestInit): Promi
   return response.json() as Promise<T>;
 }
 
+async function requestManagedWebStream(
+  path: string,
+  body: Record<string, unknown>,
+  onChunk: (chunk: string) => void,
+  signal?: AbortSignal
+): Promise<string> {
+  const response = await fetch(`${MANAGED_API_BASE}${path}`, {
+    method: 'POST',
+    cache: 'no-store',
+    credentials: 'include',
+    signal,
+    headers: {
+      Accept: 'text/event-stream',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw await parseManagedError(response);
+  }
+
+  if (!response.body) {
+    throw new Error('Managed API response body is null');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let fullContent = '';
+  let buffer = '';
+  let hasStartedReasoning = false;
+  let hasFinishedReasoning = false;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed === 'data: [DONE]') {
+        continue;
+      }
+
+      if (!trimmed.startsWith('data: ')) {
+        continue;
+      }
+
+      try {
+        const jsonStr = trimmed.slice(6);
+        const payload = JSON.parse(jsonStr) as {
+          choices?: Array<{
+            delta?: {
+              content?: string;
+              reasoning_content?: string;
+            };
+          }>;
+        };
+        const delta = payload.choices?.[0]?.delta;
+        const reasoning = delta?.reasoning_content;
+        const content = delta?.content;
+
+        if (reasoning) {
+          if (!hasStartedReasoning) {
+            fullContent += '<think>';
+            hasStartedReasoning = true;
+          }
+          fullContent += reasoning;
+        }
+
+        if (content) {
+          if (hasStartedReasoning && !hasFinishedReasoning) {
+            fullContent += '</think>';
+            hasFinishedReasoning = true;
+          }
+          fullContent += content;
+        }
+
+        if (reasoning || content) {
+          onChunk(fullContent);
+        }
+      } catch {
+        // no-op
+      }
+    }
+  }
+
+  if (hasStartedReasoning && !hasFinishedReasoning) {
+    fullContent += '</think>';
+  }
+
+  return fullContent;
+}
+
 export async function fetchManagedModels(): Promise<AIModel[]> {
   if (hasBackendCommands()) {
     const payload = (await accountCommands.getManagedModels()) as ManagedModelsPayload | undefined;
@@ -189,60 +280,13 @@ export async function requestManagedChatCompletion(
 }
 
 export async function requestManagedChatCompletionStream(
-  body: object,
+  body: Record<string, unknown>,
   onChunk: (chunk: string) => void,
   signal?: AbortSignal
 ): Promise<string> {
-  if (signal?.aborted) {
-    throw createAbortError()
-  }
-
   if (hasBackendCommands()) {
-    const accumulator = createStreamAccumulator(onChunk);
-    let aborted = false;
-    const onEvent = new Channel<StreamDeltaPayload>();
-    onEvent.onmessage = (payload) => {
-      if (aborted) {
-        return;
-      }
-      accumulator.pushDelta(payload || {});
-    };
-    const streamPromise = accountCommands.managedChatCompletionStream(body, onEvent);
-    if (signal) {
-      await Promise.race([
-        streamPromise,
-        new Promise<never>((_, reject) => {
-          signal.addEventListener(
-            'abort',
-            () => {
-              aborted = true;
-              reject(createAbortError());
-            },
-            { once: true }
-          );
-        }),
-      ]);
-    } else {
-      await streamPromise;
-    }
-    return accumulator.finish();
+    return accountCommands.managedChatCompletionStream(body, onChunk, signal);
   }
 
-  const response = await fetch(`${MANAGED_API_BASE}/chat/completions`, {
-    method: 'POST',
-    cache: 'no-store',
-    credentials: 'include',
-    signal,
-    headers: {
-      Accept: 'text/event-stream',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    throw await parseManagedError(response);
-  }
-
-  return consumeOpenAIStream(response, onChunk);
+  return requestManagedWebStream('/chat/completions', body, onChunk, signal);
 }

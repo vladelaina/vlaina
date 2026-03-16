@@ -101,7 +101,7 @@ withMeta(codeBlockSchema.ctx, {
 /// For example, ` ```javascript ` will create a code block with language javascript.
 export const createCodeBlockInputRule = $inputRule((ctx) =>
   textblockTypeInputRule(
-    /^```(?<language>[a-z]*)?[\s\n]$/,
+    /^(?:`{3,}|~{3,}|·{3,}|～{3,})(?<language>[a-z0-9_-]*)?[\s\n]$/,
     codeBlockSchema.type(ctx),
     (match) => ({
       language: match.groups?.language ?? '',

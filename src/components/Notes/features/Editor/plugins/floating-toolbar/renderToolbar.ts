@@ -1,113 +1,87 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import React from 'react';
-import { createRoot, type Root } from 'react-dom/client';
 import type { FloatingToolbarState } from './types';
 import { TOOLBAR_ACTIONS } from './types';
 import { floatingToolbarKey } from './floatingToolbarPlugin';
 import { renderAlignmentDropdown } from './components/AlignmentDropdown';
-import { AiToolbarModelSelector } from './components/AiToolbarModelSelector';
+import { createAiDropdownController } from './components/AiDropdown';
+import { createAiReviewPanelController } from './components/AiReviewPanel';
 import { renderBlockDropdown } from './components/BlockDropdown';
-import {
-  setupToolbarEventDelegation,
-  updateToolbarState,
-} from './toolbarInteractions';
+import { renderColorPicker } from './components/ColorPicker';
+import { logAiSelectionDebug } from './ai/debug';
+import { createToolbarEventDelegation } from './toolbarInteractions';
 import { renderToolbarMarkup } from './toolbarMarkup';
 
-export { cleanupToolbarEventDelegation } from './toolbarInteractions';
-
-let aiModelSelectorRoot: Root | null = null;
-
-function cleanupAiModelSelector() {
-  aiModelSelectorRoot?.unmount();
-  aiModelSelectorRoot = null;
+export interface ToolbarRenderer {
+  render: (view: EditorView, state: FloatingToolbarState) => void;
+  destroy: () => void;
 }
 
-function mountAiModelSelector(toolbarElement: HTMLElement) {
-  const host = toolbarElement.querySelector('.toolbar-ai-model-selector-slot');
-  const input = toolbarElement.querySelector('.toolbar-ai-composer-input');
-  if (!(host instanceof HTMLElement) || !(input instanceof HTMLInputElement)) {
-    return;
-  }
+export function createToolbarRenderer(toolbarElement: HTMLElement): ToolbarRenderer {
+  const eventDelegation = createToolbarEventDelegation(toolbarElement);
+  const aiDropdownController = createAiDropdownController();
+  const aiReviewPanelController = createAiReviewPanelController();
 
-  cleanupAiModelSelector();
-  aiModelSelectorRoot = createRoot(host);
-  aiModelSelectorRoot.render(
-    React.createElement(AiToolbarModelSelector, {
-      composerInputRef: { current: input },
-    })
-  );
-}
-
-function syncAiComposerState(toolbarElement: HTMLElement) {
-  const input = toolbarElement.querySelector('.toolbar-ai-composer-input');
-  const sendButton = toolbarElement.querySelector('.toolbar-ai-send');
-
-  if (!(input instanceof HTMLInputElement) || !(sendButton instanceof HTMLButtonElement)) {
-    return;
-  }
-
-  const updateDisabledState = () => {
-    const hasValue = input.value.trim().length > 0;
-    sendButton.disabled = !hasValue;
-    sendButton.classList.toggle('is-disabled', !hasValue);
+  const hideToolbar = (view: EditorView) => {
+    logAiSelectionDebug('toolbar:hide');
+    eventDelegation.clearTransientUi();
+    view.dispatch(
+      view.state.tr.setMeta(floatingToolbarKey, {
+        type: TOOLBAR_ACTIONS.HIDE,
+      })
+    );
   };
+  return {
+    render(view, state) {
+      logAiSelectionDebug('toolbar:render', {
+        subMenu: state.subMenu,
+        isVisible: state.isVisible,
+        placement: state.placement,
+        selectionFrom: view.state.selection.from,
+        selectionTo: view.state.selection.to,
+      });
+      aiDropdownController.cleanup();
+      aiReviewPanelController.cleanup();
+      eventDelegation.update(view, state);
 
-  updateDisabledState();
-  input.addEventListener('input', updateDisabledState);
-}
+      toolbarElement.innerHTML = renderToolbarMarkup(state);
 
-export function renderToolbarContent(
-  toolbarElement: HTMLElement,
-  view: EditorView,
-  state: FloatingToolbarState
-) {
-  cleanupAiModelSelector();
-  updateToolbarState(view, state);
-
-  setupToolbarEventDelegation(toolbarElement, view, state);
-
-  toolbarElement.innerHTML = renderToolbarMarkup(state);
-
-  if (state.subMenu === 'ai') {
-    requestAnimationFrame(() => {
-      mountAiModelSelector(toolbarElement);
-      const input = toolbarElement.querySelector('.toolbar-ai-composer-input');
-      if (input instanceof HTMLInputElement) {
-        input.focus();
+      if (state.subMenu === 'ai') {
+        const aiGroup = toolbarElement.querySelector('.toolbar-ai-group');
+        if (aiGroup instanceof HTMLElement) {
+          aiDropdownController.render(aiGroup, view, () => hideToolbar(view));
+        }
       }
-      syncAiComposerState(toolbarElement);
-    });
-  }
 
-  if (state.subMenu === 'block') {
-    const blockGroup = toolbarElement.querySelector('.toolbar-block-group');
-    if (blockGroup) {
-      renderBlockDropdown(blockGroup as HTMLElement, view, state, () => {
-        view.dispatch(
-          view.state.tr.setMeta(floatingToolbarKey, {
-            type: TOOLBAR_ACTIONS.SET_SUB_MENU,
-            payload: { subMenu: null },
-          })
-        );
-      });
-    }
-  }
+      if (state.subMenu === 'aiReview') {
+        aiReviewPanelController.render(toolbarElement, view, state, () => hideToolbar(view));
+      }
 
-  if (state.subMenu === 'alignment') {
-    const alignmentGroup = toolbarElement.querySelector('.toolbar-alignment-group');
-    if (alignmentGroup) {
-      renderAlignmentDropdown(alignmentGroup as HTMLElement, view, state, () => {
-        view.dispatch(
-          view.state.tr.setMeta(floatingToolbarKey, {
-            type: TOOLBAR_ACTIONS.SET_SUB_MENU,
-            payload: { subMenu: null },
-          })
-        );
-      });
-    }
-  }
-}
+      if (state.subMenu === 'block') {
+        const blockGroup = toolbarElement.querySelector('.toolbar-block-group');
+        if (blockGroup instanceof HTMLElement) {
+          renderBlockDropdown(blockGroup, view, state, () => hideToolbar(view));
+        }
+      }
 
-export function cleanupToolbarRendering() {
-  cleanupAiModelSelector();
+      if (state.subMenu === 'alignment') {
+        const alignmentGroup = toolbarElement.querySelector('.toolbar-alignment-group');
+        if (alignmentGroup instanceof HTMLElement) {
+          renderAlignmentDropdown(alignmentGroup, view, state, () => hideToolbar(view));
+        }
+      }
+
+      if (state.subMenu === 'color') {
+        const colorGroup = toolbarElement.querySelector('.toolbar-link-color-group');
+        if (colorGroup instanceof HTMLElement) {
+          renderColorPicker(colorGroup, view, state, () => hideToolbar(view));
+        }
+      }
+    },
+    destroy() {
+      logAiSelectionDebug('toolbar:destroy');
+      aiDropdownController.destroy();
+      aiReviewPanelController.destroy();
+      eventDelegation.destroy();
+    },
+  };
 }

@@ -87,7 +87,7 @@ withMeta(bulletListSchema.ctx, {
 
 /// Input rule for wrapping a block in bullet list node.
 export const wrapInBulletListInputRule = $inputRule((ctx) =>
-  wrappingInputRule(/^\s*([-+*])\s$/, bulletListSchema.type(ctx))
+  wrappingInputRule(/^\s*([-+*－＋＊])\s$/, bulletListSchema.type(ctx))
 )
 
 withMeta(wrapInBulletListInputRule, {

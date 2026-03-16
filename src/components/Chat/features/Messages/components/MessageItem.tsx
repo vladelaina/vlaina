@@ -4,8 +4,14 @@ import { UserMessage } from './UserMessage';
 import { AIMessage } from './AIMessage';
 import type { ChatMessage } from '@/lib/ai/types';
 
+interface ChatImageGalleryItem {
+  id: string;
+  src: string;
+}
+
 interface MessageItemProps {
   msg: ChatMessage;
+  imageGallery: ChatImageGalleryItem[];
   isLoading: boolean;
   onCopy: (text: string) => Promise<void> | void;
   onRegenerate: (id: string) => void;
@@ -15,6 +21,7 @@ interface MessageItemProps {
 
 export const MessageItem = memo(function MessageItem({
   msg,
+  imageGallery,
   isLoading,
   onCopy,
   onRegenerate,
@@ -47,6 +54,7 @@ export const MessageItem = memo(function MessageItem({
           ) : (
               <AIMessage 
                   msg={msg}
+                  imageGallery={imageGallery}
                   isLoading={isLoading}
                   onCopy={onCopy}
                   onRegenerate={() => onRegenerate(msg.id)}

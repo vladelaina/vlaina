@@ -3,6 +3,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, FloatingToolbarState } from '../types';
 import { BLOCK_TYPES } from '../utils';
 import { convertBlockType } from '../commands';
+import { applyBlockPreview, clearFormatPreview, hasBlockPreview } from '../previewStyles';
 import { ICON_SIZES } from '@/components/ui/icons/sizes';
 
 const DROPDOWN_ICON_SIZE = ICON_SIZES.md;
@@ -67,51 +68,44 @@ export function renderBlockDropdown(
     const icon = BLOCK_ICONS[config.icon] || BLOCK_ICONS.text;
     
     html += `
-      <button class="block-dropdown-item ${isActive ? 'active' : ''}" data-block-type="${config.type}">
+      <button
+        class="block-dropdown-item ${isActive ? 'active' : ''}"
+        data-block-type="${config.type}"
+        aria-label="${config.label}"
+        title="${config.label}"
+      >
         <span class="block-dropdown-item-icon">${icon}</span>
-        <span>${config.label}</span>
-        ${config.shortcut ? `<span class="block-dropdown-item-shortcut">${config.shortcut}</span>` : ''}
       </button>
     `;
   });
   
   dropdown.innerHTML = html;
-  
-  // Append first to measure size
   container.appendChild(dropdown);
-  
-  // Smart positioning: check if dropdown would overflow viewport or cover content
-  requestAnimationFrame(() => {
-    const dropdownRect = dropdown.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const toolbarRect = container.closest('.floating-toolbar')?.getBoundingClientRect();
-    
-    if (toolbarRect) {
-      // Check if dropdown extends beyond viewport bottom
-      const spaceBelow = viewportHeight - toolbarRect.bottom - 16; // 16px margin
-      const spaceAbove = toolbarRect.top - 16;
-      const dropdownHeight = dropdownRect.height;
-      
-      // If not enough space below but enough above, show above
-      if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
-        dropdown.classList.add('dropdown-above');
-        // Set max-height based on available space above
-        const maxHeight = Math.min(spaceAbove, dropdownHeight);
-        dropdown.style.maxHeight = `${maxHeight}px`;
-      } else {
-        dropdown.classList.remove('dropdown-above');
-        // Set max-height based on available space below
-        const maxHeight = Math.min(spaceBelow, dropdownHeight);
-        dropdown.style.maxHeight = `${maxHeight}px`;
-      }
-    }
-  });
   
   // Add event listeners
   dropdown.querySelectorAll('[data-block-type]').forEach((btn) => {
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    btn.addEventListener('mouseenter', () => {
+      const button = btn as HTMLElement;
+      const blockType = button.dataset.blockType as BlockType;
+      const isActive = button.classList.contains('active');
+      if (!isActive && hasBlockPreview(blockType)) {
+        applyBlockPreview(view, blockType);
+      }
+    });
+
+    btn.addEventListener('mouseleave', () => {
+      clearFormatPreview(view);
+    });
+
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      clearFormatPreview(view);
       const blockType = (btn as HTMLElement).dataset.blockType as BlockType;
       convertBlockType(view, blockType);
       onClose();

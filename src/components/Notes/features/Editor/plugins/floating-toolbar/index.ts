@@ -1,5 +1,6 @@
 // Floating Toolbar Plugin - Exports
 export { floatingToolbarPlugin, floatingToolbarKey } from './floatingToolbarPlugin';
+export { floatingToolbarInlinePreviewPlugin } from './inlinePreviewPlugin';
 export { colorMarksPlugin, textColorMark, bgColorMark, underlineMark } from './colorMarks';
 export { blockAlignmentPlugin } from './blockAlignmentMarkdown';
 export type {
@@ -16,4 +17,4 @@ export { TOOLBAR_ACTIONS } from './types';
 export * from './commands';
 export * from './utils';
 export * from './selectionHelpers';
-export { renderToolbarContent } from './renderToolbar';
+export { createToolbarRenderer } from './renderToolbar';

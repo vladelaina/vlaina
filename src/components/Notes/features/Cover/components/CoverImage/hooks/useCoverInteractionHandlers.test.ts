@@ -6,6 +6,7 @@ function createProps(overrides?: Partial<Parameters<typeof useCoverInteractionHa
   return {
     readOnly: false,
     cachedBounds: { maxTranslateX: 100, maxTranslateY: 100 },
+    clampCropForZoom: vi.fn((crop) => crop),
     effectiveMinZoom: 1,
     setCrop: vi.fn(),
     setZoom: vi.fn(),
@@ -85,6 +86,26 @@ describe('useCoverInteractionHandlers', () => {
     expect(props.setZoom).not.toHaveBeenCalled();
   });
 
+  it('clamps crop immediately when zoom would expose blank edges', () => {
+    const props = createProps({
+      crop: { x: 80, y: 70 },
+      clampCropForZoom: vi.fn(() => ({ x: 40, y: 25 })),
+    });
+    const { result } = renderHook((nextProps) => useCoverInteractionHandlers(nextProps), {
+      initialProps: props,
+    });
+
+    act(() => {
+      result.current.markNonPointerIntent();
+      result.current.handleInteractionStart();
+      result.current.onCropperZoomChange(1.2);
+    });
+
+    expect(props.clampCropForZoom).toHaveBeenCalledWith({ x: 80, y: 70 }, 1.2);
+    expect(props.setCrop).toHaveBeenCalledWith({ x: 40, y: 25 });
+    expect(props.setZoom).toHaveBeenCalledWith(1.2);
+  });
+
   it('does not toggle picker for non-pointer interaction without changes', () => {
     const props = createProps();
     const { result } = renderHook((nextProps) => useCoverInteractionHandlers(nextProps), {
@@ -123,6 +144,25 @@ describe('useCoverInteractionHandlers', () => {
     });
 
     expect(props.saveToDb).toHaveBeenCalledWith({ x: 2, y: 0 }, 1);
+    expect(props.setShowPicker).not.toHaveBeenCalled();
+    expect(props.ignoreCropSyncRef.current).toBe(true);
+  });
+
+  it('persists the latest zoom at interaction end without requiring rerender first', () => {
+    const props = createProps();
+    const { result } = renderHook((nextProps) => useCoverInteractionHandlers(nextProps), {
+      initialProps: props,
+    });
+
+    act(() => {
+      result.current.markNonPointerIntent();
+      result.current.handleInteractionStart();
+      result.current.onCropperZoomChange(1.5);
+      result.current.handleInteractionEnd();
+    });
+
+    expect(props.setZoom).toHaveBeenCalledWith(1.5);
+    expect(props.saveToDb).toHaveBeenCalledWith({ x: 0, y: 0 }, 1.5);
     expect(props.setShowPicker).not.toHaveBeenCalled();
     expect(props.ignoreCropSyncRef.current).toBe(true);
   });

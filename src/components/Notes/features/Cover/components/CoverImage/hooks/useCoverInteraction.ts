@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { MAX_SCALE } from '../../../utils/coverUtils';
 import {
   calculateTranslateBounds,
+  clampCropToBounds,
   resolveCoverObjectFitMode,
 } from './coverInteractionMath';
 import { useCoverInteractionPersistence } from './useCoverInteractionPersistence';
@@ -53,6 +54,13 @@ export function useCoverInteraction({
     [mediaSize, effectiveContainerSize, zoom]
   );
 
+  const clampCropForZoom = useMemo(() => {
+    return (nextCrop: { x: number; y: number }, nextZoom: number) => {
+      const nextBounds = calculateTranslateBounds(mediaSize, effectiveContainerSize, nextZoom);
+      return clampCropToBounds(nextCrop, nextBounds);
+    };
+  }, [mediaSize, effectiveContainerSize]);
+
   const { saveToDb } = useCoverInteractionPersistence({
     mediaSize,
     effectiveContainerSize,
@@ -72,6 +80,7 @@ export function useCoverInteraction({
   } = useCoverInteractionHandlers({
     readOnly,
     cachedBounds,
+    clampCropForZoom,
     effectiveMinZoom,
     setCrop,
     setZoom,

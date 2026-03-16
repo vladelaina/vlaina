@@ -1,6 +1,7 @@
 use crate::account::credentials::get_stored_app_session_token;
+use futures_util::StreamExt;
 use serde_json::Value;
-use tauri::ipc::Channel;
+use tauri::Emitter;
 
 use super::worker_api::{persist_rotated_session_token_from_headers, read_api_base_url};
 
@@ -18,6 +19,18 @@ fn managed_budget_url() -> String {
 
 fn managed_chat_completions_url() -> String {
     format!("{}/chat/completions", managed_api_base_url())
+}
+
+fn managed_chat_stream_chunk_event(request_id: &str) -> String {
+    format!("managed-chat-stream:{}:chunk", request_id)
+}
+
+fn managed_chat_stream_done_event(request_id: &str) -> String {
+    format!("managed-chat-stream:{}:done", request_id)
+}
+
+fn managed_chat_stream_error_event(request_id: &str) -> String {
+    format!("managed-chat-stream:{}:error", request_id)
 }
 
 fn require_managed_session_token(app: &tauri::AppHandle) -> Result<String, String> {
@@ -70,36 +83,6 @@ async fn request_managed_json(
     serde_json::from_str(&raw_body).map_err(|e| format!("Invalid managed API response: {}", e))
 }
 
-#[derive(Clone, serde::Serialize)]
-pub struct ManagedChatStreamEvent {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    reasoning: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    content: Option<String>,
-}
-
-fn parse_stream_delta(line: &str) -> Option<ManagedChatStreamEvent> {
-    let trimmed = line.trim();
-    if trimmed.is_empty() || trimmed == "data: [DONE]" || !trimmed.starts_with("data: ") {
-        return None;
-    }
-
-    let payload: Value = serde_json::from_str(trimmed.trim_start_matches("data: ")).ok()?;
-    let delta = payload.get("choices")?.get(0)?.get("delta")?;
-    let reasoning = delta
-        .get("reasoning_content")
-        .and_then(Value::as_str)
-        .or_else(|| delta.get("reasoning").and_then(Value::as_str))
-        .map(str::to_string);
-    let content = delta.get("content").and_then(Value::as_str).map(str::to_string);
-
-    if reasoning.is_none() && content.is_none() {
-        return None;
-    }
-
-    Some(ManagedChatStreamEvent { reasoning, content })
-}
-
 #[tauri::command]
 pub async fn get_managed_models(app: tauri::AppHandle) -> Result<Value, String> {
     let session_token = require_managed_session_token(&app)?;
@@ -142,17 +125,22 @@ pub async fn managed_chat_completion(app: tauri::AppHandle, body: Value) -> Resu
 #[tauri::command]
 pub async fn managed_chat_completion_stream(
     app: tauri::AppHandle,
+    request_id: String,
     body: Value,
-    on_event: Channel<ManagedChatStreamEvent>,
-) -> Result<Value, String> {
+) -> Result<(), String> {
     let session_token = require_managed_session_token(&app)?;
     let client = reqwest::Client::new();
+    let mut payload = body;
+    if let Some(map) = payload.as_object_mut() {
+        map.insert("stream".to_string(), Value::Bool(true));
+    }
+
     let response = client
         .post(managed_chat_completions_url())
-        .bearer_auth(&session_token)
+        .bearer_auth(session_token)
         .header(reqwest::header::ACCEPT, "text/event-stream")
         .header(reqwest::header::CONTENT_TYPE, "application/json")
-        .json(&body)
+        .json(&payload)
         .send()
         .await
         .map_err(|e| format!("Managed API request failed: {}", e))?;
@@ -164,7 +152,7 @@ pub async fn managed_chat_completion_stream(
         let raw_body = response
             .text()
             .await
-            .unwrap_or_else(|_| String::from("Failed to read managed API response"));
+            .map_err(|e| format!("Failed to read managed API response: {}", e))?;
         return Err(format!(
             "Managed API failed with status {}: {}",
             status.as_u16(),
@@ -172,33 +160,86 @@ pub async fn managed_chat_completion_stream(
         ));
     }
 
-    let mut response = response;
+    let mut stream = response.bytes_stream();
     let mut buffer = String::new();
+    let mut full_content = String::new();
+    let mut has_started_reasoning = false;
+    let mut has_finished_reasoning = false;
+    let chunk_event = managed_chat_stream_chunk_event(&request_id);
+    let done_event = managed_chat_stream_done_event(&request_id);
+    let error_event = managed_chat_stream_error_event(&request_id);
 
-    while let Some(bytes) = response
-        .chunk()
-        .await
-        .map_err(|e| format!("Failed to read managed API stream: {}", e))?
-    {
-        buffer.push_str(&String::from_utf8_lossy(&bytes));
+    while let Some(next) = stream.next().await {
+        let bytes = match next {
+            Ok(value) => value,
+            Err(error) => {
+                let message = format!("Managed API stream failed: {}", error);
+                let _ = app.emit(&error_event, message.clone());
+                return Err(message);
+            }
+        };
 
-        while let Some(index) = buffer.find('\n') {
-            let line = buffer[..index].to_string();
-            buffer.drain(..=index);
+        let text = std::str::from_utf8(&bytes)
+            .map_err(|e| format!("Managed API stream was not valid utf-8: {}", e))?;
+        buffer.push_str(text);
 
-            if let Some(event) = parse_stream_delta(&line) {
-                on_event
-                    .send(event)
-                    .map_err(|e| format!("Failed to forward managed API stream event: {}", e))?;
+        while let Some(position) = buffer.find('\n') {
+            let line = buffer[..position].trim().to_string();
+            buffer.drain(..=position);
+
+            if line.is_empty() || line == "data: [DONE]" {
+                continue;
+            }
+
+            if !line.starts_with("data: ") {
+                continue;
+            }
+
+            let json_str = &line[6..];
+            let payload: Value = match serde_json::from_str(json_str) {
+                Ok(value) => value,
+                Err(_) => continue,
+            };
+
+            let delta = payload
+                .get("choices")
+                .and_then(Value::as_array)
+                .and_then(|choices| choices.first())
+                .and_then(|choice| choice.get("delta"));
+
+            let reasoning = delta
+                .and_then(|delta| delta.get("reasoning_content"))
+                .and_then(Value::as_str);
+            let content = delta
+                .and_then(|delta| delta.get("content"))
+                .and_then(Value::as_str);
+
+            if let Some(reasoning) = reasoning {
+                if !has_started_reasoning {
+                    full_content.push_str("<think>");
+                    has_started_reasoning = true;
+                }
+                full_content.push_str(reasoning);
+            }
+
+            if let Some(content) = content {
+                if has_started_reasoning && !has_finished_reasoning {
+                    full_content.push_str("</think>");
+                    has_finished_reasoning = true;
+                }
+                full_content.push_str(content);
+            }
+
+            if reasoning.is_some() || content.is_some() {
+                let _ = app.emit(&chunk_event, full_content.clone());
             }
         }
     }
 
-    if let Some(event) = parse_stream_delta(&buffer) {
-        on_event
-            .send(event)
-            .map_err(|e| format!("Failed to forward managed API stream event: {}", e))?;
+    if has_started_reasoning && !has_finished_reasoning {
+        full_content.push_str("</think>");
     }
 
-    Ok(serde_json::json!({ "success": true }))
+    let _ = app.emit(&done_event, full_content);
+    Ok(())
 }

@@ -152,9 +152,12 @@ withMeta(updateImageCommand, {
 export const insertImageInputRule = $inputRule(
   (ctx) =>
     new InputRule(
-      /!\[(?<alt>.*?)]\((?<filename>.*?)\s*(?="|\))"?(?<title>[^"]+)?"?\)/,
+      /(?:!|！)(?:\[|【)(?<alt>.*?)(?:\]|】)(?:\(|（)(?<filename>[^\s)）]+)(?:\s+(?:"|“)(?<title>[^"”]+)(?:"|”))?(?:\)|）)/,
       (state, match, start, end) => {
-        const [matched, alt, src = '', title] = match
+        const matched = match[0]
+        const alt = match.groups?.alt ?? ''
+        const src = match.groups?.filename ?? ''
+        const title = match.groups?.title ?? ''
         if (matched)
           return state.tr.replaceWith(
             start,

@@ -79,7 +79,7 @@ export function ManagedProviderPanel({
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-white/[0.02] p-4 md:col-span-2">
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Account</div>
               <div className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-                {isConnected ? 'Signed in to NekoTick AI' : 'Sign in required'}
+                {isConnected ? 'Signed in to NekoTick' : 'Sign in required'}
               </div>
               <p className="mt-1 text-xs text-gray-500">
                 Budget progress is shown in the account card under your avatar.

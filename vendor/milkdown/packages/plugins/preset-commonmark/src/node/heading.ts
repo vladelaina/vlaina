@@ -113,7 +113,7 @@ withMeta(headingSchema.ctx, {
 /// You can input numbers of `#` and a `space` to create heading.
 export const wrapInHeadingInputRule = $inputRule((ctx) => {
   return textblockTypeInputRule(
-    /^(?<hashes>#+)\s$/,
+    /^(?<hashes>[#＃]+)\s$/,
     headingSchema.type(ctx),
     (match) => {
       const x = match.groups?.hashes?.length || 0

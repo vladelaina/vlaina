@@ -31,6 +31,16 @@ interface ToolbarConfig {
 export type ToolbarFeatureConfig = Partial<ToolbarConfig>
 
 const toolbarTooltip = tooltipFactory('CREPE_TOOLBAR')
+const TABLE_RESIZE_TOOLBAR_SUPPRESS_ATTR = 'data-table-resize-toolbar-suppress'
+
+function isTableResizeToolbarSuppressed() {
+  if (typeof document === 'undefined') return false
+
+  return (
+    document.documentElement.hasAttribute(TABLE_RESIZE_TOOLBAR_SUPPRESS_ATTR) ||
+    document.body.hasAttribute(TABLE_RESIZE_TOOLBAR_SUPPRESS_ATTR)
+  )
+}
 
 class ToolbarView implements PluginView {
   #tooltipProvider: TooltipProvider
@@ -59,6 +69,8 @@ class ToolbarView implements PluginView {
       debounce: 20,
       offset: 10,
       shouldShow(view: EditorView) {
+        if (isTableResizeToolbarSuppressed()) return false
+
         const { doc, selection } = view.state
         const { empty, from, to } = selection
 

@@ -26,39 +26,25 @@ export function renderAlignmentDropdown(
     const isActive = state.currentAlignment === item.type;
 
     return `
-      <button class="block-dropdown-item ${isActive ? 'active' : ''}" data-alignment="${item.type}">
+      <button
+        class="block-dropdown-item ${isActive ? 'active' : ''}"
+        data-alignment="${item.type}"
+        aria-label="${item.label}"
+        title="${item.label}"
+      >
         <span class="block-dropdown-item-icon">${item.icon}</span>
-        <span>${item.label}</span>
       </button>
     `;
   }).join('');
 
   container.appendChild(dropdown);
 
-  requestAnimationFrame(() => {
-    const dropdownRect = dropdown.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const toolbarRect = container.closest('.floating-toolbar')?.getBoundingClientRect();
-
-    if (!toolbarRect) {
-      return;
-    }
-
-    const spaceBelow = viewportHeight - toolbarRect.bottom - 16;
-    const spaceAbove = toolbarRect.top - 16;
-    const dropdownHeight = dropdownRect.height;
-
-    if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
-      dropdown.classList.add('dropdown-above');
-      dropdown.style.maxHeight = `${Math.min(spaceAbove, dropdownHeight)}px`;
-      return;
-    }
-
-    dropdown.classList.remove('dropdown-above');
-    dropdown.style.maxHeight = `${Math.min(spaceBelow, dropdownHeight)}px`;
-  });
-
   dropdown.querySelectorAll<HTMLElement>('[data-alignment]').forEach((button) => {
+    button.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();

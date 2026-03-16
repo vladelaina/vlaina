@@ -8,6 +8,9 @@ export interface ToolbarButtonConfig {
   mark?: string;
 }
 
+export type ToolbarLayout = 'default' | 'codeBlock';
+export type ToolbarGroupKey = 'ai' | 'block' | 'alignment' | 'format' | 'linkColor' | 'copyDelete';
+
 export const FORMAT_BUTTONS: ToolbarButtonConfig[] = [
   { action: 'bold', icon: EDITOR_ICONS.bold, tooltip: 'Bold', shortcut: 'Ctrl+B', mark: 'strong' },
   { action: 'italic', icon: EDITOR_ICONS.italic, tooltip: 'Italic', shortcut: 'Ctrl+I', mark: 'emphasis' },
@@ -23,3 +26,8 @@ export const EXTRA_BUTTONS: ToolbarButtonConfig[] = [
   { action: 'copy', icon: EDITOR_ICONS.copy, tooltip: 'Copy' },
   { action: 'delete', icon: EDITOR_ICONS.trash, tooltip: 'Delete' },
 ];
+
+export const TOOLBAR_LAYOUTS: Record<ToolbarLayout, ToolbarGroupKey[]> = {
+  default: ['ai', 'block', 'alignment', 'format', 'linkColor', 'copyDelete'],
+  codeBlock: ['ai', 'block', 'copyDelete'],
+};

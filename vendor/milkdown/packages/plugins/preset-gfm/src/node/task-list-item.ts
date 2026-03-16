@@ -110,10 +110,10 @@ withMeta(extendListItemSchemaForTask.ctx, {
 })
 
 /// Input rule for wrapping a block in task list node.
-/// Users can type `[ ] ` or `[x] ` to wrap the block in task list node with checked status.
+/// Users can type task markers with halfwidth or fullwidth brackets, including mixed pairs.
 export const wrapInTaskListInputRule = $inputRule(() => {
   return new InputRule(
-    /^\[(?<checked>\s|x)\]\s$/,
+    /^(?:\[|【)(\s|x)(?:\]|】)\s$/,
     (state, match, start, end) => {
       const pos = state.doc.resolve(start)
       let depth = 0
@@ -125,7 +125,7 @@ export const wrapInTaskListInputRule = $inputRule(() => {
 
       if (!node || node.attrs.checked != null) return null
 
-      const checked = Boolean(match.groups?.checked === 'x')
+      const checked = Boolean(match[1] === 'x')
 
       const finPos = pos.before(depth)
       const tr = state.tr

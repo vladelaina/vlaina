@@ -26,6 +26,14 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function createAbortedResult(): HealthCheckResult {
+  return {
+    status: 'error',
+    error: 'Request aborted',
+    endpoint: 'chat',
+  };
+}
+
 export async function benchmarkModels(
   provider: Provider,
   models: AIModel[],
@@ -43,14 +51,23 @@ export async function benchmarkModels(
   let completed = 0;
 
   for (let index = 0; index < models.length; index += concurrency) {
+    if (options.signal?.aborted) {
+      break;
+    }
+
     const currentBatch = models.slice(index, index + concurrency);
     await Promise.all(
       currentBatch.map(async (model) => {
         let result: HealthCheckResult;
         try {
+          if (options.signal?.aborted) {
+            result = createAbortedResult();
+          } else {
           result = await checkModelHealth(provider, model, {
             timeoutMs: options.timeoutMs,
+            signal: options.signal,
           });
+          }
         } catch (error: unknown) {
           result = {
             status: 'error',
@@ -69,6 +86,10 @@ export async function benchmarkModels(
         });
       })
     );
+
+    if (options.signal?.aborted) {
+      break;
+    }
 
     const hasMore = index + concurrency < models.length;
     if (hasMore && batchDelayMs > 0) {

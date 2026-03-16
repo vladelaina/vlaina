@@ -39,8 +39,8 @@ export function PremiumSlider({
         containerRef.current.style.setProperty('--slider-percentage', `${percentage}%`);
     }, [min, max]);
 
-    const handleInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = parseFloat(e.target.value);
+    const handleInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
+        const newValue = parseFloat(e.currentTarget.value);
         latestValueRef.current = newValue;
 
         updateVisuals(newValue);

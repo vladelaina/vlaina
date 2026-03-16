@@ -116,4 +116,37 @@ describe('useCoverSelectionFlow', () => {
     expect(onUpdate).toHaveBeenCalledWith('@monet/2', 50, 50, 320, 1);
     expect(setShowPicker).toHaveBeenCalledWith(false);
   });
+
+  it('reuses the same in-flight preview request for repeated preview of one asset', async () => {
+    const onUpdate = vi.fn();
+    const setShowPicker = vi.fn();
+
+    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.nekotick/assets/covers/a.png');
+    hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-a');
+
+    const { result } = renderHook(() =>
+      useCoverSelectionFlow({
+        url: null,
+        coverHeight: 240,
+        vaultPath: '/vault-a',
+        onUpdate,
+        setShowPicker,
+      })
+    );
+
+    await act(async () => {
+      await Promise.all([
+        result.current.handlePreview('covers/a.png'),
+        result.current.handlePreview('covers/a.png'),
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.previewSrc).toBe('blob:cover-a');
+    });
+
+    expect(hoisted.resolveSystemAssetPath).toHaveBeenCalledTimes(1);
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
+    expect(hoisted.loadImageWithDimensions).toHaveBeenCalledTimes(1);
+  });
 });

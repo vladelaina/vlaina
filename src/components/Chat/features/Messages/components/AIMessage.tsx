@@ -4,8 +4,14 @@ import { ErrorBlock } from './ErrorBlock';
 import { ChatLoading } from './ChatLoading';
 import type { ChatMessage } from '@/lib/ai/types';
 
+interface ChatImageGalleryItem {
+  id: string;
+  src: string;
+}
+
 interface AIMessageProps {
   msg: ChatMessage;
+  imageGallery: ChatImageGalleryItem[];
   isLoading: boolean;
   onCopy: (text: string) => Promise<void> | void;
   onRegenerate: () => void;
@@ -14,6 +20,7 @@ interface AIMessageProps {
 
 export function AIMessage({
   msg,
+  imageGallery,
   isLoading,
   onCopy,
   onRegenerate,
@@ -34,6 +41,8 @@ export function AIMessage({
         <div className="[&>*:last-child]:mb-0">
             <MarkdownRenderer 
                 content={contentWithoutError || ' '} 
+                imageGallery={imageGallery}
+                imageIdBase={msg.id}
                 isStreaming={isLoading}
                 startTime={msg.timestamp ? new Date(msg.timestamp) : undefined}
             />

@@ -2,7 +2,7 @@ import { commandsCtx } from '@milkdown/core'
 import { paragraphSchema } from '@milkdown/preset-commonmark'
 import { InputRule } from '@milkdown/prose/inputrules'
 import { Fragment, Slice } from '@milkdown/prose/model'
-import { TextSelection } from '@milkdown/prose/state'
+import { TextSelection, type Command } from '@milkdown/prose/state'
 import { $inputRule, $pasteRule, $useKeymap } from '@milkdown/utils'
 
 import { withMeta } from '../../__internal__'
@@ -14,12 +14,70 @@ import {
 import { tableHeaderSchema, tableSchema } from './schema'
 import { createTable } from './utils'
 
+const normalizeTableShortcutNumber = (value: string) =>
+  value.replace(/[０-９]/g, (char) =>
+    String.fromCharCode(char.charCodeAt(0) - 0xfee0)
+  )
+
+const tablePipeCellPattern = /[|｜]/
+
+function getPipeShortcutColumnCount(text: string): number | null {
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('|') && !trimmed.startsWith('｜')) return null
+  if (!trimmed.endsWith('|') && !trimmed.endsWith('｜')) return null
+
+  const cells = trimmed
+    .split(tablePipeCellPattern)
+    .map((cell) => cell.trim())
+    .filter((cell) => cell.length > 0)
+
+  return cells.length >= 2 ? cells.length : null
+}
+
+function createTableFromPipeShortcut(ctx: Parameters<typeof createTable>[0]): Command {
+  return (state, dispatch) => {
+    const { selection } = state
+    if (!(selection instanceof TextSelection) || !selection.empty) return false
+
+    const { $from } = selection
+    if ($from.parent.type !== paragraphSchema.type(ctx)) return false
+    if ($from.parent.childCount !== 1 || !$from.parent.firstChild?.isText) return false
+    if ($from.parentOffset !== $from.parent.content.size) return false
+    if ($from.depth < 1) return false
+
+    const columnCount = getPipeShortcutColumnCount($from.parent.textContent)
+    if (!columnCount) return false
+
+    const parent = $from.node($from.depth - 1)
+    if (
+      !parent.canReplaceWith(
+        $from.index($from.depth - 1),
+        $from.indexAfter($from.depth - 1),
+        tableSchema.type(ctx)
+      )
+    ) {
+      return false
+    }
+
+    const tableNode = createTable(ctx, 2, columnCount)
+    const from = $from.before($from.depth)
+    const to = $from.after($from.depth)
+    const tr = state.tr.replaceRangeWith(from, to, tableNode)
+
+    dispatch?.(
+      tr.setSelection(TextSelection.create(tr.doc, from + 3)).scrollIntoView()
+    )
+
+    return true
+  }
+}
+
 /// A input rule for creating table.
 /// For example, `|2x2|` will create a 2x2 table.
 export const insertTableInputRule = $inputRule(
   (ctx) =>
     new InputRule(
-      /^\|(?<col>\d+)[xX](?<row>\d+)\|\s$/,
+      /^[|｜](?<col>[0-9０-９]+)[xX×](?<row>[0-9０-９]+)[|｜]\s$/,
       (state, match, start, end) => {
         const $start = state.doc.resolve(start)
         if (
@@ -33,9 +91,16 @@ export const insertTableInputRule = $inputRule(
         )
           return null
 
-        const row = Math.max(Number(match.groups?.row ?? 0), 2)
+        const row = Math.max(
+          Number(normalizeTableShortcutNumber(match.groups?.row ?? '0')),
+          2
+        )
 
-        const tableNode = createTable(ctx, row, Number(match.groups?.col))
+        const tableNode = createTable(
+          ctx,
+          row,
+          Number(normalizeTableShortcutNumber(match.groups?.col ?? '0'))
+        )
         const tr = state.tr.replaceRangeWith(start, end, tableNode)
         return tr
           .setSelection(TextSelection.create(tr.doc, start + 3))
@@ -110,6 +175,11 @@ withMeta(tablePasteRule, {
 /// - `<Mod-[>`/`<Shift-Tab>`: Move to the previous cell.
 /// - `<Mod-Enter>`: Exit the table, and break it if possible.
 export const tableKeymap = $useKeymap('tableKeymap', {
+  CreateTableFromPipeShortcut: {
+    priority: 1000,
+    shortcuts: 'Enter',
+    command: (ctx) => createTableFromPipeShortcut(ctx),
+  },
   NextCell: {
     priority: 100,
     shortcuts: ['Mod-]', 'Tab'],

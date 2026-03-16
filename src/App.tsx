@@ -8,6 +8,7 @@ import { AppShell } from '@/components/layout/shell/AppShell';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
+import { useAIStore } from '@/stores/useAIStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -58,6 +59,8 @@ const NotesTabRow = lazy(async () => {
 });
 
 function AppContent() {
+  useAIStore();
+
   const {
     appViewMode,
     sidebarCollapsed,
@@ -109,8 +112,8 @@ function AppContent() {
       await appWindow.setMaximizable(true);
       await appWindow.setMinSize(new LogicalSize(800, 600));
       const size = await appWindow.outerSize();
-      if (size.width < 1080 || size.height < 720) {
-        await appWindow.setSize(new LogicalSize(1080, 720));
+      if (size.width < 980 || size.height < 640) {
+        await appWindow.setSize(new LogicalSize(980, 640));
         await appWindow.center();
       }
     };

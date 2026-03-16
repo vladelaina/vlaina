@@ -1,7 +1,7 @@
 import type { $NodeSchema } from '@milkdown/utils'
 
 import { commandsCtx } from '@milkdown/core'
-import { wrapIn } from '@milkdown/prose/commands'
+import { liftEmptyBlock, wrapIn } from '@milkdown/prose/commands'
 import { wrappingInputRule } from '@milkdown/prose/inputrules'
 import {
   $command,
@@ -55,10 +55,12 @@ withMeta(blockquoteSchema.ctx, {
   group: 'Blockquote',
 })
 
-/// This input rule will convert a line that starts with `> ` into a blockquote.
-/// You can type `> ` at the start of a line to create a blockquote.
+/// This input rule will convert a line that starts with `> ` or `》 ` into a blockquote.
+/// You can type `> ` or `》 ` at the start of a line to create a blockquote.
 export const wrapInBlockquoteInputRule = $inputRule((ctx) =>
-  wrappingInputRule(/^\s*>\s$/, blockquoteSchema.type(ctx))
+  Object.assign(wrappingInputRule(/^\s*[>》]\s$/, blockquoteSchema.type(ctx)), {
+    undoable: false,
+  })
 )
 
 withMeta(wrapInBlockquoteInputRule, {
@@ -80,6 +82,24 @@ withMeta(wrapInBlockquoteCommand, {
 /// Keymap for blockquote.
 /// - `Mod-Shift-b`: Wrap selection in blockquote.
 export const blockquoteKeymap = $useKeymap('blockquoteKeymap', {
+  Backspace: {
+    shortcuts: 'Backspace',
+    command: (ctx) => {
+      const type = blockquoteSchema.type(ctx)
+
+      return (state, dispatch) => {
+        const { $from, empty } = state.selection
+        if (!empty || $from.parentOffset !== 0 || $from.parent.content.size !== 0)
+          return false
+
+        for (let depth = $from.depth; depth > 0; depth--) {
+          if ($from.node(depth).type === type) return liftEmptyBlock(state, dispatch)
+        }
+
+        return false
+      }
+    },
+  },
   WrapInBlockquote: {
     shortcuts: 'Mod-Shift-b',
     command: (ctx) => {

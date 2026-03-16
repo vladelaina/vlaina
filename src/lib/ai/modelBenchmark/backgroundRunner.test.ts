@@ -84,4 +84,21 @@ describe('backgroundBenchmarkRunner', () => {
     expect(finalSnapshot?.items['m-2']?.status).toBe('success');
     expect(snapshots.length).toBeGreaterThan(0);
   });
+
+  it('aborts the active benchmark run when stopped', () => {
+    const mockedBenchmarkModels = vi.mocked(benchmarkModels);
+    mockedBenchmarkModels.mockResolvedValue({});
+
+    const models = [createModel('m-1')];
+    const started = backgroundBenchmarkRunner.start(provider, models);
+
+    expect(started).toBe(true);
+    const signal = mockedBenchmarkModels.mock.calls[0]?.[2]?.signal as AbortSignal | undefined;
+    expect(signal?.aborted).toBe(false);
+
+    backgroundBenchmarkRunner.stop(provider.id);
+
+    expect(signal?.aborted).toBe(true);
+    expect(backgroundBenchmarkRunner.getSnapshot(provider.id)).toBeNull();
+  });
 });

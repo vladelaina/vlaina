@@ -31,6 +31,7 @@ describe("AIMessage", () => {
     render(
       <AIMessage
         msg={createMessage("Processing image...")}
+        imageGallery={[]}
         isLoading
         onCopy={() => {}}
         onRegenerate={() => {}}
@@ -45,6 +46,7 @@ describe("AIMessage", () => {
     render(
       <AIMessage
         msg={createMessage("")}
+        imageGallery={[]}
         isLoading
         onCopy={() => {}}
         onRegenerate={() => {}}

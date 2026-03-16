@@ -1,16 +1,79 @@
 import type { EditorView } from '@milkdown/prose/view'
 
-import { computePosition, offset } from '@floating-ui/dom'
 import { throttle } from 'lodash-es'
 
 import type { Refs } from './types'
 
-import {
-  computeColHandlePositionByIndex,
-  computeRowHandlePositionByIndex,
-  findPointerIndex,
-  getRelatedDOM,
-} from './utils'
+const EDGE_INTERACTION_THRESHOLD = 12
+
+function isWithinRange(value: number, min: number, max: number) {
+  return value >= min && value <= max
+}
+
+function getContentFrame(refs: Refs, content: HTMLElement) {
+  const wrapper = refs.tableWrapperRef.value
+  if (!wrapper) return
+
+  const wrapperRect = wrapper.getBoundingClientRect()
+  const contentRect = content.getBoundingClientRect()
+
+  return {
+    wrapperRect,
+    left: contentRect.left - wrapperRect.left,
+    top: contentRect.top - wrapperRect.top,
+    width: contentRect.width,
+    height: contentRect.height,
+    right: contentRect.right - wrapperRect.left,
+    bottom: contentRect.bottom - wrapperRect.top,
+  }
+}
+
+function showRightEdgeHandle(
+  refs: Refs,
+  content: HTMLElement,
+  yHandle: HTMLDivElement
+) {
+  const rows = content.querySelectorAll('tr')
+  const firstRow = rows[0]
+  if (!firstRow || firstRow.children.length === 0) return false
+
+  const lastColIndex = firstRow.children.length - 1
+  const frame = getContentFrame(refs, content)
+  if (!frame) return false
+
+  refs.lineHoverIndex.value![1] = lastColIndex + 1
+  yHandle.dataset.show = 'true'
+  Object.assign(yHandle.style, {
+    top: `${frame.top}px`,
+    height: `${frame.height}px`,
+    left: `${frame.right}px`,
+  })
+
+  return true
+}
+
+function showBottomEdgeHandle(
+  refs: Refs,
+  content: HTMLElement,
+  xHandle: HTMLDivElement
+) {
+  const rows = content.querySelectorAll('tr')
+  if (rows.length <= 1) return false
+
+  const lastRowIndex = rows.length - 1
+  const frame = getContentFrame(refs, content)
+  if (!frame) return false
+
+  refs.lineHoverIndex.value![0] = lastRowIndex + 1
+  xHandle.dataset.show = 'true'
+  Object.assign(xHandle.style, {
+    left: `${frame.left}px`,
+    width: `${frame.width}px`,
+    top: `${frame.bottom}px`,
+  })
+
+  return true
+}
 
 function createPointerMoveHandler(
   refs: Refs,
@@ -18,95 +81,48 @@ function createPointerMoveHandler(
 ): (e: PointerEvent) => void {
   return throttle((e: PointerEvent) => {
     if (!view?.editable) return
-    const {
-      contentWrapperRef,
-      yLineHandleRef,
-      xLineHandleRef,
-      colHandleRef,
-      rowHandleRef,
-      hoverIndex,
-      lineHoverIndex,
-    } = refs
+    const { contentWrapperRef, yLineHandleRef, xLineHandleRef, lineHoverIndex } =
+      refs
     const yHandle = yLineHandleRef.value
     if (!yHandle) return
     const xHandle = xLineHandleRef.value
     if (!xHandle) return
     const content = contentWrapperRef.value
     if (!content) return
-    const rowHandle = rowHandleRef.value
-    if (!rowHandle) return
-    const colHandle = colHandleRef.value
-    if (!colHandle) return
+    const frame = getContentFrame(refs, content)
+    if (!frame) return
 
-    const index = findPointerIndex(e, view)
-    if (!index) return
+    const contentBoundary = content.getBoundingClientRect()
 
-    const dom = getRelatedDOM(contentWrapperRef, index)
-    if (!dom) return
+    const nearRightEdge =
+      isWithinRange(
+        e.clientY,
+        contentBoundary.top - EDGE_INTERACTION_THRESHOLD,
+        contentBoundary.bottom + EDGE_INTERACTION_THRESHOLD
+      ) &&
+      Math.abs(contentBoundary.right - e.clientX) <= EDGE_INTERACTION_THRESHOLD
 
-    const [rowIndex, colIndex] = index
-    const boundary = dom.col.getBoundingClientRect()
-    const closeToBoundaryLeft = Math.abs(e.clientX - boundary.left) < 8
-    const closeToBoundaryRight = Math.abs(boundary.right - e.clientX) < 8
-    const closeToBoundaryTop = Math.abs(e.clientY - boundary.top) < 8
-    const closeToBoundaryBottom = Math.abs(boundary.bottom - e.clientY) < 8
+    const nearBottomEdge =
+      isWithinRange(
+        e.clientX,
+        contentBoundary.left - EDGE_INTERACTION_THRESHOLD,
+        contentBoundary.right + EDGE_INTERACTION_THRESHOLD
+      ) &&
+      Math.abs(contentBoundary.bottom - e.clientY) <= EDGE_INTERACTION_THRESHOLD
 
-    const closeToBoundary =
-      closeToBoundaryLeft ||
-      closeToBoundaryRight ||
-      closeToBoundaryTop ||
-      closeToBoundaryBottom
-
-    const rowButtonGroup = rowHandle.querySelector<HTMLElement>('.button-group')
-    const colButtonGroup = colHandle.querySelector<HTMLElement>('.button-group')
-    if (rowButtonGroup) rowButtonGroup.dataset.show = 'false'
-    if (colButtonGroup) colButtonGroup.dataset.show = 'false'
-
-    if (closeToBoundary) {
-      const contentBoundary = content.getBoundingClientRect()
-      rowHandle.dataset.show = 'false'
-      colHandle.dataset.show = 'false'
+    if (nearRightEdge || nearBottomEdge) {
       xHandle.dataset.displayType = 'tool'
       yHandle.dataset.displayType = 'tool'
+      refs.lineHoverIndex.value = [-1, -1]
 
-      const yHandleWidth = yHandle.getBoundingClientRect().width
-      const xHandleHeight = xHandle.getBoundingClientRect().height
-
-      // display vertical line handle
-      if (closeToBoundaryLeft || closeToBoundaryRight) {
-        lineHoverIndex.value![1] = closeToBoundaryLeft ? colIndex : colIndex + 1
-        computePosition(dom.col, yHandle, {
-          placement: closeToBoundaryLeft ? 'left' : 'right',
-          middleware: [offset(closeToBoundaryLeft ? -1 * yHandleWidth : 0)],
-        })
-          .then(({ x }) => {
-            yHandle.dataset.show = 'true'
-            Object.assign(yHandle.style, {
-              height: `${contentBoundary.height}px`,
-              left: `${x}px`,
-            })
-          })
-          .catch(console.error)
+      if (nearRightEdge) {
+        showRightEdgeHandle(refs, content, yHandle)
       } else {
         yHandle.dataset.show = 'false'
       }
 
-      // display horizontal line handle
-      // won't display if the row is the header row
-      if (index[0] !== 0 && (closeToBoundaryTop || closeToBoundaryBottom)) {
-        lineHoverIndex.value![0] = closeToBoundaryTop ? rowIndex : rowIndex + 1
-        computePosition(dom.row, xHandle, {
-          placement: closeToBoundaryTop ? 'top' : 'bottom',
-          middleware: [offset(closeToBoundaryTop ? -1 * xHandleHeight : 0)],
-        })
-          .then(({ y }) => {
-            xHandle.dataset.show = 'true'
-            Object.assign(xHandle.style, {
-              width: `${contentBoundary.width}px`,
-              top: `${y}px`,
-            })
-          })
-          .catch(console.error)
+      if (nearBottomEdge) {
+        showBottomEdgeHandle(refs, content, xHandle)
       } else {
         xHandle.dataset.show = 'false'
       }
@@ -115,39 +131,20 @@ function createPointerMoveHandler(
     }
 
     lineHoverIndex.value = [-1, -1]
-
     yHandle.dataset.show = 'false'
     xHandle.dataset.show = 'false'
-    rowHandle.dataset.show = 'true'
-    colHandle.dataset.show = 'true'
-
-    computeRowHandlePositionByIndex({
-      refs,
-      index,
-    })
-    computeColHandlePositionByIndex({
-      refs,
-      index,
-    })
-    hoverIndex.value = index
   }, 20)
 }
 
 function createPointerLeaveHandler(refs: Refs): () => void {
   return () => {
-    const { rowHandleRef, colHandleRef, yLineHandleRef, xLineHandleRef } = refs
+    const { yLineHandleRef, xLineHandleRef } = refs
     setTimeout(() => {
-      const rowHandle = rowHandleRef.value
-      if (!rowHandle) return
-      const colHandle = colHandleRef.value
-      if (!colHandle) return
       const yHandle = yLineHandleRef.value
       if (!yHandle) return
       const xHandle = xLineHandleRef.value
       if (!xHandle) return
 
-      rowHandle.dataset.show = 'false'
-      colHandle.dataset.show = 'false'
       yHandle.dataset.show = 'false'
       xHandle.dataset.show = 'false'
     }, 200)

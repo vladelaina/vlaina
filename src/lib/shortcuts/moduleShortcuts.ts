@@ -32,7 +32,6 @@ const COMMON_SECTIONS: ModuleShortcutSection[] = [
   {
     title: 'General',
     shortcuts: [
-      { action: 'Show shortcuts', keys: ['Ctrl', '/'] },
       { action: 'Toggle sidebar', keys: resolveShortcutKeys('toggleSidebar', ['Ctrl', '\\']) },
       { action: 'Global search', keys: resolveShortcutKeys('globalSearch', ['Ctrl', 'F']) },
       { action: 'Toggle drawer', keys: resolveShortcutKeys('toggleDrawer', ['Ctrl', 'D']) },
@@ -53,6 +52,7 @@ function createChatSections(isMac: boolean): ModuleShortcutSection[] {
           action: 'Open temporary chat (toggle if empty)',
           keys: resolveShortcutKeys('toggleTemporaryChatWelcome', ['Ctrl', 'Shift', 'J']),
         },
+        { action: 'Stop response', keys: ['Esc'] },
         { action: 'Focus chat input', keys: ['Shift', 'Esc'] },
         { action: 'Previous chat', keys: ['Ctrl', 'Shift', 'Tab'] },
         { action: 'Next chat', keys: ['Ctrl', 'Tab'] },

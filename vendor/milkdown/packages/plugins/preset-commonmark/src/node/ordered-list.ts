@@ -41,7 +41,7 @@ export const orderedListSchema = $nodeSchema('ordered_list', (ctx) => ({
         if (!(dom instanceof HTMLElement)) throw expectDomTypeError(dom)
 
         return {
-          spread: dom.dataset.spread,
+          spread: dom.dataset.spread === 'true',
           order: dom.hasAttribute('start')
             ? Number(dom.getAttribute('start'))
             : 1,
@@ -53,7 +53,7 @@ export const orderedListSchema = $nodeSchema('ordered_list', (ctx) => ({
     'ol',
     {
       ...ctx.get(orderedListAttr.key)(node),
-      ...(node.attrs.order === 1 ? {} : node.attrs.order),
+      ...(node.attrs.order === 1 ? {} : { start: node.attrs.order }),
       'data-spread': node.attrs.spread,
     },
     0,
@@ -61,8 +61,13 @@ export const orderedListSchema = $nodeSchema('ordered_list', (ctx) => ({
   parseMarkdown: {
     match: ({ type, ordered }) => type === 'list' && !!ordered,
     runner: (state, node, type) => {
-      const spread = node.spread != null ? `${node.spread}` : 'true'
-      state.openNode(type, { spread }).next(node.children).closeNode()
+      state
+        .openNode(type, {
+          order: node.start ?? 1,
+          spread: node.spread ?? true,
+        })
+        .next(node.children)
+        .closeNode()
     },
   },
   toMarkdown: {
@@ -70,8 +75,8 @@ export const orderedListSchema = $nodeSchema('ordered_list', (ctx) => ({
     runner: (state, node) => {
       state.openNode('list', undefined, {
         ordered: true,
-        start: 1,
-        spread: node.attrs.spread === 'true',
+        start: node.attrs.order,
+        spread: node.attrs.spread,
       })
       state.next(node.content)
       state.closeNode()
@@ -89,13 +94,20 @@ withMeta(orderedListSchema.ctx, {
   group: 'OrderedList',
 })
 
+const normalizeOrderedListMarker = (value: string) =>
+  value.replace(/[０-９]/g, (char) =>
+    String.fromCharCode(char.charCodeAt(0) - 0xfee0)
+  )
+
 /// Input rule for wrapping a block in ordered list node.
 export const wrapInOrderedListInputRule = $inputRule((ctx) =>
   wrappingInputRule(
-    /^\s*(\d+)\.\s$/,
+    /^\s*([0-9０-９]+)[.．]\s$/,
     orderedListSchema.type(ctx),
-    (match) => ({ order: Number(match[1]) }),
-    (match, node) => node.childCount + node.attrs.order === Number(match[1])
+    (match) => ({ order: Number(normalizeOrderedListMarker(match[1])) }),
+    (match, node) =>
+      node.childCount + node.attrs.order ===
+      Number(normalizeOrderedListMarker(match[1]))
   )
 )
 

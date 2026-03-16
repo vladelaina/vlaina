@@ -1,5 +1,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { isTaskCheckboxClick } from './taskCheckboxHitArea';
 
 export const taskListClickPluginKey = new PluginKey('taskListClick');
 
@@ -16,9 +17,7 @@ export const taskListClickPlugin = $prose(() => {
                     const taskLi = target.closest('li[data-item-type="task"]') as HTMLElement;
                     if (!taskLi) return false;
 
-                    const liRect = taskLi.getBoundingClientRect();
-                    const clickX = event.clientX - liRect.left;
-                    if (clickX > 5 || clickX < -30) return false;
+                    if (!isTaskCheckboxClick(taskLi, event.clientX)) return false;
 
                     event.preventDefault();
 

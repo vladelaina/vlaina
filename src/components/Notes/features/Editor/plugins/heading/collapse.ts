@@ -163,6 +163,16 @@ const createExpandAndRedirectTransaction = (
     return tr.scrollIntoView();
 };
 
+const createExpandWithoutRedirectTransaction = (
+    state: any,
+    headingPos: number,
+) => {
+    const tr = state.tr;
+    tr.setMeta(COLLAPSE_PLUGIN_KEY, { type: 'expand', headingPos } satisfies CollapseMetaAction);
+    tr.setMeta(COLLAPSE_SELECTION_GUARD_META, true);
+    return tr;
+};
+
 export const collapsePlugin = $prose(() => {
     return new Plugin<HeadingCollapsePluginState>({
         key: COLLAPSE_PLUGIN_KEY,
@@ -300,7 +310,7 @@ export const collapsePlugin = $prose(() => {
                     const headingRect = headingDom.getBoundingClientRect();
                     if (event.clientY <= headingRect.bottom) return false;
 
-                    const tr = createExpandAndRedirectTransaction(view.state, section.headingPos, section);
+                    const tr = createExpandWithoutRedirectTransaction(view.state, section.headingPos);
                     view.dispatch(tr);
                     view.focus();
                     event.preventDefault();

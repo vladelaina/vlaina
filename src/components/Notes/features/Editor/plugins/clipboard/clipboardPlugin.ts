@@ -10,6 +10,7 @@ import { normalizeSerializedMarkdownSelection } from './markdownSerializationUti
 import {
     extractLargestMarkdownFenceContent,
     looksLikeMarkdownForPaste,
+    normalizeStandaloneThematicBreaksForPaste,
     parseStandaloneAtxHeading,
     parseStandaloneFencedCodeBlock,
 } from './fencedCodePaste';
@@ -62,7 +63,7 @@ export const clipboardPlugin = $prose((ctx) => {
 
         let parsedDoc: ProseNode;
         try {
-            parsedDoc = parser(text);
+            parsedDoc = parser(normalizeStandaloneThematicBreaksForPaste(text));
         } catch {
             return null;
         }

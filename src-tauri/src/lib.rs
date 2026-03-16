@@ -232,7 +232,7 @@ async fn create_new_window(app: AppHandle) -> Result<(), String> {
     // Create window hidden first, with position if available
     let mut builder = WebviewWindowBuilder::new(&app, &window_label, url)
         .title("Nekotick")
-        .inner_size(1080.0, 720.0)
+        .inner_size(980.0, 640.0)
         .min_inner_size(720.0, 540.0)
         .decorations(false)
         .background_color(Color(0, 0, 0, 0))
@@ -299,6 +299,9 @@ pub fn run() {
             set_window_resizable,
             focus_window,
             move_to_trash,
+            account::ai_secret_commands::get_ai_provider_secrets,
+            account::ai_secret_commands::set_ai_provider_secret,
+            account::ai_secret_commands::delete_ai_provider_secret,
             account::auth::session_commands::account_auth,
             account::auth::session_commands::account_disconnect,
             account::auth::session_commands::get_account_session_status,

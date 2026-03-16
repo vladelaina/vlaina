@@ -1,42 +1,59 @@
 export function serializeSliceToText(slice: any): string {
-    let result = '';
-
-    const processNode = (node: any) => {
+    const processNode = (node: any): string => {
         if (node.isText && node.text) {
             const linkMark = node.marks?.find((m: any) => m.type.name === 'link');
             if (linkMark) {
                 if (node.text === linkMark.attrs.href) {
-                    result += node.text;
+                    return node.text;
                 } else {
-                    result += '[' + node.text + '](' + linkMark.attrs.href + ')';
+                    return '[' + node.text + '](' + linkMark.attrs.href + ')';
                 }
-            } else {
-                result += node.text;
             }
-            return;
+            return node.text;
         }
 
         if (node.type.name === 'hard_break') {
-            result += '\n';
-            return;
+            return '\n';
+        }
+
+        if (node.type.name === 'hr') {
+            return '---\n';
+        }
+
+        if (node.type.name === 'heading') {
+            const level = Math.max(1, Math.min(6, Number(node.attrs?.level) || 1));
+            const content = serializeNodeContent(node).replace(/\n+$/, '');
+            return '#'.repeat(level) + (content ? ' ' + content : '') + '\n';
+        }
+
+        if (node.type.name === 'code_block') {
+            const language = typeof node.attrs?.language === 'string' ? node.attrs.language : '';
+            const content = serializeNodeContent(node).replace(/\n+$/, '');
+            return '```' + language + '\n' + content + '\n```\n';
         }
 
         if (node.content && node.content.size > 0) {
-            node.content.forEach((child: any) => {
-                processNode(child);
-            });
-
+            const content = serializeNodeContent(node);
             if (node.isBlock) {
-                result += '\n';
+                return content.endsWith('\n') ? content : content + '\n';
             }
+            return content;
         }
+
+        return '';
     };
 
+    const serializeNodeContent = (node: any): string => {
+        let content = '';
+        node.content?.forEach((child: any) => {
+            content += processNode(child);
+        });
+        return content;
+    };
+
+    let result = '';
     slice.content.forEach((node: any) => {
-        processNode(node);
-        if (node.isBlock && !result.endsWith('\n')) {
-            result += '\n';
-        }
+        result += processNode(node);
     });
 
     return result.replace(/\n+$/, '');
