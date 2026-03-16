@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { hasBackendCommandsMock, clearClientSessionMock, getManagedModelsMock } = vi.hoisted(() => ({
+const {
+  hasBackendCommandsMock,
+  clearClientSessionMock,
+  getManagedModelsMock,
+  managedChatCompletionStreamMock,
+} = vi.hoisted(() => ({
   hasBackendCommandsMock: vi.fn(),
   clearClientSessionMock: vi.fn(),
   getManagedModelsMock: vi.fn(),
+  managedChatCompletionStreamMock: vi.fn(),
 }));
 
 vi.mock('@/lib/tauri/invoke', () => ({
@@ -15,6 +21,7 @@ vi.mock('@/lib/tauri/accountAuthCommands', () => ({
     getManagedModels: getManagedModelsMock,
     getManagedBudget: vi.fn(),
     managedChatCompletion: vi.fn(),
+    managedChatCompletionStream: managedChatCompletionStreamMock,
   },
 }));
 
@@ -29,6 +36,7 @@ describe('managedService', () => {
     hasBackendCommandsMock.mockReset();
     clearClientSessionMock.mockReset();
     getManagedModelsMock.mockReset();
+    managedChatCompletionStreamMock.mockReset();
     vi.restoreAllMocks();
   });
 
@@ -82,5 +90,57 @@ describe('managedService', () => {
 
     expect(models[0]?.apiModelId).toBe('gpt-4o-mini');
     expect(getManagedModelsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('streams managed chat completions on web', async () => {
+    hasBackendCommandsMock.mockReturnValue(false);
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode(
+              [
+                'data: {"choices":[{"delta":{"reasoning_content":"思考中"}}]}',
+                'data: {"choices":[{"delta":{"content":"你好"}}]}',
+                'data: [DONE]',
+                '',
+              ].join('\n')
+            )
+          );
+          controller.close();
+        },
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestManagedChatCompletionStream } = await import('./managedService');
+    const chunks: string[] = [];
+    const content = await requestManagedChatCompletionStream(
+      {
+        model: 'gpt-5.4',
+        messages: [{ role: 'user', content: 'hello' }],
+        stream: true,
+      },
+      (chunk) => chunks.push(chunk)
+    );
+
+    expect(content).toBe('<think>思考中</think>你好');
+    expect(chunks[chunks.length - 1]).toBe('<think>思考中</think>你好');
+    expect(fetchMock).toHaveBeenCalledWith('https://api.nekotick.com/v1/chat/completions', {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'include',
+      headers: {
+        Accept: 'text/event-stream',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-5.4',
+        messages: [{ role: 'user', content: 'hello' }],
+        stream: true,
+      }),
+    });
   });
 });

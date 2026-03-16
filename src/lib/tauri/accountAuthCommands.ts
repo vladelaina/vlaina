@@ -1,4 +1,5 @@
 import type { AccountProvider } from '@/stores/accountSession/state';
+import type { Channel } from '@tauri-apps/api/core';
 import { safeInvoke } from './invoke';
 
 export const accountCommands = {
@@ -83,7 +84,7 @@ export const accountCommands = {
     });
   },
 
-  async managedChatCompletion(body: Record<string, unknown>) {
+  async managedChatCompletion(body: object) {
     return safeInvoke<Record<string, unknown>>('managed_chat_completion', { body }, {
       webFallback: {
         choices: [
@@ -96,6 +97,17 @@ export const accountCommands = {
         ],
       },
     });
+  },
+
+  async managedChatCompletionStream<T>(body: object, onEvent: Channel<T>) {
+    return safeInvoke<Record<string, unknown>>(
+      'managed_chat_completion_stream',
+      { body, onEvent },
+      {
+        throwOnWeb: true,
+        webErrorMessage: 'Managed streaming is not available on web platform via Tauri command',
+      }
+    );
   },
 
   async accountDisconnect() {

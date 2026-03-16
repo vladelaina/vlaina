@@ -3,6 +3,8 @@ import { buildScopedModelId } from '@/lib/ai/utils';
 import { hasBackendCommands } from '@/lib/tauri/invoke';
 import { accountCommands } from '@/lib/tauri/accountAuthCommands';
 import { webAccountCommands } from '@/lib/tauri/webAccountCommands';
+import { Channel } from '@tauri-apps/api/core';
+import { consumeOpenAIStream, createStreamAccumulator, type StreamDeltaPayload } from '@/lib/ai/streaming';
 
 export const MANAGED_PROVIDER_ID = 'nekotick-managed';
 export const MANAGED_PROVIDER_NAME = 'NekoTick AI';
@@ -96,6 +98,12 @@ function normalizeModelGroup(model: Record<string, unknown>, modelId: string): s
   return 'other';
 }
 
+function createAbortError(): Error {
+  const error = new Error('The operation was aborted')
+  error.name = 'AbortError'
+  return error
+}
+
 async function parseManagedError(response: Response): Promise<Error> {
   const raw = await response.text().catch(() => '');
   if (response.status === 401 || response.status === 403) {
@@ -168,7 +176,7 @@ export async function fetchManagedBudget(): Promise<ManagedBudgetStatus> {
 }
 
 export async function requestManagedChatCompletion(
-  body: Record<string, unknown>
+  body: object
 ): Promise<Record<string, unknown>> {
   if (hasBackendCommands()) {
     return (await accountCommands.managedChatCompletion(body)) as Record<string, unknown>;
@@ -178,4 +186,63 @@ export async function requestManagedChatCompletion(
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+export async function requestManagedChatCompletionStream(
+  body: object,
+  onChunk: (chunk: string) => void,
+  signal?: AbortSignal
+): Promise<string> {
+  if (signal?.aborted) {
+    throw createAbortError()
+  }
+
+  if (hasBackendCommands()) {
+    const accumulator = createStreamAccumulator(onChunk);
+    let aborted = false;
+    const onEvent = new Channel<StreamDeltaPayload>();
+    onEvent.onmessage = (payload) => {
+      if (aborted) {
+        return;
+      }
+      accumulator.pushDelta(payload || {});
+    };
+    const streamPromise = accountCommands.managedChatCompletionStream(body, onEvent);
+    if (signal) {
+      await Promise.race([
+        streamPromise,
+        new Promise<never>((_, reject) => {
+          signal.addEventListener(
+            'abort',
+            () => {
+              aborted = true;
+              reject(createAbortError());
+            },
+            { once: true }
+          );
+        }),
+      ]);
+    } else {
+      await streamPromise;
+    }
+    return accumulator.finish();
+  }
+
+  const response = await fetch(`${MANAGED_API_BASE}/chat/completions`, {
+    method: 'POST',
+    cache: 'no-store',
+    credentials: 'include',
+    signal,
+    headers: {
+      Accept: 'text/event-stream',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw await parseManagedError(response);
+  }
+
+  return consumeOpenAIStream(response, onChunk);
 }
