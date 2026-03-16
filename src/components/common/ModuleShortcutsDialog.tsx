@@ -33,6 +33,9 @@ export function ModuleShortcutsDialog({
         showCloseButton={false}
         useBlurBackdrop
         blurBackdropProps={{ overlayClassName: 'bg-white/20 dark:bg-white/5', blurPx: 6, duration: 0.2 }}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+        }}
         className="sm:max-w-lg rounded-[20px] border border-black/5 bg-white p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] overflow-hidden dark:border-white/5 dark:bg-[#1E1E1E] dark:shadow-[0_24px_60px_rgba(0,0,0,0.35)]"
       >
         <div className="flex min-w-0 items-start justify-between gap-3 px-1 pb-4">
