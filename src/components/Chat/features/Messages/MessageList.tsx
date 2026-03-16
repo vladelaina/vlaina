@@ -4,8 +4,14 @@ import { ChatLoading } from '@/components/Chat/features/Messages/components/Chat
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/ai/types';
 
+interface ChatImageGalleryItem {
+  id: string;
+  src: string;
+}
+
 interface MessageListProps {
   messages: ChatMessage[];
+  imageGallery: ChatImageGalleryItem[];
   isSessionActive: boolean;
   showLoading: boolean;
   isLayoutCentered?: boolean;
@@ -19,6 +25,7 @@ interface MessageListProps {
 
 export function MessageList({
   messages,
+  imageGallery,
   isSessionActive,
   showLoading,
   isLayoutCentered,
@@ -48,6 +55,7 @@ export function MessageList({
                 <div key={msg.id} data-message-index={idx}>
                     <MessageItem 
                         msg={msg}
+                        imageGallery={imageGallery}
                         isLoading={isSessionActive && idx === messages.length - 1} 
                         onCopy={onCopy}
                         onRegenerate={onRegenerate}

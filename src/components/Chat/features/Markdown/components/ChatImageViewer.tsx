@@ -11,6 +11,8 @@ interface ChatImageViewerProps {
   open: boolean;
   src: string;
   alt?: string;
+  gallery?: Array<{ id: string; src: string }>;
+  currentImageId?: string;
   onOpenChange: (open: boolean) => void;
 }
 
@@ -36,7 +38,23 @@ function clampZoom(value: number): number {
   return Number(value.toFixed(2));
 }
 
-export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewerProps) {
+function normalizeComparableSrc(value: string): string {
+  const trimmed = value.trim();
+  try {
+    return decodeURIComponent(trimmed);
+  } catch {
+    return trimmed;
+  }
+}
+
+export function ChatImageViewer({
+  open,
+  src,
+  alt,
+  gallery,
+  currentImageId,
+  onOpenChange,
+}: ChatImageViewerProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -44,6 +62,65 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
   const [aspectRatio, setAspectRatio] = useState(1);
   const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
   const [viewportSize, setViewportSize] = useState({ width: 1440, height: 900 });
+  const [activeGalleryIndex, setActiveGalleryIndex] = useState(-1);
+
+  const galleryIndex = useMemo(() => {
+    if (!gallery || gallery.length === 0) {
+      return -1;
+    }
+    if (currentImageId) {
+      const byId = gallery.findIndex((item) => item.id === currentImageId);
+      if (byId !== -1) {
+        return byId;
+      }
+    }
+    const normalizedSrc = normalizeComparableSrc(src);
+    return gallery.findIndex((item) => normalizeComparableSrc(item.src) === normalizedSrc);
+  }, [currentImageId, gallery, src]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    setActiveGalleryIndex(galleryIndex);
+  }, [galleryIndex, open]);
+
+  const activeGalleryItem =
+    gallery && activeGalleryIndex >= 0 && activeGalleryIndex < gallery.length
+      ? gallery[activeGalleryIndex]
+      : null;
+  const activeSrc = activeGalleryItem?.src ?? src;
+  const activeAlt = alt;
+  const canNavigate = !!gallery && gallery.length > 1 && activeGalleryIndex >= 0;
+  const hasPrevious = canNavigate && activeGalleryIndex > 0;
+  const hasNext = canNavigate && activeGalleryIndex < gallery.length - 1;
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !open) {
+      return;
+    }
+
+    console.log('[chat-image-nav] viewer state', {
+      src,
+      currentImageId,
+      gallery,
+      galleryIndex,
+      activeGalleryIndex,
+      activeSrc,
+      hasPrevious,
+      hasNext,
+    });
+  }, [
+    activeGalleryIndex,
+    activeSrc,
+    currentImageId,
+    gallery,
+    galleryIndex,
+    hasNext,
+    hasPrevious,
+    open,
+    src,
+  ]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -96,11 +173,11 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
       setAspectRatio(1);
       setImageSize(null);
     };
-    image.src = src;
+    image.src = activeSrc;
     return () => {
       active = false;
     };
-  }, [open, src]);
+  }, [activeSrc, open]);
 
   useEffect(() => {
     if (!open || typeof window === "undefined") {
@@ -109,13 +186,23 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onOpenChange(false);
+        return;
+      }
+      if (event.key === "ArrowLeft" && hasPrevious) {
+        event.preventDefault();
+        setActiveGalleryIndex((value) => Math.max(value - 1, 0));
+        return;
+      }
+      if (event.key === "ArrowRight" && hasNext) {
+        event.preventDefault();
+        setActiveGalleryIndex((value) => Math.min(value + 1, (gallery?.length ?? 1) - 1));
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, onOpenChange]);
+  }, [gallery?.length, hasNext, hasPrevious, onOpenChange, open]);
 
   const percentLabel = useMemo(() => `${Math.round(zoom * 100)}%`, [zoom]);
   const imageSizeLabel = useMemo(() => {
@@ -179,7 +266,7 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
     }
     setCrop({ x: 0, y: 0 });
     setZoom(previewMetrics.initialZoom);
-  }, [open, previewMetrics.initialZoom, src]);
+  }, [activeSrc, open, previewMetrics.initialZoom]);
 
   useEffect(() => {
     if (!copied) return;
@@ -189,7 +276,7 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
 
   const handleCopy = async () => {
     try {
-      await copyImageOrUrl(src);
+      await copyImageOrUrl(activeSrc);
       setCopied(true);
     } catch {
       setCopied(false);
@@ -206,7 +293,7 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={alt || "Image preview"}
+        aria-label={activeAlt || "Image preview"}
         className="fixed inset-0 z-[121]"
         data-no-focus-input="true"
         onClick={(event) => {
@@ -233,10 +320,50 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
           <Icon name="common.close" size="md" />
         </button>
 
+        {hasPrevious && (
+          <div className="absolute inset-y-0 left-4 z-10 flex items-center">
+            <button
+              type="button"
+              aria-label="Previous image"
+              data-no-focus-input="true"
+              className={cn(
+                "inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/78 text-slate-700 shadow-[0_18px_54px_rgba(84,121,160,0.16)] transition-colors hover:bg-white",
+                iconButtonStyles
+              )}
+              onClick={(event) => {
+                event.stopPropagation();
+                setActiveGalleryIndex((value) => Math.max(value - 1, 0));
+              }}
+            >
+              <Icon name="nav.chevronLeft" size="md" />
+            </button>
+          </div>
+        )}
+
+        {hasNext && (
+          <div className="absolute inset-y-0 right-4 z-10 flex items-center">
+            <button
+              type="button"
+              aria-label="Next image"
+              data-no-focus-input="true"
+              className={cn(
+                "inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/78 text-slate-700 shadow-[0_18px_54px_rgba(84,121,160,0.16)] transition-colors hover:bg-white",
+                iconButtonStyles
+              )}
+              onClick={(event) => {
+                event.stopPropagation();
+                setActiveGalleryIndex((value) => Math.min(value + 1, (gallery?.length ?? 1) - 1));
+              }}
+            >
+              <Icon name="nav.chevronRight" size="md" />
+            </button>
+          </div>
+        )}
+
         <div className="relative h-full w-full">
           <div className="absolute inset-0">
             <Cropper
-              image={src}
+              image={activeSrc}
               crop={crop}
               zoom={zoom}
               minZoom={previewMetrics.minZoom}
@@ -267,40 +394,53 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
 
           <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
             <div
-              className="pointer-events-auto flex items-center gap-1 rounded-full bg-black/45 px-2 py-1.5 text-white/90 backdrop-blur-sm"
+              className="pointer-events-auto inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-2 py-2 text-slate-800 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
               onClick={(event) => event.stopPropagation()}
             >
               <button
                 type="button"
                 aria-label="Zoom out"
                 data-no-focus-input="true"
-                className={cn("p-1", iconButtonStyles, "text-white/90 hover:text-white")}
+                className={cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 transition-colors hover:bg-zinc-100",
+                  iconButtonStyles
+                )}
                 onClick={() => setZoom((value) => clampZoom(value - ZOOM_STEP))}
               >
                 <Icon name="common.remove" size="md" />
               </button>
-              <span className="min-w-[52px] text-center text-xs font-medium tabular-nums">{percentLabel}</span>
+              <span className="min-w-[50px] px-1.5 text-center text-xs font-semibold tabular-nums text-slate-800">
+                {percentLabel}
+              </span>
               <button
                 type="button"
                 aria-label="Zoom in"
                 data-no-focus-input="true"
-                className={cn("p-1", iconButtonStyles, "text-white/90 hover:text-white")}
+                className={cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 transition-colors hover:bg-zinc-100",
+                  iconButtonStyles
+                )}
                 onClick={() => setZoom((value) => clampZoom(value + ZOOM_STEP))}
               >
                 <Icon name="common.add" size="md" />
               </button>
+              <div className="mx-1 h-6 w-px bg-zinc-200" />
               {imageSizeLabel && (
-                <span className="min-w-[78px] text-center text-xs font-medium tabular-nums text-white/80">
+                <span className="min-w-[78px] px-3 text-center text-[11px] font-medium tabular-nums text-slate-500">
                   {imageSizeLabel}
                 </span>
               )}
+              <div className="mx-1 h-6 w-px bg-zinc-200" />
               <button
                 type="button"
                 aria-label="Copy image"
                 data-no-focus-input="true"
-                className={cn("p-1", iconButtonStyles, "text-white/90 hover:text-white")}
+                className={cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 transition-colors hover:bg-zinc-100",
+                  iconButtonStyles
+                )}
                 onClick={() => {
-                  void handleCopy();
+                    void handleCopy();
                 }}
               >
                 <Icon name={copied ? "common.check" : "common.copy"} size="md" />
@@ -309,9 +449,12 @@ export function ChatImageViewer({ open, src, alt, onOpenChange }: ChatImageViewe
                 type="button"
                 aria-label="Download image"
                 data-no-focus-input="true"
-                className={cn("p-1", iconButtonStyles, "text-white/90 hover:text-white")}
+                className={cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 transition-colors hover:bg-zinc-100",
+                  iconButtonStyles
+                )}
                 onClick={() => {
-                  void downloadImageWithPrompt(src, alt);
+                  void downloadImageWithPrompt(activeSrc, activeAlt);
                 }}
               >
                 <Icon name="common.download" size="md" />

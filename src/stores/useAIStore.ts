@@ -20,7 +20,7 @@ import {
   shouldPersistSession,
   stripTemporaryData
 } from '@/lib/ai/temporaryChat';
-import { extractMarkdownImageSources } from '@/components/Chat/common/messageClipboard';
+import { extractMessageImageSources } from '@/components/Chat/common/messageClipboard';
 
 interface AIUIState {
   generatingSessions: Record<string, boolean>;
@@ -627,7 +627,7 @@ export const actions = {
         message.role === 'user'
           ? (message.imageSources && message.imageSources.length > 0
               ? message.imageSources
-              : extractMarkdownImageSources(message.content || ''))
+              : extractMessageImageSources(message.content || ''))
           : message.imageSources,
       id: message.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       timestamp: Date.now(),
@@ -670,7 +670,13 @@ export const actions = {
             versions[idx] = { ...versions[idx], content };
         }
         
-        return { ...m, content, versions, currentVersionIndex: idx };
+        return {
+          ...m,
+          content,
+          imageSources: extractMessageImageSources(content),
+          versions,
+          currentVersionIndex: idx
+        };
     });
 
     state.updateAIData({
@@ -770,7 +776,7 @@ export const actions = {
       newMessages[index] = {
           ...targetMsg,
           content: newContent,
-          imageSources: extractMarkdownImageSources(newContent),
+          imageSources: extractMessageImageSources(newContent),
           versions: versions,
           currentVersionIndex: newIndex
       };
@@ -811,7 +817,7 @@ export const actions = {
       newMessages[index] = {
           ...targetMsg,
           content: versions[targetIndex].content,
-          imageSources: extractMarkdownImageSources(versions[targetIndex].content),
+          imageSources: extractMessageImageSources(versions[targetIndex].content),
           currentVersionIndex: targetIndex,
           versions: versions
       };

@@ -6,6 +6,7 @@ import {
   fetchManagedModels,
   MANAGED_PROVIDER_ID,
   requestManagedChatCompletion,
+  requestManagedChatCompletionStream,
 } from '@/lib/ai/managedService'
 
 export class OpenAICompatibleClient implements AIClient {
@@ -45,15 +46,24 @@ export class OpenAICompatibleClient implements AIClient {
 
   private async sendManagedMessage(
     body: ChatCompletionRequest,
-    onChunk?: (chunk: string) => void
+    onChunk?: (chunk: string) => void,
+    signal?: AbortSignal
   ): Promise<string> {
-    const payload = await requestManagedChatCompletion({
-      ...body,
-      stream: false,
-    })
-    const content = this.extractManagedResponseContent(payload)
-    ;(onChunk || (() => {}))(content)
-    return content
+    if (body.stream === false) {
+      const payload = await requestManagedChatCompletion({
+        ...body,
+        stream: false,
+      } as unknown as Record<string, unknown>)
+      const content = this.extractManagedResponseContent(payload)
+      ;(onChunk || (() => {}))(content)
+      return content
+    }
+
+    return requestManagedChatCompletionStream(
+      body as unknown as Record<string, unknown>,
+      onChunk || (() => {}),
+      signal
+    )
   }
 
   private async resolveApiKey(provider: Provider): Promise<string> {
@@ -76,7 +86,7 @@ export class OpenAICompatibleClient implements AIClient {
     const body = this.buildChatRequest(message, history, model, options)
 
     if (provider.id === MANAGED_PROVIDER_ID) {
-      return this.sendManagedMessage(body, onChunk)
+      return this.sendManagedMessage(body, onChunk, signal)
     }
 
     const apiKey = await this.resolveApiKey(provider)

@@ -19,6 +19,12 @@ interface MarkdownImageToken {
   src: string | null;
 }
 
+interface HtmlImageToken {
+  start: number;
+  end: number;
+  src: string | null;
+}
+
 function parseMarkdownImageTarget(content: string, targetStart: number): { raw: string; end: number } | null {
   let pos = targetStart;
   const length = content.length;
@@ -110,10 +116,41 @@ function parseMarkdownImageTokens(content: string): MarkdownImageToken[] {
   return tokens;
 }
 
+function normalizeHtmlImageSrc(rawSrc: string | undefined): string | null {
+  const trimmed = rawSrc?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function parseHtmlImageTokens(content: string): HtmlImageToken[] {
+  const tokens: HtmlImageToken[] = [];
+  const imgTagRegex = /<img\b[^>]*\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))[^>]*>/gi;
+
+  for (const match of content.matchAll(imgTagRegex)) {
+    const raw = match[1] ?? match[2] ?? match[3];
+    const fullMatch = match[0];
+    const start = match.index ?? 0;
+    tokens.push({
+      start,
+      end: start + fullMatch.length,
+      src: normalizeHtmlImageSrc(raw),
+    });
+  }
+
+  return tokens;
+}
+
 export function extractMarkdownImageSources(content: string): string[] {
   return parseMarkdownImageTokens(content)
     .map((token) => token.src)
     .filter((src): src is string => !!src);
+}
+
+export function extractMessageImageSources(content: string): string[] {
+  const tokens = [...parseMarkdownImageTokens(content), ...parseHtmlImageTokens(content)].sort(
+    (a, b) => a.start - b.start
+  );
+
+  return tokens.map((token) => token.src).filter((src): src is string => !!src);
 }
 
 export function stripMarkdownImageTokens(content: string): string {
@@ -167,7 +204,7 @@ export async function copyImageSourceToClipboard(src: string): Promise<boolean> 
 }
 
 export async function copyMessageContentToClipboard(content: string): Promise<void> {
-  const imageSources = extractMarkdownImageSources(content);
+  const imageSources = extractMessageImageSources(content);
   if (imageSources.length > 0) {
     const copied = await copyImageSourceToClipboard(imageSources[0]);
     if (copied) {

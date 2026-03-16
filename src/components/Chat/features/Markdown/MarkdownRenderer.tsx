@@ -16,6 +16,8 @@ import { createMarkdownSanitizeSchema, normalizeRenderableImageSrc } from "./ima
 
 interface MarkdownRendererProps {
   content: string;
+  imageGallery?: Array<{ id: string; src: string }>;
+  imageIdBase?: string;
   isStreaming?: boolean;
   size?: "sm" | "md" | "lg";
   browserToolResult?: any;
@@ -94,7 +96,17 @@ async function copyImageOrUrl(src: string): Promise<void> {
   await navigator.clipboard.writeText(src);
 }
 
-function MarkdownImage({ src, alt }: { src: string; alt?: string }) {
+function MarkdownImage({
+  src,
+  alt,
+  imageGallery,
+  currentImageId,
+}: {
+  src: string;
+  alt?: string;
+  imageGallery?: Array<{ id: string; src: string }>;
+  currentImageId?: string;
+}) {
   const [copied, setCopied] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
@@ -121,6 +133,14 @@ function MarkdownImage({ src, alt }: { src: string; alt?: string }) {
           alt={alt || "image"}
           className="block max-h-[420px] w-auto max-w-full object-contain"
           onClick={() => {
+            if (import.meta.env.DEV) {
+              console.log('[chat-image-nav] open image viewer', {
+                src,
+                currentImageId,
+                gallerySize: imageGallery?.length ?? 0,
+                gallery: imageGallery,
+              });
+            }
             setIsViewerOpen(true);
           }}
         />
@@ -162,6 +182,8 @@ function MarkdownImage({ src, alt }: { src: string; alt?: string }) {
         open={isViewerOpen}
         src={src}
         alt={alt}
+        gallery={imageGallery}
+        currentImageId={currentImageId}
         onOpenChange={setIsViewerOpen}
       />
     </span>
@@ -169,7 +191,7 @@ function MarkdownImage({ src, alt }: { src: string; alt?: string }) {
 }
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
-  ({ content, size, startTime, isStreaming = false }) => {
+  ({ content, imageGallery, imageIdBase, size, startTime, isStreaming = false }) => {
     
     const { thinking, markdown, isThinkingDone } = useMemo(() => {
         const text = content || "";
@@ -206,6 +228,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       () => [defaultRehypePlugins.raw, [rehypeSanitize, sanitizeSchema]] as any[],
       [sanitizeSchema]
     );
+
+    let imageRenderIndex = 0;
 
     return (
       <div className="flex flex-col">
@@ -277,7 +301,27 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
                         );
                       }
 
-                      return <MarkdownImage src={safeSrc} alt={typeof alt === "string" ? alt : "image"} />;
+                      const currentImageId = imageIdBase ? `${imageIdBase}:${imageRenderIndex}` : undefined;
+                      imageRenderIndex += 1;
+
+                      if (import.meta.env.DEV) {
+                        console.log('[chat-image-nav] render image node', {
+                          src: safeSrc,
+                          currentImageId,
+                          imageIdBase,
+                          imageRenderIndex,
+                          gallerySize: imageGallery?.length ?? 0,
+                        });
+                      }
+
+                      return (
+                        <MarkdownImage
+                          src={safeSrc}
+                          alt={typeof alt === "string" ? alt : "image"}
+                          imageGallery={imageGallery}
+                          currentImageId={currentImageId}
+                        />
+                      );
                     },
                 }}
                 >
