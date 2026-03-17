@@ -74,22 +74,3 @@
   display: none;
   pointer-events: none;
 }
-
-/* Slash Menu */
-.slash-menu {
-  position: fixed;
-  z-index: 100;
-  min-width: 280px;
-  max-height: 360px;
-  overflow-y: auto;
-  background-color: var(--neko-bg-primary);
-  /* Fixed: Use theme var */
-  border: 1px solid var(--neko-border);
-  border-radius: 0.5rem;
-  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1);
-  padding: 0.5rem;
-}
-
-.dark .slash-menu {
-  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.5);
-}

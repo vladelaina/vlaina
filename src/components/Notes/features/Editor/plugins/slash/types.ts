@@ -1,23 +1,17 @@
-// Slash menu plugin types
-import type { ReactNode } from 'react';
-import type { Ctx } from '@milkdown/kit/ctx';
+import type { SlashCommandId } from './slashCommands';
 
 export interface SlashMenuItem {
+  id: string;
   name: string;
-  icon: ReactNode;
+  icon: string;
   description?: string;
   group: string;
-  action: (ctx: Ctx) => void;
-  searchAlias?: string[];
-}
-
-export interface SlashMenuSubMenu extends Omit<SlashMenuItem, 'action'> {
-  subMenu: SlashMenuItem[];
+  searchTerms: string[];
+  commandId: SlashCommandId;
 }
 
 export interface SlashMenuState {
   isOpen: boolean;
   query: string;
-  position: { x: number; y: number };
   selectedIndex: number;
 }
