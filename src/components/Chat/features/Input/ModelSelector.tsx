@@ -49,11 +49,13 @@ const ModelOption = memo(({
 interface ModelSelectorProps {
   composerInputRef: RefObject<HTMLInputElement | HTMLTextAreaElement | null>
   dropdownPlacement?: 'top' | 'bottom'
+  onSelectModel?: (modelId: string) => void
 }
 
 export function ModelSelector({
   composerInputRef,
   dropdownPlacement = 'top',
+  onSelectModel,
 }: ModelSelectorProps) {
   const { models, providers, selectedModelId, selectModel, getSelectedModel } = useAIStore()
   const [isOpen, setIsOpen] = useState(false)
@@ -187,9 +189,10 @@ export function ModelSelector({
 
   const handleSelectModel = useCallback((modelId: string) => {
     selectModel(modelId)
+    onSelectModel?.(modelId)
     closeSelector(true)
     setSearchQuery('')
-  }, [closeSelector, selectModel]);
+  }, [closeSelector, onSelectModel, selectModel]);
 
   useModelSelectorKeyboard({
       isOpen,

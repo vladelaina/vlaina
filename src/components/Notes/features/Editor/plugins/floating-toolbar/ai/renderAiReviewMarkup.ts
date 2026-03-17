@@ -25,7 +25,6 @@ export function renderAiReviewMarkup(state: FloatingToolbarState): string | null
         <div class="ai-review-header">
           <div class="ai-review-header-side">
             <div class="ai-review-model-selector-slot"></div>
-            <button class="ai-review-close" type="button" aria-label="Close review" data-review-action="close">×</button>
           </div>
         </div>
         <div class="ai-review-body">

@@ -26,7 +26,7 @@ export function bindAiReviewActions({
   updateReview,
   view,
 }: BindAiReviewActionsParams): ReviewBindingsCleanup {
-  const { panel, acceptButton, retryButton, cancelButton, closeButton } = elements;
+  const { panel, acceptButton, retryButton, cancelButton } = elements;
   const abortController = new AbortController();
   const { signal } = abortController;
 
@@ -77,7 +77,6 @@ export function bindAiReviewActions({
   acceptButton.addEventListener('mousedown', stopReviewMouseDown, { signal });
   retryButton?.addEventListener('mousedown', stopReviewMouseDown, { signal });
   cancelButton.addEventListener('mousedown', stopReviewMouseDown, { signal });
-  closeButton?.addEventListener('mousedown', stopReviewMouseDown, { signal });
 
   panel.addEventListener('keydown', handlePanelKeyDown, { signal });
 
@@ -88,12 +87,6 @@ export function bindAiReviewActions({
   }, { signal });
 
   cancelButton.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    clearReview();
-  }, { signal });
-
-  closeButton?.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
     clearReview();

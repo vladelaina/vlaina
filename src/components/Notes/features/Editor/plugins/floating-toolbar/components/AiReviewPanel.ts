@@ -3,6 +3,7 @@ import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { floatingToolbarKey } from '../floatingToolbarPlugin';
 import { TOOLBAR_ACTIONS, type FloatingToolbarState } from '../types';
+import { runAiSelectionReviewCommand } from '../ai/reviewFlow';
 import { AiToolbarModelSelector } from './AiToolbarModelSelector';
 import { bindAiReviewActions, type ReviewBindingsCleanup } from './ai-review/reviewBindings';
 import { getAiReviewElements } from './ai-review/reviewDom';
@@ -44,7 +45,22 @@ export function createAiReviewPanelController(): AiReviewPanelController {
     if (modelSelectorHost instanceof HTMLElement) {
       cleanup();
       modelSelectorRoot = createRoot(modelSelectorHost);
-      modelSelectorRoot.render(React.createElement(AiToolbarModelSelector));
+      modelSelectorRoot.render(
+        React.createElement(AiToolbarModelSelector, {
+          onSelectModel: () => {
+            const liveReview = floatingToolbarKey.getState(view.state)?.aiReview;
+            if (!liveReview?.instruction) {
+              return;
+            }
+
+            void runAiSelectionReviewCommand(view, liveReview, {
+              id: liveReview.commandId ?? liveReview.toneId ?? 'custom',
+              instruction: liveReview.instruction,
+              toneId: liveReview.toneId ?? null,
+            });
+          },
+        })
+      );
     }
 
     const elements = getAiReviewElements(container);
