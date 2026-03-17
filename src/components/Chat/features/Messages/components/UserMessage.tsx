@@ -110,6 +110,11 @@ function composeUserMessageContent(text: string, attachments: Attachment[]): str
   return normalizedText;
 }
 
+const editComposerSurfaceClass = cn(
+  chatComposerSurfaceClass,
+  "shadow-none hover:shadow-none"
+);
+
 interface UserMessageProps {
   message: ChatMessage;
   onEdit?: (id: string, newContent: string) => void;
@@ -438,7 +443,7 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
           className="w-full flex justify-end"
           style={{ willChange: "clip-path, opacity" }}
         >
-          <div className={cn("w-full", chatComposerFrameClass, chatComposerSurfaceClass)}>
+          <div className={cn("w-full", chatComposerFrameClass, editComposerSurfaceClass)}>
             <ChatAttachmentPreviewList attachments={editAttachments} onRemove={handleRemoveEditAttachment} />
             <div className={chatComposerInputBlockClass}>
               <div className="relative">
@@ -560,13 +565,19 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
             <div className="flex justify-end items-center gap-2 px-2 pb-2 pr-3">
               <button
                 onClick={handleCancel}
-                className={cn(chatComposerSecondaryButtonClass, "h-8 px-3.5 text-[13px]")}
+                className={cn(
+                  chatComposerSecondaryButtonClass,
+                  "h-8 px-3.5 text-[13px] bg-white hover:bg-white dark:bg-white dark:text-zinc-900 dark:hover:bg-white"
+                )}
               >
                 取消
               </button>
               <button
                 onClick={handleSave}
-                className={cn(chatComposerPrimaryButtonClass, "h-8 px-3.5 text-[13px] font-semibold")}
+                className={cn(
+                  chatComposerPrimaryButtonClass,
+                  "h-8 px-3.5 text-[13px] font-semibold hover:scale-100 active:scale-100"
+                )}
               >
                 发送
               </button>
