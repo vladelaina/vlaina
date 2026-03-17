@@ -1,82 +1,208 @@
-export type AiReviewVariantLayout =
-  | 'parallel'
-  | 'spotlight'
-  | 'compact';
+export type AiReviewVariantShell =
+  | 'hairline'
+  | 'soft'
+  | 'floating'
+  | 'inset'
+  | 'contrast';
+
+export type AiReviewVariantHeader =
+  | 'tight'
+  | 'balanced'
+  | 'split'
+  | 'centered'
+  | 'utility'
+  | 'minimal';
+
+export type AiReviewVariantControl =
+  | 'cluster'
+  | 'segmented'
+  | 'stacked'
+  | 'rail'
+  | 'compact'
+  | 'inline';
+
+export type AiReviewVariantBody =
+  | 'stacked'
+  | 'split'
+  | 'focus'
+  | 'editorial'
+  | 'thread'
+  | 'merge';
+
+export type AiReviewVariantFooter =
+  | 'spread'
+  | 'right'
+  | 'centered'
+  | 'quiet'
+  | 'sticky';
+
+export type AiReviewVariantDensity =
+  | 'airy'
+  | 'balanced'
+  | 'compact'
+  | 'dense'
+  | 'poster'
+  | 'calm';
 
 export type AiReviewVariant = {
   id: string;
   name: string;
   description: string;
-  layout: AiReviewVariantLayout;
-  surfaceClassName: string;
-  panelClassName: string;
-  badgeClassName: string;
-  titleClassName: string;
-  metaClassName: string;
-  bodyClassName: string;
-  beforeCardClassName: string;
-  afterCardClassName: string;
-  labelClassName: string;
-  beforeTextClassName: string;
-  afterTextClassName: string;
-  footerClassName: string;
-  primaryButtonClassName: string;
-  secondaryButtonClassName: string;
-  tertiaryButtonClassName: string;
-  accentClassName: string;
-  fontClassName?: string;
+  shell: AiReviewVariantShell;
+  header: AiReviewVariantHeader;
+  control: AiReviewVariantControl;
+  body: AiReviewVariantBody;
+  footer: AiReviewVariantFooter;
+  density: AiReviewVariantDensity;
 };
 
-const LINEN_THEME = {
-  surfaceClassName: 'border border-stone-200 bg-[linear-gradient(180deg,#fffefb,#fbf7f0)]',
-  panelClassName: 'border border-stone-200 bg-white shadow-[0_22px_42px_-32px_rgba(120,113,108,0.16)]',
-  badgeClassName: 'bg-stone-100 text-stone-600',
-  titleClassName: 'text-stone-950',
-  metaClassName: 'text-stone-500',
-  beforeCardClassName: 'border border-stone-200 bg-[#fcfaf5]',
-  afterCardClassName: 'border border-amber-100 bg-[#fffbef]',
-  labelClassName: 'text-stone-500',
-  beforeTextClassName: 'text-stone-700',
-  afterTextClassName: 'text-stone-800',
-  footerClassName: 'border-t border-stone-100',
-  primaryButtonClassName: 'bg-stone-950 text-white hover:bg-stone-900',
-  secondaryButtonClassName: 'border border-stone-200 bg-white text-stone-700 hover:bg-stone-50',
-  tertiaryButtonClassName: 'border border-transparent bg-stone-100/80 text-stone-600 hover:bg-stone-100',
-  accentClassName: 'from-amber-200/70 via-white to-orange-100/70',
-  fontClassName: 'font-serif',
-} as const;
+type VariantGroup = {
+  key: string;
+  label: string;
+  note: string;
+  shell: AiReviewVariantShell;
+  header: AiReviewVariantHeader;
+  control: AiReviewVariantControl;
+  footer: AiReviewVariantFooter;
+};
 
-export const AI_REVIEW_ACTION = 'Translate to English';
+type VariantRecipe = {
+  key: string;
+  label: string;
+  note: string;
+  body: AiReviewVariantBody;
+  density: AiReviewVariantDensity;
+};
 
-export const AI_REVIEW_BEFORE_TEXT =
-  'The release notes still feel uneven, and the key changes are easy to miss on a fast read.';
-
-export const AI_REVIEW_AFTER_TEXT =
-  'The release notes still feel uneven, and the key updates are easy to miss when someone scans quickly.';
-
-export const AI_REVIEW_VARIANTS: AiReviewVariant[] = [
+const GROUPS: VariantGroup[] = [
   {
-    id: 'linen-parallel',
-    name: 'Linen Parallel',
-    description: 'Balanced two-column compare with equal weight on before and after. Warm paper tone for writing-heavy workflows and editorial calm.',
-    layout: 'parallel',
-    bodyClassName: 'grid gap-3 sm:grid-cols-2',
-    ...LINEN_THEME,
+    key: 'gallery',
+    label: 'Gallery',
+    note: '像一张被轻轻托起的白色卡片，重点在留白和秩序。',
+    shell: 'floating',
+    header: 'balanced',
+    control: 'cluster',
+    footer: 'spread',
   },
   {
-    id: 'linen-spotlight',
-    name: 'Linen Spotlight',
-    description: 'Pushes the rewritten result forward and keeps the original quietly above it. Warm paper tone for writing-heavy workflows and editorial calm.',
-    layout: 'spotlight',
-    bodyClassName: 'grid gap-3',
-    ...LINEN_THEME,
+    key: 'desk',
+    label: 'Desk',
+    note: '更接近桌面工具窗口，边界清晰，但仍然克制。',
+    shell: 'hairline',
+    header: 'split',
+    control: 'segmented',
+    footer: 'right',
   },
   {
-    id: 'linen-compact',
-    name: 'Linen Compact',
-    description: 'Dense and efficient for frequent low-friction confirmations. Warm paper tone for writing-heavy workflows and editorial calm.',
-    layout: 'compact',
-    bodyClassName: 'grid gap-2',
-    ...LINEN_THEME,
+    key: 'sheet',
+    label: 'Sheet',
+    note: '像系统面板一样安静，强调内容连续性而不是控件存在感。',
+    shell: 'soft',
+    header: 'minimal',
+    control: 'inline',
+    footer: 'quiet',
+  },
+  {
+    key: 'editorial',
+    label: 'Editorial',
+    note: '更偏文本审阅，控件后退，文字成为第一视觉。',
+    shell: 'inset',
+    header: 'centered',
+    control: 'stacked',
+    footer: 'centered',
+  },
+  {
+    key: 'mono',
+    label: 'Mono',
+    note: '更利落、更硬朗，适合强调 AI 修改是一种精确操作。',
+    shell: 'contrast',
+    header: 'utility',
+    control: 'rail',
+    footer: 'sticky',
   },
 ];
+
+const RECIPES: VariantRecipe[] = [
+  {
+    key: '01',
+    label: 'Quiet Compare',
+    note: '上下对照，节奏最稳，适合作为默认基线。',
+    body: 'stacked',
+    density: 'calm',
+  },
+  {
+    key: '02',
+    label: 'Split Review',
+    note: '左右分栏，便于直接扫描原文和结果。',
+    body: 'split',
+    density: 'balanced',
+  },
+  {
+    key: '03',
+    label: 'Result Focus',
+    note: '结果优先，原文退成辅助上下文。',
+    body: 'focus',
+    density: 'airy',
+  },
+  {
+    key: '04',
+    label: 'Editorial Stack',
+    note: '更像审稿界面，标题和 diff 的层级更强。',
+    body: 'editorial',
+    density: 'poster',
+  },
+  {
+    key: '05',
+    label: 'Threaded Review',
+    note: '把选中文本和 AI 结果组织成一条连续线程。',
+    body: 'thread',
+    density: 'compact',
+  },
+  {
+    key: '06',
+    label: 'Inline Merge',
+    note: '重点放在合并后的结果区，适合减少视觉块数。',
+    body: 'merge',
+    density: 'dense',
+  },
+];
+
+export const AI_REVIEW_SELECTED_TEXT =
+  'The release notes still feel uneven, and the key changes are easy to miss on a fast read.';
+
+export const AI_REVIEW_RESULT_TEXT =
+  'The release notes still feel uneven, and the key updates are easy to miss when someone scans quickly.';
+
+export const AI_REVIEW_DIFF_TEXT = {
+  beforeStart: 'The release notes still feel uneven, and the key ',
+  removedOne: 'changes',
+  addedOne: 'updates',
+  middle: ' are easy to miss ',
+  removedTwo: 'on a fast read',
+  addedTwo: 'when someone scans quickly',
+  end: '.',
+};
+
+export const AI_REVIEW_ACTIONS = [
+  'Translate',
+  'Polish',
+  'Fix grammar',
+  'Shorten',
+  'Professional',
+] as const;
+
+export const AI_REVIEW_MODELS = ['GPT-5.3', 'Claude 3.7', 'Gemini 2.5'] as const;
+
+export const AI_REVIEW_VARIANTS: AiReviewVariant[] = GROUPS.flatMap((group) =>
+  RECIPES.map((recipe) => ({
+    id: `${group.key}-${recipe.key}`,
+    name: `${group.label} ${recipe.label}`,
+    description: `${group.note}${recipe.note}`,
+    shell: group.shell,
+    header: group.header,
+    control: group.control,
+    body: recipe.body,
+    footer: group.footer,
+    density: recipe.density,
+  }))
+).filter((variant) => new Set(['desk-06', 'sheet-06', 'mono-06']).has(variant.id));

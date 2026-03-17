@@ -77,7 +77,8 @@ export function clampToolbarX(
   x: number,
   container: HTMLElement | null,
   isAiMode: boolean,
-  toolbarElement: HTMLElement
+  toolbarElement: HTMLElement,
+  contentBounds?: { left: number; right: number } | null
 ): {
   clampedX: number;
   toolbarWidth: number;
@@ -94,8 +95,12 @@ export function clampToolbarX(
   }
 
   const margin = 12;
-  const minX = margin;
-  const maxX = container.clientWidth - margin;
+  const minX = contentBounds
+    ? Math.max(margin, contentBounds.left + margin)
+    : margin;
+  const maxX = contentBounds
+    ? Math.min(container.clientWidth - margin, contentBounds.right - margin)
+    : container.clientWidth - margin;
   const toolbarBodyNode = toolbarElement.querySelector('.floating-toolbar-inner');
   const toolbarBody = toolbarBodyNode instanceof HTMLElement ? toolbarBodyNode : null;
   const toolbarWidth = toolbarBody?.offsetWidth || toolbarElement.offsetWidth;
@@ -132,6 +137,7 @@ export function showToolbar(
   placement: 'top' | 'bottom',
   isReviewMode = false
 ) {
+  toolbarElement.style.position = 'absolute';
   toolbarElement.style.left = `${position.x}px`;
   toolbarElement.style.top = `${position.y}px`;
   toolbarElement.style.transform = isReviewMode

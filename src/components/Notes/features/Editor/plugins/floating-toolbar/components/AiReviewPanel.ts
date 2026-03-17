@@ -4,9 +4,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { floatingToolbarKey } from '../floatingToolbarPlugin';
 import { TOOLBAR_ACTIONS, type FloatingToolbarState } from '../types';
 import { AiToolbarModelSelector } from './AiToolbarModelSelector';
-import { bindAiReviewActions } from './ai-review/reviewBindings';
+import { bindAiReviewActions, type ReviewBindingsCleanup } from './ai-review/reviewBindings';
 import { getAiReviewElements } from './ai-review/reviewDom';
-import { bindAiReviewDrag } from './ai-review/reviewDrag';
 
 export interface AiReviewPanelController {
   render: (
@@ -21,8 +20,11 @@ export interface AiReviewPanelController {
 
 export function createAiReviewPanelController(): AiReviewPanelController {
   let modelSelectorRoot: Root | null = null;
+  let reviewBindingsCleanup: ReviewBindingsCleanup | null = null;
 
   const cleanup = () => {
+    reviewBindingsCleanup?.();
+    reviewBindingsCleanup = null;
     modelSelectorRoot?.unmount();
     modelSelectorRoot = null;
   };
@@ -50,6 +52,10 @@ export function createAiReviewPanelController(): AiReviewPanelController {
       return;
     }
 
+    if (!elements.panel.contains(document.activeElement)) {
+      elements.panel.focus({ preventScroll: true });
+    }
+
     const updateReview = (nextReview: FloatingToolbarState['aiReview']) => {
       view.dispatch(
         view.state.tr.setMeta(floatingToolbarKey, {
@@ -59,17 +65,12 @@ export function createAiReviewPanelController(): AiReviewPanelController {
       );
     };
 
-    bindAiReviewActions({
+    reviewBindingsCleanup?.();
+    reviewBindingsCleanup = bindAiReviewActions({
       elements,
       onClose,
       review,
       updateReview,
-      view,
-    });
-
-    bindAiReviewDrag({
-      container,
-      dragHandle: elements.dragHandle,
       view,
     });
   };

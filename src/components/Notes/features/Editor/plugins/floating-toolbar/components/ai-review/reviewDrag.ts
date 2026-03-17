@@ -21,23 +21,18 @@ export function bindAiReviewDrag({
     event.preventDefault();
     event.stopPropagation();
 
-    const surface = container.parentElement;
-    if (!(surface instanceof HTMLElement)) {
-      return;
-    }
-
     const startX = event.clientX;
     const startY = event.clientY;
     const initialLeft = Number.parseFloat(container.style.left || '0');
     const initialTop = Number.parseFloat(container.style.top || '0');
-    const parentWidth = surface.clientWidth;
-    const parentHeight = surface.clientHeight;
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const nextLeft = initialLeft + (moveEvent.clientX - startX);
       const nextTop = initialTop + (moveEvent.clientY - startY);
-      const maxLeft = Math.max(12, parentWidth - container.offsetWidth - 12);
-      const maxTop = Math.max(12, parentHeight - container.offsetHeight - 12);
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const maxLeft = Math.max(12, viewportWidth - container.offsetWidth - 12);
+      const maxTop = Math.max(12, viewportHeight - container.offsetHeight - 12);
 
       view.dispatch(
         view.state.tr.setMeta(floatingToolbarKey, {
