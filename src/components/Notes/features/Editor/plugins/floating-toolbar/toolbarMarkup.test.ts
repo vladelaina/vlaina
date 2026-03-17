@@ -68,10 +68,10 @@ describe('toolbar markup', () => {
       createState({
         subMenu: 'aiReview',
         aiReview: {
+          requestKey: 'review-1',
           instruction: 'Translate to English',
           commandId: 'translate-en',
           toneId: null,
-          customPrompt: '',
           from: 1,
           to: 4,
           originalText: '你好啊',
@@ -81,13 +81,15 @@ describe('toolbar markup', () => {
       })
     );
 
-    expect(markup).toContain('AI Review');
-    expect(markup).toContain('Selected text');
-    expect(markup).toContain('Proposed changes');
-    expect(markup).toContain('Review the suggestion before applying it');
-    expect(markup).toContain('Translate');
+    expect(markup).toContain('data-review-command-select="true"');
     expect(markup).toContain('英语');
-    expect(markup).toContain('排版');
+    expect(markup).toContain('Preview only changes');
+    expect(markup).toContain('ai-review-result-surface');
+    expect(markup).not.toContain('data-review-source-input="true"');
+    expect(markup).not.toContain('data-review-result-input="true"');
+    expect(markup).not.toContain('data-review-action="promote-result"');
+    expect(markup).not.toContain('Selected text');
+    expect(markup).not.toContain('ai-review-selected-strip');
     expect(markup).toContain('ai-review-diff-added');
     expect(markup).toContain('Hello there');
     expect(markup).toContain('data-review-action="accept"');

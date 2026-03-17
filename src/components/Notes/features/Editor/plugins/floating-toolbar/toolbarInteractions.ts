@@ -1,9 +1,9 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import type { FloatingToolbarState } from './types';
 import { TOOLBAR_ACTIONS } from './types';
 import { floatingToolbarKey } from './floatingToolbarPlugin';
 import { copySelectionToClipboard, toggleMark, setLink } from './commands';
-import { openAiSelectionReview } from './ai/reviewFlow';
 import { applyFormatPreview, clearFormatPreview, hasFormatPreview } from './previewStyles';
 import { getLinkUrl } from './selectionHelpers';
 import { linkTooltipPluginKey } from '../links';
@@ -64,6 +64,42 @@ export function createToolbarEventDelegation(
     tooltip.classList.add('visible');
   };
 
+  const deleteSelectionRange = (view: EditorView, from: number, to: number) => {
+    const { state } = view;
+    const { selection, schema } = state;
+    const paragraphType = schema.nodes.paragraph;
+    const isSingleTextblock =
+      selection.$from.sameParent(selection.$to) &&
+      selection.$from.parent.isTextblock;
+    const isWholeTextblockSelected =
+      isSingleTextblock &&
+      from === selection.$from.start() &&
+      to === selection.$from.end();
+    const isWholeHeadingSelected =
+      isWholeTextblockSelected &&
+      selection.$from.parent.type.name === 'heading';
+
+    let tr = isWholeHeadingSelected
+      ? state.tr.delete(selection.$from.before(), selection.$from.after())
+      : state.tr.delete(from, to);
+
+    if (tr.doc.content.size === 0 && paragraphType) {
+      tr = tr.insert(0, paragraphType.create());
+    }
+
+    const nextPos = Math.max(0, Math.min(from, tr.doc.content.size));
+    tr.setSelection(TextSelection.create(tr.doc, nextPos));
+    tr.setMeta(floatingToolbarKey, {
+      type: TOOLBAR_ACTIONS.HIDE,
+    });
+
+    return {
+      tr,
+      isWholeHeadingSelected,
+      nextPos,
+    };
+  };
+
   const handleToolbarAction = async (
     view: EditorView,
     action: string,
@@ -108,10 +144,11 @@ export function createToolbarEventDelegation(
       const { state: editorState, dispatch } = view;
       const { from, to } = editorState.selection;
       if (from < to) {
-        dispatch(editorState.tr.delete(from, to));
+        const { tr } = deleteSelectionRange(view, from, to);
+        dispatch(tr);
       }
       view.focus();
-      return true;
+      return false;
     }
 
     if (action === 'copy') {
@@ -144,7 +181,12 @@ export function createToolbarEventDelegation(
     }
 
     if (action === 'ai') {
-      openAiSelectionReview(view);
+      view.dispatch(
+        view.state.tr.setMeta(floatingToolbarKey, {
+          type: TOOLBAR_ACTIONS.SET_SUB_MENU,
+          payload: { subMenu: state.subMenu === 'ai' ? null : 'ai' },
+        })
+      );
       return false;
     }
 

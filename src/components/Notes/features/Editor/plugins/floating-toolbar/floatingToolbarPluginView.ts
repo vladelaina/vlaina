@@ -22,8 +22,12 @@ import {
   hideToolbar,
   isFloatingToolbarSuppressed,
   showToolbar,
-  toContainerPosition,
 } from './floatingToolbarDom';
+import {
+  getContentLayoutContext,
+  resolveToolbarContainerPosition,
+  resolveToolbarViewportPosition,
+} from './floatingToolbarLayout';
 
 export interface FloatingToolbarInteractionState {
   isMouseDown: boolean;
@@ -51,7 +55,15 @@ export function createFloatingToolbarPluginView(
   const toolbarRenderer = createToolbarRenderer(toolbarElement);
   const scrollRoot = getScrollRoot(editorView);
   const toolbarRoot = getToolbarRoot(editorView);
-  (toolbarRoot ?? scrollRoot ?? document.body).appendChild(toolbarElement);
+  const positionRoot = toolbarRoot ?? scrollRoot ?? document.body;
+  positionRoot.appendChild(toolbarElement);
+
+  const ensureToolbarParent = (_isReviewMode: boolean) => {
+    const targetParent = positionRoot;
+    if (toolbarElement.parentElement !== targetParent) {
+      targetParent.appendChild(toolbarElement);
+    }
+  };
 
   const restoreLastSelection = () => {
     const selection = editorView.state.selection;
@@ -82,9 +94,75 @@ export function createFloatingToolbarPluginView(
     return true;
   };
 
+  const getContentBounds = () => {
+    const layout = getContentLayoutContext(editorView, positionRoot instanceof HTMLElement ? positionRoot : null);
+    if (!layout.container || !layout.containerRect || !layout.containerBounds) {
+      return null;
+    }
+
+    return layout.containerBounds;
+  };
+
+  const correctToolbarToContentBounds = (x: number) => {
+    const container = positionRoot instanceof HTMLElement ? positionRoot : null;
+    if (!container) {
+      return x;
+    }
+
+    const layout = getContentLayoutContext(editorView, container);
+    const contentLeft = layout.viewportBounds.left;
+    const contentRight = layout.viewportBounds.right;
+    const toolbarRect = toolbarElement.getBoundingClientRect();
+
+    let correctedX = x;
+    if (toolbarRect.left < contentLeft) {
+      correctedX += contentLeft - toolbarRect.left;
+    }
+
+    if (toolbarRect.right > contentRight) {
+      correctedX -= toolbarRect.right - contentRight;
+    }
+
+    if (correctedX !== x) {
+      toolbarElement.style.left = `${correctedX}px`;
+    }
+
+    return correctedX;
+  };
+
+  const correctSubmenusToContentBounds = () => {
+    const layout = getContentLayoutContext(editorView, positionRoot instanceof HTMLElement ? positionRoot : null);
+    const contentLeft = layout.viewportBounds.left;
+    const contentRight = layout.viewportBounds.right;
+
+    const visibleSubmenus = Array.from(
+      toolbarElement.querySelectorAll<HTMLElement>('.toolbar-submenu')
+    ).filter((submenu) => submenu.offsetParent !== null);
+
+    for (const submenu of visibleSubmenus) {
+      submenu.style.removeProperty('--toolbar-submenu-shift-x');
+
+      const submenuRect = submenu.getBoundingClientRect();
+      let shiftX = 0;
+
+      if (submenuRect.left < contentLeft) {
+        shiftX += contentLeft - submenuRect.left;
+      }
+
+      if (submenuRect.right > contentRight) {
+        shiftX -= submenuRect.right - contentRight;
+      }
+
+      if (shiftX !== 0) {
+        submenu.style.setProperty('--toolbar-submenu-shift-x', `${shiftX}px`);
+      }
+    }
+  };
+
   const updateToolbar = () => {
     const pluginState = toolbarKey.getState(editorView.state);
     const isReviewModeActive = pluginState?.subMenu === 'aiReview' && Boolean(pluginState.aiReview);
+    ensureToolbarParent(isReviewModeActive);
     let { selection } = editorView.state;
 
     if (isFloatingToolbarSuppressed()) {
@@ -96,6 +174,19 @@ export function createFloatingToolbarPluginView(
       lastToolbarY = null;
       lastContainerWidth = null;
       lastPlacement = null;
+      lastTextSelection = null;
+      return;
+    }
+
+    if (!pluginState?.isVisible) {
+      hideToolbar(toolbarElement);
+      lastRenderState = '';
+      lastSelectionSignature = '';
+      lastToolbarX = null;
+      lastToolbarY = null;
+      lastContainerWidth = null;
+      lastPlacement = null;
+      lastTextSelection = null;
       return;
     }
 
@@ -114,6 +205,7 @@ export function createFloatingToolbarPluginView(
       lastToolbarY = null;
       lastContainerWidth = null;
       lastPlacement = null;
+      lastTextSelection = null;
       return;
     }
 
@@ -126,6 +218,7 @@ export function createFloatingToolbarPluginView(
       lastToolbarY = null;
       lastContainerWidth = null;
       lastPlacement = null;
+      lastTextSelection = null;
       return;
     }
 
@@ -133,37 +226,30 @@ export function createFloatingToolbarPluginView(
       ? getBlockElementAtPos(editorView, pluginState.aiReview.from)
       : getCurrentBlockElement(editorView);
 
-    if (!pluginState?.isVisible) {
-      hideToolbar(toolbarElement);
-      lastRenderState = '';
-      lastSelectionSignature = '';
-      lastToolbarX = null;
-      lastToolbarY = null;
-      lastContainerWidth = null;
-      lastPlacement = null;
-      return;
+    if (isReviewModeActive && currentBlockElement) {
+      toolbarElement.style.setProperty(
+        '--ai-review-width',
+        `${Math.round(currentBlockElement.getBoundingClientRect().width)}px`
+      );
+    } else {
+      toolbarElement.style.removeProperty('--ai-review-width');
     }
 
     const aiPosition = calculateBottomPosition(editorView);
-    const nextPosition = pluginState.dragPosition && pluginState.subMenu === 'aiReview'
-      ? {
-          x: pluginState.dragPosition.x,
-          y: pluginState.dragPosition.y,
-          placement: 'bottom' as const,
-        }
-      : pluginState.subMenu === 'ai' || pluginState.subMenu === 'aiReview'
-        ? {
-            ...aiPosition,
-            x: currentBlockElement?.getBoundingClientRect().left ?? aiPosition.x,
-          }
-        : calculatePosition(editorView);
+    const layout = getContentLayoutContext(editorView, positionRoot instanceof HTMLElement ? positionRoot : null);
+    const nextPosition = resolveToolbarViewportPosition({
+      aiPosition,
+      currentBlockElement,
+      layout,
+      pluginState,
+      selectionPosition: calculatePosition(editorView),
+    });
 
-    const containerPosition = pluginState.dragPosition && pluginState.subMenu === 'aiReview'
-      ? {
-          x: pluginState.dragPosition.x,
-          y: pluginState.dragPosition.y,
-        }
-      : toContainerPosition(nextPosition, toolbarRoot ?? scrollRoot);
+    const containerPosition = resolveToolbarContainerPosition(
+      pluginState,
+      nextPosition,
+      positionRoot instanceof HTMLElement ? positionRoot : null
+    );
 
     const activeMarks = getActiveMarks(editorView);
     const currentBlockType = getCurrentBlockType(editorView);
@@ -183,7 +269,6 @@ export function createFloatingToolbarPluginView(
       pluginState.aiReview?.instruction || '',
       pluginState.aiReview?.originalText || '',
       pluginState.aiReview?.suggestedText || '',
-      pluginState.aiReview?.customPrompt || '',
       pluginState.aiReview?.isLoading ? 'loading' : '',
     ].join('|');
 
@@ -201,31 +286,25 @@ export function createFloatingToolbarPluginView(
     }
 
     const isAiMode = pluginState.subMenu === 'ai' || pluginState.subMenu === 'aiReview';
-    const containerWidth = (toolbarRoot ?? scrollRoot)?.clientWidth ?? null;
+    const containerWidth = positionRoot instanceof HTMLElement ? positionRoot.clientWidth : null;
     const selectionSignature = isReviewModeActive && pluginState.aiReview
       ? `${pluginState.aiReview.from}:${pluginState.aiReview.to}`
       : `${selection.from}:${selection.to}`;
     const clamped = clampToolbarX(
       containerPosition.x,
-      toolbarRoot ?? scrollRoot,
+      positionRoot instanceof HTMLElement ? positionRoot : null,
       isAiMode,
-      toolbarElement
+      toolbarElement,
+      getContentBounds()
     );
     const shouldFreezeX =
-      !isAiMode &&
+      pluginState.subMenu !== 'aiReview' &&
       lastToolbarX !== null &&
       lastSelectionSignature === selectionSignature &&
       lastContainerWidth === containerWidth;
-    const shouldFreezePosition =
-      shouldFreezeX &&
-      pluginState.subMenu !== null &&
-      lastToolbarY !== null &&
-      lastPlacement !== null;
     const finalX = shouldFreezeX && lastToolbarX !== null ? lastToolbarX : clamped.clampedX;
-    const finalY =
-      shouldFreezePosition && lastToolbarY !== null ? lastToolbarY : containerPosition.y;
-    const finalPlacement =
-      shouldFreezePosition && lastPlacement !== null ? lastPlacement : nextPosition.placement;
+    const finalY = containerPosition.y;
+    const finalPlacement = nextPosition.placement;
 
     showToolbar(
       toolbarElement,
@@ -233,9 +312,13 @@ export function createFloatingToolbarPluginView(
       finalPlacement,
       pluginState.subMenu === 'aiReview'
     );
+    const correctedX = pluginState.subMenu === 'aiReview'
+      ? finalX
+      : correctToolbarToContentBounds(finalX);
+    correctSubmenusToContentBounds();
 
     lastSelectionSignature = selectionSignature;
-    lastToolbarX = finalX;
+    lastToolbarX = correctedX;
     lastToolbarY = finalY;
     lastContainerWidth = containerWidth;
     lastPlacement = finalPlacement;
@@ -371,6 +454,7 @@ export function createFloatingToolbarPluginView(
   window.addEventListener('resize', scheduleToolbarUpdate);
   scrollRoot?.addEventListener('scroll', scheduleToolbarUpdate, { passive: true });
   resizeObserver?.observe(editorView.dom);
+  resizeObserver?.observe(toolbarElement);
   if (scrollRoot) {
     resizeObserver?.observe(scrollRoot);
   }

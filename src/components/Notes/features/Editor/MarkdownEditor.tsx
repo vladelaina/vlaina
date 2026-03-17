@@ -163,7 +163,10 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   }, [get, isNewlyCreated, isEmptyContent]);
 
   return (
-    <div className={cn("milkdown-editor", EDITOR_LAYOUT_CLASS)}>
+    <div
+      className={cn("milkdown-editor", EDITOR_LAYOUT_CLASS)}
+      data-note-content-root="true"
+    >
       <Milkdown />
     </div>
   );

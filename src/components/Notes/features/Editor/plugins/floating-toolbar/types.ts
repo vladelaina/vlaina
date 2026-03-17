@@ -20,10 +20,10 @@ export type BlockType =
 export type TextAlignment = 'left' | 'center' | 'right';
 
 export interface AiReviewState {
+  requestKey: string;
   instruction: string | null;
   commandId: string | null;
   toneId: string | null;
-  customPrompt: string;
   from: number;
   to: number;
   originalText: string;

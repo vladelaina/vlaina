@@ -147,17 +147,16 @@ function buildSuggestion(
   from: number,
   to: number,
   instruction: string,
-  customPrompt: string,
   originalText: string,
   suggestedText: string
 ): AiSelectionSuggestion {
   return {
+    requestKey: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     from,
     to,
     instruction,
     commandId: null,
     toneId: null,
-    customPrompt,
     originalText,
     suggestedText,
   };
@@ -239,7 +238,6 @@ async function requestAiEdit(
 export async function createAiSelectionSuggestion(
   view: EditorView,
   instruction: string,
-  customPrompt = '',
   selectionSource?: SelectionSource
 ): Promise<AiSelectionSuggestion | null> {
   const trimmedInstruction = instruction.trim();
@@ -284,7 +282,6 @@ export async function createAiSelectionSuggestion(
     from,
     to,
     trimmedInstruction,
-    customPrompt,
     selectedText,
     suggestedText
   );
@@ -307,7 +304,6 @@ export async function retryAiSelectionSuggestion(
     suggestion.from,
     suggestion.to,
     suggestion.instruction,
-    suggestion.customPrompt,
     suggestion.originalText,
     suggestedText
   );
