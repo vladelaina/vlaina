@@ -30,7 +30,6 @@ function buildItemsMarkup(group: AiMenuGroup): string {
           data-ai-tone-id="${group.tone ? item.id : ''}"
           type="button"
           aria-label="${item.label}"
-          title="${item.label}"
         >
           <span class="ai-dropdown-item-label">${item.label}</span>
           <span class="ai-dropdown-item-shortcut" aria-hidden="true"></span>

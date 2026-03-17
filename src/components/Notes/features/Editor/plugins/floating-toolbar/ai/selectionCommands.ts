@@ -7,15 +7,9 @@ import { normalizeSerializedMarkdownSelection } from '../../clipboard/markdownSe
 import { serializeSliceToText } from '../../clipboard/serializer';
 import { logAiSelectionDebug } from './debug';
 import type { AiReviewState } from '../types';
-
-const EDITOR_AI_SYSTEM_PROMPT = [
-  'You are editing text selected inside a markdown note editor.',
-  'Return only the edited selection.',
-  'Do not add explanations, introductions, quotation marks, or code fences.',
-  'Preserve line breaks, links, inline code, list markers, and markdown structure whenever possible.',
-].join(' ');
-
-export const TRANSLATE_TO_ENGLISH_PROMPT = 'Translate to English';
+import { buildEditorAiUserMessage } from './promptBuilder';
+import { EDITOR_AI_SYSTEM_PROMPT, TRANSLATE_TO_ENGLISH_PROMPT } from './promptCatalog';
+import { assertEnglishPromptText } from './promptValidation';
 
 export type AiSelectionSuggestion = Omit<AiReviewState, 'isLoading' | 'instruction'> & {
   instruction: string;
@@ -35,17 +29,6 @@ function createSystemMessage(content: string, modelId: string): ChatMessage {
     modelId,
     timestamp: Date.now(),
   };
-}
-
-function buildEditorAiUserMessage(instruction: string, selectedText: string): string {
-  return [
-    `Instruction: ${instruction.trim()}`,
-    '',
-    'Selected content:',
-    '<<<SELECTION',
-    selectedText,
-    '>>>',
-  ].join('\n');
 }
 
 function stripThinkBlocks(text: string): string {
@@ -168,6 +151,15 @@ async function requestAiEdit(
   selectionRange?: { from: number; to: number }
 ): Promise<string | null> {
   const trimmedInstruction = instruction.trim();
+  try {
+    assertEnglishPromptText('requestAiEdit.instruction', trimmedInstruction);
+    assertEnglishPromptText('requestAiEdit.systemPrompt', EDITOR_AI_SYSTEM_PROMPT);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'AI prompt must be English-only.';
+    useToastStore.getState().addToast(message, 'error');
+    return null;
+  }
+
   const resolved = getSelectedModelAndProvider();
   if (!resolved) {
     logAiSelectionDebug('execute:abort-missing-model');

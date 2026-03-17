@@ -3,7 +3,6 @@ export interface AiReviewElements {
   acceptButton: HTMLButtonElement;
   retryButton: HTMLButtonElement | null;
   cancelButton: HTMLButtonElement;
-  closeButton: HTMLButtonElement | null;
 }
 
 export function getAiReviewElements(container: HTMLElement): AiReviewElements | null {
@@ -11,7 +10,6 @@ export function getAiReviewElements(container: HTMLElement): AiReviewElements | 
   const acceptButton = container.querySelector<HTMLButtonElement>('[data-review-action="accept"]');
   const retryButton = container.querySelector<HTMLButtonElement>('[data-review-action="retry"]');
   const cancelButton = container.querySelector<HTMLButtonElement>('[data-review-action="cancel"]');
-  const closeButton = container.querySelector<HTMLButtonElement>('[data-review-action="close"]');
 
   if (!panel || !acceptButton || !cancelButton) {
     return null;
@@ -22,6 +20,5 @@ export function getAiReviewElements(container: HTMLElement): AiReviewElements | 
     acceptButton,
     retryButton,
     cancelButton,
-    closeButton,
   };
 }

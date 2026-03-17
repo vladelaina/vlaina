@@ -95,31 +95,59 @@ export function createToolbarEventDelegation(
 
     return {
       tr,
-      isWholeHeadingSelected,
-      nextPos,
     };
   };
 
-  const handleToolbarAction = async (
-    view: EditorView,
-    action: string,
-    state: FloatingToolbarState
-  ): Promise<boolean> => {
-    const markActions: Record<string, string> = {
-      bold: 'strong',
-      italic: 'emphasis',
-      underline: 'underline',
-      strike: 'strike_through',
-      code: 'inlineCode',
-      highlight: 'highlight',
-    };
-
-    if (markActions[action]) {
-      toggleMark(view, markActions[action]);
-      return true;
+  const toggleSubMenu = (view: EditorView, nextSubMenu: 'ai' | 'color' | 'block' | 'alignment') => {
+    const state = currentState;
+    if (!state) {
+      return false;
     }
 
-    if (action === 'link') {
+    view.dispatch(
+      view.state.tr.setMeta(floatingToolbarKey, {
+        type: TOOLBAR_ACTIONS.SET_SUB_MENU,
+        payload: { subMenu: state.subMenu === nextSubMenu ? null : nextSubMenu },
+      })
+    );
+    return false;
+  };
+
+  const markActions: Record<string, string> = {
+    bold: 'strong',
+    italic: 'emphasis',
+    underline: 'underline',
+    strike: 'strike_through',
+    code: 'inlineCode',
+    highlight: 'highlight',
+  };
+
+  const actionHandlers: Record<string, (view: EditorView) => boolean | Promise<boolean>> = {
+    bold: (view) => {
+      toggleMark(view, markActions.bold);
+      return true;
+    },
+    italic: (view) => {
+      toggleMark(view, markActions.italic);
+      return true;
+    },
+    underline: (view) => {
+      toggleMark(view, markActions.underline);
+      return true;
+    },
+    strike: (view) => {
+      toggleMark(view, markActions.strike);
+      return true;
+    },
+    code: (view) => {
+      toggleMark(view, markActions.code);
+      return true;
+    },
+    highlight: (view) => {
+      toggleMark(view, markActions.highlight);
+      return true;
+    },
+    link: (view) => {
       const linkUrl = getLinkUrl(view);
 
       if (linkUrl !== null && linkUrl !== '') {
@@ -138,9 +166,8 @@ export function createToolbarEventDelegation(
       );
       view.focus();
       return false;
-    }
-
-    if (action === 'delete') {
+    },
+    delete: (view) => {
       const { state: editorState, dispatch } = view;
       const { from, to } = editorState.selection;
       if (from < to) {
@@ -149,9 +176,8 @@ export function createToolbarEventDelegation(
       }
       view.focus();
       return false;
-    }
-
-    if (action === 'copy') {
+    },
+    copy: async (view) => {
       const copied = await copySelectionToClipboard(view);
       if (!copied) {
         return false;
@@ -178,29 +204,31 @@ export function createToolbarEventDelegation(
         );
       }, 1200);
       return true;
-    }
+    },
+    ai: (view) => {
+      return toggleSubMenu(view, 'ai');
+    },
+    color: (view) => {
+      return toggleSubMenu(view, 'color');
+    },
+    block: (view) => {
+      return toggleSubMenu(view, 'block');
+    },
+    alignment: (view) => {
+      return toggleSubMenu(view, 'alignment');
+    },
+  };
 
-    if (action === 'ai') {
-      view.dispatch(
-        view.state.tr.setMeta(floatingToolbarKey, {
-          type: TOOLBAR_ACTIONS.SET_SUB_MENU,
-          payload: { subMenu: state.subMenu === 'ai' ? null : 'ai' },
-        })
-      );
+  const handleToolbarAction = async (
+    view: EditorView,
+    action: string
+  ): Promise<boolean> => {
+    const handler = actionHandlers[action];
+    if (!handler) {
       return false;
     }
 
-    if (action === 'color' || action === 'block' || action === 'alignment') {
-      view.dispatch(
-        view.state.tr.setMeta(floatingToolbarKey, {
-          type: TOOLBAR_ACTIONS.SET_SUB_MENU,
-          payload: { subMenu: state.subMenu === action ? null : action },
-        })
-      );
-      return false;
-    }
-
-    return false;
+    return handler(view);
   };
 
   const handleMouseDown = (e: Event) => {
@@ -228,7 +256,7 @@ export function createToolbarEventDelegation(
 
     const action = button.dataset.action;
     if (action) {
-      void handleToolbarAction(currentView, action, currentState).then((shouldHideToolbar) => {
+      void handleToolbarAction(currentView, action).then((shouldHideToolbar) => {
         const view = currentView;
         if (!shouldHideToolbar || !view) {
           return;
