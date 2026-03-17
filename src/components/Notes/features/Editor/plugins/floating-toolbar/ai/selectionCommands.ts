@@ -8,7 +8,7 @@ import { serializeSliceToText } from '../../clipboard/serializer';
 import { logAiSelectionDebug } from './debug';
 import type { AiReviewState } from '../types';
 import { buildEditorAiUserMessage } from './promptBuilder';
-import { EDITOR_AI_SYSTEM_PROMPT, TRANSLATE_TO_ENGLISH_PROMPT } from './promptCatalog';
+import { EDITOR_AI_SYSTEM_PROMPT } from './promptCatalog';
 import { assertEnglishPromptText } from './promptValidation';
 
 export type AiSelectionSuggestion = Omit<AiReviewState, 'isLoading' | 'instruction'> & {

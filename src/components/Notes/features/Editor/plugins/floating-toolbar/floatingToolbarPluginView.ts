@@ -46,9 +46,7 @@ export function createFloatingToolbarPluginView(
   let lastRenderState = '';
   let lastSelectionSignature = '';
   let lastToolbarX: number | null = null;
-  let lastToolbarY: number | null = null;
   let lastContainerWidth: number | null = null;
-  let lastPlacement: 'top' | 'bottom' | null = null;
   let lastTextSelection: { from: number; to: number } | null = null;
 
   const toolbarElement = createToolbarElement();
@@ -70,9 +68,7 @@ export function createFloatingToolbarPluginView(
     currentBlockElement = null;
     lastSelectionSignature = '';
     lastToolbarX = null;
-    lastToolbarY = null;
     lastContainerWidth = null;
-    lastPlacement = null;
     lastTextSelection = null;
   };
 
@@ -360,9 +356,7 @@ export function createFloatingToolbarPluginView(
 
     lastSelectionSignature = selectionSignature;
     lastToolbarX = correctedX;
-    lastToolbarY = finalY;
     lastContainerWidth = containerWidth;
-    lastPlacement = finalPlacement;
   };
 
   const scheduleToolbarUpdate = () => {

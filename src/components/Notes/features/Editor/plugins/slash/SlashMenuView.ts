@@ -36,7 +36,7 @@ export class SlashMenuView {
       return;
     }
 
-    const menu = this.ensureMenu();
+    this.ensureMenu();
     this.syncPosition();
 
     this.root?.render(
