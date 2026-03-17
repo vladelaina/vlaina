@@ -1,19 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAIStore } from '@/stores/useAIStore';
-import {
-  Dialog,
-  DialogDescription,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { SettingsSwitch } from '@/components/Settings/components/SettingsFields';
 import { ProviderDetail } from './ai/ProviderDetail';
 import { AIBehaviorSettings } from './ai/AIBehaviorSettings';
 import { cn } from '@/lib/utils';
 import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 interface ProviderCardDraft {
   name?: string;
@@ -145,55 +138,6 @@ function CreateChannelObject({ onClick }: { onClick: () => void }) {
         <div className="text-[28px] font-light leading-none">+</div>
       </div>
     </button>
-  );
-}
-
-function DeleteChannelDialog({
-  pendingDelete,
-  onClose,
-  onConfirm,
-}: {
-  pendingDelete: PendingDeleteProvider | null;
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
-  const isOpen = Boolean(pendingDelete);
-
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogPortal>
-        <DialogOverlay className="z-[120] bg-transparent" />
-        <div className="fixed inset-0 z-[121] flex items-center justify-center p-4">
-          <DialogPrimitive.Content className="w-full max-w-[336px] rounded-[32px] border border-zinc-200/80 bg-white shadow-[0_30px_60px_rgba(15,23,42,0.10)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
-            <div className="px-6 py-6">
-              <DialogTitle className="text-[22px] leading-7 font-semibold tracking-[-0.03em] text-zinc-950">
-                Delete {pendingDelete?.name || 'this channel'}?
-              </DialogTitle>
-              <DialogDescription className="mt-3 text-[14px] leading-6 text-zinc-500">
-                This will remove this channel and its models from chat.
-              </DialogDescription>
-
-              <div className="mt-6 flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={onConfirm}
-                  className="inline-flex h-11 items-center justify-center rounded-2xl bg-[#ef4444] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#dc2626]"
-                >
-                  Delete Channel
-                </button>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="inline-flex h-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white px-4 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </DialogPrimitive.Content>
-        </div>
-      </DialogPortal>
-    </Dialog>
   );
 }
 
@@ -343,8 +287,13 @@ export function AITab() {
 
   return (
     <div className="h-full bg-white dark:bg-[#1E1E1E]">
-      <DeleteChannelDialog
-        pendingDelete={pendingDelete}
+      <ConfirmDialog
+        isOpen={!!pendingDelete}
+        title={`Delete ${pendingDelete?.name || 'this channel'}?`}
+        description="This will remove this channel and its models from chat."
+        confirmText="Delete Channel"
+        cancelText="Cancel"
+        variant="danger"
         onClose={() => setPendingDelete(null)}
         onConfirm={confirmDeleteCustomProvider}
       />
