@@ -22,24 +22,23 @@ export function renderAiReviewMarkup(state: FloatingToolbarState): string | null
   return `
     <div class="floating-toolbar-inner floating-toolbar-ai-review-mode">
       <div class="ai-review-panel" tabindex="-1">
-        <div class="ai-review-header">
-          <div class="ai-review-header-side">
-            <div class="ai-review-model-selector-slot"></div>
-          </div>
-        </div>
         <div class="ai-review-body">
           <section class="ai-review-merge-panel">
             <div class="ai-review-content ai-review-content-after ai-review-content-glass">
+              <div class="ai-review-header">
+                <div class="ai-review-header-side">
+                  <div class="ai-review-model-selector-slot"></div>
+                </div>
+              </div>
               ${resultMarkup}
+              <div class="ai-review-actions ai-review-actions-inline">
+                <div class="ai-review-actions-right">
+                  <button class="ai-review-action tertiary ai-review-icon-action" type="button" data-review-action="cancel" aria-label="Cancel">&times;</button>
+                  <button class="ai-review-action primary ai-review-icon-action" type="button" data-review-action="accept" aria-label="Apply" ${review.isLoading || !review.suggestedText ? 'disabled' : ''}>&#10003;</button>
+                </div>
+              </div>
             </div>
           </section>
-        </div>
-        <div class="ai-review-actions ai-review-actions-inline">
-          <div class="ai-review-footer-note">Preview only changes</div>
-          <div class="ai-review-actions-right">
-            <button class="ai-review-action tertiary" type="button" data-review-action="cancel">Cancel</button>
-            <button class="ai-review-action primary" type="button" data-review-action="accept" ${review.isLoading || !review.suggestedText ? 'disabled' : ''}>Apply</button>
-          </div>
         </div>
       </div>
     </div>
