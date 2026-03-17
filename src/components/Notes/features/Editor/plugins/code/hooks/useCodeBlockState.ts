@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
-import { SUPPORTED_LANGUAGES, normalizeLanguage } from '../../../utils/shiki';
-import { isSelectionFullyInsideNode, moveSelectionAfterNode } from '../codeBlockSelectionUtils';
+import { SUPPORTED_LANGUAGES } from '../../../utils/shiki';
+import { toggleCodeBlockCollapsed, updateCodeBlockLanguage } from '../codeBlockTransactions';
 
 interface UseCodeBlockStateProps {
     node: Node;
@@ -24,15 +24,8 @@ export function useCodeBlockState({ node, view, getPos }: UseCodeBlockStateProps
     const updateLanguage = useCallback((newLang: string) => {
         const pos = getPos();
         if (pos === undefined) return;
-        
-        const normalized = normalizeLanguage(newLang) || newLang;
 
-        view.dispatch(
-            view.state.tr.setNodeMarkup(pos, undefined, {
-                ...node.attrs,
-                language: normalized
-            })
-        );
+        updateCodeBlockLanguage(view, pos, node.attrs, newLang);
     }, [view, getPos, node.attrs]);
 
     const handleCopy = useCallback((e: React.MouseEvent) => {
@@ -56,23 +49,7 @@ export function useCodeBlockState({ node, view, getPos }: UseCodeBlockStateProps
         const pos = getPos();
         if (pos === undefined) return;
 
-        const currentNode = view.state.doc.nodeAt(pos);
-        if (!currentNode) return;
-
-        const nextCollapsed = !isCollapsed;
-        const tr = view.state.tr.setNodeMarkup(pos, undefined, {
-            ...currentNode.attrs,
-            collapsed: nextCollapsed,
-        });
-
-        if (nextCollapsed) {
-            const selection = view.state.selection;
-            if (isSelectionFullyInsideNode(selection, pos, currentNode.nodeSize)) {
-                moveSelectionAfterNode(tr, pos, currentNode.nodeSize);
-            }
-        }
-
-        view.dispatch(tr.scrollIntoView());
+        toggleCodeBlockCollapsed(view, pos, isCollapsed);
     }, [getPos, isCollapsed, view]);
 
     const handleShare = useCallback((e: React.MouseEvent) => {

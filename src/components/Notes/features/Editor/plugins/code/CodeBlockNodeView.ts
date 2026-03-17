@@ -1,9 +1,12 @@
 import { NodeView, EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
-import { TextSelection } from '@milkdown/kit/prose/state';
 import { createRoot, Root } from 'react-dom/client';
 import React from 'react';
 import { CodeBlockView } from './CodeBlockView';
+import {
+    createCodeBlockContentKeydownHandler,
+    createCodeBlockPasteHandler,
+} from './codeBlockNodeViewEvents';
 
 export class CodeBlockNodeView implements NodeView {
     dom: HTMLElement;
@@ -14,6 +17,8 @@ export class CodeBlockNodeView implements NodeView {
     root: Root;
 
     headerDOM: HTMLElement;
+    private readonly contentKeydownHandler: (event: KeyboardEvent) => void;
+    private readonly pasteHandler: (event: ClipboardEvent) => void;
 
     constructor(node: Node, view: EditorView, getPos: () => number | undefined) {
         this.node = node;
@@ -41,62 +46,20 @@ export class CodeBlockNodeView implements NodeView {
         this.headerDOM.contentEditable = 'false';
         this.dom.appendChild(this.headerDOM);
 
-        // 2. Editable content container
         this.contentDOM = document.createElement('pre');
         this.contentDOM.className = 'code-block-editable m-0 px-4 pb-4 pt-1 overflow-x-auto text-sm font-mono leading-relaxed bg-transparent outline-none';
-        
-        // Handle Ctrl+A to select all code in the block
-        this.contentDOM.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const pos = this.getPos();
-                if (pos === undefined) return;
-                
-                // Update ProseMirror selection
-                const start = pos + 1; // +1 to skip the node itself
-                const end = pos + this.node.nodeSize - 1; // -1 to stay inside the node
-                
-                const tr = this.view.state.tr.setSelection(
-                    TextSelection.create(this.view.state.doc, start, end)
-                );
-                this.view.dispatch(tr);
-                this.view.focus();
-            }
+
+        this.contentKeydownHandler = createCodeBlockContentKeydownHandler({
+            view: this.view,
+            getPos: this.getPos,
+            getNode: () => this.node,
         });
-        
-        // Handle paste to trim trailing newlines
-        // Strategy: Intercept paste, insert trimmed text, let ProseMirror handle cursor naturally
-        this.contentDOM.addEventListener('paste', (e) => {
-            const clipboardData = e.clipboardData;
-            const pastedText = clipboardData?.getData('text/plain');
-            
-            if (!pastedText) return;
-            
-            // Check if we need to trim
-            const trimmedText = pastedText.replace(/\n+$/, '');
-            const needsTrimming = trimmedText !== pastedText;
-            
-            if (!needsTrimming) {
-                // No trimming needed, let ProseMirror handle naturally
-                return;
-            }
-            
-            // Prevent default paste behavior
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Insert trimmed text and let ProseMirror handle cursor positioning
-            const { from, to } = this.view.state.selection;
-            const tr = this.view.state.tr.insertText(trimmedText, from, to);
-            this.view.dispatch(tr);
-            
-            // Focus to ensure cursor is visible
-            requestAnimationFrame(() => {
-                this.view.focus();
-            });
+        this.pasteHandler = createCodeBlockPasteHandler({
+            view: this.view,
         });
+
+        this.contentDOM.addEventListener('keydown', this.contentKeydownHandler);
+        this.contentDOM.addEventListener('paste', this.pasteHandler);
         
         this.dom.appendChild(this.contentDOM);
         this.applyCollapsedState();
@@ -160,6 +123,8 @@ export class CodeBlockNodeView implements NodeView {
     }
 
     destroy() {
+        this.contentDOM.removeEventListener('keydown', this.contentKeydownHandler);
+        this.contentDOM.removeEventListener('paste', this.pasteHandler);
         this.root.unmount();
         this.dom.remove();
     }
