@@ -1,313 +1,220 @@
-// Slash menu items definition
 import type { SlashMenuItem } from './types';
-import type { Ctx } from '@milkdown/kit/ctx';
-import { editorViewCtx, commandsCtx } from '@milkdown/kit/core';
-import { wrapInHeadingCommand, createCodeBlockCommand, insertHrCommand } from '@milkdown/kit/preset/commonmark';
-import { insertTableCommand } from '@milkdown/kit/preset/gfm';
-
-// Helper to insert a node
-function insertNode(ctx: Ctx, nodeType: string, attrs?: Record<string, unknown>) {
-  const view = ctx.get(editorViewCtx);
-  const { state, dispatch } = view;
-  const { schema } = state;
-  const type = schema.nodes[nodeType];
-  
-  if (!type) return;
-  
-  const node = type.create(attrs);
-  const tr = state.tr.replaceSelectionWith(node);
-  dispatch(tr.scrollIntoView());
-}
-
-// Helper to wrap in list
-function wrapInList(ctx: Ctx, listType: 'bullet_list' | 'ordered_list') {
-  const view = ctx.get(editorViewCtx);
-  const { state, dispatch } = view;
-  const { schema } = state;
-  
-  const list = schema.nodes[listType];
-  const listItem = schema.nodes.list_item;
-  const paragraph = schema.nodes.paragraph;
-  
-  if (!list || !listItem || !paragraph) return;
-  
-  const item = listItem.create(null, paragraph.create());
-  const node = list.create(null, item);
-  
-  const tr = state.tr.replaceSelectionWith(node);
-  dispatch(tr.scrollIntoView());
-}
-
-// Helper to toggle task list
-function insertTaskList(ctx: Ctx) {
-  const view = ctx.get(editorViewCtx);
-  const { state, dispatch } = view;
-  const { schema } = state;
-  
-  const list = schema.nodes.bullet_list;
-  const listItem = schema.nodes.list_item;
-  const paragraph = schema.nodes.paragraph;
-  
-  if (!list || !listItem || !paragraph) return;
-  
-  const item = listItem.create({ checked: false }, paragraph.create());
-  const node = list.create(null, item);
-  
-  const tr = state.tr.replaceSelectionWith(node);
-  dispatch(tr.scrollIntoView());
-}
 
 export const slashMenuItems: SlashMenuItem[] = [
-  // Basic blocks
   {
+    id: 'text',
     name: 'Text',
     icon: '📝',
     description: 'Plain text paragraph',
     group: 'Basic',
-    searchAlias: ['paragraph', 'p'],
-    action: (ctx) => {
-      const view = ctx.get(editorViewCtx);
-      const { state, dispatch } = view;
-      const { schema } = state;
-      const paragraph = schema.nodes.paragraph;
-      if (paragraph) {
-        const node = paragraph.create();
-        dispatch(state.tr.replaceSelectionWith(node).scrollIntoView());
-      }
-    }
+    searchTerms: ['paragraph', 'p'],
+    commandId: 'paragraph',
   },
   {
+    id: 'inline-math',
+    name: 'Inline Math',
+    icon: 'x²',
+    description: 'Inline LaTeX formula',
+    group: 'Basic',
+    searchTerms: ['math inline', 'latex inline', 'formula inline'],
+    commandId: 'inline-math',
+  },
+  {
+    id: 'heading-1',
     name: 'Heading 1',
     icon: 'H1',
     description: 'Large section heading',
     group: 'Basic',
-    searchAlias: ['h1', 'title'],
-    action: (ctx) => {
-      const commands = ctx.get(commandsCtx);
-      commands.call(wrapInHeadingCommand.key, 1);
-    }
+    searchTerms: ['h1', 'title'],
+    commandId: 'heading-1',
   },
   {
+    id: 'heading-2',
     name: 'Heading 2',
     icon: 'H2',
     description: 'Medium section heading',
     group: 'Basic',
-    searchAlias: ['h2'],
-    action: (ctx) => {
-      const commands = ctx.get(commandsCtx);
-      commands.call(wrapInHeadingCommand.key, 2);
-    }
+    searchTerms: ['h2'],
+    commandId: 'heading-2',
   },
   {
+    id: 'heading-3',
     name: 'Heading 3',
     icon: 'H3',
     description: 'Small section heading',
     group: 'Basic',
-    searchAlias: ['h3'],
-    action: (ctx) => {
-      const commands = ctx.get(commandsCtx);
-      commands.call(wrapInHeadingCommand.key, 3);
-    }
+    searchTerms: ['h3'],
+    commandId: 'heading-3',
   },
   {
+    id: 'heading-4',
     name: 'Heading 4',
     icon: 'H4',
     description: 'Subsection heading',
     group: 'Basic',
-    searchAlias: ['h4'],
-    action: (ctx) => {
-      const commands = ctx.get(commandsCtx);
-      commands.call(wrapInHeadingCommand.key, 4);
-    }
+    searchTerms: ['h4'],
+    commandId: 'heading-4',
   },
   {
+    id: 'heading-5',
     name: 'Heading 5',
     icon: 'H5',
     description: 'Minor heading',
     group: 'Basic',
-    searchAlias: ['h5'],
-    action: (ctx) => {
-      const commands = ctx.get(commandsCtx);
-      commands.call(wrapInHeadingCommand.key, 5);
-    }
+    searchTerms: ['h5'],
+    commandId: 'heading-5',
   },
   {
+    id: 'heading-6',
     name: 'Heading 6',
     icon: 'H6',
     description: 'Smallest heading',
     group: 'Basic',
-    searchAlias: ['h6'],
-    action: (ctx) => {
-      const commands = ctx.get(commandsCtx);
-      commands.call(wrapInHeadingCommand.key, 6);
-    }
+    searchTerms: ['h6'],
+    commandId: 'heading-6',
   },
-  
-  // Lists
   {
+    id: 'bullet-list',
     name: 'Bullet List',
     icon: '•',
     description: 'Unordered list',
     group: 'Lists',
-    searchAlias: ['ul', 'unordered'],
-    action: (ctx) => wrapInList(ctx, 'bullet_list')
+    searchTerms: ['ul', 'unordered'],
+    commandId: 'bullet-list',
   },
   {
+    id: 'ordered-list',
     name: 'Numbered List',
     icon: '1.',
     description: 'Ordered list',
     group: 'Lists',
-    searchAlias: ['ol', 'ordered'],
-    action: (ctx) => wrapInList(ctx, 'ordered_list')
+    searchTerms: ['ol', 'ordered'],
+    commandId: 'ordered-list',
   },
   {
+    id: 'task-list',
     name: 'Task List',
     icon: '☑',
     description: 'Checklist with checkboxes',
     group: 'Lists',
-    searchAlias: ['todo', 'checkbox', 'checklist'],
-    action: insertTaskList
+    searchTerms: ['todo', 'checkbox', 'checklist'],
+    commandId: 'task-list',
   },
-  
-  // Media
   {
+    id: 'code-block',
     name: 'Code Block',
     icon: '</>',
     description: 'Code with syntax highlighting',
     group: 'Media',
-    searchAlias: ['code', 'pre', 'snippet'],
-    action: (ctx) => {
-      const commands = ctx.get(commandsCtx);
-      commands.call(createCodeBlockCommand.key);
-    }
+    searchTerms: ['code', 'pre', 'snippet'],
+    commandId: 'code-block',
   },
   {
+    id: 'equation',
     name: 'Equation',
     icon: '∑',
     description: 'LaTeX math block',
     group: 'Media',
-    searchAlias: ['math', 'latex', 'formula'],
-    action: (ctx) => insertNode(ctx, 'math_block', { latex: '' })
+    searchTerms: ['math', 'latex', 'formula'],
+    commandId: 'equation',
   },
   {
+    id: 'image',
     name: 'Image',
     icon: '🖼',
     description: 'Insert an image',
     group: 'Media',
-    searchAlias: ['img', 'picture', 'photo'],
-    action: (ctx) => insertNode(ctx, 'image', { src: '', alt: '', align: 'center', width: null })
+    searchTerms: ['img', 'picture', 'photo'],
+    commandId: 'image',
   },
-  
-  // Advanced
   {
+    id: 'table',
     name: 'Table',
     icon: '▦',
     description: 'Insert a table',
     group: 'Advanced',
-    searchAlias: ['grid'],
-    action: (ctx) => {
-      const commands = ctx.get(commandsCtx);
-      commands.call(insertTableCommand.key);
-    }
+    searchTerms: ['grid'],
+    commandId: 'table',
   },
   {
+    id: 'divider',
     name: 'Divider',
     icon: '—',
     description: 'Horizontal rule',
     group: 'Advanced',
-    searchAlias: ['hr', 'line', 'separator'],
-    action: (ctx) => {
-      const commands = ctx.get(commandsCtx);
-      commands.call(insertHrCommand.key);
-    }
+    searchTerms: ['hr', 'line', 'separator'],
+    commandId: 'divider',
   },
   {
+    id: 'callout',
     name: 'Callout',
     icon: '💡',
     description: 'Highlighted note block',
     group: 'Advanced',
-    searchAlias: ['note', 'tip', 'warning', 'info'],
-    action: (ctx) => insertNode(ctx, 'callout', { 
-      icon: { type: 'emoji', value: '💡' },
-      backgroundColor: 'yellow'
-    })
+    searchTerms: ['note', 'tip', 'warning', 'info'],
+    commandId: 'callout',
   },
   {
+    id: 'quote',
     name: 'Quote',
     icon: '"',
     description: 'Block quote',
     group: 'Advanced',
-    searchAlias: ['blockquote', 'cite'],
-    action: (ctx) => {
-      const view = ctx.get(editorViewCtx);
-      const { state, dispatch } = view;
-      const { schema } = state;
-      const blockquote = schema.nodes.blockquote;
-      const paragraph = schema.nodes.paragraph;
-      if (blockquote && paragraph) {
-        const node = blockquote.create(null, paragraph.create());
-        dispatch(state.tr.replaceSelectionWith(node).scrollIntoView());
-      }
-    }
+    searchTerms: ['blockquote', 'cite'],
+    commandId: 'quote',
   },
   {
+    id: 'toc',
     name: 'Table of Contents',
     icon: '📑',
     description: 'Auto-generated TOC',
     group: 'Advanced',
-    searchAlias: ['toc', 'contents', 'outline'],
-    action: (ctx) => insertNode(ctx, 'toc', { maxLevel: 6 })
+    searchTerms: ['toc', 'contents', 'outline'],
+    commandId: 'toc',
   },
   {
+    id: 'mermaid',
     name: 'Mermaid Diagram',
     icon: '📊',
     description: 'Flowchart, sequence diagram',
     group: 'Advanced',
-    searchAlias: ['diagram', 'flowchart', 'chart', 'graph'],
-    action: (ctx) => insertNode(ctx, 'mermaid', { code: 'graph TD\n    A[Start] --> B[End]' })
+    searchTerms: ['diagram', 'flowchart', 'chart', 'graph'],
+    commandId: 'mermaid',
   },
   {
+    id: 'footnote',
     name: 'Footnote',
     icon: '📝',
     description: 'Add a footnote reference',
     group: 'Advanced',
-    searchAlias: ['note', 'reference', 'citation'],
-    action: (ctx) => insertNode(ctx, 'footnote_ref', { id: '1' })
+    searchTerms: ['note', 'reference', 'citation'],
+    commandId: 'footnote',
   },
   {
+    id: 'footnote-definition',
+    name: 'Footnote Definition',
+    icon: '[^:]',
+    description: 'Define footnote content block',
+    group: 'Advanced',
+    searchTerms: ['footnote def', 'footnote definition', 'citation block'],
+    commandId: 'footnote-definition',
+  },
+  {
+    id: 'abbreviation',
+    name: 'Abbreviation',
+    icon: 'Ab',
+    description: 'Insert abbreviation definition',
+    group: 'Advanced',
+    searchTerms: ['abbr', 'acronym', 'short form'],
+    commandId: 'abbreviation',
+  },
+  {
+    id: 'video',
     name: 'Video',
     icon: '🎬',
     description: 'Embed YouTube, Bilibili video',
     group: 'Media',
-    searchAlias: ['youtube', 'bilibili', 'embed', 'movie'],
-    action: (ctx) => insertNode(ctx, 'video', { src: '' })
-  }
+    searchTerms: ['youtube', 'bilibili', 'embed', 'movie'],
+    commandId: 'video',
+  },
 ];
-
-// Filter items by query
-export function filterSlashItems(query: string, items: SlashMenuItem[]): SlashMenuItem[] {
-  if (!query) return items;
-  
-  const lowerQuery = query.toLowerCase();
-  
-  return items.filter(item => {
-    const nameMatch = item.name.toLowerCase().includes(lowerQuery);
-    const aliasMatch = item.searchAlias?.some(alias => 
-      alias.toLowerCase().includes(lowerQuery)
-    );
-    return nameMatch || aliasMatch;
-  });
-}
-
-// Group items by category
-export function groupSlashItems(items: SlashMenuItem[]): Map<string, SlashMenuItem[]> {
-  const groups = new Map<string, SlashMenuItem[]>();
-  
-  items.forEach(item => {
-    const group = groups.get(item.group) || [];
-    group.push(item);
-    groups.set(item.group, group);
-  });
-  
-  return groups;
-}
