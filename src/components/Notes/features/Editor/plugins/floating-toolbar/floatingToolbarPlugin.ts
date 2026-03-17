@@ -1,6 +1,5 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
-import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import type { FloatingToolbarState, ToolbarMeta } from './types';
 import { getLinkUrl } from './selectionHelpers';
 import { setLink, toggleMark } from './commands';
@@ -64,26 +63,6 @@ export const floatingToolbarPlugin = $prose(() => {
       return createFloatingToolbarPluginView(editorView, floatingToolbarKey, interactionState);
     },
     props: {
-      decorations(state) {
-        const pluginState = floatingToolbarKey.getState(state);
-        const review = pluginState?.aiReview;
-        if (!review) {
-          return DecorationSet.empty;
-        }
-
-        const maxPos = state.doc.content.size;
-        const from = Math.max(0, Math.min(review.from, maxPos));
-        const to = Math.max(from, Math.min(review.to, maxPos));
-        if (from === to) {
-          return DecorationSet.empty;
-        }
-
-        return DecorationSet.create(state.doc, [
-          Decoration.inline(from, to, {
-            class: 'floating-toolbar-review-highlight',
-          }),
-        ]);
-      },
       handleKeyDown(view, event) {
         const isMod = event.ctrlKey || event.metaKey;
         if (isMod && !event.shiftKey) {
