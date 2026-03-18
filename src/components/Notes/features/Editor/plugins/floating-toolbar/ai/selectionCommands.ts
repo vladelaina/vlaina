@@ -148,7 +148,8 @@ function buildSuggestion(
 async function requestAiEdit(
   instruction: string,
   selectedText: string,
-  selectionRange?: { from: number; to: number }
+  selectionRange?: { from: number; to: number },
+  signal?: AbortSignal
 ): Promise<string | null> {
   const trimmedInstruction = instruction.trim();
   try {
@@ -188,7 +189,9 @@ async function requestAiEdit(
       message,
       history,
       model,
-      provider
+      provider,
+      undefined,
+      signal
     );
     logAiSelectionDebug('request:resolved', {
       resultLength: result.length,
@@ -208,6 +211,14 @@ async function requestAiEdit(
 
     return normalized;
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      logAiSelectionDebug('request:aborted', {
+        selectionFrom: selectionRange?.from ?? null,
+        selectionTo: selectionRange?.to ?? null,
+      });
+      return null;
+    }
+
     logAiSelectionDebug('request:error', {
       error:
         error instanceof Error
@@ -230,7 +241,8 @@ async function requestAiEdit(
 export async function createAiSelectionSuggestion(
   view: EditorView,
   instruction: string,
-  selectionSource?: SelectionSource
+  selectionSource?: SelectionSource,
+  signal?: AbortSignal
 ): Promise<AiSelectionSuggestion | null> {
   const trimmedInstruction = instruction.trim();
   const sourceFrom = selectionSource?.from ?? view.state.selection.from;
@@ -265,7 +277,7 @@ export async function createAiSelectionSuggestion(
     return null;
   }
 
-  const suggestedText = await requestAiEdit(trimmedInstruction, selectedText, { from, to });
+  const suggestedText = await requestAiEdit(trimmedInstruction, selectedText, { from, to }, signal);
   if (suggestedText === null) {
     return null;
   }
@@ -280,12 +292,14 @@ export async function createAiSelectionSuggestion(
 }
 
 export async function retryAiSelectionSuggestion(
-  suggestion: AiSelectionSuggestion
+  suggestion: AiSelectionSuggestion,
+  signal?: AbortSignal
 ): Promise<AiSelectionSuggestion | null> {
   const suggestedText = await requestAiEdit(
     suggestion.instruction,
     suggestion.originalText,
-    { from: suggestion.from, to: suggestion.to }
+    { from: suggestion.from, to: suggestion.to },
+    signal
   );
 
   if (suggestedText === null) {

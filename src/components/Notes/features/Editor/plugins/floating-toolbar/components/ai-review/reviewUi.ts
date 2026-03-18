@@ -6,6 +6,21 @@ export function stopReviewMouseDown(event: MouseEvent) {
   event.stopPropagation();
 }
 
+export function stopPassiveReviewMouseDown(event: MouseEvent) {
+  const target = event.target;
+  if (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  ) {
+    event.stopPropagation();
+    return;
+  }
+
+  stopReviewMouseDown(event);
+}
+
 export function syncReviewUi(
   panel: HTMLElement,
   review: NonNullable<FloatingToolbarState['aiReview']>,

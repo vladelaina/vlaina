@@ -7,12 +7,32 @@ import {
   getSerializedSelectionText,
 } from './selectionCommands';
 
+const activeReviewControllers = new Map<string, AbortController>();
+
 function createReviewRequestKey(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function getActiveReviewRequestKey(view: EditorView): string | null {
   return floatingToolbarKey.getState(view.state)?.aiReview?.requestKey ?? null;
+}
+
+function abortReviewRequest(requestKey: string | null) {
+  if (!requestKey) {
+    return;
+  }
+
+  const controller = activeReviewControllers.get(requestKey);
+  if (!controller) {
+    return;
+  }
+
+  controller.abort();
+  activeReviewControllers.delete(requestKey);
+}
+
+export function abortActiveAiSelectionReview(view: EditorView): void {
+  abortReviewRequest(getActiveReviewRequestKey(view));
 }
 
 export function openAiSelectionReview(view: EditorView, requestKey?: string): boolean {
@@ -65,6 +85,8 @@ export async function runAiSelectionReviewCommand(
   }
 
   const requestKey = review.requestKey || createReviewRequestKey();
+  abortReviewRequest(requestKey);
+
   view.dispatch(
     view.state.tr.setMeta(floatingToolbarKey, {
       type: TOOLBAR_ACTIONS.SET_AI_REVIEW,
@@ -87,12 +109,39 @@ export async function runAiSelectionReviewCommand(
     to: review.to,
     originalText: review.originalText,
   };
-  const suggestion = await createAiSelectionSuggestion(
-    view,
-    instruction,
-    reviewSelection
-  );
-  if (!suggestion) {
+  const controller = new AbortController();
+  activeReviewControllers.set(requestKey, controller);
+
+  try {
+    const suggestion = await createAiSelectionSuggestion(
+      view,
+      instruction,
+      reviewSelection,
+      controller.signal
+    );
+    if (!suggestion) {
+      if (getActiveReviewRequestKey(view) !== requestKey) {
+        return false;
+      }
+
+      view.dispatch(
+        view.state.tr.setMeta(floatingToolbarKey, {
+          type: TOOLBAR_ACTIONS.SET_AI_REVIEW,
+          payload: {
+            aiReview: {
+              ...review,
+              requestKey,
+              instruction,
+              commandId: command.id,
+              toneId: command.toneId ?? null,
+              isLoading: false,
+            },
+          },
+        })
+      );
+      return false;
+    }
+
     if (getActiveReviewRequestKey(view) !== requestKey) {
       return false;
     }
@@ -102,9 +151,8 @@ export async function runAiSelectionReviewCommand(
         type: TOOLBAR_ACTIONS.SET_AI_REVIEW,
         payload: {
           aiReview: {
-            ...review,
+            ...suggestion,
             requestKey,
-            instruction,
             commandId: command.id,
             toneId: command.toneId ?? null,
             isLoading: false,
@@ -112,26 +160,10 @@ export async function runAiSelectionReviewCommand(
         },
       })
     );
-    return false;
+    return true;
+  } finally {
+    if (activeReviewControllers.get(requestKey) === controller) {
+      activeReviewControllers.delete(requestKey);
+    }
   }
-
-  if (getActiveReviewRequestKey(view) !== requestKey) {
-    return false;
-  }
-
-  view.dispatch(
-    view.state.tr.setMeta(floatingToolbarKey, {
-      type: TOOLBAR_ACTIONS.SET_AI_REVIEW,
-      payload: {
-        aiReview: {
-          ...suggestion,
-          requestKey,
-          commandId: command.id,
-          toneId: command.toneId ?? null,
-          isLoading: false,
-        },
-      },
-    })
-  );
-  return true;
 }

@@ -68,10 +68,6 @@ export function createAiReviewPanelController(): AiReviewPanelController {
       return;
     }
 
-    if (!elements.panel.contains(document.activeElement)) {
-      elements.panel.focus({ preventScroll: true });
-    }
-
     const updateReview = (nextReview: FloatingToolbarState['aiReview']) => {
       view.dispatch(
         view.state.tr.setMeta(floatingToolbarKey, {

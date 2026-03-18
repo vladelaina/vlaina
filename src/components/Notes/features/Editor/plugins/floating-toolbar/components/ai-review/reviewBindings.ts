@@ -4,10 +4,10 @@ import {
   retryAiSelectionSuggestion,
 } from '../../ai/selectionCommands';
 import { floatingToolbarKey } from '../../floatingToolbarPlugin';
-import { TOOLBAR_ACTIONS, type FloatingToolbarState } from '../../types';
+import type { FloatingToolbarState } from '../../types';
 import type { AiReviewElements } from './reviewDom';
 import { toAiSelectionSuggestion } from './reviewState';
-import { stopReviewMouseDown, syncReviewUi } from './reviewUi';
+import { stopPassiveReviewMouseDown, stopReviewMouseDown, syncReviewUi } from './reviewUi';
 
 interface BindAiReviewActionsParams {
   elements: AiReviewElements;
@@ -31,14 +31,6 @@ export function bindAiReviewActions({
   const { signal } = abortController;
 
   const getLiveReview = (): typeof review => review;
-
-  const clearReview = () => {
-    view.dispatch(
-      view.state.tr.setMeta(floatingToolbarKey, {
-        type: TOOLBAR_ACTIONS.CLEAR_AI_REVIEW,
-      })
-    );
-  };
 
   const applySuggestion = () => {
     const suggestion = toAiSelectionSuggestion(getLiveReview());
@@ -74,6 +66,7 @@ export function bindAiReviewActions({
     applySuggestion();
   };
 
+  panel.addEventListener('mousedown', stopPassiveReviewMouseDown, { signal });
   acceptButton.addEventListener('mousedown', stopReviewMouseDown, { signal });
   retryButton?.addEventListener('mousedown', stopReviewMouseDown, { signal });
   cancelButton.addEventListener('mousedown', stopReviewMouseDown, { signal });
@@ -89,7 +82,7 @@ export function bindAiReviewActions({
   cancelButton.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
-    clearReview();
+    onClose();
   }, { signal });
 
   retryButton?.addEventListener('click', (event) => {
@@ -106,7 +99,7 @@ export function bindAiReviewActions({
     }
 
     updateReview({ ...liveReview, isLoading: true });
-    void retryAiSelectionSuggestion(suggestion).then((nextSuggestion) => {
+    void retryAiSelectionSuggestion(suggestion, signal).then((nextSuggestion) => {
       const currentReview = floatingToolbarKey.getState(view.state)?.aiReview;
       if (!currentReview || currentReview.requestKey !== liveReview.requestKey) {
         return;

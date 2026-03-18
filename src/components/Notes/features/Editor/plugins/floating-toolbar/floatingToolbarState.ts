@@ -52,13 +52,6 @@ export function applyToolbarMeta(
         dragPosition: meta.payload?.dragPosition ?? prevState.dragPosition,
         aiReview: meta.payload?.aiReview ?? null,
       };
-    case TOOLBAR_ACTIONS.CLEAR_AI_REVIEW:
-      return {
-        ...prevState,
-        subMenu: null,
-        aiReview: null,
-        dragPosition: null,
-      };
     default:
       return { ...prevState, ...meta.payload };
   }

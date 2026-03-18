@@ -93,7 +93,6 @@ export const TOOLBAR_ACTIONS = {
   SET_TEXT_COLOR: 'SET_TEXT_COLOR',
   SET_BG_COLOR: 'SET_BG_COLOR',
   SET_AI_REVIEW: 'SET_AI_REVIEW',
-  CLEAR_AI_REVIEW: 'CLEAR_AI_REVIEW',
 } as const;
 
 export type ToolbarActionType = typeof TOOLBAR_ACTIONS[keyof typeof TOOLBAR_ACTIONS];

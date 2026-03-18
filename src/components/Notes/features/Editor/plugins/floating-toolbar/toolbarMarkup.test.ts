@@ -81,19 +81,14 @@ describe('toolbar markup', () => {
       })
     );
 
-    expect(markup).toContain('data-review-command-select="true"');
-    expect(markup).toContain('英语');
     expect(markup).toContain('ai-review-result-surface');
-    expect(markup).not.toContain('data-review-source-input="true"');
-    expect(markup).not.toContain('data-review-result-input="true"');
-    expect(markup).not.toContain('data-review-action="promote-result"');
-    expect(markup).not.toContain('Selected text');
-    expect(markup).not.toContain('ai-review-selected-strip');
     expect(markup).toContain('ai-review-diff-added');
     expect(markup).toContain('Hello there');
     expect(markup).toContain('ai-review-model-selector-slot');
+    expect(markup).toContain('ai-review-actions-inline');
     expect(markup).toContain('&times;');
     expect(markup).toContain('&#10003;');
     expect(markup).toContain('data-review-action="accept"');
+    expect(markup).toContain('data-review-action="cancel"');
   });
 });

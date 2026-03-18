@@ -1,5 +1,6 @@
 import { TextSelection, type PluginKey } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { abortActiveAiSelectionReview } from './ai/reviewFlow';
 import { createToolbarRenderer } from './renderToolbar';
 import {
   calculateBottomPosition,
@@ -468,9 +469,10 @@ export function createFloatingToolbarPluginView(
 
     const pluginState = toolbarKey.getState(editorView.state);
     if (pluginState?.subMenu === 'aiReview') {
+      abortActiveAiSelectionReview(editorView);
       editorView.dispatch(
         editorView.state.tr.setMeta(toolbarKey, {
-          type: TOOLBAR_ACTIONS.CLEAR_AI_REVIEW,
+          type: TOOLBAR_ACTIONS.HIDE,
         })
       );
       return;
@@ -498,6 +500,7 @@ export function createFloatingToolbarPluginView(
       return;
     }
 
+    abortActiveAiSelectionReview(editorView);
     editorView.dispatch(
       editorView.state.tr.setMeta(toolbarKey, {
         type: TOOLBAR_ACTIONS.HIDE,
