@@ -69,7 +69,7 @@ export function createToolbarEventDelegation(
     const { selection, schema } = state;
     const paragraphType = schema.nodes.paragraph;
     const isSingleTextblock =
-      selection.$from.sameParent(selection.$to) &&
+      selection.$from.parent === selection.$to.parent &&
       selection.$from.parent.isTextblock;
     const isWholeTextblockSelected =
       isSingleTextblock &&

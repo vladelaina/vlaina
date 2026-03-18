@@ -35,7 +35,7 @@ function insertNode(ctx: Ctx, nodeType: string, attrs?: Record<string, unknown>)
   const type = state.schema.nodes[nodeType];
   if (!type) return;
 
-  const node = type.createAndFill(attrs) ?? type.create(attrs);
+  const node = type.create(attrs);
   dispatch(state.tr.replaceSelectionWith(node).scrollIntoView());
 }
 
@@ -113,5 +113,7 @@ const slashCommandRegistry: Record<SlashCommandId, (ctx: Ctx) => void> = {
 };
 
 export function applySlashCommand(ctx: Ctx, commandId: SlashCommandId) {
-  slashCommandRegistry[commandId]?.(ctx);
+  const command = slashCommandRegistry[commandId];
+  if (!command) return;
+  command(ctx);
 }
