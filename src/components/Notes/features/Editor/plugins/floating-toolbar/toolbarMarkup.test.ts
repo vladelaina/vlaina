@@ -83,7 +83,6 @@ describe('toolbar markup', () => {
 
     expect(markup).toContain('data-review-command-select="true"');
     expect(markup).toContain('英语');
-    expect(markup).toContain('Preview only changes');
     expect(markup).toContain('ai-review-result-surface');
     expect(markup).not.toContain('data-review-source-input="true"');
     expect(markup).not.toContain('data-review-result-input="true"');
@@ -92,6 +91,9 @@ describe('toolbar markup', () => {
     expect(markup).not.toContain('ai-review-selected-strip');
     expect(markup).toContain('ai-review-diff-added');
     expect(markup).toContain('Hello there');
+    expect(markup).toContain('ai-review-model-selector-slot');
+    expect(markup).toContain('&times;');
+    expect(markup).toContain('&#10003;');
     expect(markup).toContain('data-review-action="accept"');
   });
 });
