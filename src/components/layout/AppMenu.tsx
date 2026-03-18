@@ -36,7 +36,7 @@ export const AppMenu: React.FC<AppMenuProps> = ({ onOpenSettings, onCloseMenu })
                     onCloseMenu();
                 }}
                 className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
+                    "flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors group/item",
                     "hover:bg-[var(--neko-hover)]"
                 )}
             >
@@ -51,7 +51,7 @@ export const AppMenu: React.FC<AppMenuProps> = ({ onOpenSettings, onCloseMenu })
                         window.dispatchEvent(new Event('open-lab'));
                     }}
                     className={cn(
-                        "flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left transition-colors group/item",
+                        "flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors group/item",
                         "hover:bg-[var(--neko-hover)]"
                     )}
                 >
@@ -66,7 +66,7 @@ export const AppMenu: React.FC<AppMenuProps> = ({ onOpenSettings, onCloseMenu })
             <div className="relative px-3 py-2 flex items-center justify-between group/powered">
                 <button
                     onClick={handleOpenWebsite}
-                    className="text-[11px] text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-secondary)] font-medium transition-colors"
+                    className="cursor-pointer text-[11px] font-medium text-[var(--neko-text-tertiary)] transition-colors hover:text-[var(--neko-text-secondary)]"
                 >
                     Powered by <span className="text-[var(--neko-text-secondary)]">NekoTick</span>
                 </button>
@@ -76,7 +76,7 @@ export const AppMenu: React.FC<AppMenuProps> = ({ onOpenSettings, onCloseMenu })
                         setIsLanguageMenuOpen(!isLanguageMenuOpen);
                     }}
                     className={cn(
-                        "flex items-center justify-center w-6 h-6 rounded-md hover:bg-[var(--neko-hover)] transition-colors",
+                        "flex h-6 w-6 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[var(--neko-hover)]",
                         isLanguageMenuOpen && "bg-[var(--neko-hover)]"
                     )}
                 >
@@ -119,7 +119,7 @@ const LanguageOption = ({ label, subLabel, onClick }: { label: string; subLabel:
     <button
         onClick={onClick}
         className={cn(
-            "flex items-center justify-between px-3 py-2 rounded-md w-full text-left transition-colors",
+            "flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-2 text-left transition-colors",
             "hover:bg-[var(--neko-hover)]"
         )}
     >

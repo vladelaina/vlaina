@@ -51,7 +51,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
               setIsMenuOpen(!isMenuOpen);
             }}
             className={cn(
-              '-mr-1 flex h-5 w-5 items-center justify-center rounded-md transition-colors hover:bg-[var(--neko-active)]',
+              '-mr-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[var(--neko-active)]',
               isMenuOpen && 'bg-[var(--neko-active)] text-[var(--neko-text-primary)]'
             )}
           >
@@ -71,7 +71,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                   onSwitchAccount();
                 }}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
+                  'flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
                   iconButtonStyles
                 )}
               >
@@ -84,7 +84,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                   onLogout();
                 }}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
+                  'flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
                   iconButtonStyles
                 )}
               >

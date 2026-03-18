@@ -1,196 +1,116 @@
-import { useState, type FormEvent } from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface AccountEmailCodeCardProps {
-  isCompact: boolean;
-  disabled: boolean;
+  isCompact?: boolean;
+  disabled?: boolean;
   onEmailCodeRequest: (email: string) => Promise<boolean>;
   onEmailCodeVerify: (email: string, code: string) => Promise<boolean>;
 }
 
-type FeedbackState =
-  | { type: 'success'; message: string }
-  | { type: 'error'; message: string }
-  | null;
-
 export function AccountEmailCodeCard({
-  isCompact,
   disabled,
   onEmailCodeRequest,
   onEmailCodeVerify,
 }: AccountEmailCodeCardProps) {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
-  const [pendingEmail, setPendingEmail] = useState('');
-  const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
-  const [feedback, setFeedback] = useState<FeedbackState>(null);
+  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleEmailCodeRequest = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const nextEmail = email.trim();
-    if (!nextEmail) {
-      setFeedback({ type: 'error', message: 'Enter an email address first.' });
-      return;
-    }
-
-    setIsSubmittingEmail(true);
-    setFeedback(null);
+  const handleRequestCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || isLoading) return;
+    setIsLoading(true);
     try {
-      const ok = await onEmailCodeRequest(nextEmail);
-      if (ok) {
-        setPendingEmail(nextEmail);
-        setCode('');
-        setFeedback({
-          type: 'success',
-          message: `Verification code sent to ${nextEmail}. Enter the 6-digit code below.`,
-        });
-      } else {
-        setFeedback({ type: 'error', message: 'Failed to send verification code.' });
-      }
+      const success = await onEmailCodeRequest(email);
+      if (success) setStep('code');
     } finally {
-      setIsSubmittingEmail(false);
+      setIsLoading(false);
     }
   };
 
-  const handleEmailCodeVerify = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const nextEmail = (pendingEmail || email).trim();
-    const nextCode = code.trim();
-    if (!nextEmail) {
-      setFeedback({ type: 'error', message: 'Enter an email address first.' });
-      return;
-    }
-    if (!/^\d{6}$/.test(nextCode)) {
-      setFeedback({ type: 'error', message: 'Enter the 6-digit verification code.' });
-      return;
-    }
-
-    setIsSubmittingEmail(true);
-    setFeedback(null);
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code || isLoading) return;
+    setIsLoading(true);
     try {
-      const ok = await onEmailCodeVerify(nextEmail, nextCode);
-      if (!ok) {
-        setFeedback({ type: 'error', message: 'Verification failed. Check the code and try again.' });
-        return;
-      }
-      setPendingEmail('');
-      setCode('');
-      setFeedback(null);
+      await onEmailCodeVerify(email, code);
     } finally {
-      setIsSubmittingEmail(false);
+      setIsLoading(false);
     }
   };
 
-  const emailDisabled = disabled || isSubmittingEmail;
+  if (step === 'email') {
+    return (
+      <form noValidate onSubmit={handleRequestCode} className="space-y-4 w-full">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email Address"
+          disabled={disabled || isLoading}
+          className={cn(
+            "w-full h-12 px-5 py-3 text-[14px] font-medium transition-all duration-500 outline-none sm:h-[52px] sm:px-6 sm:py-3.5 sm:text-[15px] md:h-14 md:py-4",
+            "bg-zinc-50 dark:bg-black/40",
+            "border border-transparent focus:border-zinc-200 dark:focus:border-zinc-700",
+            "rounded-[18px] placeholder:text-zinc-400 sm:rounded-[20px] dark:placeholder:text-zinc-600",
+            "focus:bg-white dark:focus:bg-black"
+          )}
+        />
+        <button
+          type="submit"
+          disabled={disabled || isLoading || !email}
+          className={cn(
+            "w-full h-12 rounded-[18px] font-black text-[14px] transition-all duration-500 sm:h-[52px] sm:rounded-[20px] sm:text-[15px] md:h-14",
+            "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white",
+            "hover:bg-zinc-200 dark:hover:bg-zinc-700 active:scale-[0.97]",
+            "disabled:opacity-50 disabled:active:scale-100"
+          )}
+        >
+          {isLoading ? 'Sending...' : 'Continue with Email'}
+        </button>
+      </form>
+    );
+  }
 
   return (
-    <>
-      <div
-        className={cn(
-          'rounded-xl border p-3 space-y-3',
-          isCompact
-            ? 'border-[var(--neko-border)] bg-[var(--neko-bg-secondary)]'
-            : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-[#202020]'
-        )}
-      >
-        <div className={cn('font-semibold', isCompact ? 'text-[13px]' : 'text-sm text-gray-900 dark:text-gray-100')}>
-          Sign in with Email Code
-        </div>
-        <div
+    <form noValidate onSubmit={handleVerifyCode} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
+      <div className="space-y-2">
+        <p className="text-[11px] font-black uppercase tracking-widest text-zinc-400 text-center">Enter the code sent to your inbox</p>
+        <input
+          type="text"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="000000"
+          disabled={disabled || isLoading}
           className={cn(
-            isCompact ? 'mt-0.5 text-[11px] text-[var(--neko-text-tertiary)]' : 'text-xs text-gray-500'
+            "w-full h-14 text-center text-[26px] font-black tracking-[0.35em] transition-all duration-500 outline-none sm:h-[60px] sm:text-[30px] sm:tracking-[0.45em] md:h-16 md:text-3xl md:tracking-[0.5em]",
+            "bg-zinc-50 dark:bg-black/40 rounded-[18px] sm:rounded-[20px]",
+            "focus:bg-white dark:focus:bg-black border border-transparent focus:border-zinc-200 dark:focus:border-zinc-700"
           )}
-        >
-          We send a 6-digit verification code. No password required.
-        </div>
-
-        <form onSubmit={handleEmailCodeRequest} className="space-y-3">
-          <div className={cn('flex gap-2', isCompact ? 'flex-col' : 'flex-col sm:flex-row')}>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => {
-                setEmail(event.target.value);
-                if (pendingEmail && pendingEmail !== event.target.value.trim()) {
-                  setPendingEmail('');
-                  setCode('');
-                }
-              }}
-              placeholder="name@example.com"
-              disabled={emailDisabled}
-              className={cn(
-                'min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm outline-none transition-colors',
-                isCompact
-                  ? 'border-[var(--neko-border)] bg-[var(--neko-bg-primary)] text-[var(--neko-text-primary)]'
-                  : 'border-gray-200 bg-gray-50 text-gray-900 dark:border-gray-700 dark:bg-[#161616] dark:text-gray-100'
-              )}
-            />
-            <button
-              type="submit"
-              disabled={emailDisabled}
-              className={cn(
-                'rounded-lg px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-                isCompact
-                  ? 'bg-[var(--neko-text-primary)] text-[var(--neko-bg-primary)]'
-                  : 'bg-black text-white dark:bg-white dark:text-black'
-              )}
-            >
-              {isSubmittingEmail ? 'Sending...' : pendingEmail ? 'Resend Code' : 'Send Code'}
-            </button>
-          </div>
-        </form>
-
-        {pendingEmail ? (
-          <form onSubmit={handleEmailCodeVerify} className="space-y-3">
-            <div className={cn('flex gap-2', isCompact ? 'flex-col' : 'flex-col sm:flex-row')}>
-              <input
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                value={code}
-                onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="123456"
-                disabled={emailDisabled}
-                className={cn(
-                  'min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm tracking-[0.3em] outline-none transition-colors',
-                  isCompact
-                    ? 'border-[var(--neko-border)] bg-[var(--neko-bg-primary)] text-[var(--neko-text-primary)]'
-                    : 'border-gray-200 bg-gray-50 text-gray-900 dark:border-gray-700 dark:bg-[#161616] dark:text-gray-100'
-                )}
-              />
-              <button
-                type="submit"
-                disabled={emailDisabled}
-                className={cn(
-                  'rounded-lg px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-                  isCompact
-                    ? 'bg-[var(--neko-text-primary)] text-[var(--neko-bg-primary)]'
-                    : 'bg-black text-white dark:bg-white dark:text-black'
-                )}
-              >
-                {isSubmittingEmail ? 'Verifying...' : 'Verify Code'}
-              </button>
-            </div>
-          </form>
-        ) : null}
+        />
       </div>
-
-      {feedback ? (
-        <div
+      <div className="flex flex-col gap-3">
+        <button
+          type="submit"
+          disabled={disabled || isLoading || !code}
           className={cn(
-            'rounded-lg px-3 py-2 text-xs',
-            feedback.type === 'success'
-              ? isCompact
-                ? 'bg-emerald-500/10 text-emerald-600'
-                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'
-              : isCompact
-                ? 'bg-red-500/10 text-red-500'
-                : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'
+            "w-full h-12 rounded-[18px] font-black text-[14px] transition-all duration-500 sm:h-[52px] sm:rounded-[20px] sm:text-[15px] md:h-14",
+            "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow-2xl shadow-black/20",
+            "active:scale-[0.97] disabled:opacity-50"
           )}
         >
-          {feedback.message}
-        </div>
-      ) : null}
-    </>
+          {isLoading ? 'Verifying...' : 'Verify Code'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setStep('email')}
+          className="text-[11px] font-bold text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors"
+        >
+          Change email address
+        </button>
+      </div>
+    </form>
   );
 }

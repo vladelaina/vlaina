@@ -1,28 +1,22 @@
+import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import type { OauthAccountProvider } from '@/lib/account/provider';
 
 interface AccountOauthButtonsProps {
-  isCompact: boolean;
-  disabled: boolean;
+  isCompact?: boolean;
+  disabled?: boolean;
   onOauthSignIn: (provider: OauthAccountProvider) => void | Promise<unknown>;
 }
 
 interface OauthOption {
   provider: OauthAccountProvider;
-  title: string;
-  description: string;
+  label: string;
 }
 
 const OAUTH_OPTIONS: OauthOption[] = [
   {
     provider: 'google',
-    title: 'Continue with Google',
-    description: 'Recommended default sign-in.',
-  },
-  {
-    provider: 'github',
-    title: 'Continue with GitHub',
-    description: 'Advanced account and future sync connector.',
+    label: 'Google',
   },
 ];
 
@@ -32,7 +26,7 @@ export function AccountOauthButtons({
   onOauthSignIn,
 }: AccountOauthButtonsProps) {
   return (
-    <div className={cn('grid gap-2', isCompact ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2')}>
+    <div className={cn('flex flex-col gap-3', isCompact && 'gap-2')}>
       {OAUTH_OPTIONS.map((option) => (
         <button
           key={option.provider}
@@ -40,21 +34,28 @@ export function AccountOauthButtons({
           disabled={disabled}
           onClick={() => void onOauthSignIn(option.provider)}
           className={cn(
-            'rounded-xl border px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-            isCompact
-              ? 'border-[var(--neko-border)] bg-[var(--neko-bg-secondary)] hover:bg-[var(--neko-hover)]'
-              : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-[#202020] dark:hover:bg-white/5'
+            'group relative flex h-14 w-full cursor-pointer items-center justify-center gap-3 px-5 sm:h-[60px] sm:px-6 md:h-16',
+            // Ceramic Pro Action Style: White with Depth
+            'bg-white dark:bg-zinc-800/50 text-zinc-950 dark:text-white',
+            'border border-zinc-200/60 dark:border-white/10',
+            'rounded-[22px] sm:rounded-[24px] md:rounded-[28px] font-black text-[14px] sm:text-[15px] tracking-tight transition-all duration-500',
+            'shadow-[0_10px_20px_rgba(0,0,0,0.02),inset_0_0_15px_rgba(0,0,0,0.01)]',
+            'hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.08)] hover:scale-[1.01] active:scale-[0.97]',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
+            isCompact && 'h-14 rounded-2xl text-[14px]'
           )}
         >
-          <div className={cn('font-semibold', isCompact ? 'text-[13px]' : 'text-sm text-gray-900 dark:text-gray-100')}>
-            {option.title}
-          </div>
-          <div
-            className={cn(
-              isCompact ? 'mt-0.5 text-[11px] text-[var(--neko-text-tertiary)]' : 'mt-1 text-xs text-gray-500'
-            )}
-          >
-            {option.description}
+          <Icon
+            name="common.google"
+            size={20}
+            className="shrink-0"
+          />
+
+          <span className="opacity-90 group-hover:opacity-100 transition-opacity">Continue with {option.label}</span>
+
+          {/* Specular Highlight Overlay */}
+          <div className="absolute inset-0 rounded-[28px] overflow-hidden pointer-events-none">
+             <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity dark:from-white/5" />
           </div>
         </button>
       ))}
