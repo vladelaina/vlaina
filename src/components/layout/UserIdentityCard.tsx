@@ -6,7 +6,7 @@ import { cn, iconButtonStyles } from '@/lib/utils';
 import { ManagedQuotaMeter } from './ManagedQuotaMeter';
 
 interface UserIdentityCardProps {
-  onLogout: () => void;
+  onLogout: () => void | Promise<void>;
   onSwitchAccount: () => void;
 }
 
@@ -15,6 +15,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const displayName = username || primaryEmail || 'NekoTick';
+  const displayIdentity = primaryEmail || username || 'NekoTick';
   const userAvatar = useUserAvatar();
   const displayAvatar = userAvatar || '/logo.png';
 
@@ -41,8 +42,11 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">
         <div className="flex items-center justify-between">
-          <span className="truncate pr-2 text-[14px] font-bold leading-none text-[var(--neko-text-primary)]">
-            {displayName}
+          <span
+            className="min-w-0 flex-1 truncate pr-2 text-[11px] font-bold leading-none text-[var(--neko-text-primary)]"
+            title={displayIdentity}
+          >
+            {displayIdentity}
           </span>
 
           <button
@@ -81,7 +85,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
               <button
                 onClick={() => {
                   setIsMenuOpen(false);
-                  onLogout();
+                  void onLogout();
                 }}
                 className={cn(
                   'flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-colors',

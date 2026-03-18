@@ -4,6 +4,7 @@ import * as Popover from '@radix-ui/react-popover';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useUserAvatar } from '@/hooks/useUserAvatar';
 import { cn } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { LoginPrompt } from './LoginPrompt';
 import { AccountLoginDialog } from './AccountLoginDialog';
 import { UserIdentityCard } from './UserIdentityCard';
@@ -18,16 +19,22 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
 
   const [isOpen, setIsOpen] = React.useState(false);
   const [isLoginDialogOpen, setIsLoginDialogOpen] = React.useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = React.useState(false);
 
   const handleLogout = useCallback(async () => {
+    setIsLogoutConfirmOpen(true);
+  }, []);
+
+  const handleConfirmLogout = useCallback(async () => {
     await signOut();
     setIsOpen(false);
+    setIsLogoutConfirmOpen(false);
   }, [signOut]);
 
-  const handleSwitchAccount = useCallback(async () => {
-    await signOut();
-    setIsOpen(true);
-  }, [signOut]);
+  const handleSwitchAccount = useCallback(() => {
+    setIsOpen(false);
+    setIsLoginDialogOpen(true);
+  }, []);
 
   const handleOpenSettings = useCallback(() => {
     onOpenSettings?.();
@@ -47,7 +54,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
     if (isConnected) {
       setIsLoginDialogOpen(false);
     }
-  }, [isConnected]);
+  }, [isConnected, username, primaryEmail]);
 
   return (
     <>
@@ -55,17 +62,14 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
         <Popover.Trigger asChild>
           <button
             className={cn(
-              'group flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-[var(--neko-text-primary)] outline-none transition-colors select-none hover:bg-[var(--neko-hover)]',
+              'group flex h-8 cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 text-[var(--neko-text-primary)] outline-none transition-colors select-none hover:bg-[var(--neko-hover)]',
               isOpen && 'bg-[var(--neko-hover)]'
             )}
           >
             <img src={displayAvatar} alt={displayName} className="h-5 w-5 rounded-sm object-cover shadow-sm" />
-            <span className="max-w-[120px] truncate pt-[1px] text-[13px] font-medium leading-none">
-              {displayName}
-            </span>
             <Icon
               name="nav.chevronDown"
-              className="-ml-0.5 h-3.5 w-3.5 text-[var(--neko-text-tertiary)] opacity-0 transition-all duration-200 group-hover:opacity-70"
+              className="h-3.5 w-3.5 text-[var(--neko-text-tertiary)] opacity-0 transition-all duration-200 group-hover:opacity-70"
             />
           </button>
         </Popover.Trigger>
@@ -94,6 +98,18 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
       </Popover.Root>
 
       <AccountLoginDialog open={isLoginDialogOpen} onOpenChange={setIsLoginDialogOpen} />
+      <ConfirmDialog
+        isOpen={isLogoutConfirmOpen}
+        onClose={() => setIsLogoutConfirmOpen(false)}
+        onConfirm={() => {
+          void handleConfirmLogout();
+        }}
+        title="Log out?"
+        description="You will be signed out of your current NekoTick account on this device."
+        confirmText="Log out"
+        cancelText="Stay signed in"
+        variant="danger"
+      />
     </>
   );
 };

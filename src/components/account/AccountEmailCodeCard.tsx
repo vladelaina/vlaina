@@ -81,9 +81,16 @@ export function AccountEmailCodeCard({
         <input
           type="text"
           value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="000000"
+          onChange={(e) => {
+            const nextCode = e.target.value.replace(/\D/g, '').slice(0, 6);
+            setCode(nextCode);
+          }}
+          placeholder=""
           disabled={disabled || isLoading}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+          pattern="[0-9]{6}"
           className={cn(
             "w-full h-14 text-center text-[26px] font-black tracking-[0.35em] transition-all duration-500 outline-none sm:h-[60px] sm:text-[30px] sm:tracking-[0.45em] md:h-16 md:text-3xl md:tracking-[0.5em]",
             "bg-zinc-50 dark:bg-black/40 rounded-[18px] sm:rounded-[20px]",

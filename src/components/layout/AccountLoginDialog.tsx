@@ -1,6 +1,6 @@
 import React from 'react';
 import { AccountSignInOptions } from '@/components/account/AccountSignInOptions';
-import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Icon } from '@/components/ui/icons';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { cn } from '@/lib/utils';
@@ -42,6 +42,10 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           "transition-all duration-700 ease-in-out"
         )}
       >
+        <DialogTitle className="sr-only">Sign in to NekoTick</DialogTitle>
+        <DialogDescription className="sr-only">
+          Choose Google sign-in or use an email verification code to access your account.
+        </DialogDescription>
         {/* Ceramic Pro Shell */}
         <div className={cn(
           "relative w-full rounded-[36px] px-5 py-6 sm:rounded-[48px] sm:px-8 sm:py-9 md:rounded-[64px] md:p-14",
