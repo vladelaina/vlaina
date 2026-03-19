@@ -2,7 +2,14 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
+const vueFeatureFlags = {
+  __VUE_OPTIONS_API__: 'true',
+  __VUE_PROD_DEVTOOLS__: 'false',
+  __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
+};
+
 export default defineConfig({
+  define: vueFeatureFlags,
   plugins: [react()],
   resolve: {
     alias: {

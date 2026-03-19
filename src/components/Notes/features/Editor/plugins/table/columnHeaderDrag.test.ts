@@ -1,0 +1,346 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { cleanupCallbacks, editorViewCtx } = vi.hoisted(() => ({
+  cleanupCallbacks: [] as Array<() => void>,
+  editorViewCtx: Symbol('editorViewCtx'),
+}));
+
+vi.mock('vue', async () => {
+  return {
+    ref: <T,>(value?: T) => ({ value }),
+    onBeforeUnmount: (cleanup: () => void) => {
+      cleanupCallbacks.push(cleanup);
+    },
+  };
+});
+
+vi.mock('@milkdown/core', () => ({
+  editorViewCtx,
+}));
+
+import { useColumnHeaderDrag } from '../../../../../../../vendor/milkdown/packages/components/src/table-block/view/column-header-drag';
+
+let warnSpy: ReturnType<typeof vi.spyOn> | null = null;
+
+function setRect(
+  element: Element,
+  rect: {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  },
+) {
+  Object.defineProperty(element, 'getBoundingClientRect', {
+    configurable: true,
+    value: () =>
+      ({
+        x: rect.left,
+        y: rect.top,
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+        right: rect.left + rect.width,
+        bottom: rect.top + rect.height,
+        toJSON: () => rect,
+      }) as DOMRect,
+  });
+}
+
+function createControlPointerEvent(init: {
+  pointerId: number;
+  clientX: number;
+  clientY: number;
+  button?: number;
+}) {
+  return {
+    button: init.button ?? 0,
+    pointerId: init.pointerId,
+    clientX: init.clientX,
+    clientY: init.clientY,
+    preventDefault: vi.fn(),
+    stopPropagation: vi.fn(),
+  } as unknown as PointerEvent;
+}
+
+function createMouseEvent() {
+  return {
+    preventDefault: vi.fn(),
+    stopPropagation: vi.fn(),
+  } as unknown as MouseEvent;
+}
+
+function createKeyboardEvent(key: string) {
+  return {
+    key,
+    preventDefault: vi.fn(),
+    stopPropagation: vi.fn(),
+  } as unknown as KeyboardEvent;
+}
+
+function dispatchWindowPointerEvent(
+  type: 'pointermove' | 'pointerup' | 'pointerdown',
+  init: {
+    pointerId?: number;
+    clientX: number;
+    clientY: number;
+  },
+) {
+  const event = new Event(type, {
+    bubbles: true,
+    cancelable: true,
+  });
+
+  Object.defineProperties(event, {
+    pointerId: {
+      configurable: true,
+      value: init.pointerId ?? 1,
+    },
+    clientX: {
+      configurable: true,
+      value: init.clientX,
+    },
+    clientY: {
+      configurable: true,
+      value: init.clientY,
+    },
+  });
+
+  window.dispatchEvent(event);
+}
+
+function createHarness() {
+  const wrapper = document.createElement('div');
+  const scroll = document.createElement('div');
+  const table = document.createElement('table');
+  const row = document.createElement('tr');
+  const cells = Array.from({ length: 3 }, () => document.createElement('th'));
+
+  for (const cell of cells) {
+    row.appendChild(cell);
+  }
+
+  table.appendChild(row);
+  scroll.appendChild(table);
+  wrapper.appendChild(scroll);
+  document.body.appendChild(wrapper);
+
+  setRect(wrapper, {
+    left: 60,
+    top: 80,
+    width: 360,
+    height: 180,
+  });
+  setRect(scroll, {
+    left: 60,
+    top: 80,
+    width: 360,
+    height: 180,
+  });
+  setRect(table, {
+    left: 80,
+    top: 100,
+    width: 300,
+    height: 120,
+  });
+
+  cells.forEach((cell, index) => {
+    setRect(cell, {
+      left: 80 + index * 100,
+      top: 100,
+      width: 100,
+      height: 40,
+    });
+  });
+
+  const view = {
+    editable: true,
+    focus: vi.fn(),
+  };
+
+  const moveCol = vi.fn();
+  const insertColLeft = vi.fn();
+  const insertColRight = vi.fn();
+  const clearColContent = vi.fn();
+  const deleteCol = vi.fn();
+
+  const ctx = {
+    get: (key: unknown) => {
+      if (key === editorViewCtx) return view;
+      throw new Error(`Unexpected context key: ${String(key)}`);
+    },
+  };
+
+  const api = useColumnHeaderDrag({
+    ctx: ctx as never,
+    tableWrapperRef: { value: wrapper } as never,
+    contentWrapperRef: { value: table } as never,
+    tableScrollRef: { value: scroll } as never,
+    moveCol,
+    insertColLeft,
+    insertColRight,
+    clearColContent,
+    deleteCol,
+  });
+
+  api.syncControls();
+
+  return {
+    api,
+    moveCol,
+    insertColLeft,
+    insertColRight,
+    clearColContent,
+    deleteCol,
+  };
+}
+
+afterEach(() => {
+  warnSpy?.mockRestore();
+  warnSpy = null;
+
+  for (const cleanup of cleanupCallbacks.splice(0)) {
+    cleanup();
+  }
+
+  document.body.innerHTML = '';
+  document.body.style.removeProperty('user-select');
+  document.body.style.removeProperty('cursor');
+});
+
+beforeEach(() => {
+  warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
+describe('column header drag', () => {
+  it('binds global listeners only while a drag or menu interaction is active', () => {
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+    try {
+      const { api } = createHarness();
+
+      expect(addSpy).not.toHaveBeenCalledWith('pointermove', expect.any(Function));
+      expect(addSpy).not.toHaveBeenCalledWith('pointerdown', expect.any(Function), true);
+
+      api.onControlPointerDown(
+        1,
+        createControlPointerEvent({
+          pointerId: 11,
+          clientX: 230,
+          clientY: 108,
+        }),
+      );
+
+      expect(addSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
+      expect(addSpy).toHaveBeenCalledWith('pointerup', expect.any(Function));
+      expect(addSpy).toHaveBeenCalledWith('pointercancel', expect.any(Function));
+
+      dispatchWindowPointerEvent('pointerup', {
+        pointerId: 11,
+        clientX: 230,
+        clientY: 108,
+      });
+
+      expect(removeSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
+      expect(removeSpy).toHaveBeenCalledWith('pointerup', expect.any(Function));
+      expect(removeSpy).toHaveBeenCalledWith('pointercancel', expect.any(Function));
+
+      api.onControlClick(1, createMouseEvent());
+
+      expect(addSpy).toHaveBeenCalledWith('pointerdown', expect.any(Function), true);
+      expect(addSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
+
+      dispatchWindowPointerEvent('pointerdown', {
+        clientX: 12,
+        clientY: 12,
+      });
+
+      expect(removeSpy).toHaveBeenCalledWith('pointerdown', expect.any(Function), true);
+      expect(removeSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
+    } finally {
+      addSpy.mockRestore();
+      removeSpy.mockRestore();
+    }
+  });
+
+  it('opens the column menu on click without moving the column and closes it on outside pointerdown', () => {
+    const { api, moveCol } = createHarness();
+
+    api.onControlPointerDown(
+      1,
+      createControlPointerEvent({
+        pointerId: 7,
+        clientX: 230,
+        clientY: 108,
+      }),
+    );
+    dispatchWindowPointerEvent('pointerup', {
+      pointerId: 7,
+      clientX: 230,
+      clientY: 108,
+    });
+    api.onControlClick(1, createMouseEvent());
+
+    expect(moveCol).not.toHaveBeenCalled();
+    expect(api.menuState.value?.index).toBe(1);
+
+    dispatchWindowPointerEvent('pointerdown', {
+      clientX: 12,
+      clientY: 12,
+    });
+
+    expect(api.menuState.value).toBeNull();
+  });
+
+  it('moves the column after dragging past the threshold and suppresses the follow-up click', () => {
+    const { api, moveCol } = createHarness();
+
+    api.onControlPointerDown(
+      0,
+      createControlPointerEvent({
+        pointerId: 3,
+        clientX: 130,
+        clientY: 108,
+      }),
+    );
+
+    dispatchWindowPointerEvent('pointermove', {
+      pointerId: 3,
+      clientX: 340,
+      clientY: 108,
+    });
+
+    expect(api.dragIndicator.value).not.toBeNull();
+    expect(api.dragSourceHighlight.value).not.toBeNull();
+
+    dispatchWindowPointerEvent('pointerup', {
+      pointerId: 3,
+      clientX: 340,
+      clientY: 108,
+    });
+
+    expect(moveCol).toHaveBeenCalledTimes(1);
+    expect(moveCol).toHaveBeenCalledWith(0, 2);
+
+    api.onControlClick(0, createMouseEvent());
+
+    expect(api.menuState.value).toBeNull();
+  });
+
+  it('opens the menu from keyboard and routes menu actions to the selected column', () => {
+    const { api, insertColLeft } = createHarness();
+
+    api.onControlFocus(2);
+    api.onControlKeyDown(2, createKeyboardEvent('Enter'));
+
+    expect(api.menuState.value?.index).toBe(2);
+
+    api.onMenuAction('insert-col-left');
+
+    expect(insertColLeft).toHaveBeenCalledTimes(1);
+    expect(insertColLeft).toHaveBeenCalledWith(2);
+    expect(api.menuState.value).toBeNull();
+  });
+});

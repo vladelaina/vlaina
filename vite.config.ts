@@ -5,6 +5,11 @@ import path from "path";
 import fs from "fs";
 
 const host = process.env.TAURI_DEV_HOST;
+const vueFeatureFlags = {
+  __VUE_OPTIONS_API__: 'true',
+  __VUE_PROD_DEVTOOLS__: 'false',
+  __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
+};
 
 /**
  * Plugin to copy index.html to 404.html for SPA support
@@ -27,6 +32,7 @@ function spaFallbackPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
+  define: vueFeatureFlags,
   plugins: [
     react(),
     spaFallbackPlugin(),
@@ -45,6 +51,11 @@ export default defineConfig(async () => ({
       "@": path.resolve(__dirname, "./src"),
       "@milkdown/core": path.resolve(__dirname, "./vendor/milkdown/packages/core/src/index.ts"),
       "@milkdown/ctx": path.resolve(__dirname, "./vendor/milkdown/packages/ctx/src/index.ts"),
+    },
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      define: vueFeatureFlags,
     },
   },
 
@@ -131,6 +142,9 @@ export default defineConfig(async () => ({
     port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : 3000,
     strictPort: true,
     host: "127.0.0.1",
+    headers: {
+      "Cache-Control": "no-store",
+    },
     hmr: host
       ? {
         protocol: "ws",

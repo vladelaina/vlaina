@@ -1,6 +1,7 @@
 import type { EditorView } from '@milkdown/prose/view'
 
 import { throttle } from 'lodash-es'
+import { getCurrentInstance, onBeforeUnmount } from 'vue'
 
 import type { Refs } from './types'
 
@@ -75,14 +76,21 @@ function showBottomEdgeHandle(
   return true
 }
 
-function createPointerMoveHandler(
-  refs: Refs,
-  view?: EditorView
-): (e: PointerEvent) => void {
+function hideEdgeHandles(refs: Refs) {
+  const { yLineHandleRef, xLineHandleRef, lineHoverIndex } = refs
+  const yHandle = yLineHandleRef.value
+  const xHandle = xLineHandleRef.value
+  if (!yHandle || !xHandle) return
+
+  lineHoverIndex.value = [-1, -1]
+  yHandle.dataset.show = 'false'
+  xHandle.dataset.show = 'false'
+}
+
+function createPointerMoveHandler(refs: Refs, view?: EditorView) {
   return throttle((e: PointerEvent) => {
     if (!view?.editable) return
-    const { contentWrapperRef, yLineHandleRef, xLineHandleRef, lineHoverIndex } =
-      refs
+    const { contentWrapperRef, yLineHandleRef, xLineHandleRef } = refs
     const yHandle = yLineHandleRef.value
     if (!yHandle) return
     const xHandle = xLineHandleRef.value
@@ -130,30 +138,45 @@ function createPointerMoveHandler(
       return
     }
 
-    lineHoverIndex.value = [-1, -1]
-    yHandle.dataset.show = 'false'
-    xHandle.dataset.show = 'false'
+    hideEdgeHandles(refs)
   }, 20)
 }
 
-function createPointerLeaveHandler(refs: Refs): () => void {
-  return () => {
-    const { yLineHandleRef, xLineHandleRef } = refs
-    setTimeout(() => {
-      const yHandle = yLineHandleRef.value
-      if (!yHandle) return
-      const xHandle = xLineHandleRef.value
-      if (!xHandle) return
+export function usePointerHandlers(refs: Refs, view?: EditorView) {
+  const throttledPointerMove = createPointerMoveHandler(refs, view)
+  let leaveTimer: number | null = null
 
-      yHandle.dataset.show = 'false'
-      xHandle.dataset.show = 'false'
+  const clearLeaveTimer = () => {
+    if (leaveTimer == null || typeof window === 'undefined') return
+    window.clearTimeout(leaveTimer)
+    leaveTimer = null
+  }
+
+  const pointerMove = (e: PointerEvent) => {
+    clearLeaveTimer()
+    throttledPointerMove(e)
+  }
+
+  const pointerLeave = () => {
+    clearLeaveTimer()
+    if (typeof window === 'undefined') {
+      hideEdgeHandles(refs)
+      return
+    }
+
+    leaveTimer = window.setTimeout(() => {
+      leaveTimer = null
+      hideEdgeHandles(refs)
     }, 200)
   }
-}
 
-export function usePointerHandlers(refs: Refs, view?: EditorView) {
-  const pointerMove = createPointerMoveHandler(refs, view)
-  const pointerLeave = createPointerLeaveHandler(refs)
+  if (getCurrentInstance()) {
+    onBeforeUnmount(() => {
+      clearLeaveTimer()
+      throttledPointerMove.cancel()
+      hideEdgeHandles(refs)
+    })
+  }
 
   return {
     pointerMove,

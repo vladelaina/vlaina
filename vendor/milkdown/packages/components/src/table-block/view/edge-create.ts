@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted } from 'vue'
+import { getCurrentInstance, onMounted, onUnmounted } from 'vue'
 
 import type { Refs } from './types'
 import {
@@ -25,19 +25,23 @@ import {
 } from './edge-create-state'
 
 const EDGE_CREATE_THRESHOLD = 18
+const EDGE_CREATE_ACTIVATION_THRESHOLD = 6
 
 interface EdgeCreateSession extends DragSessionState {
   axis: EdgeCreateAxis
   startCoord: number
   lastCoord: number
   lastCommitCoord: number
+  edgeCoord: number
   anchors: EdgeCreateAnchors
   pendingAnchorSync: boolean
+  isActive: boolean
 }
 
 interface EdgeCreateRuntime {
   refs: Refs
   getKey: () => number | undefined
+  isEditable: () => boolean
   onAddRow: () => void
   onAddCol: () => void
   onShrinkRow: () => void
@@ -105,11 +109,41 @@ function handleMove(e: DragSessionEvent) {
   suppressTableDragSelection()
 
   const currentCoord = session.axis === 'row' ? e.clientY : e.clientX
-  const delta = currentCoord - session.startCoord
+
+  if (!session.isActive) {
+    session.lastCoord = currentCoord
+
+    if (
+      Math.abs(currentCoord - session.startCoord) <
+      EDGE_CREATE_ACTIVATION_THRESHOLD
+    ) {
+      return
+    }
+
+    const edgeCoord = getCurrentEdgeCoord(runtime, session.axis)
+    if (edgeCoord == null) return
+
+    session.isActive = true
+    session.lastCommitCoord = currentCoord
+    session.anchors = createEdgeCreateAnchors(
+      currentCoord,
+      edgeCoord,
+      EDGE_CREATE_THRESHOLD
+    )
+    session.pendingAnchorSync = false
+    e.preventDefault()
+    e.stopPropagation()
+    return
+  }
 
   if (session.pendingAnchorSync) {
     const edgeCoord = getCurrentEdgeCoord(runtime, session.axis)
     if (edgeCoord == null) return
+    if (edgeCoord === session.edgeCoord) {
+      session.lastCoord = currentCoord
+      return
+    }
+    session.edgeCoord = edgeCoord
     session.anchors = createEdgeCreateAnchors(
       session.lastCommitCoord,
       edgeCoord,
@@ -172,6 +206,7 @@ function handleEnd(e: DragSessionEvent) {
 
 export function useEdgeCreateHandlers(
   refs: Refs,
+  isEditable: () => boolean,
   onAddRow: () => void,
   onAddCol: () => void,
   onShrinkRow: () => void,
@@ -183,6 +218,7 @@ export function useEdgeCreateHandlers(
   const runtime: EdgeCreateRuntime = {
     refs,
     getKey,
+    isEditable,
     onAddRow,
     onAddCol,
     onShrinkRow,
@@ -191,21 +227,24 @@ export function useEdgeCreateHandlers(
     canShrinkCol,
   }
 
-  onMounted(() => {
-    if (!activeSession) return
-    if (activeSession.key !== getDragRuntimeKey(runtime.getKey)) return
-    activeRuntime = runtime
-  })
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      if (!activeSession) return
+      if (activeSession.key !== getDragRuntimeKey(runtime.getKey)) return
+      activeRuntime = runtime
+    })
 
-  onUnmounted(() => {
-    if (activeRuntime === runtime && !activeSession) {
-      activeRuntime = null
-    }
-  })
+    onUnmounted(() => {
+      if (activeRuntime === runtime && !activeSession) {
+        activeRuntime = null
+      }
+    })
+  }
 
   const startSession =
     (axis: EdgeCreateAxis, source: DragSessionSource) => (e: DragSessionEvent) => {
       if (activeSession) return
+      if (!runtime.isEditable()) return
       if (e.button !== 0) return
       if (!(e.currentTarget instanceof HTMLElement)) return
 
@@ -227,12 +266,14 @@ export function useEdgeCreateHandlers(
         startCoord,
         lastCoord: startCoord,
         lastCommitCoord: startCoord,
+        edgeCoord,
         anchors: createEdgeCreateAnchors(
           startCoord,
           edgeCoord,
           EDGE_CREATE_THRESHOLD
         ),
         pendingAnchorSync: false,
+        isActive: false,
         target: e.currentTarget,
         key: getDragRuntimeKey(runtime.getKey),
       }
@@ -250,7 +291,9 @@ export function useEdgeCreateHandlers(
     startColEdgeCreate: startSession('col', 'pointer'),
     startRowEdgeCreateMouse: startSession('row', 'mouse'),
     startColEdgeCreateMouse: startSession('col', 'mouse'),
-    prepareRowEdgeCreate: () => syncBottomEdgeIndex(runtime.refs),
-    prepareColEdgeCreate: () => syncRightEdgeIndex(runtime.refs),
+    prepareRowEdgeCreate: () =>
+      runtime.isEditable() && syncBottomEdgeIndex(runtime.refs),
+    prepareColEdgeCreate: () =>
+      runtime.isEditable() && syncRightEdgeIndex(runtime.refs),
   }
 }

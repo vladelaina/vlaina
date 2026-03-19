@@ -18,6 +18,9 @@ import {
 import { $command } from '@milkdown/utils'
 
 import { withMeta } from '../../__internal__'
+import {
+  runPreparedMoveCommand,
+} from './move-command'
 import { tableSchema } from './schema'
 import {
   addRowWithAlignment,
@@ -110,11 +113,17 @@ export const moveRowCommand = $command(
   'MoveRow',
   () =>
     ({ from, to, pos }: { from?: number; to?: number; pos?: number } = {}) =>
-      moveTableRow({
-        from: from ?? 0,
-        to: to ?? 0,
-        pos,
-      })
+      (state, dispatch, view) => {
+        return runPreparedMoveCommand(state, dispatch, view, {
+          prepareSelection: (tr) => selectRow(from ?? 0, pos)(tr),
+          createCommand: () =>
+            moveTableRow({
+              from: from ?? 0,
+              to: to ?? 0,
+              pos,
+            }),
+        })
+      }
 )
 
 withMeta(moveRowCommand, {
@@ -127,12 +136,30 @@ withMeta(moveRowCommand, {
 export const moveColCommand = $command(
   'MoveCol',
   () =>
-    ({ from, to, pos }: { from?: number; to?: number; pos?: number } = {}) =>
-      moveTableColumn({
-        from: from ?? 0,
-        to: to ?? 0,
-        pos,
-      })
+    ({
+      from,
+      to,
+      pos,
+      select,
+    }: {
+      from?: number
+      to?: number
+      pos?: number
+      select?: boolean
+    } = {}) =>
+      (state, dispatch, view) => {
+        return runPreparedMoveCommand(state, dispatch, view, {
+          prepareSelection: (tr) => selectCol(from ?? 0, pos)(tr),
+          createCommand: () =>
+            moveTableColumn({
+              from: from ?? 0,
+              to: to ?? 0,
+              pos,
+              select,
+            }),
+          restoreSelection: select === false,
+        })
+      }
 )
 
 withMeta(moveColCommand, {

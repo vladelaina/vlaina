@@ -1,18 +1,21 @@
 import type { Ctx } from '@milkdown/ctx'
 
 import { commandsCtx, editorViewCtx } from '@milkdown/core'
+import { TableMap } from '@milkdown/kit/prose/tables'
 import {
   addColAfterCommand,
   addColBeforeCommand,
   addRowAfterCommand,
   addRowBeforeCommand,
   deleteSelectedCellsCommand,
+  moveColCommand,
   selectColCommand,
   selectRowCommand,
 } from '@milkdown/preset-gfm'
 
 import type { Refs } from './types'
 import { rememberTableScroll } from './table-scroll-memory'
+import { collectColumnCellRanges } from './table-column-content'
 import { isTableContentNodeEmpty } from './table-node-content'
 
 export function useOperation(
@@ -26,9 +29,23 @@ export function useOperation(
     lineHoverIndex,
   } = refs
 
+  const safeGetPos = () => {
+    try {
+      return getPos?.()
+    } catch {
+      return undefined
+    }
+  }
+
+  const getCommandPos = () => {
+    const pos = safeGetPos()
+    if (pos == null) return null
+    return pos + 1
+  }
+
   const getTableNode = () => {
     if (!ctx) return
-    const pos = getPos?.()
+    const pos = safeGetPos()
     if (pos == null) return
     const view = ctx.get(editorViewCtx)
     return view.state.doc.nodeAt(pos)
@@ -61,7 +78,7 @@ export function useOperation(
       0,
       scrollElement.scrollWidth - scrollElement.clientWidth
     )
-    rememberTableScroll(getPos?.(), {
+    rememberTableScroll(safeGetPos(), {
       scrollLeft,
       scrollTop,
       stickToRight: maxScrollLeft > 0 && maxScrollLeft - scrollLeft <= 1,
@@ -90,16 +107,19 @@ export function useOperation(
       contentWrapperRef.value?.querySelectorAll('tr') ?? []
     )
     const commands = ctx.get(commandsCtx)
-    const pos = (getPos?.() ?? 0) + 1
-    if (rows.length === rowIndex) {
-      commands.call(selectRowCommand.key, { pos, index: rowIndex - 1 })
-      commands.call(addRowAfterCommand.key)
-    } else {
-      commands.call(selectRowCommand.key, { pos, index: rowIndex })
-      commands.call(addRowBeforeCommand.key)
-    }
+    const pos = getCommandPos()
+    if (pos == null) return
+    preserveTableScroll(() => {
+      if (rows.length === rowIndex) {
+        commands.call(selectRowCommand.key, { pos, index: rowIndex - 1 })
+        commands.call(addRowAfterCommand.key)
+      } else {
+        commands.call(selectRowCommand.key, { pos, index: rowIndex })
+        commands.call(addRowBeforeCommand.key)
+      }
 
-    commands.call(selectRowCommand.key, { pos, index: rowIndex })
+      commands.call(selectRowCommand.key, { pos, index: rowIndex })
+    })
     xHandle.dataset.show = 'false'
   }
 
@@ -117,8 +137,8 @@ export function useOperation(
       contentWrapperRef.value?.querySelector('tr')?.children ?? []
     )
     const commands = ctx.get(commandsCtx)
-
-    const pos = (getPos?.() ?? 0) + 1
+    const pos = getCommandPos()
+    if (pos == null) return
     preserveTableScroll(() => {
       if (cols.length === colIndex) {
         commands.call(selectColCommand.key, { pos, index: colIndex - 1 })
@@ -140,11 +160,14 @@ export function useOperation(
     if (!shape || shape.rowCount === 0) return
 
     const commands = ctx.get(commandsCtx)
-    const pos = (getPos?.() ?? 0) + 1
+    const pos = getCommandPos()
+    if (pos == null) return
     const lastRowIndex = shape.rowCount - 1
 
-    commands.call(selectRowCommand.key, { pos, index: lastRowIndex })
-    commands.call(addRowAfterCommand.key)
+    preserveTableScroll(() => {
+      commands.call(selectRowCommand.key, { pos, index: lastRowIndex })
+      commands.call(addRowAfterCommand.key)
+    })
   }
 
   const onAppendCol = () => {
@@ -155,7 +178,8 @@ export function useOperation(
     if (!shape || shape.colCount === 0) return
 
     const commands = ctx.get(commandsCtx)
-    const pos = (getPos?.() ?? 0) + 1
+    const pos = getCommandPos()
+    if (pos == null) return
     const lastColIndex = shape.colCount - 1
 
     preserveTableScroll(() => {
@@ -192,11 +216,14 @@ export function useOperation(
     const shape = getTableShape()
     if (!shape) return
     const commands = ctx.get(commandsCtx)
-    const pos = (getPos?.() ?? 0) + 1
+    const pos = getCommandPos()
+    if (pos == null) return
     const lastRowIndex = shape.rowCount - 1
 
-    commands.call(selectRowCommand.key, { pos, index: lastRowIndex })
-    commands.call(deleteSelectedCellsCommand.key)
+    preserveTableScroll(() => {
+      commands.call(selectRowCommand.key, { pos, index: lastRowIndex })
+      commands.call(deleteSelectedCellsCommand.key)
+    })
   }
 
   const onShrinkCol = () => {
@@ -207,12 +234,112 @@ export function useOperation(
     const shape = getTableShape()
     if (!shape) return
     const commands = ctx.get(commandsCtx)
-    const pos = (getPos?.() ?? 0) + 1
+    const pos = getCommandPos()
+    if (pos == null) return
     const lastColIndex = shape.colCount - 1
 
     preserveTableScroll(() => {
       commands.call(selectColCommand.key, { pos, index: lastColIndex })
       commands.call(deleteSelectedCellsCommand.key)
+    })
+  }
+
+  const onMoveCol = (from: number, to: number) => {
+    if (!ctx) return
+    if (!ctx.get(editorViewCtx).editable) return
+
+    const shape = getTableShape()
+    if (!shape) return
+    if (from < 0 || to < 0) return
+    if (from >= shape.colCount || to >= shape.colCount) return
+    if (from === to) return
+
+    const commands = ctx.get(commandsCtx)
+    const pos = getCommandPos()
+    if (pos == null) return
+
+    preserveTableScroll(() => {
+      commands.call(moveColCommand.key, {
+        pos,
+        from,
+        to,
+        select: false,
+      })
+    })
+  }
+
+  const runWithSelectedCol = (
+    index: number,
+    effect: (commands: { call: (key: unknown, payload?: unknown) => unknown }) => void
+  ) => {
+    if (!ctx) return
+    if (!ctx.get(editorViewCtx).editable) return
+
+    const shape = getTableShape()
+    if (!shape) return
+    if (index < 0 || index >= shape.colCount) return
+
+    const commands = ctx.get(commandsCtx)
+    const pos = getCommandPos()
+    if (pos == null) return
+
+    preserveTableScroll(() => {
+      commands.call(selectColCommand.key, { pos, index })
+      effect(commands)
+    })
+  }
+
+  const onInsertColLeft = (index: number) => {
+    runWithSelectedCol(index, (commands) => {
+      commands.call(addColBeforeCommand.key)
+    })
+  }
+
+  const onInsertColRight = (index: number) => {
+    runWithSelectedCol(index, (commands) => {
+      commands.call(addColAfterCommand.key)
+    })
+  }
+
+  const onDeleteCol = (index: number) => {
+    runWithSelectedCol(index, (commands) => {
+      commands.call(deleteSelectedCellsCommand.key)
+    })
+  }
+
+  const onClearColContent = (index: number) => {
+    if (!ctx) return
+    const view = ctx.get(editorViewCtx)
+    if (!view.editable) return
+
+    const table = getTableNode()
+    const tablePos = safeGetPos()
+    if (!table || tablePos == null) return
+
+    const map = TableMap.get(table)
+    if (index < 0 || index >= map.width) return
+
+    const paragraphType = view.state.schema.nodes.paragraph
+    if (!paragraphType) return
+
+    const cells = collectColumnCellRanges({
+      table,
+      tablePos,
+      tableMap: map,
+      index,
+    })
+    if (cells.length === 0) return
+
+    preserveTableScroll(() => {
+      let tr = view.state.tr
+      for (const cell of cells) {
+        const emptyParagraph = paragraphType.createAndFill?.()
+        if (!emptyParagraph) continue
+        tr = tr.replaceWith(cell.start, cell.end, emptyParagraph)
+      }
+      if (tr.docChanged) {
+        view.dispatch(tr)
+      }
     })
   }
 
@@ -223,6 +350,11 @@ export function useOperation(
     onAppendCol,
     onShrinkRow,
     onShrinkCol,
+    onMoveCol,
+    onInsertColLeft,
+    onInsertColRight,
+    onDeleteCol,
+    onClearColContent,
     canShrinkRow,
     canShrinkCol,
   }

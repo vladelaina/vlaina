@@ -1,5 +1,5 @@
 import type { Ctx } from '@milkdown/ctx'
-import type { Node } from '@milkdown/prose/model'
+import type { Node as ProseNode } from '@milkdown/prose/model'
 import type {
   EditorView,
   NodeView,
@@ -19,9 +19,13 @@ export class TableNodeView implements NodeView {
   contentDOM: HTMLElement
   app: App
 
+  private syncEditableClass() {
+    this.dom.classList.toggle('readonly', !this.view.editable)
+  }
+
   constructor(
     public ctx: Ctx,
-    public node: Node,
+    public node: ProseNode,
     public view: EditorView,
     public getPos: () => number | undefined
   ) {
@@ -37,7 +41,7 @@ export class TableNodeView implements NodeView {
       view,
       ctx,
       getPos,
-      onMount: (div: Element) => {
+      onMount: (div: HTMLElement) => {
         div.appendChild(contentDOM)
       },
     })
@@ -45,15 +49,14 @@ export class TableNodeView implements NodeView {
     this.app = app
 
     this.dom = dom
+    this.syncEditableClass()
   }
 
-  update(node: Node) {
+  update(node: ProseNode) {
     if (node.type !== this.node.type) return false
 
-    if (node.sameMarkup(this.node) && node.content.eq(this.node.content))
-      return false
-
     this.node = node
+    this.syncEditableClass()
 
     return true
   }
@@ -61,12 +64,17 @@ export class TableNodeView implements NodeView {
   stopEvent(e: Event) {
     if (e.type === 'drop' || e.type.startsWith('drag')) return true
 
-    if (e.type === 'mousedown' || e.type === 'pointerdown') {
-      if (e.target instanceof Element && e.target.closest('button')) return true
+    if (
+      e.type === 'mousedown' ||
+      e.type === 'pointerdown' ||
+      e.type === 'contextmenu' ||
+      e.type === 'keydown' ||
+      e.type === 'keyup'
+    ) {
       if (
         e.target instanceof Element &&
         e.target.closest(
-          '[data-role="x-line-drag-handle"], [data-role="y-line-drag-handle"], [data-role="bottom-edge-create-zone"], [data-role="right-edge-create-zone"], [data-role="corner-edge-create-zone"]'
+          '[data-role="x-line-drag-handle"], [data-role="y-line-drag-handle"], [data-role="bottom-edge-create-zone"], [data-role="right-edge-create-zone"], [data-role="corner-edge-create-zone"], [data-role="col-header-drag-control"], [data-role="col-header-drag-menu"]'
         )
       ) {
         return true
@@ -81,8 +89,19 @@ export class TableNodeView implements NodeView {
 
     if ((mutation.type as unknown) === 'selection') return false
 
+    if (!this.contentDOM.isConnected || !this.dom.contains(this.contentDOM)) {
+      return false
+    }
+
+    const contentHost = this.contentDOM.parentElement
     if (this.contentDOM === mutation.target && mutation.type === 'attributes')
       return true
+
+    if (mutation.type === 'childList' && mutation.target === this.dom) {
+      return false
+    }
+
+    if (contentHost && mutation.target === contentHost) return false
 
     if (this.contentDOM.contains(mutation.target)) return false
 

@@ -16,6 +16,7 @@ let previousBodyCursorPriority = ''
 let previousHtmlUserSelectPriority = ''
 let previousBodyUserSelectPriority = ''
 let toolbarSuppressTimeout: number | null = null
+let hiddenSelectionEditors: HTMLElement[] = []
 
 function clearBrowserSelection() {
   const selection = document.getSelection()
@@ -43,6 +44,23 @@ function ensureOverlay(cursor: DragCursor) {
 
 function removeOverlay() {
   document.getElementById(OVERLAY_ID)?.remove()
+}
+
+function hideEditorSelections() {
+  hiddenSelectionEditors = Array.from(
+    document.querySelectorAll('.milkdown .ProseMirror')
+  ).filter((element): element is HTMLElement => element instanceof HTMLElement)
+
+  hiddenSelectionEditors.forEach((element) => {
+    element.classList.add('ProseMirror-hideselection')
+  })
+}
+
+function showEditorSelections() {
+  hiddenSelectionEditors.forEach((element) => {
+    element.classList.remove('ProseMirror-hideselection')
+  })
+  hiddenSelectionEditors = []
 }
 
 function lockRoot(root: HTMLElement, cursor: DragCursor) {
@@ -125,6 +143,7 @@ export function acquireTableDragCursor(cursor: DragCursor) {
   activeLockCount += 1
   lockRoot(html, cursor)
   lockRoot(body, cursor)
+  hideEditorSelections()
   clearBrowserSelection()
   ensureOverlay(cursor)
 }
@@ -159,6 +178,7 @@ export function releaseTableDragCursor() {
     previousBodyUserSelect,
     previousBodyUserSelectPriority
   )
+  showEditorSelections()
   removeOverlay()
   applyToolbarSuppression(html)
   applyToolbarSuppression(body)

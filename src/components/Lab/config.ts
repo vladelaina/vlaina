@@ -3,6 +3,7 @@ import { AiQuickActionsLab } from './playground/AiQuickActionsLab';
 import { AiReviewLab } from './playground/AiReviewLab';
 import { InputLab } from './playground/InputLab';
 import { ShortcutDialogLab } from './playground/ShortcutDialogLab';
+import { TableColumnDragLab } from './playground/TableColumnDragLab';
 
 export const LAB_MODULES = [
   {
@@ -37,6 +38,13 @@ export const LAB_MODULES = [
     icon: 'common.sparkle',
     component: AiReviewLab,
     description: 'Review surfaces for before-and-after AI edits.'
+  },
+  {
+    id: 'table-column-drag',
+    label: 'Table Drag',
+    icon: 'misc.lab',
+    component: TableColumnDragLab,
+    description: 'Thirty interaction-led directions for a Notion-like table column drag handle.'
   }
 ] as const;
 

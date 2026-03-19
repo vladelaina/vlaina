@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted } from 'vue'
+import { getCurrentInstance, onMounted, onUnmounted } from 'vue'
 
 import type { Refs } from './types'
 import {
@@ -25,11 +25,13 @@ import {
 } from './edge-create-state'
 
 const EDGE_CREATE_THRESHOLD = 18
+const CORNER_CREATE_ACTIVATION_THRESHOLD = 6
 
 interface CornerAxisChannel {
   startCoord: number
   lastCoord: number
   lastCommitCoord: number
+  edgeCoord: number
   anchors: EdgeCreateAnchors
   pendingAnchorSync: boolean
 }
@@ -37,11 +39,13 @@ interface CornerAxisChannel {
 interface CornerCreateSession extends DragSessionState {
   row: CornerAxisChannel
   col: CornerAxisChannel
+  isActive: boolean
 }
 
 interface CornerCreateRuntime {
   refs: Refs
   getKey: () => number | undefined
+  isEditable: () => boolean
   onAddRow: () => void
   onAddCol: () => void
   onShrinkRow: () => void
@@ -132,14 +136,18 @@ function updateAxis(
   session: CornerCreateSession,
   axis: EdgeCreateAxis,
   event: DragSessionEvent
-) {
+): boolean {
   const channel = getChannel(session, axis)
   const currentCoord = getCurrentPointerCoord(event, axis)
-  const delta = currentCoord - channel.startCoord
 
   if (channel.pendingAnchorSync) {
     const edgeCoord = getCurrentEdgeCoord(runtime, axis)
-    if (edgeCoord == null) return
+    if (edgeCoord == null) return false
+    if (edgeCoord === channel.edgeCoord) {
+      channel.lastCoord = currentCoord
+      return false
+    }
+    channel.edgeCoord = edgeCoord
     channel.anchors = createEdgeCreateAnchors(
       channel.lastCommitCoord,
       edgeCoord,
@@ -155,13 +163,14 @@ function updateAxis(
   })
 
   channel.lastCoord = currentCoord
-  if (!action) return
+  if (!action) return false
 
   const triggered = triggerAxis(runtime, axis, action)
-  if (!triggered) return
+  if (!triggered) return false
 
   channel.lastCommitCoord = currentCoord
   channel.pendingAnchorSync = true
+  return true
 }
 
 function handleMove(event: DragSessionEvent) {
@@ -170,10 +179,52 @@ function handleMove(event: DragSessionEvent) {
   if (!session || !runtime) return
   if (!canHandleDragSessionEvent(session, event)) return
 
+  if (!session.isActive) {
+    const rowCoord = getCurrentPointerCoord(event, 'row')
+    const colCoord = getCurrentPointerCoord(event, 'col')
+
+    session.row.lastCoord = rowCoord
+    session.col.lastCoord = colCoord
+
+    if (
+      Math.max(
+        Math.abs(rowCoord - session.row.startCoord),
+        Math.abs(colCoord - session.col.startCoord)
+      ) < CORNER_CREATE_ACTIVATION_THRESHOLD
+    ) {
+      return
+    }
+
+    const rowEdgeCoord = getCurrentEdgeCoord(runtime, 'row')
+    const colEdgeCoord = getCurrentEdgeCoord(runtime, 'col')
+    if (rowEdgeCoord == null || colEdgeCoord == null) return
+
+    session.isActive = true
+    session.row.lastCommitCoord = rowCoord
+    session.row.anchors = createEdgeCreateAnchors(
+      rowCoord,
+      rowEdgeCoord,
+      EDGE_CREATE_THRESHOLD
+    )
+    session.row.pendingAnchorSync = false
+    session.col.lastCommitCoord = colCoord
+    session.col.anchors = createEdgeCreateAnchors(
+      colCoord,
+      colEdgeCoord,
+      EDGE_CREATE_THRESHOLD
+    )
+    session.col.pendingAnchorSync = false
+    event.preventDefault()
+    event.stopPropagation()
+    return
+  }
+
   suppressTableDragSelection()
 
-  updateAxis(runtime, session, 'row', event)
-  updateAxis(runtime, session, 'col', event)
+  const rowTriggered = updateAxis(runtime, session, 'row', event)
+  const colTriggered = updateAxis(runtime, session, 'col', event)
+  void rowTriggered
+  void colTriggered
 
   event.preventDefault()
   event.stopPropagation()
@@ -191,6 +242,7 @@ function handleEnd(event: DragSessionEvent) {
 
 export function useCornerCreateHandlers(
   refs: Refs,
+  isEditable: () => boolean,
   onAddRow: () => void,
   onAddCol: () => void,
   onShrinkRow: () => void,
@@ -202,6 +254,7 @@ export function useCornerCreateHandlers(
   const runtime: CornerCreateRuntime = {
     refs,
     getKey,
+    isEditable,
     onAddRow,
     onAddCol,
     onShrinkRow,
@@ -210,25 +263,32 @@ export function useCornerCreateHandlers(
     canShrinkCol,
   }
 
-  onMounted(() => {
-    if (!activeSession) return
-    if (activeSession.key !== getDragRuntimeKey(runtime.getKey)) return
-    activeRuntime = runtime
-  })
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      if (!activeSession) return
+      if (activeSession.key !== getDragRuntimeKey(runtime.getKey)) return
+      activeRuntime = runtime
+    })
 
-  onUnmounted(() => {
-    if (activeRuntime === runtime && !activeSession) {
-      activeRuntime = null
-    }
-  })
+    onUnmounted(() => {
+      if (activeRuntime === runtime && !activeSession) {
+        activeRuntime = null
+      }
+    })
+  }
 
   const prepareCornerCreate = () => {
-    return syncAxisIndex(runtime.refs, 'row') && syncAxisIndex(runtime.refs, 'col')
+    return (
+      runtime.isEditable() &&
+      syncAxisIndex(runtime.refs, 'row') &&
+      syncAxisIndex(runtime.refs, 'col')
+    )
   }
 
   const startSession =
     (source: DragSessionSource) => (event: DragSessionEvent) => {
       if (activeSession) return
+      if (!runtime.isEditable()) return
       if (event.button !== 0) return
       if (!(event.currentTarget instanceof HTMLElement)) return
 
@@ -247,10 +307,12 @@ export function useCornerCreateHandlers(
         pointerId: 'pointerId' in event ? event.pointerId : null,
         target: event.currentTarget,
         key: getDragRuntimeKey(runtime.getKey),
+        isActive: false,
         row: {
           startCoord: rowCoord,
           lastCoord: rowCoord,
           lastCommitCoord: rowCoord,
+          edgeCoord: rowEdgeCoord,
           anchors: createEdgeCreateAnchors(
             rowCoord,
             rowEdgeCoord,
@@ -262,6 +324,7 @@ export function useCornerCreateHandlers(
           startCoord: colCoord,
           lastCoord: colCoord,
           lastCommitCoord: colCoord,
+          edgeCoord: colEdgeCoord,
           anchors: createEdgeCreateAnchors(
             colCoord,
             colEdgeCoord,

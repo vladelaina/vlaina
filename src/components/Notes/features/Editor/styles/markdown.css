@@ -364,8 +364,16 @@
   font-weight: 600;
 }
 
-.milkdown tr:hover {
-  background-color: var(--neko-bg-hover);
+.milkdown table tr:hover {
+  background-color: transparent !important;
+}
+
+.milkdown table tr:hover > td {
+  background-color: transparent !important;
+}
+
+.milkdown table tr:hover > th {
+  background-color: var(--neko-bg-secondary) !important;
 }
 
 /* Strong & Emphasis */

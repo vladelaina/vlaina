@@ -1,30 +1,29 @@
+/* @jsxImportSource vue */
 import type { Ctx } from '@milkdown/ctx'
 import type { EditorView } from '@milkdown/prose/view'
 
 import {
   defineComponent,
   ref,
-  type VNodeRef,
-  onMounted,
-  onBeforeUnmount,
+  onUpdated,
 } from 'vue'
 
 import type { CellIndex, Refs } from './types'
 
+import { useColumnHeaderDrag } from './column-header-drag'
+import { renderTableBlock } from './table-block-render'
 import { useCornerCreateHandlers } from './corner-create'
 import { useEdgeCreateHandlers } from './edge-create'
 import { useOperation } from './operation'
 import { usePointerHandlers } from './pointer'
-import {
-  forgetTableScroll,
-  peekTableScroll,
-} from './table-scroll-memory'
+import { useTableBlockLayout } from './table-block-layout'
+import { useTableContentHost } from './table-content-host'
 
 type TableBlockProps = {
   view: EditorView
   ctx: Ctx
   getPos: () => number | undefined
-  onMount: (div: Element) => void
+  onMount: (div: HTMLElement) => void
 }
 
 export const TableBlock = defineComponent<TableBlockProps>({
@@ -47,21 +46,12 @@ export const TableBlock = defineComponent<TableBlockProps>({
     },
   },
   setup({ view, ctx, getPos, onMount }) {
-    let resizeObserver: ResizeObserver | undefined
-    let observedScrollRoot: HTMLElement | undefined
+    const rowEdgeZoneSize = 18
+    const colEdgeZoneSize = 18
+    const cornerEdgeZoneSize = 30
+    const cornerEdgeZoneInset = 10
     const rootRef = ref<HTMLDivElement>()
-    const contentWrapperRef = ref<HTMLElement>()
     const tableScrollRef = ref<HTMLDivElement>()
-    const contentWrapperFunctionRef: VNodeRef = (div) => {
-      if (div == null) return
-      if (div instanceof HTMLElement) {
-        contentWrapperRef.value = div
-        onMount(div)
-        requestAnimationFrame(syncEdgeCreateZones)
-      } else {
-        contentWrapperRef.value = undefined
-      }
-    }
     const xLineHandleRef = ref<HTMLDivElement>()
     const yLineHandleRef = ref<HTMLDivElement>()
     const tableWrapperRef = ref<HTMLDivElement>()
@@ -69,6 +59,18 @@ export const TableBlock = defineComponent<TableBlockProps>({
     const rightEdgeZoneRef = ref<HTMLDivElement>()
     const cornerEdgeZoneRef = ref<HTMLDivElement>()
     const lineHoverIndex = ref<CellIndex>([-1, -1])
+    let queueLayoutSync = () => {}
+    const {
+      contentMountFunctionRef,
+      contentWrapperRef,
+      ensureContentHost,
+    } = useTableContentHost({
+      rootRef,
+      onMount,
+      onContentReady: () => {
+        queueLayoutSync()
+      },
+    })
 
     const refs: Refs = {
       tableWrapperRef,
@@ -78,121 +80,11 @@ export const TableBlock = defineComponent<TableBlockProps>({
       lineHoverIndex,
     }
 
-    const syncWideLayout = () => {
-      const root = rootRef.value
-      const wrapper = tableWrapperRef.value
-      const scroll = tableScrollRef.value
-      const content = contentWrapperRef.value
-      if (!root || !wrapper || !scroll || !content) return
-
-      const closestScrollRoot = root.closest('[data-note-scroll-root="true"]')
-      const scrollRoot =
-        closestScrollRoot instanceof HTMLElement ? closestScrollRoot : undefined
-
-      if (
-        scrollRoot &&
-        observedScrollRoot !== scrollRoot &&
-        resizeObserver != null
-      ) {
-        if (observedScrollRoot) resizeObserver.unobserve(observedScrollRoot)
-        resizeObserver.observe(scrollRoot)
-        observedScrollRoot = scrollRoot
-      }
-
-      const rootRect = root.getBoundingClientRect()
-      const scrollRootRect = scrollRoot?.getBoundingClientRect()
-      const baseWidth = rootRect.width
-      const leftReach = scrollRootRect
-        ? Math.max(0, rootRect.left - scrollRootRect.left)
-        : 0
-      const rightReach = scrollRootRect
-        ? Math.max(0, scrollRootRect.right - rootRect.right)
-        : 0
-      const availableWidth = baseWidth + leftReach + rightReach
-      const naturalWidth = Math.ceil(content.scrollWidth)
-      const isWideLayout = naturalWidth > baseWidth + 1
-      const maxWidth = isWideLayout ? availableWidth : baseWidth
-      const bleedLeft = isWideLayout ? leftReach : 0
-      const scrollStart = isWideLayout ? leftReach : 0
-      const scrollEnd = isWideLayout ? rightReach : 0
-      const tableMinWidth = isWideLayout ? '0px' : '100%'
-
-      wrapper.style.setProperty('--table-block-max-width', `${maxWidth}px`)
-      wrapper.style.setProperty('--table-block-bleed-left', `${bleedLeft}px`)
-      wrapper.style.setProperty('--table-block-scroll-start', `${scrollStart}px`)
-      wrapper.style.setProperty('--table-block-scroll-end', `${scrollEnd}px`)
-      wrapper.style.setProperty('--table-block-table-min-width', tableMinWidth)
-
-      if (scroll.clientWidth === 0 || scroll.scrollWidth === 0) return
-
-      let tableKey: number | undefined
+    const safeGetPos = () => {
       try {
-        tableKey = getPos()
+        return getPos()
       } catch {
-        tableKey = undefined
-      }
-
-      const pendingScroll = peekTableScroll(tableKey)
-      if (!pendingScroll) return
-
-      const maxScrollLeft = Math.max(0, scroll.scrollWidth - scroll.clientWidth)
-      const nextScrollLeft = pendingScroll.stickToRight
-        ? maxScrollLeft
-        : Math.max(0, Math.min(pendingScroll.scrollLeft, maxScrollLeft))
-      const maxScrollTop = Math.max(0, scroll.scrollHeight - scroll.clientHeight)
-      const nextScrollTop = Math.max(
-        0,
-        Math.min(pendingScroll.scrollTop, maxScrollTop)
-      )
-
-      if (
-        Math.abs(scroll.scrollLeft - nextScrollLeft) > 1 ||
-        Math.abs(scroll.scrollTop - nextScrollTop) > 1
-      ) {
-        scroll.scrollLeft = nextScrollLeft
-        scroll.scrollTop = nextScrollTop
-      }
-      forgetTableScroll(tableKey)
-    }
-
-    const syncEdgeCreateZones = () => {
-      syncWideLayout()
-
-      const wrapper = tableWrapperRef.value
-      const content = contentWrapperRef.value
-      const bottomZone = bottomEdgeZoneRef.value
-      const rightZone = rightEdgeZoneRef.value
-      const cornerZone = cornerEdgeZoneRef.value
-      if (!wrapper || !content) return
-
-      const wrapperRect = wrapper.getBoundingClientRect()
-      const contentRect = content.getBoundingClientRect()
-      const left = contentRect.left - wrapperRect.left
-      const top = contentRect.top - wrapperRect.top
-      const width = contentRect.width
-      const height = contentRect.height
-
-      if (bottomZone) {
-        Object.assign(bottomZone.style, {
-          left: `${left}px`,
-          top: `${top + height - 18}px`,
-          width: `${width}px`,
-        })
-      }
-
-      if (rightZone) {
-        Object.assign(rightZone.style, {
-          top: `${top}px`,
-          left: `${left + width - 9}px`,
-          height: `${height}px`,
-        })
-      }
-
-      if (cornerZone) {
-        Object.assign(cornerZone.style, {
-          top: `${top + height - 22}px`,
-          left: `${left + width - 22}px`,
-        })
+        return undefined
       }
     }
 
@@ -202,9 +94,62 @@ export const TableBlock = defineComponent<TableBlockProps>({
       onAppendCol,
       onShrinkRow,
       onShrinkCol,
+      onMoveCol,
+      onInsertColLeft,
+      onInsertColRight,
+      onDeleteCol,
+      onClearColContent,
       canShrinkRow,
       canShrinkCol,
     } = useOperation(refs, ctx, getPos)
+    const {
+      controls: headerDragControls,
+      dragIndicator,
+      dragSourceHighlight,
+      menuId,
+      menuState,
+      syncControls: syncColumnHeaderControls,
+      syncHoveredControl,
+      clearHoveredControl,
+      onRootPointerDown,
+      onControlPointerDown,
+      onControlClick,
+      onControlKeyDown,
+      onControlFocus,
+      onControlBlur,
+      onMenuPointerDown,
+      onMenuKeyDown,
+      onMenuAction,
+      setMenuRef,
+      setControlRef,
+    } = useColumnHeaderDrag({
+      ctx,
+      tableWrapperRef,
+      contentWrapperRef,
+      tableScrollRef,
+      moveCol: onMoveCol,
+      insertColLeft: onInsertColLeft,
+      insertColRight: onInsertColRight,
+      clearColContent: onClearColContent,
+      deleteCol: onDeleteCol,
+    })
+    const layout = useTableBlockLayout({
+      rowEdgeZoneSize,
+      colEdgeZoneSize,
+      cornerEdgeZoneInset,
+      rootRef,
+      tableWrapperRef,
+      tableScrollRef,
+      contentWrapperRef,
+      bottomEdgeZoneRef,
+      rightEdgeZoneRef,
+      cornerEdgeZoneRef,
+      ensureContentHost,
+      getTableKey: safeGetPos,
+      syncColumnHeaderControls,
+    })
+    const { syncEdgeCreateZones } = layout
+    queueLayoutSync = layout.queueLayoutSync
     const {
       startRowEdgeCreate,
       startColEdgeCreate,
@@ -214,6 +159,7 @@ export const TableBlock = defineComponent<TableBlockProps>({
       prepareColEdgeCreate,
     } = useEdgeCreateHandlers(
       refs,
+      () => view.editable,
       onAppendRow,
       onAppendCol,
       onShrinkRow,
@@ -225,6 +171,7 @@ export const TableBlock = defineComponent<TableBlockProps>({
     const { prepareCornerCreate, startCornerCreate, startCornerCreateMouse } =
       useCornerCreateHandlers(
         refs,
+        () => view.editable,
         onAppendRow,
         onAppendCol,
         onShrinkRow,
@@ -234,31 +181,14 @@ export const TableBlock = defineComponent<TableBlockProps>({
         getPos
       )
 
-    onMounted(() => {
-      window.addEventListener('resize', syncEdgeCreateZones)
-      if (typeof ResizeObserver !== 'undefined') {
-        resizeObserver = new ResizeObserver(() => {
-          syncEdgeCreateZones()
-        })
-
-        if (tableWrapperRef.value) resizeObserver.observe(tableWrapperRef.value)
-        if (tableScrollRef.value) resizeObserver.observe(tableScrollRef.value)
-        if (contentWrapperRef.value) resizeObserver.observe(contentWrapperRef.value)
+    onUpdated(() => {
+      if (ensureContentHost()) {
+        queueLayoutSync()
       }
-
-      requestAnimationFrame(() => {
-        syncEdgeCreateZones()
-      })
-    })
-
-    onBeforeUnmount(() => {
-      window.removeEventListener('resize', syncEdgeCreateZones)
-      if (observedScrollRoot) resizeObserver?.unobserve(observedScrollRoot)
-      resizeObserver?.disconnect()
     })
 
     const handleZonePointerEnter =
-      (axis: 'row' | 'col') => (e: PointerEvent) => {
+      (axis: 'row' | 'col') => () => {
         syncEdgeCreateZones()
         if (axis === 'row') prepareRowEdgeCreate()
         else prepareColEdgeCreate()
@@ -276,7 +206,7 @@ export const TableBlock = defineComponent<TableBlockProps>({
         else startColEdgeCreateMouse(e)
       }
 
-    const handleCornerPointerEnter = (e: PointerEvent) => {
+    const handleCornerPointerEnter = () => {
       syncEdgeCreateZones()
       prepareCornerCreate()
     }
@@ -293,74 +223,54 @@ export const TableBlock = defineComponent<TableBlockProps>({
       syncEdgeCreateZones()
     }
 
-    return () => {
-      return (
-        <div
-          ref={rootRef}
-          onPointermove={pointerMove}
-          onPointerleave={pointerLeave}
-        >
-          <div class="table-wrapper" ref={tableWrapperRef}>
-            <div
-              contenteditable="false"
-              data-role="bottom-edge-create-zone"
-              class="edge-create-zone"
-              data-axis="row"
-              onPointerenter={handleZonePointerEnter('row')}
-              onPointerdown={handleZonePointerDown('row')}
-              onMousedown={handleZoneMouseDown('row')}
-              ref={bottomEdgeZoneRef}
-            />
-            <div
-              contenteditable="false"
-              data-role="right-edge-create-zone"
-              class="edge-create-zone"
-              data-axis="col"
-              onPointerenter={handleZonePointerEnter('col')}
-              onPointerdown={handleZonePointerDown('col')}
-              onMousedown={handleZoneMouseDown('col')}
-              ref={rightEdgeZoneRef}
-            />
-            <div
-              contenteditable="false"
-              data-role="corner-edge-create-zone"
-              class="edge-create-zone"
-              data-axis="both"
-              onPointerenter={handleCornerPointerEnter}
-              onPointerdown={handleCornerPointerDown}
-              onMousedown={handleCornerMouseDown}
-              ref={cornerEdgeZoneRef}
-            />
-            <div
-              data-show="false"
-              contenteditable="false"
-              data-display-type="tool"
-              data-role="x-line-drag-handle"
-              class="handle line-handle"
-              ref={xLineHandleRef}
-            />
-            <div
-              data-show="false"
-              contenteditable="false"
-              data-display-type="tool"
-              data-role="y-line-drag-handle"
-              class="handle line-handle"
-              ref={yLineHandleRef}
-            />
-            <div
-              class="table-scroll"
-              ref={tableScrollRef}
-              onScroll={handleTableScroll}
-            >
-              <div class="table-scroll-track">
-                <div class="table-scroll-spacer" data-side="start" />
-                <table ref={contentWrapperFunctionRef} class="children"></table>
-                <div class="table-scroll-spacer" data-side="end" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-    }
+    return () =>
+      renderTableBlock({
+        rowEdgeZoneSize,
+        colEdgeZoneSize,
+        cornerEdgeZoneSize,
+        rootRef,
+        tableWrapperRef,
+        tableScrollRef,
+        xLineHandleRef,
+        yLineHandleRef,
+        bottomEdgeZoneRef,
+        rightEdgeZoneRef,
+        cornerEdgeZoneRef,
+        contentMountFunctionRef,
+        controls: headerDragControls.value,
+        dragIndicator: dragIndicator.value,
+        dragSourceHighlight: dragSourceHighlight.value,
+        menuId,
+        menuState: menuState.value,
+        onRootPointerDown,
+        onRootPointerMove: (event: PointerEvent) => {
+          pointerMove(event)
+          syncHoveredControl(event)
+        },
+        onRootPointerLeave: () => {
+          pointerLeave()
+          clearHoveredControl()
+        },
+        onControlBlur,
+        onControlClick,
+        onControlFocus,
+        onControlKeyDown,
+        onControlPointerDown,
+        onMenuAction,
+        onMenuKeyDown,
+        onMenuPointerDown,
+        setMenuRef,
+        setControlRef,
+        onRowZonePointerEnter: handleZonePointerEnter('row'),
+        onRowZonePointerDown: handleZonePointerDown('row'),
+        onRowZoneMouseDown: handleZoneMouseDown('row'),
+        onColZonePointerEnter: handleZonePointerEnter('col'),
+        onColZonePointerDown: handleZonePointerDown('col'),
+        onColZoneMouseDown: handleZoneMouseDown('col'),
+        onCornerPointerEnter: handleCornerPointerEnter,
+        onCornerPointerDown: handleCornerPointerDown,
+        onCornerMouseDown: handleCornerMouseDown,
+        onTableScroll: handleTableScroll,
+      })
   },
 })
