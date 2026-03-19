@@ -157,6 +157,22 @@ html, body, #root {
 .scrollbar-hidden { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-hidden::-webkit-scrollbar { display: none; }
 
+.neko-icon-shadow-button {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.neko-icon-shadow-button:hover {
+  background: transparent;
+  box-shadow: 0 6px 18px -10px rgb(0 0 0 / 0.35);
+}
+
+.dark .neko-icon-shadow-button:hover {
+  background: transparent;
+  box-shadow: 0 8px 20px -12px rgb(0 0 0 / 0.55);
+}
+
 /* ============================================
    NekoTick Notes Theme Variables
    ============================================ */

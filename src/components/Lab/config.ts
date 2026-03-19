@@ -1,6 +1,7 @@
 import { AnimationLab } from './playground/AnimationLab';
 import { AiQuickActionsLab } from './playground/AiQuickActionsLab';
 import { AiReviewLab } from './playground/AiReviewLab';
+import { AiToolbarDropdownLab } from './playground/AiToolbarDropdownLab';
 import { GoogleButtonLab } from './playground/GoogleButtonLab';
 import { InputLab } from './playground/InputLab';
 import { ShortcutDialogLab } from './playground/ShortcutDialogLab';
@@ -15,10 +16,17 @@ export const LAB_MODULES = [
   },
   {
     id: 'animation',
-    label: 'Motion & FX',
+    label: 'AI Dropdown',
     icon: 'misc.animation',
     component: AnimationLab,
-    description: 'Loading indicators, transitions, and particle effects.',
+    description: 'Dropdown explorations for translation languages and AI action selection.',
+  },
+  {
+    id: 'ai-toolbar-dropdown',
+    label: 'Toolbar AI Menu',
+    icon: 'misc.animation',
+    component: AiToolbarDropdownLab,
+    description: 'Dropdown explorations for the star button in the floating toolbar.',
   },
   {
     id: 'sidebar-login-entry',

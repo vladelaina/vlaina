@@ -94,6 +94,9 @@ import { PrimerPinIcon } from './custom/mit/PrimerPinIcon';
 import { PrimerUnpinIcon } from './custom/mit/PrimerUnpinIcon';
 import { ActivityIcon } from './custom/mit/ActivityIcon';
 import { GoogleIcon } from './custom/mit/GoogleIcon';
+import { ReviewRetryIcon } from './custom/mit/ReviewRetryIcon';
+import { ReviewApplyIcon } from './custom/mit/ReviewApplyIcon';
+import { ReviewCloseIcon } from './custom/mit/ReviewCloseIcon';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
@@ -111,13 +114,16 @@ export const icons: Record<string, IconSource> = {
   'common.settings': CogIcon,
   'common.search': MagnifyingGlassIcon,
   'common.close': XMarkIcon,
+  'common.reviewClose': ReviewCloseIcon,
   'common.check': CheckIcon,
+  'common.reviewApply': ReviewApplyIcon,
   'common.checkCircle': CheckCircleIcon,
   'common.radio': CheckCircleIcon, 
   'common.home': HomeIcon,
   'common.more': EllipsisHorizontalIcon,
   'common.moreVert': EllipsisVerticalIcon,
   'common.refresh': ArrowPathIcon,
+  'common.reviewRetry': ReviewRetryIcon,
   'common.copy': Square2StackIcon,
   'common.eye': EyeIcon,
   'common.eyeOff': EyeSlashIcon,
