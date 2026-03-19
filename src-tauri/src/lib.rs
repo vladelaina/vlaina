@@ -310,6 +310,7 @@ pub fn run() {
             account::auth::managed_api_commands::get_managed_models,
             account::auth::managed_api_commands::get_managed_budget,
             account::auth::managed_api_commands::managed_chat_completion,
+            account::auth::managed_api_commands::managed_chat_completion_stream,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   copyImageSourceToClipboard,
   copyMessageContentToClipboard,
+  extractMessageImageSources,
   extractMarkdownImageSources,
   formatMessageCopyText,
 } from "./messageClipboard";
@@ -39,6 +40,20 @@ describe("messageClipboard", () => {
     const content = "![x](<https://a.com/path/(demo)/image.svg>)";
     expect(extractMarkdownImageSources(content)).toEqual([
       "https://a.com/path/(demo)/image.svg",
+    ]);
+  });
+
+  it("extracts message image sources from mixed markdown and html images in order", () => {
+    const content = [
+      'Intro <img src="https://a.com/1.png" alt="first" />',
+      '![second](<asset://localhost/2.webp>)',
+      "<img src='data:image/png;base64,abc' alt='third'>",
+    ].join(" ");
+
+    expect(extractMessageImageSources(content)).toEqual([
+      "https://a.com/1.png",
+      "asset://localhost/2.webp",
+      "data:image/png;base64,abc",
     ]);
   });
 

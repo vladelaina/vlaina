@@ -7,15 +7,9 @@ import { normalizeSerializedMarkdownSelection } from '../../clipboard/markdownSe
 import { serializeSliceToText } from '../../clipboard/serializer';
 import { logAiSelectionDebug } from './debug';
 import type { AiReviewState } from '../types';
-
-const EDITOR_AI_SYSTEM_PROMPT = [
-  'You are editing text selected inside a markdown note editor.',
-  'Return only the edited selection.',
-  'Do not add explanations, introductions, quotation marks, or code fences.',
-  'Preserve line breaks, links, inline code, list markers, and markdown structure whenever possible.',
-].join(' ');
-
-export const TRANSLATE_TO_ENGLISH_PROMPT = 'Translate to English';
+import { buildEditorAiUserMessage } from './promptBuilder';
+import { EDITOR_AI_SYSTEM_PROMPT } from './promptCatalog';
+import { assertEnglishPromptText } from './promptValidation';
 
 export type AiSelectionSuggestion = Omit<AiReviewState, 'isLoading' | 'instruction'> & {
   instruction: string;
@@ -35,17 +29,6 @@ function createSystemMessage(content: string, modelId: string): ChatMessage {
     modelId,
     timestamp: Date.now(),
   };
-}
-
-function buildEditorAiUserMessage(instruction: string, selectedText: string): string {
-  return [
-    `Instruction: ${instruction.trim()}`,
-    '',
-    'Selected content:',
-    '<<<SELECTION',
-    selectedText,
-    '>>>',
-  ].join('\n');
 }
 
 function stripThinkBlocks(text: string): string {
@@ -147,17 +130,16 @@ function buildSuggestion(
   from: number,
   to: number,
   instruction: string,
-  customPrompt: string,
   originalText: string,
   suggestedText: string
 ): AiSelectionSuggestion {
   return {
+    requestKey: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     from,
     to,
     instruction,
     commandId: null,
     toneId: null,
-    customPrompt,
     originalText,
     suggestedText,
   };
@@ -169,6 +151,15 @@ async function requestAiEdit(
   selectionRange?: { from: number; to: number }
 ): Promise<string | null> {
   const trimmedInstruction = instruction.trim();
+  try {
+    assertEnglishPromptText('requestAiEdit.instruction', trimmedInstruction);
+    assertEnglishPromptText('requestAiEdit.systemPrompt', EDITOR_AI_SYSTEM_PROMPT);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'AI prompt must be English-only.';
+    useToastStore.getState().addToast(message, 'error');
+    return null;
+  }
+
   const resolved = getSelectedModelAndProvider();
   if (!resolved) {
     logAiSelectionDebug('execute:abort-missing-model');
@@ -239,7 +230,6 @@ async function requestAiEdit(
 export async function createAiSelectionSuggestion(
   view: EditorView,
   instruction: string,
-  customPrompt = '',
   selectionSource?: SelectionSource
 ): Promise<AiSelectionSuggestion | null> {
   const trimmedInstruction = instruction.trim();
@@ -284,7 +274,6 @@ export async function createAiSelectionSuggestion(
     from,
     to,
     trimmedInstruction,
-    customPrompt,
     selectedText,
     suggestedText
   );
@@ -307,7 +296,6 @@ export async function retryAiSelectionSuggestion(
     suggestion.from,
     suggestion.to,
     suggestion.instruction,
-    suggestion.customPrompt,
     suggestion.originalText,
     suggestedText
   );

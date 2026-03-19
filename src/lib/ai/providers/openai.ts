@@ -1,12 +1,14 @@
 import type { AIClient } from '../client'
-import type { Provider, AIModel, ChatCompletionRequest, ChatCompletionStreamChunk, ChatMessage, ChatMessageContent, ChatSendOptions } from '../types'
+import type { Provider, AIModel, ChatCompletionRequest, ChatMessage, ChatMessageContent, ChatSendOptions } from '../types'
 import { parseAPIError, parseHTTPError } from '../errors'
 import { buildOpenAIBaseUrl, resolveApiModelId } from '../utils'
 import {
   fetchManagedModels,
   MANAGED_PROVIDER_ID,
   requestManagedChatCompletion,
+  requestManagedChatCompletionStream,
 } from '@/lib/ai/managedService'
+import { consumeOpenAIStream } from '@/lib/ai/streaming'
 
 export class OpenAICompatibleClient implements AIClient {
   private readonly timeout = 300000
@@ -45,15 +47,24 @@ export class OpenAICompatibleClient implements AIClient {
 
   private async sendManagedMessage(
     body: ChatCompletionRequest,
-    onChunk?: (chunk: string) => void
+    onChunk?: (chunk: string) => void,
+    signal?: AbortSignal
   ): Promise<string> {
-    const payload = await requestManagedChatCompletion({
-      ...body,
-      stream: false,
-    })
-    const content = this.extractManagedResponseContent(payload)
-    ;(onChunk || (() => {}))(content)
-    return content
+    if (body.stream === false) {
+      const payload = await requestManagedChatCompletion({
+        ...body,
+        stream: false,
+      } as unknown as Record<string, unknown>)
+      const content = this.extractManagedResponseContent(payload)
+      ;(onChunk || (() => {}))(content)
+      return content
+    }
+
+    return requestManagedChatCompletionStream(
+      body as unknown as Record<string, unknown>,
+      onChunk || (() => {}),
+      signal
+    )
   }
 
   private async resolveApiKey(provider: Provider): Promise<string> {
@@ -76,7 +87,7 @@ export class OpenAICompatibleClient implements AIClient {
     const body = this.buildChatRequest(message, history, model, options)
 
     if (provider.id === MANAGED_PROVIDER_ID) {
-      return this.sendManagedMessage(body, onChunk)
+      return this.sendManagedMessage(body, onChunk, signal)
     }
 
     const apiKey = await this.resolveApiKey(provider)
@@ -125,75 +136,7 @@ export class OpenAICompatibleClient implements AIClient {
         throw parseHTTPError(response.status, errorBody)
       }
 
-      if (!response.body) {
-        throw new Error('Response body is null')
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let fullContent = ''
-      let buffer = ''
-      let hasStartedReasoning = false
-      let hasFinishedReasoning = false
-
-      while (true) {
-        const { done, value } = await reader.read()
-
-        if (done) {
-          break
-        }
-
-        const chunkText = decoder.decode(value, { stream: true })
-        buffer += chunkText
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed || trimmed === 'data: [DONE]') continue
-
-          if (trimmed.startsWith('data: ')) {
-            try {
-              const jsonStr = trimmed.slice(6)
-              const chunk: ChatCompletionStreamChunk = JSON.parse(jsonStr)
-              const delta = chunk.choices[0]?.delta
-
-              if (delta) {
-                const reasoning = (delta as any).reasoning_content
-                const content = delta.content
-
-                if (reasoning) {
-                  if (!hasStartedReasoning) {
-                    fullContent += '<think>'
-                    hasStartedReasoning = true
-                  }
-                  fullContent += reasoning
-                }
-
-                if (content) {
-                  if (hasStartedReasoning && !hasFinishedReasoning) {
-                    fullContent += '</think>'
-                    hasFinishedReasoning = true
-                  }
-                  fullContent += content
-                }
-
-                if (reasoning || content) {
-                  onChunk(fullContent)
-                }
-              }
-            } catch {
-              // no-op
-            }
-          }
-        }
-      }
-
-      if (hasStartedReasoning && !hasFinishedReasoning) {
-        fullContent += '</think>'
-      }
-
-      return fullContent
+      return consumeOpenAIStream(response, onChunk)
     } catch (error) {
       clearTimeout(timeoutId)
       if (error instanceof Error && error.name === 'AbortError') {

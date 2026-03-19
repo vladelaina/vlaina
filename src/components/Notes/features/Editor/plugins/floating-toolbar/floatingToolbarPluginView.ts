@@ -22,8 +22,12 @@ import {
   hideToolbar,
   isFloatingToolbarSuppressed,
   showToolbar,
-  toContainerPosition,
 } from './floatingToolbarDom';
+import {
+  getContentLayoutContext,
+  resolveToolbarContainerPosition,
+  resolveToolbarViewportPosition,
+} from './floatingToolbarLayout';
 
 export interface FloatingToolbarInteractionState {
   isMouseDown: boolean;
@@ -42,16 +46,36 @@ export function createFloatingToolbarPluginView(
   let lastRenderState = '';
   let lastSelectionSignature = '';
   let lastToolbarX: number | null = null;
-  let lastToolbarY: number | null = null;
   let lastContainerWidth: number | null = null;
-  let lastPlacement: 'top' | 'bottom' | null = null;
   let lastTextSelection: { from: number; to: number } | null = null;
 
   const toolbarElement = createToolbarElement();
   const toolbarRenderer = createToolbarRenderer(toolbarElement);
   const scrollRoot = getScrollRoot(editorView);
   const toolbarRoot = getToolbarRoot(editorView);
-  (toolbarRoot ?? scrollRoot ?? document.body).appendChild(toolbarElement);
+  const positionRoot = toolbarRoot ?? scrollRoot ?? document.body;
+  positionRoot.appendChild(toolbarElement);
+
+  const ensureToolbarParent = (_isReviewMode: boolean) => {
+    const targetParent = positionRoot;
+    if (toolbarElement.parentElement !== targetParent) {
+      targetParent.appendChild(toolbarElement);
+    }
+  };
+
+  const resetToolbarTracking = () => {
+    lastRenderState = '';
+    currentBlockElement = null;
+    lastSelectionSignature = '';
+    lastToolbarX = null;
+    lastContainerWidth = null;
+    lastTextSelection = null;
+  };
+
+  const hideToolbarAndReset = () => {
+    hideToolbar(toolbarElement);
+    resetToolbarTracking();
+  };
 
   const restoreLastSelection = () => {
     const selection = editorView.state.selection;
@@ -82,20 +106,195 @@ export function createFloatingToolbarPluginView(
     return true;
   };
 
+  const getContentBounds = () => {
+    const layout = getContentLayoutContext(editorView, positionRoot instanceof HTMLElement ? positionRoot : null);
+    if (!layout.container || !layout.containerRect || !layout.containerBounds) {
+      return null;
+    }
+
+    return layout.containerBounds;
+  };
+
+  const correctToolbarToContentBounds = (x: number) => {
+    const container = positionRoot instanceof HTMLElement ? positionRoot : null;
+    if (!container) {
+      return x;
+    }
+
+    const layout = getContentLayoutContext(editorView, container);
+    const contentLeft = layout.viewportBounds.left;
+    const contentRight = layout.viewportBounds.right;
+    const toolbarRect = toolbarElement.getBoundingClientRect();
+
+    let correctedX = x;
+    if (toolbarRect.left < contentLeft) {
+      correctedX += contentLeft - toolbarRect.left;
+    }
+
+    if (toolbarRect.right > contentRight) {
+      correctedX -= toolbarRect.right - contentRight;
+    }
+
+    if (correctedX !== x) {
+      toolbarElement.style.left = `${correctedX}px`;
+    }
+
+    return correctedX;
+  };
+
+  const correctSubmenusToContentBounds = () => {
+    const layout = getContentLayoutContext(editorView, positionRoot instanceof HTMLElement ? positionRoot : null);
+    const contentLeft = layout.viewportBounds.left;
+    const contentRight = layout.viewportBounds.right;
+
+    const visibleSubmenus = Array.from(
+      toolbarElement.querySelectorAll<HTMLElement>('.toolbar-submenu')
+    ).filter((submenu) => submenu.offsetParent !== null);
+
+    for (const submenu of visibleSubmenus) {
+      submenu.style.removeProperty('--toolbar-submenu-shift-x');
+
+      const submenuRect = submenu.getBoundingClientRect();
+      let shiftX = 0;
+
+      if (submenuRect.left < contentLeft) {
+        shiftX += contentLeft - submenuRect.left;
+      }
+
+      if (submenuRect.right > contentRight) {
+        shiftX -= submenuRect.right - contentRight;
+      }
+
+      if (shiftX !== 0) {
+        submenu.style.setProperty('--toolbar-submenu-shift-x', `${shiftX}px`);
+      }
+    }
+  };
+
+  const syncAiReviewWidth = (
+    isReviewModeActive: boolean,
+    pluginState: FloatingToolbarState | undefined
+  ) => {
+    currentBlockElement = isReviewModeActive && pluginState?.aiReview
+      ? getBlockElementAtPos(editorView, pluginState.aiReview.from)
+      : getCurrentBlockElement(editorView);
+
+    if (isReviewModeActive && currentBlockElement) {
+      toolbarElement.style.setProperty(
+        '--ai-review-width',
+        `${Math.round(currentBlockElement.getBoundingClientRect().width)}px`
+      );
+      return;
+    }
+
+    toolbarElement.style.removeProperty('--ai-review-width');
+  };
+
+  const renderToolbarIfNeeded = (
+    pluginState: FloatingToolbarState,
+    toolbarState: {
+      activeMarks: Set<string>;
+      currentBlockType: ReturnType<typeof getCurrentBlockType>;
+      currentAlignment: ReturnType<typeof getCurrentAlignment>;
+      linkUrl: ReturnType<typeof getLinkUrl>;
+      textColor: ReturnType<typeof getTextColor>;
+      bgColor: ReturnType<typeof getBgColor>;
+    }
+  ) => {
+    const cacheKey = [
+      Array.from(toolbarState.activeMarks).sort().join(','),
+      toolbarState.currentBlockType,
+      toolbarState.currentAlignment,
+      toolbarState.linkUrl || '',
+      toolbarState.textColor || '',
+      toolbarState.bgColor || '',
+      pluginState.copied ? 'copied' : '',
+      pluginState.subMenu || '',
+      pluginState.aiReview?.instruction || '',
+      pluginState.aiReview?.originalText || '',
+      pluginState.aiReview?.suggestedText || '',
+      pluginState.aiReview?.isLoading ? 'loading' : '',
+    ].join('|');
+
+    if (cacheKey === lastRenderState) {
+      return;
+    }
+
+    lastRenderState = cacheKey;
+    toolbarRenderer.render(editorView, {
+      ...pluginState,
+      ...toolbarState,
+    });
+  };
+
+  const resolveDisplayedToolbarPosition = (args: {
+    pluginState: FloatingToolbarState;
+    isReviewModeActive: boolean;
+    selection: TextSelection;
+  }) => {
+    const { pluginState, isReviewModeActive, selection } = args;
+    const aiPosition = calculateBottomPosition(editorView);
+    const layout = getContentLayoutContext(
+      editorView,
+      positionRoot instanceof HTMLElement ? positionRoot : null
+    );
+    const nextPosition = resolveToolbarViewportPosition({
+      aiPosition,
+      currentBlockElement,
+      layout,
+      pluginState,
+      selectionPosition: calculatePosition(editorView),
+    });
+
+    const containerPosition = resolveToolbarContainerPosition(
+      pluginState,
+      nextPosition,
+      positionRoot instanceof HTMLElement ? positionRoot : null
+    );
+
+    const isAiMode = pluginState.subMenu === 'ai' || pluginState.subMenu === 'aiReview';
+    const containerWidth = positionRoot instanceof HTMLElement ? positionRoot.clientWidth : null;
+    const selectionSignature = isReviewModeActive && pluginState.aiReview
+      ? `${pluginState.aiReview.from}:${pluginState.aiReview.to}`
+      : `${selection.from}:${selection.to}`;
+    const clamped = clampToolbarX(
+      containerPosition.x,
+      positionRoot instanceof HTMLElement ? positionRoot : null,
+      isAiMode,
+      toolbarElement,
+      getContentBounds()
+    );
+    const shouldFreezeX =
+      pluginState.subMenu !== 'aiReview' &&
+      lastToolbarX !== null &&
+      lastSelectionSignature === selectionSignature &&
+      lastContainerWidth === containerWidth;
+    const finalX = shouldFreezeX && lastToolbarX !== null ? lastToolbarX : clamped.clampedX;
+    const finalY = containerPosition.y;
+    const finalPlacement = nextPosition.placement;
+
+    return {
+      containerWidth,
+      finalPlacement,
+      finalX,
+      finalY,
+      selectionSignature,
+    };
+  };
+
   const updateToolbar = () => {
     const pluginState = toolbarKey.getState(editorView.state);
     const isReviewModeActive = pluginState?.subMenu === 'aiReview' && Boolean(pluginState.aiReview);
+    ensureToolbarParent(isReviewModeActive);
     let { selection } = editorView.state;
 
     if (isFloatingToolbarSuppressed()) {
-      hideToolbar(toolbarElement);
-      lastRenderState = '';
-      currentBlockElement = null;
-      lastSelectionSignature = '';
-      lastToolbarX = null;
-      lastToolbarY = null;
-      lastContainerWidth = null;
-      lastPlacement = null;
+      hideToolbarAndReset();
+      return;
+    }
+
+    if (!pluginState?.isVisible) {
+      hideToolbarAndReset();
       return;
     }
 
@@ -106,64 +305,16 @@ export function createFloatingToolbarPluginView(
     }
 
     if (!isReviewModeActive && (selection.empty || !(selection instanceof TextSelection))) {
-      hideToolbar(toolbarElement);
-      lastRenderState = '';
-      currentBlockElement = null;
-      lastSelectionSignature = '';
-      lastToolbarX = null;
-      lastToolbarY = null;
-      lastContainerWidth = null;
-      lastPlacement = null;
+      hideToolbarAndReset();
       return;
     }
 
     if (!isReviewModeActive && selection.$from.parent.type.name === 'code_block') {
-      hideToolbar(toolbarElement);
-      lastRenderState = '';
-      currentBlockElement = null;
-      lastSelectionSignature = '';
-      lastToolbarX = null;
-      lastToolbarY = null;
-      lastContainerWidth = null;
-      lastPlacement = null;
+      hideToolbarAndReset();
       return;
     }
 
-    currentBlockElement = isReviewModeActive && pluginState?.aiReview
-      ? getBlockElementAtPos(editorView, pluginState.aiReview.from)
-      : getCurrentBlockElement(editorView);
-
-    if (!pluginState?.isVisible) {
-      hideToolbar(toolbarElement);
-      lastRenderState = '';
-      lastSelectionSignature = '';
-      lastToolbarX = null;
-      lastToolbarY = null;
-      lastContainerWidth = null;
-      lastPlacement = null;
-      return;
-    }
-
-    const aiPosition = calculateBottomPosition(editorView);
-    const nextPosition = pluginState.dragPosition && pluginState.subMenu === 'aiReview'
-      ? {
-          x: pluginState.dragPosition.x,
-          y: pluginState.dragPosition.y,
-          placement: 'bottom' as const,
-        }
-      : pluginState.subMenu === 'ai' || pluginState.subMenu === 'aiReview'
-        ? {
-            ...aiPosition,
-            x: currentBlockElement?.getBoundingClientRect().left ?? aiPosition.x,
-          }
-        : calculatePosition(editorView);
-
-    const containerPosition = pluginState.dragPosition && pluginState.subMenu === 'aiReview'
-      ? {
-          x: pluginState.dragPosition.x,
-          y: pluginState.dragPosition.y,
-        }
-      : toContainerPosition(nextPosition, toolbarRoot ?? scrollRoot);
+    syncAiReviewWidth(isReviewModeActive, pluginState);
 
     const activeMarks = getActiveMarks(editorView);
     const currentBlockType = getCurrentBlockType(editorView);
@@ -171,61 +322,26 @@ export function createFloatingToolbarPluginView(
     const linkUrl = getLinkUrl(editorView);
     const textColor = getTextColor(editorView);
     const bgColor = getBgColor(editorView);
-    const cacheKey = [
-      Array.from(activeMarks).sort().join(','),
+    renderToolbarIfNeeded(pluginState, {
+      activeMarks,
       currentBlockType,
       currentAlignment,
-      linkUrl || '',
-      textColor || '',
-      bgColor || '',
-      pluginState.copied ? 'copied' : '',
-      pluginState.subMenu || '',
-      pluginState.aiReview?.instruction || '',
-      pluginState.aiReview?.originalText || '',
-      pluginState.aiReview?.suggestedText || '',
-      pluginState.aiReview?.customPrompt || '',
-      pluginState.aiReview?.isLoading ? 'loading' : '',
-    ].join('|');
+      linkUrl,
+      textColor,
+      bgColor,
+    });
 
-    if (cacheKey !== lastRenderState) {
-      lastRenderState = cacheKey;
-      toolbarRenderer.render(editorView, {
-        ...pluginState,
-        activeMarks,
-        currentBlockType,
-        currentAlignment,
-        linkUrl,
-        textColor,
-        bgColor,
-      });
-    }
-
-    const isAiMode = pluginState.subMenu === 'ai' || pluginState.subMenu === 'aiReview';
-    const containerWidth = (toolbarRoot ?? scrollRoot)?.clientWidth ?? null;
-    const selectionSignature = isReviewModeActive && pluginState.aiReview
-      ? `${pluginState.aiReview.from}:${pluginState.aiReview.to}`
-      : `${selection.from}:${selection.to}`;
-    const clamped = clampToolbarX(
-      containerPosition.x,
-      toolbarRoot ?? scrollRoot,
-      isAiMode,
-      toolbarElement
-    );
-    const shouldFreezeX =
-      !isAiMode &&
-      lastToolbarX !== null &&
-      lastSelectionSignature === selectionSignature &&
-      lastContainerWidth === containerWidth;
-    const shouldFreezePosition =
-      shouldFreezeX &&
-      pluginState.subMenu !== null &&
-      lastToolbarY !== null &&
-      lastPlacement !== null;
-    const finalX = shouldFreezeX && lastToolbarX !== null ? lastToolbarX : clamped.clampedX;
-    const finalY =
-      shouldFreezePosition && lastToolbarY !== null ? lastToolbarY : containerPosition.y;
-    const finalPlacement =
-      shouldFreezePosition && lastPlacement !== null ? lastPlacement : nextPosition.placement;
+    const {
+      containerWidth,
+      finalPlacement,
+      finalX,
+      finalY,
+      selectionSignature,
+    } = resolveDisplayedToolbarPosition({
+      pluginState,
+      isReviewModeActive,
+      selection,
+    });
 
     showToolbar(
       toolbarElement,
@@ -233,12 +349,14 @@ export function createFloatingToolbarPluginView(
       finalPlacement,
       pluginState.subMenu === 'aiReview'
     );
+    const correctedX = pluginState.subMenu === 'aiReview'
+      ? finalX
+      : correctToolbarToContentBounds(finalX);
+    correctSubmenusToContentBounds();
 
     lastSelectionSignature = selectionSignature;
-    lastToolbarX = finalX;
-    lastToolbarY = finalY;
+    lastToolbarX = correctedX;
     lastContainerWidth = containerWidth;
-    lastPlacement = finalPlacement;
   };
 
   const scheduleToolbarUpdate = () => {
@@ -250,6 +368,37 @@ export function createFloatingToolbarPluginView(
       layoutRaf = null;
       updateToolbar();
     });
+  };
+
+  const bindGlobalListeners = (resizeObserver: ResizeObserver | null) => {
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    toolbarElement.addEventListener('mouseenter', handleToolbarPointerEnter);
+    toolbarElement.addEventListener('mouseleave', handleToolbarPointerLeave);
+    window.addEventListener('resize', scheduleToolbarUpdate);
+    scrollRoot?.addEventListener('scroll', scheduleToolbarUpdate, { passive: true });
+    resizeObserver?.observe(editorView.dom);
+    resizeObserver?.observe(toolbarElement);
+    if (scrollRoot) {
+      resizeObserver?.observe(scrollRoot);
+    }
+    if (toolbarRoot && toolbarRoot !== scrollRoot) {
+      resizeObserver?.observe(toolbarRoot);
+    }
+  };
+
+  const unbindGlobalListeners = (resizeObserver: ResizeObserver | null) => {
+    document.removeEventListener('mousedown', handleMouseDown);
+    document.removeEventListener('mouseup', handleMouseUp);
+    document.removeEventListener('mousedown', handleClickOutside);
+    document.removeEventListener('keydown', handleEscape);
+    toolbarElement.removeEventListener('mouseenter', handleToolbarPointerEnter);
+    toolbarElement.removeEventListener('mouseleave', handleToolbarPointerLeave);
+    window.removeEventListener('resize', scheduleToolbarUpdate);
+    scrollRoot?.removeEventListener('scroll', scheduleToolbarUpdate);
+    resizeObserver?.disconnect();
   };
 
   const handleMouseDown = () => {
@@ -362,21 +511,7 @@ export function createFloatingToolbarPluginView(
       })
     : null;
 
-  document.addEventListener('mousedown', handleMouseDown);
-  document.addEventListener('mouseup', handleMouseUp);
-  document.addEventListener('mousedown', handleClickOutside);
-  document.addEventListener('keydown', handleEscape);
-  toolbarElement.addEventListener('mouseenter', handleToolbarPointerEnter);
-  toolbarElement.addEventListener('mouseleave', handleToolbarPointerLeave);
-  window.addEventListener('resize', scheduleToolbarUpdate);
-  scrollRoot?.addEventListener('scroll', scheduleToolbarUpdate, { passive: true });
-  resizeObserver?.observe(editorView.dom);
-  if (scrollRoot) {
-    resizeObserver?.observe(scrollRoot);
-  }
-  if (toolbarRoot && toolbarRoot !== scrollRoot) {
-    resizeObserver?.observe(toolbarRoot);
-  }
+  bindGlobalListeners(resizeObserver);
 
   return {
     update(view: EditorView) {
@@ -398,26 +533,11 @@ export function createFloatingToolbarPluginView(
         cancelAnimationFrame(layoutRaf);
       }
 
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-      toolbarElement.removeEventListener('mouseenter', handleToolbarPointerEnter);
-      toolbarElement.removeEventListener('mouseleave', handleToolbarPointerLeave);
-      window.removeEventListener('resize', scheduleToolbarUpdate);
-      scrollRoot?.removeEventListener('scroll', scheduleToolbarUpdate);
-      resizeObserver?.disconnect();
+      unbindGlobalListeners(resizeObserver);
       toolbarRenderer.destroy();
       toolbarElement.remove();
-      currentBlockElement = null;
-      lastRenderState = '';
-      lastSelectionSignature = '';
-      lastToolbarX = null;
-      lastToolbarY = null;
-      lastContainerWidth = null;
-      lastPlacement = null;
+      resetToolbarTracking();
       interactionState.isPointerInsideToolbar = false;
-      lastTextSelection = null;
       interactionState.isMouseDown = false;
       interactionState.pendingShow = false;
     },

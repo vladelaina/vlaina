@@ -1,7 +1,5 @@
-import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { OauthAccountProvider } from '@/lib/account/provider';
-import { hasBackendCommands } from '@/lib/tauri/invoke';
 import { AccountOauthButtons } from './AccountOauthButtons';
 import { AccountEmailCodeCard } from './AccountEmailCodeCard';
 
@@ -26,42 +24,43 @@ export function AccountSignInOptions({
 }: AccountSignInOptionsProps) {
   const isCompact = variant === 'compact';
   const disabled = isConnecting;
-  const isDesktop = hasBackendCommands();
-  const helpText = useMemo(() => {
-    if (isConnecting) {
-      return 'Complete authorization in the browser window that just opened.';
-    }
-    if (isDesktop) {
-      return 'Desktop sign-in now uses a secure browser redirect back to the app. Email verification code is still available as a no-password fallback.';
-    }
-    return 'Google is the default account sign-in. Email verification code works well for non-technical users. GitHub stays available for advanced sync later.';
-  }, [isConnecting, isDesktop]);
 
   return (
-    <div className={cn('space-y-3', className)}>
+    <div className={cn('flex flex-col gap-6 px-4', className)}>
+      {/* Social Actions */}
       <AccountOauthButtons isCompact={isCompact} disabled={disabled} onOauthSignIn={onOauthSignIn} />
 
-      <AccountEmailCodeCard
-        isCompact={isCompact}
-        disabled={disabled}
-        onEmailCodeRequest={onEmailCodeRequest}
-        onEmailCodeVerify={onEmailCodeVerify}
-      />
-
-      <div className={cn(isCompact ? 'text-[11px] text-[var(--neko-text-tertiary)]' : 'text-xs text-gray-500')}>
-        {helpText}
+      {/* Modern Separator - Subtle & Wide Space */}
+      <div className="flex items-center gap-4 px-4">
+        <div className="h-px flex-1 bg-zinc-100 dark:bg-white/5" />
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 dark:text-zinc-600">or</span>
+        <div className="h-px flex-1 bg-zinc-100 dark:bg-white/5" />
       </div>
 
-      {error ? (
-        <div
-          className={cn(
-            'rounded-lg px-3 py-2 text-xs',
-            isCompact ? 'bg-red-500/10 text-red-500' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'
-          )}
-        >
-          {error}
-        </div>
-      ) : null}
+      {/* Email Action */}
+      <div className="space-y-6">
+        <AccountEmailCodeCard
+          isCompact={isCompact}
+          disabled={disabled}
+          onEmailCodeRequest={onEmailCodeRequest}
+          onEmailCodeVerify={onEmailCodeVerify}
+        />
+
+        {error ? (
+          <div
+            className={cn(
+              'rounded-2xl px-6 py-4 text-[13px] font-medium animate-in slide-in-from-top-2 duration-300',
+              'bg-red-50 text-red-600 border border-red-100 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20'
+            )}
+          >
+            {error}
+          </div>
+        ) : null}
+
+        <p className="px-8 text-[11px] text-center leading-relaxed text-zinc-400 dark:text-zinc-500 font-medium opacity-80">
+          By continuing, you agree to NekoTick&apos;s <span className="underline cursor-pointer opacity-80 hover:opacity-100 transition-opacity">Privacy Policy</span>.
+        </p>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,49 @@
+.ai-review-loading {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-review-loading-line {
+  display: block;
+  height: 10px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgb(244 244 245 / 0.88), rgb(255 255 255 / 1), rgb(244 244 245 / 0.88));
+  background-size: 220% 100%;
+  animation: ai-review-loading 1.25s linear infinite;
+}
+
+.ai-review-loading-line.line-1 {
+  width: 88%;
+}
+
+.ai-review-loading-line.line-2 {
+  width: 72%;
+}
+
+.ai-review-loading-line.line-3 {
+  width: 80%;
+}
+
+@keyframes ai-review-loading {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 220% 0;
+  }
+}
+
+@keyframes ai-review-mist-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.99);
+    filter: blur(14px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}

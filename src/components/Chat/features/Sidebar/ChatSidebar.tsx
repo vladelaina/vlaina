@@ -293,9 +293,9 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
         onConfirm={() => {
             if (deleteId) deleteSession(deleteId);
         }}
-        title="Delete Chat"
+        title="Delete Chat?"
         description="Are you sure you want to delete this chat session? This action cannot be undone."
-        confirmText="Delete"
+        confirmText="Delete Chat"
         variant="danger"
       />
     </>

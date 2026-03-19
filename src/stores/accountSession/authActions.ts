@@ -17,6 +17,10 @@ import { applyConnectedAccount, applyDisconnectedAccount } from './sessionState'
 type Set = StoreApi<AccountSessionState & AccountSessionActions>['setState'];
 type Get = StoreApi<AccountSessionState & AccountSessionActions>['getState'];
 
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
   return async () => {
     set({ isLoading: true });
@@ -111,8 +115,20 @@ export function createSignIn(
   };
 }
 
-export function createRequestEmailCode(set: Set, _get: Get): (email: string) => Promise<boolean> {
+export function createRequestEmailCode(set: Set, get: Get): (email: string) => Promise<boolean> {
   return async (email: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) {
+      set({ error: 'Invalid email address' });
+      return false;
+    }
+
+    const { isConnected, primaryEmail } = get();
+    if (isConnected && primaryEmail?.trim().toLowerCase() === normalizedEmail) {
+      set({ error: 'You are already signed in with this email' });
+      return false;
+    }
+
     set({ error: null });
     try {
       const ok = hasBackendCommands()

@@ -93,6 +93,7 @@ import { TemporaryChatOnIcon } from './custom/mit/TemporaryChatOnIcon';
 import { PrimerPinIcon } from './custom/mit/PrimerPinIcon';
 import { PrimerUnpinIcon } from './custom/mit/PrimerUnpinIcon';
 import { ActivityIcon } from './custom/mit/ActivityIcon';
+import { GoogleIcon } from './custom/mit/GoogleIcon';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
@@ -146,6 +147,7 @@ export const icons: Record<string, IconSource> = {
   'common.send': SendIcon,
   'common.language': LanguageIcon,
   'common.cloud': CloudIcon,
+  'common.google': GoogleIcon,
   'chat.temporary.off': TemporaryChatOffIcon,
   'chat.temporary.on': TemporaryChatOnIcon,
 

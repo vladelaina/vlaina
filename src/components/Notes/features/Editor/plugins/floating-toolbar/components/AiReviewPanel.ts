@@ -3,10 +3,10 @@ import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { floatingToolbarKey } from '../floatingToolbarPlugin';
 import { TOOLBAR_ACTIONS, type FloatingToolbarState } from '../types';
+import { runAiSelectionReviewCommand } from '../ai/reviewFlow';
 import { AiToolbarModelSelector } from './AiToolbarModelSelector';
-import { bindAiReviewActions } from './ai-review/reviewBindings';
+import { bindAiReviewActions, type ReviewBindingsCleanup } from './ai-review/reviewBindings';
 import { getAiReviewElements } from './ai-review/reviewDom';
-import { bindAiReviewDrag } from './ai-review/reviewDrag';
 
 export interface AiReviewPanelController {
   render: (
@@ -21,8 +21,11 @@ export interface AiReviewPanelController {
 
 export function createAiReviewPanelController(): AiReviewPanelController {
   let modelSelectorRoot: Root | null = null;
+  let reviewBindingsCleanup: ReviewBindingsCleanup | null = null;
 
   const cleanup = () => {
+    reviewBindingsCleanup?.();
+    reviewBindingsCleanup = null;
     modelSelectorRoot?.unmount();
     modelSelectorRoot = null;
   };
@@ -42,12 +45,31 @@ export function createAiReviewPanelController(): AiReviewPanelController {
     if (modelSelectorHost instanceof HTMLElement) {
       cleanup();
       modelSelectorRoot = createRoot(modelSelectorHost);
-      modelSelectorRoot.render(React.createElement(AiToolbarModelSelector));
+      modelSelectorRoot.render(
+        React.createElement(AiToolbarModelSelector, {
+          onSelectModel: () => {
+            const liveReview = floatingToolbarKey.getState(view.state)?.aiReview;
+            if (!liveReview?.instruction) {
+              return;
+            }
+
+            void runAiSelectionReviewCommand(view, liveReview, {
+              id: liveReview.commandId ?? liveReview.toneId ?? 'custom',
+              instruction: liveReview.instruction,
+              toneId: liveReview.toneId ?? null,
+            });
+          },
+        })
+      );
     }
 
     const elements = getAiReviewElements(container);
     if (!elements) {
       return;
+    }
+
+    if (!elements.panel.contains(document.activeElement)) {
+      elements.panel.focus({ preventScroll: true });
     }
 
     const updateReview = (nextReview: FloatingToolbarState['aiReview']) => {
@@ -59,17 +81,12 @@ export function createAiReviewPanelController(): AiReviewPanelController {
       );
     };
 
-    bindAiReviewActions({
+    reviewBindingsCleanup?.();
+    reviewBindingsCleanup = bindAiReviewActions({
       elements,
       onClose,
       review,
       updateReview,
-      view,
-    });
-
-    bindAiReviewDrag({
-      container,
-      dragHandle: elements.dragHandle,
       view,
     });
   };
