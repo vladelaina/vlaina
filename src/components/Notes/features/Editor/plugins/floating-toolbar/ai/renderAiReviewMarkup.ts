@@ -1,5 +1,15 @@
 import type { FloatingToolbarState } from '../types';
+import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 import { renderAiReviewDiffMarkup } from './reviewDiff';
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 export function renderAiReviewMarkup(state: FloatingToolbarState): string | null {
   if (state.subMenu !== 'aiReview' || !state.aiReview) {
@@ -7,14 +17,11 @@ export function renderAiReviewMarkup(state: FloatingToolbarState): string | null
   }
 
   const review = state.aiReview;
+  const showRetryAction = !review.isLoading && (!!review.errorMessage || review.suggestedText.trim().length > 0);
   const resultMarkup = review.isLoading
-    ? `
-      <div class="ai-review-loading">
-        <span class="ai-review-loading-line line-1"></span>
-        <span class="ai-review-loading-line line-2"></span>
-        <span class="ai-review-loading-line line-3"></span>
-      </div>
-    `
+    ? '<div class="ai-review-loading-slot"></div>'
+    : review.errorMessage
+      ? `<div class="ai-review-error" role="alert">${escapeHtml(review.errorMessage)}</div>`
     : `
       <div class="ai-review-result-surface">${renderAiReviewDiffMarkup(review.originalText, review.suggestedText)}</div>
     `;
@@ -25,16 +32,15 @@ export function renderAiReviewMarkup(state: FloatingToolbarState): string | null
         <div class="ai-review-body">
           <section class="ai-review-merge-panel">
             <div class="ai-review-content ai-review-content-after ai-review-content-glass">
-              <div class="ai-review-header">
-                <div class="ai-review-header-side">
-                  <div class="ai-review-model-selector-slot"></div>
-                </div>
-              </div>
               ${resultMarkup}
-              <div class="ai-review-actions ai-review-actions-inline">
-                <div class="ai-review-actions-right">
-                  <button class="ai-review-action tertiary ai-review-icon-action" type="button" data-review-action="cancel" aria-label="Cancel">&times;</button>
-                  <button class="ai-review-action primary ai-review-icon-action" type="button" data-review-action="accept" aria-label="Apply" ${review.isLoading || !review.suggestedText ? 'disabled' : ''}>&#10003;</button>
+              <div class="ai-review-footer">
+                <div class="ai-review-controls-left">
+                  <div class="ai-review-model-selector-slot"></div>
+                  ${showRetryAction ? `<button class="ai-review-action tertiary ai-review-icon-action neko-icon-shadow-button" type="button" data-review-action="retry" aria-label="Retry">${EDITOR_ICONS.reviewRetry}</button>` : ''}
+                </div>
+                <div class="ai-review-controls-right">
+                  <button class="ai-review-action tertiary ai-review-icon-action neko-icon-shadow-button" type="button" data-review-action="cancel" aria-label="Cancel">${EDITOR_ICONS.reviewClose}</button>
+                  <button class="ai-review-action primary ai-review-icon-action neko-icon-shadow-button" type="button" data-review-action="accept" aria-label="Apply" ${review.isLoading || !review.suggestedText ? 'disabled' : ''}>${EDITOR_ICONS.reviewApply}</button>
                 </div>
               </div>
             </div>

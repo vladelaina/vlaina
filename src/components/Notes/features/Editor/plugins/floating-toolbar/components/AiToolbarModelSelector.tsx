@@ -13,7 +13,7 @@ export function AiToolbarModelSelector({
   return (
     <ModelSelector
       composerInputRef={composerInputRef ?? { current: null }}
-      dropdownPlacement="bottom"
+      dropdownPlacement="top"
       onSelectModel={onSelectModel}
     />
   );

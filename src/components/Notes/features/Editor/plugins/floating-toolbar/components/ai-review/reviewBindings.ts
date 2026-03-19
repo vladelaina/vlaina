@@ -1,7 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import {
   applyAiSelectionSuggestion,
-  retryAiSelectionSuggestion,
+  retryAiSelectionSuggestionResult,
 } from '../../ai/selectionCommands';
 import { floatingToolbarKey } from '../../floatingToolbarPlugin';
 import type { FloatingToolbarState } from '../../types';
@@ -98,22 +98,28 @@ export function bindAiReviewActions({
       return;
     }
 
-    updateReview({ ...liveReview, isLoading: true });
-    void retryAiSelectionSuggestion(suggestion, signal).then((nextSuggestion) => {
+    updateReview({ ...liveReview, isLoading: true, errorMessage: null });
+    void retryAiSelectionSuggestionResult(suggestion, signal, { suppressToast: true }).then((result) => {
       const currentReview = floatingToolbarKey.getState(view.state)?.aiReview;
       if (!currentReview || currentReview.requestKey !== liveReview.requestKey) {
         return;
       }
 
-      if (!nextSuggestion) {
-        updateReview({ ...liveReview, isLoading: false });
+      if (!result.suggestion) {
+        updateReview({
+          ...liveReview,
+          suggestedText: '',
+          isLoading: false,
+          errorMessage: result.errorMessage,
+        });
         return;
       }
 
       updateReview({
-        ...nextSuggestion,
+        ...result.suggestion,
         requestKey: liveReview.requestKey,
         isLoading: false,
+        errorMessage: null,
       });
     });
   }, { signal });

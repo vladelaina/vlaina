@@ -109,7 +109,11 @@ export class OpenAICompatibleClient implements AIClient {
     signal?: AbortSignal
   ): Promise<string> {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout)
+    let timedOut = false
+    const timeoutId = setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, this.timeout)
 
     if (signal) {
       signal.addEventListener('abort', () => controller.abort())
@@ -140,6 +144,9 @@ export class OpenAICompatibleClient implements AIClient {
     } catch (error) {
       clearTimeout(timeoutId)
       if (error instanceof Error && error.name === 'AbortError') {
+        if (timedOut) {
+          throw new Error('The AI request timed out.')
+        }
         throw error
       }
       throw parseAPIError(error)

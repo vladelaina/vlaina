@@ -18,6 +18,11 @@ export function stopPassiveReviewMouseDown(event: MouseEvent) {
     return;
   }
 
+  if (target instanceof HTMLElement && target.closest('.ai-review-result-surface')) {
+    event.stopPropagation();
+    return;
+  }
+
   stopReviewMouseDown(event);
 }
 

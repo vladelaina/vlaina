@@ -1,6 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { ChatLoading } from '@/components/Chat/features/Messages/components/ChatLoading';
 import { floatingToolbarKey } from '../floatingToolbarPlugin';
 import { TOOLBAR_ACTIONS, type FloatingToolbarState } from '../types';
 import { runAiSelectionReviewCommand } from '../ai/reviewFlow';
@@ -21,6 +22,7 @@ export interface AiReviewPanelController {
 
 export function createAiReviewPanelController(): AiReviewPanelController {
   let modelSelectorRoot: Root | null = null;
+  let loadingRoot: Root | null = null;
   let reviewBindingsCleanup: ReviewBindingsCleanup | null = null;
 
   const cleanup = () => {
@@ -28,6 +30,8 @@ export function createAiReviewPanelController(): AiReviewPanelController {
     reviewBindingsCleanup = null;
     modelSelectorRoot?.unmount();
     modelSelectorRoot = null;
+    loadingRoot?.unmount();
+    loadingRoot = null;
   };
 
   const render = (
@@ -61,6 +65,12 @@ export function createAiReviewPanelController(): AiReviewPanelController {
           },
         })
       );
+    }
+
+    const loadingHost = container.querySelector('.ai-review-loading-slot');
+    if (loadingHost instanceof HTMLElement && review.isLoading) {
+      loadingRoot = createRoot(loadingHost);
+      loadingRoot.render(React.createElement(ChatLoading));
     }
 
     const elements = getAiReviewElements(container);

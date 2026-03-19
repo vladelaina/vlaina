@@ -7,23 +7,13 @@
   background: transparent;
 }
 
-.dark .ai-review-select-wrap::after,
-.dark .ai-review-action.tertiary,
-.dark .ai-review-quiet-action,
-.dark .ai-review-close {
+.dark .ai-review-action.tertiary {
   color: rgb(212 212 216 / 1);
 }
 
-.dark .ai-review-close:hover,
-.dark .ai-review-action.tertiary:hover,
-.dark .ai-review-quiet-action:hover {
+.dark .ai-review-action.tertiary:hover {
   background: rgb(82 82 91 / 0.92);
   color: rgb(244 244 245 / 1);
-}
-
-.dark .ai-review-select {
-  background: rgb(244 244 245 / 1);
-  color: rgb(24 24 27 / 1);
 }
 
 .dark .ai-review-content-glass {
@@ -35,8 +25,10 @@
   color: rgb(244 244 245 / 0.98);
 }
 
-.dark .ai-review-actions {
-  border-color: rgb(63 63 70 / 0.75);
+.dark .ai-review-error {
+  border-color: rgb(127 29 29 / 0.9);
+  background: rgb(69 10 10 / 0.78);
+  color: rgb(254 202 202 / 1);
 }
 
 .dark .ai-review-diff-added {
@@ -51,11 +43,6 @@
   text-decoration-color: rgb(248 113 113 / 0.84);
 }
 
-.dark .ai-review-loading-line {
-  background: linear-gradient(90deg, rgb(39 39 42 / 0.9), rgb(82 82 91 / 0.92), rgb(39 39 42 / 0.9));
-  background-size: 220% 100%;
-}
-
 .dark .ai-review-action.primary {
   border-color: rgb(244 244 245 / 1);
   background: rgb(244 244 245 / 1);
@@ -67,14 +54,30 @@
   background: rgb(228 228 231 / 1);
 }
 
+.dark .ai-review-action.ai-review-icon-action.tertiary,
+.dark .ai-review-action.ai-review-icon-action.primary {
+  background: transparent;
+  border-color: transparent;
+}
+
+.dark .ai-review-action.ai-review-icon-action.tertiary {
+  color: rgb(212 212 216 / 1);
+}
+
+.dark .ai-review-action.ai-review-icon-action.primary {
+  color: rgb(244 244 245 / 1);
+}
+
+.ai-review-action.ai-review-icon-action:hover,
+.dark .ai-review-action.ai-review-icon-action:hover {
+  background: transparent;
+}
+
+
 @media (max-width: 720px) {
   .floating-toolbar-inner.floating-toolbar-ai-review-mode {
     width: min(var(--ai-review-width, calc(100vw - 24px)), calc(100vw - 24px));
     max-width: min(var(--ai-review-width, calc(100vw - 24px)), calc(100vw - 24px));
-  }
-
-  .ai-review-actions {
-    flex-wrap: wrap;
   }
 
   .ai-review-model-selector-slot {

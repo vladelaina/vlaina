@@ -29,6 +29,7 @@ export interface AiReviewState {
   originalText: string;
   suggestedText: string;
   isLoading: boolean;
+  errorMessage: string | null;
 }
 
 // Sub-menu types

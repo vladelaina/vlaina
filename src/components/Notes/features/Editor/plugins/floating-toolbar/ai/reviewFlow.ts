@@ -3,15 +3,17 @@ import { useToastStore } from '@/stores/useToastStore';
 import { floatingToolbarKey } from '../floatingToolbarPlugin';
 import { TOOLBAR_ACTIONS, type AiReviewState } from '../types';
 import {
-  createAiSelectionSuggestion,
+  createAiSelectionSuggestionResult,
   getSerializedSelectionText,
 } from './selectionCommands';
+import {
+  createEmptyAiReviewState,
+  createLoadingAiReviewState,
+  toResolvedAiReviewState,
+} from './reviewState';
+import { ensureReviewSelectionVisible } from './reviewSelection';
 
 const activeReviewControllers = new Map<string, AbortController>();
-
-function createReviewRequestKey(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
 
 function getActiveReviewRequestKey(view: EditorView): string | null {
   return floatingToolbarKey.getState(view.state)?.aiReview?.requestKey ?? null;
@@ -48,22 +50,19 @@ export function openAiSelectionReview(view: EditorView, requestKey?: string): bo
     return false;
   }
 
+  ensureReviewSelectionVisible(view, from, to);
+
   view.dispatch(
     view.state.tr.setMeta(floatingToolbarKey, {
       type: TOOLBAR_ACTIONS.SET_AI_REVIEW,
       payload: {
         dragPosition: null,
-        aiReview: {
-          requestKey: requestKey ?? createReviewRequestKey(),
-          instruction: null,
-          commandId: null,
-          toneId: null,
+        aiReview: createEmptyAiReviewState(
+          requestKey ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           from,
           to,
-          originalText,
-          suggestedText: '',
-          isLoading: false,
-        },
+          originalText
+        ),
       },
     })
   );
@@ -84,22 +83,21 @@ export async function runAiSelectionReviewCommand(
     return false;
   }
 
-  const requestKey = review.requestKey || createReviewRequestKey();
+  const requestKey = review.requestKey || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   abortReviewRequest(requestKey);
+  ensureReviewSelectionVisible(view, review.from, review.to);
 
   view.dispatch(
     view.state.tr.setMeta(floatingToolbarKey, {
       type: TOOLBAR_ACTIONS.SET_AI_REVIEW,
       payload: {
-        aiReview: {
-          ...review,
+        aiReview: createLoadingAiReviewState(
+          review,
           requestKey,
           instruction,
-          commandId: command.id,
-          toneId: command.toneId ?? null,
-          suggestedText: '',
-          isLoading: true,
-        },
+          command.id,
+          command.toneId
+        ),
       },
     })
   );
@@ -113,12 +111,17 @@ export async function runAiSelectionReviewCommand(
   activeReviewControllers.set(requestKey, controller);
 
   try {
-    const suggestion = await createAiSelectionSuggestion(
+    const { suggestion, errorMessage } = await createAiSelectionSuggestionResult(
       view,
       instruction,
       reviewSelection,
-      controller.signal
+      controller.signal,
+      { suppressToast: true }
     );
+    if (controller.signal.aborted) {
+      return false;
+    }
+
     if (!suggestion) {
       if (getActiveReviewRequestKey(view) !== requestKey) {
         return false;
@@ -128,14 +131,14 @@ export async function runAiSelectionReviewCommand(
         view.state.tr.setMeta(floatingToolbarKey, {
           type: TOOLBAR_ACTIONS.SET_AI_REVIEW,
           payload: {
-            aiReview: {
-              ...review,
+            aiReview: toResolvedAiReviewState(
+              { suggestion: null, errorMessage },
+              review,
               requestKey,
               instruction,
-              commandId: command.id,
-              toneId: command.toneId ?? null,
-              isLoading: false,
-            },
+              command.id,
+              command.toneId
+            ),
           },
         })
       );
@@ -150,13 +153,14 @@ export async function runAiSelectionReviewCommand(
       view.state.tr.setMeta(floatingToolbarKey, {
         type: TOOLBAR_ACTIONS.SET_AI_REVIEW,
         payload: {
-          aiReview: {
-            ...suggestion,
+          aiReview: toResolvedAiReviewState(
+            { suggestion, errorMessage: null },
+            review,
             requestKey,
-            commandId: command.id,
-            toneId: command.toneId ?? null,
-            isLoading: false,
-          },
+            instruction,
+            command.id,
+            command.toneId
+          ),
         },
       })
     );
