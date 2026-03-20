@@ -137,6 +137,7 @@ export function showToolbar(
   placement: 'top' | 'bottom',
   isReviewMode = false
 ) {
+  toolbarElement.dataset.reviewMode = isReviewMode ? 'true' : 'false';
   toolbarElement.style.position = 'absolute';
   toolbarElement.style.left = `${position.x}px`;
   toolbarElement.style.top = `${position.y}px`;

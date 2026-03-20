@@ -29,6 +29,7 @@ export function bindAiReviewActions({
   const { panel, acceptButton, retryButton, cancelButton } = elements;
   const abortController = new AbortController();
   const { signal } = abortController;
+  let focusFrameId = 0;
 
   const getLiveReview = (): typeof review => review;
 
@@ -125,8 +126,24 @@ export function bindAiReviewActions({
   }, { signal });
 
   syncReviewUi(panel, review, acceptButton);
+  focusFrameId = requestAnimationFrame(() => {
+    focusFrameId = 0;
+    if (!panel.isConnected) {
+      return;
+    }
+
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement && panel.contains(activeElement)) {
+      return;
+    }
+
+    panel.focus({ preventScroll: true });
+  });
 
   return () => {
+    if (focusFrameId) {
+      cancelAnimationFrame(focusFrameId);
+    }
     abortController.abort();
   };
 }
