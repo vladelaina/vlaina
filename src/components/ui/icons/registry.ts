@@ -82,7 +82,6 @@ import {
   EyeSlashIcon
 } from '@heroicons/react/24/outline';
 
-// Custom Icons
 import { NewChatIcon } from './custom/mit/NewChatIcon';
 import { SquareCheckBigIcon } from './custom/mit/SquareCheckBigIcon';
 import { CropIcon } from './custom/mit/CropIcon';
@@ -98,12 +97,9 @@ import { GoogleIcon } from './custom/mit/GoogleIcon';
 export type IconSource = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
 export const icons: Record<string, IconSource> = {
-  // --- Window Controls ---
   'window.minimize': MinusIcon,
-  'window.maximize': StopIcon, // Reinstated Heroicons StopIcon
+  'window.maximize': StopIcon,
   'window.close': XMarkIcon,
-
-  // --- Common Actions ---
   'common.add': PlusIcon,
   'common.delete': TrashIcon,
   'common.remove': MinusIcon,
@@ -113,7 +109,7 @@ export const icons: Record<string, IconSource> = {
   'common.close': XMarkIcon,
   'common.check': CheckIcon,
   'common.checkCircle': CheckCircleIcon,
-  'common.radio': CheckCircleIcon, 
+  'common.radio': CheckCircleIcon,
   'common.home': HomeIcon,
   'common.more': EllipsisHorizontalIcon,
   'common.moreVert': EllipsisVerticalIcon,
@@ -150,8 +146,6 @@ export const icons: Record<string, IconSource> = {
   'common.google': GoogleIcon,
   'chat.temporary.off': TemporaryChatOffIcon,
   'chat.temporary.on': TemporaryChatOnIcon,
-
-  // --- Navigation ---
   'nav.chevronRight': ChevronRightIcon,
   'nav.chevronLeft': ChevronLeftIcon,
   'nav.chevronDown': ChevronDownIcon,
@@ -168,28 +162,20 @@ export const icons: Record<string, IconSource> = {
   'nav.external': ArrowTopRightOnSquareIcon,
   'nav.location': MapPinIcon,
   'nav.unfold': ChevronUpDownIcon,
-
-  // --- Sidebar/App Modules ---
   'sidebar.todo': SquareCheckBigIcon,
   'sidebar.calendar': CalendarIcon,
   'sidebar.stats': ChartPieIcon,
   'sidebar.completed': CheckCircleIcon,
   'sidebar.panel': ViewColumnsIcon,
-  
-  // --- User/Auth ---
   'user.profile': UserIcon,
   'user.logout': ArrowLeftOnRectangleIcon,
   'user.person': UserIcon,
   'user.switch': UsersIcon,
-
-  // --- Theme/Appearance ---
   'theme.light': SunIcon,
   'theme.dark': MoonIcon,
   'theme.system': ComputerDesktopIcon,
   'theme.palette': SwatchIcon,
   'theme.sunny': SunIcon,
-
-  // --- Files & Folders ---
   'file.folder': FolderIcon,
   'file.folderOpen': FolderOpenIcon,
   'file.add': DocumentPlusIcon,
@@ -203,25 +189,19 @@ export const icons: Record<string, IconSource> = {
   'file.public': GlobeAltIcon,
   'file.attach': PaperClipIcon,
   'file.brokenImage': ExclamationCircleIcon,
-
-  // --- Editor/Content ---
   'editor.code': CodeBracketIcon,
   'editor.list': ListBulletIcon,
   'editor.crop': CropIcon,
   'editor.alignLeft': Bars3BottomLeftIcon,
-  'editor.alignCenter': AlignCenterIcon, 
+  'editor.alignCenter': AlignCenterIcon,
   'editor.alignRight': Bars3BottomRightIcon,
   'editor.checkSquare': CheckCircleIcon,
   'editor.keyboard': CommandLineIcon,
   'editor.type': SwatchIcon,
-
-  // --- Media ---
   'media.play': PlayIcon,
   'media.pause': PauseIcon,
   'media.stop': SquareStopIcon,
   'media.mic': MicrophoneIcon,
-
-  // --- Misc/Specific ---
   'misc.clock': ClockIcon,
   'misc.star': StarIcon,
   'misc.heart': HeartIcon,
@@ -229,7 +209,6 @@ export const icons: Record<string, IconSource> = {
   'misc.activity': ActivityIcon,
   'misc.lab': BeakerIcon,
   'misc.box': ArchiveBoxIcon,
-  // --- Legacy / Compatibility ---
   'legacy.addTask': PlusIcon,
   'legacy.unfold': ChevronUpDownIcon,
 };

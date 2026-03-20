@@ -117,9 +117,7 @@ async function parseManagedError(response: Response): Promise<Error> {
     if (message) {
       return new Error(message);
     }
-  } catch {
-    // no-op
-  }
+  } catch {}
 
   return new Error(raw);
 }
@@ -229,9 +227,7 @@ async function requestManagedWebStream(
         if (reasoning || content) {
           onChunk(fullContent);
         }
-      } catch {
-        // no-op
-      }
+      } catch {}
     }
   }
 

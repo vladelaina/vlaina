@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 
-// Shared Mock Logic for Lab
 function MockInput({ className, containerClassName }: any) {
     const [msg, setMsg] = useState('');
     const [loading, setLoading] = useState(false);
@@ -41,7 +40,6 @@ function MockInput({ className, containerClassName }: any) {
                             </button>
                         </div>
                         <div className="flex items-center gap-2">
-                            {/* Mock Model Selector */}
                             <button className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                                 <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-[8px]">M</div>
                                 <span className="text-xs font-medium text-gray-600 dark:text-gray-300">GPT-4</span>
@@ -65,7 +63,6 @@ function MockInput({ className, containerClassName }: any) {
     );
 }
 
-// Variant 1: Premium Glass (Current Production)
 export function PremiumGlass() {
     return (
         <MockInput 
@@ -74,7 +71,6 @@ export function PremiumGlass() {
     );
 }
 
-// Variant 2: Solid Minimalist (Clean, No Border)
 export function SolidMinimalist() {
     return (
         <MockInput 
@@ -83,7 +79,6 @@ export function SolidMinimalist() {
     );
 }
 
-// Variant 3: Neon Border (Cyber)
 export function NeonBorder() {
     return (
         <MockInput 
@@ -92,7 +87,6 @@ export function NeonBorder() {
     );
 }
 
-// Variant 4: Floating Island (Detached)
 export function FloatingIsland() {
     return (
         <div className="flex gap-2 w-full max-w-2xl mx-auto items-end">
@@ -106,7 +100,6 @@ export function FloatingIsland() {
     );
 }
 
-// Variant 5: Ghost Input (Transparent until focus)
 export function GhostInput() {
     return (
         <MockInput 

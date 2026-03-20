@@ -36,7 +36,6 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
             </div>
         </div>
 
-        {/* Health Status Indicator */}
         {health && (
             <div className="flex items-center gap-1.5 mr-2">
                 {health.status === 'loading' && (

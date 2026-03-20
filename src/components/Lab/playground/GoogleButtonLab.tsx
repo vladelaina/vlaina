@@ -147,13 +147,8 @@ export function GoogleButtonLab() {
               </div>
             </div>
 
-            <div className="group relative flex items-center justify-center overflow-hidden rounded-[44px] border border-zinc-200/70 bg-[radial-gradient(circle_at_top,#ffffff, #f7f8fb_58%)] p-6 transition-all dark:border-zinc-800 dark:bg-[radial-gradient(circle_at_top,#141414,#0a0a0a_58%)]">
+            <div className="relative flex items-center justify-center overflow-hidden rounded-[44px] border border-zinc-200/70 bg-[radial-gradient(circle_at_top,#ffffff, #f7f8fb_58%)] p-6 transition-all dark:border-zinc-800 dark:bg-[radial-gradient(circle_at_top,#141414,#0a0a0a_58%)]">
               <ButtonPreview variant={variant} />
-              <div className="absolute inset-x-6 bottom-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                <p className="text-center text-[11px] font-medium italic text-zinc-400">
-                  {variant.note}
-                </p>
-              </div>
             </div>
           </div>
         ))}

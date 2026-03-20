@@ -1,6 +1,3 @@
-// Highlight, Superscript, Subscript plugin
-// Supports: ==highlight==, ^superscript^, ~subscript~
-
 import { $mark, $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { toggleMark } from '@milkdown/kit/prose/commands';
@@ -22,13 +19,11 @@ export const highlightMark = $mark('highlight', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'highlight',
     runner: (state, _mark, node) => {
-      // Use == delimiters for highlight syntax
       state.addNode('text', undefined, `==${node.text || ''}==`);
     }
   }
 }));
 
-// Input rule: ==text== -> highlight
 export const highlightInputRule = $inputRule(() => {
   return new InputRule(
     /(?<!=)==([^=]+)==$/,
@@ -48,7 +43,6 @@ export const highlightInputRule = $inputRule(() => {
   );
 });
 
-// Toggle highlight command
 export const toggleHighlightCommand = $command('toggleHighlight', () => () => {
   return (state, dispatch) => {
     const markType = state.schema.marks.highlight;
@@ -72,13 +66,11 @@ export const superscriptMark = $mark('superscript', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'superscript',
     runner: (state, _mark, node) => {
-      // Use HTML <sup> tag for superscript
       state.addNode('html', undefined, `<sup>${node.text || ''}</sup>`);
     }
   }
 }));
 
-// Input rule: ^text^ -> superscript (not followed by another ^)
 export const superscriptInputRule = $inputRule(() => {
   return new InputRule(
     /(?<!\^)\^([^^]+)\^$/,
@@ -98,7 +90,6 @@ export const superscriptInputRule = $inputRule(() => {
   );
 });
 
-// Toggle superscript command
 export const toggleSuperscriptCommand = $command('toggleSuperscript', () => () => {
   return (state, dispatch) => {
     const markType = state.schema.marks.superscript;
@@ -122,13 +113,11 @@ export const subscriptMark = $mark('subscript', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'subscript',
     runner: (state, _mark, node) => {
-      // Use HTML <sub> tag for subscript
       state.addNode('html', undefined, `<sub>${node.text || ''}</sub>`);
     }
   }
 }));
 
-// Input rule: ~text~ -> subscript (single tilde, not preceded by ~)
 export const subscriptInputRule = $inputRule(() => {
   return new InputRule(
     /(?<!~)~([^~\s][^~]*[^~\s]|[^~\s])~(?!~)$/,
@@ -148,7 +137,6 @@ export const subscriptInputRule = $inputRule(() => {
   );
 });
 
-// Toggle subscript command
 export const toggleSubscriptCommand = $command('toggleSubscript', () => () => {
   return (state, dispatch) => {
     const markType = state.schema.marks.subscript;
@@ -157,7 +145,6 @@ export const toggleSubscriptCommand = $command('toggleSubscript', () => () => {
   };
 });
 
-// Combined highlight plugin
 export const highlightPlugin = [
   highlightMark,
   highlightInputRule,

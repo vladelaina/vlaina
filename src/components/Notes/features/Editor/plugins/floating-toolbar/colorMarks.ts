@@ -1,6 +1,3 @@
-// Color Marks for Floating Toolbar
-// Defines textColor and bgColor marks for the editor schema
-
 import { $mark, $remark, $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 
@@ -46,7 +43,6 @@ export const textColorMark = $mark('textColor', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'textColor',
     runner: (state, mark, node) => {
-      // Text color is not standard markdown, use HTML span
       const color = mark.attrs.color as string;
       state.addNode('html', undefined, `<span style="color: ${color}">${node.text || ''}</span>`);
     },
@@ -104,7 +100,6 @@ export const bgColorMark = $mark('bgColor', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'bgColor',
     runner: (state, mark, node) => {
-      // Background color is not standard markdown, use HTML mark
       const color = mark.attrs.color as string;
       state.addNode('html', undefined, `<mark style="background-color: ${color}">${node.text || ''}</mark>`);
     },
@@ -130,7 +125,6 @@ export const underlineMark = $mark('underline', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'underline',
     runner: (state, _mark, node) => {
-      // Use ++text++ syntax for underline (similar to ==highlight==)
       state.addNode('text', undefined, `++${node.text || ''}++`);
     },
   },
@@ -142,11 +136,11 @@ export const underlineInputRule = $inputRule(() => {
     (state, match, start, end) => {
       const text = match[1];
       if (!text) return null;
-      
+
       const { tr, schema } = state;
       const markType = schema.marks.underline;
       if (!markType) return null;
-      
+
       return tr
         .delete(start, end)
         .insertText(text)
@@ -170,15 +164,15 @@ function remarkUnderline() {
         visitNode(node.children[i], node, i);
       }
     }
-    
+
     if (node.type !== 'text' || !node.value || !parent || index === undefined) return;
-    
+
     const value = node.value;
     const matches: Array<{ start: number; end: number; content: string }> = [];
     let match;
-    
+
     UNDERLINE_REGEX.lastIndex = 0;
-    
+
     while ((match = UNDERLINE_REGEX.exec(value)) !== null) {
       matches.push({
         start: match.index,
@@ -186,12 +180,12 @@ function remarkUnderline() {
         content: match[1],
       });
     }
-    
+
     if (matches.length === 0) return;
-    
+
     const newNodes: MdastNode[] = [];
     let lastEnd = 0;
-    
+
     for (const m of matches) {
       if (m.start > lastEnd) {
         newNodes.push({ type: 'text', value: value.slice(lastEnd, m.start) });
@@ -202,16 +196,16 @@ function remarkUnderline() {
       });
       lastEnd = m.end;
     }
-    
+
     if (lastEnd < value.length) {
       newNodes.push({ type: 'text', value: value.slice(lastEnd) });
     }
-    
+
     if (parent.children) {
       parent.children.splice(index, 1, ...newNodes);
     }
   }
-  
+
   return (tree: any) => {
     visitNode(tree);
   };

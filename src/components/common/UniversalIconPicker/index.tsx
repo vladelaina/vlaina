@@ -22,29 +22,17 @@ export interface UniversalIconPickerProps {
   onClose: () => void;
   hasIcon?: boolean;
   currentIcon?: string;
-  
-  // Icon Resizing
   currentSize?: number;
   minSize?: number;
   maxSize?: number;
   onSizeChange?: (size: number) => void;
   onSizeConfirm?: (size: number) => void;
-  
-  // Custom Icons / Upload Support
   customIcons?: CustomIcon[];
   onUploadFile?: (file: File) => Promise<{ success: boolean; url?: string; error?: string }>;
   onDeleteCustomIcon?: (id: string) => void;
-  
-  // Callbacks for global preferences (optional)
   onSkinToneChange?: (tone: number) => void;
-  
-  // Preview State Notifications (optional)
   onPreviewSkinTone?: (tone: number | null) => void;
-
-  // Style overrides
   embedded?: boolean;
-  
-  // Image Loading
   imageLoader?: (src: string) => Promise<string>;
 }
 
@@ -78,10 +66,7 @@ export function UniversalIconPicker({
   const [recentIcons, setRecentIcons] = useState<string[]>(loadRecentIcons);
   const [skinTone, setSkinTone] = useState(loadSkinTone);
 
-  // Track active categories for random selection within current group
   const [activeEmojiCategory, setActiveEmojiCategory] = useState<string>('people');
-
-  // Track the last randomly selected icon (to add to recent on close)
   const lastRandomIconRef = useRef<string | null>(null);
 
   const recentEmojis = useMemo(() =>
@@ -94,7 +79,6 @@ export function UniversalIconPicker({
     saveActiveTab(tab);
   }, []);
 
-  // Use ref to store latest recentIcons to avoid callback dependency changes
   const recentIconsRef = useRef(recentIcons);
   recentIconsRef.current = recentIcons;
   onCloseRef.current = onClose;
@@ -110,17 +94,14 @@ export function UniversalIconPicker({
   
   const handleSkinToneChangeInternal = useCallback((tone: number) => {
     setSkinTone(tone);
-    // saveSkinTone is handled in EmojiTab, but we update local state
     onSkinToneChange?.(tone);
   }, [onSkinToneChange]);
 
   const handleUploadSelect = useCallback((assetUrl: string) => {
     lastRandomIconRef.current = null;
-    // Add custom image to recents as well
     const updated = addToRecentIcons(assetUrl, recentIconsRef.current);
     setRecentIcons(updated);
     onSelect(assetUrl);
-    // UploadTab handles closing itself usually, but we ensure consistency
     onCloseRef.current();
   }, [onSelect]);
 
@@ -130,7 +111,6 @@ export function UniversalIconPicker({
     onCloseRef.current();
   }, [onRemove]);
 
-  // Add random icon to recent when closing (if user kept it)
   const handleClose = useCallback(() => {
     if (lastRandomIconRef.current) {
       const updated = addToRecentIcons(lastRandomIconRef.current, recentIconsRef.current);
@@ -140,7 +120,6 @@ export function UniversalIconPicker({
     onCloseRef.current();
   }, []);
 
-  // Random selection within current category only
   const handleRandom = useCallback(() => {
     if (activeTab === 'emoji') {
       const currentCategory = EMOJI_CATEGORIES.find(c => c.id === activeEmojiCategory);
@@ -160,16 +139,11 @@ export function UniversalIconPicker({
   }, [activeTab, activeEmojiCategory, onSelect, customIcons]);
 
   useEffect(() => {
-    // If embedded, let the parent container (e.g. Popover) handle closing
     if (embedded) return;
 
     const onClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Don't close if interacting with elements marked to prevent closing (e.g. external slider)
       if (target.closest('[data-prevent-picker-close]')) return;
-
-      // Don't close if interacting with the cropper or sliders (which might portal or just look outside)
-      // But standard logic usually applies.
       if (containerRef.current && !containerRef.current.contains(target as Node)) {
         onPreviewRef.current?.(null);
         handleClose();
@@ -211,7 +185,6 @@ export function UniversalIconPicker({
         !embedded && "absolute z-50",
       )}
     >
-      {/* Block 1: The Detached Slider "Island" - Extreme Minimalist (No Bg, No Border) */}
       {onSizeChange && currentSize !== undefined && (
         <div
           className="flex items-center px-4 py-1"
@@ -222,9 +195,6 @@ export function UniversalIconPicker({
             max={maxSize}
             value={currentSize}
             onChange={(newVal: number) => {
-              // DIRECT UPDATE: Do NOT set local state here.
-              // We trust PremiumSlider to update its own visual thumb.
-              // We only push the side effect (CSS update) to the parent Ref.
               onSizeChange(newVal);
             }}
             onConfirm={onSizeConfirm}
@@ -232,7 +202,6 @@ export function UniversalIconPicker({
         </div>
       )}
 
-      {/* Block 2: The Main Content Window */}
       <div className={cn(
         "flex flex-col bg-[var(--neko-bg-primary)] overflow-hidden",
         !embedded && "rounded-xl border border-[var(--neko-border)] shadow-xl"

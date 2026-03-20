@@ -27,7 +27,6 @@ export function CollapsibleSection({
 
     return (
         <div className={className}>
-            {/* Header */}
             <div className="px-2 py-1 mb-0.5">
                 <div
                     onClick={handleHeaderClick}
@@ -47,7 +46,6 @@ export function CollapsibleSection({
                 </div>
             </div>
 
-            {/* Collapsible content */}
             <div
                 className={cn(
                     "grid transition-[grid-template-rows] duration-200 ease-out",

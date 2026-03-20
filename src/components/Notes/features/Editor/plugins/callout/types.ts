@@ -1,5 +1,3 @@
-// Callout plugin types
-
 export interface IconData {
   type: 'emoji' | 'icon';
   value: string;

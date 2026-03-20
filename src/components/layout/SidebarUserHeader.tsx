@@ -85,7 +85,6 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                 </Tooltip>
             )}
 
-            {/* Create New button */}
             <Tooltip delayDuration={1000}>
                 <TooltipTrigger asChild>
                     <button
@@ -104,7 +103,6 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                 </TooltipContent>
             </Tooltip>
 
-            {/* Search button */}
             <Tooltip delayDuration={1000}>
                 <TooltipTrigger asChild>
                     <button

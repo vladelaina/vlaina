@@ -1,4 +1,3 @@
-// Drag handle plugin for block reordering
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import type { DragHandleState } from './types';
@@ -6,12 +5,11 @@ import type { DragHandleState } from './types';
 export const dragPluginKey = new PluginKey<DragHandleState>('dragHandle');
 
 export const dragPlugin = $prose(() => {
-  // Throttle state for mousemove - avoid excessive dispatches
   let lastUpdateTime = 0;
   let pendingUpdate: { visible: boolean; position?: { x: number; y: number }; nodePos?: number } | null = null;
   let rafId: number | null = null;
   
-  const THROTTLE_MS = 16; // ~60fps
+  const THROTTLE_MS = 16;
   
   return new Plugin({
     key: dragPluginKey,
@@ -33,8 +31,7 @@ export const dragPlugin = $prose(() => {
       handleDOMEvents: {
         mousemove(view, event) {
           const now = performance.now();
-          
-          // Calculate new state without dispatching
+
           const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
           if (!pos) {
             pendingUpdate = { visible: false };
@@ -61,8 +58,7 @@ export const dragPlugin = $prose(() => {
               }
             }
           }
-          
-          // Throttle dispatches using RAF
+
           if (now - lastUpdateTime >= THROTTLE_MS && pendingUpdate) {
             if (rafId !== null) {
               cancelAnimationFrame(rafId);

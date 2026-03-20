@@ -78,10 +78,8 @@ export function useCodeBlockState({ node, view, getPos }: UseCodeBlockStateProps
     const handleShare = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        // Placeholder
     }, []);
 
-    // Keep DOM state in sync for styles/behavior tied to collapsed mode.
     useEffect(() => {
         const container = headerRef.current?.parentElement?.parentElement;
         if (container) {

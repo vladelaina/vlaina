@@ -39,7 +39,6 @@ export function HoverPeekOverlay({
 
     return (
         <>
-            {/* Trigger Zone */}
             <div
                 className="fixed top-0 left-0 bottom-0 z-[40]"
                 style={{ width: triggerWidth }}
@@ -58,7 +57,6 @@ export function HoverPeekOverlay({
                 }}
             />
 
-            {/* Floating Content */}
             <AnimatePresence>
                 {isPeeking && (
                     <motion.aside

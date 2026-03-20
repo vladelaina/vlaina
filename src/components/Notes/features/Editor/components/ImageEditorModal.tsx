@@ -34,18 +34,14 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
         try {
             setIsSaving(true);
 
-            // 1. Get cropped blob
             const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
             if (!croppedBlob) throw new Error('Failed to crop image');
 
-            // 2. Generate new file
-            // Use existing filename/type if possible or default to png
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T');
             const fileName = `edited_image_${timestamp[0]}_${timestamp[1].split('Z')[0]}.png`;
 
             const fileToUpload = new File([croppedBlob], fileName, { type: 'image/png' });
 
-            // 3. Upload Asset
             const result = await uploadAsset(fileToUpload, 'covers', currentNote?.path);
 
             if (result.success && result.path) {
@@ -71,13 +67,12 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
                 </DialogHeader>
 
                 <div className="p-0">
-                    {/* Cropper Area */}
                     <div className="relative h-[400px] w-full bg-black/5">
                         <Cropper
                             image={imageSrc}
                             crop={crop}
                             zoom={zoom}
-                            aspect={undefined} // Free aspect ratio
+                            aspect={undefined}
                             onCropChange={setCrop}
                             onCropComplete={onCropComplete}
                             onZoomChange={setZoom}
@@ -86,11 +81,10 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
                             zoomSpeed={0.5}
                             minZoom={1}
                             maxZoom={5}
-                            restrictPosition={false} // Allow moving image freely
+                            restrictPosition={false}
                         />
                     </div>
 
-                    {/* Controls */}
                     <div className="p-4 space-y-4">
                         <div className="flex items-center gap-4">
                             <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--neko-text-tertiary)] w-10">Zoom</span>

@@ -26,11 +26,9 @@ export async function renameNoteImpl(
     const newFullPath = await joinPath(notesPath, newPath);
     await storage.rename(fullPath, newFullPath);
 
-    // 1. Display Names
     moveDisplayName(set, path, newPath);
     updateDisplayName(set, newPath, nextDisplayName);
 
-    // 2. Starred
     const { starredEntries, noteMetadata, openTabs, rootFolder, currentNote } = currentStore;
     const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath, kind) => {
         if (kind !== 'note') return relativePath;
@@ -41,7 +39,6 @@ export async function renameNoteImpl(
         void saveStarredRegistry(starredResult.entries);
     }
 
-    // 3. Metadata
     let updatedMetadata = noteMetadata;
     if (noteMetadata?.notes[path]) {
         const entry = noteMetadata.notes[path];
@@ -53,17 +50,14 @@ export async function renameNoteImpl(
         saveNoteMetadata(notesPath, updatedMetadata);
     }
 
-    // 4. Tabs
     const updatedTabs = openTabs.map((tab: any) =>
         tab.path === path ? { ...tab, path: newPath, name: nextDisplayName } : tab
     );
 
-    // 5. Tree
     const updatedChildren = rootFolder 
         ? updateFileNodePath(rootFolder.children, path, newPath, nextDisplayName) 
         : [];
 
-    // 6. Current Note
     let nextCurrentNote = currentNote;
     if (currentNote?.path === path) {
         nextCurrentNote = { ...currentNote, path: newPath };
@@ -132,13 +126,11 @@ export async function moveItemImpl(
         void saveStarredRegistry(starredResult.entries);
     }
 
-    // 2. Tabs
     const updatedTabs = openTabs.map((tab: any) => {
         const nextPath = remapPath(tab.path);
         return nextPath === tab.path ? tab : { ...tab, path: nextPath };
     });
 
-    // 3. Current Note
     let nextCurrentNote = currentNote;
     if (currentNote?.path) {
         const nextPath = remapPath(currentNote.path);
@@ -147,7 +139,6 @@ export async function moveItemImpl(
         }
     }
 
-    // 4. Tree
     let newChildren = rootFolder ? rootFolder.children : [];
     if (rootFolder) {
         const nodeToMove = findNode(rootFolder.children, normalizedSourcePath);

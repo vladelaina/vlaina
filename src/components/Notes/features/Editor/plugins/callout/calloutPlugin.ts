@@ -1,4 +1,3 @@
-// Callout plugin for highlighted note blocks
 import { $node, $nodeAttr } from '@milkdown/kit/utils';
 import type { CalloutBlockAttrs, IconData } from './types';
 import { DEFAULT_CALLOUT_ICON } from './types';
@@ -7,7 +6,6 @@ import {
   isTextAlignment,
 } from '../floating-toolbar/blockAlignmentMarkdown';
 
-// Callout block attributes
 export const calloutIdAttr = $nodeAttr('callout', () => ({
   icon: {
     default: DEFAULT_CALLOUT_ICON,
@@ -27,7 +25,6 @@ export const calloutIdAttr = $nodeAttr('callout', () => ({
   }
 }));
 
-// Callout block schema
 export const calloutSchema = $node('callout', () => ({
   content: 'block+',
   group: 'block',
@@ -43,9 +40,7 @@ export const calloutSchema = $node('callout', () => ({
       let icon: IconData = DEFAULT_CALLOUT_ICON;
       try {
         icon = JSON.parse(el.dataset.icon || '{}');
-      } catch {
-        // Use default
-      }
+      } catch {}
       return {
         icon,
         backgroundColor: el.dataset.bg || 'yellow'
@@ -68,14 +63,12 @@ export const calloutSchema = $node('callout', () => ({
   },
   parseMarkdown: {
     match: (node) => {
-      // Match blockquote that starts with an emoji
       if (node.type !== 'blockquote') return false;
       const children = node.children as Array<{ type: string; children?: Array<{ type: string; value?: string }> }> | undefined;
       const firstChild = children?.[0];
       if (!firstChild || firstChild.type !== 'paragraph') return false;
       const text = firstChild.children?.[0];
       if (!text || text.type !== 'text') return false;
-      // Check if starts with emoji pattern
       const emojiRegex = /^[\p{Emoji}]/u;
       return emojiRegex.test(text.value || '');
     },
@@ -121,7 +114,6 @@ export const calloutSchema = $node('callout', () => ({
   }
 }));
 
-// Combined callout plugin
 export const calloutPlugin = [
   calloutIdAttr,
   calloutSchema

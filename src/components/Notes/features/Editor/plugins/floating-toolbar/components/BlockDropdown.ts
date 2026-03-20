@@ -1,4 +1,3 @@
-// Block Type Dropdown Component
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, FloatingToolbarState } from '../types';
 import { BLOCK_TYPES } from '../utils';
@@ -8,7 +7,6 @@ import { ICON_SIZES } from '@/components/ui/icons/sizes';
 
 const DROPDOWN_ICON_SIZE = ICON_SIZES.md;
 
-// Block type icons as SVG strings
 const BLOCK_ICONS: Record<string, string> = {
   text: `<svg width="${DROPDOWN_ICON_SIZE}" height="${DROPDOWN_ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <path d="M4 7V4h16v3M9 20h6M12 4v16"/>
@@ -81,8 +79,7 @@ export function renderBlockDropdown(
   
   dropdown.innerHTML = html;
   container.appendChild(dropdown);
-  
-  // Add event listeners
+
   dropdown.querySelectorAll('[data-block-type]').forEach((btn) => {
     btn.addEventListener('mousedown', (e) => {
       e.preventDefault();

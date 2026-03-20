@@ -1,5 +1,3 @@
-// Video plugin types
-
 export interface VideoAttrs {
   src: string;
   title?: string;

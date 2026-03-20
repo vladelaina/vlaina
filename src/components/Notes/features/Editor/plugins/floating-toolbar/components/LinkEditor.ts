@@ -1,4 +1,3 @@
-// Link Editor Component
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FloatingToolbarState } from '../types';
 import { setLink } from '../commands';
@@ -42,16 +41,13 @@ export function renderLinkEditor(
   
   const input = editor.querySelector('.link-editor-input') as HTMLInputElement;
   const errorEl = editor.querySelector('.link-editor-error') as HTMLElement;
-  
-  // Focus input
+
   setTimeout(() => input.focus(), 0);
-  
-  // Handle input changes - clear error on input
+
   input.addEventListener('input', () => {
     errorEl.style.display = 'none';
   });
-  
-  // Handle keyboard
+
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -61,8 +57,7 @@ export function renderLinkEditor(
       onClose();
     }
   });
-  
-  // Handle button clicks
+
   editor.querySelectorAll('[data-action]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -82,13 +77,11 @@ export function renderLinkEditor(
     const value = input.value.trim();
     
     if (!value) {
-      // Empty value removes link
       setLink(view, null);
       onClose();
       return;
     }
-    
-    // Validate URL
+
     if (!isValidUrl(value)) {
       errorEl.textContent = 'Please enter a valid URL';
       errorEl.style.display = 'block';

@@ -15,13 +15,10 @@ export async function deleteNoteImpl(
 
     const { openTabs, starredEntries, currentNote, rootFolder } = currentStore;
 
-    // 1. Tabs
     const updatedTabs = openTabs.filter((t: any) => t.path !== path);
     
-    // 2. Display Name
     removeDisplayName(set, path);
 
-    // 3. Starred
     const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath, kind) => {
         if (kind !== 'note') return relativePath;
         return relativePath === path ? null : relativePath;
@@ -31,7 +28,6 @@ export async function deleteNoteImpl(
         void saveStarredRegistry(starredResult.entries);
     }
 
-    // 4. Current Note & Navigation
     let nextCurrentNote = currentNote;
     let nextAction = null;
 
@@ -44,7 +40,6 @@ export async function deleteNoteImpl(
         }
     }
 
-    // 5. Tree
     const newChildren = rootFolder ? removeNodeFromTree(rootFolder.children, path) : [];
 
     return {
@@ -82,25 +77,21 @@ export async function deleteFolderImpl(
         void saveStarredRegistry(starredResult.entries);
     }
 
-    // 2. Tabs
     const updatedTabs = openTabs.filter((tab: any) => !tab.path.startsWith(path + '/') && tab.path !== path);
 
-    // 3. Current Note
     let updatedCurrentNote = currentNote;
     if (currentNote && (currentNote.path === path || currentNote.path.startsWith(path + '/'))) {
         if (updatedTabs.length > 0) {
             const lastTab = updatedTabs[updatedTabs.length - 1];
             openNoteCallback(lastTab.path);
-            updatedCurrentNote = null; // Callback handles navigation
+            updatedCurrentNote = null;
         } else {
             updatedCurrentNote = null;
         }
     }
 
-    // 4. Display Names
     removeDisplayName(set, path);
 
-    // 5. Tree
     const newChildren = rootFolder ? removeNodeFromTree(rootFolder.children, path) : [];
 
     return {

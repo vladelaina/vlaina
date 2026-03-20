@@ -1,4 +1,3 @@
-// Drag plugin types
 import type { Node } from '@milkdown/kit/prose/model';
 
 export interface DragState {

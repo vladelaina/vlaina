@@ -1,4 +1,3 @@
-// Code plugin for syntax highlighting
 import { $node, $nodeAttr, $prose } from '@milkdown/kit/utils';
 import { Plugin } from '@milkdown/kit/prose/state';
 import { Node, DOMOutputSpec } from '@milkdown/kit/prose/model';
@@ -15,7 +14,6 @@ function parseCodeLanguageFromClassName(className: string): string | null {
   return match ? match[1] : null;
 }
 
-// Code block attributes
 export const codeBlockIdAttr = $nodeAttr('code_block', () => ({
   language: {
     default: null as string | null,
@@ -39,7 +37,6 @@ export const codeBlockIdAttr = $nodeAttr('code_block', () => ({
   }
 }));
 
-// Code block schema
 export const codeBlockSchema = $node('code_block', () => ({
   content: 'text*',
   group: 'block',
@@ -105,7 +102,6 @@ export const codeBlockSchema = $node('code_block', () => ({
   }
 }));
 
-// Plugin to attach the custom NodeView
 export const codeBlockNodeViewPlugin = $prose(() => {
   return new Plugin({
     props: {
@@ -145,7 +141,6 @@ export const collapsedCodeBlockSelectionGuardPlugin = $prose(() => {
   });
 });
 
-// Combined code plugin
 export const codePlugin = [
   codeBlockIdAttr,
   codeBlockSchema,

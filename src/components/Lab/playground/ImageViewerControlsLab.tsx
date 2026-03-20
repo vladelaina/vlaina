@@ -23,7 +23,6 @@ type ExplorationLayoutId =
 type MaterialDefinition = {
   id: MaterialId;
   name: string;
-  note: string;
   frameClassName: string;
   viewerClassName: string;
   toolbarClassName: string;
@@ -42,20 +41,17 @@ type PinnedVariant = {
   layout: PinnedLayoutId;
   material: MaterialDefinition;
   name: string;
-  note: string;
 };
 
 type ExplorationLayoutDefinition = {
   id: ExplorationLayoutId;
   name: string;
-  note: string;
 };
 
 const MATERIALS: Record<MaterialId, MaterialDefinition> = {
   crystal: {
     id: 'crystal',
     name: 'Crystal',
-    note: 'Bright glass with a premium floating feel.',
     frameClassName: 'border border-sky-100 bg-[linear-gradient(180deg,#f7fbff_0%,#ebf3fb_100%)]',
     viewerClassName: 'bg-white/36',
     toolbarClassName: 'border border-white/75 bg-white/68 backdrop-blur-2xl shadow-[0_20px_60px_rgba(84,121,160,0.18)]',
@@ -71,7 +67,6 @@ const MATERIALS: Record<MaterialId, MaterialDefinition> = {
   linen: {
     id: 'linen',
     name: 'Linen',
-    note: 'Soft editorial white with minimal ornament.',
     frameClassName: 'border border-zinc-200 bg-[linear-gradient(180deg,#fbfbfa_0%,#f0f0ed_100%)]',
     viewerClassName: 'bg-white/24',
     toolbarClassName: 'border border-zinc-200 bg-[#fcfcfb]/92 shadow-[0_14px_40px_rgba(39,39,42,0.10)]',
@@ -87,7 +82,6 @@ const MATERIALS: Record<MaterialId, MaterialDefinition> = {
   porcelain: {
     id: 'porcelain',
     name: 'Porcelain',
-    note: 'Warm light surface with a calmer tactile quality.',
     frameClassName: 'border border-stone-200 bg-[linear-gradient(180deg,#faf8f4_0%,#eee8df_100%)]',
     viewerClassName: 'bg-white/28',
     toolbarClassName: 'border border-stone-200/75 bg-[#fffdfa]/86 backdrop-blur-xl shadow-[0_18px_48px_rgba(91,72,47,0.14)]',
@@ -103,7 +97,6 @@ const MATERIALS: Record<MaterialId, MaterialDefinition> = {
   halo: {
     id: 'halo',
     name: 'Halo',
-    note: 'Very light diffusion around controls, softer than pure glass.',
     frameClassName: 'border border-blue-100 bg-[linear-gradient(180deg,#f9fcff_0%,#edf4f8_100%)]',
     viewerClassName: 'bg-white/18',
     toolbarClassName: 'border border-white/75 bg-white/58 backdrop-blur-3xl shadow-[0_24px_64px_rgba(114,145,172,0.16)]',
@@ -119,7 +112,6 @@ const MATERIALS: Record<MaterialId, MaterialDefinition> = {
   silk: {
     id: 'silk',
     name: 'Silk',
-    note: 'A polished light finish with slightly stronger edge definition.',
     frameClassName: 'border border-slate-200 bg-[linear-gradient(180deg,#f5f8fb_0%,#e6ebf1_100%)]',
     viewerClassName: 'bg-white/22',
     toolbarClassName: 'border border-slate-200/90 bg-[#f7f9fc]/88 backdrop-blur-xl shadow-[0_18px_48px_rgba(71,85,105,0.14)]',
@@ -135,7 +127,6 @@ const MATERIALS: Record<MaterialId, MaterialDefinition> = {
   opal: {
     id: 'opal',
     name: 'Opal',
-    note: 'Low-contrast lightness with more dissolved chip boundaries.',
     frameClassName: 'border border-zinc-200 bg-[linear-gradient(180deg,#fcfcfd_0%,#eef2f6_100%)]',
     viewerClassName: 'bg-white/22',
     toolbarClassName: 'border border-white/70 bg-white/66 backdrop-blur-2xl shadow-[0_20px_52px_rgba(94,109,132,0.14)]',
@@ -151,7 +142,6 @@ const MATERIALS: Record<MaterialId, MaterialDefinition> = {
   aero: {
     id: 'aero',
     name: 'Aero',
-    note: 'The cleanest and most technical of the bright directions.',
     frameClassName: 'border border-zinc-200 bg-[linear-gradient(180deg,#f7f7f8_0%,#eceef1_100%)]',
     viewerClassName: 'bg-white/20',
     toolbarClassName: 'border border-zinc-200 bg-[#f9fafb]/92 shadow-[0_16px_44px_rgba(31,41,55,0.10)]',
@@ -172,21 +162,18 @@ const PINNED_VARIANTS: PinnedVariant[] = [
     layout: 'shelf',
     material: MATERIALS.crystal,
     name: 'Precision Shelf / Crystal',
-    note: 'Good structure, good clarity, and a premium light material.',
   },
   {
     id: 1,
     layout: 'dock',
     material: MATERIALS.crystal,
     name: 'Floating Dock / Crystal',
-    note: 'The cleanest “single object” interpretation among the first round.',
   },
   {
     id: 3,
     layout: 'dock',
     material: MATERIALS.linen,
     name: 'Floating Dock / Linen',
-    note: 'The softest white version, closer to a quieter product surface.',
   },
 ];
 
@@ -194,32 +181,26 @@ const EXPLORATION_LAYOUTS: ExplorationLayoutDefinition[] = [
   {
     id: 'core',
     name: 'Center Core',
-    note: 'Starts from the selected dock idea, but gives the zoom state stronger visual priority.',
   },
   {
     id: 'segmented',
     name: 'Segmented Shelf',
-    note: 'Refines the selected shelf idea into clearer functional segments.',
   },
   {
     id: 'statusPod',
     name: 'Status Pod',
-    note: 'Puts zoom and size into a single center pod, actions become secondary.',
   },
   {
     id: 'toolShelf',
     name: 'Tool Shelf',
-    note: 'Optimizes for repeated use, reading like a precise utility instrument.',
   },
   {
     id: 'dualBand',
     name: 'Dual Band',
-    note: 'Separates image state from actions to reduce visual noise.',
   },
   {
     id: 'offsetCluster',
     name: 'Offset Cluster',
-    note: 'More fluid grouping that does not force perfect symmetry.',
   },
 ];
 
@@ -485,13 +466,11 @@ function ExplorationPreview({
 function VariantCard({
   eyebrow,
   title,
-  note,
   badge,
   preview,
 }: {
   eyebrow: string;
   title: string;
-  note: string;
   badge: string;
   preview: ReactNode;
 }) {
@@ -501,7 +480,6 @@ function VariantCard({
         <div className="min-w-0">
           <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-400">{eyebrow}</div>
           <h3 className="mt-1 text-[17px] font-semibold tracking-[-0.02em] text-neutral-900">{title}</h3>
-          <p className="mt-2 text-[13px] leading-5 text-neutral-500">{note}</p>
         </div>
         <div className="rounded-full bg-neutral-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
           {badge}
@@ -563,7 +541,6 @@ export function ImageViewerControlsLab() {
               key={`pinned-${variant.id}`}
               eyebrow={`Pinned ${variant.id}`}
               title={variant.name}
-              note={variant.note}
               badge="Keep"
               preview={
                 <PreviewCanvas material={variant.material}>
@@ -594,7 +571,6 @@ export function ImageViewerControlsLab() {
               key={`exploration-${variant.id}`}
               eyebrow={`New ${variant.id}`}
               title={`${variant.layout.name} / ${variant.material.name}`}
-              note={`${variant.layout.note} ${variant.material.note}`}
               badge="Explore"
               preview={
                 <PreviewCanvas material={variant.material}>

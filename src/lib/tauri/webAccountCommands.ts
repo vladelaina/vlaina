@@ -1,4 +1,4 @@
-import type { AccountProvider } from '@/stores/accountSession/state';
+import type { AccountProvider, MembershipTier } from '@/stores/accountSession/state';
 import { normalizeAccountProvider } from '@/lib/account/provider';
 import {
   clearWebAccountCredentials,
@@ -29,6 +29,8 @@ interface SessionStatusResponse {
   username?: string | null;
   primaryEmail?: string | null;
   avatarUrl?: string | null;
+  membershipTier?: MembershipTier | null;
+  membershipName?: string | null;
 }
 
 function authStartPath(provider: Exclude<AccountProvider, 'email'>): string {
@@ -45,6 +47,8 @@ interface NormalizedWebAccountResult {
   username?: string;
   primaryEmail: string | null;
   avatarUrl: string | null;
+  membershipTier: MembershipTier | null;
+  membershipName: string | null;
   error?: string;
 }
 
@@ -58,6 +62,8 @@ function normalizeWebAuthResult(
     username: data.username,
     primaryEmail: data.primaryEmail || null,
     avatarUrl: data.avatarUrl || null,
+    membershipTier: null,
+    membershipName: null,
     error: data.error,
   };
 }
@@ -72,6 +78,8 @@ function persistConnectedWebAccount(result: NormalizedWebAccountResult): void {
     username: result.username,
     primaryEmail: result.primaryEmail,
     avatarUrl: result.avatarUrl,
+    membershipTier: result.membershipTier,
+    membershipName: result.membershipName,
   });
 }
 
@@ -93,6 +101,8 @@ async function probeWebSession(): Promise<WebAccountStatus> {
       username: null,
       primaryEmail: null,
       avatarUrl: null,
+      membershipTier: null,
+      membershipName: null,
     };
   }
 
@@ -107,6 +117,11 @@ async function probeWebSession(): Promise<WebAccountStatus> {
     username: typeof data.username === 'string' ? data.username : null,
     primaryEmail: typeof data.primaryEmail === 'string' ? data.primaryEmail : null,
     avatarUrl: typeof data.avatarUrl === 'string' ? data.avatarUrl : null,
+    membershipTier:
+      data.membershipTier === 'free' || data.membershipTier === 'plus' || data.membershipTier === 'pro' || data.membershipTier === 'max'
+        ? data.membershipTier
+        : null,
+    membershipName: typeof data.membershipName === 'string' ? data.membershipName : null,
   };
 }
 
@@ -135,7 +150,6 @@ async function readJsonErrorMessage(response: Response, fallback: string): Promi
       return payload.error;
     }
   } catch {
-    // no-op
   }
   return fallback;
 }
@@ -169,6 +183,8 @@ export const webAccountCommands = {
     username?: string;
     primaryEmail?: string | null;
     avatarUrl?: string | null;
+    membershipTier?: MembershipTier | null;
+    membershipName?: string | null;
     error?: string;
   }> {
     try {
@@ -221,6 +237,8 @@ export const webAccountCommands = {
     username?: string;
     primaryEmail?: string | null;
     avatarUrl?: string | null;
+    membershipTier?: MembershipTier | null;
+    membershipName?: string | null;
     error?: string;
   }> {
     try {
@@ -258,6 +276,8 @@ export const webAccountCommands = {
           username: status.username || cached.username,
           primaryEmail: status.primaryEmail || cached.primaryEmail,
           avatarUrl: status.avatarUrl || cached.avatarUrl,
+          membershipTier: status.membershipTier || cached.membershipTier,
+          membershipName: status.membershipName || cached.membershipName,
         };
       }
       return status;

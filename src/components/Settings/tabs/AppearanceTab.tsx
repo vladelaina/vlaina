@@ -28,7 +28,6 @@ export function AppearanceTab() {
 
   return (
     <div className="max-w-3xl pb-10">
-      {/* Theme Section */}
       <SettingsSectionHeader>Theme</SettingsSectionHeader>
 
       <SettingsItem
@@ -48,7 +47,6 @@ export function AppearanceTab() {
         </div>
       </SettingsItem>
 
-      {/* Editor Section */}
       <SettingsSectionHeader>Editor</SettingsSectionHeader>
 
       <SettingsItem

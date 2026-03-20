@@ -1,4 +1,3 @@
-// Enhanced table plugin
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import { Selection } from '@milkdown/kit/prose/state';
@@ -76,7 +75,6 @@ function runTableMenuAction(
   return command(view.state, view.dispatch);
 }
 
-// Table enhancement plugin for better interactions
 export const tablePlugin = $prose(() => {
   return new Plugin({
     key: tablePluginKey,
@@ -170,8 +168,7 @@ export const tablePlugin = $prose(() => {
             }
           }
         }
-        
-        // Check if we're in a table cell
+
         let depth = $from.depth;
         let inTable = false;
         while (depth > 0) {
@@ -182,58 +179,54 @@ export const tablePlugin = $prose(() => {
           }
           depth--;
         }
-        
+
         if (!inTable) return false;
-        
-        // Tab navigation in tables
+
         if (event.key === 'Tab') {
           event.preventDefault();
-          
+
           const { doc } = state;
           const cellPos = $from.before(depth);
           const cell = doc.nodeAt(cellPos);
-          
+
           if (!cell) return false;
-          
-          // Find next/prev cell
+
           const tableStart = $from.start(depth - 2);
           const table = doc.nodeAt(tableStart - 1);
-          
+
           if (!table) return false;
-          
+
           let targetPos: number | null = null;
           const cells: number[] = [];
-          
+
           table.descendants((node, pos) => {
             if (node.type.name === 'table_cell' || node.type.name === 'table_header') {
               cells.push(tableStart + pos);
             }
             return true;
           });
-          
+
           const currentIndex = cells.indexOf(cellPos);
-          
+
           if (event.shiftKey) {
-            // Previous cell
             if (currentIndex > 0) {
               targetPos = cells[currentIndex - 1];
             }
           } else {
-            // Next cell
             if (currentIndex < cells.length - 1) {
               targetPos = cells[currentIndex + 1];
             }
           }
-          
+
           if (targetPos !== null) {
             const $target = doc.resolve(targetPos + 1);
             const newSelection = Selection.near($target);
             view.dispatch(state.tr.setSelection(newSelection));
           }
-          
+
           return true;
         }
-        
+
         return false;
       },
       handleDOMEvents: {

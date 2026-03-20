@@ -1,5 +1,3 @@
-// Code plugin types
-
 export interface CodeBlockAttrs {
   language: string | null;
   lineNumbers: boolean;

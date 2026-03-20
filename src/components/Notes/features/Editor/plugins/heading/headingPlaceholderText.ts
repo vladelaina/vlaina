@@ -7,8 +7,6 @@ export const clampHeadingLevel = (rawLevel: number): HeadingLevel => {
     return normalized as HeadingLevel;
 };
 
-// Centralized default heading placeholder copy.
-// Keep this module text-focused so future i18n can swap only this layer.
 export const getDefaultHeadingPlaceholderText = (rawLevel: number): string => {
     const level = clampHeadingLevel(rawLevel);
     return `Heading ${level}`;

@@ -1,11 +1,7 @@
-// Video embed plugin
-// Supports: YouTube, Bilibili, and direct video URLs
-
 import { $node, $command } from '@milkdown/kit/utils';
 import type { VideoAttrs } from './types';
 
 function parseVideoUrl(url: string): { type: 'youtube' | 'bilibili' | 'direct'; embedUrl: string } | null {
-  // YouTube
   const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
   if (youtubeMatch) {
     return {
@@ -14,7 +10,6 @@ function parseVideoUrl(url: string): { type: 'youtube' | 'bilibili' | 'direct'; 
     };
   }
   
-  // Bilibili
   const bilibiliMatch = url.match(/bilibili\.com\/video\/(BV[a-zA-Z0-9]+)/);
   if (bilibiliMatch) {
     return {
@@ -23,7 +18,6 @@ function parseVideoUrl(url: string): { type: 'youtube' | 'bilibili' | 'direct'; 
     };
   }
   
-  // Direct video URL
   if (url.match(/\.(mp4|webm|ogg)(\?.*)?$/i)) {
     return {
       type: 'direct',
@@ -41,7 +35,6 @@ function createVideoMessage(className: string, message: string): HTMLElement {
   return container;
 }
 
-// Video node schema
 export const videoSchema = $node('video', () => ({
   group: 'block',
   atom: true,
@@ -87,7 +80,6 @@ export const videoSchema = $node('video', () => ({
     }
     
     if (parsed.type === 'direct') {
-      // Direct video element
       const video = document.createElement('video');
       video.src = parsed.embedUrl;
       video.controls = true;
@@ -96,7 +88,6 @@ export const videoSchema = $node('video', () => ({
       if (attrs.title) video.title = attrs.title;
       wrapper.appendChild(video);
     } else {
-      // Iframe embed
       const iframe = document.createElement('iframe');
       iframe.src = parsed.embedUrl;
       iframe.width = String(attrs.width || 560);
@@ -112,7 +103,6 @@ export const videoSchema = $node('video', () => ({
   },
   parseMarkdown: {
     match: (node) => {
-      // Match image syntax with video extensions or video platform URLs
       if (node.type === 'image') {
         const url = node.url as string || '';
         return parseVideoUrl(url) !== null;
@@ -128,7 +118,6 @@ export const videoSchema = $node('video', () => ({
   toMarkdown: {
     match: (node) => node.type.name === 'video',
     runner: (state, node) => {
-      // Output as image syntax for compatibility
       state.addNode('image', undefined, undefined, {
         url: node.attrs.src,
         title: node.attrs.title || undefined,
@@ -138,7 +127,6 @@ export const videoSchema = $node('video', () => ({
   }
 }));
 
-// Insert video command
 export const insertVideoCommand = $command('insertVideo', () => (src: string = '') => {
   return (state, dispatch) => {
     const { schema } = state;
@@ -156,7 +144,6 @@ export const insertVideoCommand = $command('insertVideo', () => (src: string = '
   };
 });
 
-// Combined video plugin
 export const videoPlugin = [
   videoSchema,
   insertVideoCommand

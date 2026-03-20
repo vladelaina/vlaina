@@ -1,11 +1,9 @@
-// Math plugin for LaTeX support
 import { $node, $inputRule, $remark, $nodeAttr } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { renderLatex } from '../../utils/katex';
 import type { MathBlockAttrs, MathInlineAttrs } from './types';
 import remarkMath from 'remark-math';
 
-// Math block node schema
 export const mathBlockIdAttr = $nodeAttr('math_block', () => ({
   latex: {
     default: '',
@@ -55,7 +53,6 @@ export const mathBlockSchema = $node('math_block', () => ({
   }
 }));
 
-// Math inline node schema
 export const mathInlineIdAttr = $nodeAttr('math_inline', () => ({
   latex: {
     default: '',
@@ -104,7 +101,6 @@ export const mathInlineSchema = $node('math_inline', () => ({
   }
 }));
 
-// Input rule for block math: $$...$$ followed by space or newline
 export const mathBlockInputRule = $inputRule(() => {
   return new InputRule(
     /^\$\$([^$]+)\$\$\s$/,
@@ -122,7 +118,6 @@ export const mathBlockInputRule = $inputRule(() => {
   );
 });
 
-// Input rule for inline math: $...$ (not preceded by $, not followed by $)
 export const mathInlineInputRule = $inputRule(() => {
   return new InputRule(
     /(?<!\$)\$([^$\s][^$]*[^$\s]|[^$\s])\$$/,
@@ -140,10 +135,8 @@ export const mathInlineInputRule = $inputRule(() => {
   );
 });
 
-// Remark plugin for math parsing
 export const remarkMathPlugin = $remark('remarkMath', () => remarkMath);
 
-// Combined math plugin - flatten the array for proper plugin registration
 export const mathPlugin = [
   remarkMathPlugin,
   mathBlockIdAttr,

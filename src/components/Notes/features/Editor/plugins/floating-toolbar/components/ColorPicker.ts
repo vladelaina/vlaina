@@ -1,4 +1,3 @@
-// Color Picker Component
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FloatingToolbarState } from '../types';
 import { COLOR_PALETTE, COLOR_PALETTE_DARK } from '../utils';
@@ -12,8 +11,7 @@ export function renderColorPicker(
 ): void {
   const picker = document.createElement('div');
   picker.className = 'toolbar-submenu color-picker';
-  
-  // Detect dark mode
+
   const isDark = document.documentElement.classList.contains('dark');
   const palette = isDark ? COLOR_PALETTE_DARK : COLOR_PALETTE;
   
@@ -47,8 +45,7 @@ export function renderColorPicker(
       </div>
     </div>
   `;
-  
-  // Handle text color clicks
+
   picker.querySelector('[data-type="text"]')?.querySelectorAll('.color-picker-item').forEach((btn) => {
     btn.addEventListener('mousedown', (e) => {
       e.preventDefault();
@@ -64,8 +61,7 @@ export function renderColorPicker(
       onClose();
     });
   });
-  
-  // Handle background color clicks
+
   picker.querySelector('[data-type="bg"]')?.querySelectorAll('.color-picker-item').forEach((btn) => {
     btn.addEventListener('mousedown', (e) => {
       e.preventDefault();

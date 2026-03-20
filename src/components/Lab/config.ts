@@ -1,5 +1,6 @@
 import { SidebarLoginEntryLab } from './playground/SidebarLoginEntryLab';
 import { GoogleButtonLab } from './playground/GoogleButtonLab';
+import { MembershipBadgeLab } from './playground/MembershipBadgeLab';
 
 export const LAB_MODULES = [
   {
@@ -13,6 +14,12 @@ export const LAB_MODULES = [
     label: 'Google Button',
     component: GoogleButtonLab,
     description: 'Thirty premium variants for the Google login action.',
+  },
+  {
+    id: 'membership-badge-lab',
+    label: 'Membership Badge',
+    component: MembershipBadgeLab,
+    description: 'Thirty display directions for Free, Pro, MAX, and Ultra.',
   },
 ] as const;
 

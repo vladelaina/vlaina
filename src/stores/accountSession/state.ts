@@ -1,4 +1,5 @@
 export type AccountProvider = 'github' | 'google' | 'email';
+export type MembershipTier = 'free' | 'plus' | 'pro' | 'max';
 
 export interface AccountSessionState {
   isConnected: boolean;
@@ -6,6 +7,8 @@ export interface AccountSessionState {
   username: string | null;
   primaryEmail: string | null;
   avatarUrl: string | null;
+  membershipTier: MembershipTier | null;
+  membershipName: string | null;
   localAvatarUrl: string | null;
   isConnecting: boolean;
   isLoading: boolean;
@@ -34,6 +37,8 @@ export const initialAccountSessionState: AccountSessionState = {
   username: null,
   primaryEmail: null,
   avatarUrl: null,
+  membershipTier: null,
+  membershipName: null,
   localAvatarUrl: null,
   isConnecting: false,
   isLoading: true,

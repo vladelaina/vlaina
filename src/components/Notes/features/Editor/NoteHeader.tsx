@@ -20,7 +20,6 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
     const setGlobalIconSize = useNotesStore(s => s.setGlobalIconSize);
     const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
 
-    // Reactive subscription to note icon
     const noteIcon = useNotesStore(
         useCallback(state => {
             if (!currentNotePath) return undefined;
@@ -28,20 +27,17 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
         }, [currentNotePath])
     );
 
-    // Reactive subscription to icon size
     const iconSize = useNotesStore(
         useCallback(state => {
             return state.noteMetadata?.defaultIconSize ?? 60;
         }, [])
     );
 
-    // Custom Upload Handlers for Universal Picker
     const workspaceEmojis = useNotesStore(s => s.workspaceEmojis);
     const removeWorkspaceEmoji = useNotesStore(s => s.removeWorkspaceEmoji);
     const loadWorkspaceEmojis = useNotesStore(s => s.loadWorkspaceEmojis);
     const vaultPath = useNotesStore(s => s.notesPath);
 
-    // Auto-load workspace icons on mount
     useEffect(() => {
         loadWorkspaceEmojis();
     }, [loadWorkspaceEmojis]);

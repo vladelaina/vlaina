@@ -1,4 +1,4 @@
-import type { AccountProvider } from '@/stores/accountSession/state';
+import type { AccountProvider, MembershipTier } from '@/stores/accountSession/state';
 import { normalizeAccountProvider } from '@/lib/account/provider';
 
 const WEB_ACCOUNT_CREDS_KEY = 'nekotick_account_session';
@@ -11,6 +11,8 @@ export interface WebAccountCredentials {
   username: string;
   primaryEmail?: string | null;
   avatarUrl?: string | null;
+  membershipTier?: MembershipTier | null;
+  membershipName?: string | null;
 }
 
 export interface WebAccountStatus {
@@ -19,13 +21,14 @@ export interface WebAccountStatus {
   username: string | null;
   primaryEmail: string | null;
   avatarUrl: string | null;
+  membershipTier: MembershipTier | null;
+  membershipName: string | null;
 }
 
 function clearPersistedIdentity(): void {
   try {
     localStorage.removeItem(ACCOUNT_USER_PERSIST_KEY);
   } catch {
-    // no-op
   }
 }
 
@@ -38,6 +41,8 @@ export function loadWebAccountCredentials(): WebAccountCredentials | null {
       username?: string;
       primaryEmail?: string | null;
       avatarUrl?: string | null;
+      membershipTier?: MembershipTier | null;
+      membershipName?: string | null;
     };
     const provider = normalizeAccountProvider(parsed.provider);
     const username = typeof parsed.username === 'string' ? parsed.username.trim() : '';
@@ -47,6 +52,11 @@ export function loadWebAccountCredentials(): WebAccountCredentials | null {
       username,
       primaryEmail: typeof parsed.primaryEmail === 'string' ? parsed.primaryEmail : null,
       avatarUrl: typeof parsed.avatarUrl === 'string' ? parsed.avatarUrl : null,
+      membershipTier:
+        parsed.membershipTier === 'free' || parsed.membershipTier === 'plus' || parsed.membershipTier === 'pro' || parsed.membershipTier === 'max'
+          ? parsed.membershipTier
+          : null,
+      membershipName: typeof parsed.membershipName === 'string' ? parsed.membershipName : null,
     };
   } catch {
     return null;
@@ -62,7 +72,6 @@ export function clearWebAccountCredentials(): void {
   try {
     sessionStorage.removeItem(WEB_ACCOUNT_CREDS_KEY);
   } catch {
-    // no-op
   }
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event(ACCOUNT_AUTH_INVALIDATED_EVENT));
@@ -77,5 +86,7 @@ export function getCachedWebAccountStatus(): WebAccountStatus {
     username: creds?.username || null,
     primaryEmail: creds?.primaryEmail || null,
     avatarUrl: creds?.avatarUrl || null,
+    membershipTier: creds?.membershipTier || null,
+    membershipName: creds?.membershipName || null,
   };
 }

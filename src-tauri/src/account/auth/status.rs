@@ -16,6 +16,8 @@ struct WorkerSessionStatusResponse {
     username: Option<String>,
     primary_email: Option<String>,
     avatar_url: Option<String>,
+    membership_tier: Option<String>,
+    membership_name: Option<String>,
 }
 
 fn session_status_url() -> String {
@@ -29,6 +31,8 @@ fn disconnected_status() -> AccountSessionStatus {
         username: None,
         primary_email: None,
         avatar_url: None,
+        membership_tier: None,
+        membership_name: None,
     }
 }
 
@@ -53,6 +57,8 @@ pub async fn get_account_session_status_impl(
                         username: Some(creds.username),
                         primary_email: creds.primary_email,
                         avatar_url: creds.avatar_url,
+                        membership_tier: None,
+                        membership_name: None,
                     })
                 }
             };
@@ -71,6 +77,8 @@ pub async fn get_account_session_status_impl(
                     username: Some(creds.username),
                     primary_email: creds.primary_email,
                     avatar_url: creds.avatar_url,
+                    membership_tier: None,
+                    membership_name: None,
                 });
             }
 
@@ -97,6 +105,8 @@ pub async fn get_account_session_status_impl(
                 .unwrap_or(creds.username);
             let primary_email = payload.primary_email.or(creds.primary_email);
             let avatar_url = payload.avatar_url.or(creds.avatar_url);
+            let membership_tier = payload.membership_tier;
+            let membership_name = payload.membership_name;
 
             let refreshed_credentials = AccountCredentials {
                 app_session_token: load_account_credentials(app)
@@ -115,6 +125,8 @@ pub async fn get_account_session_status_impl(
                 username: Some(username),
                 primary_email,
                 avatar_url,
+                membership_tier,
+                membership_name,
             })
         }
         None => Ok(disconnected_status()),

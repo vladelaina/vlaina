@@ -1,4 +1,3 @@
-// Collapse plugins - shared utilities and implementations
 export { listCollapsePlugin } from './listCollapse';
 export {
     collapsedState,

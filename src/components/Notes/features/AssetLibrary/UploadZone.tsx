@@ -6,7 +6,6 @@ import { UploadZoneProps } from './types';
 
 type UploadStatus = 'idle' | 'dragging' | 'uploading' | 'success' | 'duplicate' | 'error';
 
-// Extended props to include currentNotePath
 interface ExtendedUploadZoneProps extends UploadZoneProps {
   currentNotePath?: string;
 }
@@ -19,7 +18,6 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(async (file: File) => {
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       setStatus('error');
       setMessage('Only image files are supported');
@@ -30,7 +28,6 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
       return;
     }
 
-    // Validate file size (50MB max)
     if (file.size > 50 * 1024 * 1024) {
       setStatus('error');
       setMessage('File exceeds maximum size of 50MB');
@@ -64,7 +61,6 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
       setMessage(result.error || 'Upload failed');
     }
 
-    // Reset after delay
     setTimeout(() => {
       setStatus('idle');
       setMessage('');
@@ -100,7 +96,6 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
     if (file) {
       handleFile(file);
     }
-    // Reset input
     e.target.value = '';
   }, [handleFile]);
 

@@ -15,14 +15,12 @@ export function TimeRangeSelector({ timeView, currentRange, onRangeChange }: Tim
   const inputRef = useRef<HTMLInputElement>(null);
   const originalRangeRef = useRef<number | 'all'>(currentRange);
 
-  // Get range options based on time view
   const getRangeOptions = () => {
     if (timeView === 'day') return [1, 3, 7, 14, 30, 'all' as const];
     if (timeView === 'week') return [1, 2, 4, 8, 12, 'all' as const];
     return [1, 2, 3, 6, 12, 'all' as const];
   };
 
-  // Format range display text
   const formatRangeText = (range: number | 'all') => {
     if (range === 'all') return 'All';
     if (timeView === 'day') return `${range}d`;
@@ -30,7 +28,6 @@ export function TimeRangeSelector({ timeView, currentRange, onRangeChange }: Tim
     return `${range}mo`;
   };
 
-  // Parse custom range input
   const parseCustomRange = (input: string): number | null => {
     const trimmed = input.trim();
     if (!trimmed) return null;
@@ -38,7 +35,6 @@ export function TimeRangeSelector({ timeView, currentRange, onRangeChange }: Tim
     return !isNaN(num) && num > 0 ? num : null;
   };
 
-  // Save original value when menu opens
   useEffect(() => {
     if (showMenu) {
       originalRangeRef.current = currentRange;
@@ -46,11 +42,9 @@ export function TimeRangeSelector({ timeView, currentRange, onRangeChange }: Tim
     }
   }, [showMenu, currentRange]);
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        // Restore original value if there's uncommitted input
         if (customInput.trim()) {
           onRangeChange(originalRangeRef.current);
         }
@@ -64,7 +58,6 @@ export function TimeRangeSelector({ timeView, currentRange, onRangeChange }: Tim
     }
   }, [showMenu, customInput, onRangeChange]);
 
-  // Focus input when menu opens
   useEffect(() => {
     if (showMenu && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -117,7 +110,6 @@ export function TimeRangeSelector({ timeView, currentRange, onRangeChange }: Tim
             </button>
           ))}
           
-          {/* Custom input */}
           <div className="border-t border-zinc-200 dark:border-zinc-700 mt-1 pt-1 px-2">
             <div className="flex gap-1">
               <input
