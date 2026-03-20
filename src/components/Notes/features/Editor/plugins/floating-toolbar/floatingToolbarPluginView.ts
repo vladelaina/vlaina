@@ -125,14 +125,20 @@ export function createFloatingToolbarPluginView(
     const layout = getContentLayoutContext(editorView, container);
     const contentLeft = layout.viewportBounds.left;
     const contentRight = layout.viewportBounds.right;
-    const toolbarRect = toolbarElement.getBoundingClientRect();
+    const toolbarBodyNode = toolbarElement.querySelector<HTMLElement>('.floating-toolbar-inner');
+    const toolbarRect = (toolbarBodyNode instanceof HTMLElement ? toolbarBodyNode : toolbarElement).getBoundingClientRect();
+    const contentWidth = Math.max(0, contentRight - contentLeft);
+    const toolbarWidth = toolbarRect.width;
 
     let correctedX = x;
-    if (toolbarRect.left < contentLeft) {
+    if (toolbarWidth >= contentWidth) {
       correctedX += contentLeft - toolbarRect.left;
-    }
-
-    if (toolbarRect.right > contentRight) {
+    } else if (toolbarRect.left < contentLeft) {
+      correctedX += contentLeft - toolbarRect.left;
+      if (toolbarRect.right > contentRight) {
+        correctedX -= toolbarRect.right - contentRight;
+      }
+    } else if (toolbarRect.right > contentRight) {
       correctedX -= toolbarRect.right - contentRight;
     }
 
