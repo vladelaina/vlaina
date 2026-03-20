@@ -10,10 +10,9 @@ import {
 import { LanguageSelector } from './LanguageSelector';
 
 interface CodeBlockHeaderProps {
-    headerRef: React.RefObject<HTMLDivElement | null>;
     language: string;
     displayName: string;
-    nodeContent: string;
+    getNodeText: () => string;
     copied: boolean;
     isLangMenuOpen: boolean;
     setIsLangMenuOpen: (open: boolean) => void;
@@ -24,10 +23,9 @@ interface CodeBlockHeaderProps {
 }
 
 export const CodeBlockHeader = ({
-    headerRef,
     language,
     displayName,
-    nodeContent,
+    getNodeText,
     copied,
     isLangMenuOpen,
     setIsLangMenuOpen,
@@ -38,7 +36,6 @@ export const CodeBlockHeader = ({
 }: CodeBlockHeaderProps) => {
     return (
         <div 
-            ref={headerRef} 
             onClick={onToggleCollapse}
             className="flex items-center justify-between px-4 py-2 bg-white dark:bg-[#1e1e1e] select-none rounded-t-xl transition-all h-[40px] cursor-pointer"
         >
@@ -46,7 +43,7 @@ export const CodeBlockHeader = ({
                 <LanguageSelector 
                     language={language}
                     displayName={displayName}
-                    nodeContent={nodeContent}
+                    getNodeText={getNodeText}
                     onLanguageChange={onLanguageChange}
                     isOpen={isLangMenuOpen}
                     onOpenChange={setIsLangMenuOpen}

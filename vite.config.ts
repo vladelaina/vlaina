@@ -6,9 +6,9 @@ import fs from "fs";
 
 const host = process.env.TAURI_DEV_HOST;
 const vueFeatureFlags = {
-  __VUE_OPTIONS_API__: 'true',
-  __VUE_PROD_DEVTOOLS__: 'false',
-  __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
+  __VUE_OPTIONS_API__: JSON.stringify(true),
+  __VUE_PROD_DEVTOOLS__: JSON.stringify(false),
+  __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: JSON.stringify(false),
 };
 
 /**
@@ -51,6 +51,11 @@ export default defineConfig(async () => ({
       "@": path.resolve(__dirname, "./src"),
       "@milkdown/core": path.resolve(__dirname, "./vendor/milkdown/packages/core/src/index.ts"),
       "@milkdown/ctx": path.resolve(__dirname, "./vendor/milkdown/packages/ctx/src/index.ts"),
+      "@codemirror/language": path.resolve(__dirname, "./vendor/milkdown/packages/crepe/node_modules/@codemirror/language"),
+      "@codemirror/language-data": path.resolve(__dirname, "./vendor/milkdown/packages/crepe/node_modules/@codemirror/language-data"),
+      "@codemirror/state": path.resolve(__dirname, "./vendor/milkdown/packages/crepe/node_modules/@codemirror/state"),
+      "@codemirror/theme-one-dark": path.resolve(__dirname, "./vendor/milkdown/packages/crepe/node_modules/@codemirror/theme-one-dark"),
+      "@codemirror/view": path.resolve(__dirname, "./vendor/milkdown/packages/crepe/node_modules/@codemirror/view"),
     },
   },
   optimizeDeps: {
@@ -142,9 +147,6 @@ export default defineConfig(async () => ({
     port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : 3000,
     strictPort: true,
     host: "127.0.0.1",
-    headers: {
-      "Cache-Control": "no-store",
-    },
     hmr: host
       ? {
         protocol: "ws",
@@ -152,6 +154,9 @@ export default defineConfig(async () => ({
         port: 1421,
       }
       : undefined,
+    headers: {
+      "Cache-Control": "no-store",
+    },
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],

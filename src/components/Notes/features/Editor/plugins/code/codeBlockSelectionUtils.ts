@@ -1,6 +1,6 @@
-import { Selection } from '@milkdown/kit/prose/state';
+import { Selection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
 
-export function isCursorAtCodeBlockEnd(selection: any): boolean {
+export function isCursorAtCodeBlockEnd(selection: EditorState['selection']): boolean {
   if (!selection.empty) return false;
   if (selection.$from.parent.type.name !== 'code_block') return false;
   return selection.$from.parentOffset === selection.$from.parent.content.size;
@@ -17,10 +17,10 @@ export function isSelectionFullyInsideNode(
 }
 
 export function moveSelectionAfterNode(
-  tr: any,
+  tr: Transaction,
   nodePos: number,
   nodeSize: number,
-): any {
+): Transaction {
   const afterPos = nodePos + nodeSize;
   const paragraphType = tr.doc.type.schema.nodes.paragraph;
 

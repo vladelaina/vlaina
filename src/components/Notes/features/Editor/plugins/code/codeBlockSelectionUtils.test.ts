@@ -19,7 +19,7 @@ describe('isCursorAtCodeBlockEnd', () => {
       },
     } as const;
 
-    expect(isCursorAtCodeBlockEnd(selection)).toBe(true);
+    expect(isCursorAtCodeBlockEnd(selection as never)).toBe(true);
   });
 
   it('returns false for non-code blocks or non-end positions', () => {
@@ -43,8 +43,8 @@ describe('isCursorAtCodeBlockEnd', () => {
       },
     } as const;
 
-    expect(isCursorAtCodeBlockEnd(notCodeSelection)).toBe(false);
-    expect(isCursorAtCodeBlockEnd(notEndSelection)).toBe(false);
+    expect(isCursorAtCodeBlockEnd(notCodeSelection as never)).toBe(false);
+    expect(isCursorAtCodeBlockEnd(notEndSelection as never)).toBe(false);
   });
 });
 
