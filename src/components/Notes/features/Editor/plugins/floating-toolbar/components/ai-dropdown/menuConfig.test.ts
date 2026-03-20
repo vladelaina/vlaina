@@ -10,8 +10,9 @@ describe('ai dropdown menu config', () => {
   it('keeps translate at the bottom and exposes the expanded edit and tone options', () => {
     const groups = getAiMenuGroups();
     const translate = groups.find((group) => group.id === 'translate');
+    const sidebar = groups.find((group) => group.id === 'sidebar');
 
-    expect(groups.map((group) => group.id)).toEqual(['actions', 'tone', 'translate']);
+    expect(groups.map((group) => group.id)).toEqual(['actions', 'tone', 'translate', 'sidebar']);
     expect(groups.find((group) => group.id === 'actions')?.items.map((item) => item.id)).toContain('clarify');
     expect(groups.find((group) => group.id === 'actions')?.items.map((item) => item.id)).toContain('simplify');
     expect(groups.find((group) => group.id === 'tone')?.items.map((item) => item.id)).toContain('tone-empathetic');
@@ -23,6 +24,13 @@ describe('ai dropdown menu config', () => {
       'translate-ja',
       'translate-ko',
     ]);
+    expect(sidebar?.items).toEqual([]);
+    expect(sidebar?.rootAction).toMatchObject({
+      id: 'discuss-in-sidebar',
+      label: '引用到聊天',
+      icon: 'quote',
+      behavior: 'sidebar-chat',
+    });
   });
 
   it('reorders action items by usage frequency while preserving the fallback order for ties', () => {

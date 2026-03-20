@@ -17,6 +17,13 @@ export type ImageStorageMode = 'vault' | 'vaultSubfolder' | 'currentFolder' | 's
 
 export type ImageFilenameFormat = 'original' | 'timestamp' | 'sequence';
 
+interface PendingNotesChatComposerInsert {
+  id: number;
+  text: string;
+}
+
+const STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED = 'nekotick_notes_chat_panel_collapsed';
+
 interface UIStore {
   appViewMode: AppViewMode;
   setAppViewMode: (mode: AppViewMode) => void;
@@ -75,6 +82,13 @@ interface UIStore {
   setImageVaultSubfolderName: (name: string) => void;
   imageFilenameFormat: ImageFilenameFormat;
   setImageFilenameFormat: (format: ImageFilenameFormat) => void;
+
+  notesChatPanelCollapsed: boolean;
+  setNotesChatPanelCollapsed: (collapsed: boolean) => void;
+  toggleNotesChatPanel: () => void;
+  pendingNotesChatComposerInsert: PendingNotesChatComposerInsert | null;
+  queueNotesChatComposerInsert: (text: string) => void;
+  consumePendingNotesChatComposerInsert: (id: number) => void;
 }
 
 function loadBoolean(key: string, defaultValue: boolean): boolean {
@@ -163,6 +177,10 @@ function loadImageFilenameFormat(): ImageFilenameFormat {
     // ignore
   }
   return 'original'; // Default: use original filename
+}
+
+function loadNotesChatPanelCollapsed(): boolean {
+  return loadBoolean(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, false);
 }
 
 export const useUIStore = create<UIStore>()((set) => ({
@@ -261,4 +279,34 @@ export const useUIStore = create<UIStore>()((set) => ({
     localStorage.setItem(STORAGE_KEY_IMAGE_FILENAME_FORMAT, format);
     set({ imageFilenameFormat: format });
   },
+
+  notesChatPanelCollapsed: loadNotesChatPanelCollapsed(),
+  setNotesChatPanelCollapsed: (collapsed) => {
+    localStorage.setItem(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, String(collapsed));
+    set({ notesChatPanelCollapsed: collapsed });
+  },
+  toggleNotesChatPanel: () =>
+    set((state) => {
+      const next = !state.notesChatPanelCollapsed;
+      localStorage.setItem(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, String(next));
+      return { notesChatPanelCollapsed: next };
+    }),
+  pendingNotesChatComposerInsert: null,
+  queueNotesChatComposerInsert: (text) =>
+    {
+      localStorage.setItem(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, 'false');
+      set({
+        pendingNotesChatComposerInsert: {
+          id: Date.now(),
+          text,
+        },
+        notesChatPanelCollapsed: false,
+      });
+    },
+  consumePendingNotesChatComposerInsert: (id) =>
+    set((state) =>
+      state.pendingNotesChatComposerInsert?.id === id
+        ? { pendingNotesChatComposerInsert: null }
+        : {}
+    ),
 }));

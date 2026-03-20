@@ -63,8 +63,9 @@ function sortGroupItems(group: AiMenuGroup, state: UsageState): AiMenuGroup['ite
 export function getAiMenuGroups(): readonly AiMenuGroup[] {
   const usageState = readUsageState();
   const orderedGroups = [
-    ...AI_PROMPT_GROUPS.filter((group) => group.id !== 'translate'),
+    ...AI_PROMPT_GROUPS.filter((group) => group.id !== 'translate' && group.id !== 'sidebar'),
     ...AI_PROMPT_GROUPS.filter((group) => group.id === 'translate'),
+    ...AI_PROMPT_GROUPS.filter((group) => group.id === 'sidebar'),
   ];
 
   return orderedGroups.map((group) => ({

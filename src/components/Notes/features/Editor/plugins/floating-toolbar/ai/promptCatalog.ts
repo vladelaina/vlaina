@@ -4,6 +4,8 @@ export interface AiPromptCommand {
   id: string;
   label: string;
   instruction: string;
+  behavior?: 'review' | 'sidebar-chat';
+  icon?: 'quote';
 }
 
 export interface AiPromptGroup {
@@ -11,6 +13,7 @@ export interface AiPromptGroup {
   label: string;
   tone: boolean;
   items: readonly AiPromptCommand[];
+  rootAction?: AiPromptCommand;
 }
 
 export const EDITOR_AI_SYSTEM_PROMPT = [
@@ -61,6 +64,16 @@ export const AI_REVIEW_ACTION_COMMANDS: readonly AiPromptCommand[] = [
   },
 ];
 
+export const AI_SIDEBAR_COMMANDS: readonly AiPromptCommand[] = [
+  {
+    id: 'discuss-in-sidebar',
+    label: '引用到聊天',
+    instruction: 'Quote the selected text into the side AI chat input.',
+    behavior: 'sidebar-chat',
+    icon: 'quote',
+  },
+];
+
 export const AI_REVIEW_TONE_COMMANDS: readonly AiPromptCommand[] = [
   { id: 'tone-professional', label: '专业', instruction: 'Rewrite the selected text in a professional tone.' },
   { id: 'tone-casual', label: '随意', instruction: 'Rewrite the selected text in a casual tone.' },
@@ -83,6 +96,13 @@ export const AI_PROMPT_GROUPS: readonly AiPromptGroup[] = [
     label: '翻译',
     items: AI_REVIEW_TRANSLATE_COMMANDS,
     tone: false,
+  },
+  {
+    id: 'sidebar',
+    label: '引用到聊天',
+    items: [],
+    tone: false,
+    rootAction: AI_SIDEBAR_COMMANDS[0],
   },
   {
     id: 'actions',
@@ -121,6 +141,16 @@ function validatePromptCatalog() {
 
   for (const action of AI_QUICK_ACTIONS) {
     assertEnglishPromptText(`AI_QUICK_ACTIONS.${action.id}`, action.prompt);
+  }
+
+  for (const group of AI_PROMPT_GROUPS) {
+    if (group.rootAction) {
+      assertEnglishPromptText(`AI_PROMPT_GROUPS.${group.id}.rootAction`, group.rootAction.instruction);
+    }
+
+    for (const item of group.items) {
+      assertEnglishPromptText(`AI_PROMPT_GROUPS.${group.id}.${item.id}`, item.instruction);
+    }
   }
 }
 
