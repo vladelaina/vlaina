@@ -17,16 +17,29 @@
   will-change: opacity, transform;
 }
 
+.floating-toolbar[data-review-mode='true'] {
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
+}
+
 .floating-toolbar.visible {
   pointer-events: auto;
   opacity: 1;
   transform: translateX(-50%) translateY(calc(-100% - 2px));
 }
 
+.floating-toolbar[data-review-mode='true'].visible {
+  transform: translateX(0) translateY(calc(-100% - 2px));
+}
+
 .floating-toolbar.hidden {
   pointer-events: none;
   opacity: 0;
   transform: translateX(-50%) translateY(calc(-100% + 2px));
+}
+
+.floating-toolbar[data-review-mode='true'].hidden {
+  transform: translateX(0) translateY(calc(-100% + 8px));
 }
 
 .floating-toolbar-inner {

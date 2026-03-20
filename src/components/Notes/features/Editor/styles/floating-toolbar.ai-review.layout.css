@@ -1,3 +1,17 @@
+@keyframes aiReviewPanelFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
 .floating-toolbar-inner.floating-toolbar-ai-review-mode {
   display: block;
   width: var(--ai-review-width, min(520px, calc(100vw - 48px)));
@@ -14,6 +28,9 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+  opacity: 0;
+  animation: aiReviewPanelFadeIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform, filter;
 }
 
 .ai-review-content {
