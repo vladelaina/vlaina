@@ -67,6 +67,10 @@ export const EDITOR_ICONS = {
     <rect x="9" y="9" width="11" height="11" rx="2"></rect>
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
   </svg>`,
+  quote: `<svg width="${EDITOR_ICON_SIZE}" height="${EDITOR_ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M10 13H6.5a1.5 1.5 0 0 1-1.5-1.5V9a4 4 0 0 1 4-4"></path>
+    <path d="M19 13h-3.5a1.5 1.5 0 0 1-1.5-1.5V9a4 4 0 0 1 4-4"></path>
+  </svg>`,
   trash: `<svg width="${EDITOR_ICON_SIZE}" height="${EDITOR_ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <path d="M3 6h18"></path>
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>

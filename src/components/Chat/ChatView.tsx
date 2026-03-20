@@ -8,10 +8,11 @@ import { useChatShortcuts } from './hooks/useChatShortcuts';
 import { useComposerClickFocus } from './hooks/useComposerClickFocus';
 import { cn } from '@/lib/utils';
 import { Attachment } from '@/lib/storage/attachmentStorage';
-import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
+import { focusComposerInput, insertTextIntoComposer } from '@/lib/ui/composerFocusRegistry';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
 import { extractMessageImageSources } from '@/components/Chat/common/messageClipboard';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
+import { useUIStore } from '@/stores/uiSlice';
 
 import { ChatInput } from '@/components/Chat/features/Input/ChatInput';
 import { MessageList } from '@/components/Chat/features/Messages/MessageList';
@@ -49,6 +50,8 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
   } = useAIStore();
 
   const loaded = useUnifiedStore(s => s.loaded);
+  const pendingComposerInsert = useUIStore((state) => state.pendingNotesChatComposerInsert);
+  const consumePendingComposerInsert = useUIStore((state) => state.consumePendingNotesChatComposerInsert);
 
   const messages = currentSessionId ? (allMessages[currentSessionId] || []) : [];
   const imageGallery = useMemo<ChatImageGalleryItem[]>(
@@ -181,6 +184,44 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isEmbedded, isSessionActive, stop]);
+
+  useEffect(() => {
+    if (!isEmbedded || !pendingComposerInsert) {
+      return;
+    }
+
+    let frameId = 0;
+    let attempts = 0;
+    let cancelled = false;
+
+    const tryInsert = () => {
+      if (cancelled) {
+        return;
+      }
+
+      if (insertTextIntoComposer(pendingComposerInsert.text)) {
+        focusComposerInput();
+        consumePendingComposerInsert(pendingComposerInsert.id);
+        return;
+      }
+
+      attempts += 1;
+      if (attempts >= 24) {
+        return;
+      }
+
+      frameId = requestAnimationFrame(tryInsert);
+    };
+
+    tryInsert();
+
+    return () => {
+      cancelled = true;
+      if (frameId) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, [consumePendingComposerInsert, isEmbedded, pendingComposerInsert]);
 
   useChatShortcuts({
     onFocusInput: () => {

@@ -1,5 +1,6 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { logAiSelectionDebug } from '../../ai/debug';
+import { openSidebarDiscussionForSelection } from '../../ai/sidebarDiscussion';
 import { openAiSelectionReview, runAiSelectionReviewCommand } from '../../ai/reviewFlow';
 import { createAiReviewState } from '../../ai/reviewState';
 import { recordAiMenuItemUsage } from './usageRanking';
@@ -22,6 +23,29 @@ function setActiveCategory(dropdown: HTMLElement, categoryId: string) {
     new CustomEvent('ai-dropdown:category-change', {
       bubbles: false,
       detail: { categoryId },
+    })
+  );
+}
+
+function clearActiveCategory(dropdown: HTMLElement) {
+  const hasActiveCategory = !!dropdown.querySelector<HTMLElement>('[data-ai-category].active');
+  const hasActivePanel = !!dropdown.querySelector<HTMLElement>('[data-ai-panel].active');
+  if (!hasActiveCategory && !hasActivePanel) {
+    return;
+  }
+
+  dropdown.querySelectorAll<HTMLElement>('[data-ai-category]').forEach((button) => {
+    button.classList.remove('active');
+  });
+
+  dropdown.querySelectorAll<HTMLElement>('[data-ai-panel]').forEach((panel) => {
+    panel.classList.remove('active');
+  });
+
+  dropdown.dispatchEvent(
+    new CustomEvent('ai-dropdown:category-change', {
+      bubbles: false,
+      detail: { categoryId: null },
     })
   );
 }
@@ -54,6 +78,12 @@ function bindCategoryNavigation(dropdown: HTMLElement) {
       setActiveCategory(dropdown, categoryId);
     });
   });
+
+  dropdown.querySelectorAll<HTMLElement>('.ai-dropdown-category-action[data-ai-prompt]').forEach((button) => {
+    button.addEventListener('mouseenter', () => {
+      clearActiveCategory(dropdown);
+    });
+  });
 }
 
 function bindCommandExecution(dropdown: HTMLElement, view: EditorView) {
@@ -76,6 +106,7 @@ function bindCommandExecution(dropdown: HTMLElement, view: EditorView) {
       const commandId = button.dataset.aiCommandId ?? '';
       const toneId = button.dataset.aiToneId ?? '';
       const groupId = button.dataset.aiGroupId ?? '';
+      const behavior = button.dataset.aiBehavior ?? 'review';
       if (isSubmitting) {
         logAiSelectionDebug('dropdown:click-ignored-submitting', {
           prompt,
@@ -90,6 +121,11 @@ function bindCommandExecution(dropdown: HTMLElement, view: EditorView) {
         selectionFrom: view.state.selection.from,
         selectionTo: view.state.selection.to,
       });
+
+      if (behavior === 'sidebar-chat') {
+        openSidebarDiscussionForSelection(view);
+        return;
+      }
 
       isSubmitting = true;
       button.disabled = true;

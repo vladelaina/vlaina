@@ -536,6 +536,10 @@
   background-color: var(--neko-hover, #f4f4f5);
 }
 
+.ai-dropdown-category.ai-dropdown-category-action {
+  justify-content: flex-start;
+}
+
 .ai-dropdown-category-label {
   font-size: 13px;
   font-weight: 500;
@@ -585,6 +589,21 @@
   font-size: 13px;
   font-weight: 500;
   line-height: 1.2;
+}
+
+.ai-dropdown-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  flex: 0 0 auto;
+}
+
+.ai-dropdown-item-icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .dark .ai-dropdown-item {
