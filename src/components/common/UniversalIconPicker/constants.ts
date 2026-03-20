@@ -149,7 +149,6 @@ export function saveRecentIcons(icons: string[]): void {
 
 export function addToRecentIcons(icon: string, current: string[]): string[] {
   const filtered = current.filter(i => i !== icon);
-  // Simple logic: just add to front, no more complex sorting between icons/emojis since we only support emojis/uploads now
   const updated = [icon, ...filtered].slice(0, MAX_RECENT_EMOJIS);
   saveRecentIcons(updated);
   return updated;

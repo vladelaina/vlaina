@@ -92,9 +92,7 @@ export async function consumeOpenAIStream(
               : null,
         content: typeof delta?.content === 'string' ? delta.content : null,
       })
-    } catch {
-      // no-op
-    }
+    } catch {}
   }
 
   while (true) {

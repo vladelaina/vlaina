@@ -1,4 +1,4 @@
-import type { AccountProvider } from '@/stores/accountSession/state';
+import type { AccountProvider, MembershipTier } from '@/stores/accountSession/state';
 import { safeInvoke } from './invoke';
 import { listen } from '@tauri-apps/api/event';
 
@@ -10,6 +10,8 @@ export const accountCommands = {
       username: string | null;
       primaryEmail: string | null;
       avatarUrl: string | null;
+      membershipTier: MembershipTier | null;
+      membershipName: string | null;
     }>('get_account_session_status', undefined, {
       webFallback: {
         connected: false,
@@ -17,6 +19,8 @@ export const accountCommands = {
         username: null,
         primaryEmail: null,
         avatarUrl: null,
+        membershipTier: null,
+        membershipName: null,
       },
     });
   },
@@ -119,7 +123,6 @@ export const accountCommands = {
           try {
             dispose?.();
           } catch {
-            // no-op
           }
         }
       };

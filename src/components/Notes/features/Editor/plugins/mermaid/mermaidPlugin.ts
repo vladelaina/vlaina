@@ -83,8 +83,7 @@ export const mermaidSchema = $node('mermaid', () => ({
     wrapper.setAttribute('data-type', 'mermaid');
     wrapper.setAttribute('data-code', attrs.code);
     wrapper.className = 'mermaid-block';
-    
-    // Create placeholder
+
     const placeholder = document.createElement('div');
     placeholder.className = 'mermaid-placeholder';
     placeholder.textContent = 'Loading diagram...';

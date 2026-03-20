@@ -55,7 +55,6 @@ interface UnifiedStoreActions {
   removeCustomIcon: (id: string) => void;
   syncCustomIcons: () => Promise<void>;
 
-  // AI Actions
   updateAIData: (updates: Partial<NonNullable<UnifiedData['ai']>>, skipPersist?: boolean) => void;
 }
 

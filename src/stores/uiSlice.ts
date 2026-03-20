@@ -84,7 +84,6 @@ function loadBoolean(key: string, defaultValue: boolean): boolean {
       return saved === 'true';
     }
   } catch {
-    // ignore
   }
   return defaultValue;
 }
@@ -97,7 +96,6 @@ function loadNumber(key: string, defaultValue: number): number {
       return Number.isNaN(parsed) ? defaultValue : parsed;
     }
   } catch {
-    // ignore
   }
   return defaultValue;
 }
@@ -128,9 +126,8 @@ function loadImageStorageMode(): ImageStorageMode {
       return saved;
     }
   } catch {
-    // ignore
   }
-  return 'subfolder'; // Default: save to note subfolder
+  return 'subfolder';
 }
 
 function loadImageSubfolderName(): string {
@@ -138,9 +135,8 @@ function loadImageSubfolderName(): string {
     const saved = localStorage.getItem(STORAGE_KEY_IMAGE_SUBFOLDER_NAME);
     if (saved) return saved;
   } catch {
-    // ignore
   }
-  return 'assets'; // Default subfolder name
+  return 'assets';
 }
 
 function loadImageVaultSubfolderName(): string {
@@ -148,9 +144,8 @@ function loadImageVaultSubfolderName(): string {
     const saved = localStorage.getItem(STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME);
     if (saved) return saved;
   } catch {
-    // ignore
   }
-  return 'assets'; // Default vault subfolder name
+  return 'assets';
 }
 
 function loadImageFilenameFormat(): ImageFilenameFormat {
@@ -160,9 +155,8 @@ function loadImageFilenameFormat(): ImageFilenameFormat {
       return saved;
     }
   } catch {
-    // ignore
   }
-  return 'original'; // Default: use original filename
+  return 'original';
 }
 
 export const useUIStore = create<UIStore>()((set) => ({

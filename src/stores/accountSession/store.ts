@@ -41,6 +41,8 @@ function registerAccountAuthInvalidationListener(): void {
       username: null,
       primaryEmail: null,
       avatarUrl: null,
+      membershipTier: null,
+      membershipName: null,
       localAvatarUrl: null,
       isConnecting: false,
       isLoading: false,

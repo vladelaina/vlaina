@@ -30,7 +30,6 @@ function PreviewPanel({ variant }: { variant: SidebarLoginEntryVariant }) {
           Login with Email
         </button>
         
-        {/* Added Legal Note */}
         <p className={cn("text-[11px] text-center leading-relaxed px-4 opacity-60 font-medium", variant.legalNote)}>
           By continuing, you acknowledge that you have read and agree to NekoTick's <span className="underline cursor-pointer opacity-80 hover:opacity-100 transition-opacity">Terms of Service</span> and <span className="underline cursor-pointer opacity-80 hover:opacity-100 transition-opacity">Privacy Policy</span>.
         </p>
@@ -40,7 +39,6 @@ function PreviewPanel({ variant }: { variant: SidebarLoginEntryVariant }) {
 
   return (
     <div className={cn('relative min-h-[600px] flex items-center justify-center p-16 transition-all duration-700 overflow-hidden rounded-[48px]', variant.stageBg)}>
-      {/* Decorative Background Elements for Richness */}
       <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-white/5 blur-[80px]" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-black/5 blur-[80px]" />
       
@@ -91,10 +89,7 @@ function VariantCard({ variant, index }: { variant: SidebarLoginEntryVariant; in
 
       <div className="overflow-hidden rounded-[56px] border border-zinc-200/50 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950 shadow-2xl transition-all hover:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)]">
         <PreviewPanel variant={variant} />
-        <div className="px-8 py-6 bg-zinc-50/50 dark:bg-white/5 backdrop-blur-md rounded-b-[44px] flex items-center justify-between">
-           <p className="text-[13px] font-medium leading-relaxed text-zinc-500 dark:text-zinc-400">
-             {variant.note}
-           </p>
+        <div className="px-8 py-6 bg-zinc-50/50 dark:bg-white/5 backdrop-blur-md rounded-b-[44px] flex items-center justify-end">
            <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
         </div>
       </div>

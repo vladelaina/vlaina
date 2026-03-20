@@ -107,7 +107,6 @@ export const LanguageSelector = ({
                 onClick={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
             >
-                {/* Search Bar & Auto-Detect Group */}
                 <div className="p-2 bg-gray-50/50 dark:bg-zinc-900/50 border-b border-gray-100 dark:border-zinc-800">
                     <div className="relative flex items-center">
                         <Icon size="md" name="common.search" className="absolute left-2.5 top-1/2 -translate-y-1/2  text-gray-400" />
@@ -134,7 +133,6 @@ export const LanguageSelector = ({
                     </div>
                 </div>
 
-                {/* Languages List */}
                 <div ref={scrollRef} className="max-h-[240px] overflow-y-auto p-1 neko-scrollbar">
                     {filteredLanguages.length > 0 ? (
                         filteredLanguages.map((lang, index) => {

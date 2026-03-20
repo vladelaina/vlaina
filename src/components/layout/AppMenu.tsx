@@ -62,7 +62,6 @@ export const AppMenu: React.FC<AppMenuProps> = ({ onOpenSettings, onCloseMenu })
 
             <div className="h-[1px] bg-[var(--neko-border)] mx-3 my-1 opacity-50" />
 
-            {/* Powered by NekoTick with Language Selector */}
             <div className="relative px-3 py-2 flex items-center justify-between group/powered">
                 <button
                     onClick={handleOpenWebsite}

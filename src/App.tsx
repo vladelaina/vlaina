@@ -139,7 +139,6 @@ function AppContent() {
       </Suspense>
     );
   }
-  // Lab Mode: No sidebar content by default
 
   let centerSlot = null;
   let rightSlot = null;

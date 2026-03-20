@@ -27,17 +27,14 @@ export function AccountSignInOptions({
 
   return (
     <div className={cn('flex flex-col gap-6 px-4', className)}>
-      {/* Social Actions */}
       <AccountOauthButtons isCompact={isCompact} disabled={disabled} onOauthSignIn={onOauthSignIn} />
 
-      {/* Modern Separator - Subtle & Wide Space */}
       <div className="flex items-center gap-4 px-4">
         <div className="h-px flex-1 bg-zinc-100 dark:bg-white/5" />
         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 dark:text-zinc-600">or</span>
         <div className="h-px flex-1 bg-zinc-100 dark:bg-white/5" />
       </div>
 
-      {/* Email Action */}
       <div className="space-y-6">
         <AccountEmailCodeCard
           isCompact={isCompact}

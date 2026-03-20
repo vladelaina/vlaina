@@ -4,6 +4,7 @@ import { AiReviewLab } from './playground/AiReviewLab';
 import { AiToolbarDropdownLab } from './playground/AiToolbarDropdownLab';
 import { GoogleButtonLab } from './playground/GoogleButtonLab';
 import { InputLab } from './playground/InputLab';
+import { MembershipBadgeLab } from './playground/MembershipBadgeLab';
 import { ShortcutDialogLab } from './playground/ShortcutDialogLab';
 import { SidebarLoginEntryLab } from './playground/SidebarLoginEntryLab';
 import { TableColumnDragLab } from './playground/TableColumnDragLab';
@@ -67,6 +68,12 @@ export const LAB_MODULES = [
     icon: 'misc.lab',
     component: TableColumnDragLab,
     description: 'Thirty interaction-led directions for a Notion-like table column drag handle.',
+  },
+  {
+    id: 'membership-badge-lab',
+    label: 'Membership Badge',
+    component: MembershipBadgeLab,
+    description: 'Thirty display directions for Free, Pro, MAX, and Ultra.',
   },
 ] as const;
 

@@ -25,7 +25,6 @@ export function ResizablePanel({
   onWidthChange,
   shortcutKeys,
 }: ResizablePanelProps) {
-  // Initialize width from storage or default
   const [width, setWidth] = useState(() => {
     if (storageKey) {
       try {
@@ -53,7 +52,6 @@ export function ResizablePanel({
     useOverlay: true,
   });
 
-  // Persist effect
   useEffect(() => {
       if (storageKey && !isDragging) {
           localStorage.setItem(storageKey, String(width));
@@ -64,7 +62,6 @@ export function ResizablePanel({
     <aside
       className={cn(
         "relative flex flex-col bg-white/50 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden",
-        // Only apply transition when NOT resizing to make it smooth on open/close, but instant on drag
         !isDragging && "transition-[width] duration-300 ease-in-out",
         className
       )}

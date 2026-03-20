@@ -1,4 +1,3 @@
-// Editor SVGs (Milkdown/ProseMirror plugins often need raw SVG strings)
 import { ICON_SIZES } from './sizes';
 
 const EDITOR_ICON_SIZE = ICON_SIZES.md;

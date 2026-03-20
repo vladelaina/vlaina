@@ -1,5 +1,3 @@
-// Footnote plugin types
-
 export interface FootnoteDefAttrs {
   id: string;
 }

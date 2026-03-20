@@ -1,6 +1,3 @@
-// Selection Helper Functions
-// Utilities for extracting state from editor selection
-
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, TextAlignment } from './types';
 
@@ -300,13 +297,11 @@ export function isSelectionInFirstH1(view: EditorView): boolean {
   const { state } = view;
   const { $from } = state.selection;
   const parent = $from.parent;
-  
-  // Check if current block is H1
+
   if (parent.type.name !== 'heading' || parent.attrs.level !== 1) {
     return false;
   }
-  
-  // Check if this is the first node in the document
+
   const pos = $from.before($from.depth);
   return pos === 0;
 }

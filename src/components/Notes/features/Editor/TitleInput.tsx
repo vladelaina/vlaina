@@ -31,7 +31,6 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
     }
   }, [autoFocus]);
 
-  // Sync with external changes
   useEffect(() => {
     setTitle(initialTitle);
   }, [initialTitle]);

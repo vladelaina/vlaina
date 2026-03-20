@@ -32,7 +32,6 @@ export function SegmentedControl({ options, value, onChange }: SegmentedControlP
                                 style={{ zIndex: -1 }}
                             />
                         )}
-                        {/* Wrapper for Icon to ensure consistent size */}
                         <div className="flex items-center justify-center w-[18px] h-[18px]">
                             {option.icon}
                         </div>

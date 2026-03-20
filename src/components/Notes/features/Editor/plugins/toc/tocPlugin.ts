@@ -1,6 +1,3 @@
-// TOC (Table of Contents) plugin
-// Supports: [TOC] syntax to generate table of contents
-
 import { $node, $command, $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, Selection } from '@milkdown/kit/prose/state';
 import type { TocAttrs, TocItem } from './types';
@@ -140,7 +137,6 @@ export const tocViewPlugin = $prose(() => {
   });
 });
 
-// TOC node schema
 export const tocSchema = $node('toc', () => ({
   group: 'block',
   atom: true,
@@ -169,7 +165,6 @@ export const tocSchema = $node('toc', () => ({
   },
   parseMarkdown: {
     match: (node) => {
-      // Match [TOC] or [toc] in paragraph
       if (node.type === 'paragraph') {
         const children = node.children as Array<{ type: string; value?: string }> | undefined;
         if (children?.length === 1 && children[0].type === 'text') {
@@ -193,7 +188,6 @@ export const tocSchema = $node('toc', () => ({
   }
 }));
 
-// Insert TOC command
 export const insertTocCommand = $command('insertToc', () => () => {
   return (state, dispatch) => {
     const { schema } = state;
@@ -211,7 +205,6 @@ export const insertTocCommand = $command('insertToc', () => () => {
   };
 });
 
-// Combined TOC plugin
 export const tocPlugin = [
   tocSchema,
   insertTocCommand,

@@ -166,7 +166,6 @@ export function NotesView() {
     try {
       localStorage.setItem(CHAT_PANEL_COLLAPSED_KEY, String(chatPanelCollapsed));
     } catch {
-      // ignore storage failures
     }
   }, [chatPanelCollapsed]);
 

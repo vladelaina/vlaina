@@ -46,20 +46,16 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
         <DialogDescription className="sr-only">
           Choose Google sign-in or use an email verification code to access your account.
         </DialogDescription>
-        {/* Ceramic Pro Shell */}
         <div className={cn(
           "relative w-full rounded-[36px] px-5 py-6 sm:rounded-[48px] sm:px-8 sm:py-9 md:rounded-[64px] md:p-14",
           "bg-white dark:bg-zinc-900",
           "shadow-[0_40px_100px_rgba(0,0,0,0.06),inset_0_0_20px_rgba(255,255,255,1)] dark:shadow-[0_40px_120px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.05)]",
           "border border-white dark:border-zinc-800"
         )}>
-          
-          {/* Subtle Close Button - Minimalist */}
           <DialogClose className="absolute right-5 top-5 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-300 transition-all hover:text-zinc-950 hover:bg-zinc-50 sm:right-7 sm:top-7 md:right-10 md:top-10 dark:text-zinc-600 dark:hover:text-white dark:hover:bg-white/5">
             <Icon name="common.close" size="md" />
           </DialogClose>
 
-          {/* Minimalist Heading - Director's Choice */}
           <div className="mb-7 flex flex-col items-center gap-1.5 text-center sm:mb-10 sm:gap-2 md:mb-14">
              <h2 className="text-[24px] leading-none font-black tracking-tight text-zinc-950 sm:text-[26px] md:text-[28px] dark:text-white">Sign In</h2>
              <p className="text-[13px] font-medium text-zinc-400 sm:text-[14px]">Continue to NekoTick</p>

@@ -1,4 +1,3 @@
-// Math Editor component for editing LaTeX formulas
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { renderLatex } from '../../utils/katex';
 import { cn } from '@/lib/utils';
@@ -23,19 +22,16 @@ export function MathEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Update preview when latex changes
   useEffect(() => {
     const result = renderLatex(latex, displayMode);
     setPreview(result);
   }, [latex, displayMode]);
 
-  // Focus textarea on mount
   useEffect(() => {
     textareaRef.current?.focus();
     textareaRef.current?.select();
   }, []);
 
-  // Handle click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {

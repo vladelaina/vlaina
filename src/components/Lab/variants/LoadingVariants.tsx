@@ -1,8 +1,4 @@
 import { motion } from 'framer-motion';
-
-// --- THE SURVIVORS ---
-
-// Variant: Smart Cursor (User #1)
 export function SmartCursor() {
     return (
         <div className="flex items-center gap-1 h-6">
@@ -24,7 +20,6 @@ export function SmartCursor() {
     );
 }
 
-// Variant: Elastic Velocity (User #2)
 export function ElasticVelocity() {
     return (
         <div className="flex items-center gap-4">
@@ -43,7 +38,6 @@ export function ElasticVelocity() {
     );
 }
 
-// Variant: Harmonic Stream (User #3)
 export function HarmonicStream() {
     return (
         <div className="flex items-center gap-4">
@@ -67,7 +61,6 @@ export function HarmonicStream() {
     );
 }
 
-// Variant: Infinity Flow
 export function InfinityFlow() {
     return (
         <div className="flex items-center gap-4">
@@ -95,7 +88,6 @@ export function InfinityFlow() {
     );
 }
 
-// Variant: Digital Helix (Classic)
 export function DigitalHelix() {
     return (
         <div className="flex items-center gap-4">
@@ -125,7 +117,6 @@ export function DigitalHelix() {
     );
 }
 
-// Variant: Fluid Beam
 export function FluidBeam() {
     return (
         <div className="flex flex-col gap-1">
@@ -146,7 +137,6 @@ export function FluidBeam() {
     );
 }
 
-// Variant: Cosmic Dust
 export function CosmicDust() {
     return (
         <div className="flex items-center gap-4">
@@ -175,7 +165,6 @@ export function CosmicDust() {
     );
 }
 
-// Variant: High-Vibe Elastic (The Base #9 - Kept)
 export function HighVibeElastic() {
     return (
         <div className="flex items-center gap-4">
@@ -215,9 +204,6 @@ export function HighVibeElastic() {
     );
 }
 
-// --- THE QUIET FLOW COLLECTION (5 New) ---
-
-// 9. Silk Stream (Elegant Slow)
 export function SilkStream() {
     return (
         <div className="flex items-center gap-4">
@@ -257,7 +243,6 @@ export function SilkStream() {
     );
 }
 
-// 10. Tidal Breath (Natural Ease)
 export function TidalBreath() {
     return (
         <div className="flex items-center gap-4">
@@ -273,7 +258,7 @@ export function TidalBreath() {
                             width: [6, 12, 6, 12, 6],
                             opacity: [0, 1, 1, 1, 0],
                         }}
-                        transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.3, ease: "easeOut" }} // Tidal ease
+                        transition={{ duration: 1.8, repeat: Infinity, delay: i * 0.3, ease: "easeOut" }}
                         style={{ left: "50%", top: "50%", marginTop: -2, marginLeft: -3 }}
                     />
                 ))}
@@ -297,7 +282,6 @@ export function TidalBreath() {
     );
 }
 
-// 11. Ghost Thread (Invisible)
 export function GhostThread() {
     return (
         <div className="flex items-center gap-4">
@@ -311,7 +295,7 @@ export function GhostThread() {
                             x: 50, 
                             y: [0, -3, 0, 3, 0], 
                             width: [4, 8, 4, 8, 4],
-                            opacity: [0, 0.6, 0.8, 0.6, 0], // Subtle opacity
+                            opacity: [0, 0.6, 0.8, 0.6, 0],
                         }}
                         transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.25, ease: "linear" }}
                         style={{ left: "50%", top: "50%", marginTop: -1, marginLeft: -2 }}
@@ -337,7 +321,6 @@ export function GhostThread() {
     );
 }
 
-// 12. Magnetic Float (Precision)
 export function MagneticFloat() {
     return (
         <div className="flex items-center gap-4">
@@ -349,7 +332,7 @@ export function MagneticFloat() {
                         initial={{ x: -60, width: 12 }}
                         animate={{ 
                             x: 60, 
-                            y: [0, -8, 0], // Arch motion
+                            y: [0, -8, 0],
                             opacity: [0, 1, 0],
                         }}
                         transition={{ duration: 2, repeat: Infinity, delay: i * 0.4, ease: "easeInOut" }}
@@ -375,7 +358,6 @@ export function MagneticFloat() {
     );
 }
 
-// 13. Luminous Pulse (Stationary)
 export function LuminousPulse() {
     return (
         <div className="flex items-center gap-4">

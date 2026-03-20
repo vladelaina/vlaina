@@ -124,7 +124,6 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
       }
     };
 
-    // 1. Load Main Data
     const loadedMainData = await loadMainDataFromPath(mainPath);
     if (loadedMainData) {
       combinedData = { ...combinedData, ...loadedMainData };
@@ -136,7 +135,6 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
       }
     }
 
-    // Init AI State
     combinedData.ai = {
         providers: [],
         models: [],
@@ -151,7 +149,6 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
         messages: {}
     };
 
-    // 2. Load Sessions Index
     let providerIds: string[] = [];
     if (await storage.exists(sessionsPath)) {
         try {
@@ -167,18 +164,17 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             combinedData.ai.temporaryChatEnabled = false;
             combinedData.ai.customSystemPrompt = typeof sessionsData.customSystemPrompt === 'string' ? sessionsData.customSystemPrompt : '';
             combinedData.ai.includeTimeContext = sessionsData.includeTimeContext !== false;
-            providerIds = sessionsData.providerIds || []; // Index of channels
+            providerIds = sessionsData.providerIds || [];
         } catch (e) { console.error('Failed to load sessions.json', e); }
     }
 
-    // 3. Load Individual Channels
     if (providerIds.length > 0) {
         const providerPromises = providerIds.map(async (id) => {
             const pPath = await joinPath(channelsDir, `${id}.json`);
             if (await storage.exists(pPath)) {
                 try {
                     const pData = JSON.parse(await storage.readFile(pPath));
-                    return pData; // Expected: { provider: Provider, models: AIModel[] }
+                    return pData;
                 } catch (error) {
                     console.error('[Storage] Failed to parse provider channel file:', pPath, error);
                     return null;
@@ -241,7 +237,6 @@ async function performSplitSave(data: UnifiedData) {
 
     const { ai, ...mainPart } = data;
     
-    // 1. Save Main
     const mainFile: DataFile = {
         version: 2,
         lastModified: Date.now(),
@@ -250,7 +245,6 @@ async function performSplitSave(data: UnifiedData) {
     await storage.writeFile(mainBackupPath, JSON.stringify(mainFile, null, 2));
     await storage.writeFile(mainPath, JSON.stringify(mainFile, null, 2));
 
-    // 2. Save AI Data
     if (ai) {
         await syncProviderSecrets(ai.providers);
 
@@ -258,7 +252,6 @@ async function performSplitSave(data: UnifiedData) {
         const persistedSessionIds = new Set(persistedSessions.map((session) => session.id));
         const activeProviderIds = new Set(ai.providers.map((provider) => provider.id));
 
-        // Save Sessions Index + Provider IDs
         const sessionsData = {
             sessions: persistedSessions,
             selectedModelId: ai.selectedModelId,
@@ -272,7 +265,6 @@ async function performSplitSave(data: UnifiedData) {
         };
         await storage.writeFile(sessionsPath, JSON.stringify(sessionsData, null, 2));
 
-        // Save Each Provider to its own file
         for (const provider of ai.providers) {
             const pModels = ai.models.filter(m => m.providerId === provider.id);
             const pData = {

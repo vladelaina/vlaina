@@ -2,33 +2,25 @@ export type SidebarLoginEntryVariant = {
   id: string;
   name: string;
   category: string;
-  note: string;
-  
-  // Style classes
   stageBg: string;
   cardBg: string;
   cardBorder: string;
   cardShadow: string;
-  
-  // Components
   googleBtn: string;
   googleBadge?: string;
   emailInput: string;
   submitBtn: string;
-  legalNote: string; // Style for the footer note
-  
+  legalNote: string;
   customStyles?: {
     card?: React.CSSProperties;
   };
 };
 
 export const sidebarLoginEntryVariants: SidebarLoginEntryVariant[] = [
-  // 1. Stark Flow (Recommended for Pro feel)
   {
     id: 'high-contrast-rounded',
     name: 'Stark Flow',
     category: 'Modern Mono',
-    note: 'Bold black elements on stark white, but with max roundness.',
     stageBg: 'bg-white',
     cardBg: 'bg-white',
     cardBorder: 'border-zinc-100 rounded-[80px]',
@@ -38,12 +30,10 @@ export const sidebarLoginEntryVariants: SidebarLoginEntryVariant[] = [
     submitBtn: 'bg-zinc-100 text-zinc-400 hover:bg-black hover:text-white rounded-full h-16 font-black uppercase tracking-widest',
     legalNote: 'text-zinc-400',
   },
-  // 2. Neumorph Pro
   {
     id: 'signature-clay-pro',
     name: 'Neumorph Pro',
     category: 'Signature',
-    note: 'A sophisticated take on neumorphism with subtle physical depth.',
     stageBg: 'bg-[#f0f0f3]',
     cardBg: 'bg-[#f0f0f3]',
     cardBorder: 'border-white/50 border-2 rounded-[50px]',
@@ -53,12 +43,10 @@ export const sidebarLoginEntryVariants: SidebarLoginEntryVariant[] = [
     submitBtn: 'bg-zinc-900 text-white rounded-3xl h-16 font-black shadow-2xl shadow-zinc-400 active:shadow-inner transition-all',
     legalNote: 'text-zinc-400',
   },
-  // 3. Ceramic Pro (Highly Recommended for Clean feel)
   {
     id: 'ceramic-white',
     name: 'Ceramic Pro',
     category: 'Industrial',
-    note: 'High-gloss ceramic finish with zero texture.',
     stageBg: 'bg-zinc-50',
     cardBg: 'bg-white shadow-[inset:0_0_20px_rgba(255,255,255,1)]',
     cardBorder: 'border-white border-4 rounded-[60px]',
@@ -68,12 +56,10 @@ export const sidebarLoginEntryVariants: SidebarLoginEntryVariant[] = [
     submitBtn: 'bg-white text-zinc-950 border-2 border-zinc-100 rounded-full h-16 font-black shadow-lg',
     legalNote: 'text-zinc-300',
   },
-  // 4. Ethereal Flow
   {
     id: 'ethereal-pure',
     name: 'Ethereal Flow',
     category: 'Visionary Glass',
-    note: 'Designed to feel weightless, suspended in a void.',
     stageBg: 'bg-white',
     cardBg: 'bg-white',
     cardBorder: 'border-zinc-50 rounded-[80px]',
@@ -83,12 +69,10 @@ export const sidebarLoginEntryVariants: SidebarLoginEntryVariant[] = [
     submitBtn: 'bg-zinc-100 text-zinc-400 hover:text-zinc-900 rounded-full h-16 font-black',
     legalNote: 'text-zinc-200',
   },
-  // 5. Phantom Layer
   {
     id: 'phantom-white',
     name: 'Phantom Layer',
     category: 'Visionary Glass',
-    note: 'Multiple overlapping translucent white layers.',
     stageBg: 'bg-zinc-50',
     cardBg: 'bg-white/40 backdrop-blur-xl',
     cardBorder: 'border-white border-4 rounded-[48px]',
@@ -98,12 +82,10 @@ export const sidebarLoginEntryVariants: SidebarLoginEntryVariant[] = [
     submitBtn: 'bg-zinc-950 text-white rounded-[24px] h-14 font-black',
     legalNote: 'text-zinc-400',
   },
-  // 6. Aero Mono
   {
     id: 'aero-monochrome',
     name: 'Aero Mono',
     category: 'Visionary Glass',
-    note: 'Extreme translucency. The interface exists purely as light.',
     stageBg: 'bg-white',
     cardBg: 'bg-zinc-50/10 backdrop-blur-[100px]',
     cardBorder: 'border-zinc-200/30 rounded-[60px]',

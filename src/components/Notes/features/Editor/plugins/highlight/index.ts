@@ -1,4 +1,3 @@
-// Highlight plugin exports
 export { 
   highlightPlugin,
   highlightMark,

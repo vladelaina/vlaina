@@ -32,7 +32,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const nodeSrc = typeof node.attrs.src === 'string' ? node.attrs.src : '';
     const nodeAlt = typeof node.attrs.alt === 'string' ? node.attrs.alt : '';
 
-    // 1. State
     const {
         width, setWidth,
         height, setHeight,
@@ -49,14 +48,12 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         updateNodeAttrs
     } = useImageBlockState({ node, view, getPos });
 
-    // Track latest interactive state (zoom/crop) that hasn't been saved yet
     const latestStateRef = useRef<CropperViewportState | null>(null);
 
     const handleStateChange = useCallback((state: CropperViewportState) => {
         latestStateRef.current = state;
     }, []);
 
-    // 2. Actions
     const {
         isSaving, handleSave, handleCopy, handleDownload, handleDelete, restoreIfNeeded
     } = useImageActions({
@@ -69,7 +66,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const [dragDimensions, setDragDimensions] = useState<{width: number, height: number} | null>(null);
     const [observedSize, setObservedSize] = useState({ width: 0, height: 0 });
 
-    // 3. Resize Logic
     const { handleResizeStart } = useImageResize({
         containerRef, width, height, setWidth, setHeight, setDragDimensions,
         updateNodeAttrs, restoreIfNeeded
@@ -87,7 +83,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         updateNodeAttrs,
     });
 
-    // 4. Drag Logic
     const {
         isDragging, dragPosition, dragSize, dragAlignment,
         handlePointerDown, handlePointerUp, handlePointerCancel,
@@ -96,7 +91,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         currentAlignment: alignment
     });
 
-    // 5. Container Size Observer
     useEffect(() => {
         if (!containerRef.current) return;
         const resizeObserver = new ResizeObserver((entries) => {
@@ -114,7 +108,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         return () => resizeObserver.disconnect();
     }, []);
 
-    // 6. Hover Logic
     useEffect(() => {
         return () => {
             if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
@@ -134,7 +127,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         hoverTimeoutRef.current = setTimeout(() => setIsHovered(false), HOVER_HIDE_DELAY_MS);
     };
 
-    // 7. Computed Styles
     const computedAspectRatio = computeAspectRatio(height, cropParams, naturalRatio);
     const containerStyle = getContainerStyle(isDragging, dragPosition, dragSize, {
         width, height, isActive, isReady, computedAspectRatio

@@ -1,6 +1,3 @@
-// Footnote plugin for GFM-style footnotes
-// Supports: [^1] references and [^1]: definitions
-
 import { $node, $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 import type { FootnoteDefAttrs, FootnoteRefAttrs } from './types';
@@ -40,7 +37,6 @@ export const footnoteRefSchema = $node('footnote_ref', () => ({
   toMarkdown: {
     match: (node) => node.type.name === 'footnote_ref',
     runner: (state, node) => {
-      // Output as [^id] text
       state.addNode('text', undefined, `[^${node.attrs.id}]`);
     }
   }
@@ -87,26 +83,23 @@ export const footnoteDefSchema = $node('footnote_def', () => ({
   }
 }));
 
-// Input rule for footnote reference: [^id]
 export const footnoteRefInputRule = $inputRule(() => {
   return new InputRule(
     /\[\^([^\]]+)\]$/,
     (state, match, start, end) => {
       const id = match[1];
       if (!id) return null;
-      
-      // Check if this is at the start of a line (definition) or inline (reference)
+
       const $pos = state.doc.resolve(start);
       const lineStart = $pos.start();
       const textBefore = state.doc.textBetween(lineStart, start);
-      
-      // If at line start, don't convert - let it be a definition
+
       if (textBefore.trim() === '') return null;
-      
+
       const { tr, schema } = state;
       const nodeType = schema.nodes.footnote_ref;
       if (!nodeType) return null;
-      
+
       return tr
         .delete(start, end)
         .replaceSelectionWith(nodeType.create({ id }));
@@ -114,7 +107,6 @@ export const footnoteRefInputRule = $inputRule(() => {
   );
 });
 
-// Combined footnote plugin
 export const footnotePlugin = [
   footnoteRefSchema,
   footnoteDefSchema,

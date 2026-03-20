@@ -14,7 +14,6 @@ export function useCoverState({
   pickerOpen,
   onPickerOpenChange
 }: UseCoverStateProps) {
-  // Height State
   const [coverHeight, setCoverHeight] = useState(initialHeight ?? DEFAULT_HEIGHT);
   const lastHeightProp = useRef(initialHeight);
 
@@ -24,18 +23,15 @@ export function useCoverState({
     setCoverHeight(initialHeight);
   }, [initialHeight]);
 
-  // Visual State
   const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null);
   const [mediaSize, setMediaSize] = useState<{ width: number; height: number } | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(scale);
 
-  // Interaction State
   const [isInteracting, setIsInteracting] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const isManualResizingRef = useRef(false);
 
-  // Picker State
   const [internalShowPicker, setInternalShowPicker] = useState(false);
   const showPicker = pickerOpen ?? internalShowPicker;
 

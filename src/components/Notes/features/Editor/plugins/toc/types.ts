@@ -1,7 +1,5 @@
-// TOC plugin types
-
 export interface TocAttrs {
-  maxLevel: number; // Maximum heading level to include (1-6)
+  maxLevel: number;
 }
 
 export interface TocItem {

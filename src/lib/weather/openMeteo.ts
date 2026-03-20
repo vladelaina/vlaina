@@ -22,7 +22,6 @@ export interface WeatherData {
     sunrise: string[];
     sunset: string[];
   };
-  // For specific date view
   day?: {
     maxTemp: number;
     minTemp: number;

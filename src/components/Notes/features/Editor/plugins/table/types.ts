@@ -1,5 +1,3 @@
-// Table plugin types
-
 export interface TableCellAttrs {
   colspan: number;
   rowspan: number;
