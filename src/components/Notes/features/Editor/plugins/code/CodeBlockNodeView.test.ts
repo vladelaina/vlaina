@@ -160,8 +160,8 @@ describe('CodeBlockNodeView', () => {
     const insideTarget = nodeView.dom.querySelector('.code-block-editable') as HTMLElement;
     const outsideTarget = document.createElement('div');
 
-    expect(nodeView.stopEvent({ target: insideTarget } as Event)).toBe(true);
-    expect(nodeView.stopEvent({ target: outsideTarget } as Event)).toBe(false);
+    expect(nodeView.stopEvent({ target: insideTarget } as unknown as Event)).toBe(true);
+    expect(nodeView.stopEvent({ target: outsideTarget } as unknown as Event)).toBe(false);
   });
 
   it('focuses and decorates the code block when selected, then removes the decoration when deselected', () => {
