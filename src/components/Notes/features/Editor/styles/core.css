@@ -5,6 +5,8 @@
 .milkdown {
   min-height: 100%;
   outline: none;
+  --neko-editor-caret-color: var(--neko-text-primary, #2C2C2B);
+  --neko-editor-caret-width: 1px;
 }
 
 /* Reset potential focus outlines during interactions */
@@ -38,7 +40,7 @@
 }
 
 .milkdown .ProseMirror {
-  caret-color: var(--neko-text-primary, #2C2C2B);
+  caret-color: var(--neko-editor-caret-color);
   line-height: calc(1em + 8px);
 }
 

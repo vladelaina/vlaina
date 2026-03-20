@@ -27,6 +27,11 @@ function spaFallbackPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
+  define: {
+    __VUE_OPTIONS_API__: JSON.stringify(true),
+    __VUE_PROD_DEVTOOLS__: JSON.stringify(false),
+    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: JSON.stringify(false),
+  },
   plugins: [
     react(),
     spaFallbackPlugin(),
@@ -45,6 +50,11 @@ export default defineConfig(async () => ({
       "@": path.resolve(__dirname, "./src"),
       "@milkdown/core": path.resolve(__dirname, "./vendor/milkdown/packages/core/src/index.ts"),
       "@milkdown/ctx": path.resolve(__dirname, "./vendor/milkdown/packages/ctx/src/index.ts"),
+      "@codemirror/language": path.resolve(__dirname, "./vendor/milkdown/packages/crepe/node_modules/@codemirror/language"),
+      "@codemirror/language-data": path.resolve(__dirname, "./vendor/milkdown/packages/crepe/node_modules/@codemirror/language-data"),
+      "@codemirror/state": path.resolve(__dirname, "./vendor/milkdown/packages/crepe/node_modules/@codemirror/state"),
+      "@codemirror/theme-one-dark": path.resolve(__dirname, "./vendor/milkdown/packages/crepe/node_modules/@codemirror/theme-one-dark"),
+      "@codemirror/view": path.resolve(__dirname, "./vendor/milkdown/packages/crepe/node_modules/@codemirror/view"),
     },
   },
 

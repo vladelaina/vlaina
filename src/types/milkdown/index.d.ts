@@ -34,6 +34,11 @@ interface MilkdownNodeType {
     content?: MilkdownNode | readonly MilkdownNode[] | null,
     marks?: readonly MilkdownMark[] | null,
   ): MilkdownNode | null;
+  createChecked?(
+    attrs?: AnyRecord | null,
+    content?: MilkdownNode | readonly MilkdownNode[] | null,
+    marks?: readonly MilkdownMark[] | null,
+  ): MilkdownNode;
 }
 
 interface MilkdownResolvedPos {
@@ -416,10 +421,26 @@ declare module '@milkdown/kit/component/table-block' {
 }
 
 declare module '@milkdown/kit/prose/commands' {
+  export function exitCode(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+    view?: import('@milkdown/kit/prose/view').EditorView,
+  ): boolean;
   export function setBlockType(nodeType: any, attrs?: AnyRecord): MilkdownCommand;
   export function wrapIn(nodeType: any, attrs?: AnyRecord): MilkdownCommand;
   export function lift(state: MilkdownEditorStateLike, dispatch?: ((tr: MilkdownTransactionLike) => void) | null): boolean;
   export function toggleMark(markType: any, attrs?: AnyRecord): MilkdownCommand;
+}
+
+declare module '@milkdown/kit/prose/history' {
+  export function undo(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+  ): boolean;
+  export function redo(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+  ): boolean;
 }
 
 declare module '@milkdown/kit/prose/inputrules' {
@@ -494,6 +515,11 @@ declare module '@milkdown/kit/prose/model' {
       content?: Node | readonly Node[] | null,
       marks?: readonly MilkdownMark[] | null,
     ): Node | null;
+    createChecked?(
+      attrs?: AnyRecord | null,
+      content?: Node | readonly Node[] | null,
+      marks?: readonly MilkdownMark[] | null,
+    ): Node;
     [key: string]: any;
   }
 

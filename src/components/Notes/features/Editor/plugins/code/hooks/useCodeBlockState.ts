@@ -1,37 +1,37 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
-import { SUPPORTED_LANGUAGES } from '../../../utils/shiki';
 import { toggleCodeBlockCollapsed, updateCodeBlockLanguage } from '../codeBlockTransactions';
+import { codeBlockLanguages } from '../codeBlockLanguageLoader';
 
 interface UseCodeBlockStateProps {
     node: Node;
     view: EditorView;
     getPos: () => number | undefined;
+    getNode: () => Node;
 }
 
-export function useCodeBlockState({ node, view, getPos }: UseCodeBlockStateProps) {
+export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockStateProps) {
     const language = node.attrs.language || 'text';
     const [copied, setCopied] = useState(false);
     const isCollapsed = Boolean(node.attrs.collapsed);
     const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
-    const headerRef = useRef<HTMLDivElement>(null);
     const copyTimerRef = useRef<number | null>(null);
 
-    const langInfo = SUPPORTED_LANGUAGES.find(l => l.id === language);
+    const langInfo = codeBlockLanguages.find((item) => item.id === language || item.aliases.includes(language));
     const displayName = langInfo ? langInfo.name : language;
 
     const updateLanguage = useCallback((newLang: string) => {
         const pos = getPos();
         if (pos === undefined) return;
 
-        updateCodeBlockLanguage(view, pos, node.attrs, newLang);
-    }, [view, getPos, node.attrs]);
+        updateCodeBlockLanguage(view, pos, newLang);
+    }, [view, getPos]);
 
     const handleCopy = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        const code = node.textContent;
+        const code = getNode().textContent;
         void navigator.clipboard.writeText(code);
         if (copyTimerRef.current !== null) {
             window.clearTimeout(copyTimerRef.current);
@@ -41,7 +41,7 @@ export function useCodeBlockState({ node, view, getPos }: UseCodeBlockStateProps
             setCopied(false);
             copyTimerRef.current = null;
         }, 2000);
-    }, [node.textContent]);
+    }, [getNode]);
 
     const toggleCollapse = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
@@ -55,16 +55,7 @@ export function useCodeBlockState({ node, view, getPos }: UseCodeBlockStateProps
     const handleShare = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        // Placeholder
     }, []);
-
-    // Keep DOM state in sync for styles/behavior tied to collapsed mode.
-    useEffect(() => {
-        const container = headerRef.current?.parentElement?.parentElement;
-        if (container) {
-            container.setAttribute('data-collapsed', String(isCollapsed));
-        }
-    }, [isCollapsed]);
 
     useEffect(() => {
         return () => {
@@ -82,7 +73,6 @@ export function useCodeBlockState({ node, view, getPos }: UseCodeBlockStateProps
         isCollapsed,
         isLangMenuOpen,
         setIsLangMenuOpen,
-        headerRef,
         updateLanguage,
         handleCopy,
         toggleCollapse,

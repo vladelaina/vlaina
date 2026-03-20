@@ -8,28 +8,27 @@ interface CodeBlockViewProps {
     node: Node;
     view: EditorView;
     getPos: () => number | undefined;
+    getNode: () => Node;
 }
 
-export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos }) => {
+export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos, getNode }) => {
     const {
         language,
         displayName,
         copied,
         isLangMenuOpen,
         setIsLangMenuOpen,
-        headerRef,
         updateLanguage,
         handleCopy,
         toggleCollapse,
         handleShare
-    } = useCodeBlockState({ node, view, getPos });
+    } = useCodeBlockState({ node, view, getPos, getNode });
 
     return (
         <CodeBlockHeader 
-            headerRef={headerRef}
             language={language}
             displayName={displayName}
-            nodeContent={node.textContent}
+            getNodeText={() => getNode().textContent}
             copied={copied}
             isLangMenuOpen={isLangMenuOpen}
             setIsLangMenuOpen={setIsLangMenuOpen}

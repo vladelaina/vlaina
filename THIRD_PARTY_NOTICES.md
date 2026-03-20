@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-This project includes custom icon assets under `src/components/ui/icons/custom/mit/` sourced from third-party projects.
+This project includes third-party materials, including custom icon assets and vendored editor source code.
 
 ## 1) Ollama Web UI
 
@@ -39,3 +39,29 @@ This project includes custom icon assets under `src/components/ui/icons/custom/m
   - `src/components/ui/icons/custom/mit/PrimerUnpinIcon.tsx`
 - License: MIT
 - License text: `licenses/primer-style-MIT.txt`
+
+## 5) Milkdown
+
+- Source: https://github.com/Milkdown/milkdown
+- Files used:
+  - `vendor/milkdown/`
+  - Workspace-linked packages under `vendor/milkdown/packages/*`
+- Local use:
+  - Vendored editor source is included in this repository.
+  - The app uses local workspace-linked Milkdown packages and may contain project-specific modifications.
+- License: MIT
+- License text: `licenses/milkdown-MIT.txt`
+
+## 6) CodeMirror
+
+- Source: https://codemirror.net/
+- Packages used by the local code block implementation:
+  - `@codemirror/language`
+  - `@codemirror/language-data`
+  - `@codemirror/state`
+  - `@codemirror/theme-one-dark`
+  - `@codemirror/view`
+- Local use:
+  - These packages power the project's locally maintained code block editor integration under `src/components/Notes/features/Editor/plugins/code/`.
+- License: MIT
+- License text: `licenses/codemirror-MIT.txt`

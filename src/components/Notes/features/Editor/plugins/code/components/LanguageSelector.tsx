@@ -1,19 +1,14 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
-import { SUPPORTED_LANGUAGES } from '../../../utils/shiki';
 import { guessLanguage } from '../../../utils/languageGuesser';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { codeBlockLanguages } from '../codeBlockLanguageLoader';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 
 interface LanguageSelectorProps {
     language: string;
     displayName: string;
-    nodeContent: string;
+    getNodeText: () => string;
     onLanguageChange: (lang: string) => void;
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
@@ -22,7 +17,7 @@ interface LanguageSelectorProps {
 export const LanguageSelector = ({
     language,
     displayName,
-    nodeContent,
+    getNodeText,
     onLanguageChange,
     isOpen,
     onOpenChange
@@ -32,14 +27,17 @@ export const LanguageSelector = ({
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const filteredLanguages = useMemo(() => {
-        setActiveIndex(0);
-        if (!searchTerm) return SUPPORTED_LANGUAGES;
+        if (!searchTerm) return codeBlockLanguages;
         const term = searchTerm.toLowerCase();
-        return SUPPORTED_LANGUAGES.filter(l => 
-            l.name.toLowerCase().includes(term) || 
+        return codeBlockLanguages.filter(l =>
+            l.name.toLowerCase().includes(term) ||
             l.id.toLowerCase().includes(term) ||
             l.aliases?.some(a => a.toLowerCase().includes(term))
         );
+    }, [searchTerm]);
+
+    useEffect(() => {
+        setActiveIndex(0);
     }, [searchTerm]);
 
     useEffect(() => {
@@ -78,21 +76,37 @@ export const LanguageSelector = ({
     };
 
     const handleAutoDetect = () => {
-        const guessed = guessLanguage(nodeContent);
+        const guessed = guessLanguage(getNodeText());
         onLanguageChange(guessed || 'txt');
         onOpenChange(false);
     };
 
     return (
-        <DropdownMenu open={isOpen} onOpenChange={onOpenChange}>
-            <DropdownMenuTrigger asChild>
-                <div className="flex items-center group/lang cursor-pointer transition-colors select-none">
+        <Popover open={isOpen} onOpenChange={onOpenChange}>
+            <PopoverAnchor asChild>
+                <button
+                    type="button"
+                    className="flex items-center group/lang cursor-pointer transition-colors select-none"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onOpenChange(!isOpen);
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                >
                     <span className="text-sm font-medium text-zinc-500 group-hover/lang:text-zinc-900 dark:group-hover/lang:text-zinc-100 transition-colors">
                         {displayName}
                     </span>
-                </div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[220px] p-0 overflow-hidden flex flex-col border border-gray-200 dark:border-zinc-800 shadow-xl rounded-xl">
+                </button>
+            </PopoverAnchor>
+            <PopoverContent
+                align="start"
+                sideOffset={8}
+                className="w-[220px] p-0 overflow-hidden flex flex-col border border-gray-200 dark:border-zinc-800 shadow-xl rounded-xl"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+            >
                 {/* Search Bar & Auto-Detect Group */}
                 <div className="p-2 bg-gray-50/50 dark:bg-zinc-900/50 border-b border-gray-100 dark:border-zinc-800">
                     <div className="relative flex items-center">
@@ -125,17 +139,24 @@ export const LanguageSelector = ({
                     {filteredLanguages.length > 0 ? (
                         filteredLanguages.map((lang, index) => {
                             return (
-                                <DropdownMenuItem 
+                                <button
+                                    type="button"
                                     key={lang.id} 
-                                    onSelect={() => onLanguageChange(lang.id)}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        onLanguageChange(lang.id);
+                                        onOpenChange(false);
+                                    }}
                                     className={cn(
                                         "text-xs px-3 py-2 rounded-lg cursor-pointer transition-colors flex items-center gap-2",
+                                        "w-full text-left",
                                         index === activeIndex ? "bg-gray-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" : "text-gray-600 dark:text-zinc-400",
                                         language === lang.id && index !== activeIndex && "text-blue-600 dark:text-blue-400 font-bold"
                                     )}
                                 >
                                     <span>{lang.name}</span>
-                                </DropdownMenuItem>
+                                </button>
                             );
                         })
                     ) : (
@@ -144,7 +165,7 @@ export const LanguageSelector = ({
                         </div>
                     )}
                 </div>
-            </DropdownMenuContent>
-        </DropdownMenu>
+            </PopoverContent>
+        </Popover>
     );
 };
