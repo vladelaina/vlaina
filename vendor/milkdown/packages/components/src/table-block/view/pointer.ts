@@ -59,7 +59,7 @@ function showBottomEdgeHandle(
   xHandle: HTMLDivElement
 ) {
   const rows = content.querySelectorAll('tr')
-  if (rows.length <= 1) return false
+  if (rows.length === 0) return false
 
   const lastRowIndex = rows.length - 1
   const frame = getContentFrame(refs, content)

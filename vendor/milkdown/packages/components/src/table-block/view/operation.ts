@@ -190,7 +190,7 @@ export function useOperation(
 
   const canShrinkRow = () => {
     const shape = getTableShape()
-    if (!shape || shape.rowCount <= 2) return false
+    if (!shape || shape.rowCount <= 1) return false
 
     const lastRowIndex = shape.rowCount - 1
     return Array.from({ length: shape.colCount }).every((_, colIndex) =>

@@ -59,16 +59,71 @@ vi.mock('../../../../../../../vendor/milkdown/packages/plugins/preset-gfm/src/in
 
 import { useOperation } from '../../../../../../../vendor/milkdown/packages/components/src/table-block/view/operation';
 
-function createHarness(getPos: () => number | undefined = () => 5) {
-  const commands = {
-    call: vi.fn(),
+function createTextNode(text: string) {
+  return {
+    childCount: 0,
+    child: vi.fn(),
+    isLeaf: true,
+    isText: true,
+    text,
+    type: {
+      name: 'text',
+    },
   };
+}
 
-  const tableNode = {
+function createCellNode(text: string) {
+  const textNode = createTextNode(text);
+
+  return {
+    childCount: 1,
+    child: (index: number) => {
+      if (index !== 0) {
+        throw new Error(`Unexpected child index: ${index}`);
+      }
+
+      return textNode;
+    },
+    isLeaf: false,
+    isText: false,
+    type: {
+      name: 'table_cell',
+    },
+  };
+}
+
+function createRowNode(cells: string[]) {
+  const cellNodes = cells.map((text) => createCellNode(text));
+
+  return {
+    childCount: cellNodes.length,
+    child: (index: number) => {
+      const cell = cellNodes[index];
+      if (!cell) {
+        throw new Error(`Unexpected child index: ${index}`);
+      }
+
+      return cell;
+    },
+    isLeaf: false,
+    isText: false,
+    type: {
+      name: 'table_row',
+    },
+  };
+}
+
+function createHarness(
+  getPos: () => number | undefined = () => 5,
+  tableNode = {
     childCount: 3,
     firstChild: {
       childCount: 3,
     },
+  }
+) {
+  const commands = {
+    call: vi.fn(),
   };
 
   const view = {
@@ -146,5 +201,36 @@ describe('table operation', () => {
     operation.onInsertColRight(1);
 
     expect(commands.call).not.toHaveBeenCalled();
+  });
+
+  it('allows shrinking from two rows down to one row when the last row is empty', () => {
+    const tableNode = {
+      childCount: 2,
+      firstChild: {
+        childCount: 2,
+      },
+      child: (index: number) => {
+        const rows = [
+          createRowNode(['filled', 'filled']),
+          createRowNode(['', '']),
+        ];
+        const row = rows[index];
+        if (!row) {
+          throw new Error(`Unexpected child index: ${index}`);
+        }
+
+        return row;
+      },
+    };
+
+    const { commands, operation } = createHarness(() => 5, tableNode);
+
+    operation.onShrinkRow();
+
+    expect(commands.call).toHaveBeenNthCalledWith(1, selectRowCommand.key, {
+      pos: 6,
+      index: 1,
+    });
+    expect(commands.call).toHaveBeenNthCalledWith(2, deleteSelectedCellsCommand.key);
   });
 });

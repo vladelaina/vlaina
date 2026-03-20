@@ -264,6 +264,7 @@ export function useTableBlockLayout({
         left: `${zoneLayout.corner.left}px`,
       })
     }
+
   }
 
   const queueLayoutSync = () => {

@@ -73,7 +73,9 @@ export const TableBlock = defineComponent<TableBlockProps>({
     })
 
     const refs: Refs = {
+      rootRef,
       tableWrapperRef,
+      tableScrollRef,
       contentWrapperRef,
       yLineHandleRef,
       xLineHandleRef,
