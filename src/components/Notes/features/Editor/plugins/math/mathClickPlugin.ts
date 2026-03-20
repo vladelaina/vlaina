@@ -23,6 +23,33 @@ function createInitialState(): MathEditorState {
   };
 }
 
+export function getMathAnchorElement(target: EventTarget | null, fallback: Node | null) {
+  const targetElement =
+    target instanceof Element ? target : target instanceof Node ? target.parentElement : null;
+  const closestMathElement = targetElement?.closest('[data-type="math-block"], [data-type="math-inline"]');
+  if (closestMathElement instanceof HTMLElement) {
+    return closestMathElement;
+  }
+
+  if (fallback instanceof HTMLElement) {
+    return fallback;
+  }
+
+  return targetElement instanceof HTMLElement ? targetElement : null;
+}
+
+export function getMathEditorPosition(anchorElement: HTMLElement | null) {
+  if (!anchorElement) {
+    return { x: 16, y: 16 };
+  }
+
+  const rect = anchorElement.getBoundingClientRect();
+  return {
+    x: rect.left,
+    y: rect.bottom + 8,
+  };
+}
+
 function createMathEditorElements(displayMode: boolean): {
   header: HTMLElement;
   textarea: HTMLTextAreaElement;
@@ -80,19 +107,25 @@ export const mathClickPlugin = $prose(() => {
       handleClick(view, pos, event) {
         const { state } = view;
         const $pos = state.doc.resolve(pos);
+        const getPosition = (nodePos: number) =>
+          getMathEditorPosition(
+            getMathAnchorElement(
+              event.target,
+              typeof view.nodeDOM === 'function' ? view.nodeDOM(nodePos) : null
+            )
+          );
         
         // Check if clicked on a math node
         const node = state.doc.nodeAt(pos);
         
         // Check for math_block
         if (node?.type.name === 'math_block') {
-          const rect = (event.target as HTMLElement).getBoundingClientRect();
           view.dispatch(
             state.tr.setMeta(mathClickPluginKey, {
               isOpen: true,
               latex: node.attrs.latex || '',
               displayMode: true,
-              position: { x: rect.left, y: rect.bottom + 4 },
+              position: getPosition(pos),
               nodePos: pos
             })
           );
@@ -101,13 +134,12 @@ export const mathClickPlugin = $prose(() => {
         
         // Check for math_inline
         if (node?.type.name === 'math_inline') {
-          const rect = (event.target as HTMLElement).getBoundingClientRect();
           view.dispatch(
             state.tr.setMeta(mathClickPluginKey, {
               isOpen: true,
               latex: node.attrs.latex || '',
               displayMode: false,
-              position: { x: rect.left, y: rect.bottom + 4 },
+              position: getPosition(pos),
               nodePos: pos
             })
           );
@@ -119,13 +151,12 @@ export const mathClickPlugin = $prose(() => {
           const parentNode = $pos.node(d);
           if (parentNode.type.name === 'math_block' || parentNode.type.name === 'math_inline') {
             const parentPos = $pos.before(d);
-            const rect = (event.target as HTMLElement).getBoundingClientRect();
             view.dispatch(
               state.tr.setMeta(mathClickPluginKey, {
                 isOpen: true,
                 latex: parentNode.attrs.latex || '',
                 displayMode: parentNode.type.name === 'math_block',
-                position: { x: rect.left, y: rect.bottom + 4 },
+                position: getPosition(parentPos),
                 nodePos: parentPos
               })
             );
@@ -198,6 +229,8 @@ export const mathClickPlugin = $prose(() => {
           if (!editorElement) {
             editorElement = document.createElement('div');
             editorElement.className = 'math-editor-popup';
+            editorElement.style.position = 'fixed';
+            editorElement.style.zIndex = '80';
             document.body.appendChild(editorElement);
           }
           
