@@ -11,7 +11,7 @@ vi.mock('../../../../../../../vendor/milkdown/packages/components/src/table-bloc
   suppressTableDragSelection: vi.fn(),
 }))
 
-import { useEdgeCreateHandlers } from '../../../../../../../vendor/milkdown/packages/components/src/table-block/view/edge-create'
+import { useCornerCreateHandlers } from '../../../../../../../vendor/milkdown/packages/components/src/table-block/view/corner-create'
 
 function setRect(
   element: Element,
@@ -200,16 +200,6 @@ function createHarness(options?: {
     value: 1600,
   })
 
-  const refs = {
-    rootRef: { value: root },
-    tableWrapperRef: { value: undefined },
-    tableScrollRef: { value: tableScroll },
-    contentWrapperRef: { value: content },
-    yLineHandleRef: { value: undefined },
-    xLineHandleRef: { value: undefined },
-    lineHoverIndex: { value: [-1, -1] as [number, number] },
-  } as never
-
   const onAddRow = vi.fn(() => {
     const row = document.createElement('tr')
     row.appendChild(document.createElement('td'))
@@ -242,8 +232,16 @@ function createHarness(options?: {
     updateRect()
   })
 
-  const handlers = useEdgeCreateHandlers(
-    refs,
+  const handlers = useCornerCreateHandlers(
+    {
+      rootRef: { value: root },
+      tableWrapperRef: { value: undefined },
+      tableScrollRef: { value: tableScroll },
+      contentWrapperRef: { value: content },
+      yLineHandleRef: { value: undefined },
+      xLineHandleRef: { value: undefined },
+      lineHoverIndex: { value: [-1, -1] as [number, number] },
+    } as never,
     () => true,
     onAddRow,
     onAddCol,
@@ -264,11 +262,11 @@ function createHarness(options?: {
 
   return {
     handlers,
+    handle,
     onAddRow,
     onAddCol,
     onShrinkRow,
     onShrinkCol,
-    handle,
     setVerticalScroll,
   }
 }
@@ -277,173 +275,83 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-describe('edge create handlers', () => {
-  it('clears an active bottom-edge drag when the window blurs so a new drag can start', () => {
-    const { handlers, onAddRow, handle } = createHarness()
+describe('corner create handlers', () => {
+  it('clears an active corner drag when the window blurs so a new drag can start', () => {
+    const { handlers, handle, onAddRow, onAddCol } = createHarness()
 
-    handlers.startRowEdgeCreate(
+    handlers.startCornerCreate(
       createStartPointerEvent({
         currentTarget: handle,
-        pointerId: 7,
-        clientX: 120,
+        pointerId: 4,
+        clientX: 340,
         clientY: 200,
       })
     )
 
     dispatchDocumentPointerEvent({
       type: 'pointermove',
-      pointerId: 7,
-      clientX: 120,
+      pointerId: 4,
+      clientX: 347,
       clientY: 207,
     })
 
     window.dispatchEvent(new Event('blur'))
 
-    handlers.startRowEdgeCreate(
+    handlers.startCornerCreate(
       createStartPointerEvent({
         currentTarget: handle,
-        pointerId: 8,
-        clientX: 120,
+        pointerId: 5,
+        clientX: 340,
         clientY: 200,
       })
     )
 
     dispatchDocumentPointerEvent({
       type: 'pointermove',
-      pointerId: 8,
-      clientX: 120,
+      pointerId: 5,
+      clientX: 347,
       clientY: 207,
     })
     dispatchDocumentPointerEvent({
       type: 'pointermove',
-      pointerId: 8,
-      clientX: 120,
+      pointerId: 5,
+      clientX: 365,
       clientY: 225,
     })
     dispatchDocumentPointerEvent({
       type: 'pointerup',
-      pointerId: 8,
-      clientX: 120,
+      pointerId: 5,
+      clientX: 365,
       clientY: 225,
     })
 
     expect(onAddRow).toHaveBeenCalledTimes(1)
+    expect(onAddCol).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps adding rows while the same bottom-edge drag continues past each new threshold', () => {
-    const { handlers, onAddRow, handle } = createHarness()
+  it('keeps adding rows while a corner drag continues through vertical scrolling', () => {
+    const { handlers, handle, onAddRow, onAddCol, setVerticalScroll } =
+      createHarness()
 
-    handlers.startRowEdgeCreate(
+    handlers.startCornerCreate(
       createStartPointerEvent({
         currentTarget: handle,
         pointerId: 1,
-        clientX: 120,
-        clientY: 200,
-      })
-    )
-
-    dispatchDocumentPointerEvent({
-      type: 'pointermove',
-      pointerId: 1,
-      clientX: 120,
-      clientY: 207,
-    })
-    dispatchDocumentPointerEvent({
-      type: 'pointermove',
-      pointerId: 1,
-      clientX: 120,
-      clientY: 225,
-    })
-    dispatchDocumentPointerEvent({
-      type: 'pointermove',
-      pointerId: 1,
-      clientX: 120,
-      clientY: 257,
-    })
-    dispatchDocumentPointerEvent({
-      type: 'pointermove',
-      pointerId: 1,
-      clientX: 120,
-      clientY: 285,
-    })
-    dispatchDocumentPointerEvent({
-      type: 'pointerup',
-      pointerId: 1,
-      clientX: 120,
-      clientY: 285,
-    })
-
-    expect(onAddRow).toHaveBeenCalledTimes(2)
-  })
-
-  it('keeps adding columns while the same right-edge drag continues past each new threshold', () => {
-    const { handlers, onAddCol, handle } = createHarness()
-
-    handlers.startColEdgeCreate(
-      createStartPointerEvent({
-        currentTarget: handle,
-        pointerId: 2,
         clientX: 340,
-        clientY: 140,
-      })
-    )
-
-    dispatchDocumentPointerEvent({
-      type: 'pointermove',
-      pointerId: 2,
-      clientX: 347,
-      clientY: 140,
-    })
-    dispatchDocumentPointerEvent({
-      type: 'pointermove',
-      pointerId: 2,
-      clientX: 365,
-      clientY: 140,
-    })
-    dispatchDocumentPointerEvent({
-      type: 'pointermove',
-      pointerId: 2,
-      clientX: 437,
-      clientY: 140,
-    })
-    dispatchDocumentPointerEvent({
-      type: 'pointermove',
-      pointerId: 2,
-      clientX: 465,
-      clientY: 140,
-    })
-    dispatchDocumentPointerEvent({
-      type: 'pointerup',
-      pointerId: 2,
-      clientX: 465,
-      clientY: 140,
-    })
-
-    expect(onAddCol).toHaveBeenCalledTimes(2)
-  })
-
-  it('keeps adding rows when the drag continues through scroll-root scrolling', () => {
-    const { handlers, onAddRow, handle, setVerticalScroll } = createHarness()
-
-    handlers.startRowEdgeCreate(
-      createStartPointerEvent({
-        currentTarget: handle,
-        pointerId: 4,
-        clientX: 120,
         clientY: 200,
       })
     )
 
     dispatchDocumentPointerEvent({
       type: 'pointermove',
-      pointerId: 4,
-      clientX: 120,
+      pointerId: 1,
+      clientX: 347,
       clientY: 207,
     })
     dispatchDocumentPointerEvent({
       type: 'pointermove',
-      pointerId: 4,
-      clientX: 120,
+      pointerId: 1,
+      clientX: 347,
       clientY: 225,
     })
 
@@ -451,36 +359,37 @@ describe('edge create handlers', () => {
 
     dispatchDocumentPointerEvent({
       type: 'pointerup',
-      pointerId: 4,
-      clientX: 120,
+      pointerId: 1,
+      clientX: 347,
       clientY: 225,
     })
 
     expect(onAddRow).toHaveBeenCalledTimes(2)
+    expect(onAddCol).not.toHaveBeenCalled()
   })
 
-  it('keeps adding rows when the drag continues through wheel scrolling', () => {
-    const { handlers, onAddRow, handle } = createHarness()
+  it('keeps adding rows while a corner drag continues through wheel scrolling', () => {
+    const { handlers, handle, onAddRow, onAddCol } = createHarness()
 
-    handlers.startRowEdgeCreate(
+    handlers.startCornerCreate(
       createStartPointerEvent({
         currentTarget: handle,
-        pointerId: 5,
-        clientX: 120,
+        pointerId: 2,
+        clientX: 340,
         clientY: 200,
       })
     )
 
     dispatchDocumentPointerEvent({
       type: 'pointermove',
-      pointerId: 5,
-      clientX: 120,
+      pointerId: 2,
+      clientX: 347,
       clientY: 207,
     })
     dispatchDocumentPointerEvent({
       type: 'pointermove',
-      pointerId: 5,
-      clientX: 120,
+      pointerId: 2,
+      clientX: 347,
       clientY: 225,
     })
     dispatchDocumentWheelEvent({
@@ -488,149 +397,94 @@ describe('edge create handlers', () => {
     })
     dispatchDocumentPointerEvent({
       type: 'pointerup',
-      pointerId: 5,
-      clientX: 120,
+      pointerId: 2,
+      clientX: 347,
       clientY: 225,
     })
 
     expect(onAddRow).toHaveBeenCalledTimes(2)
+    expect(onAddCol).not.toHaveBeenCalled()
   })
 
-  it('does not shrink rows when an active bottom-edge create drag moves back upward', () => {
-    const { handlers, onAddRow, onShrinkRow, handle } = createHarness()
+  it('does not shrink rows or columns when an active corner create drag moves back inward', () => {
+    const { handlers, handle, onAddRow, onAddCol, onShrinkRow, onShrinkCol } =
+      createHarness()
 
-    handlers.startRowEdgeCreate(
+    handlers.startCornerCreate(
       createStartPointerEvent({
         currentTarget: handle,
-        pointerId: 6,
-        clientX: 120,
+        pointerId: 3,
+        clientX: 340,
         clientY: 200,
       })
     )
 
     dispatchDocumentPointerEvent({
       type: 'pointermove',
-      pointerId: 6,
-      clientX: 120,
+      pointerId: 3,
+      clientX: 347,
       clientY: 207,
     })
     dispatchDocumentPointerEvent({
       type: 'pointermove',
-      pointerId: 6,
-      clientX: 120,
+      pointerId: 3,
+      clientX: 365,
       clientY: 225,
     })
     dispatchDocumentPointerEvent({
       type: 'pointermove',
-      pointerId: 6,
-      clientX: 120,
+      pointerId: 3,
+      clientX: 260,
       clientY: 140,
     })
     dispatchDocumentPointerEvent({
       type: 'pointerup',
-      pointerId: 6,
-      clientX: 120,
+      pointerId: 3,
+      clientX: 260,
       clientY: 140,
     })
 
     expect(onAddRow).toHaveBeenCalledTimes(1)
+    expect(onAddCol).toHaveBeenCalledTimes(1)
     expect(onShrinkRow).not.toHaveBeenCalled()
+    expect(onShrinkCol).not.toHaveBeenCalled()
   })
 
-  it('shrinks rows when dragging upward from the bottom edge of an existing table', () => {
-    const { handlers, onShrinkRow, handle } = createHarness({
+  it('shrinks rows and columns when dragging inward from the corner of an existing table', () => {
+    const { handlers, handle, onShrinkRow, onShrinkCol } = createHarness({
       canShrinkRow: true,
+      canShrinkCol: true,
     })
 
-    handlers.startRowEdgeCreate(
+    handlers.startCornerCreate(
       createStartPointerEvent({
         currentTarget: handle,
-        pointerId: 9,
-        clientX: 120,
+        pointerId: 6,
+        clientX: 340,
         clientY: 200,
       })
     )
 
     dispatchDocumentPointerEvent({
       type: 'pointermove',
-      pointerId: 9,
-      clientX: 120,
+      pointerId: 6,
+      clientX: 333,
       clientY: 193,
     })
     dispatchDocumentPointerEvent({
       type: 'pointermove',
-      pointerId: 9,
-      clientX: 120,
+      pointerId: 6,
+      clientX: 305,
       clientY: 165,
     })
     dispatchDocumentPointerEvent({
       type: 'pointerup',
-      pointerId: 9,
-      clientX: 120,
+      pointerId: 6,
+      clientX: 305,
       clientY: 165,
     })
 
     expect(onShrinkRow).toHaveBeenCalledTimes(1)
-  })
-
-  it('does not start an edge-create drag while the editor is readonly', () => {
-    const content = document.createElement('table')
-    const row = document.createElement('tr')
-    row.appendChild(document.createElement('td'))
-    content.appendChild(row)
-    document.body.appendChild(content)
-    setRect(content, {
-      left: 100,
-      top: 120,
-      width: 120,
-      height: 40,
-    })
-
-    const onAddRow = vi.fn()
-    const handlers = useEdgeCreateHandlers(
-      {
-        tableWrapperRef: { value: undefined },
-        contentWrapperRef: { value: content },
-        yLineHandleRef: { value: undefined },
-        xLineHandleRef: { value: undefined },
-        lineHoverIndex: { value: [-1, -1] as [number, number] },
-      } as never,
-      () => false,
-      onAddRow,
-      vi.fn(),
-      vi.fn(),
-      vi.fn(),
-      () => false,
-      () => false,
-      () => 1
-    )
-
-    const handle = document.createElement('div')
-    handle.setPointerCapture = vi.fn()
-    handle.releasePointerCapture = vi.fn()
-
-    handlers.startRowEdgeCreate(
-      createStartPointerEvent({
-        currentTarget: handle,
-        pointerId: 3,
-        clientX: 120,
-        clientY: 160,
-      })
-    )
-
-    dispatchDocumentPointerEvent({
-      type: 'pointermove',
-      pointerId: 3,
-      clientX: 120,
-      clientY: 220,
-    })
-    dispatchDocumentPointerEvent({
-      type: 'pointerup',
-      pointerId: 3,
-      clientX: 120,
-      clientY: 220,
-    })
-
-    expect(onAddRow).not.toHaveBeenCalled()
+    expect(onShrinkCol).toHaveBeenCalledTimes(1)
   })
 })

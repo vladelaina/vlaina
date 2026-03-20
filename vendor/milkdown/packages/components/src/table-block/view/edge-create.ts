@@ -18,6 +18,15 @@ import {
   suppressTableDragSelection,
 } from './drag-cursor'
 import {
+  readEdgeCreateWheelDelta,
+  readEdgeCreateAbsoluteCoord,
+  readEdgeCreateClientCoord,
+  resolveEdgeCreateAutoScrollDelta,
+  resolveEdgeCreateScrollSource,
+  scrollEdgeCreateSourceBy,
+  type EdgeCreateScrollSource,
+} from './edge-create-scroll'
+import {
   createEdgeCreateAnchors,
   resolveEdgeCreateAction,
   type EdgeCreateAnchors,
@@ -30,12 +39,16 @@ const EDGE_CREATE_ACTIVATION_THRESHOLD = 6
 interface EdgeCreateSession extends DragSessionState {
   axis: EdgeCreateAxis
   startCoord: number
+  lastClientCoord: number
   lastCoord: number
   lastCommitCoord: number
   edgeCoord: number
   anchors: EdgeCreateAnchors
   pendingAnchorSync: boolean
   isActive: boolean
+  scrollSource: EdgeCreateScrollSource | null
+  autoScrollFrame: number
+  manualScrollHoldUntil: number
 }
 
 interface EdgeCreateRuntime {
@@ -52,6 +65,14 @@ interface EdgeCreateRuntime {
 
 let activeSession: EdgeCreateSession | null = null
 let activeRuntime: EdgeCreateRuntime | null = null
+
+function readCurrentTime() {
+  if (typeof performance !== 'undefined') {
+    return performance.now()
+  }
+
+  return Date.now()
+}
 
 function getRowCount(refs: Refs) {
   const rows = refs.contentWrapperRef.value?.querySelectorAll('tr') ?? []
@@ -79,19 +100,212 @@ function syncRightEdgeIndex(refs: Refs): boolean {
 
 function getCurrentEdgeCoord(
   runtime: EdgeCreateRuntime,
-  axis: EdgeCreateAxis
+  axis: EdgeCreateAxis,
+  scrollSource: EdgeCreateScrollSource | null
 ): number | null {
   const content = runtime.refs.contentWrapperRef.value
   if (!content) return null
 
   const rect = content.getBoundingClientRect()
-  return axis === 'row' ? rect.bottom : rect.right
+  return readEdgeCreateAbsoluteCoord({
+    axis,
+    clientCoord: axis === 'row' ? rect.bottom : rect.right,
+    scrollSource,
+  })
+}
+
+function bindSessionScrollListener(source: EdgeCreateScrollSource | null) {
+  source?.addEventListener('scroll', handleScroll, { passive: true })
+}
+
+function unbindSessionScrollListener(source: EdgeCreateScrollSource | null) {
+  source?.removeEventListener('scroll', handleScroll)
+}
+
+function bindSessionWheelListener() {
+  document.addEventListener('wheel', handleWheel, {
+    capture: true,
+    passive: false,
+  })
+}
+
+function unbindSessionWheelListener() {
+  document.removeEventListener('wheel', handleWheel, true)
+}
+
+function bindSessionAbortListeners() {
+  if (typeof window === 'undefined') return
+  window.addEventListener('blur', handleAbort)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+}
+
+function unbindSessionAbortListeners() {
+  if (typeof window === 'undefined') return
+  window.removeEventListener('blur', handleAbort)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+}
+
+function stopAutoScrollLoop(session: EdgeCreateSession) {
+  if (session.autoScrollFrame === 0 || typeof window === 'undefined') return
+  window.cancelAnimationFrame(session.autoScrollFrame)
+  session.autoScrollFrame = 0
+}
+
+function startAutoScrollLoop(session: EdgeCreateSession) {
+  if (session.autoScrollFrame !== 0 || typeof window === 'undefined') return
+
+  const tick = () => {
+    const currentSession = activeSession
+    const runtime = activeRuntime
+    if (currentSession !== session || !runtime) {
+      session.autoScrollFrame = 0
+      return
+    }
+
+    if (readCurrentTime() < session.manualScrollHoldUntil) {
+      session.autoScrollFrame = window.requestAnimationFrame(tick)
+      return
+    }
+
+    const delta = resolveEdgeCreateAutoScrollDelta({
+      axis: session.axis,
+      clientCoord: session.lastClientCoord,
+      scrollSource: session.scrollSource,
+    })
+
+    if (
+      delta !== 0 &&
+      scrollEdgeCreateSourceBy({
+        axis: session.axis,
+        delta,
+        scrollSource: session.scrollSource,
+      })
+    ) {
+      suppressTableDragSelection()
+      updateSession(runtime, session, session.lastClientCoord)
+    }
+
+    session.autoScrollFrame = window.requestAnimationFrame(tick)
+  }
+
+  session.autoScrollFrame = window.requestAnimationFrame(tick)
+}
+
+function updateSession(
+  runtime: EdgeCreateRuntime,
+  session: EdgeCreateSession,
+  currentClientCoord: number
+) {
+  const currentAbsoluteCoord = readEdgeCreateAbsoluteCoord({
+    axis: session.axis,
+    clientCoord: currentClientCoord,
+    scrollSource: session.scrollSource,
+  })
+
+  if (!session.isActive) {
+    session.lastClientCoord = currentClientCoord
+    session.lastCoord = currentAbsoluteCoord
+
+    if (
+      Math.abs(currentAbsoluteCoord - session.startCoord) <
+      EDGE_CREATE_ACTIVATION_THRESHOLD
+    ) {
+      return false
+    }
+
+    const edgeCoord = getCurrentEdgeCoord(
+      runtime,
+      session.axis,
+      session.scrollSource
+    )
+    if (edgeCoord == null) return false
+
+    session.isActive = true
+    session.edgeCoord = edgeCoord
+    const currentOffset = currentAbsoluteCoord - edgeCoord
+    session.lastCoord = currentOffset
+    session.lastCommitCoord = currentOffset
+    session.anchors = createEdgeCreateAnchors(
+      currentOffset,
+      0,
+      EDGE_CREATE_THRESHOLD
+    )
+    session.pendingAnchorSync = false
+    return true
+  }
+
+  let activeEdgeCoord = session.edgeCoord
+  if (session.pendingAnchorSync) {
+    const edgeCoord = getCurrentEdgeCoord(
+      runtime,
+      session.axis,
+      session.scrollSource
+    )
+    if (edgeCoord == null) return false
+    if (edgeCoord === session.edgeCoord) {
+      session.lastClientCoord = currentClientCoord
+      session.lastCoord = currentAbsoluteCoord - edgeCoord
+      return false
+    }
+    session.edgeCoord = edgeCoord
+    activeEdgeCoord = edgeCoord
+    session.anchors = createEdgeCreateAnchors(
+      session.lastCommitCoord,
+      0,
+      EDGE_CREATE_THRESHOLD
+    )
+    session.pendingAnchorSync = false
+  }
+
+  const currentOffset = currentAbsoluteCoord - activeEdgeCoord
+  const action = resolveEdgeCreateAction({
+    currentCoord: currentOffset,
+    previousCoord: session.lastCoord,
+    anchors: session.anchors,
+  })
+
+  session.lastClientCoord = currentClientCoord
+  session.lastCoord = currentOffset
+
+  if (action === 'expand') {
+    if (session.axis === 'row') {
+      if (!syncBottomEdgeIndex(runtime.refs)) return false
+      runtime.onAddRow()
+    } else {
+      if (!syncRightEdgeIndex(runtime.refs)) return false
+      runtime.onAddCol()
+    }
+
+    session.lastCommitCoord = currentOffset
+    session.pendingAnchorSync = true
+    return true
+  }
+
+  if (action !== 'shrink') return false
+
+  if (session.axis === 'row') {
+    if (!runtime.canShrinkRow()) return false
+    syncBottomEdgeIndex(runtime.refs)
+    runtime.onShrinkRow()
+  } else {
+    if (!runtime.canShrinkCol()) return false
+    syncRightEdgeIndex(runtime.refs)
+    runtime.onShrinkCol()
+  }
+
+  session.lastCommitCoord = currentOffset
+  session.pendingAnchorSync = true
+  return true
 }
 
 function clearSession(current: EdgeCreateSession | null = activeSession) {
   if (!current) return
 
   unbindDragSessionDocumentListeners(current.source, handleMove, handleEnd)
+  unbindSessionScrollListener(current.scrollSource)
+  unbindSessionWheelListener()
+  unbindSessionAbortListeners()
+  stopAutoScrollLoop(current)
   releaseTableDragCursor()
   releaseDragSessionPointer(current)
 
@@ -106,102 +320,84 @@ function handleMove(e: DragSessionEvent) {
   if (!session || !runtime) return
   if (!canHandleDragSessionEvent(session, e)) return
 
+  session.manualScrollHoldUntil = 0
   suppressTableDragSelection()
 
-  const currentCoord = session.axis === 'row' ? e.clientY : e.clientX
+  const currentClientCoord = readEdgeCreateClientCoord(e, session.axis)
+  const handled = updateSession(runtime, session, currentClientCoord)
+  if (!handled) return
 
-  if (!session.isActive) {
-    session.lastCoord = currentCoord
-
-    if (
-      Math.abs(currentCoord - session.startCoord) <
-      EDGE_CREATE_ACTIVATION_THRESHOLD
-    ) {
-      return
-    }
-
-    const edgeCoord = getCurrentEdgeCoord(runtime, session.axis)
-    if (edgeCoord == null) return
-
-    session.isActive = true
-    session.lastCommitCoord = currentCoord
-    session.anchors = createEdgeCreateAnchors(
-      currentCoord,
-      edgeCoord,
-      EDGE_CREATE_THRESHOLD
-    )
-    session.pendingAnchorSync = false
-    e.preventDefault()
-    e.stopPropagation()
-    return
-  }
-
-  if (session.pendingAnchorSync) {
-    const edgeCoord = getCurrentEdgeCoord(runtime, session.axis)
-    if (edgeCoord == null) return
-    if (edgeCoord === session.edgeCoord) {
-      session.lastCoord = currentCoord
-      return
-    }
-    session.edgeCoord = edgeCoord
-    session.anchors = createEdgeCreateAnchors(
-      session.lastCommitCoord,
-      edgeCoord,
-      EDGE_CREATE_THRESHOLD
-    )
-    session.pendingAnchorSync = false
-  }
-
-  const action = resolveEdgeCreateAction({
-    currentCoord,
-    previousCoord: session.lastCoord,
-    anchors: session.anchors,
-  })
-
-  session.lastCoord = currentCoord
-
-  if (action === 'expand') {
-    if (session.axis === 'row') {
-      if (!syncBottomEdgeIndex(runtime.refs)) return
-      runtime.onAddRow()
-    } else {
-      if (!syncRightEdgeIndex(runtime.refs)) return
-      runtime.onAddCol()
-    }
-
-    session.lastCommitCoord = currentCoord
-    session.pendingAnchorSync = true
-    e.preventDefault()
-    e.stopPropagation()
-    return
-  }
-
-  if (action !== 'shrink') return
-
-  if (session.axis === 'row') {
-    if (!runtime.canShrinkRow()) return
-    syncBottomEdgeIndex(runtime.refs)
-    runtime.onShrinkRow()
-  } else {
-    if (!runtime.canShrinkCol()) return
-    syncRightEdgeIndex(runtime.refs)
-    runtime.onShrinkCol()
-  }
-
-  session.lastCommitCoord = currentCoord
-  session.pendingAnchorSync = true
   e.preventDefault()
   e.stopPropagation()
 }
 
 function handleEnd(e: DragSessionEvent) {
   const session = activeSession
+  const runtime = activeRuntime
   if (!session) return
   if (!canHandleDragSessionEvent(session, e)) return
 
   clearSession(session)
   e.preventDefault()
   e.stopPropagation()
+}
+
+function handleScroll() {
+  const session = activeSession
+  const runtime = activeRuntime
+  if (!session || !runtime) return
+
+  suppressTableDragSelection()
+  updateSession(runtime, session, session.lastClientCoord)
+}
+
+function handleAbort() {
+  clearSession()
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) {
+    clearSession()
+  }
+}
+
+function resolveWheelClientCoord(
+  event: WheelEvent,
+  axis: EdgeCreateAxis,
+  fallback: number
+) {
+  const clientCoord = axis === 'row' ? event.clientY : event.clientX
+  return Number.isFinite(clientCoord) ? clientCoord : fallback
+}
+
+function handleWheel(event: WheelEvent) {
+  const session = activeSession
+  const runtime = activeRuntime
+  if (!session || !runtime) return
+
+  const currentClientCoord = resolveWheelClientCoord(
+    event,
+    session.axis,
+    session.lastClientCoord
+  )
+  const delta = readEdgeCreateWheelDelta(
+    event,
+    session.axis,
+    session.scrollSource
+  )
+  if (delta === 0) return
+
+  const scrolled = scrollEdgeCreateSourceBy({
+    axis: session.axis,
+    delta,
+    scrollSource: session.scrollSource,
+  })
+  if (!scrolled) return
+
+  session.manualScrollHoldUntil = readCurrentTime() + 140
+  suppressTableDragSelection()
+  updateSession(runtime, session, currentClientCoord)
+  event.preventDefault()
 }
 
 export function useEdgeCreateHandlers(
@@ -254,8 +450,14 @@ export function useEdgeCreateHandlers(
           : syncRightEdgeIndex(runtime.refs)
       if (!canStart) return
 
-      const startCoord = axis === 'row' ? e.clientY : e.clientX
-      const edgeCoord = getCurrentEdgeCoord(runtime, axis)
+      const scrollSource = resolveEdgeCreateScrollSource(runtime.refs, axis)
+      const startClientCoord = readEdgeCreateClientCoord(e, axis)
+      const startCoord = readEdgeCreateAbsoluteCoord({
+        axis,
+        clientCoord: startClientCoord,
+        scrollSource,
+      })
+      const edgeCoord = getCurrentEdgeCoord(runtime, axis, scrollSource)
       if (edgeCoord == null) return
 
       activeRuntime = runtime
@@ -264,6 +466,7 @@ export function useEdgeCreateHandlers(
         source,
         pointerId: 'pointerId' in e ? e.pointerId : null,
         startCoord,
+        lastClientCoord: startClientCoord,
         lastCoord: startCoord,
         lastCommitCoord: startCoord,
         edgeCoord,
@@ -274,14 +477,22 @@ export function useEdgeCreateHandlers(
         ),
         pendingAnchorSync: false,
         isActive: false,
+        scrollSource,
+        autoScrollFrame: 0,
+        manualScrollHoldUntil: 0,
         target: e.currentTarget,
         key: getDragRuntimeKey(runtime.getKey),
       }
-
       captureDragSessionPointer(source, e, e.currentTarget)
 
       acquireTableDragCursor(axis === 'row' ? 'row-resize' : 'col-resize')
       bindDragSessionDocumentListeners(source, handleMove, handleEnd)
+      bindSessionScrollListener(scrollSource)
+      bindSessionWheelListener()
+      bindSessionAbortListeners()
+      if (activeSession) {
+        startAutoScrollLoop(activeSession)
+      }
       e.preventDefault()
       e.stopPropagation()
     }
