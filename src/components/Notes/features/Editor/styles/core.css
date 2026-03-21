@@ -26,6 +26,7 @@
   scroll-behavior: smooth;
   min-height: calc(100vh - 200px);
   cursor: text;
+  position: relative;
 }
 
 /* ProseMirror editor needs min-height to be clickable */
@@ -167,11 +168,20 @@
   isolation: isolate;
   will-change: transform;
   transform: translateZ(0);
+  opacity: 1;
+  background: var(--neko-bg-primary);
+  border: 1px solid var(--neko-border);
+  border-radius: 4px;
+  box-shadow:
+    0 18px 40px -18px rgb(15 23 42 / 0.35),
+    0 10px 18px -14px rgb(15 23 42 / 0.2);
+  overflow: hidden;
 }
 
 .neko-block-drag-preview-layer {
   position: relative;
   z-index: 2;
+  background: inherit;
 }
 
 .neko-block-drag-preview-layer > * {
