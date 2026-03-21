@@ -8,6 +8,11 @@ import { onBeforeUnmount } from 'vue'
 import type { ColumnMenuAction } from './column-header-drag-state'
 import type { DragSession, PressSession } from './column-header-drag-types'
 import { useColumnHeaderDragViewState } from './column-header-drag-view'
+import {
+  acquireTableDragCursor,
+  releaseTableDragCursor,
+  suppressTableDragSelection,
+} from './drag-cursor'
 import { getDragOverColumn } from '../dnd/calc-drag-over'
 
 interface UseColumnHeaderDragOptions {
@@ -53,8 +58,7 @@ export function useColumnHeaderDrag({
 
   const resetDragSession = () => {
     dragSession = null
-    document.body.style.removeProperty('user-select')
-    document.body.style.removeProperty('cursor')
+    releaseTableDragCursor()
     syncGlobalListeners()
   }
 
@@ -157,8 +161,7 @@ export function useColumnHeaderDrag({
     }
     suppressNextClick = true
     activeColIndex.value = session.index
-    document.body.style.setProperty('user-select', 'none')
-    document.body.style.setProperty('cursor', 'ew-resize')
+    acquireTableDragCursor('ew-resize')
     syncControls()
   }
 
@@ -182,6 +185,7 @@ export function useColumnHeaderDrag({
     if (pressSession && event.pointerId === pressSession.pointerId) {
       pressSession.currentX = event.clientX
       pressSession.currentY = event.clientY
+      suppressTableDragSelection()
       const movedDistance = Math.hypot(
         pressSession.currentX - pressSession.startX,
         pressSession.currentY - pressSession.startY
@@ -200,6 +204,7 @@ export function useColumnHeaderDrag({
 
     dragSession.currentX = event.clientX
     dragSession.currentY = event.clientY
+    suppressTableDragSelection()
     maybeAutoScroll(event.clientX)
     const targetIndex = getTargetIndexFromPointer(event.clientX)
     if (targetIndex != null && dragSession.to !== targetIndex) {
@@ -413,8 +418,7 @@ export function useColumnHeaderDrag({
     pressSession = null
     dragSession = null
     suppressNextClick = false
-    document.body.style.removeProperty('user-select')
-    document.body.style.removeProperty('cursor')
+    releaseTableDragCursor()
     resetViewState()
   })
 

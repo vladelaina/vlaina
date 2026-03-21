@@ -18,6 +18,22 @@ vi.mock('@milkdown/core', () => ({
   editorViewCtx,
 }));
 
+const {
+  acquireTableDragCursorMock,
+  releaseTableDragCursorMock,
+  suppressTableDragSelectionMock,
+} = vi.hoisted(() => ({
+  acquireTableDragCursorMock: vi.fn(),
+  releaseTableDragCursorMock: vi.fn(),
+  suppressTableDragSelectionMock: vi.fn(),
+}));
+
+vi.mock('../../../../../../../vendor/milkdown/packages/components/src/table-block/view/drag-cursor', () => ({
+  acquireTableDragCursor: acquireTableDragCursorMock,
+  releaseTableDragCursor: releaseTableDragCursorMock,
+  suppressTableDragSelection: suppressTableDragSelectionMock,
+}));
+
 import { useColumnHeaderDrag } from '../../../../../../../vendor/milkdown/packages/components/src/table-block/view/column-header-drag';
 
 let warnSpy: ReturnType<typeof vi.spyOn> | null = null;
@@ -199,6 +215,9 @@ function createHarness() {
 afterEach(() => {
   warnSpy?.mockRestore();
   warnSpy = null;
+  acquireTableDragCursorMock.mockReset();
+  releaseTableDragCursorMock.mockReset();
+  suppressTableDragSelectionMock.mockReset();
 
   for (const cleanup of cleanupCallbacks.splice(0)) {
     cleanup();
@@ -312,6 +331,15 @@ describe('column header drag', () => {
       clientY: 108,
     });
 
+    dispatchWindowPointerEvent('pointermove', {
+      pointerId: 3,
+      clientX: 342,
+      clientY: 108,
+    });
+
+    expect(acquireTableDragCursorMock).toHaveBeenCalledWith('ew-resize');
+    expect(suppressTableDragSelectionMock).toHaveBeenCalled();
+
     expect(api.dragIndicator.value).not.toBeNull();
     expect(api.dragSourceHighlight.value).not.toBeNull();
 
@@ -323,6 +351,7 @@ describe('column header drag', () => {
 
     expect(moveCol).toHaveBeenCalledTimes(1);
     expect(moveCol).toHaveBeenCalledWith(0, 2);
+    expect(releaseTableDragCursorMock).toHaveBeenCalledTimes(1);
 
     api.onControlClick(0, createMouseEvent());
 

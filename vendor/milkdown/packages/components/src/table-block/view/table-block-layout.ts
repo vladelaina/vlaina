@@ -59,23 +59,33 @@ export function resolveTableEdgeZoneLayout({
   contentRect,
   rowEdgeZoneSize,
   colEdgeZoneSize,
+  cornerEdgeZoneSize,
   cornerEdgeZoneInset,
+  hasHorizontalScrollbar = false,
 }: {
   wrapperRect: Pick<DOMRect, 'left' | 'top'>
   contentRect: Pick<DOMRect, 'left' | 'top' | 'width' | 'height'>
   rowEdgeZoneSize: number
   colEdgeZoneSize: number
+  cornerEdgeZoneSize: number
   cornerEdgeZoneInset: number
+  hasHorizontalScrollbar?: boolean
 }) {
   const left = contentRect.left - wrapperRect.left
   const top = contentRect.top - wrapperRect.top
   const width = contentRect.width
   const height = contentRect.height
+  const bottomTop = hasHorizontalScrollbar
+    ? top + height - rowEdgeZoneSize
+    : top + height - rowEdgeZoneSize / 2
+  const cornerTop = hasHorizontalScrollbar
+    ? top + height - cornerEdgeZoneSize
+    : top + height - cornerEdgeZoneInset
 
   return {
     bottom: {
       left,
-      top: top + height - rowEdgeZoneSize / 2,
+      top: bottomTop,
       width,
     },
     right: {
@@ -84,7 +94,7 @@ export function resolveTableEdgeZoneLayout({
       height,
     },
     corner: {
-      top: top + height - cornerEdgeZoneInset,
+      top: cornerTop,
       left: left + width - cornerEdgeZoneInset,
     },
   }
@@ -93,6 +103,7 @@ export function resolveTableEdgeZoneLayout({
 type UseTableBlockLayoutOptions = {
   rowEdgeZoneSize: number
   colEdgeZoneSize: number
+  cornerEdgeZoneSize: number
   cornerEdgeZoneInset: number
   rootRef: Ref<HTMLDivElement | undefined>
   tableWrapperRef: Ref<HTMLDivElement | undefined>
@@ -109,6 +120,7 @@ type UseTableBlockLayoutOptions = {
 export function useTableBlockLayout({
   rowEdgeZoneSize,
   colEdgeZoneSize,
+  cornerEdgeZoneSize,
   cornerEdgeZoneInset,
   rootRef,
   tableWrapperRef,
@@ -224,10 +236,11 @@ export function useTableBlockLayout({
     syncColumnHeaderControls()
 
     const wrapper = tableWrapperRef.value
+    const scroll = tableScrollRef.value
     const bottomZone = bottomEdgeZoneRef.value
     const rightZone = rightEdgeZoneRef.value
     const cornerZone = cornerEdgeZoneRef.value
-    if (!wrapper) return
+    if (!wrapper || !scroll) return
 
     ensureContentHost()
 
@@ -239,7 +252,9 @@ export function useTableBlockLayout({
       contentRect: content.getBoundingClientRect(),
       rowEdgeZoneSize,
       colEdgeZoneSize,
+      cornerEdgeZoneSize,
       cornerEdgeZoneInset,
+      hasHorizontalScrollbar: scroll.offsetHeight > scroll.clientHeight + 1,
     })
 
     if (bottomZone) {
