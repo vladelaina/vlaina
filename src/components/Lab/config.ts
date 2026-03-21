@@ -1,14 +1,14 @@
 import { AnimationLab } from './playground/AnimationLab';
 import { AiToolbarDropdownLab } from './playground/AiToolbarDropdownLab';
-import { SidebarLab } from './playground/SidebarLab';
+import { TopLeftEvolutionLab } from './playground/TopLeftEvolutionLab';
 
 export const LAB_MODULES = [
   {
-    id: 'sidebar-architect',
-    label: 'Navigation Architecture',
+    id: 'top-left-evolution',
+    label: 'Top-Left Evolution',
     icon: 'misc.animation',
-    component: SidebarLab,
-    description: '30 structural concepts for the primary application navigation.'
+    component: TopLeftEvolutionLab,
+    description: '30 micro-architectural solutions for re-organizing top-left sidebar actions.'
   },
   {
     id: 'animation',

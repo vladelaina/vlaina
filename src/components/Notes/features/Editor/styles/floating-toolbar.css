@@ -324,7 +324,7 @@
 }
 
 .toolbar-submenu::-webkit-scrollbar-thumb {
-  background-color: var(--neko-border, #e4e4e7);
+  background-color: #efefef;
   border-radius: 3px;
 }
 

@@ -3,8 +3,11 @@ import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import type { StarredEntry } from '@/stores/notes/types';
+import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { normalizeStarredVaultPath } from '@/stores/notes/starred';
+import { NoteIcon } from '../IconPicker/NoteIcon';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 import { NotesSidebarSection } from '../Sidebar/NotesSidebarPrimitives';
 
@@ -22,6 +25,82 @@ function getVaultLabel(path: string, recentVaults: Array<{ path: string; name: s
 function getFolderName(path: string): string {
   const parts = path.split('/').filter(Boolean);
   return parts[parts.length - 1] || path;
+}
+
+interface StarredEntryRowProps {
+  entry: StarredEntry;
+  isCurrentVaultEntry: boolean;
+  isActive: boolean;
+  onClick: () => void;
+  onRemove: () => void;
+}
+
+function StarredEntryRow({
+  entry,
+  isCurrentVaultEntry,
+  isActive,
+  onClick,
+  onRemove,
+}: StarredEntryRowProps) {
+  const liveTitle = useDisplayName(isCurrentVaultEntry && entry.kind === 'note' ? entry.relativePath : undefined);
+  const liveIcon = useDisplayIcon(isCurrentVaultEntry && entry.kind === 'note' ? entry.relativePath : undefined);
+  const title =
+    entry.kind === 'note'
+      ? liveTitle || getNoteTitleFromPath(entry.relativePath)
+      : getFolderName(entry.relativePath);
+
+  return (
+    <NotesSidebarRow
+      leading={
+        entry.kind === 'note' ? (
+          liveIcon ? (
+            <NoteIcon icon={liveIcon} size="sidebar" />
+          ) : (
+            <Icon
+              name="file.text"
+              size="sidebar"
+              className="text-[var(--notes-sidebar-file-icon)]"
+            />
+          )
+        ) : (
+          <Icon
+            name="file.folder"
+            size="sidebar"
+            className="text-[var(--notes-sidebar-folder-icon)]"
+          />
+        )
+      }
+      isActive={isActive}
+      onClick={onClick}
+      main={
+        <span
+          className={cn(
+            'block truncate',
+            isActive && 'font-medium text-[var(--notes-sidebar-text)]'
+          )}
+        >
+          {title}
+        </span>
+      }
+      actions={
+        <button
+          type="button"
+          aria-label={`Remove ${title} from starred`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove();
+          }}
+          className={cn(
+            'rounded-md p-1 focus:outline-none',
+            iconButtonStyles,
+            'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
+          )}
+        >
+          <Icon name="misc.star" size="md" className="fill-amber-500 text-amber-500" />
+        </button>
+      }
+    />
+  );
 }
 
 export function StarredSection() {
@@ -60,35 +139,16 @@ export function StarredSection() {
           const vaultLabel = getVaultLabel(entry.vaultPath, recentVaults);
           const isCurrentVaultEntry =
             normalizeStarredVaultPath(entry.vaultPath) === currentVaultPath;
-          const parentPath = entry.relativePath.includes('/')
-            ? entry.relativePath.slice(0, entry.relativePath.lastIndexOf('/'))
-            : '';
-          const detail = [isCurrentVaultEntry ? null : vaultLabel, parentPath || null]
-            .filter(Boolean)
-            .join(' / ');
-          const title =
-            entry.kind === 'note'
-              ? getNoteTitleFromPath(entry.relativePath)
-              : getFolderName(entry.relativePath);
           const isActive =
             entry.kind === 'note' &&
             isCurrentVaultEntry &&
             currentNote?.path === entry.relativePath;
 
           return (
-            <NotesSidebarRow
+            <StarredEntryRow
               key={entry.id}
-              leading={
-                <Icon
-                  name={entry.kind === 'folder' ? 'file.folder' : 'file.text'}
-                  size="sidebar"
-                  className={
-                    entry.kind === 'folder'
-                      ? 'text-[var(--notes-sidebar-folder-icon)]'
-                      : 'text-[var(--notes-sidebar-file-icon)]'
-                  }
-                />
-              }
+              entry={entry}
+              isCurrentVaultEntry={isCurrentVaultEntry}
               isActive={isActive}
               onClick={() => {
                 void (async () => {
@@ -113,38 +173,7 @@ export function StarredSection() {
                   }
                 })();
               }}
-              main={
-                <div className="min-w-0">
-                  <div
-                    className={cn(
-                      'truncate',
-                      isActive && 'font-medium text-[var(--notes-sidebar-text)]'
-                    )}
-                  >
-                    {title}
-                  </div>
-                  <div className="truncate text-[11px] text-[var(--notes-sidebar-text-soft)]">
-                    {detail || vaultLabel}
-                  </div>
-                </div>
-              }
-              actions={
-                <button
-                  type="button"
-                  aria-label={`Remove ${title} from starred`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    removeStarredEntry(entry.id);
-                  }}
-                  className={cn(
-                    'rounded-md p-1 focus:outline-none',
-                    iconButtonStyles,
-                    'text-amber-500 hover:text-amber-600'
-                  )}
-                >
-                  <Icon name="misc.star" size="md" className="fill-amber-500 text-current" />
-                </button>
-              }
+              onRemove={() => removeStarredEntry(entry.id)}
             />
           );
         })}

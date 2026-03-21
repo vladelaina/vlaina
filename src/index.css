@@ -218,7 +218,7 @@ html, body, #root {
 
   --notes-sidebar-surface: #ffffff;
   --notes-sidebar-row-hover: #f7f7f8;
-  --notes-sidebar-row-active: #f1f1f2;
+  --notes-sidebar-row-active: #f2f2f2;
   --notes-sidebar-row-drag: rgba(30, 150, 235, 0.1);
   --notes-sidebar-text: #2f3136;
   --notes-sidebar-text-muted: #6b7280;
@@ -315,7 +315,7 @@ html, body, #root {
 }
 
 ::-webkit-scrollbar-thumb, .neko-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(120, 120, 120, 0.2);
+  background-color: #efefef;
   border-radius: 10px;
   border: 3.5px solid transparent; 
   background-clip: content-box;

@@ -154,7 +154,7 @@
   padding-right: 4px;
   margin-right: -8px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
+  scrollbar-color: #efefef transparent;
 }
 
 .vault-recent__list::-webkit-scrollbar {
@@ -166,7 +166,7 @@
 }
 
 .vault-recent__list::-webkit-scrollbar-thumb {
-  background-color: rgba(128, 128, 128, 0.2);
+  background-color: #efefef;
   border-radius: 4px;
 }
 

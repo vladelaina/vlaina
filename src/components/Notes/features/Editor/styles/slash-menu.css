@@ -115,7 +115,7 @@
 }
 
 .slash-menu::-webkit-scrollbar-thumb {
-  background-color: rgb(127 127 127 / 0.24);
+  background-color: #efefef;
   border-radius: 999px;
 }
 

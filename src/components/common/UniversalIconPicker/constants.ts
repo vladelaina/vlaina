@@ -15,7 +15,7 @@ export const ROW_GAP = 2;
 export const SCROLLBAR_CLASSNAME = `
   [&::-webkit-scrollbar]:w-1.5
   [&::-webkit-scrollbar-track]:bg-transparent
-  [&::-webkit-scrollbar-thumb]:bg-[var(--neko-border)]
+  [&::-webkit-scrollbar-thumb]:bg-[#efefef]
   [&::-webkit-scrollbar-thumb]:rounded-full
   [&::-webkit-scrollbar-thumb]:hover:bg-[var(--neko-text-tertiary)]
 `;

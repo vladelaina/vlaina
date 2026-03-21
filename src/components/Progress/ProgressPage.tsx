@@ -243,7 +243,7 @@ export function ProgressPage() {
           flex-1 overflow-y-auto px-6 py-4 pt-6
           [&::-webkit-scrollbar]:w-1.5
           [&::-webkit-scrollbar-track]:bg-transparent
-          [&::-webkit-scrollbar-thumb]:bg-zinc-200
+          [&::-webkit-scrollbar-thumb]:bg-[#efefef]
           [&::-webkit-scrollbar-thumb]:rounded-full
           [&::-webkit-scrollbar-thumb]:hover:bg-zinc-300
           dark:[&::-webkit-scrollbar-thumb]:bg-zinc-800
