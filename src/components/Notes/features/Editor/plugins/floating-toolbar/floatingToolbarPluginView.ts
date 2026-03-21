@@ -47,6 +47,8 @@ export function createFloatingToolbarPluginView(
   let lastRenderState = '';
   let lastSelectionSignature = '';
   let lastToolbarX: number | null = null;
+  let lastToolbarY: number | null = null;
+  let lastToolbarPlacement: FloatingToolbarState['placement'] | null = null;
   let lastContainerWidth: number | null = null;
   let lastTextSelection: { from: number; to: number } | null = null;
 
@@ -69,6 +71,8 @@ export function createFloatingToolbarPluginView(
     currentBlockElement = null;
     lastSelectionSignature = '';
     lastToolbarX = null;
+    lastToolbarY = null;
+    lastToolbarPlacement = null;
     lastContainerWidth = null;
     lastTextSelection = null;
   };
@@ -275,9 +279,24 @@ export function createFloatingToolbarPluginView(
       lastToolbarX !== null &&
       lastSelectionSignature === selectionSignature &&
       lastContainerWidth === containerWidth;
-    const finalX = shouldFreezeX && lastToolbarX !== null ? lastToolbarX : clamped.clampedX;
-    const finalY = containerPosition.y;
-    const finalPlacement = nextPosition.placement;
+    const shouldFreezeBlockMenuPosition =
+      pluginState.subMenu === 'block' &&
+      lastToolbarX !== null &&
+      lastToolbarY !== null &&
+      lastToolbarPlacement !== null &&
+      lastSelectionSignature === selectionSignature &&
+      lastContainerWidth === containerWidth;
+    const finalX = shouldFreezeBlockMenuPosition && lastToolbarX !== null
+      ? lastToolbarX
+      : shouldFreezeX && lastToolbarX !== null
+        ? lastToolbarX
+        : clamped.clampedX;
+    const finalY = shouldFreezeBlockMenuPosition && lastToolbarY !== null
+      ? lastToolbarY
+      : containerPosition.y;
+    const finalPlacement = shouldFreezeBlockMenuPosition && lastToolbarPlacement !== null
+      ? lastToolbarPlacement
+      : nextPosition.placement;
 
     return {
       containerWidth,
@@ -362,6 +381,8 @@ export function createFloatingToolbarPluginView(
 
     lastSelectionSignature = selectionSignature;
     lastToolbarX = correctedX;
+    lastToolbarY = finalY;
+    lastToolbarPlacement = finalPlacement;
     lastContainerWidth = containerWidth;
   };
 

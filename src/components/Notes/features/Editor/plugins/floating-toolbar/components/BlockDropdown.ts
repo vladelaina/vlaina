@@ -80,6 +80,10 @@ export function renderBlockDropdown(
   dropdown.innerHTML = html;
   container.appendChild(dropdown);
 
+  dropdown.addEventListener('mouseleave', () => {
+    clearFormatPreview(view);
+  });
+
   dropdown.querySelectorAll('[data-block-type]').forEach((btn) => {
     btn.addEventListener('mousedown', (e) => {
       e.preventDefault();
@@ -90,13 +94,12 @@ export function renderBlockDropdown(
       const button = btn as HTMLElement;
       const blockType = button.dataset.blockType as BlockType;
       const isActive = button.classList.contains('active');
-      if (!isActive && hasBlockPreview(blockType)) {
-        applyBlockPreview(view, blockType);
+      if (isActive || !hasBlockPreview(blockType)) {
+        clearFormatPreview(view);
+        return;
       }
-    });
 
-    btn.addEventListener('mouseleave', () => {
-      clearFormatPreview(view);
+      applyBlockPreview(view, blockType);
     });
 
     btn.addEventListener('click', (e) => {
