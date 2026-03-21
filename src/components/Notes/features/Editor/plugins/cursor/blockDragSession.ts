@@ -2,6 +2,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { createDragSelectionRect, type RectBounds } from './blockSelectionUtils';
 
 export type BlockDragStartZone = 'outside-editor' | 'below-last-block';
+const DRAGGING_CURSOR_CLASS = 'neko-block-dragging-cursor';
 
 interface StartBlockDragSessionOptions {
   view: EditorView;
@@ -52,6 +53,7 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
     stopped = true;
     document.body.style.cursor = previousBodyCursor;
     document.body.style.userSelect = previousBodyUserSelect;
+    document.body.classList.remove(DRAGGING_CURSOR_CLASS);
     view.dom.style.cursor = previousViewCursor;
     if (editorRoot) editorRoot.style.cursor = previousEditorRootCursor;
     document.removeEventListener('mousemove', handleMouseMove, true);
@@ -74,6 +76,7 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
     if (!activated) {
       activated = true;
       document.body.style.cursor = cursor;
+      document.body.classList.add(DRAGGING_CURSOR_CLASS);
       view.dom.style.cursor = cursor;
       if (editorRoot) editorRoot.style.cursor = cursor;
       document.body.style.userSelect = 'none';
