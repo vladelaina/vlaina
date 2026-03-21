@@ -26,6 +26,7 @@
   scroll-behavior: smooth;
   min-height: calc(100vh - 200px);
   cursor: text;
+  position: relative;
 }
 
 /* ProseMirror editor needs min-height to be clickable */

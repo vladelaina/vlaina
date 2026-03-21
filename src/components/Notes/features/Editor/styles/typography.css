@@ -98,6 +98,10 @@
   word-break: normal;
 }
 
+.milkdown :is([data-type="math-inline"], [data-type="math-block"], [data-type="math-inline"] *, [data-type="math-block"] *) {
+  cursor: default;
+}
+
 /* Placeholder styles */
 .milkdown .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);

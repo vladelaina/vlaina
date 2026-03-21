@@ -27,7 +27,7 @@ export function forwardCodeBlockUpdate(
   }
 
   const tr = view.state.tr;
-  update.changes.iterChanges((fromA, toA, fromB, toB, text) => {
+  update.changes.iterChanges((fromA, toA, _fromB, _toB, text) => {
     const from = tr.mapping.map(
       codeBlockStart + mapCodeBlockEditorOffsetToDocumentOffset(currentRawText, fromA),
       -1

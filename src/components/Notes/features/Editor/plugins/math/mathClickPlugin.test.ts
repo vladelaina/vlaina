@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { getMathAnchorElement, getMathEditorPosition } from './mathClickPlugin';
+import { createInitialMathEditorState } from './mathEditorState';
+import { getMathAnchorElement, getMathEditorViewportPosition } from './mathEditorPositioning';
+import { resolveMathEditorOpenState } from './mathEditorOpen';
 
 describe('mathClickPlugin', () => {
+  it('creates a closed default editor state', () => {
+    expect(createInitialMathEditorState()).toEqual({
+      isOpen: false,
+      latex: '',
+      displayMode: false,
+      position: { x: 0, y: 0 },
+      nodePos: -1,
+    });
+  });
+
   it('anchors the editor to the closest math wrapper instead of an inner KaTeX token', () => {
     const wrapper = document.createElement('span');
     wrapper.setAttribute('data-type', 'math-inline');
@@ -36,9 +48,49 @@ describe('mathClickPlugin', () => {
       }),
     });
 
-    expect(getMathEditorPosition(wrapper)).toEqual({
+    expect(getMathEditorViewportPosition(wrapper)).toEqual({
       x: 120,
       y: 80,
+    });
+  });
+
+  it('falls back to a safe viewport offset when no anchor element is available', () => {
+    expect(getMathEditorViewportPosition(null)).toEqual({
+      x: 16,
+      y: 16,
+    });
+  });
+
+  it('resolves an open state for a math node so the editor can open on the first pointer interaction', () => {
+    const mathNode = {
+      type: { name: 'math_inline' },
+      attrs: { latex: 'x+1' },
+    };
+    const view = {
+      state: {
+        doc: {
+          nodeAt: () => mathNode,
+          resolve: () => ({
+            depth: 1,
+            node: () => mathNode,
+            before: () => 5,
+          }),
+        },
+      },
+    };
+
+    expect(
+      resolveMathEditorOpenState({
+        view: view as never,
+        pos: 5,
+        getPosition: () => ({ x: 20, y: 40 }),
+      })
+    ).toEqual({
+      isOpen: true,
+      latex: 'x+1',
+      displayMode: false,
+      position: { x: 20, y: 40 },
+      nodePos: 5,
     });
   });
 });

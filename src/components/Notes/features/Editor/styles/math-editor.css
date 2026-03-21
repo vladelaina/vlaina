@@ -1,0 +1,192 @@
+.math-editor-popup {
+  z-index: 80;
+}
+
+.math-editor-card {
+  width: min(var(--math-editor-width, calc(100vw - 48px)), calc(100vw - 48px));
+  max-width: min(var(--math-editor-width, calc(100vw - 48px)), calc(100vw - 48px));
+  border-radius: 24px;
+  border: 1px solid rgb(228 228 231 / 1);
+  background: rgb(255 255 255 / 1);
+  box-shadow:
+    0 20px 40px -12px rgb(0 0 0 / 0.1),
+    0 0 0 1px rgb(0 0 0 / 0.02);
+  overflow: hidden;
+}
+
+.dark .math-editor-card {
+  background: rgb(24 24 27 / 1);
+  border-color: rgb(39 39 42 / 1);
+  box-shadow:
+    0 25px 50px -12px rgb(0 0 0 / 0.45),
+    0 0 0 1px rgb(255 255 255 / 0.03);
+}
+
+.math-editor-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+
+.math-editor-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.math-editor-textarea {
+  border-radius: 16px;
+  border: 1px solid rgb(228 228 231 / 1);
+  background: rgb(250 250 250 / 1);
+  color: rgb(24 24 27 / 1);
+  width: 100%;
+  min-height: 132px;
+  height: 100%;
+  padding: 14px 16px;
+  resize: vertical;
+  outline: none;
+  font-family: var(--font-mono), monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  transition:
+    border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1),
+    background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.dark .math-editor-textarea {
+  border-color: rgb(39 39 42 / 1);
+  background: rgb(9 9 11 / 0.72);
+  color: rgb(244 244 245 / 1);
+}
+
+.math-editor-textarea:focus {
+  border-color: rgb(228 228 231 / 1);
+  box-shadow: none;
+  background: rgb(250 250 250 / 1);
+}
+
+.dark .math-editor-textarea:focus {
+  border-color: rgb(39 39 42 / 1);
+  box-shadow: none;
+  background: rgb(9 9 11 / 0.72);
+}
+
+.math-editor-preview {
+  min-height: 120px;
+  border-radius: 16px;
+  border: 1px solid rgb(228 228 231 / 1);
+  background: rgb(250 250 250 / 1);
+  color: rgb(24 24 27 / 1);
+  padding: 14px 16px;
+  overflow: auto;
+}
+
+.dark .math-editor-preview {
+  border-color: rgb(39 39 42 / 1);
+  background: rgb(9 9 11 / 0.72);
+  color: rgb(244 244 245 / 1);
+}
+
+.math-editor-preview-content {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  color: inherit;
+}
+
+.math-editor-preview-content.display-mode {
+  justify-content: center;
+}
+
+.math-editor-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgb(254 202 202 / 0.9);
+  background: rgb(254 242 242 / 1);
+  color: rgb(185 28 28 / 1);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.math-editor-error-summary {
+  font-weight: 600;
+}
+
+.math-editor-error-location {
+  margin-top: 4px;
+  color: rgb(153 27 27 / 0.88);
+}
+
+.math-editor-error-context {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.52);
+  color: inherit;
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.math-editor-error-raw {
+  margin-top: 8px;
+  color: rgb(153 27 27 / 0.88);
+  font-size: 11px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.dark .math-editor-error {
+  border-color: rgb(127 29 29 / 0.9);
+  background: rgb(69 10 10 / 0.78);
+  color: rgb(254 202 202 / 1);
+}
+
+.dark .math-editor-error-location,
+.dark .math-editor-error-raw {
+  color: rgb(254 202 202 / 0.88);
+}
+
+.dark .math-editor-error-context {
+  background: rgb(0 0 0 / 0.22);
+}
+
+.math-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.math-editor-icon-action {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+}
+
+.math-editor-icon-action svg {
+  width: 18px;
+  height: 18px;
+}
+
+.math-editor-icon-action:hover {
+  transform: none;
+}
+
+.math-editor-icon-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .math-editor-card {
+    width: min(var(--math-editor-width, calc(100vw - 24px)), calc(100vw - 24px));
+    max-width: min(var(--math-editor-width, calc(100vw - 24px)), calc(100vw - 24px));
+  }
+}
