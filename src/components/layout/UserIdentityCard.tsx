@@ -3,20 +3,31 @@ import { Icon } from '@/components/ui/icons';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useUserAvatar } from '@/hooks/useUserAvatar';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { ManagedQuotaMeter } from './ManagedQuotaMeter';
 
 interface UserIdentityCardProps {
-  onLogout: () => void;
+  onLogout: () => void | Promise<void>;
   onSwitchAccount: () => void;
 }
 
 export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, onSwitchAccount }) => {
-  const { username, primaryEmail, isConnected } = useAccountSessionStore();
+  const { username, primaryEmail, isConnected, membershipTier, membershipName } = useAccountSessionStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const displayName = username || primaryEmail || 'NekoTick';
+  const displayIdentity = primaryEmail || username || 'NekoTick';
   const userAvatar = useUserAvatar();
   const displayAvatar = userAvatar || '/logo.png';
+  const membershipPillClassName = isConnected
+    ? membershipTier === 'plus'
+      ? 'border-sky-200 bg-sky-50 text-sky-700'
+      : membershipTier === 'pro'
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+        : membershipTier === 'max'
+          ? 'border-orange-200 bg-orange-50 text-orange-700'
+          : 'border-zinc-200 bg-white text-zinc-700'
+    : 'border-neutral-300 bg-white text-neutral-500 dark:border-neutral-600 dark:bg-zinc-900 dark:text-neutral-400';
 
   return (
     <div className="group relative flex select-none items-start gap-3 px-3 pb-2.5 pt-3">
@@ -29,20 +40,30 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
           <img src={displayAvatar} alt={displayName} className="h-full w-full object-cover" />
         </div>
         <span
+          role="button"
+          tabIndex={0}
+          onClick={() => void openExternalHref('https://nekotick.com')}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              void openExternalHref('https://nekotick.com');
+            }
+          }}
           className={cn(
-            'absolute -bottom-1 -right-1 z-10 rounded-full border-2 border-[var(--neko-bg-primary)] px-1.5 py-0.5 text-[8px] font-bold shadow-sm select-none',
-            isConnected
-              ? 'bg-[#E6F4FF] text-[#007AFF] dark:bg-[#007AFF]/20 dark:text-[#0A84FF]'
-              : 'bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400'
+            'absolute -bottom-1.5 -right-2 z-10 inline-flex cursor-pointer select-none items-center rounded-[10px] border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] leading-none shadow-[0_8px_18px_rgba(15,23,42,0.08)] transition-colors hover:border-zinc-300 hover:text-zinc-900 dark:hover:border-zinc-500 dark:hover:text-white',
+            membershipPillClassName
           )}
         >
-          {isConnected ? 'AI' : 'LOCAL'}
+          {isConnected ? membershipName || 'Free' : 'LOCAL'}
         </span>
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">
         <div className="flex items-center justify-between">
-          <span className="truncate pr-2 text-[14px] font-bold leading-none text-[var(--neko-text-primary)]">
-            {displayName}
+          <span
+            className="min-w-0 flex-1 truncate pr-2 text-[11px] font-bold leading-none text-[var(--neko-text-primary)]"
+            title={displayIdentity}
+          >
+            {displayIdentity}
           </span>
 
           <button
@@ -51,7 +72,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
               setIsMenuOpen(!isMenuOpen);
             }}
             className={cn(
-              '-mr-1 flex h-5 w-5 items-center justify-center rounded-md transition-colors hover:bg-[var(--neko-active)]',
+              '-mr-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[var(--neko-active)]',
               isMenuOpen && 'bg-[var(--neko-active)] text-[var(--neko-text-primary)]'
             )}
           >
@@ -71,7 +92,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                   onSwitchAccount();
                 }}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
+                  'flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
                   iconButtonStyles
                 )}
               >
@@ -81,10 +102,10 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
               <button
                 onClick={() => {
                   setIsMenuOpen(false);
-                  onLogout();
+                  void onLogout();
                 }}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
+                  'flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
                   iconButtonStyles
                 )}
               >

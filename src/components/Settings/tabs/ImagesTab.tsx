@@ -46,8 +46,6 @@ export function ImagesTab() {
 
     return (
         <div className="space-y-6">
-
-            {/* Storage Mode Selection */}
             <div className="space-y-3">
                 <div className="flex items-baseline gap-2">
                     <label className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
@@ -76,7 +74,6 @@ export function ImagesTab() {
                                         : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
                                 )}
                             >
-                                {/* Radio Circle */}
                                 <div className={cn(
                                     "mt-0.5 w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0",
                                     isSelected
@@ -88,13 +85,11 @@ export function ImagesTab() {
                                     )}
                                 </div>
 
-                                {/* Icon */}
                                 <Icon name={option.icon} className={cn(
                                     "size-[18px] flex-shrink-0 mt-0.5",
                                     isSelected ? "text-[#2783de] dark:text-[#2783de]" : "text-zinc-400"
                                 )} />
 
-                                {/* Text */}
                                 <div className="flex-1 min-w-0">
                                     <div className={cn(
                                         "text-sm font-medium",
@@ -112,7 +107,6 @@ export function ImagesTab() {
                 </div>
             </div>
 
-            {/* Vault Subfolder Name Input */}
             {imageStorageMode === 'vaultSubfolder' && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
                     <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -131,7 +125,6 @@ export function ImagesTab() {
                 </div>
             )}
 
-            {/* Note Subfolder Name Input */}
             {imageStorageMode === 'subfolder' && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
                     <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -149,9 +142,6 @@ export function ImagesTab() {
                     </p>
                 </div>
             )}
-
-
-            {/* Filename Format Section */}
             <div className="space-y-3 pt-6 border-t border-zinc-200 dark:border-zinc-700">
                 <label className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
                     Filename Format

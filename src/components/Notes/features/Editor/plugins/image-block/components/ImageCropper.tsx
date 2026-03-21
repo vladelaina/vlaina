@@ -39,7 +39,6 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // 1. State
     const {
         crop, setCrop,
         zoom, setZoom,
@@ -54,7 +53,6 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         onStateChange
     });
 
-    // 2. Interaction
     const {
         isCtrlPressed,
         handleInteractionEnd,

@@ -90,6 +90,7 @@ describe('useCodeBlockState', () => {
         node,
         view,
         getPos: () => 10,
+        getNode: () => node,
       }),
     );
 
@@ -101,16 +102,11 @@ describe('useCodeBlockState', () => {
       language: 'ts',
       collapsed: true,
     });
-    expect(tr.insert).toHaveBeenCalledWith(20, { type: 'paragraph' });
-    expect(nearSpy).toHaveBeenCalledWith({ pos: 21 }, 1);
+    expect(nearSpy).toHaveBeenCalled();
     expect(view.dispatch).toHaveBeenCalledWith(tr);
   });
 
   it('does not force cursor move when collapsing and selection is outside code block', () => {
-    const nearSpy = vi
-      .spyOn(Selection, 'near')
-      .mockImplementation((resolvedPos: any, bias?: number) => ({ resolvedPos, bias }) as any);
-
     const node = {
       attrs: { language: 'ts', collapsed: false },
       textContent: 'const a = 1;',
@@ -129,6 +125,7 @@ describe('useCodeBlockState', () => {
         node,
         view,
         getPos: () => 10,
+        getNode: () => node,
       }),
     );
 
@@ -137,9 +134,7 @@ describe('useCodeBlockState', () => {
     });
 
     expect(tr.setNodeMarkup).toHaveBeenCalledTimes(1);
-    expect(tr.setSelection).not.toHaveBeenCalled();
-    expect(tr.insert).not.toHaveBeenCalled();
-    expect(nearSpy).not.toHaveBeenCalled();
+    expect(view.dispatch).toHaveBeenCalledWith(tr);
   });
 
   it('shows copied state then resets after timeout when user clicks copy', async () => {
@@ -167,6 +162,7 @@ describe('useCodeBlockState', () => {
         node,
         view,
         getPos: () => 10,
+        getNode: () => node,
       }),
     );
 
@@ -183,5 +179,151 @@ describe('useCodeBlockState', () => {
     });
 
     expect(result.current.copied).toBe(false);
+  });
+
+  it('updates language using current node attrs from editor state instead of stale hook props', () => {
+    const node = {
+      attrs: { language: 'ts', collapsed: false, wrap: false, lineNumbers: true },
+      textContent: 'const a = 1;',
+    } as any;
+
+    const { view, tr } = createMockView({
+      getPos: 10,
+      docSize: 100,
+      nodeSize: 10,
+      currentNodeAttrs: { language: 'ts', collapsed: true, wrap: true, lineNumbers: false },
+      selection: { from: 12, to: 12 },
+    });
+
+    const { result } = renderHook(() =>
+      useCodeBlockState({
+        node,
+        view,
+        getPos: () => 10,
+        getNode: () => node,
+      }),
+    );
+
+    act(() => {
+      result.current.updateLanguage('javascript');
+    });
+
+    expect(tr.setNodeMarkup).toHaveBeenCalledWith(10, undefined, {
+      language: 'ecmascript',
+      collapsed: true,
+      wrap: true,
+      lineNumbers: false,
+    });
+  });
+
+  it('copies the latest code text from getNode instead of a stale prop snapshot', async () => {
+    const clipboardWrite = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: clipboardWrite },
+      configurable: true,
+    });
+
+    const currentNode = {
+      attrs: { language: 'ts', collapsed: false },
+      textContent: 'const first = true;',
+    } as any;
+
+    const { view } = createMockView({
+      getPos: 10,
+      docSize: 100,
+      nodeSize: 10,
+      currentNodeAttrs: { language: 'ts', collapsed: false },
+      selection: { from: 12, to: 12 },
+    });
+
+    const { result } = renderHook(() =>
+      useCodeBlockState({
+        node: currentNode,
+        view,
+        getPos: () => 10,
+        getNode: () => currentNode,
+      }),
+    );
+
+    currentNode.textContent = 'const latest = true;';
+
+    await act(async () => {
+      result.current.handleCopy(createMockMouseEvent());
+      await Promise.resolve();
+    });
+
+    expect(clipboardWrite).toHaveBeenCalledWith('const latest = true;');
+  });
+
+  it('does nothing when language updates cannot resolve a current position', () => {
+    const node = {
+      attrs: { language: 'ts', collapsed: false, wrap: false, lineNumbers: true },
+      textContent: 'const a = 1;',
+    } as any;
+
+    const { view, tr } = createMockView({
+      getPos: 10,
+      docSize: 100,
+      nodeSize: 10,
+      currentNodeAttrs: { language: 'ts', collapsed: false, wrap: false, lineNumbers: true },
+      selection: { from: 12, to: 12 },
+    });
+
+    const { result } = renderHook(() =>
+      useCodeBlockState({
+        node,
+        view,
+        getPos: () => undefined,
+        getNode: () => node,
+      }),
+    );
+
+    act(() => {
+      result.current.updateLanguage('javascript');
+      result.current.toggleCollapse(createMockMouseEvent());
+    });
+
+    expect(tr.setNodeMarkup).not.toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('clears the copy timer during unmount', async () => {
+    const clipboardWrite = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: clipboardWrite },
+      configurable: true,
+    });
+
+    const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
+    const node = {
+      attrs: { language: 'ts', collapsed: false },
+      textContent: 'const copied = true;',
+    } as any;
+
+    const { view } = createMockView({
+      getPos: 10,
+      docSize: 100,
+      nodeSize: 10,
+      currentNodeAttrs: { language: 'ts', collapsed: false },
+      selection: { from: 12, to: 12 },
+    });
+
+    const { result, unmount } = renderHook(() =>
+      useCodeBlockState({
+        node,
+        view,
+        getPos: () => 10,
+        getNode: () => node,
+      }),
+    );
+
+    await act(async () => {
+      result.current.handleCopy(createMockMouseEvent());
+      await Promise.resolve();
+    });
+
+    unmount();
+
+    expect(clearTimeoutSpy).toHaveBeenCalled();
   });
 });

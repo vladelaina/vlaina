@@ -1,4 +1,3 @@
-// Color Picker Component
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FloatingToolbarState } from '../types';
 import { COLOR_PALETTE, COLOR_PALETTE_DARK } from '../utils';
@@ -12,8 +11,7 @@ export function renderColorPicker(
 ): void {
   const picker = document.createElement('div');
   picker.className = 'toolbar-submenu color-picker';
-  
-  // Detect dark mode
+
   const isDark = document.documentElement.classList.contains('dark');
   const palette = isDark ? COLOR_PALETTE_DARK : COLOR_PALETTE;
   
@@ -26,7 +24,6 @@ export function renderColorPicker(
             class="color-picker-item ${color.id === 'default' ? 'color-picker-item-default' : ''} ${state.textColor === color.textColor ? 'active' : ''}"
             data-color-id="${color.id}"
             data-color="${color.textColor || ''}"
-            title="${color.label}"
             style="${color.textColor ? `background-color: ${color.textColor}` : ''}"
           ></button>
         `).join('')}
@@ -40,15 +37,13 @@ export function renderColorPicker(
             class="color-picker-item ${color.id === 'default' ? 'color-picker-item-default' : ''} ${state.bgColor === color.bgColor ? 'active' : ''}"
             data-color-id="${color.id}"
             data-color="${color.bgColor || ''}"
-            title="${color.label}"
             style="${color.bgColor ? `background-color: ${color.bgColor}` : ''}"
           ></button>
         `).join('')}
       </div>
     </div>
   `;
-  
-  // Handle text color clicks
+
   picker.querySelector('[data-type="text"]')?.querySelectorAll('.color-picker-item').forEach((btn) => {
     btn.addEventListener('mousedown', (e) => {
       e.preventDefault();
@@ -64,8 +59,7 @@ export function renderColorPicker(
       onClose();
     });
   });
-  
-  // Handle background color clicks
+
   picker.querySelector('[data-type="bg"]')?.querySelectorAll('.color-picker-item').forEach((btn) => {
     btn.addEventListener('mousedown', (e) => {
       e.preventDefault();

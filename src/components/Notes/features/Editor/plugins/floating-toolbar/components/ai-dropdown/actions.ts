@@ -1,14 +1,16 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { logAiSelectionDebug } from '../../ai/debug';
+import { openSidebarDiscussionForSelection } from '../../ai/sidebarDiscussion';
 import { openAiSelectionReview, runAiSelectionReviewCommand } from '../../ai/reviewFlow';
-import { getSerializedSelectionText } from '../../ai/selectionCommands';
-import type { AiReviewState } from '../../types';
-
-function createReviewRequestKey(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
+import { createAiReviewState } from '../../ai/reviewState';
+import { recordAiMenuItemUsage } from './usageRanking';
 
 function setActiveCategory(dropdown: HTMLElement, categoryId: string) {
+  const currentActiveCategory = dropdown.querySelector<HTMLElement>('[data-ai-category].active')?.dataset.aiCategory;
+  if (currentActiveCategory === categoryId) {
+    return;
+  }
+
   dropdown.querySelectorAll<HTMLElement>('[data-ai-category]').forEach((button) => {
     button.classList.toggle('active', button.dataset.aiCategory === categoryId);
   });
@@ -16,25 +18,36 @@ function setActiveCategory(dropdown: HTMLElement, categoryId: string) {
   dropdown.querySelectorAll<HTMLElement>('[data-ai-panel]').forEach((panel) => {
     panel.classList.toggle('active', panel.dataset.aiPanel === categoryId);
   });
+
+  dropdown.dispatchEvent(
+    new CustomEvent('ai-dropdown:category-change', {
+      bubbles: false,
+      detail: { categoryId },
+    })
+  );
 }
 
-function createReviewState(
-  view: EditorView,
-  prompt: string,
-  commandId: string,
-  toneId: string
-): AiReviewState {
-  return {
-    requestKey: createReviewRequestKey(),
-    instruction: prompt,
-    commandId: toneId ? null : commandId || null,
-    toneId: toneId || null,
-    from: view.state.selection.from,
-    to: view.state.selection.to,
-    originalText: getSerializedSelectionText(view),
-    suggestedText: '',
-    isLoading: true,
-  };
+function clearActiveCategory(dropdown: HTMLElement) {
+  const hasActiveCategory = !!dropdown.querySelector<HTMLElement>('[data-ai-category].active');
+  const hasActivePanel = !!dropdown.querySelector<HTMLElement>('[data-ai-panel].active');
+  if (!hasActiveCategory && !hasActivePanel) {
+    return;
+  }
+
+  dropdown.querySelectorAll<HTMLElement>('[data-ai-category]').forEach((button) => {
+    button.classList.remove('active');
+  });
+
+  dropdown.querySelectorAll<HTMLElement>('[data-ai-panel]').forEach((panel) => {
+    panel.classList.remove('active');
+  });
+
+  dropdown.dispatchEvent(
+    new CustomEvent('ai-dropdown:category-change', {
+      bubbles: false,
+      detail: { categoryId: null },
+    })
+  );
 }
 
 function bindCategoryNavigation(dropdown: HTMLElement) {
@@ -65,6 +78,12 @@ function bindCategoryNavigation(dropdown: HTMLElement) {
       setActiveCategory(dropdown, categoryId);
     });
   });
+
+  dropdown.querySelectorAll<HTMLElement>('.ai-dropdown-category-action[data-ai-prompt]').forEach((button) => {
+    button.addEventListener('mouseenter', () => {
+      clearActiveCategory(dropdown);
+    });
+  });
 }
 
 function bindCommandExecution(dropdown: HTMLElement, view: EditorView) {
@@ -86,6 +105,8 @@ function bindCommandExecution(dropdown: HTMLElement, view: EditorView) {
       const prompt = button.dataset.aiPrompt ?? '';
       const commandId = button.dataset.aiCommandId ?? '';
       const toneId = button.dataset.aiToneId ?? '';
+      const groupId = button.dataset.aiGroupId ?? '';
+      const behavior = button.dataset.aiBehavior ?? 'review';
       if (isSubmitting) {
         logAiSelectionDebug('dropdown:click-ignored-submitting', {
           prompt,
@@ -101,15 +122,22 @@ function bindCommandExecution(dropdown: HTMLElement, view: EditorView) {
         selectionTo: view.state.selection.to,
       });
 
+      if (behavior === 'sidebar-chat') {
+        openSidebarDiscussionForSelection(view);
+        return;
+      }
+
       isSubmitting = true;
       button.disabled = true;
 
-      const review = createReviewState(view, prompt, commandId, toneId);
+      const review = createAiReviewState(view, prompt, commandId, toneId);
       if (!openAiSelectionReview(view, review.requestKey)) {
         isSubmitting = false;
         button.disabled = false;
         return;
       }
+
+      recordAiMenuItemUsage(groupId, commandId);
 
       void runAiSelectionReviewCommand(view, review, {
         id: commandId,

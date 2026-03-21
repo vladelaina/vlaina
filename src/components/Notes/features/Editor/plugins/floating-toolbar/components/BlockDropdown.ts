@@ -1,4 +1,3 @@
-// Block Type Dropdown Component
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, FloatingToolbarState } from '../types';
 import { BLOCK_TYPES } from '../utils';
@@ -8,7 +7,6 @@ import { ICON_SIZES } from '@/components/ui/icons/sizes';
 
 const DROPDOWN_ICON_SIZE = ICON_SIZES.md;
 
-// Block type icons as SVG strings
 const BLOCK_ICONS: Record<string, string> = {
   text: `<svg width="${DROPDOWN_ICON_SIZE}" height="${DROPDOWN_ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <path d="M4 7V4h16v3M9 20h6M12 4v16"/>
@@ -52,6 +50,30 @@ const BLOCK_ICONS: Record<string, string> = {
   </svg>`,
 };
 
+const BLOCK_TYPE_ICON_KEYS: Record<BlockType, keyof typeof BLOCK_ICONS> = {
+  paragraph: 'text',
+  heading1: 'h1',
+  heading2: 'h2',
+  heading3: 'h3',
+  heading4: 'h4',
+  heading5: 'h5',
+  heading6: 'h6',
+  blockquote: 'quote',
+  bulletList: 'list',
+  orderedList: 'listOrdered',
+  taskList: 'listCheck',
+  codeBlock: 'code',
+};
+
+export function getBlockTypeIconMarkup(blockType: BlockType | null): string {
+  if (!blockType) {
+    return BLOCK_ICONS.text;
+  }
+
+  const iconKey = BLOCK_TYPE_ICON_KEYS[blockType];
+  return BLOCK_ICONS[iconKey] || BLOCK_ICONS.text;
+}
+
 export function renderBlockDropdown(
   container: HTMLElement,
   view: EditorView,
@@ -65,14 +87,13 @@ export function renderBlockDropdown(
   
   BLOCK_TYPES.forEach((config) => {
     const isActive = state.currentBlockType === config.type;
-    const icon = BLOCK_ICONS[config.icon] || BLOCK_ICONS.text;
+    const icon = getBlockTypeIconMarkup(config.type);
     
     html += `
       <button
         class="block-dropdown-item ${isActive ? 'active' : ''}"
         data-block-type="${config.type}"
         aria-label="${config.label}"
-        title="${config.label}"
       >
         <span class="block-dropdown-item-icon">${icon}</span>
       </button>
@@ -81,8 +102,11 @@ export function renderBlockDropdown(
   
   dropdown.innerHTML = html;
   container.appendChild(dropdown);
-  
-  // Add event listeners
+
+  dropdown.addEventListener('mouseleave', () => {
+    clearFormatPreview(view);
+  });
+
   dropdown.querySelectorAll('[data-block-type]').forEach((btn) => {
     btn.addEventListener('mousedown', (e) => {
       e.preventDefault();
@@ -93,13 +117,12 @@ export function renderBlockDropdown(
       const button = btn as HTMLElement;
       const blockType = button.dataset.blockType as BlockType;
       const isActive = button.classList.contains('active');
-      if (!isActive && hasBlockPreview(blockType)) {
-        applyBlockPreview(view, blockType);
+      if (isActive || !hasBlockPreview(blockType)) {
+        clearFormatPreview(view);
+        return;
       }
-    });
 
-    btn.addEventListener('mouseleave', () => {
-      clearFormatPreview(view);
+      applyBlockPreview(view, blockType);
     });
 
     btn.addEventListener('click', (e) => {

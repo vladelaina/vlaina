@@ -1,27 +1,23 @@
-// Floating Toolbar Utility Functions
 import type { ColorOption, BlockTypeConfig, BlockType } from './types';
 import { COLOR_DEFINITIONS, getEventInlineStyles } from '@/lib/colors/index';
 
-// Helper to capitalize labels
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-// Color palette for light mode
 export const COLOR_PALETTE: ColorOption[] = [
-  { id: 'default', label: 'Default' }, // Reset option
+  { id: 'default', label: 'Default' },
   ...COLOR_DEFINITIONS.map(def => {
     const styles = getEventInlineStyles(def.name);
     return {
       id: def.name === 'default' ? 'gray' : def.name,
-      label: capitalize(def.name === 'default' ? 'Gray' : def.name), // Map 'default' color to 'Gray' label to avoid confusion with reset
+      label: capitalize(def.name === 'default' ? 'Gray' : def.name),
       textColor: styles.text,
       bgColor: styles.bg,
     };
   })
 ];
 
-// Color palette for dark mode
 export const COLOR_PALETTE_DARK: ColorOption[] = [
-  { id: 'default', label: 'Default' }, // Reset option
+  { id: 'default', label: 'Default' },
   ...COLOR_DEFINITIONS.map(def => {
     const styles = getEventInlineStyles(def.name);
     return {
@@ -33,7 +29,6 @@ export const COLOR_PALETTE_DARK: ColorOption[] = [
   })
 ];
 
-// Block type configurations
 export const BLOCK_TYPES: BlockTypeConfig[] = [
   { type: 'paragraph', label: 'Paragraph', icon: 'text' },
   { type: 'heading1', label: 'Heading 1', icon: 'h1' },
@@ -65,12 +60,10 @@ export function isValidUrl(input: string): boolean {
   if (!input || input.trim() === '') return false;
   
   const trimmed = input.trim();
-  
-  // Check for valid URL patterns
   const validPatterns = [
-    /^https?:\/\/.+/i,  // http:// or https://
-    /^mailto:.+/i,       // mailto:
-    /^\/.+/,             // relative path starting with / followed by anything
+    /^https?:\/\/.+/i,
+    /^mailto:.+/i,
+    /^\/.+/,
   ];
   
   return validPatterns.some(pattern => pattern.test(trimmed));

@@ -19,16 +19,6 @@ const EmbeddedChatView = lazy(async () => {
   return { default: mod.ChatView };
 });
 
-const CHAT_PANEL_COLLAPSED_KEY = 'nekotick_notes_chat_panel_collapsed';
-
-function loadChatPanelCollapsed(): boolean {
-  try {
-    return localStorage.getItem(CHAT_PANEL_COLLAPSED_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
-
 export function NotesView() {
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const loadFileTree = useNotesStore(s => s.loadFileTree);
@@ -48,10 +38,12 @@ export function NotesView() {
 
   const { currentVault } = useVaultStore();
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
+  const chatPanelCollapsed = useUIStore((s) => s.notesChatPanelCollapsed);
+  const setChatPanelCollapsed = useUIStore((s) => s.setNotesChatPanelCollapsed);
+  const toggleChatPanel = useUIStore((s) => s.toggleNotesChatPanel);
 
   const [showSearch, setShowSearch] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
-  const [chatPanelCollapsed, setChatPanelCollapsed] = useState(loadChatPanelCollapsed);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
 
   useModuleShortcutsDialog({ onToggle: toggleShortcutsDialog });
@@ -129,7 +121,7 @@ export function NotesView() {
       const hasPrimaryModifier = (e.ctrlKey || e.metaKey) && !e.altKey;
       if (hasPrimaryModifier && !e.shiftKey && e.key.toLowerCase() === 'l') {
         e.preventDefault();
-        setChatPanelCollapsed((prev) => !prev);
+        toggleChatPanel();
         return;
       }
 
@@ -162,15 +154,6 @@ export function NotesView() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [openTabs, currentNotePath, openNote, closeTab]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(CHAT_PANEL_COLLAPSED_KEY, String(chatPanelCollapsed));
-    } catch {
-      // ignore storage failures
-    }
-  }, [chatPanelCollapsed]);
-
-  
   useGlobalSearch(() => setShowSearch(prev => !prev));
 
 

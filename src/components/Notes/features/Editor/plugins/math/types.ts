@@ -1,5 +1,3 @@
-// Math plugin types
-
 export interface MathBlockAttrs {
   latex: string;
 }

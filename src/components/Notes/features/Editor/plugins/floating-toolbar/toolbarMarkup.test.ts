@@ -54,6 +54,18 @@ describe('toolbar markup', () => {
     expect(markup).toContain('class="toolbar-btn has-tooltip active"');
   });
 
+  it('renders the current block type button with an icon instead of an English label', () => {
+    const markup = renderToolbarMarkup(
+      createState({
+        currentBlockType: 'blockquote',
+      })
+    );
+
+    expect(markup).toContain('data-action="block"');
+    expect(markup).not.toContain('block-type-label');
+    expect(markup).not.toContain('Quote');
+  });
+
   it('keeps the standard toolbar layout when the AI submenu is open', () => {
     const markup = renderToolbarMarkup(createState({ subMenu: 'ai' }));
 
@@ -77,23 +89,72 @@ describe('toolbar markup', () => {
           originalText: '你好啊',
           suggestedText: 'Hello there',
           isLoading: false,
+          errorMessage: null,
         },
       })
     );
 
-    expect(markup).toContain('data-review-command-select="true"');
-    expect(markup).toContain('英语');
     expect(markup).toContain('ai-review-result-surface');
-    expect(markup).not.toContain('data-review-source-input="true"');
-    expect(markup).not.toContain('data-review-result-input="true"');
-    expect(markup).not.toContain('data-review-action="promote-result"');
-    expect(markup).not.toContain('Selected text');
-    expect(markup).not.toContain('ai-review-selected-strip');
     expect(markup).toContain('ai-review-diff-added');
     expect(markup).toContain('Hello there');
+    expect(markup).toContain('ai-review-footer');
     expect(markup).toContain('ai-review-model-selector-slot');
-    expect(markup).toContain('&times;');
-    expect(markup).toContain('&#10003;');
+    expect(markup).toContain('ai-review-controls-left');
+    expect(markup).toContain('ai-review-controls-right');
+    expect(markup).toContain('data-review-action="retry"');
+    expect(markup).toContain('aria-label="Retry"');
+    expect(markup).toContain('aria-label="Cancel"');
+    expect(markup).toContain('aria-label="Apply"');
+    expect(markup).toContain('viewBox="0 0 256 256"');
     expect(markup).toContain('data-review-action="accept"');
+    expect(markup).toContain('data-review-action="cancel"');
+  });
+
+  it('renders the shared loading slot while a suggestion is pending', () => {
+    const markup = renderToolbarMarkup(
+      createState({
+        subMenu: 'aiReview',
+        aiReview: {
+          requestKey: 'review-loading',
+          instruction: 'Polish the selected text.',
+          commandId: 'polish',
+          toneId: null,
+          from: 1,
+          to: 24,
+          originalText: 'First line\nSecond longer line\n\nFourth line',
+          suggestedText: '',
+          isLoading: true,
+          errorMessage: null,
+        },
+      })
+    );
+
+    expect(markup).toContain('ai-review-loading-slot');
+    expect(markup).not.toContain('ai-review-loading-line');
+  });
+
+  it('renders an inline error state without diff output', () => {
+    const markup = renderToolbarMarkup(
+      createState({
+        subMenu: 'aiReview',
+        aiReview: {
+          requestKey: 'review-error',
+          instruction: 'Translate to English',
+          commandId: 'translate-en',
+          toneId: null,
+          from: 1,
+          to: 4,
+          originalText: '你好啊',
+          suggestedText: '',
+          isLoading: false,
+          errorMessage: 'Model request failed.',
+        },
+      })
+    );
+
+    expect(markup).toContain('ai-review-error');
+    expect(markup).toContain('Model request failed.');
+    expect(markup).not.toContain('ai-review-result-surface');
+    expect(markup).not.toContain('ai-review-diff-removed');
   });
 });

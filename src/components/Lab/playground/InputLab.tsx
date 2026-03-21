@@ -23,7 +23,6 @@ export function InputLab() {
                     <span className="text-xs text-gray-400">{v.description}</span>
                 </div>
                 
-                {/* Pure White Background - No distractions */}
                 <div className="p-20 rounded-[32px] bg-white dark:bg-[#0f0f0f] border border-gray-100 dark:border-zinc-800 relative shadow-sm flex items-center justify-center">
                     <div className="w-full relative z-10">
                         <v.component />

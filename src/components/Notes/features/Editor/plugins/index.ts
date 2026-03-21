@@ -1,7 +1,3 @@
-// Unified plugin exports for Milkdown editor
-// This file provides a single entry point for all editor plugins
-
-// Floating Toolbar (selection-based formatting)
 export {
   floatingToolbarPlugin,
   floatingToolbarKey,
@@ -10,55 +6,27 @@ export {
   blockAlignmentPlugin,
 } from './floating-toolbar';
 export type { FloatingToolbarState, BlockType, SubMenuType, TextAlignment } from './floating-toolbar';
-
-// Heading plugins
 export { headingPlugin, collapsePlugin } from './heading';
-
-// Math (LaTeX)
 export { mathPlugin, mathClickPlugin } from './math';
-
-// UI plugins
 export { slashPlugin } from './slash';
 export { dragPlugin } from './drag';
 export { tablePlugin } from './table';
-
-// Block nodes
 export { calloutPlugin } from './callout';
 export { tocPlugin } from './toc';
 export { mermaidPlugin } from './mermaid';
 export { videoPlugin } from './video';
 export { footnotePlugin } from './footnote';
 export { imageBlockPlugin } from './image-block';
-
-// Code
 export { codePlugin, codeBlockPlugins } from './code';
-
-// Marks (inline formatting)
 export { highlightPlugin } from './highlight';
-
-// Decorations (visual enhancements)
 export { abbrPlugin } from './abbr';
-
-// Link plugins (aggregated)
 export { autolinkPlugin, linkTooltipPlugin, markdownLinkPlugin } from './links';
-
-// Task list interaction
 export { taskListClickPlugin, listTabIndentPlugin } from './task-list';
-
-// List collapse
 export { listCollapsePlugin } from './collapse';
-
-// Clipboard (clean text serialization)
 export { clipboardPlugin } from './clipboard';
-
-// Image upload (paste/drop handling)
 export { imageUploadPlugin } from './image-upload';
 export { blankAreaDragBoxPlugin, blockControlsPlugin, endBlankClickPlugin, titleNavigationPlugin } from './cursor';
-
-// Horizontal rule (thematic break)
 export { hrAutoParagraphPlugin } from './hr';
-
-// Re-export types that are actually used
 export type { SlashMenuItem } from './slash/types';
 export type { CalloutBlockAttrs, IconData } from './callout/types';
 export type { CodeBlockAttrs } from './code/types';

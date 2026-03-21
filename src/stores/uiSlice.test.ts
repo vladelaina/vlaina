@@ -26,6 +26,8 @@ describe('uiSlice', () => {
       imageSubfolderName: 'assets',
       imageVaultSubfolderName: 'assets',
       imageFilenameFormat: 'original',
+      notesChatPanelCollapsed: false,
+      pendingNotesChatComposerInsert: null,
     });
   });
 
@@ -85,5 +87,25 @@ describe('uiSlice', () => {
 
     expect(useUIStore.getState().imageSubfolderName).toBe('assetsnotes');
     expect(useUIStore.getState().imageVaultSubfolderName).toBe('vaultimages');
+  });
+
+  it('opens the notes chat panel and queues a composer insert request', () => {
+    useUIStore.getState().setNotesChatPanelCollapsed(true);
+    useUIStore.getState().queueNotesChatComposerInsert('Selected text');
+
+    const state = useUIStore.getState();
+    expect(state.notesChatPanelCollapsed).toBe(false);
+    expect(state.pendingNotesChatComposerInsert?.text).toBe('Selected text');
+  });
+
+  it('consumes only the matching pending composer insert request', () => {
+    useUIStore.getState().queueNotesChatComposerInsert('Selected text');
+    const requestId = useUIStore.getState().pendingNotesChatComposerInsert?.id;
+
+    useUIStore.getState().consumePendingNotesChatComposerInsert(-1);
+    expect(useUIStore.getState().pendingNotesChatComposerInsert).not.toBeNull();
+
+    useUIStore.getState().consumePendingNotesChatComposerInsert(requestId!);
+    expect(useUIStore.getState().pendingNotesChatComposerInsert).toBeNull();
   });
 });

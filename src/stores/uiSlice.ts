@@ -17,6 +17,13 @@ export type ImageStorageMode = 'vault' | 'vaultSubfolder' | 'currentFolder' | 's
 
 export type ImageFilenameFormat = 'original' | 'timestamp' | 'sequence';
 
+interface PendingNotesChatComposerInsert {
+  id: number;
+  text: string;
+}
+
+const STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED = 'nekotick_notes_chat_panel_collapsed';
+
 interface UIStore {
   appViewMode: AppViewMode;
   setAppViewMode: (mode: AppViewMode) => void;
@@ -75,6 +82,13 @@ interface UIStore {
   setImageVaultSubfolderName: (name: string) => void;
   imageFilenameFormat: ImageFilenameFormat;
   setImageFilenameFormat: (format: ImageFilenameFormat) => void;
+
+  notesChatPanelCollapsed: boolean;
+  setNotesChatPanelCollapsed: (collapsed: boolean) => void;
+  toggleNotesChatPanel: () => void;
+  pendingNotesChatComposerInsert: PendingNotesChatComposerInsert | null;
+  queueNotesChatComposerInsert: (text: string) => void;
+  consumePendingNotesChatComposerInsert: (id: number) => void;
 }
 
 function loadBoolean(key: string, defaultValue: boolean): boolean {
@@ -84,7 +98,6 @@ function loadBoolean(key: string, defaultValue: boolean): boolean {
       return saved === 'true';
     }
   } catch {
-    // ignore
   }
   return defaultValue;
 }
@@ -97,7 +110,6 @@ function loadNumber(key: string, defaultValue: number): number {
       return Number.isNaN(parsed) ? defaultValue : parsed;
     }
   } catch {
-    // ignore
   }
   return defaultValue;
 }
@@ -128,9 +140,8 @@ function loadImageStorageMode(): ImageStorageMode {
       return saved;
     }
   } catch {
-    // ignore
   }
-  return 'subfolder'; // Default: save to note subfolder
+  return 'subfolder';
 }
 
 function loadImageSubfolderName(): string {
@@ -138,9 +149,8 @@ function loadImageSubfolderName(): string {
     const saved = localStorage.getItem(STORAGE_KEY_IMAGE_SUBFOLDER_NAME);
     if (saved) return saved;
   } catch {
-    // ignore
   }
-  return 'assets'; // Default subfolder name
+  return 'assets';
 }
 
 function loadImageVaultSubfolderName(): string {
@@ -148,9 +158,8 @@ function loadImageVaultSubfolderName(): string {
     const saved = localStorage.getItem(STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME);
     if (saved) return saved;
   } catch {
-    // ignore
   }
-  return 'assets'; // Default vault subfolder name
+  return 'assets';
 }
 
 function loadImageFilenameFormat(): ImageFilenameFormat {
@@ -160,11 +169,13 @@ function loadImageFilenameFormat(): ImageFilenameFormat {
       return saved;
     }
   } catch {
-    // ignore
   }
-  return 'original'; // Default: use original filename
+  return 'original';
 }
 
+function loadNotesChatPanelCollapsed(): boolean {
+  return loadBoolean(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, false);
+}
 export const useUIStore = create<UIStore>()((set) => ({
   appViewMode: 'notes' as AppViewMode,
   setAppViewMode: (mode) => set({ appViewMode: mode }),
@@ -261,4 +272,34 @@ export const useUIStore = create<UIStore>()((set) => ({
     localStorage.setItem(STORAGE_KEY_IMAGE_FILENAME_FORMAT, format);
     set({ imageFilenameFormat: format });
   },
+
+  notesChatPanelCollapsed: loadNotesChatPanelCollapsed(),
+  setNotesChatPanelCollapsed: (collapsed) => {
+    localStorage.setItem(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, String(collapsed));
+    set({ notesChatPanelCollapsed: collapsed });
+  },
+  toggleNotesChatPanel: () =>
+    set((state) => {
+      const next = !state.notesChatPanelCollapsed;
+      localStorage.setItem(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, String(next));
+      return { notesChatPanelCollapsed: next };
+    }),
+  pendingNotesChatComposerInsert: null,
+  queueNotesChatComposerInsert: (text) =>
+    {
+      localStorage.setItem(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, 'false');
+      set({
+        pendingNotesChatComposerInsert: {
+          id: Date.now(),
+          text,
+        },
+        notesChatPanelCollapsed: false,
+      });
+    },
+  consumePendingNotesChatComposerInsert: (id) =>
+    set((state) =>
+      state.pendingNotesChatComposerInsert?.id === id
+        ? { pendingNotesChatComposerInsert: null }
+        : {}
+    ),
 }));

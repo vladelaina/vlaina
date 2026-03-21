@@ -72,9 +72,7 @@ export function createPersistenceQueue<T>(options: PersistenceQueueOptions<T>): 
   };
 
   const runEnqueueInBackground = () => {
-    void enqueueWrite().catch(() => {
-      // Fire-and-forget callers rely on onError callbacks.
-    });
+    void enqueueWrite().catch(() => {});
   };
 
   const enqueueWrite = (): Promise<void> => {

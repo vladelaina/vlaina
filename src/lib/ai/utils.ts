@@ -19,7 +19,6 @@ export function generateModelName(modelId: string): string {
 export function generateModelGroup(modelId: string): string {
   const lower = modelId.toLowerCase()
   
-  // 1. Brand/Series Matching (High Priority)
   if (lower.includes('gpt') || lower.includes('o1-') || lower.includes('dall-e') || lower.includes('chatgpt')) return 'OpenAI'
   if (lower.includes('claude') || lower.includes('anthropic')) return 'Anthropic'
   if (lower.includes('gemini') || lower.includes('palm')) return 'Google Gemini'
@@ -43,22 +42,18 @@ export function generateModelGroup(modelId: string): string {
   if (lower.includes('perplexity') || lower.includes('sonar')) return 'Perplexity'
   if (lower.includes('command')) return 'Cohere'
   
-  // 2. Structural Grouping (Fallback)
   let group = modelId;
   if (modelId.includes('/')) {
     group = modelId.split('/')[0];
   } else if (modelId.includes(':')) {
     group = modelId.split(':')[0];
   } else if (modelId.includes('-')) {
-    // Take the first part as group (e.g. "stable-diffusion" -> "stable")
-    // But verify it's not too short
     const parts = modelId.split('-');
     if (parts[0].length > 2) {
         group = parts[0];
     }
   }
 
-  // Capitalize
   if (group && group.length > 0) {
       return group.charAt(0).toUpperCase() + group.slice(1);
   }

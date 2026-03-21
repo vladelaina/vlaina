@@ -1,4 +1,3 @@
-// Footnote plugin exports
 export { 
   footnotePlugin,
   footnoteRefSchema,

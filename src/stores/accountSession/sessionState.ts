@@ -1,5 +1,5 @@
 import type { StoreApi } from 'zustand';
-import type { AccountProvider, AccountSessionActions, AccountSessionState } from './state';
+import type { AccountProvider, AccountSessionActions, AccountSessionState, MembershipTier } from './state';
 import { persistUser, refreshAvatar } from './authSupport';
 
 type Set = StoreApi<AccountSessionState & AccountSessionActions>['setState'];
@@ -10,6 +10,8 @@ interface ConnectedAccountIdentity {
   username: string;
   primaryEmail: string | null;
   avatarUrl: string | null;
+  membershipTier?: MembershipTier | null;
+  membershipName?: string | null;
 }
 
 export async function applyConnectedAccount(
@@ -23,6 +25,8 @@ export async function applyConnectedAccount(
     username: identity.username,
     primaryEmail: identity.primaryEmail,
     avatarUrl: identity.avatarUrl,
+    membershipTier: identity.membershipTier || null,
+    membershipName: identity.membershipName || null,
     isConnecting: false,
     error: null,
   });
@@ -33,6 +37,8 @@ export async function applyConnectedAccount(
     username: identity.username,
     primaryEmail: identity.primaryEmail,
     avatarUrl: identity.avatarUrl,
+    membershipTier: identity.membershipTier || null,
+    membershipName: identity.membershipName || null,
   });
   await refreshAvatar(set, get, identity.username, identity.avatarUrl);
 }
@@ -44,6 +50,8 @@ export function applyDisconnectedAccount(set: Set): void {
     username: null,
     primaryEmail: null,
     avatarUrl: null,
+    membershipTier: null,
+    membershipName: null,
     localAvatarUrl: null,
     isConnecting: false,
     isLoading: false,
@@ -55,5 +63,7 @@ export function applyDisconnectedAccount(set: Set): void {
     username: null,
     primaryEmail: null,
     avatarUrl: null,
+    membershipTier: null,
+    membershipName: null,
   });
 }

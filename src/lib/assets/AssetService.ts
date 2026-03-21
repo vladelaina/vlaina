@@ -28,7 +28,6 @@ export class AssetService {
     onProgress?: (progress: number) => void
   ): Promise<UploadResult> {
     
-    // 1. Validation
     if (file.size > MAX_ASSET_SIZE) {
       return { 
         success: false, 
@@ -49,7 +48,6 @@ export class AssetService {
 
     onProgress?.(20);
 
-    // 2. Hash Calculation & Deduplication
     const fileHash = await computeFileHash(file);
     const existingAsset = existingAssets.find(a => a.hash === fileHash);
     
@@ -66,7 +64,6 @@ export class AssetService {
 
     onProgress?.(40);
 
-    // 3. Path Resolution
     const { targetDir, storedPathPrefix } = await this.resolveTarget(file.name, context, config);
     const storage = getStorageAdapter();
 
@@ -74,7 +71,6 @@ export class AssetService {
       await storage.mkdir(targetDir, true);
     }
 
-    // 4. Filename Conflict Resolution
     let existingFiles: string[] = [];
     try {
       const files = await storage.listDir(targetDir);
@@ -86,7 +82,6 @@ export class AssetService {
 
     const existingNames = new Set(existingFiles);
     
-    // Check for special "image.png" case for clipboard pastes
     let effectiveFormat = config.filenameFormat;
     const isGenericName = file.name.toLowerCase() === 'image.png';
     const isClipboardTimestamp = Math.abs(Date.now() - file.lastModified) < 2000;
@@ -99,7 +94,6 @@ export class AssetService {
 
     onProgress?.(60);
 
-    // 5. Write to Disk
     const buffer = new Uint8Array(await file.arrayBuffer());
     
     const filePath = await joinPath(targetDir, finalFilename);
@@ -108,7 +102,6 @@ export class AssetService {
     
     onProgress?.(80);
 
-    // 6. Return Result
     const storedFilename = storedPathPrefix + finalFilename;
     const newEntry: AssetEntry = {
       filename: storedFilename,
@@ -135,7 +128,6 @@ export class AssetService {
   ): Promise<{ targetDir: string; storedPathPrefix: string }> {
     const { vaultPath, currentNotePath, category } = context;
     
-    // System assets (Icons/Covers) always go to .nekotick/assets
     if (category === 'icons') {
       const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
       return {
@@ -152,7 +144,6 @@ export class AssetService {
        };
     }
 
-    // Standard image upload logic (category === 'content' or undefined)
     switch (config.storageMode) {
       case 'vault':
       default:
@@ -170,7 +161,6 @@ export class AssetService {
 
       case 'currentFolder':
         if (currentNotePath) {
-          // currentNotePath might be relative to vault, so resolve it first
           const absoluteNotePath = isAbsolutePath(currentNotePath)
             ? currentNotePath
             : await joinPath(vaultPath, currentNotePath);
@@ -178,10 +168,9 @@ export class AssetService {
 
           return {
             targetDir: currentDir,
-            storedPathPrefix: './' // Explicitly relative
+            storedPathPrefix: './'
           };
         } else {
-           // Fallback to vault default
            return {
              targetDir: vaultPath,
              storedPathPrefix: ''
@@ -201,7 +190,6 @@ export class AssetService {
             storedPathPrefix: `./${subfolderName}/`
           };
         } else {
-          // Fallback
            return {
              targetDir: vaultPath,
              storedPathPrefix: ''

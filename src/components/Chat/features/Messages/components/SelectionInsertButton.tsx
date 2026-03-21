@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/ui/icons";
-import { cn, iconButtonStyles } from "@/lib/utils";
 import { focusComposerInput, insertTextIntoComposer, isComposerFocusTarget } from "@/lib/ui/composerFocusRegistry";
+import { normalizeSelectedTextForComposer } from "@/lib/ui/normalizeSelectedTextForComposer";
+import { cn, iconButtonStyles } from "@/lib/utils";
 
 interface SelectionInsertState {
   text: string;
@@ -67,13 +68,6 @@ function setChatSelectionFreeze(active: boolean) {
     return;
   }
   document.body.removeAttribute("data-chat-selection-freeze");
-}
-
-function normalizeSelectionText(text: string): string {
-  return text
-    .replace(/\r\n?/g, "\n")
-    .replace(/\n[ \t]*\n(?:[ \t]*\n)+/g, "\n\n")
-    .trim();
 }
 
 function toElement(node: Node | null): Element | null {
@@ -182,7 +176,7 @@ function computeStateFromSelection(): SelectionInsertState | null {
     return null;
   }
 
-  const text = normalizeSelectionText(selection.toString());
+  const text = normalizeSelectedTextForComposer(selection.toString());
   if (!text) {
     return null;
   }
@@ -243,7 +237,7 @@ export function SelectionInsertButton() {
       const range = selection.getRangeAt(0);
       const isRangeInsideChat = isSelectionFullyInsideChatMessages(selection, range);
       if (isRangeInsideChat && isPointerInsideChatRef.current) {
-        const normalizedText = normalizeSelectionText(selection.toString());
+        const normalizedText = normalizeSelectedTextForComposer(selection.toString());
         if (!normalizedText) {
           return false;
         }
@@ -254,7 +248,7 @@ export function SelectionInsertButton() {
       if (!lastValidRangeRef.current) {
         return false;
       }
-      const currentText = normalizeSelectionText(selection.toString());
+      const currentText = normalizeSelectedTextForComposer(selection.toString());
       if (!force && currentText && currentText === lastValidTextRef.current) {
         return false;
       }

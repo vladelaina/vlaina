@@ -50,11 +50,9 @@ export async function processFolderRename(
 ) {
     const { starredEntries } = currentStore;
     
-    // 1. Calculate Paths
     const dirPath = path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : '';
     const newPath = dirPath ? `${dirPath}/${newName}` : newName;
     
-    // 2. Starred Update
     const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath, kind) => {
         if (kind === 'folder' && relativePath === path) return newPath;
         if (relativePath.startsWith(path + '/')) return relativePath.replace(path, newPath);
@@ -66,10 +64,8 @@ export async function processFolderRename(
         void saveStarredRegistry(starredResult.entries);
     }
 
-    // 3. Tabs Update
     const updatedTabs = batchUpdateTabsOnFolderRename(currentStore.openTabs, path, newPath, set);
 
-    // 4. Current Note Update
     let updatedCurrentNote = currentStore.currentNote;
     if (updatedCurrentNote && updatedCurrentNote.path.startsWith(path + '/')) {
         const newNotePath = updatedCurrentNote.path.replace(path, newPath);

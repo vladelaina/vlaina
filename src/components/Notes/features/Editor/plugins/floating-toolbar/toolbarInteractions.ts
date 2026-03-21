@@ -234,6 +234,16 @@ export function createToolbarEventDelegation(
 
   const handleMouseDown = (e: Event) => {
     const target = e.target as HTMLElement;
+    if (target.closest('select, input, textarea, option')) {
+      return;
+    }
+
+    if (toolbarElement.contains(target)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     const button = target.closest('[data-action]') as HTMLElement | null;
     if (!button) {
       return;

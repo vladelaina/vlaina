@@ -1,44 +1,37 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
-import { SUPPORTED_LANGUAGES, normalizeLanguage } from '../../../utils/shiki';
-import { isSelectionFullyInsideNode, moveSelectionAfterNode } from '../codeBlockSelectionUtils';
+import { toggleCodeBlockCollapsed, updateCodeBlockLanguage } from '../codeBlockTransactions';
+import { codeBlockLanguages } from '../codeBlockLanguageLoader';
 
 interface UseCodeBlockStateProps {
     node: Node;
     view: EditorView;
     getPos: () => number | undefined;
+    getNode: () => Node;
 }
 
-export function useCodeBlockState({ node, view, getPos }: UseCodeBlockStateProps) {
+export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockStateProps) {
     const language = node.attrs.language || 'text';
     const [copied, setCopied] = useState(false);
     const isCollapsed = Boolean(node.attrs.collapsed);
     const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
-    const headerRef = useRef<HTMLDivElement>(null);
     const copyTimerRef = useRef<number | null>(null);
 
-    const langInfo = SUPPORTED_LANGUAGES.find(l => l.id === language);
+    const langInfo = codeBlockLanguages.find((item) => item.id === language || item.aliases.includes(language));
     const displayName = langInfo ? langInfo.name : language;
 
     const updateLanguage = useCallback((newLang: string) => {
         const pos = getPos();
         if (pos === undefined) return;
-        
-        const normalized = normalizeLanguage(newLang) || newLang;
 
-        view.dispatch(
-            view.state.tr.setNodeMarkup(pos, undefined, {
-                ...node.attrs,
-                language: normalized
-            })
-        );
-    }, [view, getPos, node.attrs]);
+        updateCodeBlockLanguage(view, pos, newLang);
+    }, [view, getPos]);
 
     const handleCopy = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        const code = node.textContent;
+        const code = getNode().textContent;
         void navigator.clipboard.writeText(code);
         if (copyTimerRef.current !== null) {
             window.clearTimeout(copyTimerRef.current);
@@ -48,7 +41,7 @@ export function useCodeBlockState({ node, view, getPos }: UseCodeBlockStateProps
             setCopied(false);
             copyTimerRef.current = null;
         }, 2000);
-    }, [node.textContent]);
+    }, [getNode]);
 
     const toggleCollapse = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
@@ -56,38 +49,13 @@ export function useCodeBlockState({ node, view, getPos }: UseCodeBlockStateProps
         const pos = getPos();
         if (pos === undefined) return;
 
-        const currentNode = view.state.doc.nodeAt(pos);
-        if (!currentNode) return;
-
-        const nextCollapsed = !isCollapsed;
-        const tr = view.state.tr.setNodeMarkup(pos, undefined, {
-            ...currentNode.attrs,
-            collapsed: nextCollapsed,
-        });
-
-        if (nextCollapsed) {
-            const selection = view.state.selection;
-            if (isSelectionFullyInsideNode(selection, pos, currentNode.nodeSize)) {
-                moveSelectionAfterNode(tr, pos, currentNode.nodeSize);
-            }
-        }
-
-        view.dispatch(tr.scrollIntoView());
+        toggleCodeBlockCollapsed(view, pos, isCollapsed);
     }, [getPos, isCollapsed, view]);
 
     const handleShare = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        // Placeholder
     }, []);
-
-    // Keep DOM state in sync for styles/behavior tied to collapsed mode.
-    useEffect(() => {
-        const container = headerRef.current?.parentElement?.parentElement;
-        if (container) {
-            container.setAttribute('data-collapsed', String(isCollapsed));
-        }
-    }, [isCollapsed]);
 
     useEffect(() => {
         return () => {
@@ -105,7 +73,6 @@ export function useCodeBlockState({ node, view, getPos }: UseCodeBlockStateProps
         isCollapsed,
         isLangMenuOpen,
         setIsLangMenuOpen,
-        headerRef,
         updateLanguage,
         handleCopy,
         toggleCollapse,

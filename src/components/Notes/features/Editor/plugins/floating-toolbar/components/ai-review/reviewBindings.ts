@@ -1,13 +1,13 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import {
   applyAiSelectionSuggestion,
-  retryAiSelectionSuggestion,
+  retryAiSelectionSuggestionResult,
 } from '../../ai/selectionCommands';
 import { floatingToolbarKey } from '../../floatingToolbarPlugin';
-import { TOOLBAR_ACTIONS, type FloatingToolbarState } from '../../types';
+import type { FloatingToolbarState } from '../../types';
 import type { AiReviewElements } from './reviewDom';
 import { toAiSelectionSuggestion } from './reviewState';
-import { stopReviewMouseDown, syncReviewUi } from './reviewUi';
+import { stopPassiveReviewMouseDown, stopReviewMouseDown, syncReviewUi } from './reviewUi';
 
 interface BindAiReviewActionsParams {
   elements: AiReviewElements;
@@ -29,16 +29,9 @@ export function bindAiReviewActions({
   const { panel, acceptButton, retryButton, cancelButton } = elements;
   const abortController = new AbortController();
   const { signal } = abortController;
+  let focusFrameId = 0;
 
   const getLiveReview = (): typeof review => review;
-
-  const clearReview = () => {
-    view.dispatch(
-      view.state.tr.setMeta(floatingToolbarKey, {
-        type: TOOLBAR_ACTIONS.CLEAR_AI_REVIEW,
-      })
-    );
-  };
 
   const applySuggestion = () => {
     const suggestion = toAiSelectionSuggestion(getLiveReview());
@@ -74,6 +67,7 @@ export function bindAiReviewActions({
     applySuggestion();
   };
 
+  panel.addEventListener('mousedown', stopPassiveReviewMouseDown, { signal });
   acceptButton.addEventListener('mousedown', stopReviewMouseDown, { signal });
   retryButton?.addEventListener('mousedown', stopReviewMouseDown, { signal });
   cancelButton.addEventListener('mousedown', stopReviewMouseDown, { signal });
@@ -89,7 +83,7 @@ export function bindAiReviewActions({
   cancelButton.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
-    clearReview();
+    onClose();
   }, { signal });
 
   retryButton?.addEventListener('click', (event) => {
@@ -105,29 +99,51 @@ export function bindAiReviewActions({
       return;
     }
 
-    updateReview({ ...liveReview, isLoading: true });
-    void retryAiSelectionSuggestion(suggestion).then((nextSuggestion) => {
+    updateReview({ ...liveReview, isLoading: true, errorMessage: null });
+    void retryAiSelectionSuggestionResult(suggestion, signal, { suppressToast: true }).then((result) => {
       const currentReview = floatingToolbarKey.getState(view.state)?.aiReview;
       if (!currentReview || currentReview.requestKey !== liveReview.requestKey) {
         return;
       }
 
-      if (!nextSuggestion) {
-        updateReview({ ...liveReview, isLoading: false });
+      if (!result.suggestion) {
+        updateReview({
+          ...liveReview,
+          suggestedText: '',
+          isLoading: false,
+          errorMessage: result.errorMessage,
+        });
         return;
       }
 
       updateReview({
-        ...nextSuggestion,
+        ...result.suggestion,
         requestKey: liveReview.requestKey,
         isLoading: false,
+        errorMessage: null,
       });
     });
   }, { signal });
 
   syncReviewUi(panel, review, acceptButton);
+  focusFrameId = requestAnimationFrame(() => {
+    focusFrameId = 0;
+    if (!panel.isConnected) {
+      return;
+    }
+
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement && panel.contains(activeElement)) {
+      return;
+    }
+
+    panel.focus({ preventScroll: true });
+  });
 
   return () => {
+    if (focusFrameId) {
+      cancelAnimationFrame(focusFrameId);
+    }
     abortController.abort();
   };
 }

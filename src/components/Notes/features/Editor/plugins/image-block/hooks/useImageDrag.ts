@@ -259,7 +259,6 @@ export function useImageDrag({
         finishSession,
     ]);
 
-    // Empty handlers for React event binding
     const handlePointerUp = useCallback(() => {}, []);
     const handlePointerCancel = useCallback(() => {}, []);
 

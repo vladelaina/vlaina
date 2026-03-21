@@ -1,4 +1,3 @@
-// Editor SVGs (Milkdown/ProseMirror plugins often need raw SVG strings)
 import { ICON_SIZES } from './sizes';
 
 const EDITOR_ICON_SIZE = ICON_SIZES.md;
@@ -68,10 +67,23 @@ export const EDITOR_ICONS = {
     <rect x="9" y="9" width="11" height="11" rx="2"></rect>
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
   </svg>`,
+  quote: `<svg width="${EDITOR_ICON_SIZE}" height="${EDITOR_ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M10 13H6.5a1.5 1.5 0 0 1-1.5-1.5V9a4 4 0 0 1 4-4"></path>
+    <path d="M19 13h-3.5a1.5 1.5 0 0 1-1.5-1.5V9a4 4 0 0 1 4-4"></path>
+  </svg>`,
   trash: `<svg width="${EDITOR_ICON_SIZE}" height="${EDITOR_ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <path d="M3 6h18"></path>
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
     <line x1="10" y1="11" x2="10" y2="17"></line>
     <line x1="14" y1="11" x2="14" y2="17"></line>
+  </svg>`,
+  reviewRetry: `<svg width="${EDITOR_ICON_SIZE}" height="${EDITOR_ICON_SIZE}" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
+    <path d="M244,56v48a12,12,0,0,1-12,12H184a12,12,0,1,1,0-24H201.1l-19-17.38c-.13-.12-.26-.24-.38-.37A76,76,0,1,0,127,204h1a75.53,75.53,0,0,0,52.15-20.72,12,12,0,0,1,16.49,17.45A99.45,99.45,0,0,1,128,228h-1.37A100,100,0,1,1,198.51,57.06L220,76.72V56a12,12,0,0,1,24,0Z"></path>
+  </svg>`,
+  reviewApply: `<svg width="${EDITOR_ICON_SIZE}" height="${EDITOR_ICON_SIZE}" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
+    <path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"></path>
+  </svg>`,
+  reviewClose: `<svg width="${EDITOR_ICON_SIZE}" height="${EDITOR_ICON_SIZE}" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
+    <path d="M208.49,191.51a12,12,0,0,1-17,17L128,145,64.49,208.49a12,12,0,0,1-17-17L111,128,47.51,64.49a12,12,0,0,1,17-17L128,111l63.51-63.52a12,12,0,0,1,17,17L145,128Z"></path>
   </svg>`,
 } as const;

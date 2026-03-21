@@ -12,10 +12,14 @@ import {
   persistUser,
   refreshAvatar,
 } from './authSupport';
-import { applyConnectedAccount, applyDisconnectedAccount } from './sessionState';
+import { applyDisconnectedAccount } from './sessionState';
 
 type Set = StoreApi<AccountSessionState & AccountSessionActions>['setState'];
 type Get = StoreApi<AccountSessionState & AccountSessionActions>['getState'];
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
 
 export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
   return async () => {
@@ -30,6 +34,12 @@ export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
       const username = status?.username ?? null;
       const primaryEmail = status?.primaryEmail ?? null;
       const avatarUrl = status?.avatarUrl ?? null;
+      const membershipTier =
+        status?.membershipTier === 'free' || status?.membershipTier === 'plus' || status?.membershipTier === 'pro' || status?.membershipTier === 'max'
+          ? status.membershipTier
+          : null;
+      const membershipName =
+        typeof status?.membershipName === 'string' && status.membershipName.trim() ? status.membershipName.trim() : null;
 
       set({
         isConnected: connected,
@@ -37,11 +47,13 @@ export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
         username,
         primaryEmail,
         avatarUrl,
+        membershipTier,
+        membershipName,
         isLoading: false,
         error: connected ? null : get().error,
       });
 
-      persistUser({ isConnected: connected, provider, username, primaryEmail, avatarUrl });
+      persistUser({ isConnected: connected, provider, username, primaryEmail, avatarUrl, membershipTier, membershipName });
       await refreshAvatar(set, get, username, avatarUrl);
     } catch (error) {
       console.error('Failed to check account auth status:', error);
@@ -111,8 +123,20 @@ export function createSignIn(
   };
 }
 
-export function createRequestEmailCode(set: Set, _get: Get): (email: string) => Promise<boolean> {
+export function createRequestEmailCode(set: Set, get: Get): (email: string) => Promise<boolean> {
   return async (email: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) {
+      set({ error: 'Invalid email address' });
+      return false;
+    }
+
+    const { isConnected, primaryEmail } = get();
+    if (isConnected && primaryEmail?.trim().toLowerCase() === normalizedEmail) {
+      set({ error: 'You are already signed in with this email' });
+      return false;
+    }
+
     set({ error: null });
     try {
       const ok = hasBackendCommands()
@@ -147,16 +171,8 @@ export function createVerifyEmailCode(set: Set, get: Get): (email: string, code:
 
       const result = await webAccountCommands.verifyEmailCode(email, code);
       if (result.success && result.username) {
-        const provider = normalizeAccountProvider(result.provider) || 'email';
-        const primaryEmail = result.primaryEmail || null;
-        const avatarUrl = result.avatarUrl || null;
-
-        await applyConnectedAccount(set, get, {
-          provider,
-          username: result.username,
-          primaryEmail,
-          avatarUrl,
-        });
+        await get().checkStatus();
+        set({ isConnecting: false, error: null });
         return true;
       }
 
@@ -205,16 +221,8 @@ export function createHandleAuthCallback(set: Set, get: Get): () => Promise<bool
 
     const result = await webAccountCommands.completeAuth(callback.provider, callback.state);
     if (result.success && result.username) {
-      const provider = normalizeAccountProvider(result.provider) || callback.provider;
-      const primaryEmail = result.primaryEmail || null;
-      const avatarUrl = result.avatarUrl || null;
-
-      await applyConnectedAccount(set, get, {
-        provider,
-        username: result.username,
-        primaryEmail,
-        avatarUrl,
-      });
+      await get().checkStatus();
+      set({ isConnecting: false, error: null });
       return true;
     }
 

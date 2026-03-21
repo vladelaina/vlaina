@@ -34,6 +34,11 @@ interface MilkdownNodeType {
     content?: MilkdownNode | readonly MilkdownNode[] | null,
     marks?: readonly MilkdownMark[] | null,
   ): MilkdownNode | null;
+  createChecked?(
+    attrs?: AnyRecord | null,
+    content?: MilkdownNode | readonly MilkdownNode[] | null,
+    marks?: readonly MilkdownMark[] | null,
+  ): MilkdownNode;
 }
 
 interface MilkdownResolvedPos {
@@ -72,6 +77,7 @@ interface MilkdownNode {
   childCount: number;
   firstChild: MilkdownNode | null;
   lastChild: MilkdownNode | null;
+  isLeaf: boolean;
   isText: boolean;
   isBlock: boolean;
   isTextblock: boolean;
@@ -319,6 +325,12 @@ type MilkdownCommand = (
 type MilkdownCommandFactory = (...args: any[]) => MilkdownCommand;
 type MilkdownRunner = () => void | Promise<void> | (() => void | Promise<void>) | Promise<() => void | Promise<void>>;
 type MilkdownPlugin = ((ctx: MilkdownCtx) => MilkdownRunner) & { meta?: Record<string, any> };
+interface MilkdownMeta {
+  displayName: string;
+  package?: string;
+  group?: string;
+  [key: string]: any;
+}
 
 interface MilkdownTimerType {
   readonly id: symbol;
@@ -351,6 +363,7 @@ declare module '@milkdown/core' {
 
 declare module '@milkdown/ctx' {
   export type Ctx = MilkdownCtx;
+  export type Meta = globalThis.MilkdownMeta;
   export type MilkdownPlugin = globalThis.MilkdownPlugin;
   export type TimerType = MilkdownTimerType;
   export function createTimer(name: string, timeout?: number): MilkdownTimerType;
@@ -416,10 +429,26 @@ declare module '@milkdown/kit/component/table-block' {
 }
 
 declare module '@milkdown/kit/prose/commands' {
+  export function exitCode(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+    view?: import('@milkdown/kit/prose/view').EditorView,
+  ): boolean;
   export function setBlockType(nodeType: any, attrs?: AnyRecord): MilkdownCommand;
   export function wrapIn(nodeType: any, attrs?: AnyRecord): MilkdownCommand;
   export function lift(state: MilkdownEditorStateLike, dispatch?: ((tr: MilkdownTransactionLike) => void) | null): boolean;
   export function toggleMark(markType: any, attrs?: AnyRecord): MilkdownCommand;
+}
+
+declare module '@milkdown/kit/prose/history' {
+  export function undo(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+  ): boolean;
+  export function redo(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+  ): boolean;
 }
 
 declare module '@milkdown/kit/prose/inputrules' {
@@ -453,6 +482,7 @@ declare module '@milkdown/kit/prose/model' {
     childCount: number;
     firstChild: Node | null;
     lastChild: Node | null;
+    isLeaf: boolean;
     isText: boolean;
     isBlock: boolean;
     isTextblock: boolean;
@@ -494,6 +524,11 @@ declare module '@milkdown/kit/prose/model' {
       content?: Node | readonly Node[] | null,
       marks?: readonly MilkdownMark[] | null,
     ): Node | null;
+    createChecked?(
+      attrs?: AnyRecord | null,
+      content?: Node | readonly Node[] | null,
+      marks?: readonly MilkdownMark[] | null,
+    ): Node;
     [key: string]: any;
   }
 
@@ -573,6 +608,18 @@ declare module '@milkdown/kit/prose/tables' {
   export const deleteColumn: MilkdownCommand;
   export const deleteRow: MilkdownCommand;
   export const deleteTable: MilkdownCommand;
+  export const TableMap: {
+    get(table: MilkdownNode): {
+      width: number;
+      height: number;
+      cellsInRect(rect: {
+        left: number;
+        right: number;
+        top: number;
+        bottom: number;
+      }): number[];
+    };
+  };
 }
 
 declare module '@milkdown/kit/prose/view' {
@@ -616,6 +663,113 @@ declare module '@milkdown/kit/prose/view' {
   }
 }
 
+declare module '@milkdown/preset-gfm' {
+  interface CommandKeyLike {
+    key: any;
+    [key: string]: any;
+  }
+
+  export const tableSchema: any;
+  export const addColAfterCommand: CommandKeyLike;
+  export const addColBeforeCommand: CommandKeyLike;
+  export const addRowAfterCommand: CommandKeyLike;
+  export const addRowBeforeCommand: CommandKeyLike;
+  export const deleteSelectedCellsCommand: CommandKeyLike;
+  export const moveColCommand: CommandKeyLike;
+  export const selectColCommand: CommandKeyLike;
+  export const selectRowCommand: CommandKeyLike;
+}
+
+declare module '@milkdown/prose/model' {
+  export class Node implements MilkdownNode {
+    type: MilkdownNodeType;
+    attrs: AnyRecord;
+    text?: string | null;
+    textContent: string;
+    content: MilkdownFragmentLike;
+    marks: readonly MilkdownMark[];
+    nodeSize: number;
+    childCount: number;
+    firstChild: Node | null;
+    lastChild: Node | null;
+    isLeaf: boolean;
+    isText: boolean;
+    isBlock: boolean;
+    isTextblock: boolean;
+    isInline: boolean;
+    descendants(
+      callback: (
+        node: Node,
+        pos: number,
+        parent?: Node,
+        index?: number,
+      ) => boolean | void,
+    ): void;
+    nodesBetween(
+      from: number,
+      to: number,
+      callback: (
+        node: Node,
+        pos: number,
+        parent?: Node,
+        index?: number,
+      ) => boolean | void,
+      startPos?: number,
+    ): void;
+    forEach(callback: (node: Node, offset: number, index: number) => void): void;
+    maybeChild(index: number): Node | null;
+    child(index: number): Node;
+    copy(content?: any): Node;
+    cut(from: number, to?: number): Node;
+    slice(from: number, to?: number, includeParents?: boolean): any;
+    resolve(pos: number): MilkdownResolvedPos;
+    nodeAt(pos: number): Node | null;
+    textBetween(from: number, to: number, blockSeparator?: string | null, leafText?: string | null): string;
+    rangeHasMark(from: number, to: number, markType: MilkdownMarkType): boolean;
+    eq(other: Node): boolean;
+  }
+}
+
+declare module '@milkdown/prose/view' {
+  export class EditorView {
+    dom: HTMLElement;
+    state: MilkdownEditorStateLike;
+    editable: boolean;
+    dispatch: (tr: MilkdownTransactionLike) => void;
+    focus(): void;
+    hasFocus(): boolean;
+    posAtCoords(coords: { left: number; top: number }): { pos: number; inside: number } | null;
+    posAtDOM(node: globalThis.Node, offset: number, bias?: number): number;
+    coordsAtPos(pos: number): { left: number; right: number; top: number; bottom: number };
+    domAtPos(pos: number, side?: number): { node: globalThis.Node; offset: number };
+    nodeDOM(pos: number): globalThis.Node | null;
+    endOfTextblock(dir?: string, state?: MilkdownEditorStateLike): boolean;
+    [key: string]: any;
+  }
+
+  export interface NodeView {
+    dom?: HTMLElement;
+    contentDOM?: HTMLElement | null;
+    update?(node: MilkdownNode): boolean;
+    stopEvent?(event: Event): boolean;
+    ignoreMutation?(mutation: ViewMutationRecord): boolean;
+    destroy?(): void;
+    [key: string]: any;
+  }
+
+  export type NodeViewConstructor = (
+    node: import('@milkdown/prose/model').Node,
+    view: EditorView,
+    getPos: () => number | undefined,
+    decorations?: readonly any[],
+    innerDecorations?: any,
+  ) => NodeView;
+
+  export type ViewMutationRecord =
+    | MutationRecord
+    | { type: 'selection'; target: globalThis.Node };
+}
+
 declare module '@milkdown/kit/transformer' {
   export type Parser = ((markdown: string) => import('@milkdown/kit/prose/model').Node) & AnyRecord;
   export type Serializer = ((node: any) => string) & AnyRecord;
@@ -632,6 +786,10 @@ declare module '@milkdown/kit/utils' {
     nodeName: string,
     factory: (ctx: MilkdownCtx) => Record<string, MilkdownNodeAttrSpec>,
   ): any;
+}
+
+declare module '@milkdown/utils' {
+  export function $view(node: any, factory: (ctx: MilkdownCtx) => any): any;
 }
 
 declare module '@milkdown/react' {

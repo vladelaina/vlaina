@@ -23,7 +23,7 @@ const originalSchema = tableNodes({
 /// Schema for table node.
 export const tableSchema = $nodeSchema('table', () => ({
   ...originalSchema.table,
-  content: 'table_header_row table_row+',
+  content: 'table_header_row table_row*',
   disableDropCursor: true,
   parseMarkdown: {
     match: (node) => node.type === 'table',

@@ -20,7 +20,6 @@ export function TitleBarButton({ icon: Icon, onClick, isActive, className }: Tit
         className
       )}
     >
-      {/* Fallback to pixel size for raw components that might not support 'md' */}
       <Icon size={18} />
     </button>
   );

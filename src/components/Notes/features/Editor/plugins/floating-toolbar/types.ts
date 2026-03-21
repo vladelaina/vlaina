@@ -1,8 +1,5 @@
-// Floating Toolbar Plugin Types
-
 import type { EditorView } from '@milkdown/kit/prose/view';
 
-// Block types supported by the toolbar
 export type BlockType =
   | 'paragraph'
   | 'heading1'
@@ -29,15 +26,13 @@ export interface AiReviewState {
   originalText: string;
   suggestedText: string;
   isLoading: boolean;
+  errorMessage: string | null;
 }
 
-// Sub-menu types
 export type SubMenuType = 'ai' | 'aiReview' | 'block' | 'link' | 'color' | 'alignment' | null;
 
-// Toolbar placement relative to selection
 export type ToolbarPlacement = 'top' | 'bottom';
 
-// Main plugin state
 export interface FloatingToolbarState {
   isVisible: boolean;
   position: { x: number; y: number };
@@ -54,7 +49,6 @@ export interface FloatingToolbarState {
   aiReview: AiReviewState | null;
 }
 
-// Toolbar action definition
 export interface ToolbarAction {
   id: string;
   icon: string;
@@ -64,7 +58,6 @@ export interface ToolbarAction {
   execute: (view: EditorView, state: FloatingToolbarState) => void;
 }
 
-// Color option for the color picker
 export interface ColorOption {
   id: string;
   label: string;
@@ -72,7 +65,6 @@ export interface ColorOption {
   bgColor?: string;
 }
 
-// Block type configuration
 export interface BlockTypeConfig {
   type: BlockType;
   label: string;
@@ -80,7 +72,6 @@ export interface BlockTypeConfig {
   shortcut?: string;
 }
 
-// Plugin meta actions
 export const TOOLBAR_ACTIONS = {
   SHOW: 'SHOW',
   HIDE: 'HIDE',
@@ -93,12 +84,10 @@ export const TOOLBAR_ACTIONS = {
   SET_TEXT_COLOR: 'SET_TEXT_COLOR',
   SET_BG_COLOR: 'SET_BG_COLOR',
   SET_AI_REVIEW: 'SET_AI_REVIEW',
-  CLEAR_AI_REVIEW: 'CLEAR_AI_REVIEW',
 } as const;
 
 export type ToolbarActionType = typeof TOOLBAR_ACTIONS[keyof typeof TOOLBAR_ACTIONS];
 
-// Meta payload for state updates
 export interface ToolbarMeta {
   type: ToolbarActionType;
   payload?: Partial<FloatingToolbarState>;

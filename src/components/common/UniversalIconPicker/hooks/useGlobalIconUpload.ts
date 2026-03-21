@@ -11,7 +11,6 @@ export function useGlobalIconUpload() {
   const syncCustomIcons = useUnifiedStore(s => s.syncCustomIcons);
   const customIcons = useUnifiedStore(s => s.data.customIcons || EMPTY_ICONS);
   
-  // Auto-discover existing icons on mount
   useEffect(() => {
     syncCustomIcons();
   }, [syncCustomIcons]);
@@ -19,7 +18,6 @@ export function useGlobalIconUpload() {
   const handleUpload = useCallback(async (file: File) => {
       try {
           const path = await saveGlobalAsset(file, 'icons');
-          // Protocol "img:" signals UniversalIcon to use the loader
           const assetUrl = `img:${path}`; 
           
           addCustomIcon({

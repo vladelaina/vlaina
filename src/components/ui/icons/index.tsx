@@ -31,7 +31,6 @@ export const Icon = forwardRef<SVGSVGElement, IconProps>(
         style={{ 
           width: resolvedSize, 
           height: resolvedSize, 
-          // Handle number vs string size inputs consistently
           fontSize: typeof resolvedSize === 'number' ? `${resolvedSize}px` : resolvedSize,
           ...style 
         }}

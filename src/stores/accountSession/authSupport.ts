@@ -1,5 +1,5 @@
 import type { StoreApi } from 'zustand';
-import type { AccountProvider, AccountSessionActions, AccountSessionState } from './state';
+import type { AccountProvider, AccountSessionActions, AccountSessionState, MembershipTier } from './state';
 import { ACCOUNT_USER_PERSIST_KEY } from './state';
 import { downloadAndSaveAvatar, getLocalAvatarUrl } from '@/lib/assets/avatarManager';
 
@@ -27,6 +27,8 @@ export function persistUser(data: {
   username: string | null;
   primaryEmail: string | null;
   avatarUrl: string | null;
+  membershipTier: MembershipTier | null;
+  membershipName: string | null;
 }) {
   localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, JSON.stringify(data));
 }

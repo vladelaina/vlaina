@@ -8,7 +8,7 @@ import { getCroppedImg } from '@/lib/assets/processing/crop';
 import { useToastStore } from '@/stores/useToastStore';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 import { DeletableItem } from '@/components/ui/deletable-item';
-import { UniversalIcon } from './UniversalIcon'; // We will create this next
+import { UniversalIcon } from './UniversalIcon';
 
 export interface CustomIcon {
     id: string;
@@ -20,7 +20,6 @@ interface UploadTabProps {
     onSelect: (value: string) => void;
     onPreview?: (url: string | null) => void;
     onClose: () => void;
-    
     customIcons?: CustomIcon[];
     onUploadFile?: (file: File) => Promise<{ success: boolean; url?: string; error?: string }>;
     onDeleteCustomIcon?: (id: string) => void;
@@ -80,33 +79,27 @@ export function UploadTab({
         try {
             setIsUploading(true);
 
-            // 1. Generate Timestamp Name
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T');
             const finalName = `icon_${timestamp[0]}_${timestamp[1].split('Z')[0]}`;
 
             let fileToUpload: File;
 
             if (shouldPreserve && originalFile) {
-                // For GIFs/WebP, preserve original file (animation/quality)
                 const ext = isGif ? 'gif' : 'webp';
                 fileToUpload = new File([originalFile], `${finalName}.${ext}`, { type: originalFile.type });
             } else {
-                // 2. Get cropped blob
                 const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
                 if (!croppedBlob) throw new Error('Failed to crop image');
 
-                // 3. Convert to File
                 fileToUpload = new File([croppedBlob], `${finalName}.png`, { type: 'image/png' });
             }
 
-            // 4. Upload via callback
             const result = await onUploadFile(fileToUpload);
             
             if (!result.success || !result.url) {
                 throw new Error(result.error || 'Upload failed');
             }
 
-            // 5. Select and Close
             onSelect(result.url);
             onClose();
 
@@ -118,7 +111,6 @@ export function UploadTab({
         }
     };
 
-    // Helper to handle library item click
     const handleLibraryItemClick = (url: string) => {
         onSelect(url);
         onClose();
@@ -128,7 +120,6 @@ export function UploadTab({
         <div className="h-[320px] flex flex-col relative">
             <input {...getInputProps()} />
             {imageSrc ? (
-                // Cropping Mode - Focused & Minimalist
                 <div className="flex flex-col flex-1 px-5 pt-3 pb-6">
                     <div
                         {...getRootProps({ onClick: (e) => e.stopPropagation() })}
@@ -166,7 +157,6 @@ export function UploadTab({
                             />
                         )}
 
-                        {/* Direct Re-upload Overlay */}
                         <button
                             type="button"
                             onClick={(e) => {
@@ -185,7 +175,6 @@ export function UploadTab({
                     </div>
 
                     <div className="flex flex-col gap-6">
-                        {/* High-Performance Slider (Hidden for GIFs) */}
                         {!isGif && (
                             <div className="flex items-center gap-4">
                                 <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--neko-text-tertiary)] w-10">Zoom</span>
@@ -240,7 +229,6 @@ export function UploadTab({
                     </div>
                 </div>
             ) : (
-                // Library Mode
                 <div className="flex flex-col flex-1 min-h-0">
                     <div className="px-3 pt-3 pb-2 flex-shrink-0">
                         <div
@@ -267,7 +255,6 @@ export function UploadTab({
                         </div>
                     </div>
 
-                    {/* Library Grid */}
                     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-900 px-3">
                         <div className="flex-1 overflow-y-auto neko-scrollbar pr-1 grid grid-cols-7 gap-2 content-start pb-2">
                             {customIcons.map((emoji) => (

@@ -28,10 +28,8 @@ export async function initHighlighter() {
     });
   } catch (e) {
     console.warn("Failed to initialize Shiki highlighter:", e);
-    // Return a fallback highlighter to prevent app crashes and stalling
     highlighter = {
       codeToHtml: (code: string, _options: any) => {
-        // Basic HTML escaping for safety
         const escaped = code
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
@@ -40,8 +38,8 @@ export async function initHighlighter() {
           .replace(/'/g, "&#039;");
         return `<pre class="shiki"><code>${escaped}</code></pre>`;
       },
-      loadTheme: async () => {}, // No-op
-      loadLanguage: async () => {}, // No-op
+      loadTheme: async () => {},
+      loadLanguage: async () => {},
     };
   }
   

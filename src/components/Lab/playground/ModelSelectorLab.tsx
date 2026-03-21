@@ -14,7 +14,6 @@ type ChannelGroup = {
 type BadgeVariant = {
   id: number;
   name: string;
-  note: string;
 };
 
 const GROUPS: ChannelGroup[] = [
@@ -48,77 +47,62 @@ const BADGE_VARIANTS: BadgeVariant[] = [
   {
     id: 1,
     name: 'Deep Sage',
-    note: '最稳，克制且高级。',
   },
   {
     id: 2,
     name: 'Stone Blue',
-    note: '冷静、产品感强。',
   },
   {
     id: 3,
     name: 'Warm Bronze',
-    note: '偏品牌质感，温暖一点。',
   },
   {
     id: 4,
     name: 'Forest Ink',
-    note: '更深一点的绿，存在感更强。',
   },
   {
     id: 5,
     name: 'Slate Navy',
-    note: '偏商务，冷色高级。',
   },
   {
     id: 6,
     name: 'Muted Plum',
-    note: '微妙偏紫，但不跳。',
   },
   {
     id: 7,
     name: 'Olive Smoke',
-    note: '低饱和，有设计感。',
   },
   {
     id: 8,
     name: 'Graphite',
-    note: '最中性，接近默认但更柔和。',
   },
   {
     id: 9,
     name: 'Dusty Teal',
-    note: '理性里带一点活力。',
   },
   {
     id: 10,
     name: 'Cocoa',
-    note: '深棕路线，比较温润。',
   },
   {
     id: 11,
     name: 'Petrol',
-    note: '偏深蓝绿，质感很强。',
   },
   {
     id: 12,
     name: 'Ash Green',
-    note: '更轻一点，没那么重。',
   },
   {
     id: 13,
     name: 'Merlot',
-    note: '成熟、精致，但更显眼。',
   },
   {
     id: 14,
     name: 'Steel',
-    note: '偏现代科技感。',
   },
   {
     id: 15,
     name: 'Moss',
-    note: '介于绿和棕之间，很耐看。',
   },
 ];
 
@@ -201,7 +185,6 @@ export function ModelSelectorLab() {
                 Color {badge.id}
               </div>
               <h2 className="mt-1 text-[16px] font-semibold text-neutral-900">{badge.name}</h2>
-              <p className="mt-1 text-[13px] text-neutral-500">{badge.note}</p>
             </div>
             <SelectorPreview badge={badge} />
           </section>

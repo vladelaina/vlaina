@@ -1,7 +1,4 @@
 import { visit } from "unist-util-visit";
-// type Root = any;
-// type RootContent = any;
-// We define them loosely to avoid dependency issues in this environment
 type Root = any;
 type RootContent = any;
 

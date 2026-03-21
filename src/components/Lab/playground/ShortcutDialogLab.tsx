@@ -16,13 +16,11 @@ type SkinId = 'soft' | 'paper' | 'mist' | 'frame' | 'panel';
 type LayoutDefinition = {
   id: LayoutId;
   name: string;
-  note: string;
 };
 
 type SkinDefinition = {
   id: SkinId;
   name: string;
-  note: string;
   canvasClassName: string;
   shellClassName: string;
   headerClassName: string;
@@ -42,32 +40,26 @@ const LAYOUTS: LayoutDefinition[] = [
   {
     id: 'settingsSheet',
     name: 'Settings Sheet',
-    note: 'Closest to the current settings modal grammar.',
   },
   {
     id: 'titleBar',
     name: 'Title Bar',
-    note: 'Adds a quiet utility header without feeling external.',
   },
   {
     id: 'sectionCards',
     name: 'Section Cards',
-    note: 'Uses softer section grouping, still inside the same system.',
   },
   {
     id: 'ledger',
     name: 'Ledger',
-    note: 'More efficient and structured, with dividers doing the work.',
   },
   {
     id: 'insetHero',
     name: 'Inset Hero',
-    note: 'A stronger top block, but still monochrome and restrained.',
   },
   {
     id: 'utilityRail',
     name: 'Utility Rail',
-    note: 'Introduces a small internal rail to organize the groups.',
   },
 ];
 
@@ -75,7 +67,6 @@ const SKINS: SkinDefinition[] = [
   {
     id: 'soft',
     name: 'Soft',
-    note: 'Closest to the existing settings surface.',
     canvasClassName: 'border border-zinc-200 bg-[#f5f5f4]',
     shellClassName: 'bg-white border border-black/5 shadow-[0_20px_50px_rgba(15,23,42,0.08)]',
     headerClassName: 'bg-white',
@@ -93,7 +84,6 @@ const SKINS: SkinDefinition[] = [
   {
     id: 'paper',
     name: 'Paper',
-    note: 'Warmer white, slightly softer than the base settings panel.',
     canvasClassName: 'border border-stone-200 bg-[#f3f1ed]',
     shellClassName: 'bg-[#fcfbf9] border border-black/5 shadow-[0_18px_46px_rgba(36,31,27,0.08)]',
     headerClassName: 'bg-[#fcfbf9]',
@@ -111,7 +101,6 @@ const SKINS: SkinDefinition[] = [
   {
     id: 'mist',
     name: 'Mist',
-    note: 'A little more blur and layering, still neutral.',
     canvasClassName: 'border border-zinc-200 bg-[#eef0f2]',
     shellClassName: 'bg-white/78 border border-white/70 backdrop-blur-xl shadow-[0_22px_54px_rgba(15,23,42,0.10)]',
     headerClassName: 'bg-white/35',
@@ -129,7 +118,6 @@ const SKINS: SkinDefinition[] = [
   {
     id: 'frame',
     name: 'Frame',
-    note: 'Slightly more architectural, with inset framing.',
     canvasClassName: 'border border-zinc-200 bg-[#f3f4f6]',
     shellClassName:
       'bg-white border border-zinc-200 shadow-[0_18px_48px_rgba(15,23,42,0.07)] ring-1 ring-black/[0.03]',
@@ -148,7 +136,6 @@ const SKINS: SkinDefinition[] = [
   {
     id: 'panel',
     name: 'Panel',
-    note: 'Closer to internal side panels and utility surfaces.',
     canvasClassName: 'border border-zinc-200 bg-[#f2f2f2]',
     shellClassName: 'bg-[#fcfcfc] border border-zinc-200 shadow-[0_16px_40px_rgba(15,23,42,0.06)]',
     headerClassName: 'bg-[#f7f7f7]',
@@ -394,9 +381,6 @@ export function ShortcutDialogLab() {
                   Neutral
                 </div>
               </div>
-              <p className="mt-2 text-[13px] leading-5 text-zinc-500">
-                {variant.layout.note} {variant.skin.note}
-              </p>
             </div>
 
             <PreviewShell layout={variant.layout} skin={variant.skin} />

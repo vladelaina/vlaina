@@ -1,76 +1,44 @@
-/**
- * Enhanced Code Block Styles
- */
-
-.code-block-enhanced {
-  position: relative;
-  margin: 1rem 0;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  background-color: var(--neko-bg-secondary, #f7f9fb);
-  border: 1px solid var(--neko-border);
-}
-
-.dark .code-block-enhanced {
-  background-color: var(--neko-bg-secondary, #161616);
-}
-
-.code-block-enhanced .code-block-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background-color: var(--neko-bg-tertiary, #f0f2f5);
-  border-bottom: 1px solid var(--neko-border);
-}
-
-.dark .code-block-enhanced .code-block-toolbar {
-  background-color: var(--neko-bg-tertiary, #1c1c1e);
-}
-
-.code-block-enhanced .code-block-lang {
-  font-size: 0.75rem;
-  color: var(--neko-text-secondary);
-  text-transform: lowercase;
-}
-
-.code-block-enhanced .code-block-copy-btn {
-  padding: 0.25rem;
-  color: var(--neko-text-secondary);
-  background: transparent;
-  border: none;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.code-block-enhanced .code-block-copy-btn:hover {
-  color: var(--neko-text-primary);
-  background-color: var(--neko-bg-hover);
-}
-
-.code-block-enhanced .code-block-content {
-  display: flex;
-  padding: 1rem;
-  overflow-x: auto;
-}
-
-.code-block-enhanced .code-block-code .shiki {
-  background: transparent !important;
-  margin: 0;
-  padding: 0;
-}
-
-.code-block-enhanced .code-block-code .shiki code {
-  background: transparent;
-  color: inherit;
-  padding: 0;
-  font-size: 0.875rem;
-  line-height: 1.7;
-  font-family: var(--neko-font-mono-family);
-}
-
 .milkdown .code-block-container[data-collapsed="true"] .code-block-editable {
   display: none;
   pointer-events: none;
+}
+
+.milkdown .code-block-container .cm-editor {
+  background: transparent;
+}
+
+.milkdown .code-block-container .cm-gutters,
+.milkdown .code-block-container .cm-gutter,
+.milkdown .code-block-container .cm-gutterElement,
+.milkdown .code-block-container .cm-lineNumbers,
+.milkdown .code-block-container .cm-gutter-filler {
+  background: #ffffff !important;
+  border: none !important;
+}
+
+.milkdown .code-block-container .cm-scroller {
+  overflow-x: auto;
+}
+
+.milkdown .code-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
+.milkdown .code-block-container .cm-selectionBackground,
+.milkdown .code-block-container .cm-content ::selection,
+.milkdown .code-block-container .cm-line ::selection {
+  background: var(--neko-selection-bg, #2781db) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.milkdown .code-block-container .cm-content ::-moz-selection,
+.milkdown .code-block-container .cm-line ::-moz-selection {
+  background: var(--neko-selection-bg, #2781db) !important;
+  color: #ffffff !important;
+}
+
+.milkdown .code-block-container .cm-focused {
+  outline: none;
+}
+
+.milkdown .code-block-container.ProseMirror-selectednode {
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.45);
 }

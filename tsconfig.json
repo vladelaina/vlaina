@@ -24,7 +24,12 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@milkdown/*": ["./src/types/milkdown/index.d.ts"]
+      "@milkdown/*": ["./src/types/milkdown/index.d.ts"],
+      "@codemirror/language": ["./vendor/milkdown/packages/crepe/node_modules/@codemirror/language"],
+      "@codemirror/language-data": ["./vendor/milkdown/packages/crepe/node_modules/@codemirror/language-data"],
+      "@codemirror/state": ["./vendor/milkdown/packages/crepe/node_modules/@codemirror/state"],
+      "@codemirror/theme-one-dark": ["./vendor/milkdown/packages/crepe/node_modules/@codemirror/theme-one-dark"],
+      "@codemirror/view": ["./vendor/milkdown/packages/crepe/node_modules/@codemirror/view"]
     }
   },
   "include": ["src"],

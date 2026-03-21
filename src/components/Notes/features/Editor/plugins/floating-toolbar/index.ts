@@ -1,4 +1,3 @@
-// Floating Toolbar Plugin - Exports
 export { floatingToolbarPlugin, floatingToolbarKey } from './floatingToolbarPlugin';
 export { floatingToolbarInlinePreviewPlugin } from './inlinePreviewPlugin';
 export { colorMarksPlugin, textColorMark, bgColorMark, underlineMark } from './colorMarks';

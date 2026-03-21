@@ -5,10 +5,12 @@ import { slashMenuItems } from './slashItems';
 
 describe('SlashMenuPanel', () => {
   it('renders grouped options and selected state', () => {
+    const items = slashMenuItems.slice(0, 3);
+
     render(
       <SlashMenuPanel
-        items={slashMenuItems.slice(0, 3)}
-        selectedIndex={1}
+        items={items}
+        selectedIndex={2}
         onHoverItem={vi.fn()}
         onSelectItem={vi.fn()}
       />
@@ -22,10 +24,11 @@ describe('SlashMenuPanel', () => {
   it('notifies hover and select interactions', () => {
     const onHoverItem = vi.fn();
     const onSelectItem = vi.fn();
+    const items = slashMenuItems.slice(0, 3);
 
     render(
       <SlashMenuPanel
-        items={slashMenuItems.slice(0, 2)}
+        items={items}
         selectedIndex={0}
         onHoverItem={onHoverItem}
         onSelectItem={onSelectItem}
@@ -36,7 +39,7 @@ describe('SlashMenuPanel', () => {
     fireEvent.mouseEnter(option);
     fireEvent.mouseDown(option);
 
-    expect(onHoverItem).toHaveBeenCalledWith(1);
-    expect(onSelectItem).toHaveBeenCalledWith(1);
+    expect(onHoverItem).toHaveBeenCalledWith(2);
+    expect(onSelectItem).toHaveBeenCalledWith(2);
   });
 });

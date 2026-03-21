@@ -6,7 +6,7 @@ interface DeletableItemProps {
     id: string;
     children: React.ReactNode;
     onDelete: (id: string) => void;
-    className?: string; // Wrapper class
+    className?: string;
     disabled?: boolean;
 }
 
@@ -46,7 +46,6 @@ export function DeletableItem({
             onMouseLeave={handleMouseLeave}
             onClick={handleClick}
         >
-            {/* Main Content with Blur Effect */}
             <div className={cn(
                 "w-full h-full transition-all duration-300",
                 isDeleting ? "opacity-40 blur-[0.5px]" : "opacity-100"
@@ -54,7 +53,6 @@ export function DeletableItem({
                 {children}
             </div>
 
-            {/* Interaction Layer */}
             {isDeleting ? (
                 <div
                     className="absolute inset-0 flex items-center justify-center cursor-pointer z-30"

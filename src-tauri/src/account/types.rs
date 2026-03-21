@@ -8,6 +8,8 @@ pub struct AccountSessionStatus {
     pub username: Option<String>,
     pub primary_email: Option<String>,
     pub avatar_url: Option<String>,
+    pub membership_tier: Option<String>,
+    pub membership_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

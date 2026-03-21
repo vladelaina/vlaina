@@ -35,7 +35,6 @@ export function useCropperInteraction({
     const lastPercentageCrop = useRef<CropArea | null>(null);
     const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Keyboard Listeners
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Control' || e.key === 'Meta') setIsCtrlPressed(true);
@@ -51,7 +50,6 @@ export function useCropperInteraction({
         };
     }, []);
 
-    // Cleanup timeout
     useEffect(() => {
         return () => {
             if (autoSaveTimeoutRef.current) {
@@ -77,7 +75,6 @@ export function useCropperInteraction({
         }
     }, [initialCropParams?.ratio, containerSize.width, containerSize.height, onSave, originalAspectRatioRef]);
 
-    // Wheel Zoom
     useEffect(() => {
         const currentRef = containerRef.current;
         if (!currentRef) return;

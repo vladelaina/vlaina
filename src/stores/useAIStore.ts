@@ -88,6 +88,42 @@ function buildTemporarySessionState(
   };
 }
 
+export function createAIChatSession(title = 'New Chat'): string {
+  const state = useUnifiedStore.getState();
+  const ai = state.data.ai!;
+  const now = Date.now();
+
+  if (ai.temporaryChatEnabled) {
+    const stripped = stripTemporaryForMutation(ai);
+    const temporaryState = buildTemporarySessionState(stripped, ai.selectedModelId || '');
+
+    state.updateAIData({
+      sessions: temporaryState.sessions,
+      currentSessionId: temporaryState.currentSessionId,
+      messages: temporaryState.messages
+    });
+    return temporaryState.currentSessionId;
+  }
+
+  const id = `session-${now}-${Math.random().toString(36).substring(2, 11)}`
+  const newSession: ChatSession = {
+    id,
+    title,
+    modelId: ai.selectedModelId || '',
+    createdAt: now,
+    updatedAt: now
+  }
+
+  state.updateAIData({
+    sessions: [newSession, ...ai.sessions],
+    currentSessionId: id,
+    messages: { ...ai.messages, [id]: [] }
+  })
+  
+  saveSessionJson(id, []);
+  return id
+}
+
 function sortProviders(providers: Provider[]): Provider[] {
   return [...providers].sort((a, b) => {
     if (a.id === MANAGED_PROVIDER_ID) return -1
@@ -456,41 +492,7 @@ export const actions = {
     return promotedSessionId;
   },
 
-  createSession: (title = 'New Chat') => {
-    const state = useUnifiedStore.getState();
-    const ai = state.data.ai!;
-    const now = Date.now();
-
-    if (ai.temporaryChatEnabled) {
-      const stripped = stripTemporaryForMutation(ai);
-      const temporaryState = buildTemporarySessionState(stripped, ai.selectedModelId || '');
-
-      state.updateAIData({
-        sessions: temporaryState.sessions,
-        currentSessionId: temporaryState.currentSessionId,
-        messages: temporaryState.messages
-      });
-      return temporaryState.currentSessionId;
-    }
-
-    const id = `session-${now}-${Math.random().toString(36).substring(2, 11)}`
-    const newSession: ChatSession = {
-      id,
-      title,
-      modelId: ai.selectedModelId || '',
-      createdAt: now,
-      updatedAt: now
-    }
-
-    state.updateAIData({
-      sessions: [newSession, ...ai.sessions],
-      currentSessionId: id,
-      messages: { ...ai.messages, [id]: [] }
-    })
-    
-    saveSessionJson(id, []);
-    return id
-  },
+  createSession: (title = 'New Chat') => createAIChatSession(title),
 
   switchSession: async (sessionId: string) => {
     const state = useUnifiedStore.getState();

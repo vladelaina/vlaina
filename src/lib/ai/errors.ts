@@ -10,12 +10,10 @@ export function createAIError(
 }
 
 export function parseAPIError(error: any): AIError {
-  // 1. Pass through if it's already a formatted AIError
   if (error && typeof error === 'object' && 'type' in error && 'message' in error) {
       return error as AIError;
   }
 
-  // 2. Handle standard Errors raw
   if (error instanceof Error) {
     const message = error.message;
     const lowerMsg = message.toLowerCase();
@@ -27,10 +25,9 @@ export function parseAPIError(error: any): AIError {
         type = AIErrorType.NETWORK_ERROR;
     }
 
-    return createAIError(type, message); // Raw message
+    return createAIError(type, message);
   }
 
-  // 3. Fallback for non-object errors
   return createAIError(
     AIErrorType.UNKNOWN,
     String(error) || 'Unknown error'

@@ -1,4 +1,3 @@
-// Definition list plugin exports
 export { 
   deflistPlugin,
   definitionListSchema,

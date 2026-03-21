@@ -6,9 +6,9 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 export async function createNoteImpl(
     notesPath: string,
     folderPath: string | undefined,
-    name: string | undefined, // undefined for "Untitled"
+    name: string | undefined,
     content: string,
-    currentStore: any // Partial store state
+    currentStore: any
 ) {
     const { relativePath, fullPath, fileName } = await resolveUniquePath(
         notesPath, 
@@ -17,12 +17,7 @@ export async function createNoteImpl(
         false
     );
 
-    // Ensure folder exists (if folderPath provided)
     if (folderPath) {
-        // Implementation note: resolveUniquePath checks existence of the *file*, but not parent dir.
-        // Usually parent dir is clicked from UI so it exists, but createNoteWithContent might imply creation.
-        // We assume folderPath is valid or we create it.
-        // For safety, let's just ensure it exists if content is provided (likely import/paste)
     }
 
     await safeWriteTextFile(fullPath, content);

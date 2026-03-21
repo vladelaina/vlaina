@@ -45,7 +45,7 @@ export const customPlugins = [
   mathClickPlugin,
   slashPlugin,
   ...calloutPlugin,
-  tablePlugin,
+  ...tablePlugin,
   ...highlightPlugin,
   ...footnotePlugin,
   autolinkPlugin,

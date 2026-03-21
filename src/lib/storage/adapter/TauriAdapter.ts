@@ -45,7 +45,7 @@ export class TauriAdapter implements StorageAdapter {
         await writeTextFile(tempPath, content);
         await fsRename(tempPath, path);
       } catch (error) {
-        try { await remove(tempPath); } catch { /* ignore */ }
+        try { await remove(tempPath); } catch {}
         throw error;
       }
     }
@@ -71,7 +71,7 @@ export class TauriAdapter implements StorageAdapter {
         await writeBinary(tempPath, content);
         await fsRename(tempPath, path);
       } catch (error) {
-        try { await remove(tempPath); } catch { /* ignore */ }
+        try { await remove(tempPath); } catch {}
         throw error;
       }
     }
@@ -149,8 +149,6 @@ export class TauriAdapter implements StorageAdapter {
   async getBasePath(): Promise<string> {
     if (this.basePath === null) {
       const appData = await appDataDir();
-      // Use dirname or similar if needed to ensure no trailing slash, but appDataDir usually returns clean path.
-      // Keeping original logic but verifying.
       this.basePath = appData.endsWith('\\') || appData.endsWith('/')
         ? appData.slice(0, -1)
         : appData;

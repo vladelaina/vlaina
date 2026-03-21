@@ -7,6 +7,7 @@ import { createAiDropdownController } from './components/AiDropdown';
 import { createAiReviewPanelController } from './components/AiReviewPanel';
 import { renderBlockDropdown } from './components/BlockDropdown';
 import { renderColorPicker } from './components/ColorPicker';
+import { abortActiveAiSelectionReview } from './ai/reviewFlow';
 import { logAiSelectionDebug } from './ai/debug';
 import { createToolbarEventDelegation } from './toolbarInteractions';
 import { renderToolbarMarkup } from './toolbarMarkup';
@@ -23,6 +24,7 @@ export function createToolbarRenderer(toolbarElement: HTMLElement): ToolbarRende
 
   const hideToolbar = (view: EditorView) => {
     logAiSelectionDebug('toolbar:hide');
+    abortActiveAiSelectionReview(view);
     eventDelegation.clearTransientUi();
     view.dispatch(
       view.state.tr.setMeta(floatingToolbarKey, {

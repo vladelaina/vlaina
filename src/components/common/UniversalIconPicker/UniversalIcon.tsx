@@ -87,7 +87,6 @@ const IconIconRenderer = memo(function IconIconRenderer({
   const color = previewColor || forcedColor || originalColor;
   
   const IconComponent = useMemo(() => {
-    // 1. Try Registry First (Semantic Names)
     if (iconName in icons) {
       return icons[iconName as keyof typeof icons];
     }

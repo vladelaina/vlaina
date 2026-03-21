@@ -20,32 +20,26 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
     const canonicalAlignment = getImageAlignment(node.attrs);
     const canonicalWidth = getImageWidth(node.attrs);
 
-    // Node Attributes
     const [width, setWidth] = useState(canonicalWidth || 'auto');
     const [alignment, setAlignment] = useState<Alignment>(canonicalAlignment);
     const [captionInput, setCaptionInput] = useState(node.attrs.alt || '');
 
-    // Visual State
     const [height, setHeight] = useState<number | undefined>(undefined);
     const [isHovered, setIsHovered] = useState(false);
     const [isEditingCaption, setIsEditingCaption] = useState(false);
-    const [isActive, setIsActive] = useState(false); // Cropper Active
+    const [isActive, setIsActive] = useState(false);
     const [isReady, setIsReady] = useState(!!canonicalWidth);
-    
-    // Image Data
+
     const [naturalRatio, setNaturalRatio] = useState<number | null>(null);
     const [cropParams, setCropParams] = useState<CropParams | null>(null);
 
-    // Global Store
     const notesPath = useNotesStore(s => s.notesPath);
     const currentNotePath = useNotesStore(s => s.currentNote?.path);
 
-    // Source Resolution
     const baseSrc = parsedSource.baseSrc;
     const initialParams = parsedSource.crop;
     const { resolvedSrc, isLoading, error: loadError } = useLocalImage(baseSrc, notesPath, currentNotePath);
 
-    // Sync from Node
     useEffect(() => {
         setCropParams(initialParams);
     }, [initialParams]);
@@ -62,7 +56,6 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
         if (width !== newWidth) setWidth(newWidth);
     }, [node.attrs.src, node.attrs.align, node.attrs.width, alignment, width]);
 
-    // Helpers
     const updateNodeAttrs = useCallback((attrs: ImageNodeAttrs) => {
         const pos = getPos();
         if (pos === undefined) return;

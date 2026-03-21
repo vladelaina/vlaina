@@ -8,13 +8,11 @@ type MaterialId = 'air' | 'porcelain' | 'frost' | 'linen' | 'silver';
 type LayoutDefinition = {
   id: LayoutId;
   name: string;
-  note: string;
 };
 
 type MaterialDefinition = {
   id: MaterialId;
   name: string;
-  note: string;
   frameClassName: string;
   overlayClassName: string;
   panelClassName: string;
@@ -30,32 +28,26 @@ const LAYOUTS: LayoutDefinition[] = [
   {
     id: 'edgeFloat',
     name: 'Edge Float',
-    note: 'The purest answer: previous and next sit lightly at the image edges.',
   },
   {
     id: 'sideCapsule',
     name: 'Side Capsule',
-    note: 'Turns each direction into a calmer, more touchable side capsule.',
   },
   {
     id: 'verticalRail',
     name: 'Vertical Rail',
-    note: 'Reads more like navigation hardware anchored to the image frame.',
   },
   {
     id: 'captionPod',
     name: 'Caption Pod',
-    note: 'Pairs the arrow with a quiet textual hint, useful when browsing many images.',
   },
   {
     id: 'bottomOrbit',
     name: 'Bottom Orbit',
-    note: 'Lets the image stay cleaner by pulling navigation into a lower orbit.',
   },
   {
     id: 'peekTab',
     name: 'Peek Tab',
-    note: 'Makes the next and previous affordance feel like pages peeking from the sides.',
   },
 ];
 
@@ -63,7 +55,6 @@ const MATERIALS: MaterialDefinition[] = [
   {
     id: 'air',
     name: 'Air',
-    note: 'Bright, low-weight, almost suspended.',
     frameClassName: 'border border-sky-100 bg-[linear-gradient(180deg,#f7fbff_0%,#eaf3fb_100%)]',
     overlayClassName: 'bg-white/24',
     panelClassName: 'border border-white/75 bg-white/66 backdrop-blur-2xl shadow-[0_18px_54px_rgba(84,121,160,0.16)]',
@@ -77,7 +68,6 @@ const MATERIALS: MaterialDefinition[] = [
   {
     id: 'porcelain',
     name: 'Porcelain',
-    note: 'Warm and tactile without getting heavy.',
     frameClassName: 'border border-stone-200 bg-[linear-gradient(180deg,#fbf8f3_0%,#eee7de_100%)]',
     overlayClassName: 'bg-white/22',
     panelClassName: 'border border-stone-200/75 bg-[#fffdfa]/88 backdrop-blur-xl shadow-[0_18px_48px_rgba(91,72,47,0.14)]',
@@ -91,7 +81,6 @@ const MATERIALS: MaterialDefinition[] = [
   {
     id: 'frost',
     name: 'Frost',
-    note: 'Still glassy, but with cleaner structure and stronger edge control.',
     frameClassName: 'border border-blue-100 bg-[linear-gradient(180deg,#f9fcff_0%,#edf4f8_100%)]',
     overlayClassName: 'bg-white/18',
     panelClassName: 'border border-white/75 bg-white/58 backdrop-blur-3xl shadow-[0_24px_64px_rgba(114,145,172,0.16)]',
@@ -105,7 +94,6 @@ const MATERIALS: MaterialDefinition[] = [
   {
     id: 'linen',
     name: 'Linen',
-    note: 'Minimal and editorial, closer to a pure product tool.',
     frameClassName: 'border border-zinc-200 bg-[linear-gradient(180deg,#fbfbfa_0%,#f0f0ed_100%)]',
     overlayClassName: 'bg-white/20',
     panelClassName: 'border border-zinc-200 bg-[#fcfcfb]/92 shadow-[0_14px_40px_rgba(39,39,42,0.10)]',
@@ -119,7 +107,6 @@ const MATERIALS: MaterialDefinition[] = [
   {
     id: 'silver',
     name: 'Silver',
-    note: 'A little more technical, like browsing precision assets.',
     frameClassName: 'border border-slate-200 bg-[linear-gradient(180deg,#f5f8fb_0%,#e6ebf1_100%)]',
     overlayClassName: 'bg-white/20',
     panelClassName: 'border border-slate-200/90 bg-[#f7f9fc]/88 backdrop-blur-xl shadow-[0_18px_48px_rgba(71,85,105,0.14)]',
@@ -414,9 +401,6 @@ function VariantCard({
           <h3 className="mt-1 text-[17px] font-semibold tracking-[-0.02em] text-neutral-900">
             {layout.name} / {material.name}
           </h3>
-          <p className="mt-2 text-[13px] leading-5 text-neutral-500">
-            {layout.note} {material.note}
-          </p>
         </div>
         <div className="rounded-full bg-neutral-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
           Browse

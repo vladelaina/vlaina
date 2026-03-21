@@ -113,5 +113,7 @@ const slashCommandRegistry: Record<SlashCommandId, (ctx: Ctx) => void> = {
 };
 
 export function applySlashCommand(ctx: Ctx, commandId: SlashCommandId) {
-  slashCommandRegistry[commandId]?.(ctx);
+  const command = slashCommandRegistry[commandId];
+  if (!command) return;
+  command(ctx);
 }
