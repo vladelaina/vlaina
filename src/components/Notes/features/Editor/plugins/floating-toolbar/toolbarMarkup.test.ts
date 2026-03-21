@@ -54,6 +54,18 @@ describe('toolbar markup', () => {
     expect(markup).toContain('class="toolbar-btn has-tooltip active"');
   });
 
+  it('renders the current block type button with an icon instead of an English label', () => {
+    const markup = renderToolbarMarkup(
+      createState({
+        currentBlockType: 'blockquote',
+      })
+    );
+
+    expect(markup).toContain('data-action="block"');
+    expect(markup).not.toContain('block-type-label');
+    expect(markup).not.toContain('Quote');
+  });
+
   it('keeps the standard toolbar layout when the AI submenu is open', () => {
     const markup = renderToolbarMarkup(createState({ subMenu: 'ai' }));
 

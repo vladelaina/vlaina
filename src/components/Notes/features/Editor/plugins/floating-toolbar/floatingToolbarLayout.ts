@@ -59,12 +59,11 @@ export function getAiReviewAnchorX(layout: ContentLayoutContext): number {
 
 export function resolveToolbarViewportPosition(args: {
   aiPosition: { x: number; y: number; placement: 'top' | 'bottom' };
-  currentBlockElement: HTMLElement | null;
   layout: ContentLayoutContext;
   pluginState: FloatingToolbarState;
   selectionPosition: { x: number; y: number; placement: 'top' | 'bottom' };
 }): { x: number; y: number; placement: 'top' | 'bottom' } {
-  const { aiPosition, currentBlockElement, layout, pluginState, selectionPosition } = args;
+  const { aiPosition, layout, pluginState, selectionPosition } = args;
 
   if (pluginState.dragPosition && pluginState.subMenu === 'aiReview') {
     return {
@@ -76,16 +75,14 @@ export function resolveToolbarViewportPosition(args: {
 
   if (pluginState.subMenu === 'aiReview') {
     return {
-      ...aiPosition,
+      y: selectionPosition.placement === 'top' ? selectionPosition.y : aiPosition.y,
+      placement: selectionPosition.placement,
       x: getAiReviewAnchorX(layout),
     };
   }
 
   if (pluginState.subMenu === 'ai') {
-    return {
-      ...aiPosition,
-      x: currentBlockElement?.getBoundingClientRect().left ?? aiPosition.x,
-    };
+    return selectionPosition;
   }
 
   return selectionPosition;

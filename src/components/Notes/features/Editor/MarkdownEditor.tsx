@@ -5,13 +5,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Editor, rootCtx, defaultValueCtx, editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
+import {
+  Editor,
+  rootCtx,
+  defaultValueCtx,
+  editorViewCtx,
+  parserCtx,
+  remarkStringifyOptionsCtx,
+} from '@milkdown/kit/core';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { tableBlock } from '@milkdown/kit/component/table-block';
+import type { Parser } from '@milkdown/kit/transformer';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -25,7 +33,11 @@ import { notesRemarkStringifyOptions } from './config/stringifyOptions';
 import { useEditorLayout } from './hooks/useEditorLayout';
 import { useEditorSave } from './hooks/useEditorSave';
 import { calculateTextStats } from './utils/textStats';
-import { setCurrentEditorView } from './utils/editorViewRegistry';
+import {
+  clearCurrentMarkdownRuntime,
+  setCurrentEditorView,
+  setCurrentMarkdownRuntime,
+} from './utils/editorViewRegistry';
 import './styles/index.css';
 
 const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
@@ -122,15 +134,25 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       const editor = get?.();
       if (!editor) {
         setCurrentEditorView(null);
+        clearCurrentMarkdownRuntime();
         return;
       }
       const view = editor.ctx.get(editorViewCtx);
+      let parser: Parser | null = null;
+      try {
+        parser = editor.ctx.get(parserCtx);
+      } catch {
+        parser = null;
+      }
       setCurrentEditorView(view as EditorView);
+      setCurrentMarkdownRuntime({ parser });
       return () => {
         setCurrentEditorView(null);
+        clearCurrentMarkdownRuntime();
       };
     } catch {
       setCurrentEditorView(null);
+      clearCurrentMarkdownRuntime();
       return;
     }
   }, [get, currentNotePath]);

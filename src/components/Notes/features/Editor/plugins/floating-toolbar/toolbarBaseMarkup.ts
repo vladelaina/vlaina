@@ -1,6 +1,7 @@
 import type { BlockType, FloatingToolbarState, TextAlignment } from './types';
 import type { ToolbarButtonConfig, ToolbarGroupKey, ToolbarLayout } from './toolbarConfig';
 import { EXTRA_BUTTONS, FORMAT_BUTTONS, TOOLBAR_LAYOUTS } from './toolbarConfig';
+import { getBlockTypeIconMarkup } from './components/BlockDropdown';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 
 const IS_MAC =
@@ -59,35 +60,8 @@ function getExtraButton(action: string): ToolbarButtonConfig {
   return button;
 }
 
-function getBlockTypeLabel(blockType: BlockType | null): string {
-  if (blockType === null) {
-    return '';
-  }
-
-  const labels: Record<BlockType, string> = {
-    paragraph: '',
-    heading1: 'H1',
-    heading2: 'H2',
-    heading3: 'H3',
-    heading4: 'H4',
-    heading5: 'H5',
-    heading6: 'H6',
-    blockquote: 'Quote',
-    bulletList: 'Bullet',
-    orderedList: 'Number',
-    taskList: 'Task',
-    codeBlock: 'Code',
-  };
-
-  return labels[blockType] || '';
-}
-
 function renderBlockTypeContent(blockType: BlockType | null): string {
-  if (blockType === null || blockType === 'paragraph') {
-    return EDITOR_ICONS.text;
-  }
-
-  return `<span class="block-type-label">${getBlockTypeLabel(blockType)}</span>`;
+  return getBlockTypeIconMarkup(blockType);
 }
 
 function getAlignmentIcon(alignment: TextAlignment | null): string {

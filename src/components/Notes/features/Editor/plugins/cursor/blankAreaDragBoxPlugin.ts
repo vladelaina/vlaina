@@ -170,6 +170,41 @@ function convertViewportRectToDocumentRect(
   return createDragSelectionRect(startDocX, startDocY, currentDocX, currentDocY);
 }
 
+function convertDocumentRectToViewportRect(
+  documentRect: RectBounds,
+  currentScrollLeft: number,
+  currentScrollTop: number,
+): RectBounds {
+  return {
+    left: documentRect.left - currentScrollLeft,
+    right: documentRect.right - currentScrollLeft,
+    top: documentRect.top - currentScrollTop,
+    bottom: documentRect.bottom - currentScrollTop,
+  };
+}
+
+function resolveDisplayedViewportRect(
+  rawViewportRect: RectBounds,
+  startX: number,
+  startY: number,
+  startScrollLeft: number,
+  startScrollTop: number,
+  currentScrollLeft: number,
+  currentScrollTop: number,
+): RectBounds {
+  const documentRect = convertViewportRectToDocumentRect(
+    rawViewportRect,
+    startX,
+    startY,
+    startScrollLeft,
+    startScrollTop,
+    currentScrollLeft,
+    currentScrollTop,
+  );
+
+  return convertDocumentRectToViewportRect(documentRect, currentScrollLeft, currentScrollTop);
+}
+
 function convertBlockRectsToDocumentSpace(
   blockRects: readonly BlockRect[],
   scrollLeft: number,
@@ -352,6 +387,20 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
 
     const handleScrollWhileDragging = () => {
       if (!lastViewportDragRect) return;
+      if (dragBox) {
+        const currentScrollLeft = scrollRoot?.scrollLeft ?? 0;
+        const currentScrollTop = scrollRoot?.scrollTop ?? 0;
+        const viewportRect = resolveDisplayedViewportRect(
+          lastViewportDragRect,
+          event.clientX,
+          event.clientY,
+          startScrollLeft,
+          startScrollTop,
+          currentScrollLeft,
+          currentScrollTop,
+        );
+        updateDragBox(dragBox, viewportRect);
+      }
       scheduleDragRectSelection(lastViewportDragRect);
     };
 
@@ -370,8 +419,19 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       },
       onDragMove(dragRect) {
         lastViewportDragRect = dragRect;
+        const currentScrollLeft = scrollRoot?.scrollLeft ?? 0;
+        const currentScrollTop = scrollRoot?.scrollTop ?? 0;
+        const displayedViewportRect = resolveDisplayedViewportRect(
+          dragRect,
+          event.clientX,
+          event.clientY,
+          startScrollLeft,
+          startScrollTop,
+          currentScrollLeft,
+          currentScrollTop,
+        );
         if (dragBox) {
-          updateDragBox(dragBox, dragRect);
+          updateDragBox(dragBox, displayedViewportRect);
         }
         scheduleDragRectSelection(dragRect);
       },

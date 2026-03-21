@@ -30,7 +30,6 @@ export function renderAlignmentDropdown(
         class="block-dropdown-item ${isActive ? 'active' : ''}"
         data-alignment="${item.type}"
         aria-label="${item.label}"
-        title="${item.label}"
       >
         <span class="block-dropdown-item-icon">${item.icon}</span>
       </button>

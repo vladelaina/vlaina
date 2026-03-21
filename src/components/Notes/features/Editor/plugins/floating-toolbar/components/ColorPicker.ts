@@ -24,7 +24,6 @@ export function renderColorPicker(
             class="color-picker-item ${color.id === 'default' ? 'color-picker-item-default' : ''} ${state.textColor === color.textColor ? 'active' : ''}"
             data-color-id="${color.id}"
             data-color="${color.textColor || ''}"
-            title="${color.label}"
             style="${color.textColor ? `background-color: ${color.textColor}` : ''}"
           ></button>
         `).join('')}
@@ -38,7 +37,6 @@ export function renderColorPicker(
             class="color-picker-item ${color.id === 'default' ? 'color-picker-item-default' : ''} ${state.bgColor === color.bgColor ? 'active' : ''}"
             data-color-id="${color.id}"
             data-color="${color.bgColor || ''}"
-            title="${color.label}"
             style="${color.bgColor ? `background-color: ${color.bgColor}` : ''}"
           ></button>
         `).join('')}

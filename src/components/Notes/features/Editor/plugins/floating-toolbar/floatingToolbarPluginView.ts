@@ -47,7 +47,11 @@ export function createFloatingToolbarPluginView(
   let lastRenderState = '';
   let lastSelectionSignature = '';
   let lastToolbarX: number | null = null;
+  let lastToolbarY: number | null = null;
+  let lastToolbarPlacement: FloatingToolbarState['placement'] | null = null;
   let lastContainerWidth: number | null = null;
+  let lastScrollLeft: number | null = null;
+  let lastScrollTop: number | null = null;
   let lastTextSelection: { from: number; to: number } | null = null;
 
   const toolbarElement = createToolbarElement();
@@ -69,7 +73,11 @@ export function createFloatingToolbarPluginView(
     currentBlockElement = null;
     lastSelectionSignature = '';
     lastToolbarX = null;
+    lastToolbarY = null;
+    lastToolbarPlacement = null;
     lastContainerWidth = null;
+    lastScrollLeft = null;
+    lastScrollTop = null;
     lastTextSelection = null;
   };
 
@@ -125,14 +133,20 @@ export function createFloatingToolbarPluginView(
     const layout = getContentLayoutContext(editorView, container);
     const contentLeft = layout.viewportBounds.left;
     const contentRight = layout.viewportBounds.right;
-    const toolbarRect = toolbarElement.getBoundingClientRect();
+    const toolbarBodyNode = toolbarElement.querySelector<HTMLElement>('.floating-toolbar-inner');
+    const toolbarRect = (toolbarBodyNode instanceof HTMLElement ? toolbarBodyNode : toolbarElement).getBoundingClientRect();
+    const contentWidth = Math.max(0, contentRight - contentLeft);
+    const toolbarWidth = toolbarRect.width;
 
     let correctedX = x;
-    if (toolbarRect.left < contentLeft) {
+    if (toolbarWidth >= contentWidth) {
       correctedX += contentLeft - toolbarRect.left;
-    }
-
-    if (toolbarRect.right > contentRight) {
+    } else if (toolbarRect.left < contentLeft) {
+      correctedX += contentLeft - toolbarRect.left;
+      if (toolbarRect.right > contentRight) {
+        correctedX -= toolbarRect.right - contentRight;
+      }
+    } else if (toolbarRect.right > contentRight) {
       correctedX -= toolbarRect.right - contentRight;
     }
 
@@ -241,7 +255,6 @@ export function createFloatingToolbarPluginView(
     );
     const nextPosition = resolveToolbarViewportPosition({
       aiPosition,
-      currentBlockElement,
       layout,
       pluginState,
       selectionPosition: calculatePosition(editorView),
@@ -255,6 +268,8 @@ export function createFloatingToolbarPluginView(
 
     const isAiMode = pluginState.subMenu === 'ai' || pluginState.subMenu === 'aiReview';
     const containerWidth = positionRoot instanceof HTMLElement ? positionRoot.clientWidth : null;
+    const currentScrollLeft = scrollRoot?.scrollLeft ?? 0;
+    const currentScrollTop = scrollRoot?.scrollTop ?? 0;
     const selectionSignature = isReviewModeActive && pluginState.aiReview
       ? `${pluginState.aiReview.from}:${pluginState.aiReview.to}`
       : `${selection.from}:${selection.to}`;
@@ -270,15 +285,34 @@ export function createFloatingToolbarPluginView(
       lastToolbarX !== null &&
       lastSelectionSignature === selectionSignature &&
       lastContainerWidth === containerWidth;
-    const finalX = shouldFreezeX && lastToolbarX !== null ? lastToolbarX : clamped.clampedX;
-    const finalY = containerPosition.y;
-    const finalPlacement = nextPosition.placement;
+    const shouldFreezeBlockMenuPosition =
+      pluginState.subMenu === 'block' &&
+      lastToolbarX !== null &&
+      lastToolbarY !== null &&
+      lastToolbarPlacement !== null &&
+      lastScrollLeft === currentScrollLeft &&
+      lastScrollTop === currentScrollTop &&
+      lastSelectionSignature === selectionSignature &&
+      lastContainerWidth === containerWidth;
+    const finalX = shouldFreezeBlockMenuPosition && lastToolbarX !== null
+      ? lastToolbarX
+      : shouldFreezeX && lastToolbarX !== null
+        ? lastToolbarX
+        : clamped.clampedX;
+    const finalY = shouldFreezeBlockMenuPosition && lastToolbarY !== null
+      ? lastToolbarY
+      : containerPosition.y;
+    const finalPlacement = shouldFreezeBlockMenuPosition && lastToolbarPlacement !== null
+      ? lastToolbarPlacement
+      : nextPosition.placement;
 
     return {
       containerWidth,
       finalPlacement,
       finalX,
       finalY,
+      currentScrollLeft,
+      currentScrollTop,
       selectionSignature,
     };
   };
@@ -337,6 +371,8 @@ export function createFloatingToolbarPluginView(
       finalPlacement,
       finalX,
       finalY,
+      currentScrollLeft,
+      currentScrollTop,
       selectionSignature,
     } = resolveDisplayedToolbarPosition({
       pluginState,
@@ -357,7 +393,11 @@ export function createFloatingToolbarPluginView(
 
     lastSelectionSignature = selectionSignature;
     lastToolbarX = correctedX;
+    lastToolbarY = finalY;
+    lastToolbarPlacement = finalPlacement;
     lastContainerWidth = containerWidth;
+    lastScrollLeft = currentScrollLeft;
+    lastScrollTop = currentScrollTop;
   };
 
   const scheduleToolbarUpdate = () => {
