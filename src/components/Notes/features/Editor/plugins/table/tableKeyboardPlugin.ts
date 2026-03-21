@@ -1,10 +1,56 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, TextSelection } from '@milkdown/kit/prose/state';
 import { Selection } from '@milkdown/kit/prose/state';
+import { deleteRow } from '@milkdown/kit/prose/tables';
+import type { EditorView } from '@milkdown/kit/prose/view';
 
 import { createEmptyTableNode, getPipeShortcutColumnCount } from './pipeTableShortcut';
-import { findLeadingTableDeleteRange } from './tableDeleteShortcut';
+import {
+  findAdjacentTableParagraphDeleteRange,
+  findLeadingTableDeleteRange,
+  shouldDeleteTrailingEmptyRowOnDelete,
+} from './tableDeleteShortcut';
 import { handleTableSelectAll } from './tableSelectAll';
+
+function resolveTableKeydownContext(selection: Selection) {
+  const { $from } = selection;
+  let depth = $from.depth;
+  let inTable = false;
+  let cellDepth: number | null = null;
+
+  while (depth > 0) {
+    const node = $from.node(depth);
+    if (node.type.name === 'table_cell' || node.type.name === 'table_header') {
+      inTable = true;
+      cellDepth = depth;
+      break;
+    }
+    depth -= 1;
+  }
+
+  return {
+    inTable,
+    cellDepth,
+  };
+}
+
+function dispatchDeleteRangeWithTextSelection(
+  view: EditorView,
+  from: number,
+  to: number,
+  anchorPos: number,
+  searchDir: -1 | 1
+) {
+  const tr = view.state.tr.delete(from, to);
+  const mappedAnchor = Math.max(0, Math.min(tr.mapping.map(anchorPos), tr.doc.content.size));
+  const resolvedAnchor = tr.doc.resolve(mappedAnchor);
+  const reverseSearchDir = searchDir === -1 ? 1 : -1;
+  const nextSelection =
+    Selection.findFrom(resolvedAnchor, searchDir, true) ??
+    Selection.findFrom(resolvedAnchor, reverseSearchDir, true);
+
+  view.dispatch((nextSelection ? tr.setSelection(nextSelection) : tr).scrollIntoView());
+}
 
 export const tableKeyboardPlugin = $prose(() => {
   return new Plugin({
@@ -13,10 +59,8 @@ export const tableKeyboardPlugin = $prose(() => {
         const { state } = view;
         const { selection } = state;
         const { $from } = selection;
-
-        if (handleTableSelectAll(view, event)) {
-          return true;
-        }
+        const keydownContext = resolveTableKeydownContext(selection);
+        if (handleTableSelectAll(view, event)) return true;
 
         if (
           event.key === 'Backspace' &&
@@ -24,8 +68,47 @@ export const tableKeyboardPlugin = $prose(() => {
           !event.ctrlKey &&
           !event.altKey
         ) {
+          const adjacentParagraphDeleteRange = findAdjacentTableParagraphDeleteRange(state, -1);
+          if (adjacentParagraphDeleteRange) {
+            event.preventDefault();
+            dispatchDeleteRangeWithTextSelection(
+              view,
+              adjacentParagraphDeleteRange.from,
+              adjacentParagraphDeleteRange.to,
+              adjacentParagraphDeleteRange.from - 1,
+              adjacentParagraphDeleteRange.searchDir
+            );
+            view.focus();
+            return true;
+          }
+
           const deleteRange = findLeadingTableDeleteRange(state);
-          if (!deleteRange) return false;
+          if (!deleteRange) {
+            if (!shouldDeleteTrailingEmptyRowOnDelete(state)) return false;
+
+            event.preventDefault();
+            const anchorPos = selection.$from.pos;
+            const handled = deleteRow(state, (tr) => {
+              const mappedAnchor = Math.max(
+                0,
+                Math.min(tr.mapping.map(anchorPos), tr.doc.content.size)
+              );
+              const resolvedAnchor = tr.doc.resolve(mappedAnchor);
+              const nextSelection =
+                Selection.findFrom(resolvedAnchor, -1, true) ??
+                Selection.findFrom(resolvedAnchor, 1, true);
+
+              view.dispatch(
+                (nextSelection ? tr.setSelection(nextSelection) : tr).scrollIntoView()
+              );
+            });
+            if (handled) {
+              view.focus();
+              return true;
+            }
+
+            return false;
+          }
 
           event.preventDefault();
           const paragraphType = state.schema.nodes.paragraph;
@@ -50,6 +133,50 @@ export const tableKeyboardPlugin = $prose(() => {
           view.dispatch((nextSelection ? tr.setSelection(nextSelection) : tr).scrollIntoView());
           view.focus();
           return true;
+        }
+
+        if (
+          event.key === 'Delete' &&
+          !event.metaKey &&
+          !event.ctrlKey &&
+          !event.altKey
+        ) {
+          const adjacentParagraphDeleteRange = findAdjacentTableParagraphDeleteRange(state, 1);
+          if (adjacentParagraphDeleteRange) {
+            event.preventDefault();
+            dispatchDeleteRangeWithTextSelection(
+              view,
+              adjacentParagraphDeleteRange.from,
+              adjacentParagraphDeleteRange.to,
+              adjacentParagraphDeleteRange.from,
+              adjacentParagraphDeleteRange.searchDir
+            );
+            view.focus();
+            return true;
+          }
+
+          if (!shouldDeleteTrailingEmptyRowOnDelete(state)) return false;
+
+          event.preventDefault();
+          const anchorPos = selection.$from.pos;
+          const handled = deleteRow(state, (tr) => {
+            const mappedAnchor = Math.max(
+              0,
+              Math.min(tr.mapping.map(anchorPos), tr.doc.content.size)
+            );
+            const resolvedAnchor = tr.doc.resolve(mappedAnchor);
+            const nextSelection =
+              Selection.findFrom(resolvedAnchor, -1, true) ??
+              Selection.findFrom(resolvedAnchor, 1, true);
+
+            view.dispatch(
+              (nextSelection ? tr.setSelection(nextSelection) : tr).scrollIntoView()
+            );
+          });
+          if (handled) {
+            view.focus();
+            return true;
+          }
         }
 
         if (
@@ -85,16 +212,8 @@ export const tableKeyboardPlugin = $prose(() => {
           }
         }
 
-        let depth = $from.depth;
-        let inTable = false;
-        while (depth > 0) {
-          const node = $from.node(depth);
-          if (node.type.name === 'table_cell' || node.type.name === 'table_header') {
-            inTable = true;
-            break;
-          }
-          depth--;
-        }
+        let depth = keydownContext.cellDepth ?? $from.depth;
+        const inTable = keydownContext.inTable;
 
         if (!inTable) return false;
 

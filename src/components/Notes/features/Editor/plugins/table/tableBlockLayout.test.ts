@@ -90,6 +90,7 @@ describe('table block layout', () => {
         } as DOMRect,
         rowEdgeZoneSize: 18,
         colEdgeZoneSize: 18,
+        cornerEdgeZoneSize: 30,
         cornerEdgeZoneInset: 10,
       })
     ).toEqual({
@@ -105,6 +106,43 @@ describe('table block layout', () => {
       },
       corner: {
         top: 186,
+        left: 394,
+      },
+    })
+  })
+
+  it('keeps bottom drag zones out of the horizontal scrollbar hit area', () => {
+    expect(
+      resolveTableEdgeZoneLayout({
+        wrapperRect: {
+          left: 60,
+          top: 80,
+        } as DOMRect,
+        contentRect: {
+          left: 104,
+          top: 132,
+          width: 360,
+          height: 144,
+        } as DOMRect,
+        rowEdgeZoneSize: 18,
+        colEdgeZoneSize: 18,
+        cornerEdgeZoneSize: 30,
+        cornerEdgeZoneInset: 10,
+        hasHorizontalScrollbar: true,
+      })
+    ).toEqual({
+      bottom: {
+        left: 44,
+        top: 178,
+        width: 360,
+      },
+      right: {
+        top: 52,
+        left: 395,
+        height: 144,
+      },
+      corner: {
+        top: 166,
         left: 394,
       },
     })

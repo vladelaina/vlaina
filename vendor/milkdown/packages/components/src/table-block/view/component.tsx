@@ -138,6 +138,7 @@ export const TableBlock = defineComponent<TableBlockProps>({
     const layout = useTableBlockLayout({
       rowEdgeZoneSize,
       colEdgeZoneSize,
+      cornerEdgeZoneSize,
       cornerEdgeZoneInset,
       rootRef,
       tableWrapperRef,

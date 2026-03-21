@@ -1,4 +1,4 @@
-type DragCursor = 'col-resize' | 'row-resize' | 'nwse-resize'
+type DragCursor = 'col-resize' | 'row-resize' | 'nwse-resize' | 'ew-resize'
 
 const ROOT_CURSOR_ATTR = 'data-table-resize-cursor'
 const ROOT_SELECTION_ATTR = 'data-table-resize-selection-lock'

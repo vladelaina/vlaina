@@ -193,7 +193,7 @@
   display: block;
   width: 100%;
   max-width: none;
-  margin: 4px 0;
+  margin: 0;
   overflow-anchor: none;
 }
 
@@ -203,7 +203,7 @@
   width: var(--table-block-max-width, 100%);
   max-width: var(--table-block-max-width, 100%);
   margin-left: calc(-1 * var(--table-block-bleed-left, 0px));
-  padding-top: 18px;
+  padding-top: 0;
   overflow: visible;
 }
 
@@ -214,6 +214,7 @@
   overflow-y: hidden;
   overflow-anchor: none;
   overscroll-behavior-x: contain;
+  cursor: default;
 }
 
 .milkdown .milkdown-table-block .table-scroll-track {
@@ -243,6 +244,8 @@
   flex: none;
   min-width: var(--table-block-table-min-width, 100%);
   max-width: none;
+  margin: 0;
+  cursor: text;
 }
 
 .milkdown .milkdown-table-block .column-header-drag-overlay {
