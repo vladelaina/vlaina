@@ -8,7 +8,6 @@ import { createAiReviewPanelController } from './components/AiReviewPanel';
 import { renderBlockDropdown } from './components/BlockDropdown';
 import { renderColorPicker } from './components/ColorPicker';
 import { abortActiveAiSelectionReview } from './ai/reviewFlow';
-import { logAiSelectionDebug } from './ai/debug';
 import { createToolbarEventDelegation } from './toolbarInteractions';
 import { renderToolbarMarkup } from './toolbarMarkup';
 
@@ -23,7 +22,6 @@ export function createToolbarRenderer(toolbarElement: HTMLElement): ToolbarRende
   const aiReviewPanelController = createAiReviewPanelController();
 
   const hideToolbar = (view: EditorView) => {
-    logAiSelectionDebug('toolbar:hide');
     abortActiveAiSelectionReview(view);
     eventDelegation.clearTransientUi();
     view.dispatch(
@@ -34,13 +32,6 @@ export function createToolbarRenderer(toolbarElement: HTMLElement): ToolbarRende
   };
   return {
     render(view, state) {
-      logAiSelectionDebug('toolbar:render', {
-        subMenu: state.subMenu,
-        isVisible: state.isVisible,
-        placement: state.placement,
-        selectionFrom: view.state.selection.from,
-        selectionTo: view.state.selection.to,
-      });
       aiDropdownController.cleanup();
       aiReviewPanelController.cleanup();
       eventDelegation.update(view, state);
@@ -80,7 +71,6 @@ export function createToolbarRenderer(toolbarElement: HTMLElement): ToolbarRende
       }
     },
     destroy() {
-      logAiSelectionDebug('toolbar:destroy');
       aiDropdownController.destroy();
       aiReviewPanelController.destroy();
       eventDelegation.destroy();

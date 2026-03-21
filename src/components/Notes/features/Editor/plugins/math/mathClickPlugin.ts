@@ -5,11 +5,6 @@ import {
   getScrollRoot,
 } from '../floating-toolbar/floatingToolbarDom';
 import { applyMathNodeLatex } from './mathEditorEditing';
-import {
-  describeMathDebugElement,
-  describeMathDebugTarget,
-  logMathEditorDebug,
-} from './mathEditorDebug';
 import { resolveMathEditorOpenState } from './mathEditorOpen';
 import {
   createMathEditorElements,
@@ -37,18 +32,11 @@ export const mathClickPlugin = $prose(() => {
     props: {
       handleDOMEvents: {
         mousedown(view, event) {
-          logMathEditorDebug('dom:mousedown:start', {
-            button: event instanceof MouseEvent ? event.button : null,
-            target: describeMathDebugTarget(event.target),
-          });
-
           if (!(event instanceof MouseEvent)) {
-            logMathEditorDebug('dom:mousedown:skip-non-mouse-event');
             return false;
           }
 
           if (event.button !== 0) {
-            logMathEditorDebug('dom:mousedown:skip-non-left-button', { button: event.button });
             return false;
           }
 
@@ -63,51 +51,29 @@ export const mathClickPlugin = $prose(() => {
           const target = event.target instanceof HTMLElement ? event.target : null;
           const mathElement = target?.closest('[data-type="math-block"], [data-type="math-inline"]');
           if (!(mathElement instanceof HTMLElement) || !view.dom.contains(mathElement)) {
-            logMathEditorDebug('dom:mousedown:skip-no-math-element', {
-              target: describeMathDebugTarget(event.target),
-              mathElement: describeMathDebugElement(mathElement),
-            });
             return false;
           }
 
           try {
             const pos = view.posAtDOM(mathElement, 0);
-            logMathEditorDebug('dom:mousedown:resolved-pos', {
-              pos,
-              mathElement: describeMathDebugElement(mathElement),
-            });
             const meta = resolveMathEditorOpenState({
               view,
               pos,
               getPosition,
             });
             if (!meta) {
-              logMathEditorDebug('dom:mousedown:skip-no-meta', { pos });
               return false;
             }
 
             event.preventDefault();
-            logMathEditorDebug('dom:mousedown:open', {
-              pos,
-              meta,
-            });
             view.dispatch(view.state.tr.setMeta(mathClickPluginKey, meta));
             return true;
           } catch (error) {
-            logMathEditorDebug('dom:mousedown:error', {
-              target: describeMathDebugTarget(event.target),
-              mathElement: describeMathDebugElement(mathElement),
-              error: error instanceof Error ? error.message : String(error),
-            });
             return false;
           }
         },
       },
       handleClick(view, pos, event) {
-        logMathEditorDebug('handleClick:start', {
-          pos,
-          target: describeMathDebugTarget(event.target),
-        });
         const getPosition = (nodePos: number) =>
           getMathEditorViewportPosition(
             getMathAnchorElement(
@@ -122,12 +88,10 @@ export const mathClickPlugin = $prose(() => {
         });
 
         if (meta) {
-          logMathEditorDebug('handleClick:open', { pos, meta });
           view.dispatch(view.state.tr.setMeta(mathClickPluginKey, meta));
           return true;
         }
 
-        logMathEditorDebug('handleClick:skip-no-meta', { pos });
         return false;
       }
     },
@@ -143,18 +107,6 @@ export const mathClickPlugin = $prose(() => {
       const contentRoot = editorView.dom.closest('[data-note-content-root="true"]') as HTMLElement | null;
       const positionRoot = contentRoot ?? scrollRoot;
 
-      logMathEditorDebug('view:init', {
-        hasContentRoot: Boolean(contentRoot),
-        hasScrollRoot: Boolean(scrollRoot),
-        positionRoot: positionRoot?.getAttribute('data-note-content-root') === 'true'
-          ? 'content-root'
-          : positionRoot?.getAttribute('data-note-scroll-root') === 'true'
-            ? 'scroll-root'
-            : positionRoot
-              ? positionRoot.className
-              : 'body',
-      });
-
       const scheduleOutsideMouseDownSuppression = () => {
         suppressOutsideMouseDown = true;
         if (suppressOutsideMouseDownTimer !== null && typeof window !== 'undefined') {
@@ -168,15 +120,10 @@ export const mathClickPlugin = $prose(() => {
         suppressOutsideMouseDownTimer = window.setTimeout(() => {
           suppressOutsideMouseDown = false;
           suppressOutsideMouseDownTimer = null;
-          logMathEditorDebug('view:outside-mousedown:suppression-cleared');
         }, 0);
       };
       
       const closeEditor = () => {
-        logMathEditorDebug('view:close', {
-          renderedState,
-          draftLatexLength: draftLatex.length,
-        });
         if (editorElement) {
           editorElement.remove();
           editorElement = null;
@@ -193,19 +140,10 @@ export const mathClickPlugin = $prose(() => {
       const saveAndClose = () => {
         const state = mathClickPluginKey.getState(editorView.state);
         if (!state || state.nodePos < 0 || !textareaElement) {
-          logMathEditorDebug('view:save-skip-invalid-state', {
-            state,
-            hasTextarea: Boolean(textareaElement),
-          });
           closeEditor();
           return;
         }
         
-        logMathEditorDebug('view:save', {
-          nodePos: state.nodePos,
-          displayMode: state.displayMode,
-          draftLatex,
-        });
         applyMathNodeLatex(editorView, state.nodePos, draftLatex);
         
         closeEditor();
@@ -213,13 +151,7 @@ export const mathClickPlugin = $prose(() => {
       };
       
       const handleClickOutside = (e: MouseEvent) => {
-        logMathEditorDebug('view:outside-mousedown', {
-          target: describeMathDebugTarget(e.target),
-          containsTarget: Boolean(editorElement && editorElement.contains(e.target as Node)),
-          suppressOutsideMouseDown,
-        });
         if (suppressOutsideMouseDown) {
-          logMathEditorDebug('view:outside-mousedown:ignored-during-open-cycle');
           return;
         }
 
@@ -235,11 +167,6 @@ export const mathClickPlugin = $prose(() => {
 
         draftLatex = textareaElement.value;
         const { html, error, errorDetails } = renderLatex(draftLatex, displayMode);
-        logMathEditorDebug('view:update-preview', {
-          displayMode,
-          draftLatex,
-          hasError: Boolean(error),
-        });
         renderMathEditorPreview({
           preview: previewElement,
           html,
@@ -257,7 +184,6 @@ export const mathClickPlugin = $prose(() => {
 
       const renderEditor = (state: MathEditorState) => {
         if (!editorElement) {
-          logMathEditorDebug('view:render-skip-no-editor-element');
           return;
         }
 
@@ -274,21 +200,10 @@ export const mathClickPlugin = $prose(() => {
         previewElement = preview;
         draftLatex = state.latex;
         textareaElement.value = draftLatex;
-        logMathEditorDebug('view:render', {
-          nodePos: state.nodePos,
-          displayMode: state.displayMode,
-          latex: state.latex,
-        });
         scheduleOutsideMouseDownSuppression();
 
         textareaElement.addEventListener('input', () => updatePreview(state.displayMode));
         textareaElement.addEventListener('keydown', (e) => {
-          logMathEditorDebug('view:keydown', {
-            key: e.key,
-            ctrlKey: e.ctrlKey,
-            metaKey: e.metaKey,
-            isComposing: e.isComposing,
-          });
           if (e.isComposing) {
             return;
           }
@@ -325,12 +240,6 @@ export const mathClickPlugin = $prose(() => {
       return {
         update() {
           const state = mathClickPluginKey.getState(editorView.state);
-          logMathEditorDebug('view:update', {
-            state,
-            hasEditorElement: Boolean(editorElement),
-            hasTextarea: Boolean(textareaElement),
-            renderedState,
-          });
           
           if (!state?.isOpen) {
             if (editorElement) {
@@ -366,16 +275,11 @@ export const mathClickPlugin = $prose(() => {
             positionRoot,
             viewportPosition: resolveViewportPosition(state),
           });
-          logMathEditorDebug('view:position', {
-            nodePos: state.nodePos,
-            position: nextPosition,
-          });
           editorElement.style.setProperty('--math-editor-width', `${Math.round(nextPosition.width)}px`);
           editorElement.style.left = `${nextPosition.x}px`;
           editorElement.style.top = `${nextPosition.y}px`;
         },
         destroy() {
-          logMathEditorDebug('view:destroy');
           document.removeEventListener('mousedown', handleClickOutside);
           if (suppressOutsideMouseDownTimer !== null && typeof window !== 'undefined') {
             window.clearTimeout(suppressOutsideMouseDownTimer);

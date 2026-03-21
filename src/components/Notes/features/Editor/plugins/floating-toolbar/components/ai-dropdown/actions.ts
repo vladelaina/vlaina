@@ -1,5 +1,4 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { logAiSelectionDebug } from '../../ai/debug';
 import { openSidebarDiscussionForSelection } from '../../ai/sidebarDiscussion';
 import { openAiSelectionReview, runAiSelectionReviewCommand } from '../../ai/reviewFlow';
 import { createAiReviewState } from '../../ai/reviewState';
@@ -91,9 +90,6 @@ function bindCommandExecution(dropdown: HTMLElement, view: EditorView) {
     let isSubmitting = false;
 
     button.addEventListener('mousedown', (event) => {
-      logAiSelectionDebug('dropdown:mousedown', {
-        prompt: button.dataset.aiPrompt ?? '',
-      });
       event.preventDefault();
       event.stopPropagation();
     });
@@ -108,19 +104,8 @@ function bindCommandExecution(dropdown: HTMLElement, view: EditorView) {
       const groupId = button.dataset.aiGroupId ?? '';
       const behavior = button.dataset.aiBehavior ?? 'review';
       if (isSubmitting) {
-        logAiSelectionDebug('dropdown:click-ignored-submitting', {
-          prompt,
-        });
         return;
       }
-
-      logAiSelectionDebug('dropdown:click', {
-        prompt,
-        commandId,
-        toneId,
-        selectionFrom: view.state.selection.from,
-        selectionTo: view.state.selection.to,
-      });
 
       if (behavior === 'sidebar-chat') {
         openSidebarDiscussionForSelection(view);
@@ -143,16 +128,7 @@ function bindCommandExecution(dropdown: HTMLElement, view: EditorView) {
         id: commandId,
         instruction: prompt,
         toneId: toneId || null,
-      })
-        .then((applied) => {
-          logAiSelectionDebug('dropdown:complete', {
-            prompt,
-            commandId,
-            toneId,
-            applied,
-          });
-        })
-        .finally(() => {
+      }).finally(() => {
           isSubmitting = false;
           button.disabled = false;
         });

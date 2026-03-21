@@ -133,14 +133,6 @@ function MarkdownImage({
           alt={alt || "image"}
           className="block max-h-[420px] w-auto max-w-full object-contain"
           onClick={() => {
-            if (import.meta.env.DEV) {
-              console.log('[chat-image-nav] open image viewer', {
-                src,
-                currentImageId,
-                gallerySize: imageGallery?.length ?? 0,
-                gallery: imageGallery,
-              });
-            }
             setIsViewerOpen(true);
           }}
         />
@@ -303,16 +295,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
 
                       const currentImageId = imageIdBase ? `${imageIdBase}:${imageRenderIndex}` : undefined;
                       imageRenderIndex += 1;
-
-                      if (import.meta.env.DEV) {
-                        console.log('[chat-image-nav] render image node', {
-                          src: safeSrc,
-                          currentImageId,
-                          imageIdBase,
-                          imageRenderIndex,
-                          gallerySize: imageGallery?.length ?? 0,
-                        });
-                      }
 
                       return (
                         <MarkdownImage

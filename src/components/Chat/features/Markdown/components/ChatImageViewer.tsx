@@ -96,33 +96,6 @@ export function ChatImageViewer({
   const hasNext = canNavigate && activeGalleryIndex < gallery.length - 1;
 
   useEffect(() => {
-    if (!import.meta.env.DEV || !open) {
-      return;
-    }
-
-    console.log('[chat-image-nav] viewer state', {
-      src,
-      currentImageId,
-      gallery,
-      galleryIndex,
-      activeGalleryIndex,
-      activeSrc,
-      hasPrevious,
-      hasNext,
-    });
-  }, [
-    activeGalleryIndex,
-    activeSrc,
-    currentImageId,
-    gallery,
-    galleryIndex,
-    hasNext,
-    hasPrevious,
-    open,
-    src,
-  ]);
-
-  useEffect(() => {
     setIsMounted(true);
   }, []);
 

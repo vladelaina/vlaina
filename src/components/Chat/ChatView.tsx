@@ -91,13 +91,6 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
     if (imageGallery.length === 0 && assistantMessages.length === 0) {
       return;
     }
-
-    console.log('[chat-image-nav] conversation gallery', {
-      sessionId: currentSessionId,
-      gallerySize: imageGallery.length,
-      gallery: imageGallery,
-      assistantMessages,
-    });
   }, [currentSessionId, imageGallery, messages]);
 
   const sentUserMessages = useMemo(
