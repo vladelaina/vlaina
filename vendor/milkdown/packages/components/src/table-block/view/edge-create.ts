@@ -333,7 +333,6 @@ function handleMove(e: DragSessionEvent) {
 
 function handleEnd(e: DragSessionEvent) {
   const session = activeSession
-  const runtime = activeRuntime
   if (!session) return
   if (!canHandleDragSessionEvent(session, e)) return
 

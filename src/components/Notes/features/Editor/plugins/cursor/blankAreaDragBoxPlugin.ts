@@ -22,6 +22,10 @@ import {
 } from './blockSelectionCommands';
 import { createBlockRectResolver } from './blockRectResolver';
 import { startBlockDragSession, type BlockDragStartZone } from './blockDragSession';
+import {
+  applyBlankAreaPlainClickSelection,
+  resolveBlankAreaPlainClickAction,
+} from './blankAreaPlainClick';
 
 export const blankAreaDragBoxPluginKey = new PluginKey('blankAreaDragBox');
 
@@ -235,6 +239,16 @@ function clearBlockSelection(view: EditorView): void {
   dispatchSelectionAction(view, CLEAR_BLOCKS_ACTION);
 }
 
+function dispatchBlankAreaPlainClick(view: EditorView, action: {
+  targetPos: number;
+  bias: 1 | -1;
+}): void {
+  let tr = applyBlankAreaPlainClickSelection(view.state.tr, action);
+  tr = tr.setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
+  view.dispatch(tr.scrollIntoView());
+  view.focus();
+}
+
 function clearTextSelectionForDragSession(view: EditorView): void {
   const { state } = view;
   if (!state.selection.empty) {
@@ -440,7 +454,16 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           dispatchTailBlankClickAction(view);
           return;
         }
-        clearBlockSelection(view);
+        const action = resolveBlankAreaPlainClickAction({
+          blockRects: rectResolver.getTopLevelBlockRects(),
+          clientX: event.clientX,
+          clientY: event.clientY,
+        });
+        if (!action) {
+          clearBlockSelection(view);
+          return;
+        }
+        dispatchBlankAreaPlainClick(view, action);
       },
       onTeardown() {
         flushPendingDragSelection();

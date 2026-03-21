@@ -29,6 +29,12 @@
   position: relative;
 }
 
+[data-note-toolbar-root='true'],
+[data-note-scroll-root='true'],
+[data-note-content-root='true'] {
+  cursor: text;
+}
+
 /* ProseMirror editor needs min-height to be clickable */
 .milkdown .ProseMirror {
   min-height: calc(100vh - 250px);

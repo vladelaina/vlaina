@@ -43,9 +43,9 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
   const previousViewCursor = view.dom.style.cursor;
   const previousEditorRootCursor = editorRoot?.style.cursor ?? '';
 
-  document.body.style.cursor = cursor;
-  view.dom.style.cursor = cursor;
-  if (editorRoot) editorRoot.style.cursor = cursor;
+  document.body.style.cursor = 'text';
+  view.dom.style.cursor = 'text';
+  if (editorRoot) editorRoot.style.cursor = 'text';
 
   const teardown = () => {
     if (stopped) return;
@@ -74,6 +74,8 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
     if (!activated) {
       activated = true;
       document.body.style.cursor = cursor;
+      view.dom.style.cursor = cursor;
+      if (editorRoot) editorRoot.style.cursor = cursor;
       document.body.style.userSelect = 'none';
       onActivate();
     }
