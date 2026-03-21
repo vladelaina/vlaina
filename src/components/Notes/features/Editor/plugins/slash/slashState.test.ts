@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { slashPluginKey } from './slashPluginKey';
 import { createSlashState, deriveSlashState } from './slashState';
 
 function createSelection(textBefore: string, pos = textBefore.length) {
@@ -35,7 +36,9 @@ describe('deriveSlashState', () => {
     const next = deriveSlashState(
       createTransaction({
         selectionText: '/',
-        meta: { slashMenu: { isOpen: true, query: '', selectedIndex: 0 } },
+        meta: {
+          [slashPluginKey.key]: { isOpen: true, query: '', selectedIndex: 0 },
+        },
       }),
       createSlashState()
     );
