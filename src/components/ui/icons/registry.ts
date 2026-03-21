@@ -1,5 +1,5 @@
 import { ComponentType, SVGProps } from 'react';
-import { PenLine, Pin, Quote } from 'lucide-react';
+import { ListOrdered, PenLine, Pin, Quote } from 'lucide-react';
 import { 
   MinusIcon,
   XMarkIcon,
@@ -205,6 +205,7 @@ export const icons: Record<string, IconSource> = {
   // --- Editor/Content ---
   'editor.code': CodeBracketIcon,
   'editor.list': ListBulletIcon,
+  'editor.listOrdered': ListOrdered,
   'editor.crop': CropIcon,
   'editor.alignLeft': Bars3BottomLeftIcon,
   'editor.alignCenter': AlignCenterIcon, 
@@ -229,6 +230,9 @@ export const icons: Record<string, IconSource> = {
   'misc.box': ArchiveBoxIcon,
   // --- Legacy / Compatibility ---
   'legacy.addTask': PlusIcon,
+  'legacy.collections': FolderIcon,
+  'legacy.accountTree': FolderOpenIcon,
+  'legacy.label': TagIcon,
   'legacy.unfold': ChevronUpDownIcon,
 };
 

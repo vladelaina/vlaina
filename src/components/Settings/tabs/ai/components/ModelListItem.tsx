@@ -7,6 +7,17 @@ export interface HealthStatus {
     error?: string;
 }
 
+export function formatBenchmarkLatency(latency?: number) {
+  if (typeof latency !== 'number' || Number.isNaN(latency)) {
+    return null;
+  }
+
+  const seconds = latency / 1000;
+  const formatted = seconds < 10 ? seconds.toFixed(2) : seconds.toFixed(1);
+
+  return `${formatted.replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')}s`;
+}
+
 interface ModelListItemProps {
   modelId: string;
   isAdded: boolean;
@@ -44,7 +55,7 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
                 )}
                 {health.status === 'success' && (
                     <span className="text-[10px] font-mono text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-1.5 py-0.5 rounded">
-                        {health.latency}ms
+                        {formatBenchmarkLatency(health.latency)}
                     </span>
                 )}
                 {health.status === 'error' && (
