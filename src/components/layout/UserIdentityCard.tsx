@@ -66,18 +66,20 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
             {displayIdentity}
           </span>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsMenuOpen(!isMenuOpen);
-            }}
-            className={cn(
-              '-mr-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[var(--neko-active)]',
-              isMenuOpen && 'bg-[var(--neko-active)] text-[var(--neko-text-primary)]'
-            )}
-          >
-            <Icon size="md" name="common.more" className="text-[var(--neko-text-secondary)]" />
-          </button>
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMenuOpen(!isMenuOpen);
+              }}
+              className={cn(
+                '-mr-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[var(--neko-active)]',
+                isMenuOpen && 'bg-[var(--neko-active)] text-[var(--neko-text-primary)]'
+              )}
+            >
+              <Icon size="md" name="common.more" className="text-[var(--neko-text-secondary)]" />
+            </button>
+          </div>
         </div>
 
         {isConnected ? <ManagedQuotaMeter /> : null}

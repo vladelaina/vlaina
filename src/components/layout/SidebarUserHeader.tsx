@@ -15,6 +15,7 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
     const notesSidebarView = useUIStore(s => s.notesSidebarView);
     const setNotesSidebarView = useUIStore(s => s.setNotesSidebarView);
     const setAppViewMode = useUIStore(s => s.setAppViewMode);
+    const showLabEntry = import.meta.env.DEV;
 
     const handleSearchClick = () => {
         window.dispatchEvent(new Event('neko-open-search'));
@@ -26,6 +27,10 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
 
     const handleToggleNotesSidebarView = () => {
         setNotesSidebarView(notesSidebarView === 'workspace' ? 'outline' : 'workspace');
+    };
+
+    const handleOpenLab = () => {
+        window.dispatchEvent(new Event('open-lab'));
     };
 
     const switchTarget = appViewMode === 'chat'
@@ -59,6 +64,27 @@ export function SidebarUserHeader({ onOpenSettings, toggleSidebar }: SidebarUser
                     <span className="text-xs">{switchTarget.label}</span>
                 </TooltipContent>
             </Tooltip>
+
+            {showLabEntry && (
+                <Tooltip delayDuration={1000}>
+                    <TooltipTrigger asChild>
+                        <button
+                            onClick={handleOpenLab}
+                            className={cn(
+                                "flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0 transition-colors",
+                                "hover:bg-[#f5f5f5] dark:hover:bg-white/10",
+                                iconButtonStyles
+                            )}
+                            aria-label="Open Design Lab"
+                        >
+                            <Icon name="misc.lab" size="md" />
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" sideOffset={2}>
+                        <span className="text-xs">Open Design Lab</span>
+                    </TooltipContent>
+                </Tooltip>
+            )}
 
             {appViewMode === 'notes' && (
                 <Tooltip delayDuration={1000}>

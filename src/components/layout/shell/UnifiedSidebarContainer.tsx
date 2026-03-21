@@ -43,7 +43,10 @@ export function UnifiedSidebarContainer({
 
       {!collapsed && (
         <>
-          <div className="w-0.5 flex-shrink-0 z-20" style={{ backgroundColor }} />
+          <div
+            className="w-px flex-shrink-0 z-20"
+            style={{ backgroundColor: NOTES_COLORS.divider }}
+          />
           <ResizeHandle
             onMouseDown={handleDragStart}
             isDragging={isDragging}

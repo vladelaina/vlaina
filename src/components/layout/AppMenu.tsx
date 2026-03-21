@@ -44,22 +44,6 @@ export const AppMenu: React.FC<AppMenuProps> = ({ onOpenSettings, onCloseMenu })
                 <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-[var(--neko-text-primary)]">Settings</span>
             </button>
 
-            {import.meta.env.DEV && (
-                <button
-                    onClick={() => {
-                        onCloseMenu();
-                        window.dispatchEvent(new Event('open-lab'));
-                    }}
-                    className={cn(
-                        "flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors group/item",
-                        "hover:bg-[var(--neko-hover)]"
-                    )}
-                >
-                    <Icon size="md" name="misc.lab" className="text-[var(--neko-text-tertiary)] group-hover/item:text-purple-500 transition-colors" />
-                    <span className="text-[13px] font-medium text-[var(--neko-text-secondary)] group-hover/item:text-purple-500">Design Lab</span>
-                </button>
-            )}
-
             <div className="h-[1px] bg-[var(--neko-border)] mx-3 my-1 opacity-50" />
 
             <div className="relative px-3 py-2 flex items-center justify-between group/powered">

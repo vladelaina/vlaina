@@ -182,7 +182,7 @@ export function NotesView() {
             minWidth={320}
             maxWidth={760}
             storageKey="nekotick_notes_chat_panel_width"
-            className="h-full bg-[var(--neko-bg-primary)] border-l-0"
+            className="h-full border-l border-[#eff3f4] bg-[var(--neko-bg-primary)]"
             shortcutKeys={['Ctrl', 'L']}
           >
             <div data-notes-chat-panel="true" className="h-full min-h-0 relative">

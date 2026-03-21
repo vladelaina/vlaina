@@ -110,13 +110,13 @@ html, body, #root {
   --border: #e3e2e4;
   --input: #e3e2e4;
   --ring: #1e96eb;
-  --sidebar: #fbfbfc;
+  --sidebar: #ffffff;
   --sidebar-foreground: #121212;
   --sidebar-primary: #1e96eb;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f4f5f7;
   --sidebar-accent-foreground: #1e96eb;
-  --sidebar-border: #e3e2e4;
+  --sidebar-border: #eff3f4;
   --sidebar-ring: #1e96eb;
 }
 
@@ -199,11 +199,11 @@ html, body, #root {
   --neko-hover: rgba(0, 0, 0, 0.04);
   --neko-hover-filled: #f4f5f7;
   --neko-sidebar-width: 270px;
-  --neko-sidebar-bg: #fbfbfc;
+  --neko-sidebar-bg: #ffffff;
   --neko-header-height: 52px;
   --neko-font-base: 16px;
   --neko-line-height: 1.6;
-  --chat-sidebar-surface: #fbfbfc;
+  --chat-sidebar-surface: #ffffff;
   --chat-sidebar-row-hover: #f7f7f8;
   --chat-sidebar-row-active: #f1f1f2;
   --chat-sidebar-text: #2f3136;
@@ -214,9 +214,9 @@ html, body, #root {
   --chat-sidebar-pin: #a0a7b4;
   --chat-sidebar-status-info: #3b82f6;
   --chat-sidebar-status-warning: #f59e0b;
-  --chat-sidebar-fade: #fbfbfc;
+  --chat-sidebar-fade: #ffffff;
 
-  --notes-sidebar-surface: #fbfbfc;
+  --notes-sidebar-surface: #ffffff;
   --notes-sidebar-row-hover: #f7f7f8;
   --notes-sidebar-row-active: #f1f1f2;
   --notes-sidebar-row-drag: rgba(30, 150, 235, 0.1);
@@ -237,7 +237,7 @@ html, body, #root {
   --notes-sidebar-menu-bg: #ffffff;
   --notes-sidebar-menu-border: rgba(17, 24, 39, 0.08);
   --notes-sidebar-menu-shadow: 0 12px 36px -12px rgba(15, 23, 42, 0.24);
-  --notes-sidebar-fade: #fbfbfc;
+  --notes-sidebar-fade: #ffffff;
 
 }
 

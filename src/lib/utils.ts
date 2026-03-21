@@ -8,8 +8,8 @@ export function cn(...inputs: ClassValue[]) {
 export const iconButtonStyles = "text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors bg-transparent";
 
 export const NOTES_COLORS = {
-  sidebarBg: '#FAFAFA',
-  divider: '#E3E2E4',
-  dividerHover: '#E0DFDE',
+  sidebarBg: '#FFFFFF',
+  divider: '#EFF3F4',
+  dividerHover: '#DDE6E8',
   activeItem: '#F1F0EF',
 } as const;
