@@ -247,7 +247,6 @@ export function createFloatingToolbarPluginView(
     );
     const nextPosition = resolveToolbarViewportPosition({
       aiPosition,
-      currentBlockElement,
       layout,
       pluginState,
       selectionPosition: calculatePosition(editorView),
