@@ -29,6 +29,17 @@
   position: relative;
 }
 
+[data-note-toolbar-root='true'],
+[data-note-scroll-root='true'],
+[data-note-content-root='true'] {
+  cursor: text;
+}
+
+body.neko-block-dragging-cursor,
+body.neko-block-dragging-cursor * {
+  cursor: crosshair !important;
+}
+
 /* ProseMirror editor needs min-height to be clickable */
 .milkdown .ProseMirror {
   min-height: calc(100vh - 250px);

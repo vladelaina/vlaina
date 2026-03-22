@@ -45,6 +45,9 @@ describe('startBlockDragSession', () => {
       onTeardown,
     });
 
+    expect(document.body.style.cursor).toBe('text');
+    expect(view.dom.style.cursor).toBe('text');
+
     document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 
     expect(onActivate).not.toHaveBeenCalled();
@@ -80,6 +83,9 @@ describe('startBlockDragSession', () => {
       onTeardown,
     });
 
+    expect(document.body.style.cursor).toBe('text');
+    expect(view.dom.style.cursor).toBe('text');
+
     document.dispatchEvent(new MouseEvent('mousemove', {
       bubbles: true,
       cancelable: true,
@@ -87,6 +93,9 @@ describe('startBlockDragSession', () => {
       clientY: 32,
       buttons: 1,
     }));
+
+    expect(document.body.style.cursor).toBe('text');
+    expect(view.dom.style.cursor).toBe('text');
 
     document.dispatchEvent(new MouseEvent('mousemove', {
       bubbles: true,
@@ -104,12 +113,16 @@ describe('startBlockDragSession', () => {
       right: 40,
       bottom: 54,
     });
+    expect(document.body.classList.contains('neko-block-dragging-cursor')).toBe(true);
+    expect(document.body.style.cursor).toBe('crosshair');
+    expect(view.dom.style.cursor).toBe('crosshair');
     expect(document.body.style.userSelect).toBe('none');
 
     document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 
     expect(onPlainClick).not.toHaveBeenCalled();
     expect(onTeardown).toHaveBeenCalledTimes(1);
+    expect(document.body.classList.contains('neko-block-dragging-cursor')).toBe(false);
     expect(document.body.style.userSelect).toBe('');
   });
 
