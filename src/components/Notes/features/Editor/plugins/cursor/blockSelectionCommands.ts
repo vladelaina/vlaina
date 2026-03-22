@@ -48,16 +48,11 @@ export function setClipboardText(event: ClipboardEvent, text: string): void {
   }
 }
 
-export async function writeTextToClipboard(text: string): Promise<void> {
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return;
-    } catch {
-    }
+function tryExecCommandCopy(text: string): boolean {
+  if (typeof document === 'undefined' || typeof document.execCommand !== 'function') {
+    return false;
   }
 
-  if (typeof document === 'undefined') return;
   const textarea = document.createElement('textarea');
   textarea.value = text;
   textarea.setAttribute('readonly', 'true');
@@ -67,11 +62,30 @@ export async function writeTextToClipboard(text: string): Promise<void> {
   document.body.appendChild(textarea);
   textarea.focus();
   textarea.select();
+
   try {
-    document.execCommand('copy');
+    return document.execCommand('copy');
+  } catch {
+    return false;
   } finally {
     textarea.remove();
   }
+}
+
+export async function writeTextToClipboard(text: string): Promise<void> {
+  if (tryExecCommandCopy(text)) {
+    return;
+  }
+
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+    }
+  }
+
+  tryExecCommandCopy(text);
 }
 
 export function deleteSelectedBlocks(
