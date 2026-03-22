@@ -5,7 +5,7 @@ import { Icon } from '@/components/ui/icons';
 import { SettingsTextInput } from '@/components/Settings/components/SettingsFields';
 import { cn } from '@/lib/utils';
 import { buildScopedModelId } from '@/lib/ai/utils';
-import type { HealthStatus } from '../components/ModelListItem';
+import { formatBenchmarkLatency, type HealthStatus } from '../components/ModelListItem';
 
 const SLOW_BENCHMARK_LATENCY_MS = 3000;
 const QUICK_ADD_SPLIT_PATTERN = /[,\uFF0C]+/;
@@ -170,7 +170,7 @@ function HealthBadge({ health }: { health?: HealthStatus }) {
           isSlow ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
         )}
       >
-        {health.latency}ms
+        {formatBenchmarkLatency(health.latency)}
       </span>
     );
   }

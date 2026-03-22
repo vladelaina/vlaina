@@ -98,10 +98,12 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
   try {
     const storage = getStorageAdapter();
     const base = await getBasePath();
-    const mainPath = await joinPath(base, '.nekotick', MAIN_DATA_FILE);
-    const mainBackupPath = await joinPath(base, '.nekotick', MAIN_DATA_BACKUP_FILE);
-    const sessionsPath = await joinPath(base, '.nekotick', 'chat', 'sessions.json');
-    const channelsDir = await joinPath(base, '.nekotick', 'chat', 'channels');
+    const dotNeko = await joinPath(base, '.nekotick');
+    const chatDir = await joinPath(dotNeko, 'chat');
+    const mainPath = await joinPath(dotNeko, MAIN_DATA_FILE);
+    const mainBackupPath = await joinPath(dotNeko, MAIN_DATA_BACKUP_FILE);
+    const sessionsPath = await joinPath(chatDir, 'sessions.json');
+    const channelsDir = await joinPath(chatDir, 'channels');
 
     let combinedData = createDefaultUnifiedData();
 
@@ -246,7 +248,7 @@ async function performSplitSave(data: UnifiedData) {
     await storage.writeFile(mainPath, JSON.stringify(mainFile, null, 2));
 
     if (ai) {
-        await syncProviderSecrets(ai.providers);
+        await syncProviderSecrets(ai.providers || []);
 
         const persistedSessions = ai.sessions.filter((session) => !isTemporarySession(session));
         const persistedSessionIds = new Set(persistedSessions.map((session) => session.id));
@@ -261,7 +263,7 @@ async function performSplitSave(data: UnifiedData) {
             temporaryChatEnabled: false,
             customSystemPrompt: ai.customSystemPrompt || '',
             includeTimeContext: ai.includeTimeContext !== false,
-            providerIds: ai.providers.map(p => p.id)
+            providerIds: ai.providers.map(p => p.id),
         };
         await storage.writeFile(sessionsPath, JSON.stringify(sessionsData, null, 2));
 
@@ -293,6 +295,23 @@ async function performSplitSave(data: UnifiedData) {
                 await storage.deleteFile(entry.path);
             } catch (error) {
                 console.warn('[Storage] failed to cleanup stale provider channel file:', entry.path, error);
+            }
+        }
+
+        const ttsChannelsDir = await joinPath(chatDir, 'tts-channels');
+        const ttsChannelEntries = await storage.listDir(ttsChannelsDir).catch(() => []);
+        for (const entry of ttsChannelEntries) {
+            if (!entry.isFile || !entry.name.endsWith('.json')) {
+                continue;
+            }
+            const providerId = entry.name.slice(0, -5);
+            try {
+                if (isTauri()) {
+                    await aiProviderSecretCommands.deleteProviderSecret(providerId);
+                }
+                await storage.deleteFile(entry.path);
+            } catch (error) {
+                console.warn('[Storage] failed to cleanup removed TTS provider channel file:', entry.path, error);
             }
         }
     }
