@@ -259,6 +259,19 @@ body.neko-block-dragging-cursor * {
   cursor: text;
 }
 
+.milkdown .milkdown-table-block :is(th, td).selectedCell {
+  position: relative;
+}
+
+.milkdown .milkdown-table-block :is(th, td).selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--neko-accent-light);
+  pointer-events: none;
+}
+
 .milkdown .milkdown-table-block .column-header-drag-overlay {
   position: absolute;
   inset: 0;

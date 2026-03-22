@@ -5,8 +5,8 @@ import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/mod
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Parser, Serializer } from '@milkdown/kit/transformer';
 import { sanitizeHtml } from './sanitizer';
-import { serializeSliceToText } from './serializer';
-import { normalizeSerializedMarkdownSelection } from './markdownSerializationUtils';
+import { serializeSelectionToClipboardText } from './selectionSerialization';
+import { writeTextToClipboard } from '../cursor/blockSelectionCommands';
 import {
     extractLargestMarkdownFenceContent,
     looksLikeMarkdownForPaste,
@@ -79,33 +79,34 @@ export const clipboardPlugin = $prose((ctx) => {
     return new Plugin({
         key: clipboardPluginKey,
         props: {
+            handleKeyDown(view, event) {
+                const key = event.key.toLowerCase();
+                const hasPrimaryModifier = (event.metaKey || event.ctrlKey) && !event.altKey;
+
+                if (!hasPrimaryModifier || event.shiftKey || key !== 'c') return false;
+
+                const text = serializeSelectionToClipboardText(
+                    view.state,
+                    getMarkdownSerializer(),
+                );
+                if (text.length === 0) return false;
+
+                event.preventDefault();
+                void writeTextToClipboard(text);
+                return true;
+            },
             handleDOMEvents: {
                 copy(view, event) {
-                    const { from, to } = view.state.selection;
-                    if (from === to) return false; // No selection
+                    const text = serializeSelectionToClipboardText(
+                        view.state,
+                        getMarkdownSerializer(),
+                    );
+                    if (text.length === 0) return false;
 
-                    let text = '';
-                    const serializer = getMarkdownSerializer();
-                    if (serializer) {
-                        try {
-                            text = normalizeSerializedMarkdownSelection(
-                                serializer(view.state.doc.cut(from, to)),
-                            );
-                        } catch {
-                            text = '';
-                        }
-                    }
-
-                    if (text.length === 0) {
-                        const slice = view.state.doc.slice(from, to);
-                        text = normalizeSerializedMarkdownSelection(serializeSliceToText(slice));
-                    }
-
-                    // Manually set clipboard content
                     event.preventDefault();
                     event.clipboardData?.setData('text/plain', text);
 
-                    return true; // Prevent default behavior
+                    return true;
                 }
             },
             handlePaste(view, event) {
