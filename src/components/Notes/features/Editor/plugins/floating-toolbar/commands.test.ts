@@ -749,7 +749,15 @@ describe('floating toolbar commands', () => {
           from: 1,
           to: 8,
         },
+        tr: {
+          setSelection: vi.fn().mockReturnThis(),
+          setMeta: vi.fn().mockReturnThis(),
+        },
         doc: {
+          content: {
+            size: 8,
+          },
+          resolve: vi.fn((pos: number) => ({ pos })),
           slice: vi.fn(() => ({
             content: {
               forEach: (callback: (node: any) => void) => {
@@ -764,6 +772,7 @@ describe('floating toolbar commands', () => {
           })),
         },
       },
+      dispatch: vi.fn(),
       focus: vi.fn(),
     };
 
@@ -771,6 +780,8 @@ describe('floating toolbar commands', () => {
 
     expect(copied).toBe(true);
     expect(clipboardWrite).toHaveBeenCalledWith('Hello');
+    expect(view.state.tr.setMeta).toHaveBeenCalled();
+    expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
     expect(view.focus).toHaveBeenCalled();
   });
 

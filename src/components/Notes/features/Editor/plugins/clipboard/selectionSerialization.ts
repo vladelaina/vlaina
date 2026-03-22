@@ -9,6 +9,54 @@ type SelectionWithContent = EditorState['selection'] & {
   content?: () => Slice;
 };
 
+function getNodeChildren(node: any): any[] {
+  const children: any[] = [];
+  node?.content?.forEach?.((child: any) => {
+    children.push(child);
+  });
+  return children;
+}
+
+function serializeSingleListItemWithoutMarker(slice: Slice): string | null {
+  const topLevelNodes = getNodeChildren({ content: slice.content });
+  if (topLevelNodes.length !== 1) {
+    return null;
+  }
+
+  const listNode = topLevelNodes[0];
+  if (
+    !listNode ||
+    (listNode.type?.name !== 'bullet_list' && listNode.type?.name !== 'ordered_list')
+  ) {
+    return null;
+  }
+
+  const listItems = getNodeChildren(listNode);
+  if (listItems.length !== 1) {
+    return null;
+  }
+
+  const listItem = listItems[0];
+  if (listItem?.type?.name !== 'list_item') {
+    return null;
+  }
+
+  const itemChildren = getNodeChildren(listItem);
+  if (itemChildren.length !== 1 || itemChildren[0]?.type?.name !== 'paragraph') {
+    return null;
+  }
+
+  return normalizeSerializedMarkdownSelection(
+    serializeSliceToText({
+      content: {
+        forEach(callback: (node: any) => void) {
+          itemChildren.forEach(callback);
+        },
+      },
+    })
+  );
+}
+
 export function getSelectionSlice(state: EditorState): Slice {
   const selection = state.selection as SelectionWithContent;
 
@@ -30,6 +78,11 @@ export function serializeSelectionToClipboardText(
 
   const slice = getSelectionSlice(state);
   if (slice.content.size === 0) return '';
+
+  const singleListItemText = serializeSingleListItemWithoutMarker(slice);
+  if (singleListItemText !== null) {
+    return singleListItemText;
+  }
 
   if (markdownSerializer) {
     try {

@@ -1,4 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { collapseSelectionAndHideFloatingToolbar } from '../clipboard/copyCleanup';
 import { serializeSelectionToClipboardText } from '../clipboard/selectionSerialization';
 import { writeTextToClipboard } from '../cursor/blockSelectionCommands';
 
@@ -9,6 +10,6 @@ export async function copySelectionToClipboard(view: EditorView): Promise<boolea
   }
 
   await writeTextToClipboard(text);
-  view.focus();
+  collapseSelectionAndHideFloatingToolbar(view);
   return true;
 }
