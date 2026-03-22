@@ -28,6 +28,7 @@ function buildRendererProps(overrides?: Partial<Omit<CoverRendererProps, 'displa
     placeholderSrc: '/placeholder.webp',
     isImageReady: true,
     isResizing: false,
+    isResizeSettling: false,
     mediaSize: { width: 1200, height: 600 },
     wrapperRef: createRef<HTMLDivElement>(),
     frozenImgRef: createRef<HTMLImageElement>(),

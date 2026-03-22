@@ -69,7 +69,7 @@ describe('useCoverInteractionHandlers', () => {
     expect(props.ignoreCropSyncRef.current).toBe(true);
   });
 
-  it('ignores crop and zoom updates while picker is open', () => {
+  it('keeps crop and zoom interaction available while picker is open', () => {
     const props = createProps({
       showPicker: true,
     });
@@ -82,8 +82,8 @@ describe('useCoverInteractionHandlers', () => {
       result.current.onCropperZoomChange(1.5);
     });
 
-    expect(props.setCrop).not.toHaveBeenCalled();
-    expect(props.setZoom).not.toHaveBeenCalled();
+    expect(props.setCrop).toHaveBeenCalledWith({ x: 12, y: -18 });
+    expect(props.setZoom).toHaveBeenCalledWith(1.5);
   });
 
   it('clamps crop immediately when zoom would expose blank edges', () => {

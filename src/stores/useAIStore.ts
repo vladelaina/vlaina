@@ -11,6 +11,7 @@ import {
   MANAGED_PROVIDER_ID,
   createManagedProvider,
   fetchManagedModels,
+  isManagedServiceRecoverableError,
   isManagedProviderId,
 } from '@/lib/ai/managedService'
 import {
@@ -915,7 +916,9 @@ export const useAIStore = () => {
         });
         void useManagedAIStore.getState().refreshBudget();
       } catch (error) {
-        console.error('Failed to sync managed AI models from Worker', error);
+        if (!isManagedServiceRecoverableError(error)) {
+          console.error('Failed to sync managed AI models from Worker', error);
+        }
       }
     })();
 

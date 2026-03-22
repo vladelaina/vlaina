@@ -12,6 +12,7 @@ export interface CoverRendererProps {
   placeholderSrc?: string;
   isImageReady: boolean;
   isResizing: boolean;
+  isResizeSettling: boolean;
   mediaSize: { width: number; height: number } | null;
   wrapperRef: RefObject<HTMLDivElement | null>;
   frozenImgRef: RefObject<HTMLImageElement | null>;

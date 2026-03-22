@@ -129,6 +129,7 @@ export function useCoverImageController({
     containerRef,
     wrapperRef,
     handleResizeMouseDown,
+    isResizeSettling,
     frozenImageState,
     frozenImgRef,
   } = useCoverInteractionController({
@@ -198,6 +199,7 @@ export function useCoverImageController({
       placeholderSrc,
       isImageReady: sourceIsReady,
       isResizing,
+      isResizeSettling,
       mediaSize,
       wrapperRef,
       frozenImgRef,

@@ -10,6 +10,7 @@ export const CoverRenderer = React.memo(({
   placeholderSrc,
   isImageReady,
   isResizing,
+  isResizeSettling,
   mediaSize,
   wrapperRef,
   frozenImgRef,
@@ -62,7 +63,7 @@ export const CoverRenderer = React.memo(({
       />
       <CoverFrozenLayer
         displaySrc={displaySrc}
-        isResizing={isResizing}
+        isVisible={isResizing || isResizeSettling}
         frozenImgRef={frozenImgRef}
         frozenImageState={frozenImageState}
       />

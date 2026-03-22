@@ -135,12 +135,14 @@ export function CoverCropperLayer({
     (wrapperRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
   }, [bindWheelTarget, wrapperRef]);
 
-  if (isResizing) return null;
-
   return (
     <div
       ref={setWrapperNode}
-      className={cn('absolute -inset-px', isImageReady ? 'opacity-100' : 'opacity-0')}
+      className={cn(
+        'absolute -inset-px',
+        isResizing ? 'opacity-0 pointer-events-none' : isImageReady ? 'opacity-100' : 'opacity-0',
+        displaySrc ? 'cursor-move' : 'cursor-default'
+      )}
       style={{
         willChange: 'transform',
         touchAction: 'none',

@@ -17,6 +17,22 @@ export function useCoverContainerObserver({
     const el = containerRef.current;
     if (!el) return;
 
+    const syncContainerSize = () => {
+      if (isManualResizingRef.current) return;
+
+      const rect = el.getBoundingClientRect();
+      const roundedWidth = Math.round(rect.width);
+      const roundedHeight = Math.round(rect.height);
+      if (roundedWidth <= 0 || roundedHeight <= 0) return;
+
+      setContainerSize((prev) => {
+        if (prev?.width === roundedWidth && prev?.height === roundedHeight) {
+          return prev;
+        }
+        return { width: roundedWidth, height: roundedHeight };
+      });
+    };
+
     let rafId: number;
     const observer = new ResizeObserver((entries) => {
       if (rafId) cancelAnimationFrame(rafId);
@@ -39,6 +55,7 @@ export function useCoverContainerObserver({
       });
     });
 
+    syncContainerSize();
     observer.observe(el);
     return () => {
       observer.disconnect();

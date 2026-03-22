@@ -44,6 +44,7 @@ describe('CoverImage', () => {
         placeholderSrc: '/covers/Claude Monet/2.webp',
         isImageReady: true,
         isResizing: false,
+        isResizeSettling: false,
         wrapperRef: { current: null },
         frozenImgRef: { current: null },
         frozenImageState: null,

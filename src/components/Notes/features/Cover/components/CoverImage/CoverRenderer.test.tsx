@@ -8,6 +8,7 @@ function buildProps(overrides?: Partial<CoverRendererProps>): CoverRendererProps
     displaySrc: '/cover.png',
     isImageReady: false,
     isResizing: false,
+    isResizeSettling: false,
     mediaSize: { width: 1200, height: 600 },
     wrapperRef: createRef<HTMLDivElement>(),
     frozenImgRef: createRef<HTMLImageElement>(),
@@ -48,6 +49,7 @@ describe('CoverRenderer', () => {
     const cropper = container.querySelector('[data-testid="cover-cropper"]');
     expect(cropper).not.toBeNull();
     expect(cropper?.getAttribute('data-object-fit')).toBe('horizontal-cover');
+    expect(cropper?.className.includes('cursor-move')).toBe(true);
     expect(cropper?.getAttribute('style')).toContain('overscroll-behavior: none');
     expect(cropper?.getAttribute('style')).toContain('overflow-anchor: none');
   });
@@ -63,7 +65,9 @@ describe('CoverRenderer', () => {
     );
 
     const cropper = container.querySelector('[data-testid="cover-cropper"]');
-    expect(cropper).toBeNull();
+    expect(cropper).not.toBeNull();
+    expect(cropper?.className.includes('opacity-0')).toBe(true);
+    expect(cropper?.className.includes('pointer-events-none')).toBe(true);
 
     const frozen = container.querySelector('img[alt="Frozen Cover"]');
     expect(frozen).not.toBeNull();
@@ -71,6 +75,24 @@ describe('CoverRenderer', () => {
     expect(frozen?.getAttribute('style')?.includes('left: 22px')).toBe(true);
     expect(frozen?.parentElement?.classList.contains('visible')).toBe(true);
     expect(frozen?.parentElement?.classList.contains('invisible')).toBe(false);
+  });
+
+  it('keeps frozen layer visible for one settle frame after resize', () => {
+    const { container } = render(
+      <CoverRenderer
+        {...buildProps({
+          isResizeSettling: true,
+          isImageReady: true,
+        })}
+      />
+    );
+
+    const cropper = container.querySelector('[data-testid="cover-cropper"]');
+    const frozen = container.querySelector('img[alt="Frozen Cover"]');
+
+    expect(cropper).not.toBeNull();
+    expect(frozen).not.toBeNull();
+    expect(frozen?.parentElement?.classList.contains('visible')).toBe(true);
   });
 
   it('passes undefined image to cropper when source is empty', () => {

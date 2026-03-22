@@ -53,16 +53,30 @@ export function useCoverResize({
     width: number;
     height: number;
   } | null>(null);
+  const [isResizeSettling, setIsResizeSettling] = useState(false);
 
   const frozenImgRef = useRef<HTMLImageElement>(null);
   const ignoreCropSyncRef = useRef(false);
   const disposeResizeSessionRef = useRef<(() => void) | null>(null);
   const manualResizeResetTimerRef = useRef<number | null>(null);
+  const resizeSettleRafRef = useRef<number | null>(null);
+  const resizeFinishRafRef = useRef<number | null>(null);
 
   const disposeResizeSession = useCallback(() => {
     if (!disposeResizeSessionRef.current) return;
     disposeResizeSessionRef.current();
     disposeResizeSessionRef.current = null;
+  }, []);
+
+  const clearResizeSettleFrames = useCallback(() => {
+    if (resizeSettleRafRef.current !== null) {
+      cancelAnimationFrame(resizeSettleRafRef.current);
+      resizeSettleRafRef.current = null;
+    }
+    if (resizeFinishRafRef.current !== null) {
+      cancelAnimationFrame(resizeFinishRafRef.current);
+      resizeFinishRafRef.current = null;
+    }
   }, []);
 
   const releaseManualResizeSoon = useCallback(() => {
@@ -85,6 +99,7 @@ export function useCoverResize({
   useEffect(() => {
     return () => {
       disposeResizeSession();
+      clearResizeSettleFrames();
       resetResizeVisualState();
       if (manualResizeResetTimerRef.current !== null) {
         window.clearTimeout(manualResizeResetTimerRef.current);
@@ -92,7 +107,7 @@ export function useCoverResize({
       }
       isManualResizingRef.current = false;
     };
-  }, [disposeResizeSession, isManualResizingRef, resetResizeVisualState]);
+  }, [clearResizeSettleFrames, disposeResizeSession, isManualResizingRef, resetResizeVisualState]);
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -100,6 +115,8 @@ export function useCoverResize({
 
     if (!mediaSize || !effectiveContainerSize) return;
     disposeResizeSession();
+    clearResizeSettleFrames();
+    setIsResizeSettling(false);
 
     const snapshot = buildResizeSnapshot(mediaSize, effectiveContainerSize, zoom, crop);
 
@@ -127,10 +144,6 @@ export function useCoverResize({
       },
       onCommit: ({ effectiveHeight, finalCrop }) => {
         disposeResizeSessionRef.current = null;
-        setIsResizing(false);
-        setFrozenImageState(null);
-        resetResizeVisualState();
-        releaseManualResizeSoon();
 
         ignoreCropSyncRef.current = true;
         setCoverHeight(effectiveHeight);
@@ -144,9 +157,23 @@ export function useCoverResize({
         setZoom(nextScale);
 
         onUpdate(url, safePctX, safePctY, effectiveHeight, nextScale);
+
+        setIsResizeSettling(true);
+        resizeSettleRafRef.current = requestAnimationFrame(() => {
+          resizeSettleRafRef.current = null;
+          setIsResizing(false);
+          resizeFinishRafRef.current = requestAnimationFrame(() => {
+            resizeFinishRafRef.current = null;
+            setIsResizeSettling(false);
+            setFrozenImageState(null);
+            resetResizeVisualState();
+            releaseManualResizeSoon();
+          });
+        });
       },
     });
   }, [
+    clearResizeSettleFrames,
     disposeResizeSession,
     mediaSize,
     effectiveContainerSize,
@@ -168,6 +195,7 @@ export function useCoverResize({
 
   return {
     handleResizeMouseDown,
+    isResizeSettling,
     frozenImageState,
     frozenImgRef,
     ignoreCropSyncRef

@@ -2,14 +2,14 @@ import { cn } from '@/lib/utils';
 
 interface CoverFrozenLayerProps {
   displaySrc: string;
-  isResizing: boolean;
+  isVisible: boolean;
   frozenImgRef: React.RefObject<HTMLImageElement | null>;
   frozenImageState: { top: number; left: number; width: number; height: number } | null;
 }
 
 export function CoverFrozenLayer({
   displaySrc,
-  isResizing,
+  isVisible,
   frozenImgRef,
   frozenImageState,
 }: CoverFrozenLayerProps) {
@@ -17,7 +17,7 @@ export function CoverFrozenLayer({
     <div
       className={cn(
         'absolute inset-0 pointer-events-none overflow-hidden transition-none',
-        !isResizing ? 'invisible' : 'visible'
+        !isVisible ? 'invisible' : 'visible'
       )}
     >
       {displaySrc && (
@@ -34,7 +34,7 @@ export function CoverFrozenLayer({
             maxWidth: 'none',
             maxHeight: 'none',
             objectFit: 'fill',
-            opacity: isResizing ? 1 : 0,
+            opacity: isVisible ? 1 : 0,
             transition: 'none',
           }}
         />

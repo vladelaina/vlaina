@@ -57,7 +57,7 @@ export function useCoverInteractionController({
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const {
-    handleResizeMouseDown, frozenImageState, frozenImgRef, ignoreCropSyncRef,
+    handleResizeMouseDown, isResizeSettling, frozenImageState, frozenImgRef, ignoreCropSyncRef,
   } = useCoverResize({
     mediaSize,
     effectiveContainerSize,
@@ -131,6 +131,7 @@ export function useCoverInteractionController({
     containerRef,
     wrapperRef,
     handleResizeMouseDown,
+    isResizeSettling,
     frozenImageState,
     frozenImgRef,
   };
