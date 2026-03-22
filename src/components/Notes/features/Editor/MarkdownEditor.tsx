@@ -196,8 +196,13 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
 
 export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeeking?: boolean; peekOffset?: number }) {
   const { contentOffset } = useEditorLayout(isPeeking, peekOffset);
+  const scrollRootRef = useRef<HTMLDivElement | null>(null);
+  const scrollPositionsRef = useRef(new Map<string, number>());
+  const activePathRef = useRef<string | null>(null);
+  const restoreSessionRef = useRef<{ path: string; targetScrollTop: number } | null>(null);
 
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const openTabs = useNotesStore(s => s.openTabs);
   const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
   const isStarred = useNotesStore(s => s.isStarred);
   const toggleStarred = useNotesStore(s => s.toggleStarred);
@@ -218,6 +223,95 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
       editor?.focus();
     }
   };
+
+  useEffect(() => {
+    const scrollRoot = scrollRootRef.current;
+    if (!scrollRoot) return;
+
+    const handleScroll = () => {
+      const path = activePathRef.current;
+      if (!path) return;
+
+      const restoreSession = restoreSessionRef.current;
+      if (restoreSession?.path === path) return;
+
+      scrollPositionsRef.current.set(path, scrollRoot.scrollTop);
+    };
+
+    scrollRoot.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      scrollRoot.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    const openTabPaths = new Set(openTabs.map((tab) => tab.path));
+    for (const path of scrollPositionsRef.current.keys()) {
+      if (!openTabPaths.has(path)) {
+        scrollPositionsRef.current.delete(path);
+      }
+    }
+  }, [openTabs]);
+
+  useEffect(() => {
+    const scrollRoot = scrollRootRef.current;
+    if (!scrollRoot) return;
+
+    const previousPath = activePathRef.current;
+    if (previousPath) {
+      const cachedScrollTop = scrollPositionsRef.current.get(previousPath);
+      const nextSavedScrollTop = cachedScrollTop ?? scrollRoot.scrollTop;
+      scrollPositionsRef.current.set(previousPath, nextSavedScrollTop);
+    }
+
+    activePathRef.current = currentNotePath ?? null;
+
+    if (!currentNotePath) {
+      restoreSessionRef.current = null;
+      scrollRoot.scrollTop = 0;
+      return;
+    }
+
+    const targetScrollTop = scrollPositionsRef.current.get(currentNotePath) ?? 0;
+    restoreSessionRef.current = {
+      path: currentNotePath,
+      targetScrollTop,
+    };
+
+    const restoreScrollTop = () => {
+      if (activePathRef.current !== currentNotePath) return;
+      scrollRoot.scrollTop = targetScrollTop;
+    };
+
+    const finishRestoreSession = () => {
+      if (activePathRef.current !== currentNotePath) return;
+      scrollPositionsRef.current.set(currentNotePath, scrollRoot.scrollTop);
+      restoreSessionRef.current = null;
+    };
+
+    restoreScrollTop();
+    const frameA = requestAnimationFrame(() => {
+      restoreScrollTop();
+    });
+    const frameB = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        restoreScrollTop();
+      });
+    });
+    const timeoutId = window.setTimeout(() => {
+      restoreScrollTop();
+      finishRestoreSession();
+    }, 120);
+
+    return () => {
+      cancelAnimationFrame(frameA);
+      cancelAnimationFrame(frameB);
+      window.clearTimeout(timeoutId);
+      if (restoreSessionRef.current?.path === currentNotePath) {
+        restoreSessionRef.current = null;
+      }
+    };
+  }, [currentNotePath]);
 
   return (
     <div
@@ -277,6 +371,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
       </div>
 
       <div
+        ref={scrollRootRef}
         className="flex-1 overflow-auto neko-scrollbar flex flex-col items-center relative"
         data-note-scroll-root="true"
       >

@@ -35,7 +35,7 @@ export const themeClasses = {
     link: 'font-medium text-[#1e96eb] underline underline-offset-4 cursor-pointer hover:text-[#0c7fd9] transition-colors',
 
     // Block Elements
-    blockquote: 'mt-[26px] border-l-[4px] border-[#e0e0e0] dark:border-[#333333] pl-[26px] italic text-[var(--neko-text-secondary)]', // 4px = 16/4
+    blockquote: 'mt-[26px] pl-[26px] text-[var(--neko-text-secondary)]',
 
     lists: {
         ul: 'my-[26px] ml-[26px] list-disc [&>li]:mt-2 marker:text-[var(--neko-text-secondary)]',
