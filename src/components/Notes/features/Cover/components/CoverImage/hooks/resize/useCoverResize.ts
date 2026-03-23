@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { calculateCropPercentage } from '../../../utils/coverUtils';
+import { calculateCropPercentage } from '../../../../utils/coverGeometry';
 import {
   buildResizeSnapshot,
   calculateResizedScale,
-} from '../../../utils/coverResizeMath';
+} from '../../../../utils/coverResizeMath';
 import {
   applyFrozenSnapshot,
   hideFrozenImage,

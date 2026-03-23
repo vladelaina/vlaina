@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from 'react';
+import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 
@@ -31,17 +31,18 @@ export function NotesSidebarSurface({
   );
 }
 
-export function NotesSidebarScrollArea({
+export const NotesSidebarScrollArea = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(function NotesSidebarScrollArea({
   className,
   ...props
-}: HTMLAttributes<HTMLDivElement>) {
+}, ref) {
   return (
     <div
+      ref={ref}
       className={cn('neko-scrollbar flex-1 overflow-y-auto px-2 py-2', className)}
       {...props}
     />
   );
-}
+});
 
 export function NotesSidebarList({
   className,

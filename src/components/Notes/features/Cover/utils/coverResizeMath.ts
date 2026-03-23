@@ -1,4 +1,5 @@
-import { DEFAULT_SCALE, MAX_HEIGHT, MAX_SCALE, MIN_HEIGHT, getBaseDimensions } from './coverUtils';
+import { DEFAULT_SCALE, MAX_HEIGHT, MAX_SCALE, MIN_HEIGHT } from './coverConstants';
+import { getBaseDimensions } from './coverGeometry';
 
 interface Size {
   width: number;

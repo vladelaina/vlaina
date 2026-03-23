@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { clampCropToBounds, type TranslateBounds } from './coverInteractionMath';
-import { DRAG_THRESHOLD } from '../../../utils/coverUtils';
+import { DRAG_THRESHOLD } from '../../../../utils/coverConstants';
 
 interface UseCoverInteractionHandlersProps {
   readOnly: boolean;

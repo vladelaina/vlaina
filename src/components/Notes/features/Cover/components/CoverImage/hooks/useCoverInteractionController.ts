@@ -1,12 +1,13 @@
-import { useRef } from 'react';
-import { useCoverInteraction } from './useCoverInteraction';
-import { useCoverResize } from './useCoverResize';
-import { useCoverPositionSync } from './useCoverPositionSync';
-import { useCoverContainerObserver } from './useCoverContainerObserver';
+import { useRef, useState } from 'react';
+import { useCoverInteraction } from './interaction/useCoverInteraction';
+import { useCoverResize } from './resize/useCoverResize';
+import { useCoverPositionSync } from './interaction/useCoverPositionSync';
+import { useCoverContainerObserver } from './resize/useCoverContainerObserver';
 
 interface UseCoverInteractionControllerProps {
   mediaSize: { width: number; height: number } | null;
   effectiveContainerSize: { width: number; height: number } | null;
+  windowResizeActive: boolean;
   zoom: number;
   setZoom: (zoom: number) => void;
   crop: { x: number; y: number };
@@ -32,6 +33,7 @@ interface UseCoverInteractionControllerProps {
 export function useCoverInteractionController({
   mediaSize,
   effectiveContainerSize,
+  windowResizeActive,
   zoom,
   setZoom,
   crop,
@@ -55,9 +57,14 @@ export function useCoverInteractionController({
 }: UseCoverInteractionControllerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const [isContainerResizing, setIsContainerResizing] = useState(false);
 
   const {
-    handleResizeMouseDown, isResizeSettling, frozenImageState, frozenImgRef, ignoreCropSyncRef,
+    handleResizeMouseDown,
+    isResizeSettling,
+    frozenImageState,
+    frozenImgRef,
+    ignoreCropSyncRef,
   } = useCoverResize({
     mediaSize,
     effectiveContainerSize,
@@ -105,7 +112,7 @@ export function useCoverInteractionController({
     zoom,
     isInteracting,
     isResizing,
-    suspendSync: suspendPositionSync,
+    suspendSync: suspendPositionSync || windowResizeActive,
     ignoreCropSyncRef,
     setCrop,
   });
@@ -114,7 +121,9 @@ export function useCoverInteractionController({
     containerRef,
     isManualResizingRef,
     setContainerSize,
+    setIsContainerResizing,
     observeKey: url,
+    freezeSizeSync: windowResizeActive,
   });
 
   return {
@@ -132,6 +141,7 @@ export function useCoverInteractionController({
     wrapperRef,
     handleResizeMouseDown,
     isResizeSettling,
+    isContainerResizing,
     frozenImageState,
     frozenImgRef,
   };

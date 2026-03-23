@@ -4,14 +4,10 @@ import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { ResizablePanel } from '@/components/layout/ResizablePanel';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { ResizeDividerVisual, RESIZE_HANDLE_HIT_WIDTH } from '@/components/layout/shell/ResizeDividerVisual';
 import { ModuleShortcutsDialog } from '@/components/common/ModuleShortcutsDialog';
 import { MarkdownEditor } from './features/Editor';
-import { NoteSearch } from './features/Search';
 import { VaultWelcome } from '@/components/VaultWelcome';
-import { useGlobalSearch } from '@/hooks/useGlobalSearch';
 import { useModuleShortcutsDialog } from '@/hooks/useModuleShortcutsDialog';
 
 const EmbeddedChatView = lazy(async () => {
@@ -41,10 +37,13 @@ export function NotesView() {
   const chatPanelCollapsed = useUIStore((s) => s.notesChatPanelCollapsed);
   const setChatPanelCollapsed = useUIStore((s) => s.setNotesChatPanelCollapsed);
   const toggleChatPanel = useUIStore((s) => s.toggleNotesChatPanel);
+  const setLayoutPanelDragging = useUIStore((s) => s.setLayoutPanelDragging);
 
-  const [showSearch, setShowSearch] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
+  const handleChatPanelDragStateChange = useCallback((dragging: boolean) => {
+    setLayoutPanelDragging(dragging);
+  }, [setLayoutPanelDragging]);
 
   useModuleShortcutsDialog({ onToggle: toggleShortcutsDialog });
 
@@ -154,9 +153,6 @@ export function NotesView() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [openTabs, currentNotePath, openNote, closeTab]);
 
-  useGlobalSearch(() => setShowSearch(prev => !prev));
-
-
   if (!currentVault && !currentNotePath) {
     return (
       <div className="h-full bg-[var(--neko-bg-primary)] relative flex flex-col">
@@ -182,8 +178,8 @@ export function NotesView() {
             minWidth={320}
             maxWidth={760}
             storageKey="nekotick_notes_chat_panel_width"
+            onDragStateChange={handleChatPanelDragStateChange}
             className="h-full border-l border-[#eff3f4] bg-[var(--neko-bg-primary)]"
-            shortcutKeys={['Ctrl', 'L']}
           >
             <div data-notes-chat-panel="true" className="h-full min-h-0 relative">
               <Suspense fallback={null}>
@@ -194,30 +190,21 @@ export function NotesView() {
         )}
 
         {chatPanelCollapsed && (
-          <Tooltip delayDuration={500}>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="Toggle chat sidebar"
-                onClick={() => setChatPanelCollapsed(false)}
-                className="absolute inset-y-0 right-0 z-20 cursor-col-resize bg-transparent group flex items-center justify-center"
-                style={{ width: RESIZE_HANDLE_HIT_WIDTH }}
-              >
-                <ResizeDividerVisual
-                  isVisible={false}
-                  className="pointer-events-none absolute inset-y-0 left-0"
-                />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="left" sideOffset={5} className="flex items-center gap-1.5 text-xs">
-              <span>Toggle chat panel</span>
-              <ShortcutKeys keys={['Ctrl', 'L']} />
-            </TooltipContent>
-          </Tooltip>
+          <button
+            type="button"
+            aria-label="Toggle chat sidebar"
+            onClick={() => setChatPanelCollapsed(false)}
+            className="absolute inset-y-0 right-0 z-20 cursor-col-resize bg-transparent group flex items-center justify-center"
+            style={{ width: RESIZE_HANDLE_HIT_WIDTH }}
+          >
+            <ResizeDividerVisual
+              isVisible={false}
+              className="pointer-events-none absolute inset-y-0 left-0"
+            />
+          </button>
         )}
       </div>
       
-      <NoteSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
       <ModuleShortcutsDialog module="notes" open={isShortcutsOpen} onOpenChange={setIsShortcutsOpen} />
     </>
   );

@@ -96,6 +96,7 @@ import { GoogleIcon } from './custom/mit/GoogleIcon';
 import { ReviewRetryIcon } from './custom/mit/ReviewRetryIcon';
 import { ReviewApplyIcon } from './custom/mit/ReviewApplyIcon';
 import { ReviewCloseIcon } from './custom/mit/ReviewCloseIcon';
+import { SidebarDockIcon } from './custom/mit/SidebarDockIcon';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
@@ -160,6 +161,7 @@ export const icons: Record<string, IconSource> = {
   'nav.arrowLeft': ArrowLeftIcon,
   'nav.arrowUpRight': ArrowUpRightIcon,
   'nav.back': ArrowLeftIcon,
+  'nav.sidebarDock': SidebarDockIcon,
   'nav.collapse': ChevronDoubleLeftIcon,
   'nav.expand': ChevronDoubleRightIcon,
   'nav.fullscreen': ArrowsPointingOutIcon,

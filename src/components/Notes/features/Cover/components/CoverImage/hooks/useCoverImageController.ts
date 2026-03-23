@@ -1,12 +1,15 @@
 import { useEffect, useMemo } from 'react';
-import { useCoverState } from './useCoverState';
-import { useCoverDisplayModel } from './useCoverDisplayModel';
-import { useCoverPreviewReset } from './useCoverPreviewReset';
-import { useCoverSelectionFlow } from './useCoverSelectionFlow';
+import { useUIStore } from '@/stores/uiSlice';
+import { useCoverState } from './state/useCoverState';
+import { useCoverDisplayModel } from './display/useCoverDisplayModel';
+import { useCoverPreviewReset } from './display/useCoverPreviewReset';
+import { useCoverSelectionFlow } from './source/useCoverSelectionFlow';
 import { useCoverInteractionController } from './useCoverInteractionController';
-import { useCoverMediaController } from './useCoverMediaController';
+import { useCoverMediaController } from './display/useCoverMediaController';
+import { useStableCoverContainerSize } from './display/useStableCoverContainerSize';
 import type { CoverImageControllerModel, CoverImageProps } from '../coverImage.types';
-import { DEFAULT_POSITION_PERCENT, getCachedDimensions } from '../../../utils/coverUtils';
+import { DEFAULT_POSITION_PERCENT } from '../../../utils/coverConstants';
+import { getCachedDimensions } from '../../../utils/coverDimensionCache';
 
 interface UseCoverImageControllerProps extends Omit<CoverImageProps, 'height' | 'scale' | 'readOnly'> {
   initialHeight?: number;
@@ -26,6 +29,8 @@ export function useCoverImageController({
   pickerOpen,
   onPickerOpenChange,
 }: UseCoverImageControllerProps): CoverImageControllerModel {
+  const layoutPanelDragging = useUIStore((state) => state.layoutPanelDragging);
+  const windowResizeActive = useUIStore((state) => state.windowResizeActive);
   const {
     coverHeight, setCoverHeight,
     containerSize, setContainerSize,
@@ -70,6 +75,11 @@ export function useCoverImageController({
     return { width: containerSize.width, height: coverHeight };
   }, [containerSize, coverHeight]);
 
+  const interactionContainerSize = useStableCoverContainerSize({
+    effectiveContainerSize,
+    freeze: windowResizeActive,
+  });
+
   const {
     mediaSrc,
     sourceIsReady,
@@ -96,8 +106,6 @@ export function useCoverImageController({
     setIsImageReady,
   });
 
-  // Prime media size from cached dimensions as soon as source switches.
-  // This avoids first-frame wrong objectFit axis before cropper onMediaLoaded fires.
   useEffect(() => {
     if (!mediaSrc) {
       setMediaSize(null);
@@ -130,11 +138,13 @@ export function useCoverImageController({
     wrapperRef,
     handleResizeMouseDown,
     isResizeSettling,
+    isContainerResizing,
     frozenImageState,
     frozenImgRef,
   } = useCoverInteractionController({
     mediaSize,
-    effectiveContainerSize,
+    effectiveContainerSize: interactionContainerSize,
+    windowResizeActive,
     zoom,
     setZoom,
     crop,
@@ -159,7 +169,7 @@ export function useCoverImageController({
 
   const { handleMediaLoaded } = useCoverMediaController({
     mediaSrc,
-    effectiveContainerSize,
+    effectiveContainerSize: interactionContainerSize,
     isImageReady,
     syncPositionX,
     syncPositionY,
@@ -196,6 +206,9 @@ export function useCoverImageController({
       onUpdate(url, positionX, positionY, goldenHeight, scale);
     },
     rendererProps: {
+      layoutPanelDragging,
+      isWindowResizing: windowResizeActive,
+      isContainerResizing,
       placeholderSrc,
       isImageReady: sourceIsReady,
       isResizing,
@@ -206,7 +219,7 @@ export function useCoverImageController({
       frozenImageState,
       crop: effectiveCrop,
       zoom: effectiveZoom,
-      effectiveContainerSize,
+      effectiveContainerSize: interactionContainerSize,
       effectiveMinZoom,
       effectiveMaxZoom,
       objectFitMode,

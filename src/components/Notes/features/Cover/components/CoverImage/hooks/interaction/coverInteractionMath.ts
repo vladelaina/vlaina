@@ -1,4 +1,4 @@
-import { getBaseDimensions } from '../../../utils/coverUtils';
+import { getBaseDimensions } from '../../../../utils/coverGeometry';
 
 interface Size {
   width: number;
@@ -24,7 +24,6 @@ export function resolveCoverObjectFitMode(
   const imageAspect = mediaSize.width / mediaSize.height;
   const containerAspect = containerSize.width / containerSize.height;
 
-  // Keep explicit cover axis so first media layout is never computed as contain.
   return imageAspect > containerAspect ? 'vertical-cover' : 'horizontal-cover';
 }
 

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
-import { calculateCropPixels, DEFAULT_SCALE } from '../../../utils/coverUtils';
-import type { LoadedCoverMedia } from '../coverRenderer.types';
+import { DEFAULT_SCALE } from '../../../../utils/coverConstants';
+import { calculateCropPixels } from '../../../../utils/coverGeometry';
+import type { LoadedCoverMedia } from '../../coverRenderer.types';
 
 interface UseCoverMediaSyncProps {
   currentSrc: string;

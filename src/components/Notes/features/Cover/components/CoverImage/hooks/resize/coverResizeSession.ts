@@ -3,11 +3,12 @@ import {
   calculateFinalCropFromResize,
   calculateVerticalShift,
   type ResizeSnapshot,
-} from '../../../utils/coverResizeMath';
+} from '../../../../utils/coverResizeMath';
 
 interface ResizeFrame {
   effectiveHeight: number;
   shiftY: number;
+  pointerY: number;
 }
 
 interface StartCoverResizeSessionProps {
@@ -28,6 +29,7 @@ export function startCoverResizeSession({
   let rafId: number | null = null;
   let disposed = false;
   let topPinned = snapshot.maxShiftDown === 0;
+  let lastFrame: ResizeFrame | null = null;
 
   const buildFrame = (clientY: number): ResizeFrame => {
     const delta = clientY - startY;
@@ -47,6 +49,7 @@ export function startCoverResizeSession({
     return {
       effectiveHeight,
       shiftY: topPinned ? snapshot.maxShiftDown : shiftY,
+      pointerY: clientY,
     };
   };
 
@@ -66,6 +69,14 @@ export function startCoverResizeSession({
     if (rafId !== null) cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(() => {
       const frame = buildFrame(event.clientY);
+      if (
+        lastFrame &&
+        lastFrame.effectiveHeight === frame.effectiveHeight &&
+        Math.abs(lastFrame.shiftY - frame.shiftY) < 0.001
+      ) {
+        return;
+      }
+      lastFrame = frame;
       onFrame(frame);
     });
   };
@@ -73,6 +84,7 @@ export function startCoverResizeSession({
   const handleUp = (event: MouseEvent) => {
     if (disposed) return;
     const frame = buildFrame(event.clientY);
+    lastFrame = frame;
     const finalCrop = calculateFinalCropFromResize(
       snapshot,
       frame.effectiveHeight,

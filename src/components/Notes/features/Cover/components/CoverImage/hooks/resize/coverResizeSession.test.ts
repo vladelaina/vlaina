@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { startCoverResizeSession } from './coverResizeSession';
-import type { ResizeSnapshot } from '../../../utils/coverResizeMath';
+import type { ResizeSnapshot } from '../../../../utils/coverResizeMath';
 
 const snapshot: ResizeSnapshot = {
   scaledWidth: 400,

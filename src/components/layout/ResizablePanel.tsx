@@ -12,7 +12,7 @@ interface ResizablePanelProps {
   storageKey?: string;
   className?: string;
   onWidthChange?: (width: number) => void;
-  shortcutKeys?: string[];
+  onDragStateChange?: (dragging: boolean) => void;
 }
 
 export function ResizablePanel({
@@ -23,7 +23,7 @@ export function ResizablePanel({
   storageKey,
   className,
   onWidthChange,
-  shortcutKeys,
+  onDragStateChange,
 }: ResizablePanelProps) {
   const [width, setWidth] = useState(() => {
     if (storageKey) {
@@ -48,6 +48,7 @@ export function ResizablePanel({
     maxWidth,
     defaultWidth,
     onWidthChange: handleWidthChange,
+    onDragStateChange,
     direction: 'reverse',
     useOverlay: true,
   });
@@ -62,6 +63,7 @@ export function ResizablePanel({
     <aside
       className={cn(
         "relative flex flex-col bg-white/50 dark:bg-zinc-900/50 backdrop-blur-md overflow-hidden",
+        isDragging && "will-change-[width]",
         !isDragging && "transition-[width] duration-300 ease-in-out",
         className
       )}
@@ -70,8 +72,6 @@ export function ResizablePanel({
       <ResizeHandle
         onMouseDown={handleDragStart}
         isDragging={isDragging}
-        tooltipSide="left"
-        shortcutKeys={shortcutKeys}
         zIndexClassName="z-[100]"
         positionStyle={{
           right: width - RESIZE_HANDLE_HALF_WIDTH,

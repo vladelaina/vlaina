@@ -5,6 +5,8 @@ interface CoverPlaceholderLayerProps {
   isImageReady: boolean;
   positionX: number;
   positionY: number;
+  zoom?: number;
+  forceVisible?: boolean;
 }
 
 export function CoverPlaceholderLayer({
@@ -12,6 +14,8 @@ export function CoverPlaceholderLayer({
   isImageReady,
   positionX,
   positionY,
+  zoom = 1,
+  forceVisible = false,
 }: CoverPlaceholderLayerProps) {
   if (!displaySrc) return null;
 
@@ -20,10 +24,15 @@ export function CoverPlaceholderLayer({
       src={displaySrc}
       alt="Cover"
       className={cn(
-        'absolute -inset-px w-auto h-auto min-w-[calc(100%+2px)] min-h-[calc(100%+2px)] object-cover pointer-events-none',
-        isImageReady ? 'opacity-0' : 'opacity-100 placeholder-active'
+        'absolute -inset-px h-[calc(100%+2px)] w-[calc(100%+2px)] max-w-none object-cover pointer-events-none select-none',
+        forceVisible || !isImageReady ? 'opacity-100 placeholder-active' : 'opacity-0'
       )}
-      style={{ objectPosition: `${positionX}% ${positionY}%` }}
+      style={{
+        objectPosition: `${positionX}% ${positionY}%`,
+        transform: `scale(${zoom})`,
+        transformOrigin: 'center center',
+        willChange: 'transform',
+      }}
     />
   );
 }

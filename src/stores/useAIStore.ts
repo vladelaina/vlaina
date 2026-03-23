@@ -539,6 +539,7 @@ export const actions = {
     }
   },
 
+
   updateSession: (id: string, updates: Partial<ChatSession>) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;

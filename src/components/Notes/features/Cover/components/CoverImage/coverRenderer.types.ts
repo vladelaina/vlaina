@@ -9,6 +9,9 @@ export interface LoadedCoverMedia {
 
 export interface CoverRendererProps {
   displaySrc: string;
+  layoutPanelDragging?: boolean;
+  isWindowResizing?: boolean;
+  isContainerResizing?: boolean;
   placeholderSrc?: string;
   isImageReady: boolean;
   isResizing: boolean;

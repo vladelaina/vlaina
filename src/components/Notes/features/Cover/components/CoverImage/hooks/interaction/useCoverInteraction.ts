@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { MAX_SCALE } from '../../../utils/coverUtils';
+import { MAX_SCALE } from '../../../../utils/coverConstants';
 import {
   calculateTranslateBounds,
   clampCropToBounds,

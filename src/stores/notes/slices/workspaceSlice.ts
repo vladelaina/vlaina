@@ -51,7 +51,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   displayNames: new Map(),
 
   openNote: async (path: string, openInNewTab: boolean = false) => {
-    const { notesPath, isDirty, saveNote, recentNotes, openTabs, currentNote } = get();
+    const { notesPath, isDirty, saveNote, recentNotes, openTabs, currentNote, noteContentsCache } = get();
     if (isDirty) {
       await saveNote();
       if (get().isDirty) return;
@@ -59,8 +59,14 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
     try {
       const storage = getStorageAdapter();
-      const fullPath = await joinPath(notesPath, path);
-      const content = await storage.readFile(fullPath);
+      let content = noteContentsCache.get(path);
+      if (content === undefined) {
+        const fullPath = await joinPath(notesPath, path);
+        content = await storage.readFile(fullPath);
+        const nextCache = new Map(get().noteContentsCache);
+        nextCache.set(path, content);
+        set({ noteContentsCache: nextCache });
+      }
       const fileName = getNoteTitleFromPath(path);
       const tabName = fileName;
       const updatedRecent = addToRecentNotes(path, recentNotes);
