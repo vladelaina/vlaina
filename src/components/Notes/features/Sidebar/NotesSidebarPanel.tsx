@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 import { SidebarContent } from './SidebarContent';
 import { NotesOutline } from './Outline';
@@ -63,10 +62,8 @@ export function NotesSidebarPanel({
       ) : (
         <NotesOutline
           enabled={Boolean(currentNotePath)}
-          className={cn(
-            'min-h-0 flex-1 px-2',
-            isPeeking ? 'pt-3' : 'pt-1',
-          )}
+          isPeeking={isPeeking}
+          className="min-h-0 flex-1"
         />
       )}
     </NotesSidebarSurface>

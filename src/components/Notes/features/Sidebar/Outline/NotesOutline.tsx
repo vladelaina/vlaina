@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useNotesOutline } from './useNotesOutline';
 import { CollapseTriangleAffordance } from '../../common/collapseTrianglePrimitive';
+import { NotesSidebarScrollArea } from '../NotesSidebarPrimitives';
 import {
   buildOutlineTree,
   cleanupCollapsedHeadingIds,
@@ -12,9 +13,10 @@ import {
 interface NotesOutlineProps {
   enabled: boolean;
   className?: string;
+  isPeeking?: boolean;
 }
 
-export function NotesOutline({ enabled, className }: NotesOutlineProps) {
+export function NotesOutline({ enabled, className, isPeeking = false }: NotesOutlineProps) {
   const { headings, activeId, jumpToHeading } = useNotesOutline(enabled);
   const [collapsedHeadingIds, setCollapsedHeadingIds] = useState<Set<string>>(() => new Set());
 
@@ -91,8 +93,8 @@ export function NotesOutline({ enabled, className }: NotesOutlineProps) {
 
   return (
     <div className={cn('flex h-full flex-col', className)}>
-      <div
-        className="flex-1 overflow-auto neko-scrollbar px-2 pb-4 pt-2"
+      <NotesSidebarScrollArea
+        className={cn(isPeeking ? 'neko-scrollbar-rounded pt-4 pb-4' : 'pt-2')}
         data-notes-sidebar-scroll-root="true"
       >
         {headings.length === 0 ? (
@@ -104,7 +106,7 @@ export function NotesOutline({ enabled, className }: NotesOutlineProps) {
             {renderTreeNodes(headingTree)}
           </nav>
         )}
-      </div>
+      </NotesSidebarScrollArea>
     </div>
   );
 }
