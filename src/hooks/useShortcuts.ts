@@ -13,11 +13,22 @@ interface UseShortcutsOptions {
 
 export function useShortcuts(options: UseShortcutsOptions = {}) {
   const { scope = 'global', handlers: extraHandlers = {} } = options;
-  const { toggleDrawer, appViewMode, toggleSidebar } = useAppUIStore();
+  const {
+    toggleDrawer,
+    appViewMode,
+    toggleAppViewMode,
+    toggleSidebar,
+    notesSidebarView,
+    setNotesSidebarView,
+  } = useAppUIStore();
   const { createNote, currentNote } = useNotesStore();
 
   const builtinHandlers = useMemo<Record<string, ShortcutHandler>>(() => ({
+    toggleAppViewMode,
     toggleSidebar,
+    toggleNotesSidebarView: () => {
+      setNotesSidebarView(notesSidebarView === 'workspace' ? 'outline' : 'workspace');
+    },
     globalSearch: () => {
       window.dispatchEvent(new Event('neko-open-search'));
     },
@@ -34,7 +45,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       createNote(folderPath);
     },
     toggleDrawer,
-  }), [toggleSidebar, createNote, currentNote?.path, toggleDrawer]);
+  }), [toggleAppViewMode, toggleSidebar, setNotesSidebarView, notesSidebarView, createNote, currentNote?.path, toggleDrawer]);
 
   const handlers = useMemo(() => ({
     ...builtinHandlers,
@@ -61,15 +72,15 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       
       for (const shortcut of shortcuts) {
         const shortcutScope = shortcut.scope || 'global';
-        if (shortcutScope !== 'global' && shortcutScope !== scope) continue;
+        if (scope !== 'global' && shortcutScope !== 'global' && shortcutScope !== scope) continue;
         if (shortcutScope === 'notes' && appViewMode !== 'notes') continue;
+        if (shortcutScope === 'chat' && appViewMode !== 'chat') continue;
         
         if (matchShortcut(pressedKeys, shortcut)) {
           const handler = handlers[shortcut.id];
-          if (handler) {
-            e.preventDefault();
-            await handler();
-          }
+          if (!handler) continue;
+          e.preventDefault();
+          await handler();
           break;
         }
       }

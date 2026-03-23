@@ -1,13 +1,14 @@
-import type { ShortcutConfig } from './types';
+import type { ShortcutConfig, ShortcutKeyboardEventLike } from './types';
+import { normalizeShortcutEventKey, normalizeShortcutKeyToken } from './normalize';
 
-export function getKeysFromEvent(e: KeyboardEvent): string[] {
+export function getKeysFromEvent(e: ShortcutKeyboardEventLike): string[] {
   const keys: string[] = [];
   if (e.ctrlKey || e.metaKey) keys.push('ctrl');
   if (e.shiftKey) keys.push('shift');
   if (e.altKey) keys.push('alt');
   
   if (!['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
-    keys.push(e.key.toLowerCase());
+    keys.push(normalizeShortcutEventKey(e));
   }
   
   return keys;
@@ -16,7 +17,7 @@ export function getKeysFromEvent(e: KeyboardEvent): string[] {
 export function matchShortcut(pressedKeys: string[], shortcut: ShortcutConfig): boolean {
   if (!shortcut.keys || shortcut.keys.length === 0) return false;
   
-  const expectedKeys = shortcut.keys.map(k => k.toLowerCase());
+  const expectedKeys = shortcut.keys.map(normalizeShortcutKeyToken);
   
   return pressedKeys.length === expectedKeys.length &&
     expectedKeys.every(k => pressedKeys.includes(k));

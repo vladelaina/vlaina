@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { isToggleShortcutsBinding, matchesShortcutBinding } from '@/lib/shortcuts';
 import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
-import { isToggleShortcutsBinding } from '@/lib/shortcuts';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { dispatchChatMessageCopied } from '@/components/Chat/common/copyFeedback';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
@@ -52,27 +52,20 @@ export function useChatShortcuts(
         return;
       }
 
-      if (
-        e.key === 'Escape' &&
-        !e.shiftKey &&
-        !e.altKey &&
-        !isMod &&
-        isGenerating &&
-        !isInsideDialog(e.target)
-      ) {
+      if (matchesShortcutBinding(e, 'stopResponse') && isGenerating && !isInsideDialog(e.target)) {
         e.preventDefault();
         e.stopPropagation();
         onStopGeneration?.();
         return;
       }
 
-      if (e.shiftKey && e.key === 'Escape') {
+      if (matchesShortcutBinding(e, 'focusChatInput')) {
         e.preventDefault();
         onFocusInput();
         return;
       }
 
-      if (isMod && e.shiftKey && key === 'o') {
+      if (matchesShortcutBinding(e, 'openNewChat')) {
         e.preventDefault();
         aiActions.openNewChat();
         onFocusInput();
@@ -90,7 +83,7 @@ export function useChatShortcuts(
         return;
       }
 
-      if (isMod && e.shiftKey && key === 'j') {
+      if (matchesShortcutBinding(e, 'toggleTemporaryChatWelcome')) {
         e.preventDefault();
         const state = useUnifiedStore.getState();
         const aiState = state.data.ai;
@@ -111,7 +104,7 @@ export function useChatShortcuts(
         return;
       }
 
-      if (e.shiftKey && e.key === 'ArrowUp') {
+      if (matchesShortcutBinding(e, 'previousMessage')) {
         if (isEditableTarget(e.target)) {
           return;
         }
@@ -120,7 +113,7 @@ export function useChatShortcuts(
         return;
       }
 
-      if (e.shiftKey && e.key === 'ArrowDown') {
+      if (matchesShortcutBinding(e, 'nextMessage')) {
         if (isEditableTarget(e.target)) {
           return;
         }
@@ -129,7 +122,7 @@ export function useChatShortcuts(
         return;
       }
 
-      if (isMod && e.key === 'Tab') {
+      if (matchesShortcutBinding(e, 'nextChatSession') || matchesShortcutBinding(e, 'previousChatSession')) {
           const isTauri = typeof window !== 'undefined' && 
               ('__TAURI_IPC__' in window || '__TAURI_INTERNALS__' in window || '__TAURI__' in window);
           
@@ -147,7 +140,7 @@ export function useChatShortcuts(
           const currentIndex = sessions.findIndex(s => s.id === currentId);
           let nextIndex;
 
-          if (e.shiftKey) {
+          if (matchesShortcutBinding(e, 'previousChatSession')) {
               nextIndex = currentIndex > 0 ? currentIndex - 1 : sessions.length - 1;
           } else {
               nextIndex = currentIndex < sessions.length - 1 ? currentIndex + 1 : 0;
@@ -166,13 +159,13 @@ export function useChatShortcuts(
       const currentId = ai.currentSessionId;
       const currentMsgs = ai.messages[currentId] || [];
 
-      if (isMod && e.shiftKey && e.key === 'Backspace') {
+      if (matchesShortcutBinding(e, 'deleteChat')) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent('neko-delete-chat', { detail: { id: currentId } }));
         return;
       }
 
-      if (isMod && e.shiftKey && key === 'c') {
+      if (matchesShortcutBinding(e, 'copyLastResponse')) {
         e.preventDefault();
         const lastAI = [...currentMsgs].reverse().find(m => m.role === 'assistant');
         if (lastAI) {
@@ -192,7 +185,7 @@ export function useChatShortcuts(
         return;
       }
 
-      if (isMod && e.shiftKey && (e.key === ';' || e.key === ':')) {
+      if (matchesShortcutBinding(e, 'copyLastCodeBlock')) {
         e.preventDefault();
         const lastAI = [...currentMsgs].reverse().find(m => m.role === 'assistant');
         if (lastAI) {

@@ -1,3 +1,5 @@
+import { PracticalOutlineLab } from './variants/PracticalOutlineLab';
+import { OutlineRevolutionLab } from './variants/OutlineRevolutionLab';
 import { AnimationLab } from './playground/AnimationLab';
 import { AiToolbarDropdownLab } from './playground/AiToolbarDropdownLab';
 import { LinkEditorLab } from './playground/LinkEditorLab';
@@ -10,6 +12,20 @@ import { FirstPrinciplesLinkEditor } from './playground/FirstPrinciplesLinkEdito
 import { NotesSidebarModeLab } from './playground/NotesSidebarModeLab';
 
 export const LAB_MODULES = [
+  {
+    id: 'outline-practical-architecture',
+    label: 'Practical Architecture',
+    icon: 'misc.lab',
+    component: PracticalOutlineLab,
+    description: '30 production-ready coordinates for the Files / Outline transition based on real UI mockup.'
+  },
+  {
+    id: 'outline-revolution-paradigm',
+    label: 'The Revolution',
+    icon: 'misc.lab',
+    component: OutlineRevolutionLab,
+    description: '30 revolutionary UI/UX concepts based on spatial metaphors and Apple-style physics.'
+  },
   {
     id: 'notes-sidebar-modes',
     label: 'Notes Sidebar Modes',

@@ -3,6 +3,7 @@ import { windowCommands } from '@/lib/tauri/invoke';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
+import { matchesShortcutBinding } from '@/lib/shortcuts';
 import { ResizablePanel } from '@/components/layout/ResizablePanel';
 import { ResizeDividerVisual, RESIZE_HANDLE_HIT_WIDTH } from '@/components/layout/shell/ResizeDividerVisual';
 import { ModuleShortcutsDialog } from '@/components/common/ModuleShortcutsDialog';
@@ -120,8 +121,7 @@ export function NotesView() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const hasPrimaryModifier = (e.ctrlKey || e.metaKey) && !e.altKey;
-      if (hasPrimaryModifier && !e.shiftKey && e.key.toLowerCase() === 'l') {
+      if (matchesShortcutBinding(e, 'toggleEmbeddedChat')) {
         e.preventDefault();
         toggleChatPanel();
         return;
@@ -132,21 +132,25 @@ export function NotesView() {
         return;
       }
 
-      if (e.key === 'Tab' && hasPrimaryModifier && openTabs.length > 1) {
+      if (matchesShortcutBinding(e, 'nextNoteTab') && openTabs.length > 1) {
         e.preventDefault();
         const currentIndex = openTabs.findIndex(t => t.path === currentNotePath);
         if (currentIndex === -1) return;
-
-        let nextIndex: number;
-        if (e.shiftKey) {
-          nextIndex = currentIndex === 0 ? openTabs.length - 1 : currentIndex - 1;
-        } else {
-          nextIndex = currentIndex === openTabs.length - 1 ? 0 : currentIndex + 1;
-        }
+        const nextIndex = currentIndex === openTabs.length - 1 ? 0 : currentIndex + 1;
         openNote(openTabs[nextIndex].path);
+        return;
       }
 
-      if (e.key.toLowerCase() === 'w' && hasPrimaryModifier && !e.shiftKey && currentNotePath) {
+      if (matchesShortcutBinding(e, 'previousNoteTab') && openTabs.length > 1) {
+        e.preventDefault();
+        const currentIndex = openTabs.findIndex(t => t.path === currentNotePath);
+        if (currentIndex === -1) return;
+        const nextIndex = currentIndex === 0 ? openTabs.length - 1 : currentIndex - 1;
+        openNote(openTabs[nextIndex].path);
+        return;
+      }
+
+      if (matchesShortcutBinding(e, 'closeCurrentTab') && currentNotePath) {
         e.preventDefault();
         closeTab(currentNotePath);
       }

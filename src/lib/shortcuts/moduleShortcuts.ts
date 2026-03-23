@@ -1,4 +1,6 @@
-import { DEFAULT_SHORTCUTS } from './config';
+import { getShortcutDefinitionsForModule } from './registry';
+import { getShortcutKeys } from './storage';
+import type { ShortcutDefinition, ShortcutModule, ShortcutSection } from './types';
 
 export type ModuleShortcutId = 'notes' | 'chat';
 
@@ -22,65 +24,39 @@ interface ModuleShortcutPresetOptions {
   isMac?: boolean;
 }
 
-const SHORTCUTS_BY_ID = new Map(DEFAULT_SHORTCUTS.map((shortcut) => [shortcut.id, shortcut]));
+const SECTION_ORDER: Record<ShortcutModule, ShortcutSection[]> = {
+  notes: ['Notes', 'General'],
+  chat: ['Chat', 'General'],
+};
 
-function resolveShortcutKeys(id: string, fallbackKeys: string[]): string[] {
-  return SHORTCUTS_BY_ID.get(id)?.keys ?? fallbackKeys;
+function getResolvedKeys(shortcut: ShortcutDefinition, isMac: boolean): string[] {
+  const resolvedKeys = getShortcutKeys(shortcut.id) ?? shortcut.keys;
+  if (!isMac) {
+    return resolvedKeys;
+  }
+
+  return resolvedKeys.map((key) => (shortcut.id === 'deleteChat' && key === 'Backspace' ? '⌫' : key));
 }
 
-const COMMON_SECTIONS: ModuleShortcutSection[] = [
-  {
-    title: 'General',
-    shortcuts: [
-      { action: 'Toggle sidebar', keys: resolveShortcutKeys('toggleSidebar', ['Ctrl', '\\']) },
-      { action: 'Global search', keys: resolveShortcutKeys('globalSearch', ['Ctrl', 'F']) },
-      { action: 'Toggle drawer', keys: resolveShortcutKeys('toggleDrawer', ['Ctrl', 'D']) },
-      { action: 'Open settings', keys: resolveShortcutKeys('open-settings', ['Ctrl', ',']) },
-      { action: 'New window', keys: resolveShortcutKeys('newWindow', ['Ctrl', 'Shift', 'N']) },
-    ],
-  },
-];
+function buildSections(module: ShortcutModule, isMac: boolean): ModuleShortcutSection[] {
+  const buckets = new Map<ShortcutSection, ModuleShortcutItem[]>();
 
-function createChatSections(isMac: boolean): ModuleShortcutSection[] {
-  const deleteKey = isMac ? '⌫' : 'Backspace';
-  return [
-    {
-      title: 'Chat',
-      shortcuts: [
-        { action: 'Open new chat', keys: ['Ctrl', 'Shift', 'O'] },
-        {
-          action: 'Open temporary chat (toggle if empty)',
-          keys: resolveShortcutKeys('toggleTemporaryChatWelcome', ['Ctrl', 'Shift', 'J']),
-        },
-        { action: 'Stop response', keys: ['Esc'] },
-        { action: 'Focus chat input', keys: ['Shift', 'Esc'] },
-        { action: 'Previous chat', keys: ['Ctrl', 'Shift', 'Tab'] },
-        { action: 'Next chat', keys: ['Ctrl', 'Tab'] },
-        { action: 'Copy last code block', keys: ['Ctrl', 'Shift', ';'] },
-        { action: 'Copy last response', keys: ['Ctrl', 'Shift', 'C'] },
-        { action: 'Previous message', keys: ['Shift', '↑'] },
-        { action: 'Next message', keys: ['Shift', '↓'] },
-        { action: 'Delete chat', keys: ['Ctrl', 'Shift', deleteKey] },
-      ],
-    },
-    ...COMMON_SECTIONS,
-  ];
+  for (const shortcut of getShortcutDefinitionsForModule(module)) {
+    const sectionItems = buckets.get(shortcut.section) ?? [];
+    sectionItems.push({
+      action: shortcut.action,
+      keys: getResolvedKeys(shortcut, isMac),
+    });
+    buckets.set(shortcut.section, sectionItems);
+  }
+
+  return SECTION_ORDER[module]
+    .map((section) => ({
+      title: section,
+      shortcuts: buckets.get(section) ?? [],
+    }))
+    .filter((section) => section.shortcuts.length > 0);
 }
-
-const NOTES_SECTIONS: ModuleShortcutSection[] = [
-  {
-    title: 'Notes',
-    shortcuts: [
-      { action: 'New note tab', keys: resolveShortcutKeys('newTab', ['Ctrl', 'T']) },
-      { action: 'Close current tab', keys: ['Ctrl', 'W'] },
-      { action: 'Next tab', keys: ['Ctrl', 'Tab'] },
-      { action: 'Previous tab', keys: ['Ctrl', 'Shift', 'Tab'] },
-      { action: 'Save note', keys: ['Ctrl', 'S'] },
-      { action: 'Toggle embedded chat', keys: ['Ctrl', 'L'] },
-    ],
-  },
-  ...COMMON_SECTIONS,
-];
 
 export function getModuleShortcutPreset(
   module: ModuleShortcutId,
@@ -93,14 +69,14 @@ export function getModuleShortcutPreset(
       return {
         title: 'Keyboard shortcuts',
         description: 'Available keyboard shortcuts for Notes.',
-        sections: NOTES_SECTIONS,
+        sections: buildSections('notes', isMac),
       };
     case 'chat':
     default:
       return {
         title: 'Keyboard shortcuts',
         description: 'Available keyboard shortcuts for Chat.',
-        sections: createChatSections(isMac),
+        sections: buildSections('chat', isMac),
       };
   }
 }
