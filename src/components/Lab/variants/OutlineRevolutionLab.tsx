@@ -1,5 +1,5 @@
-import React, { useState, useRef, useMemo } from 'react';
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 
@@ -48,7 +48,7 @@ const ElasticPull = () => {
         <motion.div 
             className="w-64 h-80 bg-zinc-100 dark:bg-zinc-800 rounded-2xl border-2 border-zinc-200 dark:border-white/10 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing relative overflow-hidden"
             drag="y" dragConstraints={{ top: 0, bottom: 200 }}
-            onDrag={(e, info) => setY(info.offset.y)}
+            onDrag={(_event, info) => setY(info.offset.y)}
             onDragEnd={() => { if(y > 100) setMode(m => m === 'Files' ? 'Outline' : 'Files'); setY(0); }}
         >
             <div className="absolute top-4 text-[10px] font-bold opacity-30">PULL TO SWITCH</div>
