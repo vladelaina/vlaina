@@ -68,6 +68,30 @@ body.neko-block-dragging-cursor * {
   color: #ffffff !important;
 }
 
+html[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hideselection *::selection,
+body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hideselection *::selection {
+  background-color: var(--neko-selection-bg, #2781db) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hideselection *::-moz-selection,
+body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hideselection *::-moz-selection {
+  background-color: var(--neko-selection-bg, #2781db) !important;
+  color: #ffffff !important;
+}
+
+.milkdown .ProseMirror .neko-link-selection-visible {
+  background-color: var(--neko-selection-bg, #2781db);
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow:
+    0 2px 0 var(--neko-selection-bg, #2781db),
+    0 -2px 0 var(--neko-selection-bg, #2781db);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
 /* Notion-like drag block selection highlight */
 .milkdown .ProseMirror .neko-block-selected {
   --neko-block-selection-color: var(--neko-hover-filled);

@@ -1,31 +1,68 @@
 import { Plugin, PluginKey, EditorState, TextSelection } from '@milkdown/kit/prose/state';
-import { EditorView } from '@milkdown/kit/prose/view';
+import { Decoration, DecorationSet, EditorView } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 import { createRoot, Root } from 'react-dom/client';
 import LinkTooltip from './LinkTooltip';
 import { findLinkRange } from '../utils/helpers';
+import {
+    getLinkTooltipPositionRoot,
+    resolveLinkTooltipPosition,
+    type LinkTooltipAnchor,
+} from './linkTooltipPositioning';
 
 export const linkTooltipPluginKey = new PluginKey('link-tooltip');
+
+const LINK_TOOLTIP_SHOW_DELAY = 180;
+
+type LinkTooltipPluginState = {
+    shouldShow: boolean;
+    from: number;
+    to: number;
+    handled: boolean;
+    visibleSelectionFrom: number | null;
+    visibleSelectionTo: number | null;
+};
 
 class LinkTooltipView {
     dom: HTMLElement;
     root: Root | null = null;
     view: EditorView;
+    positionRoot: HTMLElement | null = null;
     activeLink: HTMLElement | null = null;
+    activeAnchor: LinkTooltipAnchor | null = null;
     hideTimer: number | null = null;
     showTimer: number | null = null;
     isKeyboardInteraction: boolean = false;
+    resizeObserver: ResizeObserver | null = null;
+    mutationObserver: MutationObserver | null = null;
 
     constructor(view: EditorView) {
         this.view = view;
+        this.positionRoot = getLinkTooltipPositionRoot(view);
 
         this.view.dom.style.whiteSpace = 'pre-wrap';
 
         this.dom = document.createElement('div');
-        this.dom.className = 'link-tooltip-container absolute hidden z-50 transition-all duration-200 ease-out';
-        document.body.appendChild(this.dom);
+        this.dom.className = 'link-tooltip-container absolute hidden z-50';
+        (this.positionRoot ?? document.body).appendChild(this.dom);
 
         this.root = createRoot(this.dom);
+
+        this.resizeObserver = typeof ResizeObserver !== 'undefined'
+            ? new ResizeObserver(() => this.reposition())
+            : null;
+        this.resizeObserver?.observe(this.dom);
+        if (this.positionRoot) {
+            this.resizeObserver?.observe(this.positionRoot);
+        }
+
+        this.mutationObserver = typeof MutationObserver !== 'undefined'
+            ? new MutationObserver(() => this.reposition())
+            : null;
+        this.mutationObserver?.observe(this.dom, {
+            attributes: true,
+            attributeFilter: ['data-editing'],
+        });
 
         this.view.dom.addEventListener('mouseover', this.handleEditorMouseOver);
         this.view.dom.addEventListener('mouseout', this.handleEditorMouseOut);
@@ -53,6 +90,7 @@ class LinkTooltipView {
 
     handleScroll = () => {
         if (this.dom.hasAttribute('data-editing')) {
+            this.reposition();
             return;
         }
         if (this.activeLink) {
@@ -143,7 +181,7 @@ class LinkTooltipView {
             if (nodeBeforeHasLink && nodeAfterHasLink) {
                 this.show(link);
             }
-        }, 500);
+        }, LINK_TOOLTIP_SHOW_DELAY);
     }
 
     clearShowTimer() {
@@ -167,13 +205,50 @@ class LinkTooltipView {
         }
     }
 
-    updatePosition(link: HTMLElement) {
-        const rect = link.getBoundingClientRect();
-        const scrollTop = window.scrollY || document.documentElement.scrollTop;
-        const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
+    applyPosition(anchor: LinkTooltipAnchor) {
+        const isEditing = this.dom.hasAttribute('data-editing');
+        const position = resolveLinkTooltipPosition({
+            view: this.view,
+            positionRoot: this.positionRoot,
+            tooltipElement: this.dom,
+            anchor,
+            isEditing,
+        });
 
-        this.dom.style.top = `${rect.bottom + scrollTop + 8}px`;
-        this.dom.style.left = `${rect.left + scrollLeft}px`;
+        this.dom.style.left = `${position.x}px`;
+        this.dom.style.top = `${position.y}px`;
+        this.dom.style.transform = position.transform;
+        this.dom.style.transformOrigin = position.transformOrigin;
+    }
+
+    clearVisibleSelection() {
+        const pluginState = linkTooltipPluginKey.getState(this.view.state) as LinkTooltipPluginState | undefined;
+        if (
+            !pluginState ||
+            pluginState.visibleSelectionFrom == null ||
+            pluginState.visibleSelectionTo == null
+        ) {
+            return;
+        }
+
+        this.view.dispatch(
+            this.view.state.tr.setMeta(linkTooltipPluginKey, {
+                type: 'CLEAR_LINK_TOOLTIP_SELECTION',
+            })
+        );
+    }
+
+    reposition() {
+        if (this.dom.classList.contains('hidden') || !this.activeAnchor) {
+            return;
+        }
+
+        if (this.activeAnchor.type === 'link' && !document.contains(this.activeAnchor.link)) {
+            this.hide();
+            return;
+        }
+
+        this.applyPosition(this.activeAnchor);
     }
 
     handleEdit = (link: HTMLElement, text: string, url: string, shouldClose: boolean = false) => {
@@ -280,6 +355,7 @@ class LinkTooltipView {
         }
 
         this.activeLink = link;
+        this.activeAnchor = { type: 'link', link };
         link.classList.add('link-active-state');
 
         const href = link.getAttribute('href') || link.getAttribute('data-href');
@@ -299,8 +375,8 @@ class LinkTooltipView {
         );
 
         this.dom.classList.remove('hidden');
-        this.updatePosition(link);
-        requestAnimationFrame(() => this.updatePosition(link));
+        this.applyPosition(this.activeAnchor);
+        requestAnimationFrame(() => this.reposition());
     }
 
     handleUnlink = (link: HTMLElement) => {
@@ -340,6 +416,8 @@ class LinkTooltipView {
 
         this.dom.classList.add('hidden');
         this.activeLink = null;
+        this.activeAnchor = null;
+        this.clearVisibleSelection();
     }
 
     update(view: EditorView, prevState?: EditorState) {
@@ -430,6 +508,7 @@ class LinkTooltipView {
         const selectedText = state.doc.textBetween(from, to, '');
 
         this.activeLink = null;
+        this.activeAnchor = { type: 'range', from, to };
 
         this.root?.render(
             <LinkTooltip
@@ -444,21 +523,9 @@ class LinkTooltipView {
         );
 
         this.dom.classList.remove('hidden');
-        this.updatePositionFromCoords(from, to);
-    }
-
-    updatePositionFromCoords(from: number, to: number) {
         try {
-            const startCoords = this.view.coordsAtPos(from);
-            const endCoords = this.view.coordsAtPos(to);
-            const scrollTop = window.scrollY || document.documentElement.scrollTop;
-            const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
-
-            const left = (startCoords.left + endCoords.right) / 2;
-            const bottom = Math.max(startCoords.bottom, endCoords.bottom);
-
-            this.dom.style.top = `${bottom + scrollTop + 8}px`;
-            this.dom.style.left = `${left + scrollLeft}px`;
+            this.applyPosition(this.activeAnchor);
+            requestAnimationFrame(() => this.reposition());
         } catch (e) {
             console.warn('[LinkTooltipPlugin] Failed to get coords:', e);
         }
@@ -484,6 +551,7 @@ class LinkTooltipView {
         tr.setSelection(TextSelection.create(tr.doc, newLinkEnd));
 
         dispatch(tr);
+        this.clearVisibleSelection();
 
         if (shouldClose) {
             this.hide();
@@ -527,6 +595,8 @@ class LinkTooltipView {
         window.removeEventListener('scroll', this.handleScroll, true);
         this.view.dom.removeEventListener('keydown', this.handleEditorKeyDown);
         document.removeEventListener('keydown', this.handleGlobalKeyDown, true);
+        this.resizeObserver?.disconnect();
+        this.mutationObserver?.disconnect();
         this.dom.remove();
         this.root?.unmount();
     }
@@ -536,23 +606,78 @@ export const linkTooltipPlugin = $prose(() => {
     return new Plugin({
         key: linkTooltipPluginKey,
         state: {
-            init: () => ({ shouldShow: false, from: 0, to: 0, handled: false }),
+            init: (): LinkTooltipPluginState => ({
+                shouldShow: false,
+                from: 0,
+                to: 0,
+                handled: false,
+                visibleSelectionFrom: null,
+                visibleSelectionTo: null,
+            }),
             apply(tr, value) {
                 const meta = tr.getMeta(linkTooltipPluginKey);
+                const nextValue = tr.docChanged
+                    ? {
+                        ...value,
+                        visibleSelectionFrom: value.visibleSelectionFrom == null
+                            ? null
+                            : tr.mapping.map(value.visibleSelectionFrom),
+                        visibleSelectionTo: value.visibleSelectionTo == null
+                            ? null
+                            : tr.mapping.map(value.visibleSelectionTo),
+                    }
+                    : value;
 
                 // New show request
                 if (meta && meta.type === 'SHOW_LINK_TOOLTIP') {
-                    return { shouldShow: true, from: meta.from, to: meta.to, handled: false };
+                    return {
+                        ...nextValue,
+                        shouldShow: true,
+                        from: meta.from,
+                        to: meta.to,
+                        handled: false,
+                        visibleSelectionFrom: meta.from,
+                        visibleSelectionTo: meta.to,
+                    };
                 }
 
                 // Clear request
                 if (meta && meta.type === 'CLEAR_LINK_TOOLTIP') {
-                    return { shouldShow: false, from: 0, to: 0, handled: false };
+                    return { ...nextValue, shouldShow: false, from: 0, to: 0, handled: false };
+                }
+
+                if (meta && meta.type === 'CLEAR_LINK_TOOLTIP_SELECTION') {
+                    return {
+                        ...nextValue,
+                        visibleSelectionFrom: null,
+                        visibleSelectionTo: null,
+                    };
                 }
 
                 // Preserve existing state for other transactions
-                return value;
+                return nextValue;
             }
+        },
+        props: {
+            decorations(state) {
+                const pluginState = linkTooltipPluginKey.getState(state) as LinkTooltipPluginState | undefined;
+                if (
+                    !pluginState ||
+                    pluginState.visibleSelectionFrom == null ||
+                    pluginState.visibleSelectionTo == null ||
+                    pluginState.visibleSelectionFrom >= pluginState.visibleSelectionTo
+                ) {
+                    return null;
+                }
+
+                return DecorationSet.create(state.doc, [
+                    Decoration.inline(
+                        pluginState.visibleSelectionFrom,
+                        pluginState.visibleSelectionTo,
+                        { class: 'neko-link-selection-visible' }
+                    ),
+                ]);
+            },
         },
         view(editorView) {
             const tooltipView = new LinkTooltipView(editorView);

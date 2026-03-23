@@ -3,10 +3,10 @@ import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import type { FloatingToolbarState, ToolbarMeta } from './types';
 import { getLinkUrl } from './selectionHelpers';
 import { setLink, toggleMark } from './commands';
-import { linkTooltipPluginKey } from '../links';
 import { isFloatingToolbarSuppressed } from './floatingToolbarDom';
 import { createFloatingToolbarPluginView } from './floatingToolbarPluginView';
 import { applyToolbarMeta, createInitialState } from './floatingToolbarState';
+import { openLinkTooltipFromSelection } from './linkTooltipActions';
 
 export const floatingToolbarKey = new PluginKey<FloatingToolbarState>('floatingToolbar');
 
@@ -80,15 +80,7 @@ export const floatingToolbarPlugin = $prose(() => {
                 return true;
               }
 
-              const { from, to } = view.state.selection;
-              view.dispatch(
-                view.state.tr.setMeta(linkTooltipPluginKey, {
-                  type: 'SHOW_LINK_TOOLTIP',
-                  from,
-                  to,
-                })
-              );
-              view.focus();
+              openLinkTooltipFromSelection(view);
               return true;
             }
             case 'h': event.preventDefault(); toggleMark(view, 'highlight'); return true;
