@@ -4,6 +4,7 @@ import { Plugin, PluginKey, Selection } from '@milkdown/kit/prose/state';
 import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Parser, Serializer } from '@milkdown/kit/transformer';
+import { collapseSelectionAndHideFloatingToolbar } from './copyCleanup';
 import { sanitizeHtml } from './sanitizer';
 import { serializeSelectionToClipboardText } from './selectionSerialization';
 import { writeTextToClipboard } from '../cursor/blockSelectionCommands';
@@ -92,7 +93,9 @@ export const clipboardPlugin = $prose((ctx) => {
                 if (text.length === 0) return false;
 
                 event.preventDefault();
-                void writeTextToClipboard(text);
+                void writeTextToClipboard(text).then(() => {
+                    collapseSelectionAndHideFloatingToolbar(view);
+                });
                 return true;
             },
             handleDOMEvents: {
@@ -105,6 +108,7 @@ export const clipboardPlugin = $prose((ctx) => {
 
                     event.preventDefault();
                     event.clipboardData?.setData('text/plain', text);
+                    collapseSelectionAndHideFloatingToolbar(view);
 
                     return true;
                 }

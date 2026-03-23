@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { DEFAULT_HEIGHT } from '../../../utils/coverUtils';
+import { DEFAULT_HEIGHT } from '../../../../utils/coverConstants';
 
 interface UseCoverStateProps {
   initialHeight?: number;
@@ -43,8 +43,6 @@ export function useCoverState({
     }
   }, [onPickerOpenChange]);
 
-  // Sync zoom only when external scale prop changes.
-  // This avoids overriding in-progress wheel/keyboard zoom with stale prop values.
   useEffect(() => {
     const safeZoom = Math.max(scale, 1);
     setZoom((prevZoom) => (Math.abs(prevZoom - safeZoom) > 0.0001 ? safeZoom : prevZoom));

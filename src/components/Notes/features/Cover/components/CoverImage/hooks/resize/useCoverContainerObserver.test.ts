@@ -61,6 +61,31 @@ describe('useCoverContainerObserver', () => {
     resizeObserverState.reset();
   });
 
+  it('captures container size immediately on mount before resize observer emits', () => {
+    const el = document.createElement('div');
+    vi.spyOn(el, 'getBoundingClientRect').mockReturnValue({
+      width: 640,
+      height: 240,
+      top: 0,
+      left: 0,
+      right: 640,
+      bottom: 240,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    const { result } = renderHook(() => {
+      const containerRef = useRef<HTMLDivElement | null>(el);
+      const isManualResizingRef = useRef(false);
+      const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+      useCoverContainerObserver({ containerRef, isManualResizingRef, setContainerSize: setSize });
+      return size;
+    });
+
+    expect(result.current).toEqual({ width: 640, height: 240 });
+  });
+
   it('ignores zero-sized resize entries and keeps previous size', () => {
     const { result } = renderHook(() => {
       const containerRef = useRef<HTMLDivElement>(document.createElement('div'));

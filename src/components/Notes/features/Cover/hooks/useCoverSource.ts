@@ -1,5 +1,5 @@
 import { useReducer, useRef, useEffect, useCallback } from 'react';
-import { loadImageWithDimensions } from '../utils/coverUtils';
+import { loadImageWithDimensions } from '../utils/coverDimensionCache';
 import { resolveCoverAssetUrl } from '../utils/resolveCoverAssetUrl';
 import { coverSourceReducer, initialCoverSourceState } from './coverSourceState';
 
@@ -9,9 +9,6 @@ interface UseCoverSourceProps {
 }
 
 export function useCoverSource({ url, vaultPath }: UseCoverSourceProps) {
-    // Sync resolution is removed to avoid fragile synchronous path building.
-    // We rely on the async effect for robustness.
-    
     const [state, dispatch] = useReducer(coverSourceReducer, initialCoverSourceState);
 
     const prevSrcRef = useRef<string | null>(null);

@@ -33,6 +33,10 @@ interface UIStore {
   toggleSidebar: () => void;
   sidebarWidth: number;
   setSidebarWidth: (width: number) => void;
+  layoutPanelDragging: boolean;
+  setLayoutPanelDragging: (dragging: boolean) => void;
+  windowResizeActive: boolean;
+  setWindowResizeActive: (active: boolean) => void;
 
   sidebarHeaderHovered: boolean;
   setSidebarHeaderHovered: (hovered: boolean) => void;
@@ -46,6 +50,8 @@ interface UIStore {
   setDrawerOpen: (open: boolean) => void;
   toggleDrawer: () => void;
 
+  notesSidebarSearchOpen: boolean;
+  setNotesSidebarSearchOpen: (open: boolean) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
 
@@ -185,6 +191,10 @@ export const useUIStore = create<UIStore>()((set) => ({
     localStorage.setItem(STORAGE_KEY_SIDEBAR_WIDTH, String(width));
     set({ sidebarWidth: width });
   },
+  layoutPanelDragging: false,
+  setLayoutPanelDragging: (dragging) => set({ layoutPanelDragging: dragging }),
+  windowResizeActive: false,
+  setWindowResizeActive: (active) => set({ windowResizeActive: active }),
   sidebarHeaderHovered: false,
   setSidebarHeaderHovered: (hovered) => set({ sidebarHeaderHovered: hovered }),
   notesSidebarView: 'workspace',
@@ -203,6 +213,8 @@ export const useUIStore = create<UIStore>()((set) => ({
   setDrawerOpen: (open) => set({ drawerOpen: open }),
   toggleDrawer: () => set((state) => ({ drawerOpen: !state.drawerOpen })),
 
+  notesSidebarSearchOpen: false,
+  setNotesSidebarSearchOpen: (open) => set({ notesSidebarSearchOpen: open }),
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),
 

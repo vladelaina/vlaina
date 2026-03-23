@@ -1,8 +1,24 @@
 import { AnimationLab } from './playground/AnimationLab';
 import { AiToolbarDropdownLab } from './playground/AiToolbarDropdownLab';
 import { TopLeftEvolutionLab } from './playground/TopLeftEvolutionLab';
+import { CoreNavigationLab } from './playground/CoreNavigationLab';
+import { SidebarResizeLab } from './playground/SidebarResizeLab';
 
 export const LAB_MODULES = [
+  {
+    id: 'sidebar-resize',
+    label: 'Sidebar Resize',
+    icon: 'misc.animation',
+    component: SidebarResizeLab,
+    description: '30 interaction directions for improving sidebar drag feel, discovery, and commit behavior.'
+  },
+  {
+    id: 'core-navigation',
+    label: 'Navigation Director',
+    icon: 'misc.animation',
+    component: CoreNavigationLab,
+    description: '30 Apple-style architectural solutions for Chat & Notes switching.'
+  },
   {
     id: 'top-left-evolution',
     label: 'Top-Left Evolution',

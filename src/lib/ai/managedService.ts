@@ -31,6 +31,24 @@ export function isManagedProviderId(providerId: string | null | undefined): bool
   return providerId === MANAGED_PROVIDER_ID;
 }
 
+export function isManagedServiceRecoverableError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+
+  if (error.message === MANAGED_AUTH_REQUIRED_ERROR) {
+    return true;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('failed to fetch') ||
+    message.includes('networkerror') ||
+    message.includes('load failed') ||
+    message.includes('error sending request') ||
+    message.includes('timed out') ||
+    message.includes('aborterror')
+  );
+}
+
 export function createManagedProvider(now: number): Provider {
   return {
     id: MANAGED_PROVIDER_ID,

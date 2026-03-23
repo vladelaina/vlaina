@@ -3,19 +3,6 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockRange } from './blockSelectionUtils';
 import { prepareBlockMove, resolveBlockMoveContext } from './blockControlsMoveCore';
 
-const BLOCK_DRAG_DEBUG_FLAG = '__NEKO_DEBUG_BLOCK_DRAG__';
-
-function logBlockDragDebug(message: string, error?: unknown): void {
-  if (typeof window === 'undefined') return;
-  const debugEnabled = Boolean((window as unknown as Record<string, unknown>)[BLOCK_DRAG_DEBUG_FLAG]);
-  if (!debugEnabled) return;
-  if (error) {
-    console.warn('[BlockDrag]', message, error);
-    return;
-  }
-  console.warn('[BlockDrag]', message);
-}
-
 export function canApplyBlockMove(view: EditorView, selectedRanges: readonly BlockRange[], insertPos: number): boolean {
   const moveContext = resolveBlockMoveContext(view, selectedRanges, insertPos);
   if (!moveContext) return false;
@@ -36,8 +23,7 @@ export function applyBlockMove(view: EditorView, selectedRanges: readonly BlockR
     view.dispatch(tr);
     view.focus();
     return true;
-  } catch (error) {
-    logBlockDragDebug('applyBlockMove failed', error);
+  } catch {
     return false;
   }
 }

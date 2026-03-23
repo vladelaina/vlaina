@@ -51,6 +51,89 @@ describe('selectionSerialization', () => {
     expect(createAndFill).toHaveBeenCalledWith(undefined, slice.content);
   });
 
+  it('copies a single bullet list item without list syntax', () => {
+    const slice = {
+      content: {
+        size: 1,
+        forEach(callback: (node: unknown) => void) {
+          callback({
+            type: { name: 'bullet_list' },
+            content: {
+              forEach(listCallback: (node: unknown) => void) {
+                listCallback({
+                  type: { name: 'list_item' },
+                  content: {
+                    forEach(itemCallback: (node: unknown) => void) {
+                      itemCallback({
+                        type: { name: 'paragraph' },
+                        isBlock: true,
+                        content: {
+                          size: 1,
+                          forEach(textCallback: (node: unknown) => void) {
+                            textCallback({
+                              isText: true,
+                              text: 'Only item',
+                              marks: [],
+                              type: { name: 'text' },
+                            });
+                          },
+                        },
+                      });
+                    },
+                  },
+                });
+              },
+            },
+          });
+        },
+      },
+    };
+    const serializer = vi.fn(() => '- Only item\n');
+    const state: any = {
+      selection: {
+        from: 10,
+        to: 20,
+        content: () => slice,
+      },
+      doc: {
+        slice: vi.fn(),
+      },
+      schema: {
+        topNodeType: {
+          createAndFill: vi.fn(() => ({ type: 'doc' })),
+        },
+      },
+    };
+
+    expect(serializeSelectionToClipboardText(state, serializer)).toBe('Only item');
+    expect(serializer).not.toHaveBeenCalled();
+  });
+
+  it('keeps markdown syntax for multi-item lists', () => {
+    const slice = {
+      content: { size: 1 },
+    };
+    const serializer = vi.fn(() => '- First\n- Second\n');
+    const state: any = {
+      selection: {
+        from: 10,
+        to: 20,
+        content: () => slice,
+      },
+      doc: {
+        slice: vi.fn(),
+      },
+      schema: {
+        topNodeType: {
+          createAndFill: vi.fn(() => ({ type: 'doc' })),
+        },
+      },
+    };
+
+    expect(serializeSelectionToClipboardText(state, serializer)).toBe('- First\n- Second');
+    expect(serializer).toHaveBeenCalled();
+  });
+
   it('falls back to plain-text slice serialization', () => {
     const slice = {
       content: {

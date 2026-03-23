@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { DEFAULT_POSITION_PERCENT, DEFAULT_SCALE, loadImageWithDimensions } from '../../../utils/coverUtils';
-import { useCoverSource } from '../../../hooks/useCoverSource';
-import { resolveCoverAssetUrl } from '../../../utils/resolveCoverAssetUrl';
+import { DEFAULT_POSITION_PERCENT, DEFAULT_SCALE } from '../../../../utils/coverConstants';
+import { loadImageWithDimensions } from '../../../../utils/coverDimensionCache';
+import { useCoverSource } from '../../../../hooks/useCoverSource';
+import { resolveCoverAssetUrl } from '../../../../utils/resolveCoverAssetUrl';
 import { resolveCoverFlowPhase } from './coverSelectionPhase';
 
 interface UseCoverSelectionFlowOptions {

@@ -1,5 +1,5 @@
 import { useLayoutEffect } from 'react';
-import { DEFAULT_SCALE } from '../../../utils/coverUtils';
+import { DEFAULT_SCALE } from '../../../../utils/coverConstants';
 
 interface UseCoverPreviewResetProps {
   previewSrc: string | null;

@@ -209,7 +209,13 @@ export function useNotesOutline(enabled: boolean) {
     };
   }, [enabled, syncActiveHeading]);
 
-  const jumpToHeading = useCallback((headingId: string) => {
+  const jumpToHeading = useCallback((
+    headingId: string,
+    options?: {
+      behavior?: ScrollBehavior;
+      selectText?: boolean;
+    },
+  ) => {
     const headingElement = elementMapRef.current.get(headingId);
     const scrollRoot = scrollRootRef.current;
     if (!headingElement || !scrollRoot) return;
@@ -226,11 +232,20 @@ export function useNotesOutline(enabled: boolean) {
 
     scrollRoot.scrollTo({
       top: targetScrollTop,
-      behavior: 'smooth',
+      behavior: options?.behavior ?? 'smooth',
     });
 
     const editorRoot = document.querySelector<HTMLElement>(EDITOR_ROOT_SELECTOR);
     editorRoot?.focus({ preventScroll: true });
+    if (options?.selectText) {
+      const selection = window.getSelection();
+      if (selection) {
+        const range = document.createRange();
+        range.selectNodeContents(headingElement);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
     setActiveId(headingId);
   }, []);
 

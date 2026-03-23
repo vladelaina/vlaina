@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { calculateCropPixels } from '../../../utils/coverUtils';
+import { calculateCropPixels } from '../../../../utils/coverGeometry';
 
 interface UseCoverPositionSyncProps {
   positionX: number;

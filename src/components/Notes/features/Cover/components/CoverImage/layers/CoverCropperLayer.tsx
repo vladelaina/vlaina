@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import type { LoadedCoverMedia } from '../coverRenderer.types';
-import { getBaseDimensions } from '../../../utils/coverUtils';
-import { useCoverCropperInteraction } from '../hooks/useCoverCropperInteraction';
+import { getBaseDimensions } from '../../../utils/coverGeometry';
+import { useCoverCropperInteraction } from '../hooks/interaction/useCoverCropperInteraction';
 
 interface CoverCropperLayerProps {
   displaySrc: string;
   isImageReady: boolean;
   isResizing: boolean;
+  isSuspended?: boolean;
   mediaSize: { width: number; height: number } | null;
   wrapperRef: React.RefObject<HTMLDivElement | null>;
   crop: { x: number; y: number };
@@ -30,6 +31,7 @@ export function CoverCropperLayer({
   displaySrc,
   isImageReady,
   isResizing,
+  isSuspended = false,
   mediaSize,
   wrapperRef,
   crop,
@@ -135,12 +137,14 @@ export function CoverCropperLayer({
     (wrapperRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
   }, [bindWheelTarget, wrapperRef]);
 
-  if (isResizing) return null;
-
   return (
     <div
       ref={setWrapperNode}
-      className={cn('absolute -inset-px', isImageReady ? 'opacity-100' : 'opacity-0')}
+      className={cn(
+        'absolute -inset-px',
+        isResizing || isSuspended ? 'opacity-0 pointer-events-none' : isImageReady ? 'opacity-100' : 'opacity-0',
+        displaySrc ? 'cursor-move' : 'cursor-default'
+      )}
       style={{
         willChange: 'transform',
         touchAction: 'none',

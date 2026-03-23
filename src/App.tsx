@@ -6,6 +6,9 @@ import { LogicalSize } from '@tauri-apps/api/dpi';
 
 import { AppShell } from '@/components/layout/shell/AppShell';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Icon } from '@/components/ui/icons';
+import { cn, iconButtonStyles } from '@/lib/utils';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
 import { useAIStore } from '@/stores/useAIStore';
@@ -77,16 +80,13 @@ function AppContent() {
 
   useEffect(() => {
     const handleOpenSettings = () => setSettingsOpen(prev => !prev)
-    const handleOpenLab = () => setAppViewMode('lab') // Switch view to Lab
-    
+
     window.addEventListener('open-settings', handleOpenSettings)
-    window.addEventListener('open-lab', handleOpenLab)
-    
+
     return () => {
         window.removeEventListener('open-settings', handleOpenSettings)
-        window.removeEventListener('open-lab', handleOpenLab)
     }
-  }, [setAppViewMode])
+  }, [])
 
   useShortcuts();
 
@@ -178,6 +178,30 @@ function AppContent() {
     );
   }
 
+  const showLabEntry = import.meta.env.DEV && appViewMode !== 'lab';
+  const mainOverlay = showLabEntry ? (
+    <div className="pointer-events-none absolute bottom-3 left-2 z-30">
+      <Tooltip delayDuration={700}>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={() => setAppViewMode('lab')}
+            aria-label="Open Design Lab"
+            className={cn(
+              "pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[#eff3f4] bg-white/92 shadow-sm backdrop-blur-sm transition-colors hover:bg-[#f5f5f5]",
+              iconButtonStyles
+            )}
+          >
+            <Icon name="misc.lab" size="md" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right" sideOffset={8}>
+          <span className="text-xs">Open Design Lab</span>
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  ) : null;
+
   return (
     <DndContext sensors={sensors}>
       <Suspense fallback={null}>
@@ -199,6 +223,7 @@ function AppContent() {
         }
         titleBarCenter={centerSlot}
         titleBarRight={rightSlot}
+        mainOverlay={mainOverlay}
 
         backgroundColor="var(--neko-sidebar-bg)"
       >

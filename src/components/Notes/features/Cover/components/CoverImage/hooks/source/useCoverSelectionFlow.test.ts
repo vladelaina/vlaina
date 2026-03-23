@@ -23,9 +23,12 @@ vi.mock('@/lib/assets/builtinCovers', () => ({
   getBuiltinCoverUrl: hoisted.getBuiltinCoverUrl,
 }));
 
-vi.mock('../../../utils/coverUtils', () => ({
+vi.mock('../../../../utils/coverConstants', () => ({
   DEFAULT_POSITION_PERCENT: 50,
   DEFAULT_SCALE: 1,
+}));
+
+vi.mock('../../../../utils/coverDimensionCache', () => ({
   loadImageWithDimensions: hoisted.loadImageWithDimensions,
 }));
 

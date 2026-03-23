@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 import { SidebarContent } from './SidebarContent';
@@ -22,6 +23,31 @@ export function NotesSidebarPanel({
   isPeeking = false,
 }: NotesSidebarPanelProps) {
   const sidebarView = useUIStore((s) => s.notesSidebarView);
+  const setSidebarView = useUIStore((s) => s.setNotesSidebarView);
+  const setSearchQuery = useUIStore((s) => s.setSearchQuery);
+  const setNotesSidebarSearchOpen = useUIStore((s) => s.setNotesSidebarSearchOpen);
+
+  useEffect(() => {
+    const handleOpenSearch = () => {
+      const { notesSidebarSearchOpen } = useUIStore.getState();
+      if (notesSidebarSearchOpen) {
+        setNotesSidebarSearchOpen(false);
+        setSearchQuery('');
+        return;
+      }
+
+      setSidebarView('workspace');
+      setNotesSidebarSearchOpen(true);
+    };
+
+    window.addEventListener('neko-open-search', handleOpenSearch);
+    return () => window.removeEventListener('neko-open-search', handleOpenSearch);
+  }, [setNotesSidebarSearchOpen, setSearchQuery, setSidebarView]);
+
+  useEffect(() => {
+    setNotesSidebarSearchOpen(false);
+    setSearchQuery('');
+  }, [setNotesSidebarSearchOpen, setSearchQuery, sidebarView]);
 
   return (
     <NotesSidebarSurface isPeeking={isPeeking} className="min-h-0">

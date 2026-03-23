@@ -3,9 +3,9 @@ import {
   calculateCropPercentage,
   calculateCropPixels,
   getBaseDimensions,
-} from './coverUtils';
+} from './coverGeometry';
 
-describe('coverUtils', () => {
+describe('coverGeometry', () => {
   it('returns zero crop pixels for centered position', () => {
     const crop = calculateCropPixels(
       { x: 50, y: 50 },

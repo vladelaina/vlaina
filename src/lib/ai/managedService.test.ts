@@ -79,6 +79,19 @@ describe('managedService', () => {
     expect(clearClientSessionMock).toHaveBeenCalledTimes(1);
   });
 
+  it('treats auth and network failures as recoverable managed service errors', async () => {
+    const { isManagedServiceRecoverableError, MANAGED_AUTH_REQUIRED_ERROR } = await import('./managedService');
+
+    expect(isManagedServiceRecoverableError(new Error(MANAGED_AUTH_REQUIRED_ERROR))).toBe(true);
+    expect(
+      isManagedServiceRecoverableError(
+        new Error('Managed API request failed: error sending request for url (https://api.nekotick.com/v1/models)')
+      )
+    ).toBe(true);
+    expect(isManagedServiceRecoverableError(new Error('Failed to fetch'))).toBe(true);
+    expect(isManagedServiceRecoverableError(new Error('Unexpected JSON shape'))).toBe(false);
+  });
+
   it('keeps desktop managed model requests inside tauri commands', async () => {
     hasBackendCommandsMock.mockReturnValue(true);
     getManagedModelsMock.mockResolvedValue({

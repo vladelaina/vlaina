@@ -280,7 +280,10 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
         className="flex-1 overflow-auto neko-scrollbar flex flex-col items-center relative"
         data-note-scroll-root="true"
       >
-        <NoteCoverCanvas controller={coverController} />
+        <NoteCoverCanvas
+          controller={coverController}
+          notePath={currentNotePath}
+        />
 
         <div
           className="w-full flex flex-col items-center"

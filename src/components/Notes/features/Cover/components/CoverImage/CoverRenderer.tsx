@@ -7,9 +7,13 @@ export type { CoverRendererProps, LoadedCoverMedia } from './coverRenderer.types
 
 export const CoverRenderer = React.memo(({
   displaySrc,
+  layoutPanelDragging = false,
+  isWindowResizing = false,
+  isContainerResizing = false,
   placeholderSrc,
   isImageReady,
   isResizing,
+  isResizeSettling,
   mediaSize,
   wrapperRef,
   frozenImgRef,
@@ -31,6 +35,19 @@ export const CoverRenderer = React.memo(({
   positionX,
   positionY
 }: CoverRendererProps) => {
+  const frozenLayerVisible = Boolean(frozenImageState) && (isResizing || isResizeSettling);
+  const placeholderFallbackVisible =
+    !isImageReady ||
+    layoutPanelDragging ||
+    isWindowResizing ||
+    isContainerResizing ||
+    (isResizing && !frozenLayerVisible);
+  const renderPath = frozenLayerVisible
+    ? 'frozen'
+    : placeholderFallbackVisible
+      ? 'placeholder'
+      : 'cropper';
+
   return (
     <>
       <CoverPlaceholderLayer
@@ -38,11 +55,14 @@ export const CoverRenderer = React.memo(({
         isImageReady={isImageReady}
         positionX={positionX}
         positionY={positionY}
+        zoom={zoom}
+        forceVisible={placeholderFallbackVisible}
       />
       <CoverCropperLayer
         displaySrc={displaySrc}
         isImageReady={isImageReady}
         isResizing={isResizing}
+        isSuspended={layoutPanelDragging || isWindowResizing || isContainerResizing || (isResizing && frozenLayerVisible)}
         mediaSize={mediaSize}
         wrapperRef={wrapperRef}
         crop={crop}
@@ -62,7 +82,7 @@ export const CoverRenderer = React.memo(({
       />
       <CoverFrozenLayer
         displaySrc={displaySrc}
-        isResizing={isResizing}
+        isVisible={frozenLayerVisible}
         frozenImgRef={frozenImgRef}
         frozenImageState={frozenImageState}
       />

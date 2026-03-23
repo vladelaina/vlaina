@@ -9,9 +9,13 @@ export interface LoadedCoverMedia {
 
 export interface CoverRendererProps {
   displaySrc: string;
+  layoutPanelDragging?: boolean;
+  isWindowResizing?: boolean;
+  isContainerResizing?: boolean;
   placeholderSrc?: string;
   isImageReady: boolean;
   isResizing: boolean;
+  isResizeSettling: boolean;
   mediaSize: { width: number; height: number } | null;
   wrapperRef: RefObject<HTMLDivElement | null>;
   frozenImgRef: RefObject<HTMLImageElement | null>;

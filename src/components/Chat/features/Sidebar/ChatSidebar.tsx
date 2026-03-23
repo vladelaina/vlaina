@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef, useState } from 'react';
+import { useMemo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
@@ -34,7 +34,11 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const renameInputRef = useRef<HTMLInputElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const overscrollDistanceRef = useRef(0);
   const preventNextMenuAutoFocusRef = useRef(false);
   const visibleSessions = useMemo(
     () => sessions.filter((session) => !isTemporarySession(session)),
@@ -55,14 +59,19 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
     });
   }, [renamingSessionId]);
 
-  useEffect(() => {
-    const handleCreateNew = (e: Event) => {
-        const customEvent = e as CustomEvent;
-        if (customEvent.detail?.view === 'chat') {
-            openNewChat();
-        }
-    };
+  useLayoutEffect(() => {
+    if (!isSearchOpen) {
+      return;
+    }
 
+    const frameId = window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus({ preventScroll: true });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isSearchOpen]);
+
+  useEffect(() => {
     const handleDeleteChat = (e: Event) => {
         const customEvent = e as CustomEvent;
         if (customEvent.detail?.id) {
@@ -70,14 +79,27 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
         }
     };
 
-    window.addEventListener('neko-create-new', handleCreateNew);
     window.addEventListener('neko-delete-chat', handleDeleteChat);
 
     return () => {
-        window.removeEventListener('neko-create-new', handleCreateNew);
         window.removeEventListener('neko-delete-chat', handleDeleteChat);
     };
-  }, [openNewChat]);
+  }, []);
+
+  useEffect(() => {
+    const handleOpenSearch = () => {
+      setIsSearchOpen((previous) => {
+        const next = !previous;
+        if (!next) {
+          setSearchQuery('');
+        }
+        return next;
+      });
+    };
+
+    window.addEventListener('neko-open-search', handleOpenSearch);
+    return () => window.removeEventListener('neko-open-search', handleOpenSearch);
+  }, []);
 
   const sortedSessions = useMemo(() => {
     return [...visibleSessions].sort((a, b) => {
@@ -88,6 +110,17 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
       return b.updatedAt - a.updatedAt;
     });
   }, [visibleSessions]);
+
+  const filteredSessions = useMemo(() => {
+    const trimmedQuery = searchQuery.trim().toLowerCase();
+    if (!trimmedQuery) {
+      return [];
+    }
+
+    return sortedSessions.filter((session) =>
+      (session.title || 'New Chat').toLowerCase().includes(trimmedQuery)
+    );
+  }, [searchQuery, sortedSessions]);
 
   const handleRename = (sessionId: string, currentTitle: string) => {
       setRenamingSessionId(sessionId);
@@ -120,19 +153,112 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
       switchSession(sessionId);
   };
 
+  const hideSearch = () => {
+    overscrollDistanceRef.current = 0;
+    setIsSearchOpen(false);
+    setSearchQuery('');
+  };
+
   const hasSessions = visibleSessions.length > 0;
+  const sessionsToRender = isSearchOpen ? filteredSessions : sortedSessions;
 
   return (
     <>
       <ChatSidebarSurface isPeeking={isPeeking}>
-        <ChatSidebarScrollArea>
-          {!hasSessions ? (
+        {isSearchOpen ? (
+          <div className="px-1 pt-1 pb-1">
+            <div className="flex items-center gap-2 rounded-xl border border-[var(--neko-border)] bg-white px-3 py-1 shadow-none">
+              <Icon name="common.search" size="md" className="text-[var(--neko-text-tertiary)]" />
+              <input
+                ref={searchInputRef}
+                autoFocus
+                type="text"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    hideSearch();
+                    return;
+                  }
+                  if (event.key === 'Enter' && filteredSessions[0]) {
+                    event.preventDefault();
+                    handleSwitch(filteredSessions[0].id, isSessionUnread(filteredSessions[0].id));
+                    hideSearch();
+                  }
+                }}
+                placeholder="Search chats..."
+                className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--neko-text-primary)] outline-none placeholder:text-[var(--neko-text-tertiary)]"
+              />
+              <button
+                type="button"
+                onClick={() => hideSearch()}
+                aria-label="Close chat search"
+                className="rounded-md p-0.5 text-[var(--neko-text-tertiary)] transition-colors hover:bg-[var(--neko-hover)] hover:text-[var(--neko-text-primary)]"
+              >
+                <Icon name="common.close" size="md" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="px-1 pt-1 pb-1">
+            <button
+              type="button"
+              onClick={openNewChat}
+              className={cn(
+                'flex min-h-9 w-full items-center gap-2 rounded-xl bg-transparent px-3 py-2 text-sm font-medium text-[var(--chat-sidebar-text)] shadow-none transition-colors hover:bg-[var(--chat-sidebar-row-hover)] hover:shadow-none'
+              )}
+            >
+              <Icon name="common.compose" size="md" />
+              <span className="truncate">New Chat</span>
+            </button>
+          </div>
+        )}
+
+        <ChatSidebarScrollArea
+          onScroll={(event) => {
+            if (event.currentTarget.scrollTop > 0) {
+              overscrollDistanceRef.current = 0;
+            }
+          }}
+          onWheelCapture={(event) => {
+            const currentTarget = event.currentTarget;
+            if (isSearchOpen) {
+              if (currentTarget.scrollTop === 0 && event.deltaY < 0) {
+                event.preventDefault();
+                return;
+              }
+              if (currentTarget.scrollTop === 0 && event.deltaY > 0 && !searchQuery.trim()) {
+                hideSearch();
+              }
+              return;
+            }
+
+            if (currentTarget.scrollTop > 0) {
+              overscrollDistanceRef.current = 0;
+              return;
+            }
+            if (event.deltaY >= 0) {
+              overscrollDistanceRef.current = 0;
+              return;
+            }
+
+            overscrollDistanceRef.current += Math.abs(event.deltaY);
+            if (overscrollDistanceRef.current < 56) {
+              return;
+            }
+
+            event.preventDefault();
+            setIsSearchOpen(true);
+          }}
+        >
+          {!isSearchOpen && !hasSessions ? (
              <div className="px-4 py-8 text-center text-xs text-[var(--chat-sidebar-text-soft)]">
                 No conversations yet
               </div>
           ) : (
             <ChatSidebarList>
-              {sortedSessions.map(session => {
+              {sessionsToRender.map(session => {
                 const isActive = currentSessionId === session.id;
                 const isGenerating = isSessionLoading(session.id);
                 const isUnread = isSessionUnread(session.id);
@@ -157,6 +283,9 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                         return;
                       }
                       handleSwitch(session.id, isUnread);
+                      if (isSearchOpen) {
+                        hideSearch();
+                      }
                     }}
                     main={
                       isRenaming ? (

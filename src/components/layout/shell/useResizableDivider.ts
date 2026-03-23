@@ -11,6 +11,8 @@ interface UseResizableDividerOptions {
   maxWidth: number;
   defaultWidth: number;
   onWidthChange: (width: number) => void;
+  onWidthCommit?: (width: number) => void;
+  onDragStateChange?: (isDragging: boolean) => void;
   direction?: 'normal' | 'reverse';
   snap?: ResizableSnapOptions;
   useOverlay?: boolean;
@@ -27,6 +29,8 @@ export function useResizableDivider({
   maxWidth,
   defaultWidth,
   onWidthChange,
+  onWidthCommit,
+  onDragStateChange,
   direction = 'normal',
   snap,
   useOverlay = false,
@@ -35,13 +39,32 @@ export function useResizableDivider({
   const [isDragging, setIsDragging] = useState(false);
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(0);
+  const currentWidthRef = useRef(width);
   const pendingWidth = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const didCreateOverlayRef = useRef(false);
+  const dragStateRef = useRef(false);
+
+  const notifyDragState = useCallback((next: boolean) => {
+    if (dragStateRef.current === next) {
+      return;
+    }
+    dragStateRef.current = next;
+    onDragStateChange?.(next);
+  }, [onDragStateChange]);
+
+  useEffect(() => {
+    if (!isDragging) {
+      currentWidthRef.current = width;
+    }
+  }, [isDragging, width]);
 
   const applyDefaultWidth = useCallback(() => {
-    onWidthChange(clampWidth(defaultWidth, minWidth, maxWidth));
-  }, [defaultWidth, maxWidth, minWidth, onWidthChange]);
+    const nextWidth = clampWidth(defaultWidth, minWidth, maxWidth);
+    currentWidthRef.current = nextWidth;
+    onWidthChange(nextWidth);
+    onWidthCommit?.(nextWidth);
+  }, [defaultWidth, maxWidth, minWidth, onWidthChange, onWidthCommit]);
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -53,7 +76,9 @@ export function useResizableDivider({
 
     dragStartX.current = e.clientX;
     dragStartWidth.current = width;
+    currentWidthRef.current = width;
     setIsDragging(true);
+    notifyDragState(true);
 
     document.body.style.userSelect = 'none';
     document.body.style.cursor = 'col-resize';
@@ -68,7 +93,7 @@ export function useResizableDivider({
     overlay.style.cursor = 'col-resize';
     document.body.appendChild(overlay);
     didCreateOverlayRef.current = true;
-  }, [allowDoubleClickReset, applyDefaultWidth, useOverlay, width]);
+  }, [allowDoubleClickReset, applyDefaultWidth, notifyDragState, useOverlay, width]);
 
   useEffect(() => {
     if (!isDragging) return;
@@ -91,6 +116,7 @@ export function useResizableDivider({
       }
 
       nextWidth = clampWidth(nextWidth, minWidth, maxWidth);
+      currentWidthRef.current = nextWidth;
       pendingWidth.current = nextWidth;
 
       if (rafRef.current !== null) return;
@@ -109,8 +135,11 @@ export function useResizableDivider({
     };
 
     const handleMouseUp = () => {
+      let committedWidth = currentWidthRef.current;
+
       if (pendingWidth.current !== null) {
-        onWidthChange(pendingWidth.current);
+        committedWidth = pendingWidth.current;
+        onWidthChange(committedWidth);
         pendingWidth.current = null;
       }
 
@@ -126,14 +155,26 @@ export function useResizableDivider({
 
       clearDraggingStyle();
       setIsDragging(false);
+      notifyDragState(false);
+      onWidthCommit?.(committedWidth);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        handleMouseUp();
+      }
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('blur', handleMouseUp);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('blur', handleMouseUp);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
 
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
@@ -146,8 +187,9 @@ export function useResizableDivider({
       }
 
       clearDraggingStyle();
+      notifyDragState(false);
     };
-  }, [direction, isDragging, maxWidth, minWidth, onWidthChange, snap]);
+  }, [direction, isDragging, maxWidth, minWidth, notifyDragState, onWidthChange, onWidthCommit, snap]);
 
   return {
     isDragging,

@@ -8,7 +8,6 @@ interface UnifiedTitleBarProps {
   leftSlot?: ReactNode;
   centerSlot?: ReactNode;
   rightSlot?: ReactNode;
-  sidebarWidth: number;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
   backgroundColor?: string;
@@ -19,7 +18,6 @@ export function UnifiedTitleBar({
   leftSlot,
   centerSlot,
   rightSlot,
-  sidebarWidth,
   sidebarCollapsed,
   onToggleSidebar,
   backgroundColor = NOTES_COLORS.sidebarBg,
@@ -66,7 +64,7 @@ export function UnifiedTitleBar({
       ) : (
         <div
           className="h-full flex-shrink-0 z-20 group flex flex-col justify-center"
-          style={{ width: sidebarWidth }}
+          style={{ width: 'var(--neko-shell-sidebar-width)' }}
           data-tauri-drag-region
         >
           {leftSlot}
@@ -76,13 +74,13 @@ export function UnifiedTitleBar({
       {!sidebarCollapsed ? (
         <div
           className="absolute top-0 bottom-0 z-30 w-px"
-          style={{ left: sidebarWidth, backgroundColor: NOTES_COLORS.divider }}
+          style={{ left: 'var(--neko-shell-sidebar-width)', backgroundColor: NOTES_COLORS.divider }}
         />
       ) : null}
 
       <div
         className="absolute top-0 bottom-0 right-0 bg-white dark:bg-zinc-800"
-        style={{ left: sidebarCollapsed ? 0 : sidebarWidth }}
+        style={{ left: sidebarCollapsed ? 0 : 'var(--neko-shell-sidebar-width)' }}
       />
 
       <div className="flex-1 flex items-center z-20 overflow-hidden min-w-0 h-full relative" data-tauri-drag-region>

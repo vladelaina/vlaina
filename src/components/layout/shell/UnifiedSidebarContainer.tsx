@@ -1,7 +1,5 @@
 import { ReactNode } from 'react';
-import { motion } from 'framer-motion';
-import { NOTES_COLORS } from '@/lib/utils';
-import { SPRING_PREMIUM } from '@/lib/animations';
+import { cn, NOTES_COLORS } from '@/lib/utils';
 import { useShellSidebarResize } from './useShellSidebarResize';
 import { RESIZE_HANDLE_HALF_WIDTH } from './ResizeDividerVisual';
 import { ResizeHandle } from './ResizeHandle';
@@ -11,6 +9,8 @@ interface UnifiedSidebarContainerProps {
   width: number;
   collapsed: boolean;
   onWidthChange: (width: number) => void;
+  onLiveWidthChange?: (width: number) => void;
+  onDragStateChange?: (isDragging: boolean) => void;
   backgroundColor?: string;
 }
 
@@ -19,27 +19,32 @@ export function UnifiedSidebarContainer({
   width,
   collapsed,
   onWidthChange,
+  onLiveWidthChange,
+  onDragStateChange,
   backgroundColor = NOTES_COLORS.sidebarBg,
 }: UnifiedSidebarContainerProps) {
   const { isDragging, handleDragStart } = useShellSidebarResize({
     width,
-    onWidthChange,
+    onWidthChange: onLiveWidthChange ?? onWidthChange,
+    onWidthCommit: onLiveWidthChange ? onWidthChange : undefined,
+    onDragStateChange,
   });
 
   return (
     <>
-      <motion.aside
-        initial={false}
-        animate={{
-          width: collapsed ? 0 : width,
-          opacity: 1
+      <aside
+        className={cn(
+          'flex-shrink-0 flex flex-col overflow-hidden select-none relative z-20 neko-scrollbar',
+          isDragging && 'will-change-[width]',
+          !isDragging && 'transition-[width] duration-200 ease-out',
+        )}
+        style={{
+          backgroundColor,
+          width: collapsed ? 0 : 'var(--neko-shell-sidebar-width)',
         }}
-        transition={SPRING_PREMIUM}
-        className="flex-shrink-0 flex flex-col overflow-hidden select-none relative z-20 neko-scrollbar"
-        style={{ backgroundColor }}
       >
         {children}
-      </motion.aside>
+      </aside>
 
       {!collapsed && (
         <>
@@ -50,10 +55,8 @@ export function UnifiedSidebarContainer({
           <ResizeHandle
             onMouseDown={handleDragStart}
             isDragging={isDragging}
-            tooltipSide="right"
-            shortcutKeys={['Ctrl', '\\']}
             positionStyle={{
-              left: width - RESIZE_HANDLE_HALF_WIDTH,
+              left: `calc(var(--neko-shell-sidebar-width) - ${RESIZE_HANDLE_HALF_WIDTH}px)`,
               pointerEvents: 'auto',
             }}
           />

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { calculateCropPercentage } from '../../../utils/coverUtils';
+import { calculateCropPercentage } from '../../../../utils/coverGeometry';
 
 interface UseCoverInteractionPersistenceProps {
   mediaSize: { width: number; height: number } | null;

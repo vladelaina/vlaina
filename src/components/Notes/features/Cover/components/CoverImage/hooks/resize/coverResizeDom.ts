@@ -1,4 +1,4 @@
-import type { ResizeSnapshot } from '../../../utils/coverResizeMath';
+import type { ResizeSnapshot } from '../../../../utils/coverResizeMath';
 
 function setStyle(node: HTMLElement | null, key: string, value: string) {
   if (!node) return;

@@ -1,4 +1,4 @@
-import type { CoverFlowPhase } from '../coverFlowPhase';
+import type { CoverFlowPhase } from '../../coverFlowPhase';
 
 interface ResolveCoverFlowPhaseOptions {
   url: string | null;

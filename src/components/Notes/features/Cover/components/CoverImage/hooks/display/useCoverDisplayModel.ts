@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { CoverFlowPhase } from '../coverFlowPhase';
-import { DEFAULT_POSITION_PERCENT, DEFAULT_SCALE } from '../../../utils/coverUtils';
+import type { CoverFlowPhase } from '../../coverFlowPhase';
+import { DEFAULT_POSITION_PERCENT, DEFAULT_SCALE } from '../../../../utils/coverConstants';
 
 interface UseCoverDisplayModelProps {
   phase: CoverFlowPhase;
@@ -46,7 +46,6 @@ export function useCoverDisplayModel({
 
   useEffect(() => {
     if (!mediaSrc || readySrc !== mediaSrc || isImageReady) return;
-    // Commit can keep the same src string as preview; restore ready state immediately.
     setIsImageReady(true);
   }, [mediaSrc, readySrc, isImageReady, setIsImageReady]);
 
