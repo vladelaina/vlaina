@@ -24,6 +24,16 @@ import type { Parser } from './types'
 import { Stack } from '../utility'
 import { ParserStackElement } from './stack-element'
 
+const TASK_LIST_MARKER_PATTERN =
+  /^(\s*(?:[-+*]|\d+[.)])\s+)(?:\[|【)(\s|x|X|✓)(?:\]|】)/gm
+
+function normalizeTaskListMarkers(markdown: string): string {
+  return markdown.replace(TASK_LIST_MARKER_PATTERN, (_, prefix: string, marker: string) => {
+    const normalizedMarker = marker === ' ' ? ' ' : 'x'
+    return `${prefix}[${normalizedMarker}]`
+  })
+}
+
 /// A state machine for parser. Transform remark AST into prosemirror state.
 export class ParserState extends Stack<Node, ParserStackElement> {
   /// The schema in current editor.
@@ -206,9 +216,10 @@ export class ParserState extends Stack<Node, ParserStackElement> {
 
   /// Transform a markdown string into prosemirror state.
   run = (remark: RemarkParser, markdown: string) => {
+    const normalizedMarkdown = normalizeTaskListMarkers(markdown)
     const tree = remark.runSync(
-      remark.parse(markdown),
-      markdown
+      remark.parse(normalizedMarkdown),
+      normalizedMarkdown
     ) as MarkdownNode
     this.next(tree)
 

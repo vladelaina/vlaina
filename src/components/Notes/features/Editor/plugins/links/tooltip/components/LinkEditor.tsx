@@ -7,7 +7,9 @@ interface LinkEditorProps {
     editText: string;
     setEditText: (text: string) => void;
     onSave: (shouldClose: boolean) => void;
+    onCancel: () => void;
     isNewLink: boolean;
+    autoFocus: boolean;
     initialText: string;
 }
 
@@ -15,7 +17,9 @@ export const LinkEditor = ({
     editUrl,
     setEditUrl,
     onSave,
+    onCancel,
     isNewLink,
+    autoFocus,
 }: LinkEditorProps) => {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const measureRef = useRef<HTMLDivElement>(null);
@@ -83,7 +87,7 @@ export const LinkEditor = ({
     }, [editUrl, contentWidth]);
 
     useEffect(() => {
-        if (isNewLink) {
+        if (!autoFocus && isNewLink) {
             return;
         }
 
@@ -94,7 +98,7 @@ export const LinkEditor = ({
             }
         }, 50);
         return () => clearTimeout(timer);
-    }, [isNewLink]);
+    }, [autoFocus, isNewLink]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.nativeEvent.isComposing) return;
@@ -106,7 +110,7 @@ export const LinkEditor = ({
         } else if (e.key === 'Escape') {
             e.preventDefault();
             e.stopPropagation();
-            onSave(true);
+            onCancel();
         }
     };
 

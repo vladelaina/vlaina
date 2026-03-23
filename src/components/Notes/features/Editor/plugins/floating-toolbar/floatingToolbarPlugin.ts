@@ -80,7 +80,7 @@ export const floatingToolbarPlugin = $prose(() => {
                 return true;
               }
 
-              openLinkTooltipFromSelection(view);
+              openLinkTooltipFromSelection(view, { autoFocus: true });
               return true;
             }
             case 'h': event.preventDefault(); toggleMark(view, 'highlight'); return true;

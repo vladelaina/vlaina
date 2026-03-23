@@ -113,7 +113,7 @@ withMeta(extendListItemSchemaForTask.ctx, {
 /// Users can type task markers with halfwidth or fullwidth brackets, including mixed pairs.
 export const wrapInTaskListInputRule = $inputRule(() => {
   return new InputRule(
-    /^(?:\[|【)(\s|x)(?:\]|】)\s$/,
+    /^(?:\[|【)(\s|x|X|✓)(?:\]|】)\s$/,
     (state, match, start, end) => {
       const pos = state.doc.resolve(start)
       let depth = 0
@@ -125,7 +125,7 @@ export const wrapInTaskListInputRule = $inputRule(() => {
 
       if (!node || node.attrs.checked != null) return null
 
-      const checked = Boolean(match[1] === 'x')
+      const checked = Boolean(match[1] !== ' ')
 
       const finPos = pos.before(depth)
       const tr = state.tr

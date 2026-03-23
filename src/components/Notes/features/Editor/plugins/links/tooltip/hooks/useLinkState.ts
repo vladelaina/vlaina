@@ -3,11 +3,12 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 export interface UseLinkStateProps {
     href: string;
     initialText?: string;
+    autoFocus?: boolean;
     onEdit: (text: string, url: string, shouldClose?: boolean) => void;
     onClose: () => void;
 }
 
-export function useLinkState({ href, initialText = '', onEdit }: UseLinkStateProps) {
+export function useLinkState({ href, initialText = '', autoFocus = false, onEdit, onClose }: UseLinkStateProps) {
     const isNewLink = !href;
     const [mode, setMode] = useState<'view' | 'edit'>(isNewLink ? 'edit' : 'view');
     const [showCopied, setShowCopied] = useState(false);
@@ -69,6 +70,17 @@ export function useLinkState({ href, initialText = '', onEdit }: UseLinkStatePro
         }
     }, [editText, editUrl, onEdit]);
 
+    const handleCancelEdit = useCallback(() => {
+        const container = document.querySelector('.link-tooltip-container');
+        container?.removeAttribute('data-editing');
+        document.documentElement.removeAttribute('data-link-selection-visible');
+        document.body.removeAttribute('data-link-selection-visible');
+
+        setEditUrl(href);
+        setEditText(isAutolink ? '' : initialText);
+        onClose();
+    }, [href, initialText, isAutolink, onClose]);
+
     const handleCopy = useCallback(() => {
         let copyText: string;
         if (isAutolink) {
@@ -97,9 +109,11 @@ export function useLinkState({ href, initialText = '', onEdit }: UseLinkStatePro
         editUrl, setEditUrl,
         editText, setEditText,
         handleSaveEdit,
+        handleCancelEdit,
         handleCopy,
         showCopied,
         displayUrl,
-        isNewLink
+        isNewLink,
+        autoFocus
     };
 }
