@@ -1,4 +1,5 @@
 import { parseAPIError, parseHTTPError } from '../errors';
+import { parseErrorTag } from '../errorTag';
 import { buildOpenAIBaseUrl, resolveApiModelId } from '../utils';
 import type { AIModel, Provider } from '../types';
 import { DEFAULT_BENCHMARK_TIMEOUT_MS } from './constants';
@@ -124,9 +125,9 @@ function readEmbeddedErrorMessage(text: string): string | undefined {
     return undefined;
   }
 
-  const xmlMatch = trimmed.match(/^<error\b[^>]*>([\s\S]*?)<\/error>$/i);
-  if (xmlMatch) {
-    return xmlMatch[1]?.trim() || 'Unknown error';
+  const parsedError = parseErrorTag(trimmed);
+  if (parsedError) {
+    return parsedError.content || 'Unknown error';
   }
 
   return undefined;

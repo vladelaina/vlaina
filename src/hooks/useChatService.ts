@@ -5,6 +5,7 @@ import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { buildRequestHistory } from '@/lib/ai/requestContext';
+import { buildErrorTag } from '@/lib/ai/errorTag';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
@@ -201,7 +202,7 @@ export function useChatService() {
         const type = error.type || 'UNKNOWN';
         const code = error.statusCode || error.status || '';
         const detail = error.message || 'Unknown error occurred';
-        const errorXml = `<error type="${type}" code="${code}">${detail}</error>`;
+        const errorXml = buildErrorTag(type, code, detail);
 
         setError(detail);
         updateMessage(targetSessionId, assistantMessageId, errorXml);
@@ -300,7 +301,7 @@ export function useChatService() {
         }
 
         const detail = error.message || 'Unknown error';
-        const errorXml = `<error type="${error.type || 'UNKNOWN'}" code="${error.statusCode || ''}">${detail}</error>`;
+        const errorXml = buildErrorTag(error.type || 'UNKNOWN', error.statusCode || '', detail);
         updateMessage(sessionId, assistantMessageId, errorXml);
       } finally {
         streamScheduler.cancel();
@@ -381,7 +382,7 @@ export function useChatService() {
         const type = error.type || 'UNKNOWN';
         const code = error.statusCode || error.status || '';
         const detail = error.message || 'Regeneration Failed';
-        const errorXml = `<error type="${type}" code="${code}">${detail}</error>`;
+        const errorXml = buildErrorTag(type, code, detail);
 
         setError(detail);
         updateMessage(sessionId, msgId, errorXml);

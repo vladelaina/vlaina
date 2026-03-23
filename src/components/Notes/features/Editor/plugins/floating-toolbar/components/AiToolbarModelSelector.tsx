@@ -15,6 +15,7 @@ export function AiToolbarModelSelector({
       composerInputRef={composerInputRef ?? { current: null }}
       dropdownPlacement="top"
       onSelectModel={onSelectModel}
+      theme="notes"
     />
   );
 }

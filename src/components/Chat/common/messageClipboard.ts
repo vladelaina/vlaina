@@ -1,3 +1,5 @@
+import { stripErrorTags } from '@/lib/ai/errorTag';
+
 function normalizeImageMarkdownTarget(rawTarget: string): string | null {
   const trimmed = rawTarget.trim();
   if (!trimmed) {
@@ -170,21 +172,22 @@ export function stripMarkdownImageTokens(content: string): string {
 }
 
 export function formatMessageCopyText(content: string): string {
-  const tokens = parseMarkdownImageTokens(content);
+  const normalizedContent = stripErrorTags(content);
+  const tokens = parseMarkdownImageTokens(normalizedContent);
   if (tokens.length === 0) {
-    return content;
+    return normalizedContent;
   }
 
   const parts: string[] = [];
   let cursor = 0;
   for (const token of tokens) {
-    parts.push(content.slice(cursor, token.start));
+    parts.push(normalizedContent.slice(cursor, token.start));
     if (token.src) {
       parts.push(token.src.startsWith("data:image/") ? "[image]" : token.src);
     }
     cursor = token.end;
   }
-  parts.push(content.slice(cursor));
+  parts.push(normalizedContent.slice(cursor));
   return parts.join("");
 }
 
