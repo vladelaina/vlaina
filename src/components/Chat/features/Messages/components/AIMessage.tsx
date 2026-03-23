@@ -3,6 +3,7 @@ import { MessageToolbar } from './MessageToolbar';
 import { ErrorBlock } from './ErrorBlock';
 import { ChatLoading } from './ChatLoading';
 import type { ChatMessage } from '@/lib/ai/types';
+import { parseErrorTag } from '@/lib/ai/errorTag';
 
 interface ChatImageGalleryItem {
   id: string;
@@ -27,13 +28,11 @@ export function AIMessage({
   onSwitchVersion
 }: AIMessageProps) {
   
-  const errorRegex = /<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/;
-  const errorMatch = errorRegex.exec(msg.content);
-  const errorType = errorMatch ? errorMatch[1] : undefined;
-  const errorCode = errorMatch ? errorMatch[2] : undefined;
-  const errorContent = errorMatch ? errorMatch[3] : null;
-
-  const contentWithoutError = msg.content.replace(errorRegex, '');
+  const parsedError = parseErrorTag(msg.content);
+  const errorType = parsedError?.type;
+  const errorCode = parsedError?.code;
+  const errorContent = parsedError?.content ?? null;
+  const contentWithoutError = errorContent ? msg.content.replace(/<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/i, '') : msg.content;
   const shouldShowInlineLoading = isLoading && !!contentWithoutError.trim();
 
   return (
