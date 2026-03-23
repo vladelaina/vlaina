@@ -71,13 +71,7 @@ function extractAttachmentFilename(src: string): string | null {
             return sanitizeAttachmentFilename(basename);
         }
     } catch {
-        // Fall through to path-based extraction for legacy attachment paths.
-    }
-
-    const attachmentIndex = decoded.lastIndexOf('attachments/');
-    if (attachmentIndex >= 0) {
-        const basename = decoded.slice(attachmentIndex + 'attachments/'.length).split(/[\\/]/).pop() || '';
-        return sanitizeAttachmentFilename(basename);
+        return null;
     }
 
     return null;

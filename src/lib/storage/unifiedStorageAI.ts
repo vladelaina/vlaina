@@ -1,25 +1,6 @@
 import type { AIModel, ChatSession, Provider } from '@/lib/ai/types';
 import { buildScopedModelId } from '@/lib/ai/utils';
 
-function splitScopedModelId(modelId: string): { providerId: string; apiModelId: string } | null {
-  const separatorIndex = modelId.indexOf('::');
-  if (separatorIndex <= 0) return null;
-
-  const providerId = modelId.slice(0, separatorIndex).trim();
-  const apiModelId = modelId.slice(separatorIndex + 2).trim();
-  if (!providerId || !apiModelId) return null;
-
-  return { providerId, apiModelId };
-}
-
-function extractLegacyUpstreamModelId(modelId: string): string | null {
-  const scoped = splitScopedModelId(modelId);
-  const candidate = scoped?.apiModelId || modelId;
-  const separatorIndex = candidate.lastIndexOf('::');
-  const upstreamModelId = separatorIndex >= 0 ? candidate.slice(separatorIndex + 2).trim() : candidate.trim();
-  return upstreamModelId || null;
-}
-
 export function normalizeLoadedAIModels(
   providers: Provider[],
   models: AIModel[],
@@ -32,7 +13,6 @@ export function normalizeLoadedAIModels(
 } {
   const providerIds = new Set(providers.map((provider) => provider.id));
   const idMapping = new Map<string, string>();
-  const apiModelIdMapping = new Map<string, string[]>();
 
   const normalizedModels = models
     .filter((model) => providerIds.has(model.providerId))
@@ -45,9 +25,6 @@ export function normalizeLoadedAIModels(
 
       const normalizedId = buildScopedModelId(model.providerId, apiModelId);
       idMapping.set(model.id, normalizedId);
-      const apiIds = apiModelIdMapping.get(apiModelId) || [];
-      apiIds.push(normalizedId);
-      apiModelIdMapping.set(apiModelId, apiIds);
       return {
         ...model,
         id: normalizedId,
@@ -61,17 +38,7 @@ export function normalizeLoadedAIModels(
     if (!modelId) return null;
     const direct = idMapping.get(modelId) || modelId;
     if (availableIds.has(direct)) return direct;
-
-    const legacyUpstreamModelId = extractLegacyUpstreamModelId(modelId);
-    if (legacyUpstreamModelId) {
-      const legacyCandidates = apiModelIdMapping.get(legacyUpstreamModelId) || [];
-      if (legacyCandidates.length === 1 && availableIds.has(legacyCandidates[0]!)) {
-        return legacyCandidates[0]!;
-      }
-    }
-
-    const fallback = normalizedModels.find((model) => model.apiModelId === modelId)?.id || null;
-    return fallback && availableIds.has(fallback) ? fallback : null;
+    return null;
   };
 
   const normalizedSessions = sessions.map((session) => ({

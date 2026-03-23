@@ -5,10 +5,10 @@ import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { buildRequestHistory } from '@/lib/ai/requestContext';
-import { buildErrorTag } from '@/lib/ai/errorTag';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
+import { getUserFacingAIError } from '@/lib/ai/errors';
 import {
   buildMentionedNotesContext,
   buildMessageImageSources,
@@ -21,6 +21,23 @@ import {
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
+
+function escapeXml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+function buildChatErrorPayload(error: unknown) {
+  const normalized = getUserFacingAIError(error)
+  return {
+    message: normalized.message,
+    xml: `<error type="${escapeXml(normalized.type)}" code="${escapeXml(normalized.code)}">${escapeXml(normalized.message)}</error>`,
+  }
+}
 
 export function useChatService() {
   const { generateAutoTitle } = useAutoTitle();
@@ -199,13 +216,10 @@ export function useChatService() {
           return;
         }
 
-        const type = error.type || 'UNKNOWN';
-        const code = error.statusCode || error.status || '';
-        const detail = error.message || 'Unknown error occurred';
-        const errorXml = buildErrorTag(type, code, detail);
+        const { message, xml } = buildChatErrorPayload(error)
 
-        setError(detail);
-        updateMessage(targetSessionId, assistantMessageId, errorXml);
+        setError(message);
+        updateMessage(targetSessionId, assistantMessageId, xml);
       } finally {
         streamScheduler.cancel();
         requestManager.finish(targetSessionId, controller);
@@ -300,9 +314,9 @@ export function useChatService() {
           return;
         }
 
-        const detail = error.message || 'Unknown error';
-        const errorXml = buildErrorTag(error.type || 'UNKNOWN', error.statusCode || '', detail);
-        updateMessage(sessionId, assistantMessageId, errorXml);
+        const { message, xml } = buildChatErrorPayload(error)
+        setError(message);
+        updateMessage(sessionId, assistantMessageId, xml);
       } finally {
         streamScheduler.cancel();
         requestManager.finish(sessionId, controller);
@@ -379,13 +393,10 @@ export function useChatService() {
           return;
         }
 
-        const type = error.type || 'UNKNOWN';
-        const code = error.statusCode || error.status || '';
-        const detail = error.message || 'Regeneration Failed';
-        const errorXml = buildErrorTag(type, code, detail);
+        const { message, xml } = buildChatErrorPayload(error)
 
-        setError(detail);
-        updateMessage(sessionId, msgId, errorXml);
+        setError(message);
+        updateMessage(sessionId, msgId, xml);
       } finally {
         streamScheduler.cancel();
         requestManager.finish(sessionId, controller);

@@ -28,8 +28,8 @@ export const useWeatherStore = create<WeatherState>()(
       },
     }),
     {
-      name: 'nekotick-weather-city', // Keep same key for backward compatibility if possible
-      partialize: (state) => ({ city: state.city }), // Only persist city, weather is transient
+      name: 'nekotick-weather-city',
+      partialize: (state) => ({ city: state.city }),
     }
   )
 );
