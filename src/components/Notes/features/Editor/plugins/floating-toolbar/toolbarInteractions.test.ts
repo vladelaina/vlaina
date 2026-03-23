@@ -91,6 +91,7 @@ describe('toolbar interactions', () => {
       type: 'SHOW_LINK_TOOLTIP',
       from: 3,
       to: 8,
+      autoFocus: false,
     });
     expect(tr.setMeta).toHaveBeenCalledWith(floatingToolbarKey, {
       type: TOOLBAR_ACTIONS.HIDE,

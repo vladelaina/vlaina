@@ -15,10 +15,12 @@ const LinkTooltip = (props: LinkTooltipProps) => {
         editUrl, setEditUrl,
         editText, setEditText,
         handleSaveEdit,
+        handleCancelEdit,
         handleCopy,
         showCopied,
         displayUrl,
-        isNewLink
+        isNewLink,
+        autoFocus
     } = useLinkState(props);
 
     // Handle click outside
@@ -56,7 +58,9 @@ const LinkTooltip = (props: LinkTooltipProps) => {
                 editText={editText}
                 setEditText={setEditText}
                 onSave={handleSaveEdit}
+                onCancel={handleCancelEdit}
                 isNewLink={isNewLink}
+                autoFocus={autoFocus}
                 initialText={props.initialText || ''}
             />
         );

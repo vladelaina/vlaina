@@ -18,6 +18,7 @@ type LinkTooltipPluginState = {
     shouldShow: boolean;
     from: number;
     to: number;
+    autoFocus: boolean;
     handled: boolean;
     visibleSelectionFrom: number | null;
     visibleSelectionTo: number | null;
@@ -82,7 +83,7 @@ class LinkTooltipView {
         if (event.key === 'Escape' && !this.dom.classList.contains('hidden')) {
             event.preventDefault();
             event.stopPropagation();
-            this.hide();
+            this.hide(true);
             // Restore focus with a slight delay to allow UI to update
             setTimeout(() => this.view.focus(), 10);
         }
@@ -405,10 +406,14 @@ class LinkTooltipView {
         this.hide();
     };
 
-    hide() {
-        if (this.dom.hasAttribute('data-dropdown-open') || this.dom.hasAttribute('data-editing')) {
+    hide(force: boolean = false) {
+        if (!force && (this.dom.hasAttribute('data-dropdown-open') || this.dom.hasAttribute('data-editing'))) {
             return;
         }
+
+        this.dom.removeAttribute('data-editing');
+        document.documentElement.removeAttribute('data-link-selection-visible');
+        document.body.removeAttribute('data-link-selection-visible');
 
         if (this.activeLink) {
             this.activeLink.classList.remove('link-active-state');
@@ -503,7 +508,7 @@ class LinkTooltipView {
         }
     };
 
-    showAtPosition(from: number, to: number) {
+    showAtPosition(from: number, to: number, autoFocus: boolean) {
         const { state } = this.view;
         const selectedText = state.doc.textBetween(from, to, '');
 
@@ -515,6 +520,7 @@ class LinkTooltipView {
                 key={Date.now()}
                 href=""
                 initialText={selectedText}
+                autoFocus={autoFocus}
                 onEdit={(text, url, shouldClose) => this.handleEditAtPosition(from, to, text, url, shouldClose)}
                 onUnlink={() => { /* New links have no href to unlink */ }}
                 onRemove={() => this.hide()}
@@ -610,6 +616,7 @@ export const linkTooltipPlugin = $prose(() => {
                 shouldShow: false,
                 from: 0,
                 to: 0,
+                autoFocus: false,
                 handled: false,
                 visibleSelectionFrom: null,
                 visibleSelectionTo: null,
@@ -635,6 +642,7 @@ export const linkTooltipPlugin = $prose(() => {
                         shouldShow: true,
                         from: meta.from,
                         to: meta.to,
+                        autoFocus: meta.autoFocus === true,
                         handled: false,
                         visibleSelectionFrom: meta.from,
                         visibleSelectionTo: meta.to,
@@ -643,7 +651,14 @@ export const linkTooltipPlugin = $prose(() => {
 
                 // Clear request
                 if (meta && meta.type === 'CLEAR_LINK_TOOLTIP') {
-                    return { ...nextValue, shouldShow: false, from: 0, to: 0, handled: false };
+                    return {
+                        ...nextValue,
+                        shouldShow: false,
+                        from: 0,
+                        to: 0,
+                        autoFocus: false,
+                        handled: false,
+                    };
                 }
 
                 if (meta && meta.type === 'CLEAR_LINK_TOOLTIP_SELECTION') {
@@ -693,14 +708,14 @@ export const linkTooltipPlugin = $prose(() => {
 
                         // Mark as handled immediately to prevent duplicate calls
                         // We do this by dispatching a transaction that marks it handled
-                        const { from, to } = pluginState;
+                        const { from, to, autoFocus } = pluginState;
 
                         // Dispatch immediately to clean the state and mark as handled
                         view.dispatch(view.state.tr.setMeta(linkTooltipPluginKey, { type: 'CLEAR_LINK_TOOLTIP' }));
 
                         // Use setTimeout to let any pending DOM updates complete
                         setTimeout(() => {
-                            tooltipView.showAtPosition(from, to);
+                            tooltipView.showAtPosition(from, to, autoFocus);
                         }, 50);
                     }
                 },
