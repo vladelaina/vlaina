@@ -6,7 +6,7 @@ import { floatingToolbarKey } from './floatingToolbarPlugin';
 import { copySelectionToClipboard, toggleMark, setLink } from './commands';
 import { applyFormatPreview, clearFormatPreview, hasFormatPreview } from './previewStyles';
 import { getLinkUrl } from './selectionHelpers';
-import { linkTooltipPluginKey } from '../links';
+import { openLinkTooltipFromSelection } from './linkTooltipActions';
 
 export interface ToolbarEventDelegationController {
   update: (view: EditorView, state: FloatingToolbarState) => void;
@@ -156,16 +156,7 @@ export function createToolbarEventDelegation(
         return true;
       }
 
-      const { state: editorState, dispatch } = view;
-      const { from, to } = editorState.selection;
-      dispatch(
-        editorState.tr.setMeta(linkTooltipPluginKey, {
-          type: 'SHOW_LINK_TOOLTIP',
-          from,
-          to,
-        })
-      );
-      view.focus();
+      openLinkTooltipFromSelection(view);
       return false;
     },
     delete: (view) => {

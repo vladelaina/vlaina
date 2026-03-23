@@ -92,7 +92,10 @@ export function NotesView() {
       if (pendingStarredNavigation.kind === 'folder') {
         revealFolder(pendingStarredNavigation.relativePath);
       } else {
-        await openNote(pendingStarredNavigation.relativePath);
+        await openNote(
+          pendingStarredNavigation.relativePath,
+          pendingStarredNavigation.openInNewTab ?? false
+        );
       }
 
       if (!cancelled) {

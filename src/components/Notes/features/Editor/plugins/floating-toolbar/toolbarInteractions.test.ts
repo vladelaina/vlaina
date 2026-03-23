@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createToolbarEventDelegation } from './toolbarInteractions';
+import { floatingToolbarKey } from './floatingToolbarPlugin';
+import { TOOLBAR_ACTIONS } from './types';
+import { linkTooltipPluginKey } from '../links';
 
 describe('toolbar interactions', () => {
   it('prevents default when pressing blank space inside the toolbar', () => {
@@ -40,6 +43,60 @@ describe('toolbar interactions', () => {
 
     expect(event.defaultPrevented).toBe(false);
     expect(stopPropagation).not.toHaveBeenCalled();
+
+    delegation.destroy();
+  });
+
+  it('hides the floating toolbar when opening the link tooltip from the toolbar', async () => {
+    const toolbar = document.createElement('div');
+    const button = document.createElement('button');
+    button.dataset.action = 'link';
+    toolbar.appendChild(button);
+    document.body.appendChild(toolbar);
+
+    const tr = {
+      setMeta: vi.fn(),
+    } as any;
+    tr.setMeta.mockReturnValue(tr);
+
+    const dispatch = vi.fn();
+    const focus = vi.fn();
+    const view = {
+      state: {
+        selection: {
+          from: 3,
+          to: 8,
+          empty: false,
+        },
+        doc: {
+          nodesBetween: vi.fn(),
+        },
+        tr,
+      },
+      dispatch,
+      focus,
+    } as any;
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    button.dispatchEvent(new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    await Promise.resolve();
+
+    expect(tr.setMeta).toHaveBeenCalledWith(linkTooltipPluginKey, {
+      type: 'SHOW_LINK_TOOLTIP',
+      from: 3,
+      to: 8,
+    });
+    expect(tr.setMeta).toHaveBeenCalledWith(floatingToolbarKey, {
+      type: TOOLBAR_ACTIONS.HIDE,
+    });
+    expect(dispatch).toHaveBeenCalledWith(tr);
+    expect(focus).toHaveBeenCalled();
 
     delegation.destroy();
   });

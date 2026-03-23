@@ -31,6 +31,15 @@
   padding-bottom: 10px;
   position: relative;
   color: var(--neko-text-secondary);
+  font-style: normal;
+}
+
+.milkdown-theme-nord blockquote,
+.milkdown.milkdown-theme-nord blockquote {
+  border-left: none;
+  padding-left: 17px;
+  font-family: inherit;
+  font-style: normal;
 }
 
 .milkdown blockquote::before {

@@ -1,0 +1,20 @@
+import type { EditorView } from '@milkdown/kit/prose/view';
+import { linkTooltipPluginKey } from '../links';
+import { floatingToolbarKey } from './floatingToolbarPlugin';
+import { TOOLBAR_ACTIONS } from './types';
+
+export function openLinkTooltipFromSelection(view: EditorView) {
+  const { from, to } = view.state.selection;
+  const tr = view.state.tr
+    .setMeta(linkTooltipPluginKey, {
+      type: 'SHOW_LINK_TOOLTIP',
+      from,
+      to,
+    })
+    .setMeta(floatingToolbarKey, {
+      type: TOOLBAR_ACTIONS.HIDE,
+    });
+
+  view.dispatch(tr);
+  view.focus();
+}

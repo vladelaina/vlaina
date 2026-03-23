@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -31,7 +31,7 @@ interface StarredEntryRowProps {
   entry: StarredEntry;
   isCurrentVaultEntry: boolean;
   isActive: boolean;
-  onClick: () => void;
+  onClick: (event: MouseEvent<HTMLDivElement>) => void;
   onRemove: () => void;
 }
 
@@ -150,13 +150,15 @@ export function StarredSection() {
               entry={entry}
               isCurrentVaultEntry={isCurrentVaultEntry}
               isActive={isActive}
-              onClick={() => {
+              onClick={(event) => {
+                const openInNewTab =
+                  entry.kind === 'note' && (event.ctrlKey || event.metaKey);
                 void (async () => {
                   if (isCurrentVaultEntry) {
                     if (entry.kind === 'folder') {
                       revealFolder(entry.relativePath);
                     } else {
-                      await openNote(entry.relativePath);
+                      await openNote(entry.relativePath, openInNewTab);
                     }
                     return;
                   }
@@ -165,6 +167,7 @@ export function StarredSection() {
                     vaultPath: entry.vaultPath,
                     kind: entry.kind,
                     relativePath: entry.relativePath,
+                    openInNewTab,
                   });
 
                   const opened = await openVault(entry.vaultPath, vaultLabel);

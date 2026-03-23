@@ -10,43 +10,35 @@ export function renderLinkEditor(
   onClose: () => void
 ): void {
   const editor = document.createElement('div');
-  editor.className = 'toolbar-submenu link-editor';
+  editor.className = 'link-editor-rail';
   
   const currentUrl = state.linkUrl || '';
-  const hasExistingLink = !!state.linkUrl;
+  const shouldAutofocus = Boolean(state.linkUrl);
   
   editor.innerHTML = `
-    <div class="link-editor-content">
+    <div class="link-editor-rail-inner">
       <input 
         type="text" 
-        class="link-editor-input" 
-        placeholder="Enter link URL"
+        class="link-editor-rail-input" 
+        placeholder="Paste or type a URL..."
         value="${escapeHtml(currentUrl)}"
         autocomplete="off"
         spellcheck="false"
       />
-      <div class="link-editor-error" style="display: none;"></div>
-      <div class="link-editor-actions">
-        ${hasExistingLink ? `
-          <button class="link-editor-btn link-editor-btn-secondary" data-action="remove">
-            Remove
-          </button>
-        ` : ''}
-        <button class="link-editor-btn link-editor-btn-primary" data-action="apply">
-          ${hasExistingLink ? 'Update' : 'Add'}
-        </button>
-      </div>
+      <div class="link-editor-rail-line"></div>
     </div>
+    <div class="link-editor-rail-hint">Press Enter to bridge the link</div>
   `;
   
-  const input = editor.querySelector('.link-editor-input') as HTMLInputElement;
-  const errorEl = editor.querySelector('.link-editor-error') as HTMLElement;
+  const input = editor.querySelector('.link-editor-rail-input') as HTMLInputElement;
+  const line = editor.querySelector('.link-editor-rail-line') as HTMLElement;
 
-  setTimeout(() => input.focus(), 0);
-
-  input.addEventListener('input', () => {
-    errorEl.style.display = 'none';
-  });
+  if (shouldAutofocus) {
+    requestAnimationFrame(() => {
+      input.focus();
+      input.select();
+    });
+  }
 
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
@@ -58,33 +50,25 @@ export function renderLinkEditor(
     }
   });
 
-  editor.querySelectorAll('[data-action]').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const action = (btn as HTMLElement).dataset.action;
-      
-      if (action === 'apply') {
-        applyLink();
-      } else if (action === 'remove') {
-        setLink(view, null);
-        onClose();
-      }
-    });
-  });
-  
   function applyLink() {
     const value = input.value.trim();
     
+    // If empty, remove the link
     if (!value) {
       setLink(view, null);
       onClose();
       return;
     }
 
-    if (!isValidUrl(value)) {
-      errorEl.textContent = 'Please enter a valid URL';
-      errorEl.style.display = 'block';
+    // First principles: if it's not a valid URL, give subtle feedback
+    if (!isValidUrl(value) && !value.startsWith('/') && !value.startsWith('#')) {
+      input.classList.add('error-shake');
+      line.classList.add('error-line');
+      
+      setTimeout(() => {
+        input.classList.remove('error-shake');
+        line.classList.remove('error-line');
+      }, 500);
       return;
     }
     

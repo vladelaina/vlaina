@@ -51,6 +51,7 @@ export interface PendingStarredNavigation {
   vaultPath: string;
   kind: StarredKind;
   relativePath: string;
+  openInNewTab?: boolean;
 }
 
 export interface CurrentNoteState {
