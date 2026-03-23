@@ -18,6 +18,17 @@ interface ChatSidebarProps {
   isPeeking?: boolean;
 }
 
+function ChatSidebarLoadingTitle({ title }: { title: string }) {
+  return (
+    <span className="chat-sidebar-loading-title">
+      <span className="chat-sidebar-loading-title-base">{title}</span>
+      <span className="chat-sidebar-loading-title-overlay" aria-hidden>
+        {title}
+      </span>
+    </span>
+  );
+}
+
 export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   const {
       sessions,
@@ -140,9 +151,9 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                 const displayTitle = session.title || 'New Chat';
                 const showMenuByDefault = isActive && !session.isPinned;
                 const statusIndicator = isGenerating && !isActive ? (
-                  <div className="h-2 w-2 rounded-full bg-[var(--chat-sidebar-status-warning)] shadow-[0_0_8px_rgba(245,158,11,0.45)] animate-pulse" />
+                  null
                 ) : isUnread ? (
-                  <div className="h-2 w-2 rounded-full bg-[var(--chat-sidebar-status-info)] shadow-sm" />
+                  <div className="h-2 w-2 rounded-full bg-[var(--chat-sidebar-status-warning)] shadow-[0_0_8px_rgba(245,158,11,0.45)]" />
                 ) : session.isPinned ? (
                   <Icon name="common.pinPrimer" size={14} className="text-[var(--chat-sidebar-pin)]" />
                 ) : null;
@@ -185,16 +196,20 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                           )}
                         />
                       ) : (
-                        <span
-                          className={cn(
-                            'block truncate transition-opacity',
-                            isGenerating || isUnread
-                              ? 'font-medium text-[var(--chat-sidebar-text)]'
-                              : undefined
-                          )}
-                        >
-                          {displayTitle}
-                        </span>
+                        isGenerating && !isActive ? (
+                          <ChatSidebarLoadingTitle title={displayTitle} />
+                        ) : (
+                          <span
+                            className={cn(
+                              'block truncate transition-opacity',
+                              isGenerating || isUnread
+                                ? 'font-medium text-[var(--chat-sidebar-text)]'
+                                : undefined
+                            )}
+                          >
+                            {displayTitle}
+                          </span>
+                        )
                       )
                     }
                     trailing={statusIndicator}
