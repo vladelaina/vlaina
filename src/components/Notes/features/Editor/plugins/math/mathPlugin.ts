@@ -1,3 +1,4 @@
+import { mathBlockEnterPlugin } from './mathBlockEnterPlugin';
 import { $remark } from '@milkdown/kit/utils';
 import remarkMath from 'remark-math';
 import { mathBlockInputRule, mathInlineInputRule } from './mathInputRules';
@@ -16,6 +17,7 @@ export const mathPlugin = [
   mathBlockSchema,
   mathInlineIdAttr,
   mathInlineSchema,
+  mathBlockEnterPlugin,
   mathBlockInputRule,
   mathInlineInputRule
 ].flat();

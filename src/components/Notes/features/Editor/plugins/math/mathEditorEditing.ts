@@ -19,6 +19,30 @@ interface MathEditorViewLike<TTransaction> {
   dispatch: (tr: TTransaction) => void;
 }
 
+export function removeMathNode<TTransaction>(
+  editorView: MathEditorViewLike<TTransaction> & {
+    state: MathEditorViewLike<TTransaction>['state'] & {
+      tr: {
+        delete: (from: number, to: number) => TTransaction;
+      };
+    };
+  },
+  nodePos: number
+): boolean {
+  if (nodePos < 0) {
+    return false;
+  }
+
+  const node = editorView.state.doc.nodeAt(nodePos);
+  if (!node || (node.type.name !== 'math_block' && node.type.name !== 'math_inline')) {
+    return false;
+  }
+
+  const tr = editorView.state.tr.delete(nodePos, nodePos + 1);
+  editorView.dispatch(tr);
+  return true;
+}
+
 export function applyMathNodeLatex<TTransaction>(
   editorView: MathEditorViewLike<TTransaction>,
   nodePos: number,

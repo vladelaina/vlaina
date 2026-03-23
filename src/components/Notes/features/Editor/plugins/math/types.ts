@@ -12,4 +12,5 @@ export interface MathEditorState {
   displayMode: boolean;
   position: { x: number; y: number };
   nodePos: number;
+  removeIfCancelledEmpty: boolean;
 }

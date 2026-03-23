@@ -4,7 +4,7 @@ import { renderLatex } from '../../utils/katex';
 import {
   getScrollRoot,
 } from '../floating-toolbar/floatingToolbarDom';
-import { applyMathNodeLatex } from './mathEditorEditing';
+import { applyMathNodeLatex, removeMathNode } from './mathEditorEditing';
 import { resolveMathEditorOpenState } from './mathEditorOpen';
 import {
   createMathEditorElements,
@@ -17,6 +17,21 @@ import type { MathEditorState } from './types';
 export const mathClickPluginKey = new PluginKey('mathClick');
 
 export const mathClickPlugin = $prose(() => {
+  let suppressOpenUntil = 0;
+
+  const shouldIgnoreOpen = (state: MathEditorState | null | undefined) => {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (state?.isOpen) {
+      return 'already-open';
+    }
+
+    if (now < suppressOpenUntil) {
+      return 'suppressed-after-close';
+    }
+
+    return null;
+  };
+
   return new Plugin({
     key: mathClickPluginKey,
     state: {
@@ -32,6 +47,12 @@ export const mathClickPlugin = $prose(() => {
     props: {
       handleDOMEvents: {
         mousedown(view, event) {
+          const currentState = mathClickPluginKey.getState(view.state);
+          const ignoreReason = shouldIgnoreOpen(currentState);
+          if (ignoreReason) {
+            return false;
+          }
+
           if (!(event instanceof MouseEvent)) {
             return false;
           }
@@ -74,6 +95,12 @@ export const mathClickPlugin = $prose(() => {
         },
       },
       handleClick(view, pos, event) {
+        const currentState = mathClickPluginKey.getState(view.state);
+        const ignoreReason = shouldIgnoreOpen(currentState);
+        if (ignoreReason) {
+          return false;
+        }
+
         const getPosition = (nodePos: number) =>
           getMathEditorViewportPosition(
             getMathAnchorElement(
@@ -122,6 +149,18 @@ export const mathClickPlugin = $prose(() => {
           suppressOutsideMouseDownTimer = null;
         }, 0);
       };
+
+      const shouldRemoveNodeOnCancel = (state: MathEditorState | null | undefined) => {
+        if (!state?.removeIfCancelledEmpty || state.nodePos < 0) {
+          return false;
+        }
+
+        if (state.latex.trim() || draftLatex.trim()) {
+          return false;
+        }
+
+        return true;
+      };
       
       const closeEditor = () => {
         if (editorElement) {
@@ -136,6 +175,16 @@ export const mathClickPlugin = $prose(() => {
           editorView.state.tr.setMeta(mathClickPluginKey, createInitialMathEditorState())
         );
       };
+
+      const cancelAndClose = () => {
+        const state = mathClickPluginKey.getState(editorView.state);
+        if (shouldRemoveNodeOnCancel(state)) {
+          removeMathNode(editorView as never, state.nodePos);
+        }
+
+        closeEditor();
+        editorView.focus();
+      };
       
       const saveAndClose = () => {
         const state = mathClickPluginKey.getState(editorView.state);
@@ -143,7 +192,6 @@ export const mathClickPlugin = $prose(() => {
           closeEditor();
           return;
         }
-        
         applyMathNodeLatex(editorView, state.nodePos, draftLatex);
         
         closeEditor();
@@ -156,6 +204,13 @@ export const mathClickPlugin = $prose(() => {
         }
 
         if (editorElement && !editorElement.contains(e.target as Node)) {
+          const state = mathClickPluginKey.getState(editorView.state);
+          suppressOpenUntil = (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 120;
+          if (shouldRemoveNodeOnCancel(state)) {
+            cancelAndClose();
+            return;
+          }
+
           saveAndClose();
         }
       };
@@ -210,8 +265,7 @@ export const mathClickPlugin = $prose(() => {
 
           if (e.key === 'Escape') {
             e.preventDefault();
-            closeEditor();
-            editorView.focus();
+            cancelAndClose();
           } else if (e.key === 'Enter') {
             e.preventDefault();
             saveAndClose();
@@ -219,8 +273,7 @@ export const mathClickPlugin = $prose(() => {
         });
 
         cancelButton.addEventListener('click', () => {
-          closeEditor();
-          editorView.focus();
+          cancelAndClose();
         });
 
         saveButton.addEventListener('click', saveAndClose);

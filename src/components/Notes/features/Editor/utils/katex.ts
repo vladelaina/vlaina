@@ -156,7 +156,7 @@ export function parseMathRenderError(
 export function renderLatex(latex: string, displayMode: boolean): RenderResult {
   if (!latex.trim()) {
     return {
-      html: `<span class="math-placeholder">${displayMode ? 'Equation' : 'formula'}</span>`,
+      html: '<span class="math-empty" aria-hidden="true">\u200b</span>',
       error: null,
       errorDetails: null,
     };

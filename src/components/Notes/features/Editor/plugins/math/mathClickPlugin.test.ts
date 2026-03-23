@@ -11,6 +11,7 @@ describe('mathClickPlugin', () => {
       displayMode: false,
       position: { x: 0, y: 0 },
       nodePos: -1,
+      removeIfCancelledEmpty: false,
     });
   });
 
@@ -91,6 +92,7 @@ describe('mathClickPlugin', () => {
       displayMode: false,
       position: { x: 20, y: 40 },
       nodePos: 5,
+      removeIfCancelledEmpty: false,
     });
   });
 });

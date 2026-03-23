@@ -7,5 +7,6 @@ export function createInitialMathEditorState(): MathEditorState {
     displayMode: false,
     position: { x: 0, y: 0 },
     nodePos: -1,
+    removeIfCancelledEmpty: false,
   };
 }

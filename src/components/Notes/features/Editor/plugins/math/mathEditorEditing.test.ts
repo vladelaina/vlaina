@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { applyMathNodeLatex } from './mathEditorEditing';
+import { applyMathNodeLatex, removeMathNode } from './mathEditorEditing';
 
 function createEditorView(node: {
   type: { name: string };
@@ -7,6 +7,7 @@ function createEditorView(node: {
 } | null) {
   const transaction = { kind: 'transaction' };
   const setNodeMarkup = vi.fn(() => transaction);
+  const deleteNode = vi.fn(() => transaction);
   const dispatch = vi.fn();
 
   return {
@@ -17,11 +18,13 @@ function createEditorView(node: {
         },
         tr: {
           setNodeMarkup,
+          delete: deleteNode,
         },
       },
       dispatch,
     },
     setNodeMarkup,
+    deleteNode,
     dispatch,
     transaction,
   };
@@ -70,6 +73,35 @@ describe('mathEditorEditing', () => {
     expect(nonMath.setNodeMarkup).not.toHaveBeenCalled();
     expect(nonMath.dispatch).not.toHaveBeenCalled();
     expect(missing.setNodeMarkup).not.toHaveBeenCalled();
+    expect(missing.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('removes a math node when a newly created empty formula is cancelled', () => {
+    const { editorView, deleteNode, dispatch, transaction } = createEditorView({
+      type: { name: 'math_block' },
+      attrs: { latex: '' },
+    });
+
+    const removed = removeMathNode(editorView, 4);
+
+    expect(removed).toBe(true);
+    expect(deleteNode).toHaveBeenCalledWith(4, 5);
+    expect(dispatch).toHaveBeenCalledWith(transaction);
+  });
+
+  it('skips removing non-math nodes and invalid positions', () => {
+    const nonMath = createEditorView({
+      type: { name: 'paragraph' },
+      attrs: {},
+    });
+    const missing = createEditorView(null);
+
+    expect(removeMathNode(nonMath.editorView, 2)).toBe(false);
+    expect(removeMathNode(missing.editorView, 2)).toBe(false);
+    expect(removeMathNode(missing.editorView, -1)).toBe(false);
+    expect(nonMath.deleteNode).not.toHaveBeenCalled();
+    expect(nonMath.dispatch).not.toHaveBeenCalled();
+    expect(missing.deleteNode).not.toHaveBeenCalled();
     expect(missing.dispatch).not.toHaveBeenCalled();
   });
 });

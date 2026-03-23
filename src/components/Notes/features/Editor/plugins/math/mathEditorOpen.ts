@@ -6,6 +6,7 @@ interface MathEditorOpenState {
   displayMode: boolean;
   position: { x: number; y: number };
   nodePos: number;
+  removeIfCancelledEmpty: boolean;
 }
 
 interface MathEditorViewLike {
@@ -39,6 +40,7 @@ export function resolveMathEditorOpenState(args: {
       displayMode: true,
       position: getPosition(pos),
       nodePos: pos,
+      removeIfCancelledEmpty: false,
     };
   }
 
@@ -49,6 +51,7 @@ export function resolveMathEditorOpenState(args: {
       displayMode: false,
       position: getPosition(pos),
       nodePos: pos,
+      removeIfCancelledEmpty: false,
     };
   }
 
@@ -65,6 +68,7 @@ export function resolveMathEditorOpenState(args: {
       displayMode: parentNode.type.name === 'math_block',
       position: getPosition(parentPos),
       nodePos: parentPos,
+      removeIfCancelledEmpty: false,
     };
   }
 

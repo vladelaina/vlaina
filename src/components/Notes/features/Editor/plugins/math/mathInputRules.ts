@@ -1,7 +1,12 @@
 import { $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
+import {
+  getMathBlockLatexFromInputMatch,
+  MATH_BLOCK_INPUT_RULE_PATTERN,
+} from './mathBlockFence';
 
-export const MATH_BLOCK_INPUT_RULE_PATTERN = /^\$\$([^$]+)\$\$\s$/;
+export { MATH_BLOCK_INPUT_RULE_PATTERN } from './mathBlockFence';
+
 export const MATH_INLINE_INPUT_RULE_PATTERN = /(?<!\$)\$([^$\s][^$]*[^$\s]|[^$\s])\$$/;
 
 export function applyMathBlockInputRule(
@@ -17,7 +22,7 @@ export function applyMathBlockInputRule(
   start: number,
   end: number
 ) {
-  const latex = match[1] || '';
+  const latex = getMathBlockLatexFromInputMatch(match);
   const { tr, schema } = state;
   const mathBlockType = schema.nodes.math_block;
 

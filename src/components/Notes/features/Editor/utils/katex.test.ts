@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { isValidLatex, parseMathRenderError, renderLatex } from './katex';
 
 describe('katex utils', () => {
-  it('renders placeholders for empty inline and block latex', () => {
+  it('renders empty inline and block latex without visible placeholder copy', () => {
     expect(renderLatex('', false)).toEqual({
-      html: '<span class="math-placeholder">formula</span>',
+      html: '<span class="math-empty" aria-hidden="true">\u200b</span>',
       error: null,
       errorDetails: null,
     });
     expect(renderLatex('   ', true)).toEqual({
-      html: '<span class="math-placeholder">Equation</span>',
+      html: '<span class="math-empty" aria-hidden="true">\u200b</span>',
       error: null,
       errorDetails: null,
     });
