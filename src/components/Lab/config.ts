@@ -7,8 +7,16 @@ import { CoreNavigationLab } from './playground/CoreNavigationLab';
 import { SidebarResizeLab } from './playground/SidebarResizeLab';
 import { FirstPrinciplesTableDrag } from './playground/FirstPrinciplesTableDrag';
 import { FirstPrinciplesLinkEditor } from './playground/FirstPrinciplesLinkEditor';
+import { NotesSidebarModeLab } from './playground/NotesSidebarModeLab';
 
 export const LAB_MODULES = [
+  {
+    id: 'notes-sidebar-modes',
+    label: 'Notes Sidebar Modes',
+    icon: 'misc.lab',
+    component: NotesSidebarModeLab,
+    description: 'Placement experiments for the Files / Outline switch inside the Notes sidebar.'
+  },
   {
     id: 'sidebar-resize',
     label: 'Sidebar Resize',

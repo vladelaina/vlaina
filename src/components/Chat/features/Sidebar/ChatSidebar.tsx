@@ -1,5 +1,6 @@
 import { useMemo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
+import { useUIStore } from '@/stores/uiSlice';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
 import { ChatSidebarList, ChatSidebarRow, ChatSidebarScrollArea, ChatSidebarSurface } from './ChatSidebarPrimitives';
@@ -30,6 +31,7 @@ function ChatSidebarLoadingTitle({ title }: { title: string }) {
 }
 
 export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
+  const setAppViewMode = useUIStore((s) => s.setAppViewMode);
   const {
       sessions,
       currentSessionId,
@@ -205,7 +207,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                 type="button"
                 onClick={() => hideSearch()}
                 aria-label="Close chat search"
-                className="rounded-md p-0.5 text-[var(--neko-text-tertiary)] transition-colors hover:bg-[var(--neko-hover)] hover:text-[var(--neko-text-primary)]"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--neko-text-tertiary)] transition-colors hover:bg-[var(--neko-hover)] hover:text-[var(--neko-text-primary)]"
               >
                 <Icon name="common.close" size="md" />
               </button>
@@ -213,16 +215,28 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
           </div>
         ) : (
           <div className="px-1 pt-1 pb-1">
-            <button
-              type="button"
-              onClick={openNewChat}
-              className={cn(
-                'flex min-h-9 w-full items-center gap-2 rounded-xl bg-transparent px-3 py-2 text-sm font-medium text-[var(--chat-sidebar-text)] shadow-none transition-colors hover:bg-[var(--chat-sidebar-row-hover)] hover:shadow-none'
-              )}
-            >
-              <Icon name="common.compose" size="md" />
-              <span className="truncate">New Chat</span>
-            </button>
+            <div className="flex flex-col gap-0.5">
+                <button
+                  type="button"
+                  onClick={openNewChat}
+                  className={cn(
+                  'flex min-h-9 w-full items-center gap-2 rounded-xl bg-transparent px-3 py-2 text-sm font-medium text-[var(--chat-sidebar-text-muted)] shadow-none transition-colors hover:bg-[var(--chat-sidebar-row-hover)] hover:shadow-none'
+                  )}
+                >
+                  <Icon name="common.compose" size="md" className="text-[var(--chat-sidebar-text-muted)]" />
+                  <span className="truncate">New Chat</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAppViewMode('notes')}
+                  className={cn(
+                  'flex min-h-9 w-full items-center gap-2 rounded-xl bg-transparent px-3 py-2 text-sm font-medium text-[var(--chat-sidebar-text-muted)] shadow-none transition-colors hover:bg-[var(--chat-sidebar-row-hover)] hover:shadow-none'
+                  )}
+                >
+                  <Icon name="file.text" size="md" className="text-[var(--chat-sidebar-text-muted)]" />
+                  <span className="truncate">Notes</span>
+                </button>
+            </div>
           </div>
         )}
 

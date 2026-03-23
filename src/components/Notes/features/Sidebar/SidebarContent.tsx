@@ -82,6 +82,7 @@ export function SidebarContent({
   const setSearchOpen = useUIStore((s) => s.setNotesSidebarSearchOpen);
   const searchQuery = useUIStore((s) => s.searchQuery);
   const setSearchQuery = useUIStore((s) => s.setSearchQuery);
+  const setAppViewMode = useUIStore((s) => s.setAppViewMode);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const overscrollDistanceRef = useRef(0);
 
@@ -116,6 +117,19 @@ export function SidebarContent({
 
   return (
     <div className={cn('flex h-full flex-col', className)}>
+      {!isSearchOpen ? (
+        <div className="px-1 pt-1 pb-1">
+          <button
+            type="button"
+            onClick={() => setAppViewMode('chat')}
+            className="flex min-h-9 w-full items-center gap-2 rounded-xl bg-transparent px-3 py-2 text-sm font-medium text-[var(--chat-sidebar-text-muted)] shadow-none transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:shadow-none"
+          >
+            <Icon name="common.sparkle" size="md" className="text-[var(--chat-sidebar-text-muted)]" />
+            <span className="truncate">Chat</span>
+          </button>
+        </div>
+      ) : null}
+
       {isSearchOpen ? (
         <div className="px-2 pt-2">
           <div className="flex items-center gap-2 rounded-xl border border-[var(--neko-border)] bg-white px-3 py-1 shadow-none">
@@ -144,7 +158,7 @@ export function SidebarContent({
                 type="button"
                 onClick={() => hideSearch()}
                 aria-label="Close sidebar search"
-                className="rounded-md p-0.5 text-[var(--neko-text-tertiary)] transition-colors hover:bg-[var(--neko-hover)] hover:text-[var(--neko-text-primary)]"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--neko-text-tertiary)] transition-colors hover:bg-[var(--neko-hover)] hover:text-[var(--neko-text-primary)]"
               >
               <Icon name="common.close" size="md" />
             </button>
