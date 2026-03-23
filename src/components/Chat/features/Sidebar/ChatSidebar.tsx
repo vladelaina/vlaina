@@ -13,6 +13,7 @@ import {
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
+import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 
 interface ChatSidebarProps {
   isPeeking?: boolean;
@@ -170,6 +171,18 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
     setSearchQuery('');
   };
 
+  const handleOpenNewChat = () => {
+    openNewChat();
+    requestAnimationFrame(() => {
+      if (focusComposerInput()) {
+        return;
+      }
+      requestAnimationFrame(() => {
+        focusComposerInput();
+      });
+    });
+  };
+
   const hasSessions = visibleSessions.length > 0;
   const sessionsToRender = isSearchOpen ? filteredSessions : sortedSessions;
 
@@ -215,7 +228,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
           <div className="px-1 pt-1 pb-1">
             <button
               type="button"
-              onClick={openNewChat}
+              onClick={handleOpenNewChat}
               className={cn(
                 'flex min-h-9 w-full items-center gap-2 rounded-xl bg-transparent px-3 py-2 text-sm font-medium text-[var(--chat-sidebar-text)] shadow-none transition-colors hover:bg-[var(--chat-sidebar-row-hover)] hover:shadow-none'
               )}
@@ -380,11 +393,12 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                   }}
                                   className={cn(
                                     "text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none",
-                                    "text-neutral-700 dark:text-neutral-200",
-                                    "hover:bg-neutral-100 focus:bg-neutral-100 dark:hover:bg-neutral-700/60 dark:focus:bg-neutral-700/60"
+                                    "text-[var(--chat-sidebar-text)]",
+                                    "hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]",
+                                    "focus:text-[var(--chat-sidebar-text)] data-[highlighted]:text-[var(--chat-sidebar-text)]"
                                   )}
                               >
-                                  <Icon name="common.rename" size="md" className="mr-2 text-neutral-500 dark:text-neutral-400" />
+                                  <Icon name="common.rename" size="md" className="mr-2 text-[var(--chat-sidebar-icon)]" />
                                   <span>Rename</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem
@@ -394,14 +408,15 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                   }}
                                   className={cn(
                                     "text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none",
-                                    "text-neutral-700 dark:text-neutral-200",
-                                    "hover:bg-neutral-100 focus:bg-neutral-100 dark:hover:bg-neutral-700/60 dark:focus:bg-neutral-700/60"
+                                    "text-[var(--chat-sidebar-text)]",
+                                    "hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]",
+                                    "focus:text-[var(--chat-sidebar-text)] data-[highlighted]:text-[var(--chat-sidebar-text)]"
                                   )}
                               >
                                   {session.isPinned ? (
-                                    <Icon name="common.unpinPrimer" size={16} className="mr-2 text-neutral-500 dark:text-neutral-400" />
+                                    <Icon name="common.unpinPrimer" size={16} className="mr-2 text-[var(--chat-sidebar-icon)]" />
                                   ) : (
-                                    <Icon name="common.pinPrimer" size={16} className="mr-2 text-neutral-500 dark:text-neutral-400" />
+                                    <Icon name="common.pinPrimer" size={16} className="mr-2 text-[var(--chat-sidebar-icon)]" />
                                   )}
                                   <span>{session.isPinned ? 'Unpin' : 'Pin'}</span>
                               </DropdownMenuItem>
@@ -414,10 +429,11 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                   className={cn(
                                     "text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none",
                                     "text-red-600 dark:text-red-400",
-                                    "hover:bg-red-50 focus:bg-red-50 dark:hover:bg-red-900/20 dark:focus:bg-red-900/20"
+                                    "hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]",
+                                    "focus:text-red-600 dark:focus:text-red-400 data-[highlighted]:text-red-600 dark:data-[highlighted]:text-red-400"
                                   )}
                               >
-                                  <DeleteIcon className="mr-2" />
+                                  <DeleteIcon className="mr-2 text-current" />
                                   <span>Delete</span>
                               </DropdownMenuItem>
                           </DropdownMenuContent>

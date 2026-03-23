@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { buildScopedModelId } from '@/lib/ai/utils';
 import { formatBenchmarkLatency, type HealthStatus } from '../components/ModelListItem';
 
-const SLOW_BENCHMARK_LATENCY_MS = 3000;
+const SLOW_BENCHMARK_LATENCY_MS = 5000;
 const QUICK_ADD_SPLIT_PATTERN = /[,\uFF0C]+/;
 
 function compareHealthStatus(left?: HealthStatus, right?: HealthStatus) {
