@@ -1,8 +1,9 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { mathClickPluginKey } from './mathClickPlugin';
+import { mathEditorPluginKey } from './mathEditorPluginKey';
 import { isMathBlockShortcutText } from './mathBlockFence';
+import { createOpenMathEditorState } from './mathEditorState';
 
 function getMathBlockEnterViewportPosition(view: EditorView) {
   try {
@@ -60,14 +61,16 @@ export function handleMathBlockShortcutEnter(view: EditorView): boolean {
   const paragraphEnd = paragraphPos + $from.parent.nodeSize;
   const tr = state.tr
     .replaceWith(paragraphPos, paragraphEnd, mathBlockType.create({ latex: '' }))
-    .setMeta(mathClickPluginKey, {
-      isOpen: true,
+    .setMeta(
+      mathEditorPluginKey,
+      createOpenMathEditorState({
       latex: '',
       displayMode: true,
       position: getMathBlockEnterViewportPosition(view),
       nodePos: paragraphPos,
-      removeIfCancelledEmpty: true,
+      openSource: 'new-empty-block',
     })
+    )
     .scrollIntoView();
 
   view.dispatch(tr);

@@ -1,13 +1,6 @@
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
-
-interface MathEditorOpenState {
-  isOpen: true;
-  latex: string;
-  displayMode: boolean;
-  position: { x: number; y: number };
-  nodePos: number;
-  removeIfCancelledEmpty: boolean;
-}
+import { createOpenMathEditorState } from './mathEditorState';
+import type { MathEditorState } from './types';
 
 interface MathEditorViewLike {
   state: {
@@ -27,32 +20,30 @@ export function resolveMathEditorOpenState(args: {
   view: MathEditorViewLike;
   pos: number;
   getPosition: (nodePos: number) => { x: number; y: number };
-}): MathEditorOpenState | null {
+}): MathEditorState | null {
   const { view, pos, getPosition } = args;
   const { state } = view;
   const $pos = state.doc.resolve(pos);
   const node = state.doc.nodeAt(pos);
 
   if (node?.type.name === 'math_block') {
-    return {
-      isOpen: true,
+    return createOpenMathEditorState({
       latex: node.attrs.latex || '',
       displayMode: true,
       position: getPosition(pos),
       nodePos: pos,
-      removeIfCancelledEmpty: false,
-    };
+      openSource: 'existing-node',
+    });
   }
 
   if (node?.type.name === 'math_inline') {
-    return {
-      isOpen: true,
+    return createOpenMathEditorState({
       latex: node.attrs.latex || '',
       displayMode: false,
       position: getPosition(pos),
       nodePos: pos,
-      removeIfCancelledEmpty: false,
-    };
+      openSource: 'existing-node',
+    });
   }
 
   for (let depth = $pos.depth; depth > 0; depth--) {
@@ -62,14 +53,13 @@ export function resolveMathEditorOpenState(args: {
     }
 
     const parentPos = $pos.before(depth);
-    return {
-      isOpen: true,
+    return createOpenMathEditorState({
       latex: parentNode.attrs.latex || '',
       displayMode: parentNode.type.name === 'math_block',
       position: getPosition(parentPos),
       nodePos: parentPos,
-      removeIfCancelledEmpty: false,
-    };
+      openSource: 'existing-node',
+    });
   }
 
   return null;

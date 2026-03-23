@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { createInitialMathEditorState } from './mathEditorState';
+import { createClosedMathEditorState } from './mathEditorState';
 import { getMathAnchorElement, getMathEditorViewportPosition } from './mathEditorPositioning';
 import { resolveMathEditorOpenState } from './mathEditorOpen';
 
 describe('mathClickPlugin', () => {
   it('creates a closed default editor state', () => {
-    expect(createInitialMathEditorState()).toEqual({
+    expect(createClosedMathEditorState()).toEqual({
       isOpen: false,
       latex: '',
       displayMode: false,
       position: { x: 0, y: 0 },
       nodePos: -1,
-      removeIfCancelledEmpty: false,
+      openSource: null,
     });
   });
 
@@ -92,7 +92,7 @@ describe('mathClickPlugin', () => {
       displayMode: false,
       position: { x: 20, y: 40 },
       nodePos: 5,
-      removeIfCancelledEmpty: false,
+      openSource: 'existing-node',
     });
   });
 });

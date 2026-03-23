@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { handleMathBlockShortcutEnter } from './mathBlockEnterPlugin';
-import { mathClickPluginKey } from './mathClickPlugin';
+import { mathEditorPluginKey } from './mathEditorPluginKey';
 
 function createView(args?: {
   text?: string;
@@ -83,13 +83,13 @@ describe('mathBlockEnterPlugin', () => {
       type: 'math_block',
       attrs: { latex: '' },
     });
-    expect(tr.setMeta).toHaveBeenCalledWith(mathClickPluginKey, {
+    expect(tr.setMeta).toHaveBeenCalledWith(mathEditorPluginKey, {
       isOpen: true,
       latex: '',
       displayMode: true,
       position: { x: 120, y: 208 },
       nodePos: 4,
-      removeIfCancelledEmpty: true,
+      openSource: 'new-empty-block',
     });
     expect(dispatch).toHaveBeenCalledWith(tr);
   });
@@ -99,7 +99,7 @@ describe('mathBlockEnterPlugin', () => {
 
     expect(handleMathBlockShortcutEnter(view as never)).toBe(true);
     expect(tr.setMeta).toHaveBeenCalledWith(
-      mathClickPluginKey,
+      mathEditorPluginKey,
       expect.objectContaining({
         position: { x: 16, y: 16 },
       })

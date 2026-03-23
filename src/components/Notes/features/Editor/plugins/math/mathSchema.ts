@@ -1,6 +1,6 @@
 import { $node, $nodeAttr } from '@milkdown/kit/utils';
 import { type DOMOutputSpec, type Node } from '@milkdown/kit/prose/model';
-import { renderLatex } from '../../utils/katex';
+import { renderLatex } from './katex';
 import type { MathBlockAttrs, MathInlineAttrs } from './types';
 
 export function parseMathAttrs(dom: HTMLElement) {

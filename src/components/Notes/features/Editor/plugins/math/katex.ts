@@ -173,15 +173,15 @@ export function renderLatex(latex: string, displayMode: boolean): RenderResult {
         '\\N': '\\mathbb{N}',
         '\\Z': '\\mathbb{Z}',
         '\\Q': '\\mathbb{Q}',
-        '\\C': '\\mathbb{C}'
-      }
+        '\\C': '\\mathbb{C}',
+      },
     });
     return { html, error: null, errorDetails: null };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
     const errorDetails = parseMathRenderError(errorMessage, latex);
     return {
-      html: `<span class="math-error">Error equation</span>`,
+      html: '<span class="math-error">Error equation</span>',
       error: errorDetails.summary,
       errorDetails,
     };
@@ -189,8 +189,10 @@ export function renderLatex(latex: string, displayMode: boolean): RenderResult {
 }
 
 export function isValidLatex(latex: string): boolean {
-  if (!latex.trim()) return true;
-  
+  if (!latex.trim()) {
+    return true;
+  }
+
   try {
     katex.renderToString(latex, { throwOnError: true });
     return true;

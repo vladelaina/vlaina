@@ -1,5 +1,5 @@
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
-import type { MathRenderErrorDetails } from '../../utils/katex';
+import type { MathRenderErrorDetails } from './katex';
 
 export interface MathEditorElements {
   card: HTMLElement;
