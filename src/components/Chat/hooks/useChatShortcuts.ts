@@ -95,7 +95,7 @@ export function useChatShortcuts(
         if (!temporaryEnabled) {
           aiActions.toggleTemporaryChat(true);
         } else if (isCurrentTemporaryChatEmpty) {
-          aiActions.toggleTemporaryChat(false);
+          aiActions.openNewChat();
         } else {
           aiActions.createSession('New Chat');
         }

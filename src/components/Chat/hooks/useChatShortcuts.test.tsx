@@ -210,7 +210,7 @@ describe("useChatShortcuts", () => {
     expect(onFocusInput).toHaveBeenCalledTimes(1);
   });
 
-  it("exits temporary chat on Ctrl+Shift+J when current temporary chat is empty", () => {
+  it("exits temporary chat to a blank normal draft on Ctrl+Shift+J when current temporary chat is empty", () => {
     const { onFocusInput } = setup({
       state: createState({
         temporaryChatEnabled: true,
@@ -221,7 +221,8 @@ describe("useChatShortcuts", () => {
 
     fireKeydown({ key: "j", ctrlKey: true, shiftKey: true });
 
-    expect(mocked.toggleTemporaryChat).toHaveBeenCalledWith(false);
+    expect(mocked.openNewChat).toHaveBeenCalledTimes(1);
+    expect(mocked.toggleTemporaryChat).not.toHaveBeenCalled();
     expect(mocked.createSession).not.toHaveBeenCalled();
     expect(onFocusInput).toHaveBeenCalledTimes(1);
   });

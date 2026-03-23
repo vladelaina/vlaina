@@ -460,8 +460,10 @@ export const ChatInput = memo(function ChatInput({
         onDrop={handleDrop}
       >
         {isDragging && (
-          <div className="absolute inset-0 z-20 bg-blue-500/10 border-2 border-dashed border-blue-500 rounded-[32px] flex items-center justify-center backdrop-blur-sm pointer-events-none">
-            <span className="text-blue-600 font-medium">Drop files here</span>
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-[32px] border-2 border-dashed border-[var(--chat-sidebar-icon)]/50 bg-black/[0.03] backdrop-blur-sm pointer-events-none dark:border-white/15 dark:bg-white/[0.04]">
+            <span className="font-medium text-[var(--chat-sidebar-text-muted)] dark:text-[var(--chat-sidebar-text-soft)]">
+              Drop files here
+            </span>
           </div>
         )}
 

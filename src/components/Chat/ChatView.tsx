@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { AnimatePresence } from 'framer-motion';
 import { useAIStore } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useChatService } from '@/hooks/useChatService';
@@ -275,9 +274,7 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
               isEmpty ? "flex-1 justify-center items-center" : "flex-none pb-6"
           )}
       >
-          <AnimatePresence mode="wait">
-            {isEmpty && <WelcomeScreen />}
-          </AnimatePresence>
+          {isEmpty ? <WelcomeScreen /> : null}
 
           <div 
             className="w-full max-w-[850px] mx-auto px-4 pointer-events-auto"

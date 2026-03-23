@@ -24,6 +24,7 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
     settingsButton: string
     optionHover: string
     optionActive: string
+    optionFocused: string
     optionText: string
     optionTextActive: string
     checkIcon: string
@@ -43,6 +44,7 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
     settingsButton: 'text-[var(--chat-sidebar-icon)] hover:text-[var(--chat-sidebar-icon-hover)]',
     optionHover: 'hover:bg-[var(--chat-sidebar-row-hover)]',
     optionActive: 'bg-[var(--chat-sidebar-row-active)]',
+    optionFocused: 'bg-[var(--chat-sidebar-row-hover)]',
     optionText: 'text-[var(--chat-sidebar-text-muted)]',
     optionTextActive: 'text-[var(--chat-sidebar-text)]',
     checkIcon: 'text-[var(--chat-sidebar-text)]',
@@ -61,6 +63,7 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
     settingsButton: 'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]',
     optionHover: 'hover:bg-[var(--notes-sidebar-row-hover)]',
     optionActive: 'bg-[var(--notes-sidebar-row-active)]',
+    optionFocused: 'bg-[var(--notes-sidebar-row-hover)]',
     optionText: 'text-[var(--notes-sidebar-text-muted)]',
     optionTextActive: 'text-[var(--notes-sidebar-text)]',
     checkIcon: 'text-[var(--notes-sidebar-text)]',
@@ -92,16 +95,18 @@ const ModelOption = memo(({
             onMouseEnter={() => onHover(model.id)}
             className={cn(
                 "w-full flex items-center justify-between px-3 py-2 rounded-md text-left transition-colors duration-75",
-                (isSelected || isFocused)
-                ? styles.optionActive
-                : cn("bg-transparent", styles.optionHover)
+                isSelected
+                  ? styles.optionActive
+                  : isFocused
+                    ? styles.optionFocused
+                    : cn("bg-transparent", styles.optionHover)
             )}
         >
             <span className={cn(
-                "text-sm", 
+                "text-sm font-medium",
                 isSelected
-                  ? cn("font-semibold", styles.optionTextActive)
-                  : cn("font-medium", styles.optionText)
+                  ? styles.optionTextActive
+                  : styles.optionText
             )}>
                 {model.name}
             </span>
@@ -300,6 +305,14 @@ export function ModelSelector({
       }
   }, [clearScrollMode]);
 
+  const handleListMouseLeave = useCallback(() => {
+      if (isKeyboardNavigating.current) {
+          return;
+      }
+      clearScrollMode();
+      setFocusedModelId(selectedModelId ?? null);
+  }, [clearScrollMode, selectedModelId]);
+
   return (
     <div className="relative select-none w-fit" ref={dropdownRef}>
       <button
@@ -367,7 +380,12 @@ export function ModelSelector({
               </button>
           </div>
 
-          <div ref={listRef} className="overflow-y-auto p-1 scrollbar-none flex-1" style={{ height: '256px' }}>
+          <div
+            ref={listRef}
+            onMouseLeave={handleListMouseLeave}
+            className="overflow-y-auto p-1 scrollbar-none flex-1"
+            style={{ height: '256px' }}
+          >
             {filteredModels.length === 0 ? (
               <div className={cn("py-8 text-center text-xs", styles.emptyText)}>
                 No models found
