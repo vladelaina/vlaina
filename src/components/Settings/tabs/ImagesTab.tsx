@@ -14,13 +14,13 @@ const storageOptions: StorageOption[] = [
         id: 'vaultSubfolder',
         label: 'Vault Subfolder',
         description: 'Save to a specific folder in the vault root (e.g., assets/)',
-        icon: 'legacy.collections',
+        icon: 'file.folder',
     },
     {
         id: 'subfolder',
         label: 'Note Subfolder',
         description: 'Save to a subfolder in the current note\'s directory',
-        icon: 'legacy.accountTree',
+        icon: 'file.folderOpen',
     },
     {
         id: 'vault',
@@ -151,7 +151,7 @@ export function ImagesTab() {
                         id="original"
                         label="Original Name"
                         description="Keep the original filename"
-                        icon="legacy.label"
+                        icon="common.tag"
                     />
                     <FilenameFormatOption
                         id="sequence"

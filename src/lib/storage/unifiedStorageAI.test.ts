@@ -29,12 +29,12 @@ const models: AIModel[] = [
 ];
 
 describe('normalizeLoadedAIModels', () => {
-  it('remaps legacy managed internal ids to public ids when upstream id is unique', () => {
+  it('keeps a current scoped model id when it is available', () => {
     const sessions: ChatSession[] = [
       {
         id: 'session-1',
         title: 'Test',
-        modelId: 'nekotick-managed::ch_a90e79128fec49ea8aae57b140dca404::gpt-5.4',
+        modelId: 'nekotick-managed::gpt-5.4',
         createdAt: 1,
         updatedAt: 1,
       },
@@ -43,7 +43,7 @@ describe('normalizeLoadedAIModels', () => {
     const normalized = normalizeLoadedAIModels(
       providers,
       models,
-      'nekotick-managed::ch_a90e79128fec49ea8aae57b140dca404::gpt-5.4',
+      'nekotick-managed::gpt-5.4',
       sessions
     );
 
@@ -51,8 +51,8 @@ describe('normalizeLoadedAIModels', () => {
     expect(normalized.sessions[0]?.modelId).toBe('nekotick-managed::gpt-5.4');
   });
 
-  it('does not guess when legacy upstream id is still ambiguous', () => {
-    const duplicateModels: AIModel[] = [
+  it('drops unknown model ids instead of guessing', () => {
+    const additionalModels: AIModel[] = [
       {
         id: 'nekotick-managed::gpt-5.4@openrouter-a',
         apiModelId: 'gpt-5.4@openrouter-a',
@@ -73,7 +73,7 @@ describe('normalizeLoadedAIModels', () => {
 
     const normalized = normalizeLoadedAIModels(
       providers,
-      duplicateModels,
+      additionalModels,
       'nekotick-managed::ch_a90e79128fec49ea8aae57b140dca404::gpt-5.4',
       []
     );

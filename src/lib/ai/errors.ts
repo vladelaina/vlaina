@@ -1,5 +1,198 @@
 import { AIError, AIErrorType } from './types';
 
+export interface UserFacingAIError {
+  type: AIErrorType
+  code: string
+  message: string
+}
+
+const NETWORK_ERROR_MESSAGE = 'Network connection error. Please check your connection and try again.'
+const TIMEOUT_ERROR_MESSAGE = 'The request timed out. Please try again later.'
+const AUTH_ERROR_MESSAGE = 'Your sign-in session has expired. Please sign in again and try again.'
+const RATE_LIMIT_ERROR_MESSAGE = 'Too many requests. Please try again later.'
+const INVALID_REQUEST_ERROR_MESSAGE = 'This request could not be processed. Please adjust your input or switch models and try again.'
+const MODEL_SERVICE_ERROR_MESSAGE = 'The model service is temporarily unavailable. Please try again later or switch to another model.'
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  if (isRecord(error) && typeof error.message === 'string') {
+    return error.message
+  }
+
+  return String(error || '')
+}
+
+function extractErrorCode(error: unknown): string {
+  if (!isRecord(error)) {
+    return ''
+  }
+
+  const value = error.statusCode ?? error.status
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value)
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim()
+  }
+
+  return ''
+}
+
+function inferErrorTypeByStatus(code: string): AIErrorType | null {
+  const status = Number(code)
+  if (!Number.isFinite(status)) {
+    return null
+  }
+
+  switch (status) {
+    case 400:
+      return AIErrorType.INVALID_REQUEST
+    case 401:
+    case 403:
+      return AIErrorType.AUTH_ERROR
+    case 408:
+      return AIErrorType.TIMEOUT
+    case 429:
+      return AIErrorType.RATE_LIMIT
+    case 500:
+    case 502:
+    case 503:
+    case 504:
+      return AIErrorType.SERVER_ERROR
+    default:
+      return null
+  }
+}
+
+function includesAny(text: string, keywords: string[]): boolean {
+  return keywords.some((keyword) => text.includes(keyword))
+}
+
+function inferErrorTypeByMessage(message: string): AIErrorType {
+  const normalized = message.trim().toLowerCase()
+  if (!normalized) {
+    return AIErrorType.UNKNOWN
+  }
+
+  if (
+    includesAny(normalized, [
+      'timeout',
+      'timed out',
+      'deadline exceeded',
+      'request timeout',
+      'operation was aborted',
+      'the ai request timed out',
+    ])
+  ) {
+    return AIErrorType.TIMEOUT
+  }
+
+  if (
+    includesAny(normalized, [
+      'failed to fetch',
+      'fetch failed',
+      'load failed',
+      'networkerror',
+      'network error',
+      'network request failed',
+      'internet disconnected',
+      'connection reset',
+      'connection refused',
+      'econnreset',
+      'econnrefused',
+      'enotfound',
+      'socket hang up',
+    ])
+  ) {
+    return AIErrorType.NETWORK_ERROR
+  }
+
+  if (
+    includesAny(normalized, [
+      'unauthorized',
+      'forbidden',
+      'sign-in required',
+      'sign in required',
+      'login required',
+      'log in required',
+      'authentication',
+      'authorization',
+      'unauthenticated',
+      'session expired',
+      'token expired',
+    ])
+  ) {
+    return AIErrorType.AUTH_ERROR
+  }
+
+  if (
+    includesAny(normalized, [
+      'rate limit',
+      'too many requests',
+      'quota exceeded',
+      'request limit',
+    ])
+  ) {
+    return AIErrorType.RATE_LIMIT
+  }
+
+  if (
+    includesAny(normalized, [
+      'invalid request',
+      'bad request',
+      'invalid input',
+      'malformed',
+      'unsupported',
+    ])
+  ) {
+    return AIErrorType.INVALID_REQUEST
+  }
+
+  if (
+    includesAny(normalized, [
+      'server error',
+      'internal server error',
+      'service unavailable',
+      'temporarily unavailable',
+      'bad gateway',
+      'gateway timeout',
+      'upstream',
+      'channel',
+      'provider',
+    ])
+  ) {
+    return AIErrorType.SERVER_ERROR
+  }
+
+  return AIErrorType.UNKNOWN
+}
+
+function getUserFacingMessage(type: AIErrorType): string {
+  switch (type) {
+    case AIErrorType.NETWORK_ERROR:
+      return NETWORK_ERROR_MESSAGE
+    case AIErrorType.TIMEOUT:
+      return TIMEOUT_ERROR_MESSAGE
+    case AIErrorType.AUTH_ERROR:
+      return AUTH_ERROR_MESSAGE
+    case AIErrorType.RATE_LIMIT:
+      return RATE_LIMIT_ERROR_MESSAGE
+    case AIErrorType.INVALID_REQUEST:
+      return INVALID_REQUEST_ERROR_MESSAGE
+    case AIErrorType.SERVER_ERROR:
+    case AIErrorType.UNKNOWN:
+    default:
+      return MODEL_SERVICE_ERROR_MESSAGE
+  }
+}
+
 export function createAIError(
   type: AIErrorType,
   message: string,
@@ -77,5 +270,28 @@ export function parseHTTPError(status: number, body?: any): AIError {
         undefined,
         status
       )
+  }
+}
+
+export function getUserFacingAIError(error: unknown): UserFacingAIError {
+  const parsed = parseAPIError(error)
+  const code = extractErrorCode(error) || (parsed.statusCode ? String(parsed.statusCode) : '')
+  const message = extractErrorMessage(error)
+  const statusType = inferErrorTypeByStatus(code)
+  const messageType = inferErrorTypeByMessage(message)
+
+  let type = parsed.type
+  if (statusType) {
+    type = statusType
+  } else if (type === AIErrorType.UNKNOWN && messageType !== AIErrorType.UNKNOWN) {
+    type = messageType
+  }
+
+  const normalizedType = type === AIErrorType.UNKNOWN ? AIErrorType.SERVER_ERROR : type
+
+  return {
+    type: normalizedType,
+    code,
+    message: getUserFacingMessage(normalizedType),
   }
 }

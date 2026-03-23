@@ -216,11 +216,6 @@ export const icons: Record<string, IconSource> = {
   'misc.activity': ActivityIcon,
   'misc.lab': BeakerIcon,
   'misc.box': ArchiveBoxIcon,
-  'legacy.addTask': PlusIcon,
-  'legacy.collections': FolderIcon,
-  'legacy.accountTree': FolderOpenIcon,
-  'legacy.label': TagIcon,
-  'legacy.unfold': ChevronUpDownIcon,
 };
 
 export type IconName = keyof typeof icons;
