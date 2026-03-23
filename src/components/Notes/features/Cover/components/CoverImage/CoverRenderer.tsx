@@ -42,11 +42,6 @@ export const CoverRenderer = React.memo(({
     isWindowResizing ||
     isContainerResizing ||
     (isResizing && !frozenLayerVisible);
-  const renderPath = frozenLayerVisible
-    ? 'frozen'
-    : placeholderFallbackVisible
-      ? 'placeholder'
-      : 'cropper';
 
   return (
     <>
