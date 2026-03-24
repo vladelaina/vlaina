@@ -87,18 +87,30 @@ describe('backgroundBenchmarkRunner', () => {
 
   it('aborts the active benchmark run when stopped', () => {
     const mockedBenchmarkModels = vi.mocked(benchmarkModels);
-    mockedBenchmarkModels.mockResolvedValue({});
+    let aborted = false;
+    mockedBenchmarkModels.mockImplementation(
+      async (_provider, _models, options) =>
+        await new Promise((_, reject) => {
+          options?.signal?.addEventListener(
+            'abort',
+            () => {
+              aborted = true;
+              reject(new Error('aborted'));
+            },
+            { once: true }
+          );
+        })
+    );
 
     const models = [createModel('m-1')];
     const started = backgroundBenchmarkRunner.start(provider, models);
 
     expect(started).toBe(true);
-    const signal = mockedBenchmarkModels.mock.calls[0]?.[2]?.signal as AbortSignal | undefined;
-    expect(signal?.aborted).toBe(false);
+    expect(aborted).toBe(false);
 
     backgroundBenchmarkRunner.stop(provider.id);
 
-    expect(signal?.aborted).toBe(true);
+    expect(aborted).toBe(true);
     expect(backgroundBenchmarkRunner.getSnapshot(provider.id)).toBeNull();
   });
 });

@@ -29,8 +29,8 @@ describe('AccountSignInOptions', () => {
     render(<AccountSignInOptions {...buildProps()} />);
 
     expect(screen.getByRole('button', { name: /continue with google/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /continue with github/i })).toBeTruthy();
-    expect(screen.getByText(/sign in with email code/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /continue with github/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /continue with email/i })).toBeTruthy();
   });
 
   it('shows OAuth buttons on desktop and keeps email sign-in available', () => {
@@ -39,10 +39,7 @@ describe('AccountSignInOptions', () => {
     render(<AccountSignInOptions {...buildProps()} />);
 
     expect(screen.getByRole('button', { name: /continue with google/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /continue with github/i })).toBeTruthy();
-    expect(screen.getByText(/sign in with email code/i)).toBeTruthy();
-    expect(
-      screen.getByText(/desktop sign-in now uses a secure browser redirect back to the app/i)
-    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /continue with github/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /continue with email/i })).toBeTruthy();
   });
 });

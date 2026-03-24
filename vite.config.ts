@@ -79,14 +79,34 @@ export default defineConfig(async () => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes('/vendor/milkdown/packages/')) {
+            return 'notes-milkdown-vendor';
+          }
+
           if (!id.includes('node_modules')) return;
 
           if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) {
             return 'react-vendor';
           }
 
-          if (id.includes('/@milkdown/') || id.includes('/prosemirror/') || id.includes('/@codemirror/')) {
-            return 'notes-editor-vendor';
+          if (
+            id.includes('/@codemirror/lang-') ||
+            id.includes('/@codemirror/legacy-modes/') ||
+            id.includes('/@lezer/')
+          ) {
+            return;
+          }
+
+          if (id.includes('/@codemirror/')) {
+            return 'notes-codemirror-core-vendor';
+          }
+
+          if (id.includes('/prosemirror/')) {
+            return 'notes-prosemirror-vendor';
+          }
+
+          if (id.includes('/@milkdown/')) {
+            return 'notes-milkdown-vendor';
           }
 
           if (id.includes('/katex/')) {
@@ -101,13 +121,11 @@ export default defineConfig(async () => ({
             id.includes('/mdast-') ||
             id.includes('/hast-')
           ) {
-            // Keep markdown ecosystem in the same chunk as editor deps to avoid
-            // cross-chunk circular init order issues in production builds.
-            return 'notes-editor-vendor';
+            return 'notes-markdown-vendor';
           }
 
-          if (id.includes('/mermaid/')) {
-            return 'mermaid-core-vendor';
+          if (id.includes('/dagre-d3-es/') || id.includes('/dagre/') || id.includes('/graphlib/')) {
+            return 'mermaid-layout-vendor';
           }
 
           if (id.includes('/d3-') || id.includes('/d3/')) {
@@ -120,10 +138,6 @@ export default defineConfig(async () => ({
 
           if (id.includes('/cytoscape')) {
             return 'cytoscape-vendor';
-          }
-
-          if (id.includes('/dagre') || id.includes('/graphlib')) {
-            return 'dagre-vendor';
           }
 
           if (id.includes('/@tauri-apps/')) {
