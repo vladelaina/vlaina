@@ -18,6 +18,9 @@ interface MarkdownRendererProps {
   content: string;
   imageGallery?: Array<{ id: string; src: string }>;
   imageIdBase?: string;
+  codeBlockIdBase?: string;
+  copiedCodeBlockId?: string | null;
+  onCopyCodeBlock?: (blockId: string) => void;
   isStreaming?: boolean;
   size?: "sm" | "md" | "lg";
   browserToolResult?: any;
@@ -183,7 +186,17 @@ function MarkdownImage({
 }
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
-  ({ content, imageGallery, imageIdBase, size, startTime, isStreaming = false }) => {
+  ({
+    content,
+    imageGallery,
+    imageIdBase,
+    codeBlockIdBase,
+    copiedCodeBlockId,
+    onCopyCodeBlock,
+    size,
+    startTime,
+    isStreaming = false
+  }) => {
     
     const { thinking, markdown, isThinkingDone } = useMemo(() => {
         const text = content || "";
@@ -222,6 +235,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     );
 
     let imageRenderIndex = 0;
+    let codeBlockRenderIndex = 0;
 
     return (
       <div className="flex flex-col">
@@ -271,8 +285,16 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
                     },
                     pre({ children, ...props }: any) {
                       const { className, content } = resolvePreCodePayload(children);
+                      const blockId = `${codeBlockIdBase || 'code'}:${codeBlockRenderIndex}`;
+                      codeBlockRenderIndex += 1;
                       return (
-                        <CodeBlock className={className} isStreaming={isStreaming} {...props}>
+                        <CodeBlock
+                          className={className}
+                          blockId={blockId}
+                          copied={copiedCodeBlockId === blockId}
+                          onCopy={onCopyCodeBlock}
+                          {...props}
+                        >
                           {content}
                         </CodeBlock>
                       );

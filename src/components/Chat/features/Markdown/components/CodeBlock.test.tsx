@@ -33,16 +33,18 @@ describe("CodeBlock", () => {
     mocks.highlightAuto.mockReturnValue({ value: "<span>auto</span>" });
   });
 
-  it("skips highlight computation while streaming (performance guard)", () => {
+  it("highlights immediately when a code block is renderable", () => {
     render(
-      <CodeBlock className="language-ts" isStreaming>
+      <CodeBlock className="language-ts">
         {"const v = 1;"}
       </CodeBlock>,
     );
 
-    expect(mocks.highlight).not.toHaveBeenCalled();
+    expect(mocks.highlight).toHaveBeenCalledWith("const v = 1;", {
+      language: "ts",
+    });
     expect(mocks.highlightAuto).not.toHaveBeenCalled();
-    expect(screen.getByText("const v = 1;")).toBeInTheDocument();
+    expect(screen.getByTestId("copy-button")).toHaveAttribute("data-content", "const v = 1;");
   });
 
   it("uses language-specific highlighting when language is known", () => {

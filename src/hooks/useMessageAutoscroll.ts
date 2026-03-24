@@ -268,9 +268,7 @@ export const useMessageAutoscroll = ({
       const hasToggleMutation = mutations.some(
         (mutation) =>
           mutation.type === "attributes" &&
-          (mutation.attributeName === "class" ||
-            mutation.attributeName === "style" ||
-            mutation.attributeName === "open" ||
+          (mutation.attributeName === "open" ||
             mutation.attributeName === "data-expanded"),
       );
 
@@ -283,7 +281,7 @@ export const useMessageAutoscroll = ({
     mutationObserver.observe(container, {
       attributes: true,
       subtree: true,
-      attributeFilter: ["class", "style", "open", "data-expanded"],
+      attributeFilter: ["open", "data-expanded"],
     });
 
     const messageElements = container.querySelectorAll(

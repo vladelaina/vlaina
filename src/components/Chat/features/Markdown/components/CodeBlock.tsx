@@ -6,7 +6,9 @@ import { chatHighlighter } from '../utils/chatHighlighter';
 interface CodeBlockProps {
   className?: string;
   children: React.ReactNode;
-  isStreaming?: boolean;
+  blockId?: string;
+  copied?: boolean;
+  onCopy?: (blockId: string) => void;
 }
 
 const LANGUAGE_CLASS_PATTERN = /language-([\w+-]+)/;
@@ -45,14 +47,10 @@ function extractCodePayload(
   return { language, codeText };
 }
 
-export const CodeBlock = memo(({ className, children, isStreaming = false }: CodeBlockProps) => {
+export const CodeBlock = memo(({ className, children, blockId, copied = false, onCopy }: CodeBlockProps) => {
   const { language, codeText } = extractCodePayload(className, children);
 
   const highlightedHTML = useMemo(() => {
-    if (isStreaming) {
-      return null;
-    }
-
     try {
       if (language && chatHighlighter.getLanguage(language)) {
         return chatHighlighter.highlight(codeText, { language }).value;
@@ -61,7 +59,14 @@ export const CodeBlock = memo(({ className, children, isStreaming = false }: Cod
     } catch (e) {
       return escapeHtml(codeText);
     }
-  }, [codeText, isStreaming, language]);
+  }, [codeText, language]);
+
+  const handleCopy = async (content: string) => {
+    await navigator.clipboard.writeText(content);
+    if (blockId && onCopy) {
+      onCopy(blockId);
+    }
+  };
 
   return (
     <div className="relative bg-neutral-100 dark:bg-neutral-800 rounded-2xl overflow-hidden my-6 group">
@@ -71,6 +76,8 @@ export const CodeBlock = memo(({ className, children, isStreaming = false }: Cod
         </span>
         <CopyButton
           content={codeText}
+          copied={copied}
+          onCopy={handleCopy}
           showLabels={false}
           className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
         />
