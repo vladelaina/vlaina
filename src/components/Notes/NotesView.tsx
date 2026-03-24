@@ -8,7 +8,6 @@ import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import { ResizablePanel } from '@/components/layout/ResizablePanel';
 import { ModuleShortcutsDialog } from '@/components/common/ModuleShortcutsDialog';
 import { MarkdownEditor } from './features/Editor';
-import { VaultWelcome } from '@/components/VaultWelcome';
 import { useModuleShortcutsDialog } from '@/hooks/useModuleShortcutsDialog';
 import {
   runOpenNewChatShortcut,
@@ -212,14 +211,6 @@ export function NotesView() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [closeTab, currentNotePath, focusNotesChatComposer, openNote, openTabs, toggleChatPanel]);
-
-  if (!currentVault && !currentNotePath) {
-    return (
-      <div className="h-full bg-[var(--neko-bg-primary)] relative flex flex-col">
-        <VaultWelcome />
-      </div>
-    );
-  }
 
   return (
     <>

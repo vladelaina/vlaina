@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { NOTES_COLORS } from '@/lib/utils';
 import { WindowControls } from '@/components/layout/WindowControls';
 import { blurComposerInput, isComposerInputFocused } from '@/lib/ui/composerFocusRegistry';
+import { isTauri } from '@/lib/storage/adapter';
 
 interface UnifiedTitleBarProps {
   leftSlot?: ReactNode;
@@ -93,7 +94,7 @@ export function UnifiedTitleBar({
         </div>
       )}
 
-      {showWindowControls && <WindowControls className="z-50" />}
+      {showWindowControls && isTauri() ? <WindowControls className="z-50" /> : null}
     </div>
   );
 }

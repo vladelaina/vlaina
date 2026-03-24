@@ -1,21 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { LogicalSize } from '@tauri-apps/api/dpi';
 import { useVaultStore } from '@/stores/useVaultStore';
-import { openDialog, hasNativeDialogs } from '@/lib/storage/dialog';
 import { windowCommands, hasBackendCommands } from '@/lib/tauri/invoke';
 import { isTauri } from '@/lib/storage/adapter';
 import { cn } from '@/lib/utils';
-import { BrandHeader } from './components/BrandHeader';
 import { RecentVaultsList } from './components/RecentVaultsList';
-import { ActionButtons } from './components/ActionButtons';
-import { CreateVaultModal } from './components/CreateVaultModal';
 import './VaultWelcome.css';
 
 export function VaultWelcome() {
   const { initialize, recentVaults, openVault, checkVaultOpenInOtherWindow, isLoading } =
     useVaultStore();
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
@@ -53,23 +48,6 @@ export function VaultWelcome() {
     };
   }, []);
 
-  const handleOpenLocal = async () => {
-    if (!hasNativeDialogs()) {
-      setShowCreateModal(true);
-      return;
-    }
-
-    const selected = await openDialog({
-      directory: true,
-      multiple: false,
-      title: 'Select Vault Folder',
-    });
-
-    if (selected && typeof selected === 'string') {
-      await handleOpenRecent(selected);
-    }
-  };
-
   const handleOpenRecent = async (path: string) => {
     if (hasBackendCommands()) {
       const existingWindowLabel = await checkVaultOpenInOtherWindow(path);
@@ -93,21 +71,12 @@ export function VaultWelcome() {
   return (
     <div className={cn('vault-welcome', isLoading && 'vault-welcome--loading')}>
       <div className="vault-welcome__content">
-        <BrandHeader />
-
         <div className="vault-welcome__main">
           {recentVaults.length > 0 && (
             <RecentVaultsList vaults={recentVaults} onOpen={handleOpenRecent} />
           )}
-
-          <ActionButtons
-            onCreateNew={() => setShowCreateModal(true)}
-            onOpenLocal={handleOpenLocal}
-          />
         </div>
       </div>
-
-      <CreateVaultModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} />
     </div>
   );
 }
