@@ -130,7 +130,7 @@ function AppContent() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  const shouldRenderSidebar = appViewMode === 'chat' || (appViewMode === 'notes' && currentVault);
+  const shouldRenderSidebar = appViewMode === 'chat' || appViewMode === 'notes';
 
   const sidebarContent = shouldRenderSidebar ? (
     <div className="h-full">
@@ -139,13 +139,11 @@ function AppContent() {
           <ChatSidebar isPeeking={false} />
         </Suspense>
       </div>
-      {currentVault ? (
-        <div className={cn('h-full', appViewMode !== 'notes' && 'hidden')}>
-          <Suspense fallback={null}>
-            <NotesSidebarWrapper isPeeking={false} />
-          </Suspense>
-        </div>
-      ) : null}
+      <div className={cn('h-full', appViewMode !== 'notes' && 'hidden')}>
+        <Suspense fallback={null}>
+          <NotesSidebarWrapper isPeeking={false} />
+        </Suspense>
+      </div>
     </div>
   ) : null;
 

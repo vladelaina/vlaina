@@ -23,7 +23,7 @@ export function WorkspaceSection({
 }: WorkspaceSectionProps) {
     const [expanded, setExpanded] = useState(true);
     const { currentVault } = useVaultStore();
-    const vaultName = currentVault?.name || 'Local Workspace';
+    const vaultName = currentVault?.name || 'Workspace';
 
     const headerActions = (
         <>
@@ -59,11 +59,7 @@ export function WorkspaceSection({
                     isLoading={isLoading}
                     currentNotePath={currentNotePath}
                 />
-            ) : (
-                <div className="px-3 py-3 text-[12px] text-[var(--notes-sidebar-text-soft)]">
-                    Open a local vault to browse local notes.
-                </div>
-            )}
+            ) : null}
         </NotesSidebarSection>
     );
 }

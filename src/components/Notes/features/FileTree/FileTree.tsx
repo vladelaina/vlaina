@@ -1,5 +1,5 @@
 import { type FolderNode } from '@/stores/useNotesStore';
-import { NotesSidebarEmptyState, NotesSidebarList } from '../Sidebar/NotesSidebarPrimitives';
+import { NotesSidebarList } from '../Sidebar/NotesSidebarPrimitives';
 import { FileTreeItem } from './FileTreeItem';
 
 interface FileTreeProps {
@@ -25,9 +25,7 @@ export function FileTree({ rootFolder, isLoading, currentNotePath }: FileTreePro
   }
 
   if (!rootFolder || rootFolder.children.length === 0) {
-    return (
-      <NotesSidebarEmptyState title="No notes yet" description="Click + to create one" />
-    );
+    return null;
   }
 
   return (

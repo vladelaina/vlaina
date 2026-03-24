@@ -290,11 +290,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
             setIsSearchOpen(true);
           }}
         >
-          {!isSearchOpen && !hasSessions ? (
-             <div className="px-4 py-8 text-center text-xs text-[var(--chat-sidebar-text-soft)]">
-                No conversations yet
-              </div>
-          ) : (
+          {!isSearchOpen && !hasSessions ? null : (
             <ChatSidebarList>
               {sessionsToRender.map(session => {
                 const isActive = currentSessionId === session.id;

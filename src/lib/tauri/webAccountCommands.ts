@@ -68,6 +68,29 @@ function normalizeWebAuthResult(
   };
 }
 
+function isSupportedWebAccountOrigin(): boolean {
+  if (typeof window === 'undefined') {
+    return true;
+  }
+
+  const hostname = window.location.hostname.trim().toLowerCase();
+  if (!hostname) {
+    return true;
+  }
+
+  return hostname === 'nekotick.com' || hostname.endsWith('.nekotick.com');
+}
+
+function getUnsupportedWebAccountOriginMessage(): string {
+  return 'Web sign-in is unavailable on local development origins. Use app.nekotick.com or the desktop app.';
+}
+
+function assertSupportedWebAccountOrigin(): void {
+  if (!isSupportedWebAccountOrigin()) {
+    throw new Error(getUnsupportedWebAccountOriginMessage());
+  }
+}
+
 function persistConnectedWebAccount(result: NormalizedWebAccountResult): void {
   if (!result.success || !result.username || !result.provider) {
     return;
@@ -162,6 +185,8 @@ export const webAccountCommands = {
   async startAuth(
     provider: Exclude<AccountProvider, 'email'>
   ): Promise<{ authUrl: string; state: string } | null> {
+    assertSupportedWebAccountOrigin();
+
     try {
       const res = await fetch(`${API_BASE}${authStartPath(provider)}`, {
         cache: 'no-store',
@@ -213,6 +238,8 @@ export const webAccountCommands = {
   },
 
   async requestEmailCode(email: string): Promise<boolean> {
+    assertSupportedWebAccountOrigin();
+
     const response = await fetch(`${API_BASE}/auth/email/request-code`, {
       method: 'POST',
       cache: 'no-store',
@@ -241,6 +268,8 @@ export const webAccountCommands = {
     membershipName?: string | null;
     error?: string;
   }> {
+    assertSupportedWebAccountOrigin();
+
     try {
       const response = await fetch(`${API_BASE}/auth/email/verify-code`, {
         method: 'POST',
@@ -267,6 +296,10 @@ export const webAccountCommands = {
 
   async probeStatus(): Promise<WebAccountStatus> {
     const cached = getCachedWebAccountStatus();
+    if (!isSupportedWebAccountOrigin()) {
+      return cached;
+    }
+
     try {
       const status = await probeWebSession();
       if (status.connected) {

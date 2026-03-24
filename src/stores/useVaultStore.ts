@@ -15,14 +15,6 @@ const DEFAULT_WORKSPACE_STATE = {
   lastOpenedFile: null,
 };
 
-const WELCOME_NOTE_NAME = 'Welcome';
-const WELCOME_NOTE_CONTENT = `# Welcome
-
-Ciallo～(∠・ω<)⌒★
-
-This is your new vault.
-`;
-
 async function initVaultConfig(vaultPath: string): Promise<void> {
   const storage = getStorageAdapter();
   const storePath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, STORE_FOLDER);
@@ -36,25 +28,6 @@ async function initVaultConfig(vaultPath: string): Promise<void> {
 
   const workspacePath = await joinPath(storePath, 'workspace.json');
   await storage.writeFile(workspacePath, JSON.stringify(DEFAULT_WORKSPACE_STATE, null, 2));
-}
-
-async function createWelcomeNote(vaultPath: string): Promise<void> {
-  const storage = getStorageAdapter();
-  const fileName = `${WELCOME_NOTE_NAME}.md`;
-  const welcomePath = await joinPath(vaultPath, fileName);
-
-  if (await storage.exists(welcomePath)) return;
-
-  await storage.writeFile(welcomePath, WELCOME_NOTE_CONTENT);
-
-  const metadataPath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, STORE_FOLDER, 'metadata.json');
-  const metadata = {
-    version: 1,
-    notes: {
-      [fileName]: { icon: '🎀' }
-    }
-  };
-  await storage.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
 }
 
 export interface VaultInfo {
@@ -298,7 +271,6 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
       }
 
       await initVaultConfig(path);
-      await createWelcomeNote(path);
 
       return await get().openVault(path, name);
     } catch (error) {

@@ -1,11 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { webAccountCommands } from './webAccountCommands';
 
+function mockLocation(url: string) {
+  vi.spyOn(window, 'location', 'get').mockReturnValue(new URL(url) as unknown as Location);
+}
+
 describe('webAccountCommands', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
+    mockLocation('https://app.nekotick.com/');
     localStorage.clear();
     sessionStorage.clear();
-    vi.restoreAllMocks();
   });
 
   afterEach(() => {
@@ -90,6 +95,53 @@ describe('webAccountCommands', () => {
     expect(status.connected).toBe(false);
     expect(sessionStorage.getItem('nekotick_account_session')).toBeNull();
     expect(localStorage.getItem('nekotick_account_identity')).toBeNull();
+  });
+
+  it('skips probing the hosted session API on local development origins', async () => {
+    mockLocation('http://127.0.0.1:3000/');
+    sessionStorage.setItem(
+      'nekotick_account_session',
+      JSON.stringify({
+        provider: 'github',
+        username: 'octocat',
+        primaryEmail: 'octocat@example.com',
+        avatarUrl: 'https://example.com/avatar.png',
+      })
+    );
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const status = await webAccountCommands.probeStatus();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(status.connected).toBe(false);
+    expect(status.provider).toBe('github');
+    expect(status.username).toBe('octocat');
+  });
+
+  it('rejects OAuth sign-in on local development origins before any network request', async () => {
+    mockLocation('http://127.0.0.1:3000/');
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(webAccountCommands.startAuth('google')).rejects.toThrow(
+      'Web sign-in is unavailable on local development origins. Use app.nekotick.com or the desktop app.'
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects email sign-in on local development origins before any network request', async () => {
+    mockLocation('http://127.0.0.1:3000/');
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(webAccountCommands.requestEmailCode('octocat@example.com')).rejects.toThrow(
+      'Web sign-in is unavailable on local development origins. Use app.nekotick.com or the desktop app.'
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('revokes the cookie session before clearing client metadata', async () => {
