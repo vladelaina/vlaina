@@ -24,6 +24,20 @@ type LinkTooltipPluginState = {
     visibleSelectionTo: number | null;
 };
 
+function resolveTooltipEligibleLink(target: HTMLElement | null): HTMLElement | null {
+    if (!target) {
+        return null;
+    }
+
+    const tocLink = target.closest('.toc-link[data-heading-pos]');
+    if (tocLink instanceof HTMLElement) {
+        return null;
+    }
+
+    const link = target.closest('.autolink') || target.closest('a[href]');
+    return link instanceof HTMLElement ? link : null;
+}
+
 class LinkTooltipView {
     dom: HTMLElement;
     root: Root | null = null;
@@ -101,7 +115,7 @@ class LinkTooltipView {
 
     handleEditorMouseDown = async (e: MouseEvent) => {
         const target = e.target as HTMLElement;
-        const link = target.closest('.autolink') || target.closest('a[href]');
+        const link = resolveTooltipEligibleLink(target);
 
         if (link) {
             e.preventDefault();
@@ -126,7 +140,7 @@ class LinkTooltipView {
 
     handleEditorMouseOver = (e: Event) => {
         const target = e.target as HTMLElement;
-        const link = target.closest('.autolink') || target.closest('a[href]');
+        const link = resolveTooltipEligibleLink(target);
 
         if (link) {
             this.clearHideTimer();
@@ -137,7 +151,7 @@ class LinkTooltipView {
 
     handleEditorMouseOut = (e: Event) => {
         const target = e.target as HTMLElement;
-        const link = target.closest('.autolink') || target.closest('a[href]');
+        const link = resolveTooltipEligibleLink(target);
 
         if (link) {
             this.clearShowTimer();
