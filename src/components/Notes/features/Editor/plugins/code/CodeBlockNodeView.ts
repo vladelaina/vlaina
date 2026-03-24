@@ -57,12 +57,7 @@ export class CodeBlockNodeView implements NodeView {
     this.dom.classList.add(
       'code-block-container',
       'my-4',
-      'rounded-xl',
-      'border',
-      'border-gray-200',
-      'dark:border-zinc-800',
-      'bg-white',
-      'dark:bg-[#1e1e1e]',
+      'rounded-2xl',
       'overflow-hidden',
       'group/code',
       'transition-all'

@@ -16,6 +16,7 @@ export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockS
     const [copied, setCopied] = useState(false);
     const isCollapsed = Boolean(node.attrs.collapsed);
     const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
+    const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
     const copyTimerRef = useRef<number | null>(null);
 
     const langInfo = codeBlockLanguages.find((item) => item.id === language || item.aliases.includes(language));
@@ -73,6 +74,8 @@ export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockS
         isCollapsed,
         isLangMenuOpen,
         setIsLangMenuOpen,
+        isActionMenuOpen,
+        setIsActionMenuOpen,
         updateLanguage,
         handleCopy,
         toggleCollapse,
