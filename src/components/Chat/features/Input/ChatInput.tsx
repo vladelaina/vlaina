@@ -32,6 +32,7 @@ interface ChatInputProps {
   focusTrigger?: number;
   sessionId?: string | null;
   sentUserMessages: string[];
+  isEmbedded?: boolean;
 }
 
 export const ChatInput = memo(function ChatInput({
@@ -42,6 +43,7 @@ export const ChatInput = memo(function ChatInput({
   focusTrigger,
   sessionId,
   sentUserMessages,
+  isEmbedded = false,
 }: ChatInputProps) {
   const notesRootFolder = useNotesStore((state) => state.rootFolder);
   const currentNotePath = useNotesStore((state) => state.currentNote?.path ?? null);
@@ -602,6 +604,7 @@ export const ChatInput = memo(function ChatInput({
             onStop={onStop}
             onSend={() => handleSend()}
             composerInputRef={textareaRef}
+            isEmbedded={isEmbedded}
           />
         </div>
       </div>

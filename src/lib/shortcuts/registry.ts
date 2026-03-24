@@ -132,7 +132,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
     description: 'Open new chat',
     keys: ['Ctrl', 'Shift', 'O'],
     scope: 'chat',
-    modules: ['chat'],
+    modules: ['notes', 'chat'],
     section: 'Chat',
   },
   {
@@ -142,7 +142,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
     keys: ['Ctrl', 'Shift', 'J'],
     scope: 'chat',
     isSystem: true,
-    modules: ['chat'],
+    modules: ['notes', 'chat'],
     section: 'Chat',
   },
   {

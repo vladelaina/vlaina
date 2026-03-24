@@ -60,8 +60,8 @@ export function startCoverResizeSession({
       cancelAnimationFrame(rafId);
       rafId = null;
     }
-    document.removeEventListener('mousemove', handleMove);
-    document.removeEventListener('mouseup', handleUp);
+    document.removeEventListener('mousemove', handleMove, true);
+    document.removeEventListener('mouseup', handleUp, true);
   };
 
   const handleMove = (event: MouseEvent) => {
@@ -94,8 +94,8 @@ export function startCoverResizeSession({
     dispose();
   };
 
-  document.addEventListener('mousemove', handleMove);
-  document.addEventListener('mouseup', handleUp);
+  document.addEventListener('mousemove', handleMove, true);
+  document.addEventListener('mouseup', handleUp, true);
 
   return dispose;
 }

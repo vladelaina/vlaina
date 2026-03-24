@@ -35,6 +35,16 @@
   cursor: text;
 }
 
+[data-note-scroll-root='true'][data-overlay-scrollbar-dragging='true'] [data-note-cover-region='true'],
+[data-note-scroll-root='true'][data-overlay-scrollbar-dragging='true'] [data-testid='cover-cropper'] {
+  pointer-events: none !important;
+}
+
+body.neko-overlay-scrollbar-dragging,
+body.neko-overlay-scrollbar-dragging * {
+  cursor: default !important;
+}
+
 body.neko-block-dragging-cursor,
 body.neko-block-dragging-cursor * {
   cursor: crosshair !important;

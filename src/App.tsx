@@ -68,13 +68,19 @@ function AppContent() {
     appViewMode,
     sidebarCollapsed,
     sidebarWidth,
+    notesChatPanelCollapsed,
     setSidebarWidth,
     toggleSidebar,
     setAppViewMode
   } = useUIStore();
   const { currentVault, initialize } = useVaultStore();
   const { showInTitleBar } = useTemporaryTogglePresentation();
-  const shouldShowTemporaryToggleInTitleBar = appViewMode === 'chat' && showInTitleBar;
+  const shouldShowTemporaryToggleInTitleBar =
+    showInTitleBar &&
+    (
+      appViewMode === 'chat' ||
+      (appViewMode === 'notes' && currentVault && !notesChatPanelCollapsed)
+    );
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -124,21 +130,24 @@ function AppContent() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  let sidebarContent = null;
+  const shouldRenderSidebar = appViewMode === 'chat' || (appViewMode === 'notes' && currentVault);
 
-  if (appViewMode === 'chat') {
-    sidebarContent = (
-      <Suspense fallback={null}>
-        <ChatSidebar isPeeking={false} />
-      </Suspense>
-    );
-  } else if (appViewMode === 'notes' && currentVault) {
-    sidebarContent = (
-      <Suspense fallback={null}>
-        <NotesSidebarWrapper isPeeking={false} />
-      </Suspense>
-    );
-  }
+  const sidebarContent = shouldRenderSidebar ? (
+    <div className="h-full">
+      <div className={cn('h-full', appViewMode !== 'chat' && 'hidden')}>
+        <Suspense fallback={null}>
+          <ChatSidebar isPeeking={false} />
+        </Suspense>
+      </div>
+      {currentVault ? (
+        <div className={cn('h-full', appViewMode !== 'notes' && 'hidden')}>
+          <Suspense fallback={null}>
+            <NotesSidebarWrapper isPeeking={false} />
+          </Suspense>
+        </div>
+      ) : null}
+    </div>
+  ) : null;
 
   let centerSlot = null;
   let rightSlot = null;
@@ -149,7 +158,9 @@ function AppContent() {
         <NotesTabRow />
       </Suspense>
     );
-  } else if (shouldShowTemporaryToggleInTitleBar) {
+  }
+
+  if (shouldShowTemporaryToggleInTitleBar) {
     rightSlot = (
       <Suspense fallback={null}>
         <TemporaryChatToggle mode="promote" />

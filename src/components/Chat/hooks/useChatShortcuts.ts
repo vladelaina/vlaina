@@ -7,6 +7,10 @@ import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { dispatchChatMessageCopied } from '@/components/Chat/common/copyFeedback';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
 import { isComposerFocusTarget, selectComposerInputAll } from '@/lib/ui/composerFocusRegistry';
+import {
+  runOpenNewChatShortcut,
+  runTemporaryChatWelcomeShortcut,
+} from '@/components/Chat/features/Temporary/temporaryChatCommands';
 
 interface UseChatShortcutsOptions {
   onFocusInput: () => void;
@@ -67,7 +71,7 @@ export function useChatShortcuts(
 
       if (matchesShortcutBinding(e, 'openNewChat')) {
         e.preventDefault();
-        aiActions.openNewChat();
+        runOpenNewChatShortcut();
         onFocusInput();
         return;
       }
@@ -85,21 +89,7 @@ export function useChatShortcuts(
 
       if (matchesShortcutBinding(e, 'toggleTemporaryChatWelcome')) {
         e.preventDefault();
-        const state = useUnifiedStore.getState();
-        const aiState = state.data.ai;
-        const temporaryEnabled = !!aiState?.temporaryChatEnabled;
-        const currentSessionId = aiState?.currentSessionId || null;
-        const currentMessages = currentSessionId ? (aiState?.messages?.[currentSessionId] || []) : [];
-        const isCurrentTemporaryChatEmpty = temporaryEnabled && currentMessages.length === 0;
-
-        if (!temporaryEnabled) {
-          aiActions.toggleTemporaryChat(true);
-        } else if (isCurrentTemporaryChatEmpty) {
-          aiActions.openNewChat();
-        } else {
-          aiActions.createSession('New Chat');
-        }
-
+        runTemporaryChatWelcomeShortcut();
         onFocusInput();
         return;
       }

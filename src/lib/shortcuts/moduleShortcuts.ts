@@ -25,7 +25,7 @@ interface ModuleShortcutPresetOptions {
 }
 
 const SECTION_ORDER: Record<ShortcutModule, ShortcutSection[]> = {
-  notes: ['Notes', 'General'],
+  notes: ['Notes', 'Chat', 'General'],
   chat: ['Chat', 'General'],
 };
 
