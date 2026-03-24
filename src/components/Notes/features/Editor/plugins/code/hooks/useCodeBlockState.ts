@@ -16,7 +16,6 @@ export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockS
     const [copied, setCopied] = useState(false);
     const isCollapsed = Boolean(node.attrs.collapsed);
     const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
-    const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
     const copyTimerRef = useRef<number | null>(null);
 
     const langInfo = codeBlockLanguages.find((item) => item.id === language || item.aliases.includes(language));
@@ -53,11 +52,6 @@ export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockS
         toggleCodeBlockCollapsed(view, pos, isCollapsed);
     }, [getPos, isCollapsed, view]);
 
-    const handleShare = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-    }, []);
-
     useEffect(() => {
         return () => {
             if (copyTimerRef.current !== null) {
@@ -74,11 +68,8 @@ export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockS
         isCollapsed,
         isLangMenuOpen,
         setIsLangMenuOpen,
-        isActionMenuOpen,
-        setIsActionMenuOpen,
         updateLanguage,
         handleCopy,
-        toggleCollapse,
-        handleShare
+        toggleCollapse
     };
 }

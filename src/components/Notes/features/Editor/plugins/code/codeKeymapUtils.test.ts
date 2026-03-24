@@ -6,6 +6,16 @@ import {
   moveCursorAfterCodeBlock,
 } from './codeKeymapUtils';
 
+vi.mock('./codeBlockSettings', () => ({
+  createCodeBlockAttrs: (overrides: Record<string, unknown>) => ({
+    language: null,
+    lineNumbers: false,
+    wrap: false,
+    collapsed: false,
+    ...overrides,
+  }),
+}));
+
 function createTransaction() {
   const tr = {
     doc: {
@@ -56,8 +66,20 @@ describe('codeKeymapUtils', () => {
     };
 
     expect(handleCodeBlockEnter(state as never, dispatch)).toBe(true);
-    expect(codeBlockType.create).toHaveBeenCalledWith({ language: 'ts' });
-    expect(tr.replaceWith).toHaveBeenCalledWith(4, 13, { attrs: { language: 'ts' } });
+    expect(codeBlockType.create).toHaveBeenCalledWith({
+      language: 'ts',
+      lineNumbers: false,
+      wrap: false,
+      collapsed: false,
+    });
+    expect(tr.replaceWith).toHaveBeenCalledWith(4, 13, {
+      attrs: {
+        language: 'ts',
+        lineNumbers: false,
+        wrap: false,
+        collapsed: false,
+      },
+    });
     expect(selectionCreateSpy).toHaveBeenCalledWith(tr.doc, 5);
     expect(dispatch).toHaveBeenCalledWith(tr);
   });

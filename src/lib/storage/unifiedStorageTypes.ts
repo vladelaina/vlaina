@@ -47,6 +47,11 @@ export interface UnifiedData {
     hourHeight?: number;
     use24Hour?: boolean;
     dayStartTime?: number;
+    markdown: {
+      codeBlock: {
+        showLineNumbers: boolean;
+      };
+    };
   };
   customIcons?: CustomIcon[];
   ai?: {
@@ -77,6 +82,11 @@ export function createDefaultUnifiedData(): UnifiedData {
       timezone: { offset: DEFAULT_TIMEZONE, city: 'Beijing' },
       viewMode: DEFAULT_VIEW_MODE,
       dayCount: DEFAULT_DAY_COUNT,
+      markdown: {
+        codeBlock: {
+          showLineNumbers: true,
+        },
+      },
     },
   };
 }

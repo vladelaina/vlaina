@@ -1,7 +1,6 @@
 import React from 'react';
 import { Icon } from '@/components/ui/icons';
-import { cn, iconButtonStyles } from '@/lib/utils';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { LanguageSelector } from './LanguageSelector';
 
 interface CodeBlockHeaderProps {
@@ -11,12 +10,9 @@ interface CodeBlockHeaderProps {
     copied: boolean;
     isLangMenuOpen: boolean;
     setIsLangMenuOpen: (open: boolean) => void;
-    isActionMenuOpen: boolean;
-    setIsActionMenuOpen: (open: boolean) => void;
     onToggleCollapse: (e: React.MouseEvent) => void;
     onLanguageChange: (lang: string) => void;
     onCopy: (e: React.MouseEvent) => void;
-    onShare: (e: React.MouseEvent) => void;
 }
 
 export const CodeBlockHeader = ({
@@ -26,12 +22,9 @@ export const CodeBlockHeader = ({
     copied,
     isLangMenuOpen,
     setIsLangMenuOpen,
-    isActionMenuOpen,
-    setIsActionMenuOpen,
     onToggleCollapse,
     onLanguageChange,
-    onCopy,
-    onShare
+    onCopy
 }: CodeBlockHeaderProps) => {
     return (
         <div 
@@ -52,39 +45,15 @@ export const CodeBlockHeader = ({
             <div className="flex items-center gap-1">
                 <button 
                     onClick={onCopy}
-                    className={cn("flex items-center justify-center size-8 rounded-full p-0 leading-none", iconButtonStyles, copied && "text-green-500 hover:text-green-600")}
+                    className={cn(
+                        "flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors",
+                        "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100",
+                        "hover:bg-black/5 dark:hover:bg-white/5",
+                        copied && "text-green-500 hover:text-green-600"
+                    )}
                 >
-                    {copied ? <Icon size="md" name="common.check" className=" block" /> : <Icon name="common.copy" className=" block" />}
+                    {copied ? <Icon size="md" name="common.check" className="block" /> : <Icon name="common.copy" size="md" className="block" />}
                 </button>
-                <Popover open={isActionMenuOpen} onOpenChange={setIsActionMenuOpen}>
-                    <PopoverTrigger asChild>
-                        <button 
-                            type="button"
-                            onClick={(e) => e.stopPropagation()}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            className={cn("flex items-center justify-center size-8 rounded-full p-0 leading-none", iconButtonStyles)}
-                        >
-                            <Icon size="md" name="common.more" className=" block" />
-                        </button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                        align="end"
-                        sideOffset={8}
-                        className="w-32 p-1 overflow-hidden border border-gray-200 dark:border-zinc-800 shadow-xl rounded-xl"
-                        onOpenAutoFocus={(e) => e.preventDefault()}
-                        onClick={(e) => e.stopPropagation()}
-                        onPointerDown={(e) => e.stopPropagation()}
-                    >
-                         <button
-                            type="button"
-                            onClick={onShare}
-                            className="flex w-full items-center rounded-lg px-2.5 py-2 text-left text-xs text-[var(--neko-text-secondary)] transition-colors hover:bg-[var(--neko-hover)] hover:text-[var(--neko-text-primary)]"
-                         >
-                            <Icon size="md" name="common.share" className="mr-2 " />
-                            <span>Share</span>
-                         </button>
-                    </PopoverContent>
-                </Popover>
             </div>
         </div>
     );

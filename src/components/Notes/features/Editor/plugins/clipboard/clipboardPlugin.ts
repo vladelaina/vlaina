@@ -8,6 +8,7 @@ import { collapseSelectionAndHideFloatingToolbar } from './copyCleanup';
 import { sanitizeHtml } from './sanitizer';
 import { serializeSelectionToClipboardText } from './selectionSerialization';
 import { writeTextToClipboard } from '../cursor/blockSelectionCommands';
+import { createCodeBlockAttrs } from '../code/codeBlockSettings';
 import {
     extractLargestMarkdownFenceContent,
     looksLikeMarkdownForPaste,
@@ -146,10 +147,9 @@ export const clipboardPlugin = $prose((ctx) => {
                     const codeBlockType = state.schema.nodes.code_block;
                     if (!codeBlockType) return false;
 
-                    const attrs: Record<string, unknown> = {};
-                    if (codeBlockType.spec.attrs?.language) {
-                        attrs.language = fencedPayload.language;
-                    }
+                    const attrs = createCodeBlockAttrs({
+                        language: codeBlockType.spec.attrs?.language ? fencedPayload.language : null,
+                    });
 
                     const codeTextNode = fencedPayload.code ? state.schema.text(fencedPayload.code) : null;
                     const codeBlockNode = codeBlockType.create(attrs, codeTextNode ? [codeTextNode] : null);

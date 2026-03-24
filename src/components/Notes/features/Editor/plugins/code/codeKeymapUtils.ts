@@ -1,5 +1,6 @@
 import { type EditorState, TextSelection, type Transaction } from '@milkdown/kit/prose/state';
 import { normalizeCodeBlockLanguage, parseCodeFenceLanguage } from './codeBlockLanguage';
+import { createCodeBlockAttrs } from './codeBlockSettings';
 import {
   isCursorAtCodeBlockEnd,
   moveSelectionAfterNode,
@@ -25,7 +26,7 @@ export function convertParagraphToCodeBlock(
   if (dispatch) {
     const tr = state.tr;
     const normalizedLanguage = normalizeCodeBlockLanguage(language);
-    const node = codeBlockType.create({ language: normalizedLanguage });
+    const node = codeBlockType.create(createCodeBlockAttrs({ language: normalizedLanguage }));
     tr.replaceWith(start, end, node);
     tr.setSelection(TextSelection.create(tr.doc, start + 1));
     dispatch(tr);

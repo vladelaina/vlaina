@@ -18,12 +18,9 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
         copied,
         isLangMenuOpen,
         setIsLangMenuOpen,
-        isActionMenuOpen,
-        setIsActionMenuOpen,
         updateLanguage,
         handleCopy,
-        toggleCollapse,
-        handleShare
+        toggleCollapse
     } = useCodeBlockState({ node, view, getPos, getNode });
 
     return (
@@ -34,12 +31,9 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
             copied={copied}
             isLangMenuOpen={isLangMenuOpen}
             setIsLangMenuOpen={setIsLangMenuOpen}
-            isActionMenuOpen={isActionMenuOpen}
-            setIsActionMenuOpen={setIsActionMenuOpen}
             onToggleCollapse={toggleCollapse}
             onLanguageChange={updateLanguage}
             onCopy={handleCopy}
-            onShare={handleShare}
         />
     );
 };

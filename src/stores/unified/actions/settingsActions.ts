@@ -1,5 +1,6 @@
 import type { UnifiedData } from '@/lib/storage/unifiedStorage';
 import type { TimeView } from '@/lib/date';
+import { createMarkdownSettingsActions } from './markdownSettingsActions';
 
 type SetState = (fn: (state: { 
   data: UnifiedData; 
@@ -84,5 +85,7 @@ export function createSettingsActions(set: SetState, persist: Persist) {
         return { data: newData };
       });
     },
+
+    ...createMarkdownSettingsActions(set, persist),
   };
 }

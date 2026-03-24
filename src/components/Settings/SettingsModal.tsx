@@ -6,6 +6,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { BlurBackdrop } from '@/components/common/BlurBackdrop';
 import { useModalBehavior } from './hooks/useModalBehavior';
 import { AboutTab } from './tabs/AboutTab';
+import { MarkdownTab } from './tabs/MarkdownTab';
 import { AppearanceTab } from './tabs/AppearanceTab';
 import { ShortcutsTab } from './tabs/ShortcutsTab';
 import { ImagesTab } from './tabs/ImagesTab';
@@ -17,7 +18,7 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type SettingsTab = 'appearance' | 'shortcuts' | 'images' | 'ai' | 'about';
+type SettingsTab = 'markdown' | 'appearance' | 'shortcuts' | 'images' | 'ai' | 'about';
 
 interface SidebarItem {
   id: SettingsTab;
@@ -34,6 +35,7 @@ const sidebarGroups: SidebarGroup[] = [
   {
     title: 'General',
     items: [
+      { id: 'markdown', label: 'Markdown', icon: 'editor.code' },
       { id: 'appearance', label: 'Appearance', icon: 'theme.palette' },
       { id: 'shortcuts', label: 'Shortcuts', icon: 'editor.keyboard' },
       { id: 'ai', label: 'AI Settings', icon: 'common.sparkle' },
@@ -49,7 +51,7 @@ const sidebarGroups: SidebarGroup[] = [
 ];
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('markdown');
 
   useEffect(() => {
     const handleOpenSettings = (e: CustomEvent<{ tab?: SettingsTab }>) => {
@@ -200,6 +202,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       activeTab === 'ai' ? "h-full" : "space-y-8"
                     )}>
                       {activeTab === 'about' && <AboutTab />}
+                      {activeTab === 'markdown' && <MarkdownTab />}
                       {activeTab === 'appearance' && <AppearanceTab />}
                       {activeTab === 'shortcuts' && <ShortcutsTab />}
                       {activeTab === 'images' && <ImagesTab />}

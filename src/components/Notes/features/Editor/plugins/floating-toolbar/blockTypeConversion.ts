@@ -38,7 +38,7 @@ function isInsideListItem(view: EditorView): boolean {
 export function convertToTextBlock(
   view: EditorView,
   nodeType: any,
-  attrs?: Record<string, unknown>
+  attrs?: object
 ): void {
   const applyBlockType = () => setBlockType(nodeType, attrs)(view.state, view.dispatch);
 

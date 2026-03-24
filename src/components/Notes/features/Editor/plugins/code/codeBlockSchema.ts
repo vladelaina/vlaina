@@ -5,18 +5,20 @@ import {
   normalizeCodeBlockLanguage,
   parseCodeLanguageFromClassName,
 } from './codeBlockLanguage';
+import { createCodeBlockAttrs, getDefaultCodeBlockLineNumbers } from './codeBlockSettings';
 
 export function parseCodeBlockElementAttrs(dom: HTMLElement): CodeBlockAttrs {
   const code = dom.querySelector('code');
   const classLanguage = parseCodeLanguageFromClassName(code?.className ?? '');
   const datasetLanguage = dom.dataset.language || null;
+  const lineNumbers = dom.dataset.lineNumbers;
 
-  return {
+  return createCodeBlockAttrs({
     language: normalizeCodeBlockLanguage(datasetLanguage || classLanguage),
-    lineNumbers: dom.dataset.lineNumbers !== 'false',
+    lineNumbers: lineNumbers == null ? getDefaultCodeBlockLineNumbers() : lineNumbers !== 'false',
     wrap: dom.dataset.wrap === 'true',
     collapsed: dom.dataset.collapsed === 'true',
-  };
+  });
 }
 
 export function serializeCodeBlockNode(node: Node): DOMOutputSpec {
@@ -43,7 +45,8 @@ export const codeBlockIdAttr = $nodeAttr('code_block', () => ({
   },
   lineNumbers: {
     default: true,
-    get: (dom: HTMLElement) => dom.dataset.lineNumbers !== 'false',
+    get: (dom: HTMLElement) =>
+      dom.dataset.lineNumbers == null ? getDefaultCodeBlockLineNumbers() : dom.dataset.lineNumbers !== 'false',
     set: (value: boolean) => ({ 'data-line-numbers': String(value) }),
   },
   wrap: {
@@ -85,7 +88,7 @@ export const codeBlockSchema = $node('code_block', () => ({
       const language = normalizeCodeBlockLanguage(node.lang as string | null);
       const value = (node.value as string) || '';
 
-      state.openNode(type, { language });
+      state.openNode(type, createCodeBlockAttrs({ language }));
       if (value) {
         state.addText(value);
       }
