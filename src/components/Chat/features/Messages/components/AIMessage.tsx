@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import MarkdownRenderer from '@/components/Chat/features/Markdown/MarkdownRenderer';
 import { MessageToolbar } from './MessageToolbar';
 import { ErrorBlock } from './ErrorBlock';
@@ -27,13 +28,42 @@ export function AIMessage({
   onRegenerate,
   onSwitchVersion
 }: AIMessageProps) {
-  
+  const [copiedCodeBlockId, setCopiedCodeBlockId] = useState<string | null>(null);
+  const copiedCodeBlockTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setCopiedCodeBlockId(null);
+    if (copiedCodeBlockTimerRef.current !== null) {
+      window.clearTimeout(copiedCodeBlockTimerRef.current);
+      copiedCodeBlockTimerRef.current = null;
+    }
+  }, [msg.id]);
+
+  useEffect(() => {
+    return () => {
+      if (copiedCodeBlockTimerRef.current !== null) {
+        window.clearTimeout(copiedCodeBlockTimerRef.current);
+      }
+    };
+  }, []);
+
   const parsedError = parseErrorTag(msg.content);
   const errorType = parsedError?.type;
   const errorCode = parsedError?.code;
   const errorContent = parsedError?.content ?? null;
   const contentWithoutError = errorContent ? msg.content.replace(/<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/i, '') : msg.content;
   const shouldShowInlineLoading = isLoading && !!contentWithoutError.trim();
+
+  const handleCodeBlockCopy = (blockId: string) => {
+    setCopiedCodeBlockId(blockId);
+    if (copiedCodeBlockTimerRef.current !== null) {
+      window.clearTimeout(copiedCodeBlockTimerRef.current);
+    }
+    copiedCodeBlockTimerRef.current = window.setTimeout(() => {
+      setCopiedCodeBlockId((currentBlockId) => currentBlockId === blockId ? null : currentBlockId);
+      copiedCodeBlockTimerRef.current = null;
+    }, 1200);
+  };
 
   return (
     <div className="w-full pl-[15px]">
@@ -42,6 +72,9 @@ export function AIMessage({
                 content={contentWithoutError || ' '} 
                 imageGallery={imageGallery}
                 imageIdBase={msg.id}
+                codeBlockIdBase={msg.id}
+                copiedCodeBlockId={copiedCodeBlockId}
+                onCopyCodeBlock={handleCodeBlockCopy}
                 isStreaming={isLoading}
                 startTime={msg.timestamp ? new Date(msg.timestamp) : undefined}
             />

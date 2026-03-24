@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const iconButtonStyles = "text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors bg-transparent";
+export const iconButtonStyles = "cursor-pointer text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors bg-transparent disabled:cursor-default";
 
 export const NOTES_COLORS = {
   sidebarBg: '#FFFFFF',

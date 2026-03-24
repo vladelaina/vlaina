@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { readFile, BaseDirectory } from '@tauri-apps/plugin-fs';
 import { isTauri } from '@/lib/storage/adapter';
+import { cn } from '@/lib/utils';
 
 interface LocalImageProps {
     src: string;
@@ -149,7 +150,7 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
         <img 
             src={displaySrc} 
             alt={alt} 
-            className={className} 
+            className={cn(className, onClick && 'cursor-pointer')} 
             onClick={onClick}
             onError={() => setError(true)}
         />

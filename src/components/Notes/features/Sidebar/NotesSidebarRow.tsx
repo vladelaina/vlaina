@@ -60,6 +60,7 @@ export function NotesSidebarRow({
       <div
         className={cn(
           'relative mx-1 flex min-h-9 flex-1 items-center gap-2 rounded-xl px-3 py-2 text-sm transition-all duration-150 ease-out',
+          props.onClick && 'cursor-pointer',
           isActive
             ? 'bg-[var(--notes-sidebar-row-active)] text-[var(--notes-sidebar-text)]'
             : 'text-[var(--notes-sidebar-text-muted)] hover:bg-[var(--notes-sidebar-row-hover)]',

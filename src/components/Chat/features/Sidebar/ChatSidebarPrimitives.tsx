@@ -67,6 +67,7 @@ export function ChatSidebarRow({
       <div
         className={cn(
           'relative mx-1 flex min-h-9 flex-1 items-center gap-2 rounded-xl px-3 py-2 text-sm transition-all duration-150 ease-out',
+          props.onClick && 'cursor-pointer',
           isActive
             ? 'bg-[var(--chat-sidebar-row-active)] text-[var(--chat-sidebar-text)]'
             : 'text-[var(--chat-sidebar-text-muted)] hover:bg-[var(--chat-sidebar-row-hover)]'

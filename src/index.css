@@ -405,6 +405,17 @@ html, body, #root {
 .icon-btn.active, .icon-btn[data-active="true"] { color: var(--neko-text-primary); }
 .icon-btn:disabled { color: var(--neko-text-disabled); cursor: not-allowed; }
 
+[data-chat-view-mode] button:not(:disabled),
+[data-chat-view-mode] [role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+[data-notes-view-mode] button:not(:disabled),
+[data-notes-view-mode] [role="button"]:not([aria-disabled="true"]),
+[data-notes-view-mode] a[href] {
+  cursor: pointer;
+}
+
 .dragging-image, .dragging-image * { cursor: default !important; }
 
 body[data-chat-selection-lock="1"] * {

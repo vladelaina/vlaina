@@ -233,7 +233,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                 type="button"
                 onClick={handleOpenNewChat}
                 className={cn(
-                  'flex min-h-9 w-full items-center gap-2 rounded-xl bg-transparent px-3 py-2 text-sm font-medium text-[var(--chat-sidebar-text-muted)] shadow-none transition-colors hover:bg-[var(--chat-sidebar-row-hover)] hover:shadow-none'
+                  'flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-xl bg-transparent px-3 py-2 text-sm font-medium text-[var(--chat-sidebar-text-muted)] shadow-none transition-colors hover:bg-[var(--chat-sidebar-row-hover)] hover:shadow-none'
                 )}
               >
                 <Icon name="common.compose" size="md" className="text-[var(--chat-sidebar-text-muted)]" />
@@ -243,7 +243,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                 type="button"
                 onClick={() => setAppViewMode('notes')}
                 className={cn(
-                  'flex min-h-9 w-full items-center gap-2 rounded-xl bg-transparent px-3 py-2 text-sm font-medium text-[var(--chat-sidebar-text-muted)] shadow-none transition-colors hover:bg-[var(--chat-sidebar-row-hover)] hover:shadow-none'
+                  'flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-xl bg-transparent px-3 py-2 text-sm font-medium text-[var(--chat-sidebar-text-muted)] shadow-none transition-colors hover:bg-[var(--chat-sidebar-row-hover)] hover:shadow-none'
                 )}
               >
                 <Icon name="file.text" size="md" className="text-[var(--chat-sidebar-text-muted)]" />

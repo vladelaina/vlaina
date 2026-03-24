@@ -170,7 +170,7 @@ export function NotesView() {
 
   return (
     <>
-      <div className="h-full w-full relative flex min-w-0">
+      <div data-notes-view-mode="true" className="h-full w-full relative flex min-w-0">
         <div className="flex-1 min-w-0">
           {currentNotePath ? (
             <MarkdownEditor peekOffset={sidebarWidth} />
