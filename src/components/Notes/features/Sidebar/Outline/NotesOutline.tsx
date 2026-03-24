@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { useNotesOutline } from './useNotesOutline';
 import { CollapseTriangleAffordance } from '../../common/collapseTrianglePrimitive';
 import { NotesSidebarScrollArea } from '../NotesSidebarPrimitives';
+import { NotesSidebarTopActions } from '../NotesSidebarTopActions';
 import {
   buildOutlineTree,
   cleanupCollapsedHeadingIds,
@@ -93,19 +94,16 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
 
   return (
     <div className={cn('flex h-full flex-col', className)}>
+      <NotesSidebarTopActions />
       <NotesSidebarScrollArea
         className={cn(isPeeking ? 'neko-scrollbar-rounded pt-4 pb-4' : 'pt-2')}
         data-notes-sidebar-scroll-root="true"
       >
-        {headings.length === 0 ? (
-          <div className="px-2 py-3 text-[12px] text-[var(--neko-text-tertiary)]">
-            No headings in this note
-          </div>
-        ) : (
+        {headings.length > 0 ? (
           <nav aria-label="Document outline" className="space-y-0.5">
             {renderTreeNodes(headingTree)}
           </nav>
-        )}
+        ) : null}
       </NotesSidebarScrollArea>
     </div>
   );

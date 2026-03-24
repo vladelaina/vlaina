@@ -123,6 +123,7 @@ interface ModelSelectorProps {
   dropdownPlacement?: 'top' | 'bottom'
   onSelectModel?: (modelId: string) => void
   theme?: ModelSelectorTheme
+  isEmbedded?: boolean
 }
 
 export function ModelSelector({
@@ -130,6 +131,7 @@ export function ModelSelector({
   dropdownPlacement = 'top',
   onSelectModel,
   theme = 'chat',
+  isEmbedded = false,
 }: ModelSelectorProps) {
   const { models, providers, selectedModelId, selectModel, getSelectedModel } = useAIStore()
   const [isOpen, setIsOpen] = useState(false)
@@ -342,8 +344,9 @@ export function ModelSelector({
         <div 
           className={cn(
             dropdownPlacement === 'bottom'
-              ? "absolute top-full right-0 mt-1 w-64"
-              : "absolute bottom-full right-0 mb-1 w-64",
+              ? "absolute top-full right-0 mt-1"
+              : "absolute bottom-full right-0 mb-1",
+            isEmbedded ? "w-[15.5rem]" : "w-64",
             "rounded-2xl shadow-xl",
             "border",
             styles.panelSurface,

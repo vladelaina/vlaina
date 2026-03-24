@@ -1,4 +1,5 @@
 import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
+import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { cn } from '@/lib/utils';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 
@@ -12,6 +13,7 @@ interface NotesSidebarSectionProps extends HTMLAttributes<HTMLDivElement> {
   onToggle?: () => void;
   actions?: ReactNode;
   contentClassName?: string;
+  animated?: boolean;
 }
 
 export function NotesSidebarSurface({
@@ -32,13 +34,15 @@ export function NotesSidebarSurface({
 }
 
 export const NotesSidebarScrollArea = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(function NotesSidebarScrollArea({
+  onMouseEnter,
   className,
   ...props
 }, ref) {
   return (
-    <div
+    <OverlayScrollArea
       ref={ref}
-      className={cn('neko-scrollbar flex-1 overflow-y-auto px-2 py-2', className)}
+      viewportClassName={cn('px-2 py-2', className)}
+      onMouseEnter={onMouseEnter}
       {...props}
     />
   );
@@ -59,6 +63,7 @@ export function NotesSidebarSection({
   children,
   className,
   contentClassName,
+  animated = true,
   ...props
 }: NotesSidebarSectionProps) {
   const isInteractive = typeof onToggle === 'function';
@@ -107,7 +112,8 @@ export function NotesSidebarSection({
 
       <div
         className={cn(
-          'grid transition-[grid-template-rows] duration-200 ease-out',
+          'grid',
+          animated && 'transition-[grid-template-rows] duration-200 ease-out',
           expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
         )}
       >

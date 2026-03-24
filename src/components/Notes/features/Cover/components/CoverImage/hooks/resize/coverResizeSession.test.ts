@@ -72,8 +72,8 @@ describe('startCoverResizeSession', () => {
     (upHandler as EventListener)(new MouseEvent('mouseup', { clientY: 130 }));
 
     expect(onCommit).toHaveBeenCalledTimes(1);
-    expect(removeSpy).toHaveBeenCalledWith('mousemove', expect.any(Function));
-    expect(removeSpy).toHaveBeenCalledWith('mouseup', expect.any(Function));
+    expect(removeSpy).toHaveBeenCalledWith('mousemove', expect.any(Function), true);
+    expect(removeSpy).toHaveBeenCalledWith('mouseup', expect.any(Function), true);
   });
 
   it('dispose is idempotent', () => {
@@ -99,6 +99,21 @@ describe('startCoverResizeSession', () => {
     expect(upRemoves).toHaveLength(1);
   });
 
+  it('registers capture listeners so dragging keeps working over cover interactions', () => {
+    const addSpy = vi.spyOn(document, 'addEventListener');
+
+    startCoverResizeSession({
+      startY: 100,
+      startHeight: 200,
+      snapshot,
+      onFrame: vi.fn(),
+      onCommit: vi.fn(),
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('mousemove', expect.any(Function), true);
+    expect(addSpy).toHaveBeenCalledWith('mouseup', expect.any(Function), true);
+  });
+
   it('keeps the image pinned to the top after reaching the top in one resize session', () => {
     const onFrame = vi.fn();
     const onCommit = vi.fn();
@@ -118,13 +133,13 @@ describe('startCoverResizeSession', () => {
     (moveHandler as EventListener)(new MouseEvent('mousemove', { clientY: 200 }));
     (moveHandler as EventListener)(new MouseEvent('mousemove', { clientY: 150 }));
 
-    expect(onFrame).toHaveBeenNthCalledWith(1, {
+    expect(onFrame).toHaveBeenNthCalledWith(1, expect.objectContaining({
       effectiveHeight: 300,
       shiftY: 20,
-    });
-    expect(onFrame).toHaveBeenNthCalledWith(2, {
+    }));
+    expect(onFrame).toHaveBeenNthCalledWith(2, expect.objectContaining({
       effectiveHeight: 250,
       shiftY: 20,
-    });
+    }));
   });
 });

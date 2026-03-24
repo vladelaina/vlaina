@@ -1,15 +1,19 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { matchesShortcutBinding } from '@/lib/shortcuts';
+import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import { ResizablePanel } from '@/components/layout/ResizablePanel';
-import { ResizeDividerVisual, RESIZE_HANDLE_HIT_WIDTH } from '@/components/layout/shell/ResizeDividerVisual';
 import { ModuleShortcutsDialog } from '@/components/common/ModuleShortcutsDialog';
 import { MarkdownEditor } from './features/Editor';
 import { VaultWelcome } from '@/components/VaultWelcome';
 import { useModuleShortcutsDialog } from '@/hooks/useModuleShortcutsDialog';
+import {
+  runOpenNewChatShortcut,
+  runTemporaryChatWelcomeShortcut,
+} from '@/components/Chat/features/Temporary/temporaryChatCommands';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -41,12 +45,47 @@ export function NotesView() {
   const setLayoutPanelDragging = useUIStore((s) => s.setLayoutPanelDragging);
 
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const chatComposerFocusFrameRef = useRef<number | null>(null);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
   const handleChatPanelDragStateChange = useCallback((dragging: boolean) => {
     setLayoutPanelDragging(dragging);
   }, [setLayoutPanelDragging]);
+  const focusNotesChatComposer = useCallback(() => {
+    if (chatComposerFocusFrameRef.current !== null) {
+      cancelAnimationFrame(chatComposerFocusFrameRef.current);
+      chatComposerFocusFrameRef.current = null;
+    }
+
+    setChatPanelCollapsed(false);
+
+    let attempts = 0;
+    const tryFocus = () => {
+      if (focusComposerInput()) {
+        chatComposerFocusFrameRef.current = null;
+        return;
+      }
+
+      attempts += 1;
+      if (attempts >= 24) {
+        chatComposerFocusFrameRef.current = null;
+        return;
+      }
+
+      chatComposerFocusFrameRef.current = requestAnimationFrame(tryFocus);
+    };
+
+    chatComposerFocusFrameRef.current = requestAnimationFrame(tryFocus);
+  }, [setChatPanelCollapsed]);
 
   useModuleShortcutsDialog({ onToggle: toggleShortcutsDialog });
+
+  useEffect(() => {
+    return () => {
+      if (chatComposerFocusFrameRef.current !== null) {
+        cancelAnimationFrame(chatComposerFocusFrameRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!currentVault) return;
@@ -127,6 +166,20 @@ export function NotesView() {
         return;
       }
 
+      if (matchesShortcutBinding(e, 'openNewChat')) {
+        e.preventDefault();
+        runOpenNewChatShortcut();
+        focusNotesChatComposer();
+        return;
+      }
+
+      if (matchesShortcutBinding(e, 'toggleTemporaryChatWelcome')) {
+        e.preventDefault();
+        runTemporaryChatWelcomeShortcut();
+        focusNotesChatComposer();
+        return;
+      }
+
       const target = e.target;
       if (target instanceof Element && target.closest('[data-notes-chat-panel="true"]')) {
         return;
@@ -158,7 +211,7 @@ export function NotesView() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [openTabs, currentNotePath, openNote, closeTab]);
+  }, [closeTab, currentNotePath, focusNotesChatComposer, openNote, openTabs, toggleChatPanel]);
 
   if (!currentVault && !currentNotePath) {
     return (
@@ -173,7 +226,9 @@ export function NotesView() {
       <div className="h-full w-full relative flex min-w-0">
         <div className="flex-1 min-w-0">
           {currentNotePath ? (
-            <MarkdownEditor peekOffset={sidebarWidth} />
+            <MarkdownEditor
+              peekOffset={sidebarWidth}
+            />
           ) : (
             <div className="flex-1 h-full" />
           )}
@@ -196,20 +251,6 @@ export function NotesView() {
           </ResizablePanel>
         )}
 
-        {chatPanelCollapsed && (
-          <button
-            type="button"
-            aria-label="Toggle chat sidebar"
-            onClick={() => setChatPanelCollapsed(false)}
-            className="absolute inset-y-0 right-0 z-20 cursor-col-resize bg-transparent group flex items-center justify-center"
-            style={{ width: RESIZE_HANDLE_HIT_WIDTH }}
-          >
-            <ResizeDividerVisual
-              isVisible={false}
-              className="pointer-events-none absolute inset-y-0 left-0"
-            />
-          </button>
-        )}
       </div>
       
       <ModuleShortcutsDialog module="notes" open={isShortcutsOpen} onOpenChange={setIsShortcutsOpen} />

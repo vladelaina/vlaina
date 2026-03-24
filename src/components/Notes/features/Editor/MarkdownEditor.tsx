@@ -22,6 +22,7 @@ import { tableBlock } from '@milkdown/kit/component/table-block';
 import type { Parser } from '@milkdown/kit/transformer';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { Icon } from '@/components/ui/icons';
+import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { NoteHeader } from './NoteHeader';
@@ -194,7 +195,13 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   );
 });
 
-export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeeking?: boolean; peekOffset?: number }) {
+export function MarkdownEditor({
+  isPeeking = false,
+  peekOffset = 0,
+}: {
+  isPeeking?: boolean;
+  peekOffset?: number;
+}) {
   const { contentOffset } = useEditorLayout(isPeeking, peekOffset);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
   const scrollPositionsRef = useRef(new Map<string, number>());
@@ -370,9 +377,12 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
         </DropdownMenu>
       </div>
 
-      <div
+      <OverlayScrollArea
         ref={scrollRootRef}
-        className="flex-1 overflow-auto neko-scrollbar flex flex-col items-center relative"
+        className="flex-1 relative"
+        viewportClassName="flex flex-col items-center relative"
+        draggingBodyClassName="neko-overlay-scrollbar-dragging"
+        scrollbarVariant="compact"
         data-note-scroll-root="true"
       >
         <NoteCoverCanvas
@@ -396,7 +406,7 @@ export function MarkdownEditor({ isPeeking = false, peekOffset = 0 }: { isPeekin
             <MilkdownEditorInner />
           </MilkdownProvider>
         </div>
-      </div>
+      </OverlayScrollArea>
     </div>
   );
 }

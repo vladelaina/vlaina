@@ -133,6 +133,7 @@ export function StarredSection() {
       title="Starred"
       expanded={expanded}
       onToggle={() => setExpanded((value) => !value)}
+      animated={false}
     >
       <div>
         {starredEntries.map((entry) => {

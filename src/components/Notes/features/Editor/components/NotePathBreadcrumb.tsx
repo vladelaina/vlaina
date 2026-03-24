@@ -6,8 +6,6 @@ import { useDisplayName } from '@/hooks/useTitleSync';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { findNode } from '@/stores/notes/fileTreeUtils';
 import { cn } from '@/lib/utils';
-import { Icon } from '@/components/ui/icons';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface NotePathBreadcrumbProps {
   notePath: string;
@@ -80,12 +78,7 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
     return getNoteTitleFromPath(displayPath);
   }, [displayPath, displayName]);
 
-  const notesSidebarView = useUIStore((s) => s.notesSidebarView);
   const setNotesSidebarView = useUIStore((s) => s.setNotesSidebarView);
-
-  const handleToggleNotesSidebarView = () => {
-    setNotesSidebarView(notesSidebarView === 'workspace' ? 'outline' : 'workspace');
-  };
 
   const handleFolderClick = (targetPath: string) => {
     setNotesSidebarView('workspace');
@@ -101,30 +94,6 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
 
   return (
     <div className="h-4 flex items-center mb-1">
-      {/* Custom Tooltip Toggle */}
-      <Tooltip delayDuration={700}>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={handleToggleNotesSidebarView}
-            className={cn(
-              'flex h-5 w-5 shrink-0 items-center justify-center rounded transition-all mr-1.5 cursor-pointer',
-              notesSidebarView === 'outline'
-                ? 'text-blue-500 bg-blue-500/10'
-                : 'text-[var(--neko-text-tertiary)] hover:bg-[var(--neko-hover-filled)] hover:text-[var(--neko-text-primary)]'
-            )}
-          >
-            <Icon
-              name={notesSidebarView === 'workspace' ? 'common.list' : 'file.folderOpen'}
-              size="xs"
-            />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={4} className="text-[10px] font-bold px-2 py-1">
-          {notesSidebarView === 'workspace' ? 'Switch to Outline' : 'Switch to Files'}
-        </TooltipContent>
-      </Tooltip>
-
       <div className="flex flex-wrap items-center gap-x-1 gap-y-0 text-[12px] leading-none opacity-0 transition-opacity duration-150 group-hover/note-title:opacity-100 group-focus-within/note-title:opacity-100">
         <button
           type="button"

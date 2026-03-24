@@ -11,6 +11,7 @@ interface ChatInputActionsProps {
   onStop: () => void;
   onSend: () => void;
   composerInputRef: RefObject<HTMLTextAreaElement | null>;
+  isEmbedded?: boolean;
 }
 
 export function ChatInputActions({
@@ -21,6 +22,7 @@ export function ChatInputActions({
   onStop,
   onSend,
   composerInputRef,
+  isEmbedded = false,
 }: ChatInputActionsProps) {
   return (
     <div className="flex items-center justify-between px-2 pb-2 pl-3">
@@ -38,7 +40,7 @@ export function ChatInputActions({
       </div>
 
       <div className="flex items-center gap-2">
-        <ModelSelector composerInputRef={composerInputRef} />
+        <ModelSelector composerInputRef={composerInputRef} isEmbedded={isEmbedded} />
 
         {isLoading && !hasDraftMessage ? (
           <button

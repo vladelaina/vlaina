@@ -1,3 +1,4 @@
+import { StickyOutlineLab } from './variants/StickyOutlineLab';
 import { PracticalOutlineLab } from './variants/PracticalOutlineLab';
 import { OutlineRevolutionLab } from './variants/OutlineRevolutionLab';
 import { AnimationLab } from './playground/AnimationLab';
@@ -12,6 +13,13 @@ import { FirstPrinciplesLinkEditor } from './playground/FirstPrinciplesLinkEdito
 import { NotesSidebarModeLab } from './playground/NotesSidebarModeLab';
 
 export const LAB_MODULES = [
+  {
+    id: 'outline-sticky-paradigm',
+    label: 'The Entry Lab (Sticky)',
+    icon: 'misc.lab',
+    component: StickyOutlineLab,
+    description: '30 Fixed-position, non-scrolling entry points for the Files / Outline transition.'
+  },
   {
     id: 'outline-practical-architecture',
     label: 'Practical Architecture',

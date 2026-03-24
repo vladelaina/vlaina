@@ -1,12 +1,13 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { StarredSection } from '../Starred';
 import { WorkspaceSection } from '../FileTree';
-import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 import { useNotesStore, type FileTreeNode, type FolderNode } from '@/stores/useNotesStore';
 import { NotesSidebarScrollArea } from './NotesSidebarPrimitives';
 import { NotesSidebarRow } from './NotesSidebarRow';
+import { NotesSidebarTopActions } from './NotesSidebarTopActions';
+import { Icon } from '@/components/ui/icons';
 
 interface SearchResult {
   path: string;
@@ -82,7 +83,6 @@ export function SidebarContent({
   const setSearchOpen = useUIStore((s) => s.setNotesSidebarSearchOpen);
   const searchQuery = useUIStore((s) => s.searchQuery);
   const setSearchQuery = useUIStore((s) => s.setSearchQuery);
-  const setAppViewMode = useUIStore((s) => s.setAppViewMode);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const overscrollDistanceRef = useRef(0);
 
@@ -118,16 +118,7 @@ export function SidebarContent({
   return (
     <div className={cn('flex h-full flex-col', className)}>
       {!isSearchOpen ? (
-        <div className="px-1 pt-1 pb-1">
-          <button
-            type="button"
-            onClick={() => setAppViewMode('chat')}
-            className="flex min-h-9 w-full items-center gap-2 rounded-xl bg-transparent px-3 py-2 text-sm font-medium text-[var(--chat-sidebar-text-muted)] shadow-none transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:shadow-none"
-          >
-            <Icon name="common.sparkle" size="md" className="text-[var(--chat-sidebar-text-muted)]" />
-            <span className="truncate">Chat</span>
-          </button>
-        </div>
+        <NotesSidebarTopActions />
       ) : null}
 
       {isSearchOpen ? (

@@ -248,7 +248,7 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
       className="h-full w-full flex flex-col bg-[var(--neko-bg-primary)] relative overflow-hidden"
       onMouseDownCapture={handleChatAreaMouseDownCapture}
     >
-      {showInChatArea && !isEmbedded && (
+      {showInChatArea && (
         <div className="absolute top-3 right-4 z-30 pointer-events-auto">
           <TemporaryChatToggle />
         </div>
@@ -260,6 +260,7 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
           isSessionActive={isSessionActive}
           showLoading={showLoading}
           isLayoutCentered={isEmpty}
+          useOverlayScrollbar={isEmbedded}
           spacerHeight={spacerHeight}
           containerRef={containerRef}
           onCopy={copyToClipboard}
@@ -287,6 +288,7 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
                 focusTrigger={focusInputTrigger}
                 sessionId={currentSessionId}
                 sentUserMessages={sentUserMessages}
+                isEmbedded={isEmbedded}
               />
           </div>
       </div>

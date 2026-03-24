@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from 'react';
+import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { cn } from '@/lib/utils';
 
 interface ChatSidebarSurfaceProps extends HTMLAttributes<HTMLDivElement> {
@@ -31,12 +32,14 @@ export function ChatSidebarSurface({
 }
 
 export function ChatSidebarScrollArea({
+  onMouseEnter,
   className,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div
-      className={cn('neko-scrollbar flex-1 overflow-y-auto px-2 py-2', className)}
+    <OverlayScrollArea
+      viewportClassName={cn('px-2 py-2', className)}
+      onMouseEnter={onMouseEnter}
       {...props}
     />
   );
