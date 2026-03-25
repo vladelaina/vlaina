@@ -1,5 +1,5 @@
 import { ComponentType, SVGProps } from 'react';
-import { ListOrdered, PenLine, Pin, Quote } from 'lucide-react';
+import { Crown, ListOrdered, PenLine, Pin, Quote } from 'lucide-react';
 import { 
   MinusIcon,
   XMarkIcon,
@@ -212,6 +212,7 @@ export const icons: Record<string, IconSource> = {
   'media.stop': SquareStopIcon,
   'media.mic': MicrophoneIcon,
   'misc.clock': ClockIcon,
+  'misc.crown': Crown,
   'misc.star': StarIcon,
   'misc.heart': HeartIcon,
   'misc.shuffle': ArrowsRightLeftIcon,
