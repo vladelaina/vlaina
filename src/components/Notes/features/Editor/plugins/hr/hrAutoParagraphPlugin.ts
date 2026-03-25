@@ -12,12 +12,34 @@ import { shouldConvertLineToThematicBreak } from './hrAutoParagraphUtils';
 
 export const hrAutoParagraphPluginKey = new PluginKey('hrAutoParagraph');
 
+function shouldPreserveLeadingFrontmatterShortcut(view: EditorView, text: string): boolean {
+  if (text !== '-') {
+    return false;
+  }
+
+  const { selection } = view.state;
+  const parentDepth = selection.$from.depth - 1;
+  if (parentDepth !== 0) {
+    return false;
+  }
+
+  if (selection.$from.index(parentDepth) !== 0) {
+    return false;
+  }
+
+  const parentText = selection.$from.parent.textContent;
+  const offset = selection.$from.parentOffset;
+  const nextText = `${parentText.slice(0, offset)}-${parentText.slice(offset)}`;
+  return nextText.trim() === '---';
+}
+
 function shouldConvertToHorizontalRule(view: EditorView, from: number, to: number, text: string): boolean {
   if (from !== to) return false;
 
   const { state } = view;
   const { selection } = state;
   if (!selection.empty || selection.from !== from) return false;
+  if (shouldPreserveLeadingFrontmatterShortcut(view, text)) return false;
 
   const paragraphType = state.schema.nodes.paragraph;
   if (!paragraphType || selection.$from.parent.type !== paragraphType) return false;

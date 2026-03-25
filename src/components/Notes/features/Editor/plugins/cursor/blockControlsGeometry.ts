@@ -3,6 +3,7 @@ import type { BlockRange } from './blockSelectionUtils';
 import { pickPointerBlock } from './blockControlsUtils';
 import {
   collectSelectableBlockTargets,
+  isNonDraggableBlockRange,
   mapRangesToSelectableBlocks,
   resolveSelectableBlockTargetByPos,
 } from './blockUnitResolver';
@@ -41,6 +42,7 @@ function resolveListChildInsertPos(
 export function resolveBlockTargetByPos(view: EditorView, blockPos: number): HandleBlockTarget | null {
   const target = resolveSelectableBlockTargetByPos(view, blockPos);
   if (!target) return null;
+  if (isNonDraggableBlockRange(view.state.doc, target.range)) return null;
   return {
     pos: target.range.from,
     rect: target.rect,
@@ -61,7 +63,8 @@ export function setControlsPosition(
 }
 
 export function getDraggableBlockRanges(view: EditorView, selectedRanges: readonly BlockRange[]): BlockRange[] {
-  return mapRangesToSelectableBlocks(view.state.doc, selectedRanges);
+  return mapRangesToSelectableBlocks(view.state.doc, selectedRanges)
+    .filter((range) => !isNonDraggableBlockRange(view.state.doc, range));
 }
 
 export function resolveDropTarget(view: EditorView, clientX: number, clientY: number): DropTarget | null {
@@ -70,7 +73,9 @@ export function resolveDropTarget(view: EditorView, clientX: number, clientY: nu
     return null;
   }
 
-  const blockTargets = collectSelectableBlockTargets(view);
+  const blockTargets = collectSelectableBlockTargets(view).filter(
+    (target) => !isNonDraggableBlockRange(view.state.doc, target.range),
+  );
   const target = pickPointerBlock(blockTargets, clientY);
   if (!target) return null;
 

@@ -172,6 +172,49 @@ function createNestedListViewMock() {
   return { view: view as any };
 }
 
+function createFrontmatterViewMock() {
+  const dom = document.createElement('div');
+  const frontmatter = document.createElement('div');
+  const paragraph = document.createElement('p');
+  frontmatter.textContent = 'title: note';
+  paragraph.textContent = 'Body';
+  dom.append(frontmatter, paragraph);
+
+  withRect(dom, { left: 20, top: 20, width: 600, height: 300 });
+  withRect(frontmatter, { left: 60, top: 40, width: 420, height: 56 });
+  withRect(paragraph, { left: 60, top: 112, width: 420, height: 24 });
+
+  const children = [
+    createNode('frontmatter', 5),
+    createNode('paragraph', 6),
+  ];
+  const doc = {
+    content: { size: 11 },
+    forEach(cb: (child: MockNode, offset: number) => void) {
+      let offset = 0;
+      for (const child of children) {
+        cb(child, offset);
+        offset += child.nodeSize;
+      }
+    },
+  };
+
+  const view = {
+    dom,
+    state: { doc },
+    nodeDOM(pos: number) {
+      if (pos >= 5) return paragraph;
+      return frontmatter;
+    },
+    domAtPos(pos: number) {
+      if (pos >= 6) return { node: paragraph.firstChild as Node };
+      return { node: frontmatter.firstChild as Node };
+    },
+  };
+
+  return { view: view as any };
+}
+
 describe('getDraggableBlockRanges', () => {
   it('maps arbitrary ranges to selectable list-item ranges', () => {
     const { view } = createViewMock();
@@ -185,6 +228,27 @@ describe('getDraggableBlockRanges', () => {
       { from: 14, to: 18 },
     ]);
   });
+
+  it('drops frontmatter ranges from draggable block mapping', () => {
+    const { view } = createFrontmatterViewMock();
+    const ranges = getDraggableBlockRanges(view, [
+      { from: 0, to: 5 },
+    ]);
+
+    expect(ranges).toEqual([]);
+  });
+
+  it('keeps regular blocks draggable when frontmatter is selected together with them', () => {
+    const { view } = createFrontmatterViewMock();
+    const ranges = getDraggableBlockRanges(view, [
+      { from: 0, to: 5 },
+      { from: 5, to: 11 },
+    ]);
+
+    expect(ranges).toEqual([
+      { from: 5, to: 11 },
+    ]);
+  });
 });
 
 describe('resolveBlockTargetByPos', () => {
@@ -193,6 +257,11 @@ describe('resolveBlockTargetByPos', () => {
     const target = resolveBlockTargetByPos(view, 8);
     expect(target?.pos).toBe(6);
     expect(target?.rect).toEqual(itemOne.getBoundingClientRect());
+  });
+
+  it('does not resolve a handle target for frontmatter blocks', () => {
+    const { view } = createFrontmatterViewMock();
+    expect(resolveBlockTargetByPos(view, 0)).toBeNull();
   });
 });
 

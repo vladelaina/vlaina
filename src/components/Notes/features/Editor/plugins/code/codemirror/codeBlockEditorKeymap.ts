@@ -1,9 +1,18 @@
-import { TextSelection } from '@milkdown/kit/prose/state';
+import * as proseState from '@milkdown/kit/prose/state';
 import type { Node } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { EditorView as CodeMirror, KeyBinding } from '@codemirror/view';
 import { exitCode } from '@milkdown/kit/prose/commands';
 import { redo, undo } from '@milkdown/kit/prose/history';
+
+const { TextSelection } = proseState;
+const AllSelection = (
+  proseState as typeof proseState & {
+    AllSelection: (new (doc: unknown) => unknown) & {
+      create?: (doc: unknown) => unknown;
+    };
+  }
+).AllSelection;
 
 type CreateCodeBlockKeymapOptions = {
   getCodeMirror: () => CodeMirror | undefined;
@@ -11,6 +20,19 @@ type CreateCodeBlockKeymapOptions = {
   getNode: () => Node;
   getPos: () => number | undefined;
 };
+
+function createAllSelection(doc: unknown) {
+  if (typeof AllSelection.create === 'function') {
+    return AllSelection.create(doc);
+  }
+
+  return new AllSelection(doc);
+}
+
+function isEntireDocumentSelected(cm: CodeMirror): boolean {
+  const selection = cm.state.selection.main;
+  return selection.from === 0 && selection.to === cm.state.doc.length;
+}
 
 function maybeEscape(
   getCodeMirror: () => CodeMirror | undefined,
@@ -57,6 +79,30 @@ export function createCodeBlockEditorKeymap({
   getPos,
 }: CreateCodeBlockKeymapOptions): KeyBinding[] {
   return [
+    {
+      key: 'Mod-a',
+      run: () => {
+        const cm = getCodeMirror();
+        if (!cm) {
+          return false;
+        }
+
+        if (isEntireDocumentSelected(cm)) {
+          view.dispatch(view.state.tr.setSelection(createAllSelection(view.state.doc) as never));
+          view.focus();
+          return true;
+        }
+
+        cm.dispatch({
+          selection: {
+            anchor: 0,
+            head: cm.state.doc.length,
+          },
+        });
+        cm.focus();
+        return true;
+      },
+    },
     { key: 'ArrowUp', run: () => maybeEscape(getCodeMirror, view, getNode, getPos, 'line', -1) },
     { key: 'ArrowLeft', run: () => maybeEscape(getCodeMirror, view, getNode, getPos, 'char', -1) },
     { key: 'ArrowDown', run: () => maybeEscape(getCodeMirror, view, getNode, getPos, 'line', 1) },

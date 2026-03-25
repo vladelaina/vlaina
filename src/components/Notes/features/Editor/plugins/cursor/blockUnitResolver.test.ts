@@ -75,6 +75,22 @@ describe('collectSelectableBlockRanges', () => {
       { from: 13, to: 17 },
     ]);
   });
+
+  it('keeps frontmatter blocks in the selectable range set', () => {
+    const doc = createDoc([
+      createNode('frontmatter', 5),
+      createNode('paragraph', 4),
+      createNode('paragraph', 6),
+    ]);
+
+    const ranges = collectSelectableBlockRanges(doc as any);
+
+    expect(ranges).toEqual([
+      { from: 0, to: 5 },
+      { from: 5, to: 9 },
+      { from: 9, to: 15 },
+    ]);
+  });
 });
 
 describe('resolveSelectableBlockRange', () => {
@@ -85,6 +101,17 @@ describe('resolveSelectableBlockRange', () => {
     expect(resolveSelectableBlockRange(doc, 12)).toEqual({ from: 6, to: 14 });
     expect(resolveSelectableBlockRange(doc, 14)).toEqual({ from: 14, to: 18 });
     expect(resolveSelectableBlockRange(doc, 99)).toEqual({ from: 19, to: 25 });
+  });
+
+  it('returns the frontmatter range for positions inside frontmatter blocks', () => {
+    const doc = createDoc([
+      createNode('frontmatter', 5),
+      createNode('paragraph', 4),
+    ]) as any;
+
+    expect(resolveSelectableBlockRange(doc, 0)).toEqual({ from: 0, to: 5 });
+    expect(resolveSelectableBlockRange(doc, 4)).toEqual({ from: 0, to: 5 });
+    expect(resolveSelectableBlockRange(doc, 5)).toEqual({ from: 5, to: 9 });
   });
 });
 

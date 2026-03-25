@@ -9,6 +9,7 @@
 @import './markdown.css';
 @import './extended.css';
 @import './code-block.css';
+@import './frontmatter.css';
 @import './math-editor.css';
 @import './slash-menu.css';
 @import './floating-toolbar.css';

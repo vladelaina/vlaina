@@ -9,8 +9,29 @@ export interface SelectableBlockTarget {
   rect: DOMRect;
 }
 
+function isNonDraggableBlockNode(name: string): boolean {
+  return name === 'frontmatter';
+}
+
 function isListContainerNode(name: string): boolean {
   return name === 'bullet_list' || name === 'ordered_list';
+}
+
+function resolveTopLevelNodeAtPos(
+  doc: EditorState['doc'],
+  pos: number,
+): { from: number; to: number; name: string } | null {
+  let resolved: { from: number; to: number; name: string } | null = null;
+
+  doc.forEach((node, offset) => {
+    if (resolved) return;
+    const from = offset;
+    const to = offset + node.nodeSize;
+    if (pos < from || pos >= to) return;
+    resolved = { from, to, name: node.type.name };
+  });
+
+  return resolved;
 }
 
 function collectListItemRanges(node: EditorState['doc'], itemFrom: number, ranges: BlockRange[]): void {
@@ -159,11 +180,11 @@ export function collectSelectableBlockRanges(doc: EditorState['doc']): BlockRang
 }
 
 export function resolveSelectableBlockRange(doc: EditorState['doc'], pos: number): BlockRange | null {
+  const docSize = doc.content.size;
+  const safePos = Math.max(0, Math.min(pos, docSize));
   const ranges = collectSelectableBlockRanges(doc);
   if (ranges.length === 0) return null;
 
-  const docSize = doc.content.size;
-  const safePos = Math.max(0, Math.min(pos, docSize));
   for (const range of ranges) {
     if (safePos >= range.from && safePos < range.to) return range;
     if (safePos < range.from) return range;
@@ -180,6 +201,12 @@ export function mapRangesToSelectableBlocks(
     .map((range) => resolveSelectableBlockRange(doc, range.from))
     .filter((range): range is BlockRange => range !== null);
   return normalizeBlockRanges(resolved);
+}
+
+export function isNonDraggableBlockRange(doc: EditorState['doc'], range: BlockRange): boolean {
+  const topLevelNode = resolveTopLevelNodeAtPos(doc, range.from);
+  if (!topLevelNode) return false;
+  return topLevelNode.from === range.from && isNonDraggableBlockNode(topLevelNode.name);
 }
 
 export function expandListItemHeaderRanges(

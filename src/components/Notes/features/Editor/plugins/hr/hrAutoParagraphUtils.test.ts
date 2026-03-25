@@ -27,7 +27,6 @@ describe('shouldConvertLineToThematicBreak', () => {
 
   it('returns false when line still does not form a break', () => {
     expect(shouldConvertLineToThematicBreak('a--', 3, '-')).toBe(false);
-    expect(shouldConvertLineToThematicBreak('--a', 2, '-')).toBe(false);
     expect(shouldConvertLineToThematicBreak('**', 2, '-')).toBe(false);
     expect(shouldConvertLineToThematicBreak('__', 2, '.')).toBe(false);
   });

@@ -38,6 +38,10 @@ import {
   setCurrentEditorView,
   setCurrentMarkdownRuntime,
 } from './utils/editorViewRegistry';
+import {
+  normalizeLeadingFrontmatterMarkdown,
+  serializeLeadingFrontmatterMarkdown,
+} from './plugins/frontmatter/frontmatterMarkdown';
 import './styles/index.css';
 
 const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
@@ -77,7 +81,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
     Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, root);
-        ctx.set(defaultValueCtx, initialContent);
+        ctx.set(defaultValueCtx, normalizeLeadingFrontmatterMarkdown(initialContent));
         ctx.update(remarkStringifyOptionsCtx, (prev) => ({
           ...prev,
           ...notesRemarkStringifyOptions,
@@ -99,17 +103,18 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
               return;
             }
 
+            const nextMarkdown = serializeLeadingFrontmatterMarkdown(markdown);
             const currentContent = useNotesStore.getState().currentNote?.content ?? '';
-            if (currentContent === markdown) {
+            if (currentContent === nextMarkdown) {
               return;
             }
 
             requestAnimationFrame(() => {
               const latestNote = useNotesStore.getState().currentNote;
-              if (!latestNote || latestNote.path !== currentNotePath || latestNote.content === markdown) {
+              if (!latestNote || latestNote.path !== currentNotePath || latestNote.content === nextMarkdown) {
                 return;
               }
-              updateContent(markdown);
+              updateContent(nextMarkdown);
               debouncedSave();
             });
           });
