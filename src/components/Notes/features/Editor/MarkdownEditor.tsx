@@ -43,6 +43,7 @@ import {
   normalizeLeadingFrontmatterMarkdown,
   serializeLeadingFrontmatterMarkdown,
 } from './plugins/frontmatter/frontmatterMarkdown';
+import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import './styles/index.css';
 
 const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
@@ -228,6 +229,7 @@ export function MarkdownEditor({
   const starred = currentNotePath ? isStarred(currentNotePath) : false;
   const coverController = useNoteCoverController(currentNotePath);
   const coverUrl = coverController.cover.url;
+  useHeldPageScroll(scrollRootRef);
 
   const handleEditorClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {

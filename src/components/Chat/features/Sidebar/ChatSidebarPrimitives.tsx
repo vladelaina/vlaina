@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from 'react';
+import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { cn } from '@/lib/utils';
 
@@ -14,13 +14,14 @@ interface ChatSidebarRowProps extends HTMLAttributes<HTMLDivElement> {
   showActionsByDefault?: boolean;
 }
 
-export function ChatSidebarSurface({
+export const ChatSidebarSurface = forwardRef<HTMLDivElement, ChatSidebarSurfaceProps>(function ChatSidebarSurface({
   className,
   isPeeking = false,
   ...props
-}: ChatSidebarSurfaceProps) {
+}, ref) {
   return (
     <div
+      ref={ref}
       className={cn(
         'flex h-full flex-col bg-[var(--chat-sidebar-surface)] text-[var(--chat-sidebar-text)]',
         isPeeking && 'opacity-95',
@@ -29,21 +30,22 @@ export function ChatSidebarSurface({
       {...props}
     />
   );
-}
+});
 
-export function ChatSidebarScrollArea({
+export const ChatSidebarScrollArea = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(function ChatSidebarScrollArea({
   onMouseEnter,
   className,
   ...props
-}: HTMLAttributes<HTMLDivElement>) {
+}, ref) {
   return (
     <OverlayScrollArea
+      ref={ref}
       viewportClassName={cn('px-2 py-2', className)}
       onMouseEnter={onMouseEnter}
       {...props}
     />
   );
-}
+});
 
 export function ChatSidebarList({
   className,

@@ -8,6 +8,7 @@ import { NotesSidebarScrollArea } from './NotesSidebarPrimitives';
 import { NotesSidebarRow } from './NotesSidebarRow';
 import { NotesSidebarTopActions } from './NotesSidebarTopActions';
 import { Icon } from '@/components/ui/icons';
+import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 
 interface SearchResult {
   path: string;
@@ -84,7 +85,14 @@ export function SidebarContent({
   const searchQuery = useUIStore((s) => s.searchQuery);
   const setSearchQuery = useUIStore((s) => s.setSearchQuery);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const sidebarRootRef = useRef<HTMLDivElement | null>(null);
+  const scrollRootRef = useRef<HTMLDivElement | null>(null);
   const overscrollDistanceRef = useRef(0);
+
+  useHeldPageScroll(scrollRootRef, {
+    scopeRef: sidebarRootRef,
+    ignoreEditableTargets: true,
+  });
 
   const searchResults = useMemo(
     () => buildSearchResults(rootFolder, searchQuery, getDisplayName),
@@ -116,7 +124,7 @@ export function SidebarContent({
   };
 
   return (
-    <div className={cn('flex h-full flex-col', className)}>
+    <div ref={sidebarRootRef} className={cn('flex h-full flex-col', className)}>
       {!isSearchOpen ? (
         <NotesSidebarTopActions />
       ) : null}
@@ -158,6 +166,7 @@ export function SidebarContent({
       ) : null}
 
       <NotesSidebarScrollArea
+        ref={scrollRootRef}
         className={cn(isPeeking ? 'neko-scrollbar-rounded pt-4 pb-4' : 'pt-2')}
         data-notes-sidebar-scroll-root="true"
         onScroll={(event) => {

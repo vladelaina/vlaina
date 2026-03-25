@@ -97,6 +97,8 @@ import { ReviewRetryIcon } from './custom/mit/ReviewRetryIcon';
 import { ReviewApplyIcon } from './custom/mit/ReviewApplyIcon';
 import { ReviewCloseIcon } from './custom/mit/ReviewCloseIcon';
 import { SidebarDockIcon } from './custom/mit/SidebarDockIcon';
+import { MagicWandIcon } from './custom/mit/MagicWandIcon';
+import { ShootingStarIcon } from './custom/mit/ShootingStarIcon';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
@@ -147,6 +149,8 @@ export const icons: Record<string, IconSource> = {
   'common.unpinPrimer': PrimerUnpinIcon,
   'common.pinOutline': Pin,
   'common.sparkle': SparklesIcon,
+  'common.magicWand': MagicWandIcon,
+  'common.shootingStar': ShootingStarIcon,
   'common.send': SendIcon,
   'common.language': LanguageIcon,
   'common.cloud': CloudIcon,
