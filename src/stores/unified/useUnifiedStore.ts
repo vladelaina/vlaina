@@ -12,6 +12,7 @@ import { isTemporarySession, isTemporarySessionId } from '@/lib/ai/temporaryChat
 
 import { createProgressActions } from './actions/progressActions';
 import { createSettingsActions } from './actions/settingsActions';
+import { resolveMarkdownSettings } from './settings/markdownSettings';
 import type { TimeView } from '@/lib/date';
 import type { ItemColor } from '@/lib/colors';
 import { 
@@ -50,6 +51,7 @@ interface UnifiedStoreActions {
   setHourHeight: (height: number) => void;
   toggle24Hour: () => void;
   setDayStartTime: (minutes: number) => void;
+  setMarkdownCodeBlockLineNumbers: (showLineNumbers: boolean) => void;
   
   addCustomIcon: (icon: CustomIcon) => void;
   removeCustomIcon: (id: string) => void;
@@ -83,6 +85,17 @@ function createDefaultAIData(): NonNullable<UnifiedData['ai']> {
 function normalizeUnifiedData(data: UnifiedData): UnifiedData {
   const normalized: UnifiedData = { ...data };
   const ai = normalized.ai;
+  const settings = normalized.settings;
+
+  normalized.settings = {
+    ...DEFAULT_SETTINGS,
+    ...settings,
+    timezone: {
+      ...DEFAULT_SETTINGS.timezone,
+      ...settings?.timezone,
+    },
+    markdown: resolveMarkdownSettings(settings?.markdown),
+  };
 
   normalized.ai = ai
     ? {

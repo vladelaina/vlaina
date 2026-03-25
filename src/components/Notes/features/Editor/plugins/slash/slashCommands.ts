@@ -1,7 +1,8 @@
 import type { Ctx } from '@milkdown/kit/ctx';
 import { commandsCtx, editorViewCtx } from '@milkdown/kit/core';
 import { insertTableCommand } from '@milkdown/kit/preset/gfm';
-import { createCodeBlockCommand, insertHrCommand, wrapInHeadingCommand } from '@milkdown/kit/preset/commonmark';
+import { insertHrCommand, wrapInHeadingCommand } from '@milkdown/kit/preset/commonmark';
+import { createCodeBlockAttrs } from '../code/codeBlockSettings';
 
 export type SlashCommandId =
   | 'paragraph'
@@ -29,7 +30,7 @@ export type SlashCommandId =
   | 'abbreviation'
   | 'video';
 
-function insertNode(ctx: Ctx, nodeType: string, attrs?: Record<string, unknown>) {
+function insertNode(ctx: Ctx, nodeType: string, attrs?: object) {
   const view = ctx.get(editorViewCtx);
   const { state, dispatch } = view;
   const type = state.schema.nodes[nodeType];
@@ -72,6 +73,10 @@ function insertTaskList(ctx: Ctx) {
   dispatch(state.tr.replaceSelectionWith(bullet_list.create(null, item)).scrollIntoView());
 }
 
+function insertCodeBlock(ctx: Ctx) {
+  insertNode(ctx, 'code_block', createCodeBlockAttrs());
+}
+
 const slashCommandRegistry: Record<SlashCommandId, (ctx: Ctx) => void> = {
   paragraph: (ctx) => insertNode(ctx, 'paragraph'),
   'inline-math': (ctx) => insertNode(ctx, 'math_inline', { latex: '' }),
@@ -84,7 +89,7 @@ const slashCommandRegistry: Record<SlashCommandId, (ctx: Ctx) => void> = {
   'bullet-list': (ctx) => wrapInList(ctx, 'bullet_list'),
   'ordered-list': (ctx) => wrapInList(ctx, 'ordered_list'),
   'task-list': insertTaskList,
-  'code-block': (ctx) => ctx.get(commandsCtx).call(createCodeBlockCommand.key),
+  'code-block': insertCodeBlock,
   equation: (ctx) => insertNode(ctx, 'math_block', { latex: '' }),
   image: (ctx) => insertNode(ctx, 'image', { src: '', alt: '', align: 'center', width: null }),
   table: (ctx) => ctx.get(commandsCtx).call(insertTableCommand.key),

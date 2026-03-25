@@ -9,11 +9,11 @@ export function createCodeBlockEditorTheme() {
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     CodeMirror.theme({
       '&': {
-        backgroundColor: 'transparent',
+        backgroundColor: 'var(--neko-code-block-background, #f5f5f5)',
         fontSize: '0.875rem',
       },
       '.cm-editor': {
-        backgroundColor: 'transparent',
+        backgroundColor: 'var(--neko-code-block-background, #f5f5f5)',
       },
       '.cm-scroller': {
         fontFamily: 'var(--font-mono), monospace',
@@ -37,12 +37,12 @@ export function createCodeBlockEditorTheme() {
         caretColor: 'var(--neko-editor-caret-color, var(--neko-text-primary, #2c2c2b)) !important',
       },
       '.cm-gutters': {
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--neko-code-block-background, #f5f5f5)',
         border: 'none',
         paddingLeft: '0.5rem',
       },
       '.cm-gutters, .cm-gutter, .cm-gutterElement, .cm-lineNumbers, .cm-gutter-filler': {
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--neko-code-block-background, #f5f5f5)',
       },
       '.cm-activeLine, .cm-activeLineGutter': {
         backgroundColor: 'transparent',
@@ -50,20 +50,23 @@ export function createCodeBlockEditorTheme() {
       '&.cm-focused': {
         outline: 'none',
       },
-      '.cm-selectionBackground': {
+      '&.cm-focused .cm-selectionBackground': {
         backgroundColor: 'var(--neko-selection-bg, #2781db)',
+      },
+      '.cm-selectionBackground': {
+        backgroundColor: 'transparent',
       },
       '.cm-cursor, .cm-dropCursor, &.cm-focused .cm-cursor, &.cm-focused .cm-dropCursor': {
         borderLeftColor: 'var(--neko-editor-caret-color, var(--neko-text-primary, #2c2c2b)) !important',
         borderLeftStyle: 'solid',
         borderLeftWidth: 'var(--neko-editor-caret-width, 1px)',
       },
-      '.cm-content::selection, .cm-content *::selection, .cm-line::selection, .cm-line *::selection': {
+      '&.cm-focused .cm-content::selection, &.cm-focused .cm-content *::selection, &.cm-focused .cm-line::selection, &.cm-focused .cm-line *::selection': {
         backgroundColor: 'var(--neko-selection-bg, #2781db)',
         color: '#ffffff',
         WebkitTextFillColor: '#ffffff',
       },
-      '.cm-content::-moz-selection, .cm-content *::-moz-selection, .cm-line::-moz-selection, .cm-line *::-moz-selection': {
+      '&.cm-focused .cm-content::-moz-selection, &.cm-focused .cm-content *::-moz-selection, &.cm-focused .cm-line::-moz-selection, &.cm-focused .cm-line *::-moz-selection': {
         backgroundColor: 'var(--neko-selection-bg, #2781db)',
         color: '#ffffff',
       },

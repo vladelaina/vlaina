@@ -8,6 +8,9 @@ import { collapseSelectionAndHideFloatingToolbar } from './copyCleanup';
 import { sanitizeHtml } from './sanitizer';
 import { serializeSelectionToClipboardText } from './selectionSerialization';
 import { writeTextToClipboard } from '../cursor/blockSelectionCommands';
+import { createCodeBlockAttrs } from '../code/codeBlockSettings';
+import { normalizeLeadingFrontmatterMarkdown } from '../frontmatter/frontmatterMarkdown';
+import { isTocShortcutText } from '../toc/tocShortcut';
 import {
     extractLargestMarkdownFenceContent,
     looksLikeMarkdownForPaste,
@@ -18,6 +21,21 @@ import {
 import { findTailCursorPosInRange, isMarkdownStructuralResult } from './pasteCursorUtils';
 
 export const clipboardPluginKey = new PluginKey('neko-clipboard');
+
+export function createStandaloneTocPasteNode(schema: {
+    nodes: {
+        toc?: {
+            create: (attrs: { maxLevel: number }) => ProseNode;
+        };
+    };
+}, text: string): ProseNode | null {
+    if (!isTocShortcutText(text)) return null;
+
+    const tocType = schema.nodes.toc;
+    if (!tocType) return null;
+
+    return tocType.create({ maxLevel: 6 });
+}
 
 export const clipboardPlugin = $prose((ctx) => {
     let markdownParser: Parser | null = null;
@@ -64,7 +82,11 @@ export const clipboardPlugin = $prose((ctx) => {
 
         let parsedDoc: ProseNode;
         try {
-            parsedDoc = parser(normalizeStandaloneThematicBreaksForPaste(text));
+            parsedDoc = parser(
+                normalizeStandaloneThematicBreaksForPaste(
+                    normalizeLeadingFrontmatterMarkdown(text)
+                )
+            );
         } catch {
             return null;
         }
@@ -123,6 +145,13 @@ export const clipboardPlugin = $prose((ctx) => {
                     return false;
                 }
 
+                const tocNode = createStandaloneTocPasteNode(state.schema, text);
+                if (tocNode) {
+                    dispatchSliceAndKeepCursorAtTail(view, new Slice(Fragment.from(tocNode), 0, 0));
+                    event.preventDefault();
+                    return true;
+                }
+
                 if (fencedPayload) {
                     const fencedLanguage = fencedPayload.language?.toLowerCase() ?? null;
                     const fencedMarkdownCandidate = (
@@ -146,10 +175,9 @@ export const clipboardPlugin = $prose((ctx) => {
                     const codeBlockType = state.schema.nodes.code_block;
                     if (!codeBlockType) return false;
 
-                    const attrs: Record<string, unknown> = {};
-                    if (codeBlockType.spec.attrs?.language) {
-                        attrs.language = fencedPayload.language;
-                    }
+                    const attrs = createCodeBlockAttrs({
+                        language: codeBlockType.spec.attrs?.language ? fencedPayload.language : null,
+                    });
 
                     const codeTextNode = fencedPayload.code ? state.schema.text(fencedPayload.code) : null;
                     const codeBlockNode = codeBlockType.create(attrs, codeTextNode ? [codeTextNode] : null);

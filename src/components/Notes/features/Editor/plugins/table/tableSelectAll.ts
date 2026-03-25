@@ -212,7 +212,7 @@ export function handleTableSelectAll(
 
   if (isWholeTableSelected(view, table)) {
     event.preventDefault();
-    view.dispatch(tr.setSelection(createAllSelection(doc) as never).scrollIntoView());
+    view.dispatch(tr.setSelection(createAllSelection(doc) as never));
     return true;
   }
 
@@ -220,9 +220,7 @@ export function handleTableSelectAll(
     const range = getCurrentTextBlockRange(selection);
     if (range && !isCurrentTextBlockFullySelected(selection, range)) {
       event.preventDefault();
-      view.dispatch(
-        tr.setSelection(TextSelection.create(doc, range.from, range.to)).scrollIntoView()
-      );
+      view.dispatch(tr.setSelection(TextSelection.create(doc, range.from, range.to)));
       return true;
     }
   }
@@ -230,7 +228,7 @@ export function handleTableSelectAll(
   event.preventDefault();
   normalizeTableSelectionVisualState(view);
   const nextSelection = createWholeTableSelection(selection as never, doc as never);
-  view.dispatch((nextSelection ? tr.setSelection(nextSelection as never) : tr).scrollIntoView());
+  view.dispatch(nextSelection ? tr.setSelection(nextSelection as never) : tr);
   suppressNativeTextSelection(view);
   return true;
 }

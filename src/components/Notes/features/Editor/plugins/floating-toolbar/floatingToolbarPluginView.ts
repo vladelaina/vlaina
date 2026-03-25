@@ -344,7 +344,13 @@ export function createFloatingToolbarPluginView(
       return;
     }
 
-    if (!isReviewModeActive && selection.$from.parent.type.name === 'code_block') {
+    if (
+      !isReviewModeActive
+      && (
+        selection.$from.parent.type.name === 'code_block'
+        || selection.$from.parent.type.name === 'frontmatter'
+      )
+    ) {
       hideToolbarAndReset();
       return;
     }

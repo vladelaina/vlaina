@@ -52,11 +52,6 @@ export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockS
         toggleCodeBlockCollapsed(view, pos, isCollapsed);
     }, [getPos, isCollapsed, view]);
 
-    const handleShare = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-    }, []);
-
     useEffect(() => {
         return () => {
             if (copyTimerRef.current !== null) {
@@ -75,7 +70,6 @@ export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockS
         setIsLangMenuOpen,
         updateLanguage,
         handleCopy,
-        toggleCollapse,
-        handleShare
+        toggleCollapse
     };
 }

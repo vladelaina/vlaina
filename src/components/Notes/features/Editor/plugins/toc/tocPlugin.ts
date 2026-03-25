@@ -1,6 +1,8 @@
 import { $node, $command, $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, Selection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import type { TocAttrs, TocItem } from './types';
+import { isTocShortcutText } from './tocShortcut';
 
 const tocViewPluginKey = new PluginKey('tocView');
 
@@ -159,7 +161,6 @@ export const tocSchema = $node('toc', () => ({
         'data-max-level': String(attrs.maxLevel),
         class: 'toc-block'
       },
-      ['div', { class: 'toc-title' }, '📑 Table of Contents'],
       ['div', { class: 'toc-content' }, '[TOC will be generated here]']
     ];
   },
@@ -169,7 +170,7 @@ export const tocSchema = $node('toc', () => ({
         const children = node.children as Array<{ type: string; value?: string }> | undefined;
         if (children?.length === 1 && children[0].type === 'text') {
           const text = children[0].value || '';
-          return /^\[toc\]$/i.test(text.trim());
+          return isTocShortcutText(text);
         }
       }
       return false;
@@ -205,8 +206,75 @@ export const insertTocCommand = $command('insertToc', () => () => {
   };
 });
 
+export function handleTocShortcutEnter(view: EditorView): boolean {
+  const { state } = view;
+  const { selection, schema } = state;
+  const { $from } = selection;
+  const tocType = schema.nodes.toc;
+
+  if (!selection.empty || !tocType) {
+    return false;
+  }
+
+  if ($from.parent.type.name !== 'paragraph') {
+    return false;
+  }
+
+  if ($from.parentOffset !== $from.parent.content.size) {
+    return false;
+  }
+
+  if (!isTocShortcutText($from.parent.textContent)) {
+    return false;
+  }
+
+  const parentDepth = $from.depth - 1;
+  if (parentDepth < 0) {
+    return false;
+  }
+
+  const container = $from.node(parentDepth);
+  const index = $from.index(parentDepth);
+  if (typeof container.canReplaceWith === 'function' && !container.canReplaceWith(index, index + 1, tocType)) {
+    return false;
+  }
+
+  const paragraphPos = $from.before();
+  const paragraphEnd = paragraphPos + $from.parent.nodeSize;
+  const tr = state.tr
+    .replaceWith(paragraphPos, paragraphEnd, tocType.create({ maxLevel: 6 }))
+    .scrollIntoView();
+
+  view.dispatch(tr);
+  return true;
+}
+
+export const tocEnterPlugin = $prose(() => {
+  return new Plugin({
+    props: {
+      handleKeyDown(view, event) {
+        if (event.key !== 'Enter') {
+          return false;
+        }
+
+        if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || event.isComposing) {
+          return false;
+        }
+
+        if (!handleTocShortcutEnter(view)) {
+          return false;
+        }
+
+        event.preventDefault();
+        return true;
+      },
+    },
+  });
+});
+
 export const tocPlugin = [
   tocSchema,
   insertTocCommand,
-  tocViewPlugin
+  tocViewPlugin,
+  tocEnterPlugin,
 ];

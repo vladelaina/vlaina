@@ -105,41 +105,51 @@
 
 /* TOC */
 .milkdown .toc-block {
-  padding: 1rem;
-  margin: 1rem 0;
-  background-color: var(--neko-bg-secondary);
-  border: 1px solid var(--neko-border);
-  border-radius: 0.5rem;
+  padding: 0 0 1.25rem;
+  margin: 1.25rem 0;
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
 }
 
 .milkdown .toc-title {
   font-weight: 600;
-  margin-bottom: 0.75rem;
-  color: var(--neko-text-primary);
+  margin-bottom: 0.5rem;
+  color: var(--neko-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
 .milkdown .toc-nav {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
+  line-height: 1.65;
 }
 
 .milkdown .toc-list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 !important;
 }
 
 .milkdown .toc-item {
-  margin: 0.25rem 0;
+  list-style: none;
+  margin: 0.125rem 0;
+}
+
+.milkdown .toc-item::marker {
+  content: none;
 }
 
 .milkdown .toc-link {
-  color: var(--neko-text-secondary);
+  color: var(--neko-accent);
   text-decoration: none;
-  transition: color 0.15s;
+  text-underline-offset: 3px;
+  transition: color 0.15s, text-decoration-color 0.15s;
 }
 
 .milkdown .toc-link:hover {
   color: var(--neko-accent);
+  text-decoration: underline;
 }
 
 .milkdown .toc-level-1 {
@@ -148,6 +158,13 @@
 
 .milkdown .toc-level-2 {
   font-weight: 500;
+}
+
+.milkdown .toc-level-3,
+.milkdown .toc-level-4,
+.milkdown .toc-level-5,
+.milkdown .toc-level-6 {
+  font-weight: 400;
 }
 
 .milkdown .toc-empty {

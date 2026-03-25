@@ -1,6 +1,7 @@
 import { lift, wrapIn } from '@milkdown/kit/prose/commands';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, TextAlignment } from './types';
+import { createCodeBlockAttrs } from '../code/codeBlockSettings';
 import {
   convertToList,
   convertToTextBlock,
@@ -75,7 +76,7 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
     case 'codeBlock': {
       const codeBlockType = state.schema.nodes.code_block;
       if (codeBlockType) {
-        convertToTextBlock(view, codeBlockType);
+        convertToTextBlock(view, codeBlockType, createCodeBlockAttrs());
       }
       break;
     }

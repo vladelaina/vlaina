@@ -112,7 +112,7 @@ export const LanguageSelector = ({
                         <Icon size="md" name="common.search" className="absolute left-2.5 top-1/2 -translate-y-1/2  text-gray-400" />
                         <input
                             autoFocus
-                            className="w-full bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg pl-8 pr-10 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                            className="w-full bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg pl-8 pr-10 py-1.5 text-xs outline-none ring-0 focus:ring-0 focus:border-gray-200 dark:focus:border-zinc-800 transition-all"
                             placeholder="Search language..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -126,7 +126,7 @@ export const LanguageSelector = ({
                                 handleAutoDetect();
                             }}
                             title="Auto Detect Language"
-                            className="absolute right-1.5 p-1 rounded-md text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                            className="absolute right-1.5 p-1 text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
                         >
                             <Icon size="md" name="common.sparkle" />
                         </button>

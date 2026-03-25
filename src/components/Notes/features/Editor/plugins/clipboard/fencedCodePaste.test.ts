@@ -60,6 +60,12 @@ describe('parseStandaloneAtxHeading', () => {
 });
 
 describe('looksLikeMarkdownForPaste', () => {
+    it('detects standalone toc shortcuts', () => {
+        expect(looksLikeMarkdownForPaste('[toc]')).toBe(true);
+        expect(looksLikeMarkdownForPaste('{:toc}')).toBe(true);
+        expect(looksLikeMarkdownForPaste('  [TOC]  ')).toBe(true);
+    });
+
     it('detects blockquote markdown', () => {
         expect(looksLikeMarkdownForPaste('> quote')).toBe(true);
     });

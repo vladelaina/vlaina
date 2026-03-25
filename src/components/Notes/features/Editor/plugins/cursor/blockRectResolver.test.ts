@@ -22,7 +22,9 @@ function createNode(typeName: string, nodeSize: number, children: MockNode[] = [
 }
 
 function createDoc(children: MockNode[]) {
+  const size = children.reduce((total, node) => total + node.nodeSize, 0);
   return {
+    content: { size },
     forEach(cb: (child: MockNode, offset: number) => void) {
       let offset = 0;
       for (const child of children) {
@@ -67,6 +69,22 @@ describe('collectSelectableBlockRanges', () => {
       { from: 1, to: 6 },
       { from: 7, to: 11 },
       { from: 13, to: 17 },
+    ]);
+  });
+
+  it('includes frontmatter blocks in exported selectable ranges', () => {
+    const doc = createDoc([
+      createNode('frontmatter', 5),
+      createNode('paragraph', 4),
+      createNode('paragraph', 6),
+    ]);
+
+    const ranges = collectSelectableBlockRanges(doc as any);
+
+    expect(ranges).toEqual([
+      { from: 0, to: 5 },
+      { from: 5, to: 9 },
+      { from: 9, to: 15 },
     ]);
   });
 });

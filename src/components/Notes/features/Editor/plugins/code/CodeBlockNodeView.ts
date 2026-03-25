@@ -11,6 +11,8 @@ import {
 } from '@codemirror/view';
 import { createRoot, Root } from 'react-dom/client';
 import React from 'react';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { selectCodeBlockLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
 import { CodeBlockView } from './CodeBlockView';
 import { codeBlockLanguageLoader } from './codeBlockLanguageLoader';
 import {
@@ -47,6 +49,8 @@ export class CodeBlockNodeView implements NodeView {
   private headerStateKey = '';
   private pendingMeasureFrame: number | null = null;
   private readonly disposeFontMetricsSync: () => void;
+  private readonly unsubscribeSettings: () => void;
+  private showLineNumbers = selectCodeBlockLineNumbersEnabled(useUnifiedStore.getState());
 
   constructor(node: Node, view: EditorView, getPos: () => number | undefined) {
     this.node = node;
@@ -57,12 +61,7 @@ export class CodeBlockNodeView implements NodeView {
     this.dom.classList.add(
       'code-block-container',
       'my-4',
-      'rounded-xl',
-      'border',
-      'border-gray-200',
-      'dark:border-zinc-800',
-      'bg-white',
-      'dark:bg-[#1e1e1e]',
+      'rounded-2xl',
       'overflow-hidden',
       'group/code',
       'transition-all'
@@ -84,7 +83,7 @@ export class CodeBlockNodeView implements NodeView {
         extensions: [
           this.readOnlyCompartment.of(EditorState.readOnly.of(!this.view.editable)),
           this.languageCompartment.of([]),
-          this.lineNumbersCompartment.of(this.node.attrs.lineNumbers ? [lineNumbers()] : []),
+          this.lineNumbersCompartment.of(this.getLineNumberExtensions(this.node)),
           this.wrapCompartment.of(this.node.attrs.wrap ? [CodeMirror.lineWrapping] : []),
           drawSelection(),
           ...createCodeBlockEditorTheme(),
@@ -98,11 +97,29 @@ export class CodeBlockNodeView implements NodeView {
       this.dom.ownerDocument,
       () => this.scheduleMeasure()
     );
+    this.unsubscribeSettings = useUnifiedStore.subscribe((state, previousState) => {
+      const nextShowLineNumbers = selectCodeBlockLineNumbersEnabled(state);
+      const previousShowLineNumbers = selectCodeBlockLineNumbersEnabled(previousState);
+
+      if (nextShowLineNumbers === previousShowLineNumbers) {
+        return;
+      }
+
+      this.showLineNumbers = nextShowLineNumbers;
+      this.cm.dispatch({
+        effects: this.lineNumbersCompartment.reconfigure(this.getLineNumberExtensions(this.node)),
+      });
+      this.scheduleMeasure();
+    });
 
     this.applyCollapsedState();
     this.root = createRoot(this.headerDOM);
     this.render();
     void this.syncLanguage();
+  }
+
+  private getLineNumberExtensions(node: Node) {
+    return this.showLineNumbers && node.attrs.lineNumbers !== false ? [lineNumbers()] : [];
   }
 
   private render() {
@@ -211,7 +228,7 @@ export class CodeBlockNodeView implements NodeView {
       effects.push(this.readOnlyCompartment.reconfigure(EditorState.readOnly.of(!this.view.editable)));
     }
     effects.push(
-      this.lineNumbersCompartment.reconfigure(node.attrs.lineNumbers ? [lineNumbers()] : []),
+      this.lineNumbersCompartment.reconfigure(this.getLineNumberExtensions(node)),
       this.wrapCompartment.reconfigure(node.attrs.wrap ? [CodeMirror.lineWrapping] : [])
     );
     if (effects.length > 0) {
@@ -293,6 +310,7 @@ export class CodeBlockNodeView implements NodeView {
       view.cancelAnimationFrame(this.pendingMeasureFrame);
       this.pendingMeasureFrame = null;
     }
+    this.unsubscribeSettings();
     this.disposeFontMetricsSync();
     this.root.unmount();
     this.cm.destroy();

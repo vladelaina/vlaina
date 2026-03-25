@@ -24,4 +24,9 @@ export const DEFAULT_SETTINGS = {
   hourHeight: DEFAULT_HOUR_HEIGHT,
   use24Hour: DEFAULT_USE_24_HOUR,
   dayStartTime: DEFAULT_DAY_START_TIME,
+  markdown: {
+    codeBlock: {
+      showLineNumbers: true,
+    },
+  },
 } as const;

@@ -1,3 +1,5 @@
+import { isTocShortcutText } from '../toc/tocShortcut';
+
 const OPENING_FENCE_PATTERN = /^```[^`]*$/;
 const CLOSING_FENCE_PATTERN = /^```+$/;
 const THEMATIC_BREAK_PATTERN = /^(\s*)([-*_])(?:\s*\2){2,}\s*$/;
@@ -148,7 +150,11 @@ export const looksLikeMarkdownForPaste = (value: string): boolean => {
     const normalized = normalizeLineEnding(value);
     if (!normalized.trim()) return false;
 
-    return BLOCK_MARKDOWN_SIGNAL_PATTERN.test(normalized) || INLINE_MARKDOWN_SIGNAL_PATTERN.test(normalized);
+    return (
+        isTocShortcutText(normalized)
+        || BLOCK_MARKDOWN_SIGNAL_PATTERN.test(normalized)
+        || INLINE_MARKDOWN_SIGNAL_PATTERN.test(normalized)
+    );
 };
 
 export const extractLargestMarkdownFenceContent = (value: string): string | null => {
